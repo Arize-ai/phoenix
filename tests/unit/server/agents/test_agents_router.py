@@ -392,7 +392,21 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     compaction_message = compact_result["compactionMessage"]
     assert compaction_message["role"] == "user"
     assert compaction_message["metadata"] == {"type": "compaction"}
-    assert json.loads(compaction_message["parts"][0]["text"]) == checkpoint
+    assert (
+        compaction_message["parts"][0]["text"]
+        == """<objectives>
+- Investigate the trace
+</objectives>
+<completed_work>
+- Located the slow span
+</completed_work>
+<next_steps>
+- Inspect the latest turn
+</next_steps>
+<important_details>
+- trace-id-123
+</important_details>"""
+    )
     assert "Find the slow span" in str(summary_messages)
     assert "trace-id-123" in str(summary_messages)
     assert "What should I inspect next?" in str(summary_messages)

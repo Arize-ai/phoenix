@@ -346,30 +346,14 @@ const COMPACTION_SUMMARY_SECTIONS = [
 const COMPACTION_SUMMARY_COLLAPSED_HEIGHT_PX = 320;
 
 function getCompactionSummaryMarkdown(summary: string): string {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(summary);
-  } catch {
-    return summary;
-  }
-  if (typeof parsed !== "object" || parsed === null) {
-    return summary;
-  }
-  const record = parsed as Record<string, unknown>;
   const sections = COMPACTION_SUMMARY_SECTIONS.flatMap(([key, label]) => {
-    const items = Array.isArray(record[key])
-      ? record[key].filter(
-          (item): item is string =>
-            typeof item === "string" && item.trim() !== ""
-        )
-      : [];
-    if (items.length === 0) {
+    const content = summary
+      .match(new RegExp(`<${key}>([\\s\\S]*?)</${key}>`))?.[1]
+      ?.trim();
+    if (!content) {
       return [];
     }
-    const markdownItems = items
-      .map((item) => `- ${item.trim().replaceAll("\n", "\n  ")}`)
-      .join("\n");
-    return [`### ${label}\n\n${markdownItems}`];
+    return [`### ${label}\n\n${content}`];
   });
   return sections.length > 0 ? sections.join("\n\n") : summary;
 }

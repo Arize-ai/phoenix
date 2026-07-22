@@ -88,7 +88,7 @@ async def summarize_messages_for_compaction(
     messages: list[ModelMessage],
     model: Model,
 ) -> str:
-    """Create a validated, provider-neutral checkpoint from historical messages."""
+    """Create a provider-neutral checkpoint from historical messages."""
     request_params = ModelRequestParameters(
         function_tools=[],
         output_tools=[COMPACTION_TOOL_DEFINITION],
@@ -112,5 +112,10 @@ async def summarize_messages_for_compaction(
                 checkpoint = _ConversationCheckpoint.model_validate(part.args_as_dict())
             except Exception as exc:
                 raise SummarizationError(f"invalid compaction tool arguments: {exc}") from exc
-            return checkpoint.model_dump_json()
+            sections = []
+            for key, items in checkpoint.model_dump().items():
+                content = "\n".join(f"- {item.strip()}" for item in items if item.strip())
+                if content:
+                    sections.append(f"<{key}>\n{content}\n</{key}>")
+            return "\n".join(sections)
     raise SummarizationError("model did not call the conversation checkpoint tool")

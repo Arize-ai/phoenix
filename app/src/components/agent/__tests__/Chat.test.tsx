@@ -376,16 +376,18 @@ describe("ChatView", () => {
       parts: [
         {
           type: "text",
-          text: JSON.stringify({
-            objectives: ["Investigate the trace"],
-            constraints_and_preferences: [],
-            decisions: [],
-            completed_work: ["Located the slow span"],
-            active_work: [],
-            blockers: [],
-            next_steps: ["Inspect the latest turn"],
-            important_details: ["trace-id-123"],
-          }),
+          text: `<objectives>
+- Investigate the trace
+</objectives>
+<completed_work>
+- Located the slow span
+</completed_work>
+<next_steps>
+- Inspect the latest turn
+</next_steps>
+<important_details>
+- trace-id-123
+</important_details>`,
         },
       ],
     } as AgentUIMessage;
@@ -402,8 +404,10 @@ describe("ChatView", () => {
     ).toBe("assistant-message");
     const summary = divider?.nextElementSibling;
     expect(summary?.getAttribute("aria-label")).toBe("Compaction summary");
+    expect(summary?.textContent).toContain("Objectives");
     expect(summary?.textContent).toContain("Investigate the trace");
     expect(summary?.textContent).toContain("trace-id-123");
+    expect(summary?.textContent).not.toContain("Blockers");
     expect(summary?.nextElementSibling?.getAttribute("data-message-id")).toBe(
       "user-message-2"
     );
