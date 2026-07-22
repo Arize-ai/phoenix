@@ -1,4 +1,8 @@
-import { formatApiError, HttpError, type pathsV1 } from "@arizeai/phoenix-client";
+import {
+  formatApiError,
+  HttpError,
+  type pathsV1,
+} from "@arizeai/phoenix-client";
 import {
   DefaultChatTransport,
   readUIMessageStream,
@@ -49,9 +53,7 @@ function toLocalISOWithOffset(date: Date): string {
   return `${localIso}${sign}${offsetHours}:${offsetRemainderMinutes}`;
 }
 
-/**
- * Build the agent-session chat URL.
- */
+/** Build the agent-session chat URL. */
 export function buildAgentSessionChatUrl({
   endpoint,
   agentSessionId,
@@ -79,12 +81,7 @@ async function readErrorDetail({
   }
 }
 
-/**
- * Create a temporary `AgentSession` on the Phoenix server and return its
- * GlobalID — the session id the agent-session chat route expects. Throws a
- * descriptive error when the endpoint is missing or the request fails.
- * `fetchImpl` is injectable for testing.
- */
+/** Create a temporary `AgentSession`; its GlobalID is the chat session id. */
 export async function createTemporaryAgentSession({
   config,
   fetchImpl,
@@ -177,10 +174,7 @@ export function buildPxiContexts({
   ];
 }
 
-/**
- * Shared request fields derived from the resolved runtime options — trace
- * settings, edit permission, capability contexts, and model selection.
- */
+/** Shared request fields derived from the resolved runtime options. */
 function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
   return {
     id: options.sessionId,
@@ -198,11 +192,7 @@ function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
   };
 }
 
-/**
- * Assemble an agent-session chat request from the conversation so far. The
- * server owns the session transcript, so only the trailing message — the
- * turn's new user message — is sent.
- */
+/** Assemble the chat request; the server owns the transcript, so only the trailing message is sent. */
 export function buildPxiChatRequest({
   messages,
   options,
@@ -220,17 +210,7 @@ export function buildPxiChatRequest({
   };
 }
 
-/**
- * Create the AI SDK transport pointed at the configured Phoenix endpoint.
- *
- * A temporary `AgentSession` is created via GraphQL on the first send — its
- * GlobalID becomes the chat URL's session id — and each turn POSTs only its
- * trailing message.
- *
- * Each outgoing turn is rebuilt through the request builders, so per-request
- * context (like the current time) stays fresh. Throws if no endpoint is
- * configured. `fetch` is injectable for testing.
- */
+/** Create the AI SDK transport pointed at the configured Phoenix endpoint. */
 export function createServerAgentTransport({
   options,
   fetch,
@@ -269,7 +249,7 @@ export function createServerAgentTransport({
       endpoint,
       // Placeholder only: prepareSendMessagesRequest overrides the URL with
       // the server-created session id on every send.
-      agentSessionId: options.sessionId,
+      agentSessionId: "placeholder",
     }),
     headers: buildPxiHeaders({ config: options.config }),
     fetch: transportFetch,
