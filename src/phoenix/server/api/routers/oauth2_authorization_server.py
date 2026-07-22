@@ -53,7 +53,7 @@ from phoenix.server.types import (
     TokenStore,
     UserId,
 )
-from phoenix.server.utils import prepend_root_path, strip_root_path
+from phoenix.server.utils import GET_HEAD, prepend_root_path, strip_root_path
 
 logger = logging.getLogger(__name__)
 
@@ -405,12 +405,12 @@ def _authorization_server_metadata(request: Request) -> dict[str, Any]:
     return metadata
 
 
-@router.get("/.well-known/oauth-authorization-server")
+@router.api_route("/.well-known/oauth-authorization-server", methods=GET_HEAD)
 async def authorization_server_metadata(request: Request) -> JSONResponse:
     return JSONResponse(_authorization_server_metadata(request))
 
 
-@router.get("/.well-known/openid-configuration")
+@router.api_route("/.well-known/openid-configuration", methods=GET_HEAD)
 async def openid_configuration(request: Request) -> JSONResponse:
     """Serve the authorization-server metadata at the OIDC discovery location.
 
