@@ -1,18 +1,10 @@
-import { css } from "@emotion/react";
 import { type ReactNode, useMemo, useRef, useState } from "react";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Alert } from "@phoenix/components/core/alert";
-import { Button } from "@phoenix/components/core/button";
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/core/dialog";
 import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
-import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
+import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
@@ -86,73 +78,48 @@ export const EditLLMEvaluatorDialogContent = ({
     handleSubmitRef,
   });
   return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>
-          {title ??
-            (mode === "create" ? "Create LLM Evaluator" : "Edit LLM Evaluator")}
-        </DialogTitle>
-        <DialogTitleExtra>
-          <Button slot="close" isDisabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button
-            data-testid="llm-evaluator-form-submit-button"
-            data-mode={mode}
-            variant="primary"
-            isDisabled={isSubmitting || isSubmitDisabled}
-            isPending={isSubmitting}
-            onPress={handleSubmit}
-          >
-            {mode === "create" ? "Create" : "Update"}
-          </Button>
-        </DialogTitleExtra>
-      </DialogHeader>
-      <fieldset
-        disabled={isSubmitting}
-        css={css`
-          all: unset;
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-          min-height: 0;
-          gap: var(--global-dimension-size-200);
-          overflow: auto;
-        `}
-      >
-        {showValidationError && (
+    <EvaluatorFormDialogContent
+      title={
+        title ??
+        (mode === "create" ? "Create LLM Evaluator" : "Edit LLM Evaluator")
+      }
+      submitLabel={mode === "create" ? "Create" : "Update"}
+      onSubmit={handleSubmit}
+      isSubmitting={isSubmitting}
+      isSubmitDisabled={isSubmitDisabled}
+      error={error}
+      errorTitle={
+        mode === "create"
+          ? "Failed to create evaluator"
+          : "Failed to update evaluator"
+      }
+      banner={
+        showValidationError ? (
           <Alert
             variant="danger"
             title="Please fix the highlighted errors before submitting."
           />
-        )}
-        {error && (
-          <Alert
-            variant="danger"
-            title={
-              mode === "create"
-                ? "Failed to create evaluator"
-                : "Failed to update evaluator"
-            }
-          >
-            {error}
-          </Alert>
-        )}
+        ) : null
+      }
+      submitButtonProps={{
+        "data-testid": "llm-evaluator-form-submit-button",
+        "data-mode": mode,
+      }}
+      renderInputVariables={(form) => (
         <LLMEvaluatorInputVariablesProvider>
-          <EvaluatorForm
-            left={
-              formLeftPanel ?? (
-                <>
-                  <EvaluatorNameAndDescriptionFields />
-                  {formLeftPanelExtra}
-                  <LLMEvaluatorForm />
-                </>
-              )
-            }
-            right={formRightPanel ?? <EvaluatorDatasetTestPanel />}
-          />
+          {form}
         </LLMEvaluatorInputVariablesProvider>
-      </fieldset>
-    </DialogContent>
+      )}
+      left={
+        formLeftPanel ?? (
+          <>
+            <EvaluatorNameAndDescriptionFields />
+            {formLeftPanelExtra}
+            <LLMEvaluatorForm />
+          </>
+        )
+      }
+      right={formRightPanel ?? <EvaluatorDatasetTestPanel />}
+    />
   );
 };
