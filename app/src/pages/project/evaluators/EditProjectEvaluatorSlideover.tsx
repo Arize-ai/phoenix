@@ -495,64 +495,66 @@ function EditCodeProjectEvaluator({
     },
   };
   return (
-    <EvaluatorStoreProvider initialState={initialState}>
-      {({ store }) => (
-        <ProjectCodeEvaluatorDialogContent
-          mode="update"
-          projectId={evaluator.project.id}
-          evaluatorId={evaluator.evaluator.id}
-          evaluatorName={evaluator.name}
-          variables={variables}
-          scope={scope}
-          onScopeChange={setScope}
-          expandedKeys={expandedKeys}
-          onExpandedChange={setExpandedKeys}
-          isSubmitting={isUpdating}
-          error={error}
-          onSubmit={() => {
-            setError(undefined);
-            const state = store.getState();
-            // Only override the project's CODE mapping when the user actually
-            // edited it; omitting preserves whatever is currently in effect.
-            const inputMappingChanged =
-              JSON.stringify(state.evaluator.inputMapping) !==
-              initialInputMappingJson;
-            commitUpdate({
-              variables: {
-                input: {
-                  projectEvaluatorId: evaluator.id,
-                  name: state.evaluator.globalName,
-                  description: state.evaluator.description || null,
-                  evaluatorInputMapping: evaluator.evaluator
-                    .inputMapping as EvaluatorInputMapping,
-                  ...(inputMappingChanged
-                    ? { inputMapping: state.evaluator.inputMapping }
-                    : {}),
-                  outputConfigs: buildOutputConfigsInput(state.outputConfigs),
-                  samplingRate: toProjectEvaluatorSamplingFraction(
-                    scope.samplingRatePercent
-                  ),
-                  evaluationTarget: toProjectEvaluatorGraphQLTarget(
-                    scope.targetType
-                  ),
-                  filterCondition: scope.filterCondition,
-                  enabled: evaluator.enabled,
+    <EvaluatorPlaygroundProvider>
+      <EvaluatorStoreProvider initialState={initialState}>
+        {({ store }) => (
+          <ProjectCodeEvaluatorDialogContent
+            mode="update"
+            projectId={evaluator.project.id}
+            evaluatorId={evaluator.evaluator.id}
+            evaluatorName={evaluator.name}
+            variables={variables}
+            scope={scope}
+            onScopeChange={setScope}
+            expandedKeys={expandedKeys}
+            onExpandedChange={setExpandedKeys}
+            isSubmitting={isUpdating}
+            error={error}
+            onSubmit={() => {
+              setError(undefined);
+              const state = store.getState();
+              // Only override the project's CODE mapping when the user actually
+              // edited it; omitting preserves whatever is currently in effect.
+              const inputMappingChanged =
+                JSON.stringify(state.evaluator.inputMapping) !==
+                initialInputMappingJson;
+              commitUpdate({
+                variables: {
+                  input: {
+                    projectEvaluatorId: evaluator.id,
+                    name: state.evaluator.globalName,
+                    description: state.evaluator.description || null,
+                    evaluatorInputMapping: evaluator.evaluator
+                      .inputMapping as EvaluatorInputMapping,
+                    ...(inputMappingChanged
+                      ? { inputMapping: state.evaluator.inputMapping }
+                      : {}),
+                    outputConfigs: buildOutputConfigsInput(state.outputConfigs),
+                    samplingRate: toProjectEvaluatorSamplingFraction(
+                      scope.samplingRatePercent
+                    ),
+                    evaluationTarget: toProjectEvaluatorGraphQLTarget(
+                      scope.targetType
+                    ),
+                    filterCondition: scope.filterCondition,
+                    enabled: evaluator.enabled,
+                  },
                 },
-              },
-              onCompleted: () => {
-                notifySuccess({ title: "Evaluator updated" });
-                onClose();
-              },
-              onError: (mutationError) =>
-                setError(
-                  getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                    "\n"
-                  ) ?? mutationError.message
-                ),
-            });
-          }}
-        />
-      )}
-    </EvaluatorStoreProvider>
+                onCompleted: () => {
+                  notifySuccess({ title: "Evaluator updated" });
+                  onClose();
+                },
+                onError: (mutationError) =>
+                  setError(
+                    getErrorMessagesFromRelayMutationError(mutationError)?.join(
+                      "\n"
+                    ) ?? mutationError.message
+                  ),
+              });
+            }}
+          />
+        )}
+      </EvaluatorStoreProvider>
+    </EvaluatorPlaygroundProvider>
   );
 }
