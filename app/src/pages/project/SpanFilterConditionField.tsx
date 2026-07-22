@@ -1,11 +1,5 @@
 import type { Completion } from "@codemirror/autocomplete";
-import {
-  useCallback,
-  useDeferredValue,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
@@ -281,12 +275,6 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
 
   const projectId = useTracingContext((state) => state.projectId);
 
-  // The shared field hands back only the condition once it validates, so the
-  // rest of the response is captured here on the way through. Keyed by the
-  // condition it describes, since a stale answer would be worse than none.
-  const lastValidation = useRef<SpanFilterConditionValidation | null>(null);
-  const lastValidatedCondition = useRef<string | null>(null);
-
   // Stable identities: the field caches completions per loader, and its
   // validation effect keys on validateCondition — an unstable identity
   // there would re-run validation on every validity flip, endlessly
@@ -295,12 +283,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       loadAnnotationCompletions: projectId
         ? () => fetchAnnotationCompletions(projectId)
         : undefined,
-      validateCondition: async (condition: string) => {
-        const result = await validateSpanFilterCondition(condition, projectId);
-        lastValidation.current = result;
-        lastValidatedCondition.current = condition;
-        return result;
-      },
+      validateCondition: (condition: string) =>
+        validateSpanFilterCondition(condition, projectId),
     }),
     [projectId]
   );
@@ -321,16 +305,12 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   );
 
   const handleValidCondition = useCallback(
-    (condition: string) => {
+    (condition: string, validation: SpanFilterConditionValidation | null) => {
       recordValidCondition(condition);
-      // An empty condition never reaches the validator (the field resolves it
-      // itself), and restricts nothing, so it is knowably not root-scoped.
-      const selectsRootSpansOnly = !condition
-        ? false
-        : lastValidatedCondition.current === condition
-          ? (lastValidation.current?.selectsRootSpansOnly ?? null)
-          : null;
-      onValidCondition(condition, selectsRootSpansOnly);
+      // A null validation means the condition was empty, which the field
+      // resolves without asking the server. An empty condition restricts
+      // nothing, so it is knowably not root-scoped.
+      onValidCondition(condition, validation?.selectsRootSpansOnly ?? false);
     },
     [recordValidCondition, onValidCondition]
   );

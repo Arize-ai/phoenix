@@ -113,7 +113,10 @@ function snippetToCompletion({ label, snippet }: DSLFilterSnippet): Completion {
   });
 }
 
-export type DSLFilterConditionFieldProps = {
+export type DSLFilterConditionFieldProps<
+  TResult extends DSLFilterConditionValidationResult =
+    DSLFilterConditionValidationResult,
+> = {
   /**
    * The current filter condition expression (controlled)
    */
@@ -157,13 +160,15 @@ export type DSLFilterConditionFieldProps = {
    * empty (or whitespace-only) condition — the field resolves those as
    * valid itself.
    */
-  validateCondition: (
-    condition: string
-  ) => Promise<DSLFilterConditionValidationResult | null | undefined>;
+  validateCondition: (condition: string) => Promise<TResult | null | undefined>;
   /**
-   * Callback when the condition passes validation
+   * Callback when the condition passes validation. Receives whatever
+   * `validateCondition` resolved to, so a caller that asks the server for more
+   * than validity gets the rest of the answer without a channel of its own.
+   * `null` for an empty condition, which is resolved here rather than by the
+   * validator.
    */
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (condition: string, result: TResult | null) => void;
   /**
    * Callback whenever the validity of the condition changes, including when
    * a validation round-trip is in flight (invalid until proven valid)
@@ -192,7 +197,9 @@ export type DSLFilterConditionFieldProps = {
  * field — so an error can never fight the suggestions dropdown for the same
  * space.
  */
-export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
+export function DSLFilterConditionField<
+  TResult extends DSLFilterConditionValidationResult,
+>(props: DSLFilterConditionFieldProps<TResult>) {
   const {
     value,
     onChange,
@@ -337,7 +344,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     if (value.trim() === "") {
       onValidationStateChange?.(true);
       startTransition(() => {
-        onValidCondition("");
+        onValidCondition("", null);
       });
       return;
     }
@@ -360,7 +367,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
             setErrorMessage(null);
             onValidationStateChange?.(true);
             startTransition(() => {
-              onValidCondition(value);
+              onValidCondition(value, result);
             });
           }
         })

@@ -123,9 +123,9 @@ const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => {
           snippets={snippets}
           loadCompletions={loadCompletions}
           validateCondition={validateCondition}
-          onValidCondition={(condition) => {
+          onValidCondition={(condition, result) => {
             setValidCondition(condition);
-            args.onValidCondition(condition);
+            args.onValidCondition(condition, result);
           }}
         />
         <Text color="text-700" size="XS">
