@@ -81,6 +81,7 @@ from phoenix.server.api.types.Evaluator import (
     DatasetEvaluator,
     Evaluator,
     LLMEvaluator,
+    ProjectEvaluator,
 )
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -1085,6 +1086,16 @@ class Query:
             return BuiltInEvaluator(id=node_id)
         elif type_name == DatasetEvaluator.__name__:
             return DatasetEvaluator(id=node_id)
+        elif type_name == ProjectEvaluator.__name__:
+            async with info.context.db.read() as session:
+                if project_evaluator_record := await session.scalar(
+                    select(models.ProjectEvaluatorCriteria).where(
+                        models.ProjectEvaluatorCriteria.id == node_id
+                    )
+                ):
+                    return ProjectEvaluator(id=node_id, db_record=project_evaluator_record)
+                else:
+                    raise NotFound(f"Unknown project evaluator: {id}")
         elif type_name == SandboxConfig.__name__:
             return SandboxConfig(id=node_id)
         if type_name == GenerativeModelCustomProvider.__name__:

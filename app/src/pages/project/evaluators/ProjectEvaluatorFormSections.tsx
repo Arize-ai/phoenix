@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Key } from "react-aria-components";
 
 import {
@@ -57,6 +57,32 @@ export const ProjectEvaluatorFormSections = ({
   const updateTarget = (targetType: ProjectEvaluatorTarget) => {
     onScopeChange({ ...scope, targetType });
   };
+  // The filter field re-invokes `onValidCondition` on every validation pass, so
+  // it must keep a stable identity: an inline arrow would re-fire the field's
+  // validation effect each render and lift a fresh `scope` object even when the
+  // condition is unchanged, spinning an unbounded validate/re-render loop. Read
+  // the latest scope/expandedKeys from refs and only lift when the validated
+  // condition actually differs.
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const expandedKeysRef = useRef(expandedKeys);
+  expandedKeysRef.current = expandedKeys;
+  const handleValidCondition = useCallback(
+    (filterCondition: string) => {
+      const currentScope = scopeRef.current;
+      if (filterCondition === currentScope.filterCondition) {
+        return;
+      }
+      onScopeChange({ ...currentScope, filterCondition });
+      if (
+        filterCondition.trim() !== "" &&
+        !expandedKeysRef.current.has("definition")
+      ) {
+        onExpandedChange(new Set([...expandedKeysRef.current, "definition"]));
+      }
+    },
+    [onScopeChange, onExpandedChange]
+  );
   return (
     <DisclosureGroup
       expandedKeys={expandedKeys}
@@ -89,15 +115,7 @@ export const ProjectEvaluatorFormSections = ({
                     current ? `${current} and ${condition}` : condition
                   )
                 }
-                onValidCondition={(filterCondition) => {
-                  const hasNewFilter =
-                    filterCondition.trim() !== "" &&
-                    filterCondition !== scope.filterCondition;
-                  onScopeChange({ ...scope, filterCondition });
-                  if (hasNewFilter && !expandedKeys.has("definition")) {
-                    onExpandedChange(new Set([...expandedKeys, "definition"]));
-                  }
-                }}
+                onValidCondition={handleValidCondition}
                 onValidityChange={onFilterValidityChange}
                 placeholder="span_kind == 'LLM'"
               />

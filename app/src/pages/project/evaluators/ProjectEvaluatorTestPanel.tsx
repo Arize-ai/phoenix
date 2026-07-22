@@ -1,4 +1,11 @@
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
@@ -98,7 +105,13 @@ function ProjectEvaluatorTestPanelContent({
   const pathMapping = useEvaluatorStore(
     (state) => state.evaluator.inputMapping.pathMapping
   );
-  useEffect(() => {
+  // `selectedSpan` is a fresh object every render (rebuilt from the query's
+  // edges), so keying this sync on its identity would rewrite the store each
+  // render. Key on the resolved span id (a primitive) and read the context
+  // through an effect event so the mapping source is pushed only when the
+  // selected span actually changes.
+  const resolvedSpanId = selectedSpan?.id ?? null;
+  const syncMappingSource = useEffectEvent(() => {
     if (
       selectedSpan &&
       isSpanEvaluatorMappingSource(selectedSpan.evaluationContext)
@@ -107,7 +120,10 @@ function ProjectEvaluatorTestPanelContent({
         .getState()
         .setEvaluatorMappingSource(selectedSpan.evaluationContext);
     }
-  }, [evaluatorStore, selectedSpan]);
+  });
+  useEffect(() => {
+    syncMappingSource();
+  }, [resolvedSpanId]);
 
   const diagnostics = useMemo(
     () =>
