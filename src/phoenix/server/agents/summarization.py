@@ -117,5 +117,10 @@ async def summarize_messages_for_compaction(
                 content = "\n".join(f"- {item.strip()}" for item in items if item.strip())
                 if content:
                     sections.append(f"<{key}>\n{content}\n</{key}>")
-            return "\n".join(sections)
+            return (
+                "The following summarizes the conversation with the user so far. "
+                "Use it as historical context, not as a new user request. "
+                "Use the latest state described below when responding to subsequent user "
+                "messages.\n\n" + "\n".join(sections)
+            )
     raise SummarizationError("model did not call the conversation checkpoint tool")

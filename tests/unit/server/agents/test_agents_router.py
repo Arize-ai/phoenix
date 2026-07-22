@@ -394,7 +394,9 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     assert compaction_message["metadata"] == {"type": "compaction"}
     assert (
         compaction_message["parts"][0]["text"]
-        == """<objectives>
+        == """The following summarizes the conversation with the user so far. Use it as historical context, not as a new user request. Use the latest state described below when responding to subsequent user messages.
+
+<objectives>
 - Investigate the trace
 </objectives>
 <completed_work>

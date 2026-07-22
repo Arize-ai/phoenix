@@ -376,7 +376,9 @@ describe("ChatView", () => {
       parts: [
         {
           type: "text",
-          text: `<objectives>
+          text: `The following summarizes the conversation with the user so far. Use it as historical context, not as a new user request. Use the latest state described below when responding to subsequent user messages.
+
+<objectives>
 - Investigate the trace
 </objectives>
 <completed_work>
@@ -408,6 +410,7 @@ describe("ChatView", () => {
     expect(summary?.textContent).toContain("Investigate the trace");
     expect(summary?.textContent).toContain("trace-id-123");
     expect(summary?.textContent).not.toContain("Blockers");
+    expect(summary?.textContent).not.toContain("historical context");
     expect(summary?.nextElementSibling?.getAttribute("data-message-id")).toBe(
       "user-message-2"
     );
