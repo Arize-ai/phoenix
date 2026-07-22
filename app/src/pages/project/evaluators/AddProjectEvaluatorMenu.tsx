@@ -128,6 +128,8 @@ function AddProjectEvaluatorMenuItems({
         onAction={(action) => {
           if (action === "createEvaluator") {
             onSelectCreationMode({ kind: "scratch" });
+          } else if (action === "createCodeEvaluator") {
+            onSelectCreationMode({ kind: "newCode" });
           }
         }}
       >
@@ -155,6 +157,12 @@ function AddProjectEvaluatorMenuItems({
         </MenuSection>
         <MenuSection>
           <MenuSectionTitle title="Code evaluator" />
+          <MenuItem
+            leadingContent={<Icon svg={<Icons.Plus />} />}
+            id="createCodeEvaluator"
+          >
+            Create new code evaluator
+          </MenuItem>
           <EvaluatorSubmenu
             label="Attach existing code evaluator"
             icon={<Icons.Code />}
