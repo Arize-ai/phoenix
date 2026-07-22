@@ -177,6 +177,53 @@ test.describe("Playground", () => {
     await expect(messageStop).toBeFocused();
   });
 
+  test("types printable characters directly into inactive message editors", async ({
+    page,
+  }) => {
+    await page.goto("/playground");
+    await expect(
+      page.getByRole("heading", { name: "Playground" })
+    ).toBeVisible();
+
+    const messageItems = page.locator("li").filter({
+      has: page.getByRole("button", { name: "Reorder message" }),
+    });
+    const systemMessage = messageItems.first();
+    const systemMessageStop = systemMessage.getByRole("button", {
+      name: "Edit message content",
+    });
+    const systemMessageContent = systemMessage.locator(".cm-content");
+
+    await systemMessageStop.focus();
+    await page.keyboard.press("Control+x");
+    await expect(systemMessageStop).toBeFocused();
+    await expect(systemMessageContent).toHaveText("You are a chatbot");
+
+    await page.keyboard.press("x");
+    await expect(
+      systemMessage.getByRole("textbox", { name: "Message content" })
+    ).toBeFocused();
+    await expect(systemMessageContent).toHaveText("xYou are a chatbot");
+
+    await page.keyboard.press("Escape");
+    await page.keyboard.press(" ");
+    await expect(systemMessageContent).toHaveText("x You are a chatbot");
+
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("?");
+    await expect(systemMessageContent).toHaveText("x ?You are a chatbot");
+
+    await page.keyboard.press("Escape");
+    const userMessage = messageItems.nth(1);
+    await userMessage
+      .getByRole("button", { name: "Edit message content" })
+      .focus();
+    await page.keyboard.press("z");
+    await expect(userMessage.locator(".cm-content")).toHaveText(
+      "z{{question}}"
+    );
+  });
+
   test("preserves prompt selection in the URL across page reloads", async ({
     page,
   }) => {

@@ -1,3 +1,4 @@
+import { Transaction } from "@codemirror/state";
 import { move } from "@dnd-kit/helpers";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
@@ -290,11 +291,29 @@ function MessageEditor({
           stopEditing();
           return;
         }
-        if (
-          !isEditing &&
-          event.currentTarget === event.target &&
-          (event.key === "Enter" || event.key === " ")
-        ) {
+        if (!isEditing && event.currentTarget === event.target) {
+          const hasCommandModifier =
+            event.ctrlKey || event.metaKey || event.altKey;
+          const isPrintableCharacter =
+            event.key.length === 1 &&
+            !hasCommandModifier &&
+            !event.nativeEvent.isComposing;
+          if (isPrintableCharacter) {
+            const editorView = editorViewRef.current;
+            if (!editorView) {
+              return;
+            }
+            event.preventDefault();
+            editorView.dispatch({
+              ...editorView.state.replaceSelection(event.key),
+              annotations: Transaction.userEvent.of("input.type"),
+            });
+            startEditing();
+            return;
+          }
+          if (event.key !== "Enter") {
+            return;
+          }
           event.preventDefault();
           startEditing();
         }
