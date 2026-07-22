@@ -223,7 +223,7 @@ function AddProjectEvaluatorMenuItems({
             leadingContent={<Icon svg={<Icons.Plus />} />}
             id="createEvaluator"
           >
-            Create from scratch
+            Create new LLM evaluator
           </MenuItem>
           <EvaluatorSubmenu
             label="Copy existing LLM evaluator"
