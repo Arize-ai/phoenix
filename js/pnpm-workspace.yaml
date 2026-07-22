@@ -24,8 +24,9 @@ allowBuilds:
 
 overrides:
   # Pre-existing exact pin: forces peer-dep alignment across @mastra/* packages
-  # that each declare narrow hono ranges.
-  "hono": "4.12.18"
+  # that each declare narrow hono ranges. Pinned to latest to pick up the fix
+  # for CVE-2026-54290 (hono <4.12.25).
+  "hono": "4.12.31"
   # Still load-bearing: @langchain/core and @braintrust/core pin uuid 9.x/10.x.
   "uuid@<11.1.1": ">=11.1.1"
   # Still load-bearing: some transitive still pulls in vulnerable ip-address.
