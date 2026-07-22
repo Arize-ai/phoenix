@@ -7,6 +7,7 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
+import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 
 const PAGE_SIZE = 30;
 
@@ -38,6 +39,13 @@ export function ProjectEvaluatorsTable({
               enabled
               evaluator {
                 kind
+                description
+                ... on CodeEvaluator {
+                  inputMapping {
+                    pathMapping
+                    literalMapping
+                  }
+                }
               }
             }
           }
@@ -91,7 +99,21 @@ export function ProjectEvaluatorsTable({
                     </Text>
                   </td>
                   <td>{formatSamplingRate(node.samplingRate)}</td>
-                  <td>{node.enabled ? "Enabled" : "Disabled"}</td>
+                  <td>
+                    <ProjectEvaluatorEnabledSwitch
+                      projectEvaluatorId={node.id}
+                      kind={node.evaluator.kind}
+                      name={node.name}
+                      enabled={node.enabled}
+                      samplingRate={node.samplingRate}
+                      evaluationTarget={node.evaluationTarget}
+                      filterCondition={node.filterCondition}
+                      description={node.evaluator.description ?? null}
+                      evaluatorInputMapping={
+                        node.evaluator.inputMapping ?? null
+                      }
+                    />
+                  </td>
                   <td>
                     <ProjectEvaluatorActionMenu
                       projectEvaluatorId={node.id}

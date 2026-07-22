@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d2924ec1c9eac3bff00af69a37d9ef86>>
+ * @generated SignedSource<<f032716dc3a3baa6e5e502303bb62c42>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -188,6 +188,45 @@ return {
                                 "name": "kind",
                                 "storageKey": null
                               },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "description",
+                                "storageKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "EvaluatorInputMapping",
+                                    "kind": "LinkedField",
+                                    "name": "inputMapping",
+                                    "plural": false,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "pathMapping",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "literalMapping",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  }
+                                ],
+                                "type": "CodeEvaluator",
+                                "abstractKey": null
+                              },
                               (v3/*: any*/)
                             ],
                             "storageKey": null
@@ -265,12 +304,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a1145d6569701fcf4c7a41385d074a60",
+    "cacheID": "0a5aead3ddab6b15bbccb22d04a82c81",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsPageQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectEvaluatorsTable_project\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project on Project {\n  evaluators(first: 30) {\n    edges {\n      node {\n        id\n        name\n        evaluationTarget\n        filterCondition\n        samplingRate\n        enabled\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectEvaluatorsPageQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectEvaluatorsTable_project\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project on Project {\n  evaluators(first: 30) {\n    edges {\n      node {\n        id\n        name\n        evaluationTarget\n        filterCondition\n        samplingRate\n        enabled\n        evaluator {\n          __typename\n          kind\n          description\n          ... on CodeEvaluator {\n            inputMapping {\n              pathMapping\n              literalMapping\n            }\n          }\n          id\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

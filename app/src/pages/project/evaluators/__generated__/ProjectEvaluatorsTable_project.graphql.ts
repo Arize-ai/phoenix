@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<96145e8fa3023f6d6f618dd6bbf11a73>>
+ * @generated SignedSource<<35f0223db375ae6dd955e8b46be63be4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,6 +20,11 @@ export type ProjectEvaluatorsTable_project$data = {
         readonly enabled: boolean;
         readonly evaluationTarget: EvaluationTarget;
         readonly evaluator: {
+          readonly description: string | null;
+          readonly inputMapping?: {
+            readonly literalMapping: any;
+            readonly pathMapping: any;
+          };
           readonly kind: EvaluatorKind;
         };
         readonly filterCondition: string;
@@ -168,6 +173,45 @@ return {
                       "kind": "ScalarField",
                       "name": "kind",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "description",
+                      "storageKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "EvaluatorInputMapping",
+                          "kind": "LinkedField",
+                          "name": "inputMapping",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "pathMapping",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "literalMapping",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "CodeEvaluator",
+                      "abstractKey": null
                     }
                   ],
                   "storageKey": null
@@ -239,6 +283,6 @@ return {
 };
 })();
 
-(node as any).hash = "d3ceaaf22b0b6205ae3c711c0dc5529c";
+(node as any).hash = "0a95022b3e83ae220bc6fe5ae5b9de8f";
 
 export default node;
