@@ -25,11 +25,6 @@ export async function main({
 } = {}): Promise<void> {
   const options = await parsePxiRuntimeOptions({ argv });
   await runPxiModelPreflight({ options });
-  // TODO(https://github.com/Arize-ai/phoenix/issues/14623): once the release
-  // that ships the agent-session chat contract is published and
-  // AGENT_SESSION_CHAT's version pin is confirmed against it, fail fast here
-  // with a clear error when the connected server is older — the CLI no longer
-  // falls back to the legacy full-transcript contract.
   // Ink's kitty-keyboard "auto" detection writes a `CSI ? u` capability query to
   // stdout from its constructor, before it switches the terminal into raw mode.
   // On a TTY still in canonical mode the terminal echoes its reply (`ESC[?0u`)
