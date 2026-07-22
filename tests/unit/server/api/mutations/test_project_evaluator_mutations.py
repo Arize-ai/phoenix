@@ -84,6 +84,14 @@ query($id: ID!) {{
 }}
 """
 
+_PROJECT_EVALUATOR_NODE = f"""
+query($id: ID!) {{
+  node(id: $id) {{
+    ... on ProjectEvaluator {{ {_PROJECT_EVALUATOR_FIELDS} }}
+  }}
+}}
+"""
+
 
 async def _add_project(db: DbSessionFactory) -> models.Project:
     async with db() as session:
@@ -481,6 +489,27 @@ async def test_project_llm_evaluator_create_update_delete(
         {"input": {"projectEvaluatorIds": [created["id"]]}},
     )
     assert delete_result.data and not delete_result.errors
+
+
+async def test_project_evaluator_node_resolves_by_global_id(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    create_input = _llm_input(project, name="llm-node", text="Evaluate {{input}}")
+    create_result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
+
+    node_result = await gql_client.execute(
+        _PROJECT_EVALUATOR_NODE,
+        {"id": created["id"]},
+    )
+    assert node_result.data and not node_result.errors
+    node = node_result.data["node"]
+    assert node["id"] == created["id"]
+    assert node["evaluationTarget"] == "TRACE"
+    assert node["evaluator"]["kind"] == "LLM"
 
 
 async def test_invalid_filter_rejects_before_project_evaluator_writes(
