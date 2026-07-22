@@ -7,6 +7,7 @@ offline-mode test asserts zero client construction.
 
 from __future__ import annotations
 
+import subprocess
 from typing import Any, cast
 
 import pytest
@@ -172,6 +173,127 @@ def test_end_to_end_records_runs_and_pass_annotation(pytester: pytest.Pytester) 
     assert effects["eval_names"] == ["custom", "pass"]
     # PR #13702 guard: runs key on node GlobalIDs, not external_ids (which contain "::").
     assert effects["run_examples"] == effects["node_ids"]
+
+
+def test_marker_metadata_reaches_created_dataset_and_experiment(
+    pytester: pytest.Pytester,
+) -> None:
+    pytester.makeconftest(
+        """
+        import json
+        import os
+
+        import phoenix.client.pytest.plugin as plugin
+
+        class _FakeDataset:
+            id = "Dataset:1"
+            version_id = "Version:1"
+            def __init__(self, examples):
+                self._examples = examples
+            @property
+            def examples(self):
+                return self._examples
+
+        class _FakeDatasets:
+            def __init__(self):
+                self._examples = []
+                self.dataset_description = None
+            def _upload_json_dataset(self, *, dataset_description=None, inputs, metadata,
+                                     example_ids, **kwargs):
+                self.dataset_description = dataset_description
+                self._examples = [
+                    {"id": eid, "node_id": f"DatasetExampleGID:{i}",
+                     "input": inp, "output": {}, "metadata": md}
+                    for i, (eid, inp, md) in enumerate(zip(example_ids, inputs, metadata))
+                ]
+                return _FakeDataset(self._examples)
+            def get_dataset(self, **kwargs):
+                return _FakeDataset(self._examples)
+
+        class _FakeExperiments:
+            def __init__(self):
+                self.experiment_description = None
+                self.experiment_metadata = None
+            def create(self, *, experiment_description=None, experiment_metadata=None, **kwargs):
+                self.experiment_description = experiment_description
+                self.experiment_metadata = experiment_metadata
+                return {"id": "Experiment:1"}
+            def log_run(self, **kwargs):
+                return {"id": "ExperimentRun:1"}
+            def log_evaluation(self, **kwargs):
+                return {"id": "Annotation:1"}
+            def get_experiment_summary(self, *, experiment_id, **kwargs):
+                return {"experiment_id": experiment_id, "dataset_version_id": "Version:1",
+                        "baseline_experiment_id": None, "baseline_dataset_version_id": None,
+                        "annotation_summaries": []}
+
+        class _FakeClient:
+            def __init__(self):
+                self.datasets = _FakeDatasets()
+                self.experiments = _FakeExperiments()
+
+        _CLIENT = _FakeClient()
+
+        def pytest_configure(config):
+            plugin._make_client = lambda: _CLIENT
+            config._phoenix_fake_client = _CLIENT
+
+        def pytest_unconfigure(config):
+            client = config._phoenix_fake_client
+            with open(os.path.join(str(config.rootdir), "metadata-effects.json"), "w") as f:
+                json.dump({
+                    "dataset_description": client.datasets.dataset_description,
+                    "experiment_description": client.experiments.experiment_description,
+                    "experiment_metadata": client.experiments.experiment_metadata,
+                }, f)
+        """
+    )
+    pytester.makepyfile(
+        test_metadata="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.mark.phoenix(
+            dataset="metadata-suite",
+            dataset_description="Customer support regression cases",
+            experiment_description="GPT-4.1 with a lower temperature",
+            experiment_metadata={
+                "model": "gpt-4.1",
+                "parameters": {"temperature": 0.2, "max_tokens": 512},
+            },
+        )
+        def test_answer():
+            px.log_output("A concise answer")
+            assert True
+        """
+    )
+    for command in (
+        ("git", "init", "--quiet"),
+        ("git", "config", "user.email", "phoenix@example.com"),
+        ("git", "config", "user.name", "Phoenix Tests"),
+        ("git", "add", "."),
+        ("git", "commit", "--quiet", "-m", "test fixture"),
+    ):
+        completed = subprocess.run(command, cwd=pytester.path, capture_output=True, text=True)
+        assert completed.returncode == 0, completed.stderr
+    git_sha_result = subprocess.run(
+        ("git", "rev-parse", "HEAD"), cwd=pytester.path, capture_output=True, text=True
+    )
+    assert git_sha_result.returncode == 0, git_sha_result.stderr
+
+    pytester.runpytest_subprocess("-p", "phoenix", "--no-header").assert_outcomes(passed=1)
+
+    import json
+
+    effects = json.loads((pytester.path / "metadata-effects.json").read_text())
+    assert effects["dataset_description"] == "Customer support regression cases"
+    assert effects["experiment_description"] == "GPT-4.1 with a lower temperature"
+    assert effects["experiment_metadata"]["model"] == "gpt-4.1"
+    assert effects["experiment_metadata"]["parameters"] == {
+        "temperature": 0.2,
+        "max_tokens": 512,
+    }
+    assert effects["experiment_metadata"]["git_sha"] == git_sha_result.stdout.strip()
 
 
 def test_failing_test_records_run_with_error(pytester: pytest.Pytester) -> None:

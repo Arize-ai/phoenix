@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from httpx import HTTPStatusError
@@ -47,6 +49,9 @@ class DatasetGroup:
     """All marked items resolving to one dataset name -> one dataset + one experiment."""
 
     name: str
+    dataset_description: Optional[str] = None
+    experiment_description: Optional[str] = None
+    experiment_metadata: Optional[dict[str, Any]] = None
     bindings: dict[str, ItemBinding] = field(default_factory=dict)
     dataset_id: Optional[str] = None
     dataset_version_id: Optional[str] = None
@@ -68,8 +73,40 @@ class RecordedRun:
     evaluations: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
+def _merge_group_value(group: DatasetGroup, field_name: str, value: Any) -> None:
+    if not value:
+        return
+    current = getattr(group, field_name)
+    if current is not None and current != value:
+        raise ValueError(f"Conflicting {field_name} values for Phoenix dataset {group.name!r}")
+    setattr(group, field_name, dict(value) if field_name == "experiment_metadata" else value)
+
+
+def _detect_git_sha(rootpath: Optional[Path]) -> Optional[str]:
+    if rootpath is None:
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=rootpath,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.strip() or None
+
+
 class SuiteState:
-    def __init__(self, *, config: PhoenixTestConfig, partial_collection: bool) -> None:
+    def __init__(
+        self,
+        *,
+        config: PhoenixTestConfig,
+        partial_collection: bool,
+        rootpath: Optional[Path] = None,
+    ) -> None:
         self.config = config
         self.partial_collection = partial_collection
         self._groups: dict[str, DatasetGroup] = {}
@@ -84,11 +121,24 @@ class SuiteState:
         self._evaluator_bundle: Optional[_TracerBundle] = None
         self._owned_bundles: list[_TracerBundle] = []
         self._tracing_closed = False
+        self._rootpath = rootpath
+        self._git_sha: Optional[str] = None
 
     def register_item(
-        self, item: "Item", *, dataset_name: str, external_id: str, repetitions: int = 1
+        self,
+        item: "Item",
+        *,
+        dataset_name: str,
+        external_id: str,
+        repetitions: int = 1,
+        dataset_description: Optional[str] = None,
+        experiment_description: Optional[str] = None,
+        experiment_metadata: Optional[dict[str, Any]] = None,
     ) -> None:
         group = self._groups.setdefault(dataset_name, DatasetGroup(name=dataset_name))
+        _merge_group_value(group, "dataset_description", dataset_description)
+        _merge_group_value(group, "experiment_description", experiment_description)
+        _merge_group_value(group, "experiment_metadata", experiment_metadata)
         group.max_repetitions = max(group.max_repetitions, repetitions)
         binding = ItemBinding(
             nodeid=item.nodeid, dataset_name=dataset_name, external_id=external_id
@@ -111,6 +161,7 @@ class SuiteState:
     def bootstrap(self, client: Any, *, pass_annotation: str) -> None:
         self._client = client
         self._bootstrapped = True
+        self._git_sha = _detect_git_sha(self._rootpath)
         for group in self._groups.values():
             self._sync_dataset(group)
             self._resolve_examples(group)
@@ -205,6 +256,7 @@ class SuiteState:
         action = "append" if self.partial_collection else "update"
         dataset = self._client.datasets._upload_json_dataset(  # noqa: SLF001
             dataset_name=group.name,
+            dataset_description=group.dataset_description,
             inputs=inputs,
             outputs=outputs,
             metadata=metadata,
@@ -245,9 +297,14 @@ class SuiteState:
     def _create_experiment(self, group: DatasetGroup) -> None:
         if group.dataset_id is None:
             return
+        experiment_metadata = dict(group.experiment_metadata or {})
+        if self._git_sha:
+            experiment_metadata.setdefault("git_sha", self._git_sha)
         experiment = self._client.experiments.create(
             dataset_id=group.dataset_id,
             dataset_version_id=group.dataset_version_id,
+            experiment_description=group.experiment_description,
+            experiment_metadata=experiment_metadata or None,
             repetitions=group.max_repetitions,
         )
         group.experiment_id = experiment["id"]

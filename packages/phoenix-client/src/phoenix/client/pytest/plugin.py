@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Mapping
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -83,7 +84,9 @@ def pytest_addoption(parser: "Parser") -> None:
 def pytest_configure(config: "Config") -> None:
     config.addinivalue_line(
         "markers",
-        "phoenix(dataset=None, evaluators=None): record this test as a Phoenix experiment run.",
+        "phoenix(dataset=None, dataset_description=None, experiment_description=None, "
+        "experiment_metadata=None, evaluators=None, repetitions=None): record this test as a "
+        "Phoenix experiment run.",
     )
 
 
@@ -170,16 +173,30 @@ def pytest_collection_modifyitems(
 
     partial = _is_partial_collection(session, config)
 
-    state = SuiteState(config=cfg, partial_collection=partial)
+    state = SuiteState(config=cfg, partial_collection=partial, rootpath=config.rootpath)
     for item in phoenix_items:
         dataset_name = resolve_dataset_name(item, override=cfg.dataset_override)
         external_id = stable_external_id(item)
-        reps = resolve_repetitions(
-            item.get_closest_marker(MARKER_NAME), env_default=cfg.repetitions
-        )
-        state.register_item(
-            item, dataset_name=dataset_name, external_id=external_id, repetitions=reps
-        )
+        marker = item.get_closest_marker(MARKER_NAME)
+        reps = resolve_repetitions(marker, env_default=cfg.repetitions)
+        marker_kwargs = marker.kwargs if marker is not None else {}
+        experiment_metadata = marker_kwargs.get("experiment_metadata")
+        if experiment_metadata is not None and not isinstance(experiment_metadata, Mapping):
+            raise pytest.UsageError("phoenix marker experiment_metadata must be a mapping")
+        try:
+            state.register_item(
+                item,
+                dataset_name=dataset_name,
+                external_id=external_id,
+                repetitions=reps,
+                dataset_description=marker_kwargs.get("dataset_description"),
+                experiment_description=marker_kwargs.get("experiment_description"),
+                experiment_metadata=(
+                    dict(experiment_metadata) if experiment_metadata is not None else None
+                ),
+            )
+        except ValueError as e:
+            raise pytest.UsageError(str(e)) from e
 
     config.stash[_STATE_KEY] = state
 
