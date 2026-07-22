@@ -21,6 +21,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
@@ -66,11 +67,15 @@ function ProjectEvaluatorTestPanelContent({
   filterCondition: string;
   codeEvaluatorId?: string;
 }) {
+  // Match the preview to the page's selected time range so it never surfaces
+  // spans the adjacent tabs would hide.
+  const { timeRange } = useTimeRange();
   const data = useLazyLoadQuery<ProjectEvaluatorTestPanelQuery>(
     graphql`
       query ProjectEvaluatorTestPanelQuery(
         $projectId: ID!
         $filterCondition: String
+        $timeRange: TimeRange
       ) {
         project: node(id: $projectId) {
           ... on Project {
@@ -78,6 +83,7 @@ function ProjectEvaluatorTestPanelContent({
               first: 5
               sort: { col: startTime, dir: desc }
               filterCondition: $filterCondition
+              timeRange: $timeRange
             ) {
               edges {
                 span: node {
@@ -94,6 +100,10 @@ function ProjectEvaluatorTestPanelContent({
     {
       projectId,
       filterCondition: filterCondition.trim() || null,
+      timeRange: {
+        start: timeRange?.start?.toISOString(),
+        end: timeRange?.end?.toISOString(),
+      },
     },
     { fetchPolicy: "store-and-network" }
   );
@@ -220,7 +230,9 @@ function ProjectEvaluatorPreviewButton({
   const [result, setResult] = useState<unknown>(null);
   const [previewEvaluator, isPending] =
     useMutation<ProjectEvaluatorTestPanelMutation>(graphql`
-      mutation ProjectEvaluatorTestPanelMutation($input: EvaluatorPreviewsInput!) {
+      mutation ProjectEvaluatorTestPanelMutation(
+        $input: EvaluatorPreviewsInput!
+      ) {
         evaluatorPreviews(input: $input) {
           results {
             evaluatorName
