@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f08f1135001b76c6f55b6aa1907b1934>>
+ * @generated SignedSource<<d4d90d41450aa5e5ffd46f9f95da7078>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -314,16 +314,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "51c6985e20bf038fa4b58a319359436f",
+    "cacheID": "9c51ccaa1d1b4ce6cab509ec9ffa8be9",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsTablePaginationQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $first: Int = 30\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_2HEEH6\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_2HEEH6 on Project {\n  evaluators(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        evaluationTarget\n        filterCondition\n        samplingRate\n        enabled\n        evaluator {\n          __typename\n          kind\n          description\n          ... on CodeEvaluator {\n            inputMapping {\n              pathMapping\n              literalMapping\n            }\n          }\n          id\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $first: Int = 30\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_2HEEH6\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_2HEEH6 on Project {\n  evaluators(first: $first, after: $after) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  evaluator {\n    __typename\n    kind\n    description\n    ... on CodeEvaluator {\n      inputMapping {\n        pathMapping\n        literalMapping\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0a95022b3e83ae220bc6fe5ae5b9de8f";
+(node as any).hash = "4b0944cb803dcaf75ca4f51ca964e4e7";
 
 export default node;

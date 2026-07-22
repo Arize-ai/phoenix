@@ -1,15 +1,51 @@
 import { css } from "@emotion/react";
-import { graphql, usePaginationFragment } from "react-relay";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { useMemo } from "react";
+import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 
 import { Flex, LoadMoreButton, Text, View } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
+import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorsEmptyGallery } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyGallery";
 
 const PAGE_SIZE = 30;
+
+const readRow = (row: ProjectEvaluatorsTable_row$key) => {
+  return readInlineData(
+    graphql`
+      fragment ProjectEvaluatorsTable_row on ProjectEvaluator @inline {
+        id
+        name
+        evaluationTarget
+        filterCondition
+        samplingRate
+        enabled
+        evaluator {
+          kind
+          description
+          ... on CodeEvaluator {
+            inputMapping {
+              pathMapping
+              literalMapping
+            }
+          }
+        }
+      }
+    `,
+    row
+  );
+};
+
+type TableRow = ReturnType<typeof readRow>;
 
 export function ProjectEvaluatorsTable({
   project,
@@ -18,6 +54,7 @@ export function ProjectEvaluatorsTable({
   project: ProjectEvaluatorsTable_project$key;
   projectId: string;
 }) {
+  "use no memo";
   const { data, hasNext, isLoadingNext, loadNext } = usePaginationFragment(
     graphql`
       fragment ProjectEvaluatorsTable_project on Project
@@ -31,22 +68,7 @@ export function ProjectEvaluatorsTable({
           __id
           edges {
             node {
-              id
-              name
-              evaluationTarget
-              filterCondition
-              samplingRate
-              enabled
-              evaluator {
-                kind
-                description
-                ... on CodeEvaluator {
-                  inputMapping {
-                    pathMapping
-                    literalMapping
-                  }
-                }
-              }
+              ...ProjectEvaluatorsTable_row
             }
           }
         }
@@ -54,8 +76,77 @@ export function ProjectEvaluatorsTable({
     `,
     project
   );
-  const connectionIds = [data.evaluators.__id];
-  const rows = data.evaluators.edges;
+  const connectionId = data.evaluators.__id;
+  const connectionIds = useMemo(() => [connectionId], [connectionId]);
+  const tableData = useMemo(
+    () => data.evaluators.edges.map(({ node }) => readRow(node)),
+    [data.evaluators.edges]
+  );
+  const columns = useMemo<ColumnDef<TableRow>[]>(
+    () => [
+      {
+        header: "Name",
+        accessorKey: "name",
+      },
+      {
+        id: "target",
+        header: "Target",
+        cell: ({ row }) =>
+          formatEvaluationTarget(row.original.evaluationTarget),
+      },
+      {
+        id: "filter",
+        header: "Filter",
+        cell: ({ row }) => (
+          <Text color={row.original.filterCondition ? undefined : "text-700"}>
+            {row.original.filterCondition || "All spans"}
+          </Text>
+        ),
+      },
+      {
+        id: "sampling",
+        header: "Sampling",
+        cell: ({ row }) => formatSamplingRate(row.original.samplingRate),
+      },
+      {
+        id: "enabled",
+        header: "Enabled",
+        cell: ({ row }) => (
+          <ProjectEvaluatorEnabledSwitch
+            projectEvaluatorId={row.original.id}
+            kind={row.original.evaluator.kind}
+            name={row.original.name}
+            enabled={row.original.enabled}
+            samplingRate={row.original.samplingRate}
+            evaluationTarget={row.original.evaluationTarget}
+            filterCondition={row.original.filterCondition}
+            description={row.original.evaluator.description ?? null}
+            evaluatorInputMapping={row.original.evaluator.inputMapping ?? null}
+          />
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <ProjectEvaluatorActionMenu
+            projectEvaluatorId={row.original.id}
+            evaluatorKind={row.original.evaluator.kind}
+            evaluatorName={row.original.name}
+            updateConnectionIds={connectionIds}
+          />
+        ),
+      },
+    ],
+    [connectionIds]
+  );
+  const table = useReactTable({
+    columns,
+    data: tableData,
+    getCoreRowModel: getCoreRowModel(),
+    getRowId: (row) => row.id,
+  });
+  const rows = table.getRowModel().rows;
   return (
     <>
       <View padding="size-100" flex="none">
@@ -76,14 +167,20 @@ export function ProjectEvaluatorsTable({
       >
         <table css={tableCSS} aria-label="Project evaluators">
           <thead>
-            <tr>
-              <th>Name</th>
-              <th>Target</th>
-              <th>Filter</th>
-              <th>Sampling</th>
-              <th>Enabled</th>
-              <th>Actions</th>
-            </tr>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th key={header.id} colSpan={header.colSpan}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </th>
+                ))}
+              </tr>
+            ))}
           </thead>
           {rows.length === 0 ? (
             <ProjectEvaluatorsEmptyGallery
@@ -92,39 +189,16 @@ export function ProjectEvaluatorsTable({
             />
           ) : (
             <tbody>
-              {rows.map(({ node }) => (
-                <tr key={node.id}>
-                  <td>{node.name}</td>
-                  <td>{formatEvaluationTarget(node.evaluationTarget)}</td>
-                  <td>
-                    <Text color={node.filterCondition ? undefined : "text-700"}>
-                      {node.filterCondition || "All spans"}
-                    </Text>
-                  </td>
-                  <td>{formatSamplingRate(node.samplingRate)}</td>
-                  <td>
-                    <ProjectEvaluatorEnabledSwitch
-                      projectEvaluatorId={node.id}
-                      kind={node.evaluator.kind}
-                      name={node.name}
-                      enabled={node.enabled}
-                      samplingRate={node.samplingRate}
-                      evaluationTarget={node.evaluationTarget}
-                      filterCondition={node.filterCondition}
-                      description={node.evaluator.description ?? null}
-                      evaluatorInputMapping={
-                        node.evaluator.inputMapping ?? null
-                      }
-                    />
-                  </td>
-                  <td>
-                    <ProjectEvaluatorActionMenu
-                      projectEvaluatorId={node.id}
-                      evaluatorKind={node.evaluator.kind}
-                      evaluatorName={node.name}
-                      updateConnectionIds={connectionIds}
-                    />
-                  </td>
+              {rows.map((row) => (
+                <tr key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
