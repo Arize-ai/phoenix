@@ -84,7 +84,6 @@ import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
-import { analyzeSpanFilterCondition } from "./spanFilterRootScope";
 import { useSpanFilters } from "./SpanFiltersContext";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
@@ -235,40 +234,20 @@ export function SpansTable(props: SpansTableProps) {
     [setSearchParams]
   );
   const handleValidFilterCondition = useCallback(
-    (condition: string) => {
+    (condition: string, selectsRootSpansOnly: boolean | null) => {
       setFilterCondition(condition);
       writeFilterConditionParam(condition);
+      // Arrives on the same response as the validation that applied this
+      // condition, so the column choice costs no request of its own. `null`
+      // means the server did not answer, in which case the previous answer is
+      // kept rather than flipping the columns on a hiccup.
+      if (selectsRootSpansOnly !== null) {
+        setRootSpansOnly(selectsRootSpansOnly);
+      }
     },
     [writeFilterConditionParam]
   );
-  const projectId = useTracingContext((state) => state.projectId);
 
-  // Resolve whether the applied condition is root-scoped. The answer comes
-  // from the server because it is a question about the filter DSL's grammar;
-  // see `spanFilterRootScope`. Runs only when the *applied* condition changes,
-  // not on every keystroke.
-  useEffect(() => {
-    if (!projectId) {
-      return;
-    }
-    let cancelled = false;
-    analyzeSpanFilterCondition({ condition: filterCondition, projectId }).then(
-      (selectsRootSpansOnly) => {
-        if (!cancelled && selectsRootSpansOnly !== null) {
-          startTransition(() => {
-            setRootSpansOnly(selectsRootSpansOnly);
-          });
-        }
-      },
-      () => {
-        // A failed analysis leaves the previous answer in place; the filter
-        // itself is unaffected, only the choice of metric columns.
-      }
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [filterCondition, projectId]);
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
   // still applied. The parent query is intentionally not reloaded on window

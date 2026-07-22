@@ -1,5 +1,11 @@
 import type { Completion } from "@codemirror/autocomplete";
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
@@ -20,7 +26,10 @@ import {
   openInferenceAttributeCompletions,
   openInferenceAttributeValueCompletionSource,
 } from "./spanFilterSemanticConventionCompletions";
-import { validateSpanFilterCondition } from "./spanFilterValidation";
+import {
+  type SpanFilterConditionValidation,
+  validateSpanFilterCondition,
+} from "./spanFilterValidation";
 
 /**
  * The fields of the span filter DSL that an expression can reference
@@ -249,9 +258,19 @@ async function fetchAnnotationCompletions(
 
 type SpanFilterConditionFieldProps = {
   /**
-   * Callback when the condition is valid
+   * Callback when the condition is valid.
+   *
+   * `selectsRootSpansOnly` reports whether the condition restricts the result
+   * set to root spans, which the spans table needs in order to choose between
+   * cumulative and per-span metric columns. It rides along here because it
+   * comes back on the same response as the validation that produced this
+   * callback, so a caller wanting it does not pay for a second round trip.
+   * `null` when the server did not answer.
    */
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (
+    condition: string,
+    selectsRootSpansOnly: boolean | null
+  ) => void;
   placeholder?: string;
 };
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
@@ -265,6 +284,12 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
 
   const projectId = useTracingContext((state) => state.projectId);
 
+  // The shared field hands back only the condition once it validates, so the
+  // rest of the response is captured here on the way through. Keyed by the
+  // condition it describes, since a stale answer would be worse than none.
+  const lastValidation = useRef<SpanFilterConditionValidation | null>(null);
+  const lastValidatedCondition = useRef<string | null>(null);
+
   // Stable identities: the field caches completions per loader, and its
   // validation effect keys on validateCondition — an unstable identity
   // there would re-run validation on every validity flip, endlessly
@@ -273,8 +298,12 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       loadAnnotationCompletions: projectId
         ? () => fetchAnnotationCompletions(projectId)
         : undefined,
-      validateCondition: (condition: string) =>
-        validateSpanFilterCondition(condition, projectId),
+      validateCondition: async (condition: string) => {
+        const result = await validateSpanFilterCondition(condition, projectId);
+        lastValidation.current = result;
+        lastValidatedCondition.current = condition;
+        return result;
+      },
     }),
     [projectId]
   );
@@ -297,7 +326,14 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const handleValidCondition = useCallback(
     (condition: string) => {
       recordValidCondition(condition);
-      onValidCondition(condition);
+      // An empty condition never reaches the validator (the field resolves it
+      // itself), and restricts nothing, so it is knowably not root-scoped.
+      const selectsRootSpansOnly = !condition
+        ? false
+        : lastValidatedCondition.current === condition
+          ? (lastValidation.current?.selectsRootSpansOnly ?? null)
+          : null;
+      onValidCondition(condition, selectsRootSpansOnly);
     },
     [recordValidCondition, onValidCondition]
   );
