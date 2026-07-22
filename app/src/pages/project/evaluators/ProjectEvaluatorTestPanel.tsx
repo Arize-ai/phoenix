@@ -22,7 +22,10 @@ import {
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
+import {
+  buildOutputConfigsInput,
+  createLLMEvaluatorPayload,
+} from "@phoenix/components/evaluators/utils";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   useEvaluatorStore,
@@ -32,28 +35,45 @@ import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import type {
   ProjectEvaluatorTestPanelMutation,
+  InlineCodeEvaluatorInput,
   InlineLLMEvaluatorInput,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorTestPanelMutation.graphql";
 import type { ProjectEvaluatorTestPanelQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorTestPanelQuery.graphql";
 import { getProjectEvaluatorMappingDiagnostics } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import type { EvaluatorMappingSource } from "@phoenix/types";
+import type {
+  CodeEvaluatorLanguage,
+  EvaluatorMappingSource,
+} from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+
+/**
+ * The unsaved source code being authored, used to preview a not-yet-created
+ * code evaluator via the inline-code preview path.
+ */
+export type ProjectEvaluatorInlineCode = {
+  language: CodeEvaluatorLanguage;
+  sourceCode: string;
+  sandboxConfigId: string | null;
+};
 
 export const ProjectEvaluatorTestPanel = ({
   projectId,
   filterCondition,
   codeEvaluatorId,
+  inlineCode,
 }: {
   projectId: string;
   filterCondition: string;
   codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
 }) => (
   <Suspense fallback={<Loading />}>
     <ProjectEvaluatorTestPanelContent
       projectId={projectId}
       filterCondition={filterCondition}
       codeEvaluatorId={codeEvaluatorId}
+      inlineCode={inlineCode}
     />
   </Suspense>
 );
@@ -62,10 +82,12 @@ function ProjectEvaluatorTestPanelContent({
   projectId,
   filterCondition,
   codeEvaluatorId,
+  inlineCode,
 }: {
   projectId: string;
   filterCondition: string;
   codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
 }) {
   // Match the preview to the page's selected time range so it never surfaces
   // spans the adjacent tabs would hide.
@@ -199,6 +221,7 @@ function ProjectEvaluatorTestPanelContent({
             )}
             <ProjectEvaluatorPreviewButton
               codeEvaluatorId={codeEvaluatorId}
+              inlineCode={inlineCode}
               spanContext={selectedSpan.evaluationContext}
             />
           </>
@@ -218,9 +241,11 @@ function isSpanEvaluatorMappingSource(
 
 function ProjectEvaluatorPreviewButton({
   codeEvaluatorId,
+  inlineCode,
   spanContext,
 }: {
   codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
   spanContext: unknown;
 }) {
   const evaluatorStore = useEvaluatorStoreInstance();
@@ -259,9 +284,21 @@ function ProjectEvaluatorPreviewButton({
     invariant(instanceId != null, "instanceId is required");
     let evaluator:
       | { codeEvaluatorId: string }
+      | { inlineCodeEvaluator: InlineCodeEvaluatorInput }
       | { inlineLlmEvaluator: InlineLLMEvaluatorInput };
     if (codeEvaluatorId) {
       evaluator = { codeEvaluatorId };
+    } else if (inlineCode) {
+      evaluator = {
+        inlineCodeEvaluator: {
+          name: state.evaluator.globalName,
+          language: inlineCode.language,
+          sourceCode: inlineCode.sourceCode,
+          outputConfigs: buildOutputConfigsInput(state.outputConfigs),
+          sandboxConfigId: inlineCode.sandboxConfigId,
+          description: state.evaluator.description || null,
+        },
+      };
     } else {
       const payload = createLLMEvaluatorPayload({
         playgroundStore,
@@ -311,6 +348,7 @@ function ProjectEvaluatorPreviewButton({
     });
   }, [
     codeEvaluatorId,
+    inlineCode,
     credentials,
     evaluatorStore,
     playgroundStore,

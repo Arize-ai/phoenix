@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback, useRef, useState } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import type { Key } from "react-aria-components";
 
 import {
@@ -37,6 +37,7 @@ export const ProjectEvaluatorFormSections = ({
   onExpandedChange,
   definitionKind,
   codeEvaluatorName,
+  codeDefinition,
   onFilterValidityChange,
 }: {
   projectId: string;
@@ -44,8 +45,10 @@ export const ProjectEvaluatorFormSections = ({
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   expandedKeys: Set<Key>;
   onExpandedChange: (keys: Set<Key>) => void;
-  definitionKind: "llm" | "code";
+  definitionKind: "llm" | "code" | "newCode";
   codeEvaluatorName?: string;
+  /** Authoring fields rendered in the definition section when `newCode`. */
+  codeDefinition?: ReactNode;
   onFilterValidityChange?: (isValid: boolean) => void;
 }) => {
   const setEvaluatorMappingSource = useEvaluatorStore(
@@ -159,7 +162,9 @@ export const ProjectEvaluatorFormSections = ({
           <Text color="text-500">
             {definitionKind === "llm"
               ? "Define the prompt and annotation output."
-              : "Attach the selected code evaluator to this project."}
+              : definitionKind === "newCode"
+                ? "Author the evaluator's source code and annotation output."
+                : "Attach the selected code evaluator to this project."}
           </Text>
         </DisclosureTrigger>
         <DisclosurePanel>
@@ -168,6 +173,8 @@ export const ProjectEvaluatorFormSections = ({
               <EvaluatorNameAndDescriptionFields />
               <LLMEvaluatorForm showInputMapping={false} />
             </Flex>
+          ) : definitionKind === "newCode" ? (
+            codeDefinition
           ) : (
             <View padding="size-200">
               <Heading level={3}>{codeEvaluatorName}</Heading>
