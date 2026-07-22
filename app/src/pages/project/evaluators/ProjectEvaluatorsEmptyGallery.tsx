@@ -22,8 +22,8 @@ const MAX_COPY_CARDS = 4;
 const MAX_ATTACH_CARDS = 3;
 
 /**
- * Discoverable empty state for a project with no evaluators: a card to author a
- * new LLM evaluator plus cards to copy existing LLM evaluators or attach
+ * Discoverable empty state for a project with no evaluators: cards to author a
+ * new LLM or code evaluator plus cards to copy existing LLM evaluators or attach
  * existing code evaluators, each opening the creation slideover in the matching
  * mode. Mirrors the dataset Evaluators tab gallery.
  */
@@ -118,28 +118,42 @@ function Gallery({
             </button>
           ))}
         </div>
-        {attachEvaluators.length > 0 ? (
-          <div css={columnCSS}>
-            {attachEvaluators.map((evaluator) => (
-              <button
-                key={evaluator.id}
-                css={cardCSS}
-                onClick={() =>
-                  setCreationMode(buildAttachCodeCreationMode(evaluator))
-                }
-              >
-                <Text size="S" weight="heavy">
-                  Attach {evaluator.name}
+        <div css={columnCSS}>
+          <button
+            css={cardCSS}
+            onClick={() => setCreationMode({ kind: "newCode" })}
+          >
+            <Flex direction="row" alignItems="center" gap="size-50">
+              <Icon svg={<Icons.Code />} />
+              <Text size="S" weight="heavy">
+                Create new code evaluator
+              </Text>
+            </Flex>
+            <LineClamp lines={2}>
+              <Text size="XS" color="text-700">
+                Author a Python or TypeScript evaluator from scratch.
+              </Text>
+            </LineClamp>
+          </button>
+          {attachEvaluators.map((evaluator) => (
+            <button
+              key={evaluator.id}
+              css={cardCSS}
+              onClick={() =>
+                setCreationMode(buildAttachCodeCreationMode(evaluator))
+              }
+            >
+              <Text size="S" weight="heavy">
+                Attach {evaluator.name}
+              </Text>
+              <LineClamp lines={2}>
+                <Text size="XS" color="text-700">
+                  {evaluator.description}
                 </Text>
-                <LineClamp lines={2}>
-                  <Text size="XS" color="text-700">
-                    {evaluator.description}
-                  </Text>
-                </LineClamp>
-              </button>
-            ))}
-          </div>
-        ) : null}
+              </LineClamp>
+            </button>
+          ))}
+        </div>
       </Flex>
       {creationMode ? (
         <CreateLLMProjectEvaluatorSlideover
