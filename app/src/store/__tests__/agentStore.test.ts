@@ -60,6 +60,19 @@ describe("agentStore", () => {
     });
   });
 
+  describe("agentsConfig", () => {
+    it("defaults session retention to off", () => {
+      const store = createAgentStore();
+
+      expect(
+        store.getState().agentsConfig.sessionRetentionMaxIdleDays
+      ).toBeNull();
+      expect(
+        store.getState().agentsConfig.sessionRetentionMaxCountPerUser
+      ).toBeNull();
+    });
+  });
+
   describe("setIsDraftSessionTemporary", () => {
     it("toggles whether the draft becomes temporary", () => {
       const store = createAgentStore();
@@ -337,6 +350,8 @@ describe("agentStore", () => {
           assistantEnabled: true,
           allowLocalTraces: true,
           allowRemoteExport: true,
+          sessionRetentionMaxIdleDays: 30,
+          sessionRetentionMaxCountPerUser: null,
         },
       });
 
@@ -388,6 +403,8 @@ describe("agentStore", () => {
           assistantEnabled: true,
           allowLocalTraces: false,
           allowRemoteExport: false,
+          sessionRetentionMaxIdleDays: 30,
+          sessionRetentionMaxCountPerUser: null,
         },
         observability: {
           storeLocalTraces: false,

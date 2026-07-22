@@ -115,6 +115,11 @@ type AgentSessionEdge {
   node: AgentSession!
 }
 
+type AgentSessionRetention {
+  maxIdleDays: Int
+  maxCountPerUser: Int
+}
+
 type AgentSkill {
   """
   The unique skill identifier used to load the skill (e.g. 'debug-trace').
@@ -168,6 +173,16 @@ type AgentsConfig {
   Admin ceiling for exporting PXI traces to the remote collector. Sourced from the `agent.assistant.trace_recording` system setting. When False, users cannot turn on remote trace export for themselves.
   """
   allowRemoteExport: Boolean!
+
+  """
+  Number of idle days after which agent sessions are deleted. Null means idle sessions are never deleted.
+  """
+  sessionRetentionMaxIdleDays: Int
+
+  """
+  Maximum number of agent sessions kept per user; the most recently active sessions are retained. Null means no cap.
+  """
+  sessionRetentionMaxCountPerUser: Int
 }
 
 interface Annotation {
@@ -2571,6 +2586,7 @@ type Mutation {
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   setAgentAssistantEnabled(input: SetAgentAssistantEnabledInput!): AgentAssistantEnabled!
   setAgentTraceRecording(input: SetAgentTraceRecordingInput!): AgentTraceRecording!
+  setAgentSessionRetention(input: SetAgentSessionRetentionInput!): AgentSessionRetention!
   createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
   updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
   deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
@@ -3898,6 +3914,18 @@ type ServerStatus {
 
 input SetAgentAssistantEnabledInput {
   enabled: Boolean!
+}
+
+input SetAgentSessionRetentionInput {
+  """
+  Delete persisted sessions idle longer than this many days. Omit to leave unchanged; set null to disable idle-based deletion.
+  """
+  maxIdleDays: Int
+
+  """
+  Keep only the newest N persisted sessions per user. Omit to leave unchanged; set null to disable the per-user count limit.
+  """
+  maxCountPerUser: Int
 }
 
 input SetAgentTraceRecordingInput {
