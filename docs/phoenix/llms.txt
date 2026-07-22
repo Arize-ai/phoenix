@@ -239,6 +239,17 @@
 - [Phoenix Docs MCP](https://arize.com/docs/phoenix/integrations/docs-mcp): Let AI assistants search and retrieve the Phoenix documentation in real time
 - [Phoenix MCP Server](https://arize.com/docs/phoenix/integrations/phoenix-mcp-server): Connect AI assistants to Phoenix via the @arizeai/phoenix-mcp npm package (maintenance mode)
 
+### Coding Agents
+
+- [Claude Code](https://arize.com/docs/phoenix/integrations/coding-agents/claude-code): Trace Claude Code CLI and Agent SDK sessions, tool usage, and token costs in Phoenix
+- [Codex](https://arize.com/docs/phoenix/integrations/coding-agents/codex): Trace OpenAI Codex CLI agent turns, tool calls, and API requests in Phoenix
+- [GitHub Copilot](https://arize.com/docs/phoenix/integrations/coding-agents/copilot): Trace GitHub Copilot sessions in VS Code and the Copilot CLI in Phoenix
+- [Cursor](https://arize.com/docs/phoenix/integrations/coding-agents/cursor): Trace Cursor IDE and CLI conversations, shell commands, MCP tools, and file operations in Phoenix
+- [Gemini CLI](https://arize.com/docs/phoenix/integrations/coding-agents/gemini): Trace Gemini CLI sessions, agent steps, model calls, and tool invocations in Phoenix
+- [Kiro](https://arize.com/docs/phoenix/integrations/coding-agents/kiro): Trace Kiro CLI agent turns, tool calls, and credit usage in Phoenix
+- [Oh My Pi](https://arize.com/docs/phoenix/integrations/coding-agents/oh-my-pi): Trace Oh My Pi (omp) terminal coding sessions, model calls, tool usage, and token costs in Phoenix
+- [OpenCode](https://arize.com/docs/phoenix/integrations/coding-agents/opencode): Trace OpenCode terminal coding sessions, model calls, and tool usage in Phoenix
+
 ### LLM Providers
 
 - [OpenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-tracing): Auto-instrument OpenAI Python SDK with openinference-instrumentation-openai

@@ -877,6 +877,20 @@
               "docs/phoenix/integrations/evaluation-integrations/ragas",
               "docs/phoenix/integrations/evaluation-integrations/uqlm"
             ]
+          },
+          {
+            "group": "Coding Agents",
+            "icon": "terminal",
+            "pages": [
+              "docs/phoenix/integrations/coding-agents/claude-code",
+              "docs/phoenix/integrations/coding-agents/codex",
+              "docs/phoenix/integrations/coding-agents/copilot",
+              "docs/phoenix/integrations/coding-agents/cursor",
+              "docs/phoenix/integrations/coding-agents/gemini",
+              "docs/phoenix/integrations/coding-agents/kiro",
+              "docs/phoenix/integrations/coding-agents/oh-my-pi",
+              "docs/phoenix/integrations/coding-agents/opencode"
+            ]
           }
         ]
       },
