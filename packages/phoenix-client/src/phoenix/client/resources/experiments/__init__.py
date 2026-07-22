@@ -40,6 +40,9 @@ from opentelemetry.trace import (
     StatusCode,
     Tracer,
 )
+from opentelemetry.util._decorator import (  # pyright: ignore[reportPrivateUsage]
+    _agnosticcontextmanager,
+)
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
@@ -160,19 +163,74 @@ class _TracerBundle:
 
 
 _GLOBAL_TRACER_PROVIDER_LOCK = RLock()
+_evaluator_provider_mount_count = 0
+
+
+class _EvaluatorRoutingProvider(trace_api.TracerProvider):
+    def __init__(self, evaluator_provider: Any) -> None:
+        self._evaluator_provider = evaluator_provider
+
+    def get_tracer(
+        self,
+        instrumenting_module_name: str,
+        instrumenting_library_version: Optional[str] = None,
+        schema_url: Optional[str] = None,
+        attributes: Optional[Mapping[str, Any]] = None,
+    ) -> Tracer:
+        return _RoutingTracer(
+            self,
+            (
+                instrumenting_module_name,
+                instrumenting_library_version,
+                schema_url,
+                attributes,
+            ),
+        )
+
+
+class _RoutingTracer(Tracer):
+    def __init__(
+        self,
+        routing_provider: _EvaluatorRoutingProvider,
+        get_tracer_args: tuple[str, Optional[str], Optional[str], Optional[Mapping[str, Any]]],
+    ) -> None:
+        self._routing_provider = routing_provider
+        self._get_tracer_args = get_tracer_args
+
+    def _delegate(self) -> Tracer:
+        if _evaluator_provider_mount_count:
+            provider = self._routing_provider._evaluator_provider
+        else:
+            provider = trace_api._TRACER_PROVIDER  # pyright: ignore[reportPrivateUsage]
+            if provider is None or provider is self._routing_provider:
+                return NoOpTracerProvider().get_tracer(*self._get_tracer_args)
+        return cast(Tracer, provider.get_tracer(*self._get_tracer_args))
+
+    def start_span(self, *args: Any, **kwargs: Any) -> trace_api.Span:
+        return self._delegate().start_span(*args, **kwargs)
+
+    @_agnosticcontextmanager
+    def start_as_current_span(self, *args: Any, **kwargs: Any) -> Iterator[trace_api.Span]:
+        with self._delegate().start_as_current_span(*args, **kwargs) as span:
+            yield span
 
 
 @contextmanager
 def _attach_global_tracer_provider(provider: Any) -> Iterator[None]:
     """Temporarily mount a provider while preserving OpenTelemetry's exact prior state."""
-    # OpenTelemetry's public setter is one-shot and has no matching restore operation.
+    global _evaluator_provider_mount_count
+
+    routing_provider = _EvaluatorRoutingProvider(provider)
     with _GLOBAL_TRACER_PROVIDER_LOCK:
         previous = trace_api._TRACER_PROVIDER  # pyright: ignore[reportPrivateUsage]
-        trace_api._TRACER_PROVIDER = provider  # pyright: ignore[reportPrivateUsage]
+        _evaluator_provider_mount_count += 1
+        # ProxyTracer caches its first real tracer, so the mounted tracer must route each emission.
+        trace_api._TRACER_PROVIDER = routing_provider  # pyright: ignore[reportPrivateUsage]
         try:
             yield
         finally:
             trace_api._TRACER_PROVIDER = previous  # pyright: ignore[reportPrivateUsage]
+            _evaluator_provider_mount_count -= 1
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE

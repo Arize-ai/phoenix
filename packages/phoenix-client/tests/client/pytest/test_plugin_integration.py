@@ -910,6 +910,7 @@ from phoenix.client.resources.experiments import _TracerBundle
 
 _SPAN_EXPORTERS = []
 _LIFECYCLE = []
+builtins._phoenix_span_exporters = _SPAN_EXPORTERS
 _trace._TRACER_PROVIDER = None
 _ORIGINAL_PROVIDER = _trace.get_tracer_provider()
 builtins._phoenix_original_provider = _ORIGINAL_PROVIDER
@@ -932,8 +933,10 @@ class _RecordingProvider(_trace_sdk.TracerProvider):
         self.project_name = project_name
 
     def force_flush(self, *args, **kwargs):
+        global_provider = _trace.get_tracer_provider()
         _LIFECYCLE.append({"event": "flush", "project": self.project_name,
-                           "is_global": _trace.get_tracer_provider() is self})
+                           "is_global": global_provider is not _ORIGINAL_PROVIDER,
+                           "is_raw": global_provider is self})
         if self.project_name == "evaluators" and builtins._phoenix_fail_flush:
             builtins._phoenix_fail_flush = False
             raise RuntimeError("flush failed")
@@ -1053,7 +1056,9 @@ def test_task_and_evaluator_spans_use_separate_provider_lifecycles(
         from phoenix.client.pytest.context import current_run
 
         def _evaluator_child(name):
-            assert trace.get_tracer_provider() is builtins._phoenix_evaluator_provider
+            global_provider = trace.get_tracer_provider()
+            assert global_provider is not builtins._phoenix_original_provider
+            assert global_provider is not builtins._phoenix_evaluator_provider
             with trace.get_tracer(__name__).start_as_current_span(name):
                 pass
 
@@ -1065,7 +1070,7 @@ def test_task_and_evaluator_spans_use_separate_provider_lifecycles(
         def nested(output, **_):
             _evaluator_child("nested child")
             px.evaluate(inline, output=output)
-            assert trace.get_tracer_provider() is builtins._phoenix_evaluator_provider
+            assert trace.get_tracer_provider() is not builtins._phoenix_original_provider
             return {"name": "nested", "score": 1.0}
         nested.name = "nested"
 
@@ -1155,6 +1160,7 @@ def test_task_and_evaluator_spans_use_separate_provider_lifecycles(
             if event["event"] == "flush" and event["project"] == "evaluators"
         )
         assert flushed["is_global"] is True
+        assert flushed["is_raw"] is False
     for project in ("evaluators", "proj-1"):
         shutdown = next(
             i
@@ -1167,6 +1173,64 @@ def test_task_and_evaluator_spans_use_separate_provider_lifecycles(
             sum(event["event"] == "shutdown" and event["project"] == project for event in lifecycle)
             == 1
         )
+
+
+def test_preacquired_proxy_tracer_does_not_bind_permanently_to_evaluator_provider(
+    pytester: pytest.Pytester,
+) -> None:
+    pytester.makeconftest(_TRACING_CAPTURE_CONFTEST)
+    pytester.makepyfile(
+        test_proxy="""
+        import builtins
+        import pytest
+        import phoenix.client.pytest as px
+        from openinference.semconv.resource import ResourceAttributes
+        from opentelemetry import trace
+        from opentelemetry.sdk import trace as trace_sdk
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        trace._TRACER_PROVIDER = None
+        tracer = trace.get_tracer("preacquired.lib")
+
+        def first_emission(output, **_):
+            with tracer.start_as_current_span("proxy first evaluator span"):
+                pass
+            return {"name": "proxy", "score": 1.0}
+
+        @pytest.fixture
+        def application_provider_after_test():
+            yield
+            exporter = InMemorySpanExporter()
+            provider = trace_sdk.TracerProvider(
+                resource=Resource({ResourceAttributes.PROJECT_NAME: "application"})
+            )
+            provider.add_span_processor(SimpleSpanProcessor(exporter))
+            builtins._phoenix_span_exporters.append(exporter)
+            trace._TRACER_PROVIDER = provider
+            with tracer.start_as_current_span("proxy post-evaluator span"):
+                pass
+            assert [span.name for span in exporter.get_finished_spans()] == [
+                "proxy post-evaluator span"
+            ]
+            trace._TRACER_PROVIDER = None
+            provider.shutdown()
+
+        @pytest.mark.phoenix(dataset="trace-suite")
+        def test_one(application_provider_after_test):
+            px.log_output("stable")
+            px.evaluate(first_emission, output="stable")
+        """
+    )
+    pytester.runpytest_subprocess("-p", "phoenix", "--no-header").assert_outcomes(passed=1)
+    proxy_spans = {
+        span["name"]: span
+        for span in _spans(pytester)
+        if span["name"] in {"proxy first evaluator span", "proxy post-evaluator span"}
+    }
+    assert proxy_spans["proxy first evaluator span"]["project"] == "evaluators"
+    assert proxy_spans["proxy post-evaluator span"]["project"] == "application"
 
 
 def test_failing_test_output_carries_trace_id(pytester: pytest.Pytester) -> None:
