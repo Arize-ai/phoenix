@@ -3,47 +3,29 @@ import { graphql, useMutation } from "react-relay";
 import { Switch } from "@phoenix/components";
 import { toastQueue } from "@phoenix/contexts/NotificationContext";
 import type { ProjectEvaluatorEnabledSwitchMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchMutation.graphql";
-import type { EvaluatorInputMapping } from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 /**
- * In-row enable/disable toggle for a project evaluator.
- *
- * Only CODE evaluators are toggleable here: the CODE update mutation accepts a
- * safe echo of the current values (source, output configs and mapping patch are
- * preserved when omitted), so flipping `enabled` leaves everything else intact.
- * The LLM update mutation instead requires a fully reconstructed prompt version
- * and creates a new one on every call, which is neither feasible nor desirable
- * from a table row, so the LLM toggle is shown read-only.
+ * In-row enable/disable toggle for a project evaluator. Flips only the enabled
+ * flag on the project binding through a dedicated mutation, so it works for both
+ * LLM and CODE evaluators without reconstructing the underlying evaluator.
  */
 export function ProjectEvaluatorEnabledSwitch({
   projectEvaluatorId,
-  kind,
   name,
   enabled,
-  samplingRate,
-  evaluationTarget,
-  filterCondition,
-  description,
-  evaluatorInputMapping,
 }: {
   projectEvaluatorId: string;
-  kind: "LLM" | "CODE" | "BUILTIN";
   name: string;
   enabled: boolean;
-  samplingRate: number;
-  evaluationTarget: "SPAN" | "TRACE" | "SESSION";
-  filterCondition: string | null;
-  description: string | null;
-  evaluatorInputMapping: EvaluatorInputMapping | null;
 }) {
   const [commit, isInFlight] =
     useMutation<ProjectEvaluatorEnabledSwitchMutation>(
       graphql`
         mutation ProjectEvaluatorEnabledSwitchMutation(
-          $input: UpdateProjectCodeEvaluatorInput!
+          $input: SetProjectEvaluatorEnabledInput!
         ) {
-          updateProjectCodeEvaluator(input: $input) {
+          setProjectEvaluatorEnabled(input: $input) {
             evaluator {
               id
               enabled
@@ -55,38 +37,13 @@ export function ProjectEvaluatorEnabledSwitch({
 
   const label = `${enabled ? "Disable" : "Enable"} ${name}`;
 
-  if (kind !== "CODE") {
-    return (
-      <Switch
-        aria-label={label}
-        isSelected={enabled}
-        isDisabled
-        onChange={noop}
-      >
-        {null}
-      </Switch>
-    );
-  }
-
   const onChange = (nextEnabled: boolean) => {
     commit({
       variables: {
-        input: {
-          projectEvaluatorId,
-          name,
-          description,
-          evaluatorInputMapping: (evaluatorInputMapping ?? {
-            pathMapping: {},
-            literalMapping: {},
-          }) as EvaluatorInputMapping,
-          samplingRate,
-          evaluationTarget,
-          filterCondition: filterCondition ?? "",
-          enabled: nextEnabled,
-        },
+        input: { projectEvaluatorId, enabled: nextEnabled },
       },
       optimisticResponse: {
-        updateProjectCodeEvaluator: {
+        setProjectEvaluatorEnabled: {
           evaluator: {
             id: projectEvaluatorId,
             enabled: nextEnabled,
@@ -122,8 +79,6 @@ export function ProjectEvaluatorEnabledSwitch({
     </Switch>
   );
 }
-
-function noop() {}
 
 function notifyToggleError(name: string, message: string) {
   toastQueue.add(

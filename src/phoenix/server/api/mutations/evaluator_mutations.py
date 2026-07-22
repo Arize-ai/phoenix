@@ -497,6 +497,12 @@ class UpdateProjectCodeEvaluatorInput:
     )
 
 
+@strawberry.input
+class SetProjectEvaluatorEnabledInput:
+    project_evaluator_id: GlobalID
+    enabled: bool
+
+
 @strawberry.type
 class ProjectEvaluatorMutationPayload:
     evaluator: ProjectEvaluator
@@ -1046,6 +1052,34 @@ class EvaluatorMutationMixin:
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")
 
+        return ProjectEvaluatorMutationPayload(
+            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Enable or disable a project evaluator. Flips only the enabled flag on the "
+            "project binding, leaving the underlying evaluator untouched. Works for both "
+            "LLM and CODE evaluators."
+        ),
+    )  # type: ignore
+    async def set_project_evaluator_enabled(
+        self, info: Info[Context, None], input: SetProjectEvaluatorEnabledInput
+    ) -> ProjectEvaluatorMutationPayload:
+        try:
+            criteria_id = from_global_id_with_expected_type(
+                input.project_evaluator_id, ProjectEvaluator.__name__
+            )
+        except ValueError as error:
+            raise BadRequest(str(error))
+        async with info.context.db() as session:
+            criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+            if criteria is None:
+                raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
+            criteria.enabled = input.enabled
+            await session.flush()
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
             query=Query(),

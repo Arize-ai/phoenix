@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1f48ec96f80306ecaed61b3885b151c4>>
+ * @generated SignedSource<<7468fc2a36a00c6e2b6093ed534b070f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,11 +16,6 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly enabled: boolean;
   readonly evaluationTarget: EvaluationTarget;
   readonly evaluator: {
-    readonly description: string | null;
-    readonly inputMapping?: {
-      readonly literalMapping: any;
-      readonly pathMapping: any;
-    };
     readonly kind: EvaluatorKind;
   };
   readonly filterCondition: string;
@@ -39,6 +34,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "662183626570c055c42f57b76c1c5cb3";
+(node as any).hash = "b7cb83cf33e943187c0766746a2132f3";
 
 export default node;

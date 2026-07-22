@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d4d90d41450aa5e5ffd46f9f95da7078>>
+ * @generated SignedSource<<65e3a8ed60ac6902d86ec374a8ed2a5d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -198,45 +198,6 @@ return {
                                 "name": "kind",
                                 "storageKey": null
                               },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "description",
-                                "storageKey": null
-                              },
-                              {
-                                "kind": "InlineFragment",
-                                "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "EvaluatorInputMapping",
-                                    "kind": "LinkedField",
-                                    "name": "inputMapping",
-                                    "plural": false,
-                                    "selections": [
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "pathMapping",
-                                        "storageKey": null
-                                      },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "literalMapping",
-                                        "storageKey": null
-                                      }
-                                    ],
-                                    "storageKey": null
-                                  }
-                                ],
-                                "type": "CodeEvaluator",
-                                "abstractKey": null
-                              },
                               (v4/*: any*/)
                             ],
                             "storageKey": null
@@ -314,12 +275,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9c51ccaa1d1b4ce6cab509ec9ffa8be9",
+    "cacheID": "f9012014df16916951937bc118ef17e1",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsTablePaginationQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $first: Int = 30\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_2HEEH6\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_2HEEH6 on Project {\n  evaluators(first: $first, after: $after) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  evaluator {\n    __typename\n    kind\n    description\n    ... on CodeEvaluator {\n      inputMapping {\n        pathMapping\n        literalMapping\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $first: Int = 30\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_2HEEH6\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_2HEEH6 on Project {\n  evaluators(first: $first, after: $after) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  evaluator {\n    __typename\n    kind\n    id\n  }\n}\n"
   }
 };
 })();

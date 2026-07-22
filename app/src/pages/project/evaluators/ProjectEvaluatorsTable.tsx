@@ -31,13 +31,6 @@ const readRow = (row: ProjectEvaluatorsTable_row$key) => {
         enabled
         evaluator {
           kind
-          description
-          ... on CodeEvaluator {
-            inputMapping {
-              pathMapping
-              literalMapping
-            }
-          }
         }
       }
     `,
@@ -114,14 +107,8 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => (
           <ProjectEvaluatorEnabledSwitch
             projectEvaluatorId={row.original.id}
-            kind={row.original.evaluator.kind}
             name={row.original.name}
             enabled={row.original.enabled}
-            samplingRate={row.original.samplingRate}
-            evaluationTarget={row.original.evaluationTarget}
-            filterCondition={row.original.filterCondition}
-            description={row.original.evaluator.description ?? null}
-            evaluatorInputMapping={row.original.evaluator.inputMapping ?? null}
           />
         ),
       },

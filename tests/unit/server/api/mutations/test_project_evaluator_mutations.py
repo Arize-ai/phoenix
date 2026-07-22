@@ -73,6 +73,14 @@ mutation($input: DeleteProjectEvaluatorsInput!) {
 }
 """
 
+_SET_ENABLED = f"""
+mutation($input: SetProjectEvaluatorEnabledInput!) {{
+  setProjectEvaluatorEnabled(input: $input) {{
+    evaluator {{ {_PROJECT_EVALUATOR_FIELDS} }}
+  }}
+}}
+"""
+
 _PROJECT_EVALUATORS = f"""
 query($id: ID!) {{
   node(id: $id) {{
@@ -489,6 +497,31 @@ async def test_project_llm_evaluator_create_update_delete(
         {"input": {"projectEvaluatorIds": [created["id"]]}},
     )
     assert delete_result.data and not delete_result.errors
+
+
+async def test_set_project_evaluator_enabled_toggles_only_enabled(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    create_input = _llm_input(project, name="toggle-llm", text="Evaluate {{input}}")
+    create_result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
+    assert created["enabled"] is True
+
+    disable_result = await gql_client.execute(
+        _SET_ENABLED,
+        {"input": {"projectEvaluatorId": created["id"], "enabled": False}},
+    )
+    assert disable_result.data and not disable_result.errors
+    disabled = disable_result.data["setProjectEvaluatorEnabled"]["evaluator"]
+    assert disabled["id"] == created["id"]
+    assert disabled["enabled"] is False
+    # Only the enabled flag flips; the rest of the binding is untouched.
+    assert disabled["name"] == created["name"]
+    assert disabled["evaluationTarget"] == created["evaluationTarget"]
+    assert disabled["samplingRate"] == created["samplingRate"]
 
 
 async def test_project_evaluator_node_resolves_by_global_id(
