@@ -10,6 +10,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
+from typing_extensions import TypeAliasType
 
 from phoenix.db.types.model_provider import ModelProvider
 
@@ -41,7 +42,13 @@ class BuiltInProviderModelSelection(BaseModel):
     openai_api_type: Literal["chat_completions", "responses"] = "responses"
 
 
-AgentModelSelection = Annotated[
-    CustomProviderModelSelection | BuiltInProviderModelSelection,
-    Field(discriminator="provider_type"),
-]
+# TypeAliasType (rather than a plain ``Annotated`` alias) makes pydantic emit the
+# union as a named ``AgentModelSelection`` schema component instead of inlining
+# the ``oneOf`` at every use site, so generated clients can reference it by name.
+AgentModelSelection = TypeAliasType(
+    "AgentModelSelection",
+    Annotated[
+        CustomProviderModelSelection | BuiltInProviderModelSelection,
+        Field(discriminator="provider_type"),
+    ],
+)

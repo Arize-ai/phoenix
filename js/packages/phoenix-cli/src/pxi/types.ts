@@ -33,9 +33,7 @@ export type BuiltInProvider = SchemasV1["ModelProvider"];
  * (e.g. `ANTHROPIC` + `claude-opus-4-6`) or a custom provider configured in
  * Phoenix and addressed by its server-side id.
  */
-export type ModelSelection =
-  | SchemasV1["BuiltInProviderModelSelection"]
-  | SchemasV1["CustomProviderModelSelection"];
+export type ModelSelection = SchemasV1["AgentModelSelection"];
 
 /**
  * A capability/environment hint sent alongside the conversation so the server
@@ -44,11 +42,10 @@ export type ModelSelection =
  * and whether web access and subagents are enabled for this run. A subset of
  * the server's full `ChatContext` union: the rest are browser-only surfaces.
  */
-export type PxiContext =
-  | SchemasV1["AppContext"]
-  | SchemasV1["GraphQLContext"]
-  | SchemasV1["WebAccessContext"]
-  | SchemasV1["SubagentsContext"];
+export type PxiContext = Extract<
+  SchemasV1["ChatContext"],
+  { type: "app" | "graphql" | "web_access" | "subagents" }
+>;
 
 /**
  * How edit-style tool calls are gated: `"manual"` requires the user to approve

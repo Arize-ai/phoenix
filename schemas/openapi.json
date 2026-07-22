@@ -7960,7 +7960,6 @@
           "chat"
         ],
         "summary": "Run Server Agent",
-        "description": "Stream a chat turn from the GraphQL server agent (deprecated).\n\nDeprecated transcript-in/stream-out contract kept for published CLI\nclients (``@arizeai/phoenix-cli`` <= 1.10.x): the caller supplies the\nfull ``messages`` transcript and a self-minted session id, and the\nserver builds a fresh agent per request without persisting anything.\n\nRequests carrying the new single-``message`` body shape are instead\nserved by the persisted-session chat handler, without the\n``Deprecation`` header.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
         "operationId": "run_server_agent_agents_server_sessions__session_id__chat_post",
         "deprecated": true,
         "parameters": [
@@ -8188,6 +8187,23 @@
           "data"
         ],
         "title": "AddDatasetLabelToDatasetResponseBody"
+      },
+      "AgentModelSelection": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CustomProviderModelSelection"
+          },
+          {
+            "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "providerType",
+          "mapping": {
+            "builtin": "#/components/schemas/BuiltInProviderModelSelection",
+            "custom": "#/components/schemas/CustomProviderModelSelection"
+          }
+        }
       },
       "AgentSession": {
         "properties": {
@@ -9000,22 +9016,7 @@
             "description": "Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored."
           },
           "model": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
-              }
-            ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
+            "$ref": "#/components/schemas/AgentModelSelection"
           },
           "turnTraceContext": {
             "anyOf": [
@@ -12221,22 +12222,7 @@
             "description": "Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route."
           },
           "model": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
-              }
-            ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
+            "$ref": "#/components/schemas/AgentModelSelection"
           }
         },
         "additionalProperties": true,
@@ -12329,22 +12315,7 @@
             "description": "Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route."
           },
           "model": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
-              }
-            ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
+            "$ref": "#/components/schemas/AgentModelSelection"
           }
         },
         "additionalProperties": true,

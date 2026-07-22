@@ -1557,25 +1557,6 @@ export interface paths {
         /**
          * Run Server Agent
          * @deprecated
-         * @description Stream a chat turn from the GraphQL server agent (deprecated).
-         *
-         *     Deprecated transcript-in/stream-out contract kept for published CLI
-         *     clients (``@arizeai/phoenix-cli`` <= 1.10.x): the caller supplies the
-         *     full ``messages`` transcript and a self-minted session id, and the
-         *     server builds a fresh agent per request without persisting anything.
-         *
-         *     Requests carrying the new single-``message`` body shape are instead
-         *     served by the persisted-session chat handler, without the
-         *     ``Deprecation`` header.
-         *
-         *     The request contexts gate capabilities — GraphQL mutations, web access,
-         *     and subagents — and mutations are refused for viewer users. When trace
-         *     recording is enabled (and permitted by system settings), the run is
-         *     traced; locally ingested traces are persisted to the agent's project
-         *     once the stream completes.
-         *
-         *     Returns ``403`` if agents or the server agent are disabled, or if a
-         *     viewer requests mutations.
          */
         post: operations["run_server_agent_agents_server_sessions__session_id__chat_post"];
         delete?: never;
@@ -1680,6 +1661,7 @@ export interface components {
         AddDatasetLabelToDatasetResponseBody: {
             data: components["schemas"]["DatasetLabel"];
         };
+        AgentModelSelection: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         /** AgentSession */
         AgentSession: {
             /**
@@ -1990,8 +1972,7 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
              */
             requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            model: components["schemas"]["AgentModelSelection"];
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             /**
              * Trigger
@@ -3250,8 +3231,7 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route.
              */
             requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            model: components["schemas"]["AgentModelSelection"];
         } & {
             [key: string]: unknown;
         };
@@ -3303,8 +3283,7 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route.
              */
             requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            model: components["schemas"]["AgentModelSelection"];
         } & {
             [key: string]: unknown;
         };
