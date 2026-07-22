@@ -607,6 +607,9 @@ importers:
 
   packages/phoenix-evals:
     dependencies:
+      '@ai-sdk/otel':
+        specifier: ^1.0.0
+        version: 1.0.31(zod@4.4.3)
       '@arizeai/openinference-core':
         specifier: ^2.4.0
         version: 2.4.0
@@ -614,8 +617,8 @@ importers:
         specifier: ^1.9.1
         version: 1.9.1
       ai:
-        specifier: ^6.0.230
-        version: 6.0.230(zod@4.4.3)
+        specifier: ^7.0.0
+        version: 7.0.31(zod@4.4.3)
       jsonpath-plus:
         specifier: ^10.4.0
         version: 10.4.0
@@ -627,11 +630,11 @@ importers:
         version: 4.4.3
     devDependencies:
       '@ai-sdk/google':
-        specifier: ^3.0.95
-        version: 3.0.95(zod@4.4.3)
+        specifier: ^4.0.0
+        version: 4.0.18(zod@4.4.3)
       '@ai-sdk/openai':
-        specifier: ^3.0.86
-        version: 3.0.86(zod@4.4.3)
+        specifier: ^4.0.0
+        version: 4.0.16(zod@4.4.3)
       '@arizeai/openinference-instrumentation-openai':
         specifier: ^4.1.5
         version: 4.1.5(supports-color@10.2.2)
@@ -809,9 +812,9 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/google@3.0.95':
-    resolution: {integrity: sha512-08qpAkbZVtgStqDBmJy6giSczmq9yU8DvMpKEmkTqkW2O7XMvd7a69jffNAp0pni0vbwArrjoNDtmz1vwbq1rg==}
-    engines: {node: '>=18'}
+  '@ai-sdk/google@4.0.18':
+    resolution: {integrity: sha512-NRbXRAasXLgFLiZDTsDUiTUuQtEUDVZoqruB5Px3geltTEqOzOo2eHN5WnDp0/OgxwnrNH4olV/TVetza0PzmQ==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -6643,10 +6646,10 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.4.3
 
-  '@ai-sdk/google@3.0.95(zod@4.4.3)':
+  '@ai-sdk/google@4.0.18(zod@4.4.3)':
     dependencies:
-      '@ai-sdk/provider': 3.0.14
-      '@ai-sdk/provider-utils': 4.0.40(zod@4.4.3)
+      '@ai-sdk/provider': 4.0.3
+      '@ai-sdk/provider-utils': 5.0.11(zod@4.4.3)
       zod: 4.4.3
 
   '@ai-sdk/mcp@1.0.63(zod@4.4.3)':
