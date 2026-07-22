@@ -1564,9 +1564,9 @@ export interface paths {
          *     full ``messages`` transcript and a self-minted session id, and the
          *     server builds a fresh agent per request without persisting anything.
          *
-         *     New clients should create an ``AgentSession`` via the
-         *     ``createAgentSession`` GraphQL mutation and POST single-message turns
-         *     to ``/agents/assistant/sessions/{session_id}/chat`` instead.
+         *     Requests carrying the new single-``message`` body shape are instead
+         *     served by the persisted-session chat handler, without the
+         *     ``Deprecation`` header.
          *
          *     The request contexts gate capabilities — GraphQL mutations, web access,
          *     and subagents — and mutations are refused for viewer users. When trace
@@ -10966,7 +10966,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LegacyChatRequest"];
+                "application/json": components["schemas"]["LegacyChatRequest"] | components["schemas"]["ChatRequest"];
             };
         };
         responses: {
