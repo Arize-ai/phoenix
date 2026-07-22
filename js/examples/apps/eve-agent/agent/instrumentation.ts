@@ -14,14 +14,10 @@
  */
 
 import {
-  ensureCollectorEndpoint,
-  OTLPTraceExporter,
-  register,
-} from "@arizeai/phoenix-otel";
-import {
   isOpenInferenceSpan,
   OpenInferenceSimpleSpanProcessor,
-} from "@arizeai/phoenix-otel/vercel";
+} from "@arizeai/openinference-vercel";
+import { OTLPTraceExporter, register } from "@arizeai/phoenix-otel";
 import { defineInstrumentation } from "eve/instrumentation";
 
 export default defineInstrumentation({
@@ -31,11 +27,10 @@ export default defineInstrumentation({
       spanProcessors: [
         // The simple (non-batched) processor delivers each span as it ends,
         // which is safe on the short-lived serverless functions Eve deploys to.
+        // Swap in OpenInferenceBatchSpanProcessor if you prefer batching.
         new OpenInferenceSimpleSpanProcessor({
           exporter: new OTLPTraceExporter({
-            url: ensureCollectorEndpoint(
-              process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"
-            ),
+            url: `${process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"}/v1/traces`,
             // Only needed when Phoenix has auth enabled.
             headers: process.env.PHOENIX_API_KEY
               ? { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` }

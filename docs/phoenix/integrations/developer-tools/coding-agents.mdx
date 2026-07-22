@@ -5,6 +5,10 @@ description: Integrate Phoenix with AI coding assistants using CLI, MCP, and ski
 
 Use this guide to connect coding agents (Claude Code, Cursor, VS Code, Windsurf, and others) to Phoenix for debugging, observability, and evaluation workflows.
 
+<Note>
+This page sets up your coding agent to **operate on Phoenix** — reading traces, experiments, and datasets via the CLI, MCP, and skills. To instead **trace your sessions with a coding agent** (turns, tool calls, and token costs), see [Coding Agents](/docs/phoenix/integrations/coding-agents/claude-code).
+</Note>
+
 ## Recommended Setup
 
 Most users should set up all three:
@@ -254,5 +258,8 @@ This means your agent can look up accurate API signatures, implementations, and 
   </Card>
   <Card title="MCP Servers" icon="plug" href="/docs/phoenix/integrations/mcp">
     Interact with projects, traces, sessions, prompts, datasets, and experiments via the Phoenix MCP servers.
+  </Card>
+  <Card title="Coding Agents" icon="terminal" href="/docs/phoenix/integrations/coding-agents/claude-code">
+    Trace your sessions with a coding agent — turns, tool calls, and token costs — with the coding-harness-tracing toolkit.
   </Card>
 </CardGroup>
