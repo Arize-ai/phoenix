@@ -7,6 +7,7 @@ import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDra
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
+import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
@@ -21,6 +22,7 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import type { CreateLLMProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateLLMProjectEvaluatorSlideoverAddCodeMutation.graphql";
+import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
@@ -41,6 +43,7 @@ import type { EvaluatorInputMapping } from "@phoenix/types";
 
 export type ProjectEvaluatorCreationMode =
   | { kind: "scratch" }
+  | { kind: "newCode" }
   | {
       kind: "copy";
       initialState: {
@@ -134,8 +137,12 @@ const CreateProjectEvaluatorDialog = ({
     filterCondition: "",
     samplingRatePercent: 100,
   });
-  const [expandedKeys, setExpandedKeys] = useState<Set<Key>>(
-    () => new Set(["scope"])
+  const [expandedKeys, setExpandedKeys] = useState<Set<Key>>(() =>
+    // Code authoring opens with the definition section expanded so the editor
+    // is visible; other modes stay scope-first.
+    creationMode.kind === "newCode"
+      ? new Set(["scope", "definition"])
+      : new Set(["scope"])
   );
   const [addCodeEvaluator, isAddingCodeEvaluator] =
     useMutation<CreateLLMProjectEvaluatorSlideoverAddCodeMutation>(graphql`
@@ -164,6 +171,25 @@ const CreateProjectEvaluatorDialog = ({
     `);
 
   const initialState = useMemo(() => {
+    if (creationMode.kind === "newCode") {
+      return {
+        ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+        evaluator: {
+          ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
+          globalName: "",
+          description: "",
+          inputMapping: { pathMapping: {}, literalMapping: {} },
+          kind: "CODE",
+        },
+        outputConfigs: [createDefaultFreeformOutputConfig("")],
+        evaluatorMappingSourceGrain: "span",
+        evaluatorMappingSource: {
+          input: {},
+          output: {},
+          metadata: { attributes: {} },
+        },
+      } satisfies EvaluatorStoreProps;
+    }
     const copiedState =
       creationMode.kind === "copy" ? creationMode.initialState : undefined;
     const defaultEvaluatorName = copiedState?.name
@@ -281,7 +307,17 @@ const CreateProjectEvaluatorDialog = ({
   return (
     <EvaluatorStoreProvider initialState={initialState}>
       {({ store }) =>
-        creationMode.kind === "code" ? (
+        creationMode.kind === "newCode" ? (
+          <CreateProjectCodeEvaluatorDialogContent
+            projectId={projectId}
+            scope={scope}
+            onScopeChange={setScope}
+            expandedKeys={expandedKeys}
+            onExpandedChange={setExpandedKeys}
+            updateConnectionIds={updateConnectionIds}
+            onSuccess={finishCreation}
+          />
+        ) : creationMode.kind === "code" ? (
           <ProjectCodeEvaluatorDialogContent
             projectId={projectId}
             evaluatorId={creationMode.evaluatorId}
