@@ -18,9 +18,6 @@ class SpanFilterConditionAnalysis:
     the analysis stay useful for an expression that is still being edited.
     """
 
-    # Kept short deliberately: schema descriptions are shipped to the agent as
-    # context, so the reasoning behind this lives in the class docstring above
-    # (which strawberry does not export) rather than here.
     selects_root_spans_only: bool = strawberry.field(
         description=(
             "Whether a root predicate (`parent_span is None` or `parent_id is None`) "
