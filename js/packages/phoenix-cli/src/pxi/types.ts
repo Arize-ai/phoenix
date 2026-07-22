@@ -1,3 +1,4 @@
+import type { componentsV1 } from "@arizeai/phoenix-client";
 import type { ChatTransport, UIMessage } from "ai";
 
 import type { PhoenixConfig } from "../config";
@@ -5,10 +6,14 @@ import type { PhoenixConfig } from "../config";
 /**
  * Shared types for the PXI terminal chat.
  *
- * These mirror the wire contract of the Phoenix server-agent chat endpoint so
- * the CLI and the server stay in lockstep: the CLI sends a {@link PxiChatRequest}
- * and renders the streamed {@link PxiMessage}s it gets back.
+ * Wire types are derived from the generated OpenAPI schema so the CLI and the
+ * server stay in lockstep at compile time. The exception is the chat message
+ * itself: the streaming layer is driven by the Vercel AI SDK, so
+ * {@link PxiMessage} is typed by the SDK's `UIMessage` rather than the
+ * schema's structural equivalent.
  */
+
+type SchemasV1 = componentsV1["schemas"];
 
 /**
  * Extra metadata the server attaches to each assistant message — the session it
@@ -16,43 +21,12 @@ import type { PhoenixConfig } from "../config";
  * token usage. Fields are nullable because tracing and usage reporting are
  * optional and may be disabled server-side.
  */
-export type AssistantMessageMetadata = {
-  sessionId: string;
-  trace?: {
-    traceId: string;
-    rootSpanId: string;
-  } | null;
-  usage?: {
-    tokens: {
-      prompt: number;
-      completion: number;
-      total: number;
-    };
-    promptDetails?: {
-      cacheRead: number;
-      cacheWrite: number;
-    } | null;
-  } | null;
-};
+export type AssistantMessageMetadata = SchemasV1["AssistantMessageMetadata"];
 
 /** A chat message (user or assistant) carrying PXI-specific metadata. */
 export type PxiMessage = UIMessage<AssistantMessageMetadata>;
 
-export type BuiltInProvider =
-  | "ANTHROPIC"
-  | "AWS"
-  | "AZURE_OPENAI"
-  | "CEREBRAS"
-  | "DEEPSEEK"
-  | "FIREWORKS"
-  | "GOOGLE"
-  | "GROQ"
-  | "MOONSHOT"
-  | "OLLAMA"
-  | "OPENAI"
-  | "PERPLEXITY"
-  | "TOGETHER"
-  | "XAI";
+export type BuiltInProvider = SchemasV1["ModelProvider"];
 
 /**
  * Which model PXI should talk to. Either a built-in provider keyed by name
@@ -60,63 +34,46 @@ export type BuiltInProvider =
  * Phoenix and addressed by its server-side id.
  */
 export type ModelSelection =
-  | {
-      providerType: "builtin";
-      provider: BuiltInProvider;
-      modelName: string;
-    }
-  | {
-      providerType: "custom";
-      providerId: string;
-      modelName: string;
-    };
+  | SchemasV1["BuiltInProviderModelSelection"]
+  | SchemasV1["CustomProviderModelSelection"];
 
 /**
  * A capability/environment hint sent alongside the conversation so the server
  * agent knows what it is allowed to do and the world it is operating in — the
  * caller's local clock and time zone, whether GraphQL mutations are permitted,
- * and whether web access and subagents are enabled for this run.
+ * and whether web access and subagents are enabled for this run. A subset of
+ * the server's full `ChatContext` union: the rest are browser-only surfaces.
  */
 export type PxiContext =
-  | {
-      type: "app";
-      currentDateTime: string;
-      timeZone: string;
-    }
-  | {
-      type: "graphql";
-      mutationsEnabled: boolean;
-    }
-  | {
-      type: "web_access";
-      enabled: boolean;
-    }
-  | {
-      type: "subagents";
-      enabled: boolean;
-    };
+  | SchemasV1["AppContext"]
+  | SchemasV1["GraphQLContext"]
+  | SchemasV1["WebAccessContext"]
+  | SchemasV1["SubagentsContext"];
 
 /**
  * How edit-style tool calls are gated: `"manual"` requires the user to approve
  * each one, `"bypass"` lets them run unattended (where the server supports it).
  */
-export type PxiEditPermission = "manual" | "bypass";
+export type PxiEditPermission = NonNullable<
+  SchemasV1["ChatRequest"]["editPermission"]
+>;
 
 /**
- * The request body POSTed to the agent-session chat endpoint
- * (`/agents/server/sessions/{session_id}/chat`). The server owns the
- * session transcript, so each turn carries only its trailing message.
+ * The request body POSTed to the agent-session chat endpoint. The server owns
+ * the session transcript, so each turn carries only its trailing message.
+ *
+ * Derived from the generated `ChatRequest` schema, with every field the CLI
+ * sends made required (the schema marks server-defaulted fields optional) and
+ * `message` swapped for the SDK-typed {@link PxiMessage}. Fields the CLI never
+ * sends (`requestedSkills`, `turnTraceContext`) are omitted.
  */
-export type PxiChatRequest = {
-  id: string;
+export type PxiChatRequest = Required<
+  Omit<
+    SchemasV1["ChatRequest"],
+    "message" | "requestedSkills" | "turnTraceContext"
+  >
+> & {
   message: PxiMessage;
-  trigger: "submit-message";
-  ingestTraces: boolean;
-  exportRemoteTraces: boolean;
-  attachUserId: boolean;
-  editPermission: PxiEditPermission;
-  contexts: PxiContext[];
-  model: ModelSelection;
 };
 
 /**

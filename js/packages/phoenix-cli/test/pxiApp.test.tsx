@@ -1080,6 +1080,7 @@ describe("PXI app", () => {
       role: "assistant",
       parts: [{ type: "text", text: "Done.", state: "done" }],
       metadata: {
+        type: "assistant",
         sessionId: "session-1",
         usage: {
           tokens: { prompt: 12000, completion: 345, total: 12345 },
