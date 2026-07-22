@@ -49,6 +49,7 @@ export type ProjectEvaluatorCreationMode =
         outputConfigs: AnnotationConfig[];
         defaultMessages: PlaygroundChatTemplate["messages"];
         templateFormat: TemplateFormat;
+        includeExplanation: boolean;
       };
     }
   | {
@@ -58,6 +59,7 @@ export type ProjectEvaluatorCreationMode =
       description: string;
       inputMapping: EvaluatorInputMapping;
       outputConfigs: AnnotationConfig[];
+      variables: string[];
     };
 
 export const CreateLLMProjectEvaluatorSlideover = ({
@@ -124,6 +126,7 @@ const CreateProjectEvaluatorDialog = ({
   invariant(instanceId != null, "instanceId is required");
   const [error, setError] = useState<string | undefined>();
   const [isSubmittingLlm, setIsSubmittingLlm] = useState(false);
+  const [isFilterValid, setIsFilterValid] = useState(true);
   const [scope, setScope] = useState<ProjectEvaluatorScope>({
     targetType: "span",
     filterCondition: "",
@@ -185,6 +188,9 @@ const CreateProjectEvaluatorDialog = ({
             ? creationMode.inputMapping
             : { pathMapping: {}, literalMapping: {} },
         kind: creationMode.kind === "code" ? "CODE" : "LLM",
+        includeExplanation:
+          copiedState?.includeExplanation ??
+          DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.includeExplanation,
       },
       outputConfigs:
         copiedState || creationMode.kind === "code"
@@ -278,6 +284,7 @@ const CreateProjectEvaluatorDialog = ({
             projectId={projectId}
             evaluatorId={creationMode.evaluatorId}
             evaluatorName={creationMode.name}
+            variables={creationMode.variables}
             scope={scope}
             onScopeChange={setScope}
             expandedKeys={expandedKeys}
@@ -321,15 +328,18 @@ const CreateProjectEvaluatorDialog = ({
             onClose={onClose}
             onSubmit={() => submitLlm(store)}
             isSubmitting={isSubmittingLlm}
+            isSubmitDisabled={!isFilterValid}
             mode="create"
             error={error}
             formLeftPanel={
               <ProjectEvaluatorFormSections
+                projectId={projectId}
                 scope={scope}
                 onScopeChange={setScope}
                 expandedKeys={expandedKeys}
                 onExpandedChange={setExpandedKeys}
                 definitionKind="llm"
+                onFilterValidityChange={setIsFilterValid}
               />
             }
             formRightPanel={

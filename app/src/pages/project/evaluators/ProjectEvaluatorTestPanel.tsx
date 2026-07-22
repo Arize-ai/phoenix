@@ -171,7 +171,10 @@ function ProjectEvaluatorTestPanelContent({
                 </Alert>
               ) : null
             )}
-            <ProjectEvaluatorPreviewButton codeEvaluatorId={codeEvaluatorId} />
+            <ProjectEvaluatorPreviewButton
+              codeEvaluatorId={codeEvaluatorId}
+              spanContext={selectedSpan.evaluationContext}
+            />
           </>
         ) : null}
       </Flex>
@@ -182,18 +185,17 @@ function ProjectEvaluatorTestPanelContent({
 function isSpanEvaluatorMappingSource(
   value: unknown
 ): value is EvaluatorMappingSource<"span"> {
-  return (
-    isStringKeyedObject(value) &&
-    isStringKeyedObject(value.input) &&
-    isStringKeyedObject(value.output) &&
-    isStringKeyedObject(value.metadata)
-  );
+  // `input`/`output` are raw attribute values (string, null, object, ...);
+  // only `metadata` is guaranteed to be an object by the server context shape.
+  return isStringKeyedObject(value) && isStringKeyedObject(value.metadata);
 }
 
 function ProjectEvaluatorPreviewButton({
   codeEvaluatorId,
+  spanContext,
 }: {
   codeEvaluatorId?: string;
+  spanContext: unknown;
 }) {
   const evaluatorStore = useEvaluatorStoreInstance();
   const playgroundStore = usePlaygroundStore();
@@ -223,7 +225,9 @@ function ProjectEvaluatorPreviewButton({
     setResult(null);
     const state = evaluatorStore.getState();
     const { instances } = playgroundStore.getState();
-    const instanceId = instances[0].id;
+    const instance = instances[0];
+    invariant(instance != null, "a playground instance is required");
+    const instanceId = instance.id;
     invariant(instanceId != null, "instanceId is required");
     let evaluator:
       | { codeEvaluatorId: string }
@@ -255,7 +259,7 @@ function ProjectEvaluatorPreviewButton({
         input: {
           previews: [
             {
-              context: state.evaluatorMappingSource,
+              context: spanContext,
               evaluator,
               inputMapping: state.evaluator.inputMapping,
             },
@@ -283,6 +287,7 @@ function ProjectEvaluatorPreviewButton({
     evaluatorStore,
     playgroundStore,
     previewEvaluator,
+    spanContext,
   ]);
 
   return (

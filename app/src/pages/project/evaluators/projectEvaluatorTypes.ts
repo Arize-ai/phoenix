@@ -1,4 +1,20 @@
+import type { EvaluatorInputMapping } from "@phoenix/types";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
+
+/**
+ * Drops path-mapping entries that resolve against a dataset `reference`, which
+ * has no counterpart in a span evaluation context.
+ */
+export function dropReferencePathMappings(
+  inputMapping: EvaluatorInputMapping
+): EvaluatorInputMapping {
+  const pathMapping = Object.fromEntries(
+    Object.entries(inputMapping.pathMapping).filter(
+      ([, path]) => path !== "reference" && !path.startsWith("reference.")
+    )
+  );
+  return { ...inputMapping, pathMapping };
+}
 
 /**
  * The artifact types a project evaluator can run against.
@@ -56,7 +72,10 @@ export type ProjectEvaluatorMappingDiagnostic = {
   status: "resolved" | "missing" | "unverified";
 };
 
-const SIMPLE_MAPPING_PATH_PATTERN = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/;
+// Only dot-separated bare JSONPath identifiers can be resolved client-side.
+// Anything else (hyphens, brackets, quotes) is left to server validation.
+const SIMPLE_MAPPING_PATH_PATTERN =
+  /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/;
 
 export function getProjectEvaluatorMappingDiagnostics({
   context,

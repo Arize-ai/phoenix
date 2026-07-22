@@ -156,21 +156,23 @@ export const useFlattenedEvaluatorInputKeys = ({
   evaluatorMappingSource: EvaluatorMappingSource;
   evaluatorMappingSourceGrain: EvaluatorMappingSourceGrain;
 }) => {
-  const mappingSource =
-    evaluatorMappingSourceGrain === "span"
-      ? {
-          input: evaluatorMappingSource.input,
-          output: evaluatorMappingSource.output,
-          metadata: evaluatorMappingSource.metadata,
-        }
-      : evaluatorMappingSource;
-  const flat = flattenObject({
-    obj: mappingSource,
-    keepNonTerminalValues: true,
-    formatIndices: true,
-  });
-  return Object.keys(flat).map((key) => ({
-    id: key,
-    label: key,
-  }));
+  return useMemo(() => {
+    const mappingSource =
+      evaluatorMappingSourceGrain === "span"
+        ? {
+            input: evaluatorMappingSource.input,
+            output: evaluatorMappingSource.output,
+            metadata: evaluatorMappingSource.metadata,
+          }
+        : evaluatorMappingSource;
+    const flat = flattenObject({
+      obj: mappingSource,
+      keepNonTerminalValues: true,
+      formatIndices: true,
+    });
+    return Object.keys(flat).map((key) => ({
+      id: key,
+      label: key,
+    }));
+  }, [evaluatorMappingSource, evaluatorMappingSourceGrain]);
 };

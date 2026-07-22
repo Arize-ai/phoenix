@@ -5,6 +5,7 @@ import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Dialog, Loading, Modal, ModalOverlay } from "@phoenix/components";
+import { extractCodeEvaluatorVariables } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
@@ -37,7 +38,10 @@ import {
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
-import type { EvaluatorInputMapping } from "@phoenix/types";
+import type {
+  CodeEvaluatorLanguage,
+  EvaluatorInputMapping,
+} from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type ProjectEvaluatorNode = Extract<
@@ -160,6 +164,8 @@ function useProjectEvaluator(projectEvaluatorId: string) {
                 }
               }
               ... on CodeEvaluator {
+                sourceCode
+                language
                 inputMapping {
                   pathMapping
                   literalMapping
@@ -251,7 +257,7 @@ function getScope(
   return {
     targetType: fromProjectEvaluatorGraphQLTarget(evaluator.evaluationTarget),
     filterCondition: evaluator.filterCondition,
-    samplingRatePercent: evaluator.samplingRate * 100,
+    samplingRatePercent: Math.round(evaluator.samplingRate * 100),
   };
 }
 
@@ -290,6 +296,7 @@ function EditLlmProjectEvaluatorContent({
   invariant(instanceId != null, "instanceId is required");
   const [error, setError] = useState<string>();
   const [scope, setScope] = useState(() => getScope(evaluator));
+  const [isFilterValid, setIsFilterValid] = useState(true);
   const [expandedKeys, setExpandedKeys] = useState<Set<Key>>(
     () => new Set(["scope", "definition"])
   );
@@ -401,16 +408,19 @@ function EditLlmProjectEvaluatorContent({
           onClose={onClose}
           onSubmit={() => submit(store)}
           isSubmitting={isUpdating}
+          isSubmitDisabled={!isFilterValid}
           mode="update"
           error={error}
           evaluatorNodeId={evaluator.id}
           formLeftPanel={
             <ProjectEvaluatorFormSections
+              projectId={evaluator.project.id}
               scope={scope}
               onScopeChange={setScope}
               expandedKeys={expandedKeys}
               onExpandedChange={setExpandedKeys}
               definitionKind="llm"
+              onFilterValidityChange={setIsFilterValid}
             />
           }
           formRightPanel={
@@ -434,6 +444,13 @@ function EditCodeProjectEvaluator({
 }) {
   const evaluator = useProjectEvaluator(projectEvaluatorId);
   invariant(evaluator.evaluator.kind === "CODE", "expected code evaluator");
+  const variables = extractCodeEvaluatorVariables({
+    language: evaluator.evaluator.language as CodeEvaluatorLanguage,
+    sourceCode: evaluator.evaluator.sourceCode ?? "",
+  });
+  // Snapshot the stored project mapping so submit can omit an unchanged mapping
+  // (omit=preserve) rather than pinning an otherwise-inherited setting.
+  const initialInputMappingJson = JSON.stringify(evaluator.inputMapping);
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [expandedKeys, setExpandedKeys] = useState<Set<Key>>(
     () => new Set(["scope", "advanced"])
@@ -485,6 +502,7 @@ function EditCodeProjectEvaluator({
           projectId={evaluator.project.id}
           evaluatorId={evaluator.evaluator.id}
           evaluatorName={evaluator.name}
+          variables={variables}
           scope={scope}
           onScopeChange={setScope}
           expandedKeys={expandedKeys}
@@ -494,6 +512,11 @@ function EditCodeProjectEvaluator({
           onSubmit={() => {
             setError(undefined);
             const state = store.getState();
+            // Only override the project's CODE mapping when the user actually
+            // edited it; omitting preserves whatever is currently in effect.
+            const inputMappingChanged =
+              JSON.stringify(state.evaluator.inputMapping) !==
+              initialInputMappingJson;
             commitUpdate({
               variables: {
                 input: {
@@ -502,7 +525,9 @@ function EditCodeProjectEvaluator({
                   description: state.evaluator.description || null,
                   evaluatorInputMapping: evaluator.evaluator
                     .inputMapping as EvaluatorInputMapping,
-                  inputMapping: state.evaluator.inputMapping,
+                  ...(inputMappingChanged
+                    ? { inputMapping: state.evaluator.inputMapping }
+                    : {}),
                   outputConfigs: buildOutputConfigsInput(state.outputConfigs),
                   samplingRate: toProjectEvaluatorSamplingFraction(
                     scope.samplingRatePercent

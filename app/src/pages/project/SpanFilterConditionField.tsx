@@ -239,17 +239,20 @@ type SpanFilterConditionFieldProps = {
   initialCondition?: string;
   placeholder?: string;
 };
+
+/**
+ * Context-connected span filter field for the tracing pages. Reads the span
+ * filter state and project id from `SpanFiltersProvider`/`TracingProvider` and
+ * delegates rendering to the context-free {@link SpanFilterConditionFieldCore}.
+ */
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const {
     onValidCondition,
     initialCondition,
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
-  const [isFocused, setIsFocused] = useState<boolean>(false);
-  const [isConditionValidState, setIsConditionValidState] =
-    useState<boolean>(true);
-  const [errorMessage, setErrorMessage] = useState<string>("");
   const spanFilters = useSpanFilters();
+  const projectId = useTracingContext((state) => state.projectId);
   const [localFilterCondition, setLocalFilterCondition] = useState(
     initialCondition ?? ""
   );
@@ -269,11 +272,69 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       currentCondition ? `${currentCondition} and ${condition}` : condition
     );
   };
+  return (
+    <SpanFilterConditionFieldCore
+      projectId={projectId}
+      filterCondition={filterCondition}
+      onFilterConditionChange={setFilterCondition}
+      onAppendFilterCondition={appendFilterCondition}
+      onValidCondition={onValidCondition}
+      placeholder={placeholder}
+      advertiseFilterToAgent
+    />
+  );
+}
+
+export type SpanFilterConditionFieldCoreProps = {
+  /** The project whose spans the filter condition validates against. */
+  projectId?: string;
+  /** The current filter condition text (controlled). */
+  filterCondition: string;
+  /** Called on every edit to the filter condition text. */
+  onFilterConditionChange: (condition: string) => void;
+  /** Called when a snippet is added from the condition builder. */
+  onAppendFilterCondition: (condition: string) => void;
+  /** Called when the current condition validates as usable. */
+  onValidCondition: (condition: string) => void;
+  /**
+   * Called whenever the condition's validity changes. An empty condition is
+   * treated as valid (unfiltered).
+   */
+  onValidityChange?: (isValid: boolean) => void;
+  placeholder?: string;
+  /**
+   * Advertise the current valid filter to the agent as project context. Only
+   * the tracing pages register the matching `set_spans_filter` client action,
+   * so only they should opt in.
+   */
+  advertiseFilterToAgent?: boolean;
+};
+
+/**
+ * Context-free span filter condition field. Owns validation state and the
+ * snippet builder, but takes all filter state and the project id as props so it
+ * can mount outside `SpanFiltersProvider`/`TracingProvider`.
+ */
+export function SpanFilterConditionFieldCore(
+  props: SpanFilterConditionFieldCoreProps
+) {
+  const {
+    projectId,
+    filterCondition,
+    onFilterConditionChange,
+    onAppendFilterCondition,
+    onValidCondition,
+    onValidityChange,
+    placeholder = "filter condition (e.x. span_kind == 'LLM')",
+    advertiseFilterToAgent = false,
+  } = props;
+  const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [isConditionValidState, setIsConditionValidState] =
+    useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
-
-  const projectId = useTracingContext((state) => state.projectId);
 
   const filterConditionFieldRef = useRef<HTMLDivElement>(null);
 
@@ -284,7 +345,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     // so the server sees a single project entry with the filter included.
     // An in-progress invalid edit surfaces as empty rather than a known-bad
     // expression.
-    if (!projectId) {
+    if (!advertiseFilterToAgent || !projectId) {
       return null;
     }
     const trimmed = deferredFilterCondition.trim();
@@ -294,7 +355,12 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       projectNodeId: projectId,
       spanFilter,
     };
-  }, [deferredFilterCondition, isConditionValidState, projectId]);
+  }, [
+    advertiseFilterToAgent,
+    deferredFilterCondition,
+    isConditionValidState,
+    projectId,
+  ]);
 
   // Keep the agent's mounted UI context aligned with the current validated
   // filter expression while this field is rendered. The matching agent
@@ -303,7 +369,15 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   useAdvertiseAgentContext(advertisedContext);
 
   useEffect(() => {
+    onValidityChange?.(isConditionValidState);
+  }, [isConditionValidState, onValidityChange]);
+
+  useEffect(() => {
     let isCancelled = false;
+
+    if (!projectId) {
+      return;
+    }
 
     if (deferredFilterCondition.trim() !== "") {
       setIsConditionValidState(false);
@@ -352,7 +426,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           value={filterCondition}
-          onChange={setFilterCondition}
+          onChange={onFilterConditionChange}
           height="36px"
           width="100%"
           theme={codeMirrorTheme}
@@ -365,7 +439,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
             color: var(--global-text-color-700);
             visibility: ${hasCondition ? "visible" : "hidden"};
           `}
-          onClick={() => setFilterCondition("")}
+          onClick={() => onFilterConditionChange("")}
           className="button--reset"
         >
           <Icon svg={<Icons.CloseCircle />} />
@@ -388,7 +462,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
           </IconButton>
           <Popover placement="bottom right">
             <FilterConditionBuilder
-              onAddFilterConditionSnippet={appendFilterCondition}
+              onAddFilterConditionSnippet={onAppendFilterCondition}
             />
           </Popover>
         </DialogTrigger>

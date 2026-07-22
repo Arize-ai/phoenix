@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Key } from "react-aria-components";
 
 import {
@@ -25,25 +26,33 @@ import type {
   ProjectEvaluatorScope,
   ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { SpanFilterConditionField } from "@phoenix/pages/project/SpanFilterConditionField";
+import { SpanFilterConditionFieldCore } from "@phoenix/pages/project/SpanFilterConditionField";
 
 export const ProjectEvaluatorFormSections = ({
+  projectId,
   scope,
   onScopeChange,
   expandedKeys,
   onExpandedChange,
   definitionKind,
   codeEvaluatorName,
+  onFilterValidityChange,
 }: {
+  projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   expandedKeys: Set<Key>;
   onExpandedChange: (keys: Set<Key>) => void;
   definitionKind: "llm" | "code";
   codeEvaluatorName?: string;
+  onFilterValidityChange?: (isValid: boolean) => void;
 }) => {
   const setEvaluatorMappingSource = useEvaluatorStore(
     (state) => state.setEvaluatorMappingSource
+  );
+  // The editor's live text; only validated conditions are lifted into `scope`.
+  const [filterConditionDraft, setFilterConditionDraft] = useState(
+    scope.filterCondition
   );
   const updateTarget = (targetType: ProjectEvaluatorTarget) => {
     onScopeChange({ ...scope, targetType });
@@ -71,8 +80,15 @@ export const ProjectEvaluatorFormSections = ({
               <Text color="text-500">
                 Only spans matching this validated filter are evaluated.
               </Text>
-              <SpanFilterConditionField
-                initialCondition={scope.filterCondition}
+              <SpanFilterConditionFieldCore
+                projectId={projectId}
+                filterCondition={filterConditionDraft}
+                onFilterConditionChange={setFilterConditionDraft}
+                onAppendFilterCondition={(condition) =>
+                  setFilterConditionDraft((current) =>
+                    current ? `${current} and ${condition}` : condition
+                  )
+                }
                 onValidCondition={(filterCondition) => {
                   const hasNewFilter =
                     filterCondition.trim() !== "" &&
@@ -82,9 +98,10 @@ export const ProjectEvaluatorFormSections = ({
                     onExpandedChange(new Set([...expandedKeys, "definition"]));
                   }
                 }}
+                onValidityChange={onFilterValidityChange}
                 placeholder="span_kind == 'LLM'"
               />
-              {!scope.filterCondition.trim() ? (
+              {!filterConditionDraft.trim() ? (
                 <Button
                   variant="quiet"
                   onPress={() =>
