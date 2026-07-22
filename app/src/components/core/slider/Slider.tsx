@@ -26,7 +26,7 @@ const sliderCSS = css`
   --slider-track-bg: var(--global-color-gray-300);
   --slider-filled-color: var(--global-color-primary);
   --slider-ring-color: var(--global-color-primary-200);
-  --slider-focus-ring-color: var(--global-color-primary);
+  --slider-focus-ring-color: var(--focus-ring-color);
 
   display: grid;
   grid-template-areas:

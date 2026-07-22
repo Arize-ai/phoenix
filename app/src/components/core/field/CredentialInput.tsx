@@ -72,9 +72,8 @@ function CredentialInput({
           }
 
           &:focus-visible {
-            outline: var(--focus-ring-thickness) solid
-              var(--global-color-primary);
-            outline-offset: 2px;
+            outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+            outline-offset: var(--focus-ring-offset);
           }
 
           &[disabled] {

@@ -144,8 +144,8 @@ export const toastCSS = css`
   }
 
   &[data-focus-visible] {
-    outline: var(--focus-ring-thickness) solid slateblue;
-    outline-offset: 2px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   [slot="close"][data-hovered],

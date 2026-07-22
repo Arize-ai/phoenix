@@ -79,7 +79,7 @@ export const calendarCSS = css`
 
     &[data-focus-visible] {
       outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-      outline-offset: -2px;
+      outline-offset: calc(-1 * var(--focus-ring-thickness));
     }
 
     &[data-selected] {

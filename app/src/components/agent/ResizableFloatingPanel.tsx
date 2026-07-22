@@ -547,8 +547,8 @@ const resizeHandleCSS = css`
   touch-action: none;
 
   &:focus-visible {
-    outline: var(--focus-ring-thickness) solid var(--global-color-primary);
-    outline-offset: -2px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 
   &[data-layer="modal"] {
