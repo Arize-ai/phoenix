@@ -25,10 +25,12 @@ import type {
  * This wires the Vercel AI SDK's {@link DefaultChatTransport} to Phoenix's
  * agent-session chat route: a temporary `AgentSession` is created via GraphQL
  * on the first send, and each turn POSTs only its trailing message to
- * `/agents/assistant/sessions/{id}/chat`. Older Phoenix servers without
- * agent-session persistence fall back to the stateless
- * `/agents/server/sessions/{id}/chat` route, which takes the full
- * client-owned transcript. Either way the assistant reply streams back as a
+ * `/agents/server/sessions/{id}/chat` — the server agent pxi has always used,
+ * now running through the server-owned session pipeline. Older Phoenix
+ * servers without agent-session persistence fall back to the stateless
+ * contract on the same route, which takes the full client-owned transcript
+ * under a client-minted session id (the server discriminates the two
+ * contracts by body shape). Either way the assistant reply streams back as a
  * series of {@link PxiMessage} snapshots.
  */
 
@@ -39,8 +41,12 @@ const AGENT_SESSION_CHAT_PATH =
 const LEGACY_SERVER_AGENT_CHAT_PATH =
   "/agents/server/sessions/{session_id}/chat" satisfies keyof pathsV1;
 
-/** The one pre-configured agent the session chat route serves. */
-const ASSISTANT_AGENT_ID = "assistant";
+/**
+ * The agent the CLI runs against: the fully server-side agent (bash + GraphQL
+ * toolsets), not the web app's `assistant` agent, whose toolset includes
+ * client-executed tools a terminal cannot run.
+ */
+const SERVER_AGENT_ID = "server";
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
@@ -83,7 +89,7 @@ export function buildAgentSessionChatUrl({
 }): string {
   const path = AGENT_SESSION_CHAT_PATH.replace(
     "{agent_id}",
-    ASSISTANT_AGENT_ID
+    SERVER_AGENT_ID
   ).replace("{session_id}", encodeURIComponent(agentSessionId));
   return `${trimTrailingSlash(endpoint)}${path}`;
 }

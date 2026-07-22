@@ -1,5 +1,5 @@
 import {
-  AGENT_ASSISTANT_SESSION_CHAT,
+  AGENT_SESSION_CHAT,
   satisfiesMinVersion,
 } from "@arizeai/phoenix-client";
 
@@ -425,7 +425,7 @@ export async function resolvePxiTransportMode({
     const version = await client.getServerVersion();
     return satisfiesMinVersion({
       version,
-      minVersion: AGENT_ASSISTANT_SESSION_CHAT.minServerVersion,
+      minVersion: AGENT_SESSION_CHAT.minServerVersion,
     })
       ? "agent-session"
       : "legacy-server-agent";

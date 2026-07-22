@@ -1,7 +1,7 @@
 export * from "./client";
 export * from "./authFetch";
 export * from "./errors";
-export { AGENT_ASSISTANT_SESSION_CHAT } from "./constants/serverRequirements";
+export { AGENT_SESSION_CHAT } from "./constants/serverRequirements";
 export {
   formatVersion,
   parseSemanticVersion,

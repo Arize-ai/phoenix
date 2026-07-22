@@ -177,7 +177,7 @@ describe("PXI client", () => {
         agentSessionId: "QWdlbnRTZXNzaW9uOjE=",
       })
     ).toBe(
-      "http://localhost:6006/agents/assistant/sessions/QWdlbnRTZXNzaW9uOjE%3D/chat"
+      "http://localhost:6006/agents/server/sessions/QWdlbnRTZXNzaW9uOjE%3D/chat"
     );
   });
 

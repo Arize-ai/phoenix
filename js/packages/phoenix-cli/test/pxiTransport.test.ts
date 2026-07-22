@@ -15,8 +15,9 @@ const ENDPOINT = "http://localhost:6006";
 const GRAPHQL_URL = `${ENDPOINT}/graphql`;
 const VERSION_URL = `${ENDPOINT}/arize_phoenix_version`;
 const AGENT_SESSION_ID = "QWdlbnRTZXNzaW9uOjE=";
-const AGENT_SESSION_CHAT_URL = `${ENDPOINT}/agents/assistant/sessions/:sessionId/chat`;
-const LEGACY_CHAT_URL = `${ENDPOINT}/agents/server/sessions/:sessionId/chat`;
+// Both wire contracts share the server agent's URL; the server tells them
+// apart by body shape (single `message` vs. full `messages` transcript).
+const SERVER_AGENT_CHAT_URL = `${ENDPOINT}/agents/server/sessions/:sessionId/chat`;
 
 const mock = setupMockPhoenixServer();
 
@@ -65,7 +66,7 @@ describe("PXI transport (agent-session contract)", () => {
           },
         });
       }),
-      mswHttp.post(AGENT_SESSION_CHAT_URL, async ({ request }) => {
+      mswHttp.post(SERVER_AGENT_CHAT_URL, async ({ request }) => {
         chatRequests.push({
           url: request.url,
           body: (await request.json()) as Record<string, unknown>,
@@ -97,7 +98,7 @@ describe("PXI transport (agent-session contract)", () => {
     ]);
     expect(chatRequests).toHaveLength(1);
     expect(chatRequests[0].url).toBe(
-      `${ENDPOINT}/agents/assistant/sessions/${encodeURIComponent(AGENT_SESSION_ID)}/chat`
+      `${ENDPOINT}/agents/server/sessions/${encodeURIComponent(AGENT_SESSION_ID)}/chat`
     );
     // The server owns the transcript: the body carries only the trailing
     // message, never a messages array.
@@ -143,7 +144,7 @@ describe("PXI transport (agent-session contract)", () => {
           },
         });
       }),
-      mswHttp.post(AGENT_SESSION_CHAT_URL, () =>
+      mswHttp.post(SERVER_AGENT_CHAT_URL, () =>
         assistantSseResponse("recovered")
       )
     );
@@ -181,7 +182,7 @@ describe("PXI transport (legacy server-agent fallback)", () => {
     const chatRequests: Array<{ url: string; body: Record<string, unknown> }> =
       [];
     mock.server.use(
-      mswHttp.post(LEGACY_CHAT_URL, async ({ request }) => {
+      mswHttp.post(SERVER_AGENT_CHAT_URL, async ({ request }) => {
         chatRequests.push({
           url: request.url,
           body: (await request.json()) as Record<string, unknown>,

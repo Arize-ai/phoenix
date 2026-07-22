@@ -104,7 +104,7 @@ export type PxiEditPermission = "manual" | "bypass";
 
 /**
  * The request body POSTed to the agent-session chat endpoint
- * (`/agents/assistant/sessions/{session_id}/chat`). The server owns the
+ * (`/agents/server/sessions/{session_id}/chat`). The server owns the
  * session transcript, so each turn carries only its trailing message.
  */
 export type PxiChatRequest = {
