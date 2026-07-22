@@ -12,7 +12,7 @@ export const gridListCss = css`
   padding: var(--global-menu-item-gap);
   &:focus-visible {
     border-radius: var(--global-rounding-small);
-    outline: 2px solid var(--global-color-primary);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: 0px;
   }
   &[data-empty] {

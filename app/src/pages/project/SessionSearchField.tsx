@@ -1,107 +1,27 @@
-import { css } from "@emotion/react";
-import CodeMirror, { type BasicSetupOptions } from "@uiw/react-codemirror";
-import { useState } from "react";
+import { Input } from "react-aria-components";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
-import { pierreDark, pierreLight } from "@phoenix/components/code";
-import { useTheme } from "@phoenix/contexts";
+import { SearchField, SearchIcon } from "@phoenix/components";
 
 import { useSessionSearchContext } from "./SessionSearchContext";
-const codeMirrorCSS = css`
-  flex: 1 1 auto;
-  .cm-content {
-    padding: var(--global-dimension-size-100) 0;
-  }
-  .cm-editor {
-    background-color: transparent !important;
-  }
-  .cm-focused {
-    outline: none;
-  }
-  .cm-selectionLayer .cm-selectionBackground {
-    background: var(--global-color-cyan-400) !important;
-  }
-`;
 
-const fieldCSS = css`
-  border-width: var(--global-border-size-thin);
-  border-style: solid;
-  border-color: var(--global-input-field-border-color);
-  border-radius: var(--global-rounding-small);
-  background-color: var(--global-input-field-background-color);
-  transition: all 0.2s ease-in-out;
-  overflow-x: hidden;
-  &:hover,
-  &[data-is-focused="true"] {
-    border-color: var(--global-input-field-border-color-active);
-    background-color: var(--global-input-field-background-color-active);
-  }
-  &[data-is-invalid="true"] {
-    border-color: var(--global-color-danger);
-  }
-  box-sizing: border-box;
-  .search-icon {
-    margin-left: var(--global-dimension-size-100);
-    margin-top: var(--global-dimension-size-100);
-  }
-`;
-
-const basicSetupOptions: BasicSetupOptions = {
-  lineNumbers: false,
-  foldGutter: false,
-  bracketMatching: false,
-  syntaxHighlighting: false,
-  highlightActiveLine: false,
-  highlightActiveLineGutter: false,
-  defaultKeymap: false,
-  searchKeymap: false,
-};
-
-type SessionsSubstringFieldProps = {
+type SessionSearchFieldProps = {
   placeholder?: string;
 };
-export function SessionSearchField(props: SessionsSubstringFieldProps) {
-  const { placeholder = "Search messages or session ID" } = props;
-  const [isFocused, setIsFocused] = useState<boolean>(false);
+
+export function SessionSearchField({
+  placeholder = "Search messages or session ID",
+}: SessionSearchFieldProps) {
   const { filterIoSubstringOrSessionId, setFilterIoSubstringOrSessionId } =
     useSessionSearchContext();
-  const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
 
-  const hasSubstring = filterIoSubstringOrSessionId !== "";
   return (
-    <div
-      data-is-focused={isFocused}
-      className="sessions-substring-field"
-      css={fieldCSS}
+    <SearchField
+      aria-label="Search sessions"
+      value={filterIoSubstringOrSessionId}
+      onChange={setFilterIoSubstringOrSessionId}
     >
-      <Flex direction="row">
-        <Icon svg={<Icons.Search />} className="search-icon" />
-        <CodeMirror
-          css={codeMirrorCSS}
-          indentWithTab={false}
-          basicSetup={basicSetupOptions}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          value={filterIoSubstringOrSessionId}
-          onChange={setFilterIoSubstringOrSessionId}
-          height="36px"
-          width="100%"
-          theme={codeMirrorTheme}
-          placeholder={placeholder}
-        />
-        <button
-          css={css`
-            margin-right: var(--global-dimension-size-100);
-            color: var(--global-text-color-700);
-            visibility: ${hasSubstring ? "visible" : "hidden"};
-          `}
-          onClick={() => setFilterIoSubstringOrSessionId("")}
-          className="button--reset"
-        >
-          <Icon svg={<Icons.CloseCircle />} />
-        </button>
-      </Flex>
-    </div>
+      <SearchIcon />
+      <Input placeholder={placeholder} />
+    </SearchField>
   );
 }

@@ -313,7 +313,7 @@ export const attachmentRemoveCSS = css`
 
   &[data-focus-visible] {
     opacity: 1;
-    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 

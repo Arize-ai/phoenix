@@ -24,8 +24,8 @@ export const buttonCSS = css`
   &[data-focus-visible],
   &:focus-visible {
     // Only show outline on focus-visible, aka only when tabbed but not clicked
-    outline: 1px solid var(--global-input-field-border-color-active);
-    outline-offset: 1px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
   &[disabled] {
     cursor: default;

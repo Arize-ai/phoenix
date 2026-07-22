@@ -102,7 +102,7 @@ const tokenBaseCSS = css`
 
     > button {
       &:focus-visible {
-        outline: 2px solid var(--focus-ring-color);
+        outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
         border-radius: var(--global-rounding-small);
       }
     }

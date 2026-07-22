@@ -881,6 +881,7 @@ const baseTokensCSS = (theme: Theme) => css`
       : "var(--global-color-blue-900)"};
     --hover-background: var(--global-color-gray-100);
     --focus-ring-color: var(--global-color-primary-500);
+    --focus-ring-thickness: var(--global-border-size-thick);
     --focus-ring-offset: var(--global-dimension-size-25);
 
     --text-color-placeholder: var(--global-color-gray-400);
@@ -1528,7 +1529,7 @@ const chartCSS = css`
     outline: none;
   }
   .recharts-surface:focus-visible {
-    outline: 2px solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 `;

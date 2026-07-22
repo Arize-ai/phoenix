@@ -66,9 +66,13 @@ const timeRangeSelectorCSS = css`
   /* Match the standard input field: a single border-color change for both
      hover and focus so the two states read consistently. */
   &:hover:not([data-disabled]),
-  &:focus-within:not([data-disabled]),
   &[data-presets-open]:not([data-disabled]) {
     border-color: var(--global-input-field-border-color-active);
+  }
+  &:focus-within:not([data-disabled]) {
+    border-color: var(--global-input-field-border-color-active);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
   &[data-disabled] {
     opacity: var(--global-opacity-disabled);

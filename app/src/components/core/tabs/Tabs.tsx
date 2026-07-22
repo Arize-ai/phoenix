@@ -341,7 +341,7 @@ const tabCSS = css`
     position: absolute;
     inset: var(--tab-pill-inset, var(--global-dimension-size-50));
     border-radius: var(--global-rounding-small);
-    border: 2px solid var(--focus-ring-color);
+    border: var(--focus-ring-thickness) solid var(--focus-ring-color);
   }
 `;
 

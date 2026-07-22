@@ -155,9 +155,13 @@ export const dslFilterFieldCSS = css`
   background-color: var(--global-input-field-background-color);
   transition: all 0.2s ease-in-out;
   overflow-x: hidden;
-  &:hover,
+  &:hover {
+    border-color: var(--global-input-field-border-color-active);
+  }
   &[data-is-focused="true"] {
     border-color: var(--global-input-field-border-color-active);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
   /* Flag invalidity only once the user has left the field — a red border
      while they're still typing/fixing the expression is too alarming */
@@ -192,8 +196,8 @@ export const dslFilterFieldCSS = css`
       flex-shrink: 0;
     }
     &:focus-visible {
-      outline: 1px solid var(--global-input-field-border-color-active);
-      outline-offset: 1px;
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
     }
   }
   .error-badge__message {
@@ -215,8 +219,8 @@ export const dslFilterFieldCSS = css`
       background-color: var(--global-color-gray-300);
     }
     &:focus-visible {
-      outline: 1px solid var(--global-input-field-border-color-active);
-      outline-offset: 1px;
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
     }
   }
   &[data-has-condition="true"] .clear-button {

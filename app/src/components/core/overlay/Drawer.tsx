@@ -74,8 +74,8 @@ const drawerCSS = css`
   }
 
   .drawer__resize-handle:focus-visible {
-    outline: 2px solid var(--global-color-primary);
-    outline-offset: 2px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   &[data-dragging="true"] {

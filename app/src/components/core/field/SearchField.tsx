@@ -96,8 +96,8 @@ const searchFieldCSS = css`
     font-size: var(--searchfield-icon-size);
 
     &[data-focus-visible] {
-      outline: 1px solid var(--global-input-field-border-color-active);
-      outline-offset: 1px;
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
     }
 
     &:hover {

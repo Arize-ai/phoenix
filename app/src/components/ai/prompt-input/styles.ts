@@ -10,6 +10,8 @@ export const promptInputContainerCSS = css`
 
   &[data-input-mode="prompt"]:focus-within {
     border-color: var(--prompt-input-border-color-focus);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 
   /* Elicitation surfaces host tall content (consent gate, question carousel,
@@ -101,7 +103,7 @@ export const promptInputSubmitCSS = css`
   }
 
   &[data-focus-visible] {
-    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 
@@ -148,7 +150,7 @@ export const promptInputButtonCSS = css`
   }
 
   &[data-focus-visible] {
-    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 

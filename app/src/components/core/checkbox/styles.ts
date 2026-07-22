@@ -54,8 +54,8 @@ export const checkboxCSS = css`
   }
 
   &[data-focus-visible] .checkbox {
-    outline: 2px solid var(--checkbox-focus-ring-color);
-    outline-offset: 2px;
+    outline: var(--focus-ring-thickness) solid var(--checkbox-focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   &[data-selected],

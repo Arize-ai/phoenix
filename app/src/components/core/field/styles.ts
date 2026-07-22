@@ -33,11 +33,14 @@ export const fieldBaseCSS = css`
     vertical-align: middle;
 
     &[data-focused] {
-      // TODO: figure out focus ring behavior. For now the color is enough
+      // State-specific selectors below provide the visible focus treatment.
       outline: none;
     }
     &[data-focused]:not([data-invalid]) {
-      border: 1px solid var(--field-border-color-active);
+      border-color: var(--field-border-color-active);
+      outline: var(--focus-ring-thickness) solid
+        var(--field-border-color-active);
+      outline-offset: calc(-1 * var(--focus-ring-thickness));
     }
     &[data-hovered]:not([data-disabled]):not([data-invalid]) {
       border: 1px solid var(--field-border-color-active);
@@ -55,6 +58,9 @@ export const fieldBaseCSS = css`
     &:is([data-readonly], [readonly])[data-focus-visible]:not([data-invalid]) {
       background-color: var(--field-readonly-background-color-hover);
       border-color: var(--field-readonly-border-color-focus);
+      outline: var(--focus-ring-thickness) solid
+        var(--field-readonly-border-color-focus);
+      outline-offset: calc(-1 * var(--focus-ring-thickness));
     }
     &:is([data-readonly], [readonly])[data-hovered]:not([data-invalid]):not(
       [data-focus-visible]
@@ -172,12 +178,16 @@ export const textFieldCSS = css`
       var(--textfield-horizontal-padding);
     box-sizing: border-box;
     outline-offset: -1px;
-    outline: var(--global-border-size-thin) solid transparent;
+    outline: var(--focus-ring-thickness) solid transparent;
     &[data-focused]:not([data-invalid]) {
-      outline: 1px solid var(--field-border-color-active);
+      border-width: var(--global-border-size-thin);
+      outline: var(--focus-ring-thickness) solid
+        var(--field-border-color-active);
     }
     &[data-focused][data-invalid] {
-      outline: 1px solid var(--field-invalid-border-color);
+      border-width: var(--global-border-size-thin);
+      outline: var(--focus-ring-thickness) solid
+        var(--field-invalid-border-color);
     }
     // Suppress the focus outline while readonly (fieldBaseCSS handles the
     // readonly background/border), then restore it only for keyboard focus.
@@ -188,7 +198,9 @@ export const textFieldCSS = css`
       outline-color: transparent;
     }
     &:is([data-readonly], [readonly])[data-focus-visible]:not([data-invalid]) {
-      outline-color: var(--field-readonly-border-color-focus);
+      border-width: var(--global-border-size-thin);
+      outline: var(--focus-ring-thickness) solid
+        var(--field-readonly-border-color-focus);
     }
   }
 
