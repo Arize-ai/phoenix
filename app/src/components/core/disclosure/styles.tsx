@@ -54,8 +54,10 @@ export const disclosureCSS = css`
       background-color: var(--global-disclosure-background-color-active);
     }
     &[data-focus-visible] {
-      outline: 1px solid var(--global-input-field-border-color-active);
-      outline-offset: -1px;
+      position: relative;
+      z-index: 1;
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: calc(-1 * var(--focus-ring-thickness));
     }
     &:not([disabled]) {
       transition: all 0.2s ease-in-out;

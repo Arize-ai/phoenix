@@ -41,6 +41,8 @@ export const fileDropZoneCSS = css`
 
   &[data-focus-visible] {
     border-color: var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 
   &[data-drop-target] {

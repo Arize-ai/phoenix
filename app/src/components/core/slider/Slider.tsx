@@ -26,6 +26,7 @@ const sliderCSS = css`
   --slider-track-bg: var(--global-color-gray-300);
   --slider-filled-color: var(--global-color-primary);
   --slider-ring-color: var(--global-color-primary-200);
+  --slider-focus-ring-color: var(--global-color-primary);
 
   display: grid;
   grid-template-areas:
@@ -84,13 +85,14 @@ const sliderCSS = css`
     position: relative;
 
     &:hover,
-    &[data-focus-visible],
     &[data-dragging] {
       box-shadow: 0 0 0 4px var(--slider-ring-color);
     }
 
     &[data-focus-visible] {
-      outline: none;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+      outline: var(--focus-ring-thickness) solid var(--slider-focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
     }
   }
 

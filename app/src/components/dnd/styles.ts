@@ -43,7 +43,7 @@ export const dndHandleAppearanceCSS = css`
   }
   &:focus-visible {
     opacity: 1;
-    outline: 1px solid var(--global-color-primary);
-    outline-offset: -1px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 `;

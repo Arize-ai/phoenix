@@ -50,8 +50,8 @@ const gradientCircleRadioGroupCSS = css`
 
   &:has(.gradient-circle-radio[data-focus-visible]) {
     border-radius: var(--global-rounding-small);
-    outline: 1px solid var(--global-color-primary);
-    outline-offset: var(--global-dimension-size-50);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 `;
 
