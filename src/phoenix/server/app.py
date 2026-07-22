@@ -1117,6 +1117,7 @@ def create_app(
         app.add_api_route(
             f"/.well-known/oauth-protected-resource{host_root_path}",
             protected_resource_metadata,
+            methods=["GET", "HEAD"],
             include_in_schema=False,
         )
         # The MCP PRM handler 404s by itself when the mount is disabled. The /mcp
@@ -1125,6 +1126,7 @@ def create_app(
         app.add_api_route(
             f"/.well-known/oauth-protected-resource{host_root_path}/mcp",
             mcp_protected_resource_metadata,
+            methods=["GET", "HEAD"],
             include_in_schema=False,
         )
         if authentication_enabled:
@@ -1132,6 +1134,7 @@ def create_app(
                 app.add_api_route(
                     f"/.well-known/{well_known}{host_root_path}",
                     authorization_server_metadata,
+                    methods=["GET", "HEAD"],
                     include_in_schema=False,
                     dependencies=[Depends(authorization_server_enabled)],
                 )
