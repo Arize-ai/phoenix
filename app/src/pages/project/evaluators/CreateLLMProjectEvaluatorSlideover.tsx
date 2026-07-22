@@ -83,7 +83,9 @@ export const CreateLLMProjectEvaluatorSlideover = ({
       ? creationMode.initialState.templateFormat
       : undefined;
   return (
-    <ModalOverlay {...props}>
+    // Disable backdrop-click dismissal so an accidental outside click cannot
+    // discard the form; Cancel, the close button, and Esc still close it.
+    <ModalOverlay {...props} isDismissable={false}>
       <Modal variant="slideover" size="fullscreen">
         <Dialog aria-label="Create project evaluator">
           {({ close }) => (
