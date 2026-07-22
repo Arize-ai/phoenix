@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d3df0df1f6bc93c71002df230311ae50>>
+ * @generated SignedSource<<382a050673228828964d272b69d7f141>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,8 +14,8 @@ export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
-export type AddProjectEvaluatorMenuQuery$variables = Record<PropertyKey, never>;
-export type AddProjectEvaluatorMenuQuery$data = {
+export type projectEvaluatorOptionsQuery$variables = Record<PropertyKey, never>;
+export type projectEvaluatorOptionsQuery$data = {
   readonly evaluators: {
     readonly edges: ReadonlyArray<{
       readonly evaluator: {
@@ -94,9 +94,9 @@ export type AddProjectEvaluatorMenuQuery$data = {
     };
   };
 };
-export type AddProjectEvaluatorMenuQuery = {
-  response: AddProjectEvaluatorMenuQuery$data;
-  variables: AddProjectEvaluatorMenuQuery$variables;
+export type projectEvaluatorOptionsQuery = {
+  response: projectEvaluatorOptionsQuery$data;
+  variables: projectEvaluatorOptionsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -449,7 +449,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "AddProjectEvaluatorMenuQuery",
+    "name": "projectEvaluatorOptionsQuery",
     "selections": [
       {
         "alias": null,
@@ -582,7 +582,7 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "AddProjectEvaluatorMenuQuery",
+    "name": "projectEvaluatorOptionsQuery",
     "selections": [
       {
         "alias": null,
@@ -704,16 +704,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e666f0da18bd086be111d626e01d4a15",
+    "cacheID": "430e4fc0c62f4d5474de4f4b68300ef4",
     "id": null,
     "metadata": {},
-    "name": "AddProjectEvaluatorMenuQuery",
+    "name": "projectEvaluatorOptionsQuery",
     "operationKind": "query",
-    "text": "query AddProjectEvaluatorMenuQuery {\n  evaluators(first: 100, sort: {col: updatedAt, dir: desc}) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        description\n        kind\n        ... on LLMEvaluator {\n          outputConfigs {\n            __typename\n            ... on CategoricalAnnotationConfig {\n              name\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              name\n              optimizationDirection\n              lowerBound\n              upperBound\n            }\n            ... on FreeformAnnotationConfig {\n              name\n              optimizationDirection\n              threshold\n              lowerBound\n              upperBound\n            }\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          promptVersion {\n            templateFormat\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  ...promptUtils_promptMessages\n                }\n              }\n              ... on PromptStringTemplate {\n                template\n              }\n            }\n            tools {\n              tools {\n                __typename\n                ... on PromptToolFunction {\n                  function {\n                    parameters\n                  }\n                }\n                ... on PromptToolRaw {\n                  raw\n                }\n              }\n            }\n            id\n          }\n        }\n        ... on CodeEvaluator {\n          sourceCode\n          language\n          inputMapping {\n            pathMapping\n            literalMapping\n          }\n          outputConfigs {\n            __typename\n            ... on CategoricalAnnotationConfig {\n              name\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              name\n              optimizationDirection\n              lowerBound\n              upperBound\n            }\n            ... on FreeformAnnotationConfig {\n              name\n              optimizationDirection\n              threshold\n              lowerBound\n              upperBound\n            }\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n        }\n      }\n    }\n    pageInfo {\n      hasNextPage\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query projectEvaluatorOptionsQuery {\n  evaluators(first: 100, sort: {col: updatedAt, dir: desc}) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        description\n        kind\n        ... on LLMEvaluator {\n          outputConfigs {\n            __typename\n            ... on CategoricalAnnotationConfig {\n              name\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              name\n              optimizationDirection\n              lowerBound\n              upperBound\n            }\n            ... on FreeformAnnotationConfig {\n              name\n              optimizationDirection\n              threshold\n              lowerBound\n              upperBound\n            }\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          promptVersion {\n            templateFormat\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  ...promptUtils_promptMessages\n                }\n              }\n              ... on PromptStringTemplate {\n                template\n              }\n            }\n            tools {\n              tools {\n                __typename\n                ... on PromptToolFunction {\n                  function {\n                    parameters\n                  }\n                }\n                ... on PromptToolRaw {\n                  raw\n                }\n              }\n            }\n            id\n          }\n        }\n        ... on CodeEvaluator {\n          sourceCode\n          language\n          inputMapping {\n            pathMapping\n            literalMapping\n          }\n          outputConfigs {\n            __typename\n            ... on CategoricalAnnotationConfig {\n              name\n              optimizationDirection\n              values {\n                label\n                score\n              }\n            }\n            ... on ContinuousAnnotationConfig {\n              name\n              optimizationDirection\n              lowerBound\n              upperBound\n            }\n            ... on FreeformAnnotationConfig {\n              name\n              optimizationDirection\n              threshold\n              lowerBound\n              upperBound\n            }\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n        }\n      }\n    }\n    pageInfo {\n      hasNextPage\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "91448a7bac94f7bc25620629cf906e39";
+(node as any).hash = "201c6eb4e320a95babf8a697af0a8d8c";
 
 export default node;
