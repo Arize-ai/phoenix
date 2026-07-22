@@ -14,6 +14,7 @@ import {
 } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
+import type { datasetEvaluatorsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorsLoaderQuery.graphql";
 import type { DatasetEvaluatorsPage_builtInEvaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import { datasetEvaluatorsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
@@ -40,7 +41,7 @@ export function DatasetEvaluatorsPageContent() {
 
   const loaderData = useLoaderData<typeof datasetEvaluatorsLoader>();
   invariant(loaderData, "loaderData is required");
-  const data = useOwnedPreloadedQuery({
+  const data = useOwnedPreloadedQuery<datasetEvaluatorsLoaderQuery>({
     query: datasetEvaluatorsLoaderGQL,
     queryRef: loaderData,
   });

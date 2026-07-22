@@ -345,6 +345,8 @@ async def patch_grpc_server() -> AsyncIterator[None]:
 
 
 class TestBulkInserter(BulkInserter):
+    __test__ = False
+
     async def __aenter__(
         self,
     ) -> tuple[

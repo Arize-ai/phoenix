@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<d65f9468b308e782949cb908d1af3027>>
+ * @generated SignedSource<<856b872a0865116aa9ec8d5c8f052cb9>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -96,11 +95,11 @@ return {
           "kind": "InlineDataFragmentSpread",
           "name": "PromptInvocationParametersReadableFragment",
           "selections": [
-            (v0/*: any*/),
+            (v0/*:: as any*/),
             {
               "kind": "InlineFragment",
               "selections": [
-                (v1/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": "openaiMaxTokens",
                   "args": null,
@@ -115,9 +114,9 @@ return {
                   "name": "maxCompletionTokens",
                   "storageKey": null
                 },
-                (v2/*: any*/),
-                (v3/*: any*/),
-                (v4/*: any*/),
+                (v2/*:: as any*/),
+                (v3/*:: as any*/),
+                (v4/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -139,7 +138,7 @@ return {
                   "name": "reasoningEffort",
                   "storageKey": null
                 },
-                (v5/*: any*/)
+                (v5/*:: as any*/)
               ],
               "type": "PromptOpenAIInvocationParameters",
               "abstractKey": null
@@ -154,9 +153,9 @@ return {
                   "name": "maxTokens",
                   "storageKey": null
                 },
-                (v1/*: any*/),
-                (v4/*: any*/),
-                (v6/*: any*/),
+                (v1/*:: as any*/),
+                (v4/*:: as any*/),
+                (v6/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -183,7 +182,7 @@ return {
                   "name": "thinking",
                   "plural": false,
                   "selections": [
-                    (v0/*: any*/),
+                    (v0/*:: as any*/),
                     {
                       "kind": "InlineFragment",
                       "selections": [
@@ -236,7 +235,7 @@ return {
                   ],
                   "storageKey": null
                 },
-                (v5/*: any*/)
+                (v5/*:: as any*/)
               ],
               "type": "PromptAnthropicInvocationParameters",
               "abstractKey": null
@@ -244,7 +243,7 @@ return {
             {
               "kind": "InlineFragment",
               "selections": [
-                (v1/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -252,10 +251,10 @@ return {
                   "name": "maxOutputTokens",
                   "storageKey": null
                 },
-                (v6/*: any*/),
-                (v3/*: any*/),
-                (v2/*: any*/),
-                (v4/*: any*/),
+                (v6/*:: as any*/),
+                (v3/*:: as any*/),
+                (v2/*:: as any*/),
+                (v4/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -309,9 +308,9 @@ return {
                   "name": "maxTokens",
                   "storageKey": null
                 },
-                (v1/*: any*/),
-                (v4/*: any*/),
-                (v6/*: any*/)
+                (v1/*:: as any*/),
+                (v4/*:: as any*/),
+                (v6/*:: as any*/)
               ],
               "type": "PromptAwsInvocationParameters",
               "abstractKey": null

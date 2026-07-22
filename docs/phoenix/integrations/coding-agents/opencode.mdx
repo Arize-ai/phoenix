@@ -1,0 +1,126 @@
+---
+title: "OpenCode"
+description: "Trace OpenCode terminal coding sessions, model calls, and tool usage in Phoenix."
+keywords: ["opencode", "opencode tracing", "phoenix", "agent tracing", "terminal coding agent"]
+---
+
+> Trace OpenCode terminal coding sessions, model calls, and tool usage with Phoenix for full observability.
+
+Trace your [OpenCode](https://opencode.ai/) sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit — every turn shows up as a trace, with the model call and every tool invocation captured as nested spans and grouped into its session. No application code changes required: the toolkit loads an in-process plugin and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup). If you prefer, you can also run Phoenix in a [notebook](/docs/phoenix/environments#notebooks), [self-host it](/docs/phoenix/environments#container), or use it directly from your [terminal](/docs/phoenix/environments#terminal).
+
+Go to the settings page in your Phoenix instance to find your **endpoint** and **API key**. A self-hosted Phoenix defaults to `http://localhost:6006`; the API key is only required when auth is enabled.
+
+## Install
+
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
+
+**macOS / Linux:**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- opencode
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.bat -OutFile $env:TEMP\install.bat
+& $env:TEMP\install.bat opencode
+```
+
+### Local clone
+
+```bash
+git clone https://github.com/Arize-ai/coding-harness-tracing.git
+cd coding-harness-tracing
+./install.sh opencode      # macOS / Linux
+install.bat opencode       # Windows
+```
+
+The installer prompts for your backend — select **Phoenix**, then enter your endpoint and optional API key — and your project name, writes them to `~/.arize/harness/config.json`, and copies the tracing plugin to `~/.config/opencode/plugin/arize-tracing.ts`. OpenCode auto-discovers plugins from both the `plugin/` and `plugins/` directories under `~/.config/opencode/`, so no `opencode.json` edit is required.
+
+## Configuration
+
+Credentials live in `~/.arize/harness/config.json`. Environment variables override values in `config.json` and can be set in your shell profile so they apply to every OpenCode session.
+
+```bash
+export PHOENIX_ENDPOINT="http://localhost:6006"
+export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
+export PHOENIX_PROJECT="opencode"
+export ARIZE_TRACE_ENABLED="true"
+```
+
+On the Phoenix backend, set the project name with `PHOENIX_PROJECT` (or `PHOENIX_PROJECT_NAME`); `ARIZE_PROJECT_NAME` is Arize-only and ignored here. `ARIZE_TRACE_ENABLED` is a backend-agnostic harness setting and keeps the `ARIZE_` prefix regardless of destination.
+
+<Callout type="warning">
+If `ARIZE_TRACE_ENABLED=false` is set in your shell environment — for example, inherited from another harness's configuration — tracing is silently disabled. Set `ARIZE_TRACE_ENABLED=true` before launching OpenCode, or unset the variable to fall back to the default of `true`.
+</Callout>
+
+### Redaction controls
+
+Each `ARIZE_LOG_*` flag accepts `"true"` or `"false"` and defaults to `"true"`. Set to `"false"` to opt out per category:
+
+```bash
+export ARIZE_LOG_PROMPTS="false"
+export ARIZE_LOG_TOOL_DETAILS="false"
+export ARIZE_LOG_TOOL_CONTENT="false"
+```
+
+| Flag | Redacts |
+| :--- | :------ |
+| `ARIZE_LOG_PROMPTS` | User prompt and assistant response text |
+| `ARIZE_LOG_TOOL_DETAILS` | Tool names and arguments |
+| `ARIZE_LOG_TOOL_CONTENT` | Tool call output content |
+
+## Observe
+
+Once tracing is enabled, OpenCode activity is streamed to Phoenix. Each turn (one user prompt to the assistant's response) is captured as a trace.
+
+## How Tracing Works
+
+OpenCode is architecturally different from the other coding agents in this repo. Extensions load as [plugins](https://opencode.ai/docs/plugins/) inside OpenCode's Bun runtime — there is no per-event subprocess. The integration has two pieces:
+
+1. A **TypeScript plugin shim** at `~/.config/opencode/plugin/arize-tracing.ts` that listens for `message.updated` and `session.idle` events, pulls the authoritative session snapshot via the OpenCode SDK, and pipes it to the reconciler.
+1. A **Python reconciler** (`arize-hook-opencode`) that walks the snapshot and emits any new `Turn`, `LLM`, and `TOOL` spans, deduplicated by message ID and tool call ID. Spans are sent directly to Phoenix — no separate buffer or collector service is required.
+
+## Limitations
+
+Sub-agent and `task` sessions trace independently. OpenCode's built-in `task` tool spawns sub-agents that each get their own `sessionID`. In v1, each sub-agent session produces its own independent trace; they are not linked back to the parent session's trace.
+
+## Reference
+
+For the full list of environment variables, default file paths, and troubleshooting steps, see the [OpenCode tracing README](https://github.com/Arize-ai/coding-harness-tracing/blob/main/tracing/opencode/README.md).
+
+## Uninstall
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- uninstall opencode
+```
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/coding-harness-tracing"
+    title="Arize Coding Harness Tracing"
+    horizontal
+  />
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/openinference"
+    title="OpenInference"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://opencode.ai/"
+    title="OpenCode"
+    horizontal
+  />
+</CardGroup>

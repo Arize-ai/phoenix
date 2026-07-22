@@ -151,10 +151,11 @@ export function ExperimentCompareListPage({
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const preloadedData = usePreloadedQuery(
-    ExperimentComparePageQueriesCompareListQuery,
-    queryRef
-  );
+  const preloadedData =
+    usePreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>(
+      ExperimentComparePageQueriesCompareListQuery,
+      queryRef
+    );
 
   const aggregateData =
     useFragment<ExperimentCompareListPage_aggregateData$key>(
@@ -1155,15 +1156,10 @@ export function ExperimentCompareListPage({
       const sort = sorting[0];
       const dir: SortDir = sort.desc ? "desc" : "asc";
       const sortId = sort.id;
-      let metric: ExperimentRunMetric | undefined = undefined;
-      let annotationName: string | undefined = undefined;
-      if (isExperimentRunMetric(sortId)) {
-        metric = sortId;
-      } else {
-        annotationName = sortId;
-      }
       gqlSort = {
-        col: { metric, annotationName },
+        col: isExperimentRunMetric(sortId)
+          ? { metric: sortId }
+          : { annotationName: sortId },
         dir,
       };
     }
@@ -1410,8 +1406,7 @@ function AnnotationValueItem({
       css={css`
         --mod-barloader-fill-color: ${optimizedBarColor};
         ${bgColor ? `background-color: ${bgColor};` : ""}
-        padding: var(--global-dimension-size-25)
-          var(--global-dimension-size-50);
+        padding: var(--global-dimension-size-25) var(--global-dimension-size-50);
         border-radius: var(--global-rounding-small);
         margin: calc(-1 * var(--global-dimension-size-25))
           calc(-1 * var(--global-dimension-size-50));

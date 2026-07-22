@@ -1,0 +1,141 @@
+---
+title: "Oh My Pi"
+description: "Trace Oh My Pi (omp) terminal coding sessions, model calls, tool usage, and token costs in Phoenix."
+keywords: ["oh my pi", "omp", "omp tracing", "phoenix", "agent tracing"]
+---
+
+> Trace Oh My Pi (omp) terminal coding sessions, model calls, tool usage, and token costs with Phoenix for full observability.
+
+Trace your [Oh My Pi (omp)](https://github.com/can1357/oh-my-pi) sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit — every run shows up as a trace with the model calls, tool invocations, and inline token usage, grouped into its session. No application code changes required: the toolkit hooks into omp's lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix.
+
+## Launch Phoenix
+
+The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup). If you prefer, you can also run Phoenix in a [notebook](/docs/phoenix/environments#notebooks), [self-host it](/docs/phoenix/environments#container), or use it directly from your [terminal](/docs/phoenix/environments#terminal).
+
+Go to the settings page in your Phoenix instance to find your **endpoint** and **API key**. A self-hosted Phoenix defaults to `http://localhost:6006`; the API key is only required when auth is enabled.
+
+## Install
+
+The **curl installer** is the simplest — it runs a short wizard that saves your Phoenix credentials for you. Use a **local clone** if you'd rather run the installer from a checkout of the source.
+
+### Curl installer (recommended)
+
+**macOS / Linux:**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- omp
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.bat -OutFile $env:TEMP\install.bat
+& $env:TEMP\install.bat omp
+```
+
+### Local clone
+
+```bash
+git clone https://github.com/Arize-ai/coding-harness-tracing.git
+cd coding-harness-tracing
+./install.sh omp           # macOS / Linux
+install.bat omp            # Windows
+```
+
+The installer prompts for your backend — select **Phoenix**, then enter your endpoint and optional API key — and your project name, writes credentials to `~/.arize/harness/config.json`, copies the hook shim into `~/.omp/extensions/arize-tracing.ts`, and registers the shim's absolute path in the `extensions` array of `~/.omp/agent/settings.json`. omp does not auto-discover an extensions directory, so this explicit registration is required — the installer handles it for you.
+
+Open a new omp session after install so the extension loads.
+
+## Configuration
+
+Credentials live in `~/.arize/harness/config.json`. Environment variables override values in `config.json` and can be set in your shell profile before launching omp.
+
+```bash
+export PHOENIX_ENDPOINT="http://localhost:6006"
+export PHOENIX_API_KEY="<your-api-key>"   # optional, only if auth is enabled
+export PHOENIX_PROJECT="omp"
+export ARIZE_TRACE_ENABLED="true"
+```
+
+| Variable | Purpose |
+| :------- | :------ |
+| `PHOENIX_ENDPOINT` | Destination Phoenix endpoint (defaults to `http://localhost:6006`) |
+| `PHOENIX_API_KEY` | Phoenix API key (only if auth is enabled) |
+| `ARIZE_TRACE_ENABLED` | Toggle tracing on or off |
+| `PHOENIX_PROJECT` | Destination project name on the Phoenix backend (defaults to `omp`); `ARIZE_PROJECT_NAME` is Arize-only |
+| `ARIZE_DRY_RUN` | Run the hook without sending spans, for validation |
+| `ARIZE_USER_ID` | Attribute traces to a specific user |
+| `ARIZE_VERBOSE` | Log routine handler activity (event dispatch, span emits, state transitions) |
+| `ARIZE_TRACE_DEBUG` | Dump raw event payloads under `~/.arize/harness/state/debug/` for inspection |
+
+See the [main README's Environment variables section](https://github.com/Arize-ai/coding-harness-tracing#environment-variables) for the full list of runtime overrides.
+
+### Redaction controls
+
+Each `ARIZE_LOG_*` flag accepts `"true"` or `"false"` and defaults to `"true"`. Set to `"false"` to opt out per category:
+
+```bash
+export ARIZE_LOG_PROMPTS="false"
+export ARIZE_LOG_TOOL_DETAILS="false"
+export ARIZE_LOG_TOOL_CONTENT="false"
+```
+
+| Flag | Redacts |
+| :--- | :------ |
+| `ARIZE_LOG_PROMPTS` | User prompt and assistant response text |
+| `ARIZE_LOG_TOOL_DETAILS` | Tool names and arguments |
+| `ARIZE_LOG_TOOL_CONTENT` | Tool call output content |
+
+## Observe
+
+Once tracing is enabled, omp activity is streamed to Phoenix. There is one trace per **agent run** — a user prompt through the agent's internal turn/tool-use loop to its final answer. Each trace is a tree:
+
+- **Turn traces** — the root span for each agent run, with the user prompt as input and the final assistant message as output
+- **LLM spans** — one per model call in the loop, with model name, provider, prompt/completion/reasoning token counts, cache read/write tokens, and cost
+- **Tool spans** — one per tool call, pairing the tool invocation with its result and recording name, input args, and output
+- **Session grouping** — all runs from the same session grouped by `session.id`
+
+Token usage is captured directly on each LLM span — omp surfaces cumulative usage inline on assistant messages, so prompt, completion, reasoning, cache, and cost values are available on every model call.
+
+## Verifying tracing
+
+Run any omp session as you normally would. omp loads the registered extension on startup and forwards lifecycle events to the hook.
+
+- Errors and handler stderr land in `~/.arize/harness/logs/omp.log`. Set `export ARIZE_VERBOSE=true` before launching omp to also see routine handler activity.
+- Set `export ARIZE_TRACE_DEBUG=true` to dump the raw event payloads under `~/.arize/harness/state/debug/` for inspection.
+- Confirm spans appear in your configured project in Phoenix.
+
+## Reference
+
+For the full list of environment variables, default file paths, and troubleshooting steps, see the [omp tracing README](https://github.com/Arize-ai/coding-harness-tracing/blob/main/tracing/omp/README.md).
+
+## Uninstall
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Arize-ai/coding-harness-tracing/main/install.sh | bash -s -- uninstall omp
+```
+
+Uninstall removes the shim's path from the `extensions` array in `~/.omp/agent/settings.json`, deletes the hook file at `~/.omp/extensions/arize-tracing.ts` (only if it carries the Arize header marker, so your own extensions are left alone), and removes the `harnesses.omp` block from `~/.arize/harness/config.json`.
+
+## Resources
+
+<CardGroup>
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/coding-harness-tracing"
+    title="Arize Coding Harness Tracing"
+    horizontal
+  />
+  <Card
+    icon="github"
+    href="https://github.com/Arize-ai/openinference"
+    title="OpenInference"
+    horizontal
+  />
+  <Card
+    icon="book-open"
+    href="https://github.com/can1357/oh-my-pi"
+    title="Oh My Pi"
+    horizontal
+  />
+</CardGroup>

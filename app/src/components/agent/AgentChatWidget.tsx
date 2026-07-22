@@ -22,66 +22,16 @@ import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { AgentFabPositioner } from "./AgentFabPositioner";
 import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
+import {
+  pxiGlowBreathe,
+  pxiGlowFlashOpacity,
+  pxiGlowWipe,
+  pxiGlowWipeMaskCSS,
+  pxiThinkingGlowWipe,
+} from "./pxiStyles";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
-const OPEN_AGENT_HOTKEY = "mod+i";
-
-const thinkingBorderWipe = keyframes`
-  0% {
-    -webkit-mask-position: 200% center;
-    mask-position: 200% center;
-  }
-
-  100% {
-    -webkit-mask-position: 0% center;
-    mask-position: 0% center;
-  }
-`;
-
-const ringBreathe = keyframes`
-  0%, 100% {
-    box-shadow: var(--agent-chat-widget-glow-outer-rest);
-  }
-  50% {
-    box-shadow: var(--agent-chat-widget-glow-outer-strong);
-  }
-`;
-
-const hoverWipe = keyframes`
-  0% {
-    opacity: 0;
-    -webkit-mask-position: 200% center;
-    mask-position: 200% center;
-  }
-  8% {
-    opacity: 1;
-  }
-  40% {
-    opacity: 1;
-  }
-  55% {
-    opacity: 0;
-    -webkit-mask-position: -60% center;
-    mask-position: -60% center;
-  }
-  100% {
-    opacity: 0;
-    -webkit-mask-position: -60% center;
-    mask-position: -60% center;
-  }
-`;
-
-const hoverRingOpacity = keyframes`
-  0%, 100% {
-    opacity: 0;
-  }
-  8%, 40% {
-    opacity: 0.95;
-  }
-  55% {
-    opacity: 0;
-  }
-`;
+export const OPEN_AGENT_HOTKEY = "mod+i";
 
 const glyphBreathe = keyframes`
   0%, 100% {
@@ -133,41 +83,9 @@ const lightThemeGlyphThemeCSS = css`
   }
 `;
 
-const darkThemeThinkingGlowCSS = css`
-  &[data-theme="dark"] {
-    --agent-chat-widget-glow-outer-rest:
-      0 0 2px 1px rgba(248, 242, 255, 0.78),
-      0 0 4px 2px rgba(154, 102, 255, 0.68),
-      0 0 8px 4px rgba(52, 128, 255, 0.52),
-      0 0 13px 5px rgba(198, 72, 255, 0.4),
-      0 0 17px 6px rgba(44, 216, 255, 0.26);
-    --agent-chat-widget-glow-outer-strong:
-      0 0 3px 2px rgba(250, 244, 255, 0.88),
-      0 0 7px 3px rgba(160, 108, 255, 0.82),
-      0 0 12px 6px rgba(58, 134, 255, 0.66),
-      0 0 19px 8px rgba(205, 78, 255, 0.52),
-      0 0 26px 10px rgba(50, 220, 255, 0.34);
-  }
-`;
-
-const lightThemeThinkingGlowCSS = css`
-  &[data-theme="light"] {
-    --agent-chat-widget-glow-outer-rest:
-      0 0 3px 1px rgba(245, 249, 255, 0.88),
-      0 0 5px 2px rgba(199, 190, 242, 0.56),
-      0 0 9px 4px rgba(88, 152, 255, 0.54),
-      0 0 14px 5px rgba(200, 150, 236, 0.23),
-      0 0 20px 7px rgba(116, 212, 255, 0.17);
-    --agent-chat-widget-glow-outer-strong:
-      0 0 4px 1px rgba(248, 251, 255, 0.94),
-      0 0 8px 3px rgba(203, 194, 244, 0.68),
-      0 0 13px 5px rgba(96, 159, 255, 0.64),
-      0 0 20px 7px rgba(205, 154, 238, 0.31),
-      0 0 26px 9px rgba(119, 214, 255, 0.22);
-  }
-`;
-
 const shapeCSS = css`
+  --pxi-glow-box-shadow-rest: var(--pxi-glow-box-shadow-fab-rest);
+  --pxi-glow-box-shadow-strong: var(--pxi-glow-box-shadow-fab-strong);
   position: relative;
   display: flex;
   align-items: center;
@@ -226,44 +144,32 @@ const shapeContentCSS = css`
 
 const thinkingBorderCSS = css`
   .agent-chat-widget__shimmer {
+    ${pxiGlowWipeMaskCSS};
     position: absolute;
-    inset: -28px;
+    inset: calc(-1 * var(--pxi-glow-bleed));
     z-index: 0;
     border-radius: inherit;
     mix-blend-mode: plus-lighter;
     pointer-events: none;
-    -webkit-mask-image: linear-gradient(
-      90deg,
-      transparent 15%,
-      black 45%,
-      black 55%,
-      transparent 85%
-    );
-    mask-image: linear-gradient(
-      90deg,
-      transparent 15%,
-      black 45%,
-      black 55%,
-      transparent 85%
-    );
-    -webkit-mask-size: 200% 200%;
-    mask-size: 200% 200%;
+    opacity: 1;
     -webkit-mask-position: center;
     mask-position: center;
-    animation: ${thinkingBorderWipe} 3s linear infinite both -0.5s;
+    /* Preserve the original 200% / 3000ms velocity across the full 240% path. */
+    animation: ${pxiThinkingGlowWipe} 3600ms linear infinite both -0.5s;
   }
 
   .agent-chat-widget__shimmer::before {
     content: "";
     position: absolute;
-    inset: 28px;
+    inset: var(--pxi-glow-bleed);
     border-radius: inherit;
     opacity: 1;
   }
 
   .agent-chat-widget__shimmer::before {
-    box-shadow: var(--agent-chat-widget-glow-outer-rest);
-    animation: ${ringBreathe} 2400ms ease-in-out infinite;
+    box-shadow: var(--pxi-glow-box-shadow-rest);
+    animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out
+      infinite;
     z-index: -1;
   }
 `;
@@ -274,39 +180,21 @@ const restingHoverWipeCSS = css`
   }
 
   .agent-chat-widget__hover-shimmer {
+    ${pxiGlowWipeMaskCSS};
     position: absolute;
-    inset: -28px;
+    inset: calc(-1 * var(--pxi-glow-bleed));
     z-index: 0;
     border-radius: inherit;
     mix-blend-mode: plus-lighter;
     pointer-events: none;
-    opacity: 0;
-    -webkit-mask-image: linear-gradient(
-      90deg,
-      transparent 15%,
-      black 45%,
-      black 55%,
-      transparent 85%
-    );
-    mask-image: linear-gradient(
-      90deg,
-      transparent 15%,
-      black 45%,
-      black 55%,
-      transparent 85%
-    );
-    -webkit-mask-size: 200% 200%;
-    mask-size: 200% 200%;
-    -webkit-mask-position: 200% center;
-    mask-position: 200% center;
   }
 
   .agent-chat-widget__hover-shimmer::before {
     content: "";
     position: absolute;
-    inset: 28px;
+    inset: var(--pxi-glow-bleed);
     border-radius: inherit;
-    box-shadow: var(--agent-chat-widget-glow-outer-rest);
+    box-shadow: var(--pxi-glow-box-shadow-rest);
     opacity: 0;
     transition:
       opacity 240ms ease-out,
@@ -314,12 +202,14 @@ const restingHoverWipeCSS = css`
   }
 
   &:hover .agent-chat-widget__hover-shimmer {
-    animation: ${hoverWipe} 2400ms linear infinite;
+    animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
+      var(--pxi-glow-wipe-easing) infinite;
   }
 
   &:hover .agent-chat-widget__hover-shimmer::before {
-    opacity: 0.95;
-    animation: ${ringBreathe} 2400ms ease-in-out 1 both;
+    opacity: var(--pxi-glow-opacity);
+    animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1
+      both;
   }
 
   &:hover .agent-chat-widget__content {
@@ -330,14 +220,15 @@ const restingHoverWipeCSS = css`
 const entranceHoverWipeCSS = css`
   @media (prefers-reduced-motion: no-preference) {
     &[data-entrance-animation="true"] .agent-chat-widget__hover-shimmer {
-      animation: ${hoverWipe} 2400ms linear 1;
+      animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
+        var(--pxi-glow-wipe-easing) 1;
     }
 
     &[data-entrance-animation="true"]
       .agent-chat-widget__hover-shimmer::before {
       animation:
-        ${ringBreathe} 2400ms ease-in-out 1,
-        ${hoverRingOpacity} 2400ms linear 1;
+        ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1,
+        ${pxiGlowFlashOpacity} var(--pxi-glow-wipe-duration) linear 1;
     }
 
     &[data-entrance-animation="true"] .agent-chat-widget__content {
@@ -345,20 +236,23 @@ const entranceHoverWipeCSS = css`
     }
 
     &[data-entrance-animation="true"]:hover .agent-chat-widget__hover-shimmer {
-      animation: ${hoverWipe} 2400ms linear infinite;
+      animation: ${pxiGlowWipe} var(--pxi-glow-wipe-duration)
+        var(--pxi-glow-wipe-easing) infinite;
     }
 
     &[data-entrance-animation="true"]:hover
       .agent-chat-widget__hover-shimmer::before {
-      opacity: 0.95;
-      animation: ${ringBreathe} 2400ms ease-in-out 1 both;
+      opacity: var(--pxi-glow-opacity);
+      animation: ${pxiGlowBreathe} var(--pxi-glow-wipe-duration) ease-in-out 1
+        both;
     }
   }
 `;
 
 const thinkingGlyphPulseCSS = css`
   .agent-chat-widget__content {
-    animation: ${glyphBreathe} 2400ms ease-in-out infinite;
+    animation: ${glyphBreathe} var(--pxi-glow-wipe-duration) ease-in-out
+      infinite;
   }
 `;
 
@@ -402,8 +296,6 @@ export function AgentChatWidgetButton({
           shapeCSS,
           darkThemeGlyphThemeCSS,
           lightThemeGlyphThemeCSS,
-          darkThemeThinkingGlowCSS,
-          lightThemeThinkingGlowCSS,
           !isStreaming ? [thinkingBorderCSS, restingHoverWipeCSS] : undefined,
           shouldShowEntranceAnimation ? entranceHoverWipeCSS : undefined,
           isStreaming ? thinkingBorderCSS : undefined,
@@ -481,9 +373,9 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const activeModalPortalContainer = useActiveModalPortalContainerElement();
   const hasOpenModal = activeModalPortalContainer !== null;
-  const isStreaming = useAgentContext((state) =>
+  const isResponsePending = useAgentContext((state) =>
     activeSessionId
-      ? state.chatStatusBySessionId[activeSessionId] === "streaming"
+      ? (state.isResponsePendingBySessionId[activeSessionId] ?? false)
       : false
   );
 
@@ -518,7 +410,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
       isHidden={isOpen}
       layer={hasOpenModal ? "modal" : "content"}
       placement={fabPlacement}
-      size={isStreaming ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
+      size={isResponsePending ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
       onActivate={toggleOpen}
       onPlacementChange={setFabPlacement}
     >
@@ -526,7 +418,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
         <AgentChatWidgetButton
           ariaLabel="Open assistant"
           isDragHandle
-          isStreaming={isStreaming}
+          isStreaming={isResponsePending}
           onPress={(event) => {
             if (
               event.pointerType === "keyboard" ||
@@ -543,7 +435,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   );
 }
 
-function AgentChatWidgetTooltip() {
+export function AgentChatWidgetTooltip() {
   const modifierKey = useModifierKey();
   const modifierGlyph = modifierKey === "Cmd" ? "⌘" : "Ctrl";
 

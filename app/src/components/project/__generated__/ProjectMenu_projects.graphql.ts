@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5fcac99a45d154a5f2dac8bb5e5c60c7>>
+ * @generated SignedSource<<6853a967dc12f5837d02e28f5c9dc13f>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -93,7 +92,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -103,7 +102,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
       "operation": ProjectMenuProjectsQuery_graphql
@@ -130,12 +129,12 @@ return {
           "name": "node",
           "plural": false,
           "selections": [
-            (v1/*: any*/),
-            (v2/*: any*/),
+            (v1/*:: as any*/),
+            (v2/*:: as any*/),
             {
               "kind": "InlineFragment",
               "selections": [
-                (v3/*: any*/)
+                (v3/*:: as any*/)
               ],
               "type": "Project",
               "abstractKey": null
@@ -175,8 +174,8 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
-                (v3/*: any*/)
+                (v2/*:: as any*/),
+                (v3/*:: as any*/)
               ],
               "storageKey": null
             },
@@ -195,7 +194,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/)
+                (v1/*:: as any*/)
               ],
               "storageKey": null
             }

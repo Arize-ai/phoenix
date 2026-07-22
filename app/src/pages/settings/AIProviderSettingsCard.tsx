@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import {
   Button,
   Card,
+  DocumentationHelp,
   Flex,
   Label,
   Loading,
@@ -22,7 +23,15 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
  */
 export function AIProviderSettingsCard() {
   return (
-    <Card title="AI Provider Settings">
+    <Card
+      title="AI Provider Settings"
+      titleExtra={
+        <DocumentationHelp topic="aiProviderSettings">
+          Choose the provider and model selected when you first open the
+          Playground.
+        </DocumentationHelp>
+      }
+    >
       <View padding="size-200">
         <Suspense fallback={<Loading size="S" />}>
           <DefaultModelField />

@@ -1,5 +1,47 @@
 # @arizeai/phoenix-client
 
+## 6.14.2
+
+### Patch Changes
+
+- Updated dependencies [dc451a6]
+  - @arizeai/phoenix-otel@2.1.0
+
+## 6.14.1
+
+### Patch Changes
+
+- Updated dependencies [30f0827]
+  - @arizeai/phoenix-otel@2.0.0
+
+## 6.14.0
+
+### Minor Changes
+
+- d6b1cbb: Add a reusable refreshable-credential fetch wrapper to the Phoenix TypeScript
+  client, use it for OAuth-authenticated CLI API and PXI requests, and keep each
+  profile bound to the endpoint that issued its OAuth tokens.
+
+## 6.13.0
+
+### Minor Changes
+
+- f94067b: Add px setup script for agent onboarding
+
+### Patch Changes
+
+- Updated dependencies [f94067b]
+  - @arizeai/phoenix-config@0.4.0
+  - @arizeai/phoenix-otel@1.2.0
+
+## 6.12.2
+
+### Patch Changes
+
+- Updated dependencies [c0ab6a9]
+  - @arizeai/phoenix-config@0.3.0
+  - @arizeai/phoenix-otel@1.1.1
+
 ## 6.12.1
 
 ### Patch Changes

@@ -31,7 +31,7 @@ export function TraceAnnotationSummary({
   filterCondition,
 }: TraceAnnotationSummaryProps) {
   const { projectId } = useParams();
-  const { timeRange } = useTimeRange();
+  const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<TraceAnnotationSummaryQuery>(
     graphql`
       query TraceAnnotationSummaryQuery(
@@ -53,10 +53,7 @@ export function TraceAnnotationSummary({
     {
       annotationName,
       id: projectId as string,
-      timeRange: {
-        start: timeRange?.start?.toISOString(),
-        end: timeRange?.end?.toISOString(),
-      },
+      timeRange: timeRangeISOStrings,
       filterCondition: filterCondition || null,
     }
   );

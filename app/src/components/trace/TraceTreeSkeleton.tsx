@@ -178,10 +178,10 @@ function SpanNodeWrapSkeleton(
         display: flex;
         flex-direction: row;
         justify-content: space-between;
-        gap: var(--global-dimension-static-size-100);
-        padding-right: var(--global-dimension-static-size-100);
-        padding-top: var(--global-dimension-static-size-100);
-        padding-bottom: var(--global-dimension-static-size-100);
+        gap: var(--global-dimension-size-100);
+        padding-right: var(--global-dimension-size-100);
+        padding-top: var(--global-dimension-size-100);
+        padding-bottom: var(--global-dimension-size-100);
         border-left: 4px solid transparent;
         box-sizing: border-box;
         & > *:first-of-type {
@@ -240,7 +240,7 @@ const spanControlsCSS = css`
 `;
 
 const spanTimingCSS = css`
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-dimension-size-100);
   width: 150px;
   flex: none;
   display: flex;

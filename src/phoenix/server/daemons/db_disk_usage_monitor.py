@@ -11,14 +11,12 @@ from sqlalchemy import text
 from typing_extensions import assert_never
 
 from phoenix.config import (
-    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_email_warning_threshold_percentage,
     get_env_database_usage_insertion_blocking_threshold_percentage,
-    getenv,
 )
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, pg_total_table_size_stmt
 from phoenix.server.email.types import DbUsageWarningEmailSender
 from phoenix.server.prometheus import (
     DB_DISK_USAGE_BYTES,
@@ -94,16 +92,8 @@ class DbDiskUsageMonitor(DaemonTask):
                 page_size = await session.scalar(text("PRAGMA page_size;"))
             current_usage_bytes = (page_count - freelist_count) * page_size
         elif self._db.dialect is SupportedSQLDialect.POSTGRESQL:
-            nspname = getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"
-            stmt = text("""\
-                SELECT sum(pg_total_relation_size(c.oid))
-                FROM pg_class as c
-                INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
-                WHERE c.relkind = 'r'
-                AND n.nspname = :nspname;
-            """).bindparams(nspname=nspname)
             async with self._db() as session:
-                current_usage_bytes = await session.scalar(stmt)
+                current_usage_bytes = await session.scalar(pg_total_table_size_stmt())
         else:
             assert_never(self._db.dialect)
         return float(current_usage_bytes)

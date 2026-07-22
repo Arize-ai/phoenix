@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.12.0...arize-phoenix-client-v2.13.0) (2026-07-12)
+
+
+### Features
+
+* **client:** add name_contains filter to Python client projects.list() ([#14132](https://github.com/Arize-ai/phoenix/issues/14132)) ([fa79dc0](https://github.com/Arize-ai/phoenix/commit/fa79dc0f249a5a8a205521af79b7c7946d814d9c)), closes [#14034](https://github.com/Arize-ai/phoenix/issues/14034)
+* phoenix env file ([#14188](https://github.com/Arize-ai/phoenix/issues/14188)) ([c0ab6a9](https://github.com/Arize-ai/phoenix/commit/c0ab6a9715bd8050094f8ac4135c7fa5d556c453))
+* **sdk:** accept both PHOENIX_PROJECT_NAME and PHOENIX_PROJECT everywhere ([#14167](https://github.com/Arize-ai/phoenix/issues/14167)) ([1e7d9fc](https://github.com/Arize-ai/phoenix/commit/1e7d9fc3cd21aca4f221884b963ab20404c70eaf))
+
 ## [2.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.11.0...arize-phoenix-client-v2.12.0) (2026-07-03)
 
 

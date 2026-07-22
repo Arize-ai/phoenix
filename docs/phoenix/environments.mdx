@@ -73,4 +73,47 @@ phoenix serve
 
 This will start the phoenix server on port 6006. If you are running your instrumented notebook or application on the same machine, traces should automatically be exported to `http://127.0.0.1:6006` so no additional configuration is needed. However if the server is running remotely, you will have to modify the environment variable `PHOENIX_COLLECTOR_ENDPOINT` to point to that machine (e.g. `http://<my-remote-machine>:<port>`)
 
+## Configuration & environment variables
+
+Phoenix reads its connection settings from environment variables. Three of them are easy to confuse, so it's worth being precise about what each one is for:
+
+| Variable | What it is | When to set it |
+|----------|------------|----------------|
+| `PHOENIX_COLLECTOR_ENDPOINT` | The base URL of the Phoenix server that **receives your traces** (the OTel collector). Set the base URL only — e.g. `https://app.phoenix.arize.com` or `http://localhost:6006` — not a full `/v1/traces` path. | Whenever your app and the Phoenix server are not on the same machine, or you're using Phoenix Cloud. This is the variable the tracing SDKs (`register()`) use. |
+| `PHOENIX_API_KEY` | The credential used to **authenticate** to a Phoenix instance that has auth enabled (Phoenix Cloud, or a self-hosted instance with authentication turned on). | When connecting to Phoenix Cloud or any authenticated deployment. |
+| `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request. Older Phoenix Cloud instances (created before June 24th, 2025) expect the API key here as `api_key=...`. | Only when a deployment requires custom headers, or for legacy Cloud instances. |
+
+<Warning>
+Point `PHOENIX_COLLECTOR_ENDPOINT` at the server's **base URL**. Setting it (or the legacy `PHOENIX_HOST`) to a full endpoint path such as `.../v1/traces` will misconfigure the exporter and your traces will not arrive.
+</Warning>
+
+### Choosing a project
+
+`PHOENIX_PROJECT` selects the project that project-scoped operations write to and read from. `PHOENIX_PROJECT_NAME` is a supported alias for the same setting. When both are set, `PHOENIX_PROJECT` wins and Phoenix logs a one-time conflict warning. If neither is set, the project defaults to `"default"`.
+
+```python
+import os
+
+os.environ["PHOENIX_PROJECT"] = "my-app"   # canonical
+# PHOENIX_PROJECT_NAME is accepted as an alias for the same value
+```
+
+### Credential file discovery (`.env.phoenix`)
+
+Instead of exporting variables in every shell, you can drop `PHOENIX_`-prefixed settings into a `.env.phoenix` file. The Phoenix SDKs and CLI auto-discover it: starting from the current working directory they walk **up** toward the filesystem root and load the first `.env.phoenix` they find (dotenv format).
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_API_KEY=your-api-key
+PHOENIX_PROJECT=my-app
+```
+
+A few rules worth knowing:
+
+- **The process environment always wins.** A value already set in the environment is never overridden by the file.
+- **The filename is `.env.phoenix`**, not `.env`.
+- **Add it to your ignore rules** before storing credentials in it — the Phoenix repository already git-ignores `.env.phoenix`.
+- **Opt out** by setting `PHOENIX_DISCOVER_CONFIG=false` (also accepts `0`, `no`, `off`), which disables file discovery entirely.
+
 

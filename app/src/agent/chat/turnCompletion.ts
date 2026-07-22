@@ -12,8 +12,8 @@ export type TurnFinish = {
 /**
  * Coordinates when one PXI logical turn is complete.
  *
- * A turn is finalized (messages mirrored to the durable store, browser trace
- * ended) only when all of the following hold:
+ * A turn is finalized (messages mirrored to the durable store and the active
+ * server turn trace context cleared) only when all of the following hold:
  * 1. the AI SDK reported `onFinish` for the last HTTP response,
  * 2. no further automatic sends or pending client tool outputs will extend
  *    the turn (the "terminal send decision").
@@ -29,7 +29,7 @@ export function createTurnCompletionGate({
     shouldSendAutomaticallyAfterToolOutput({ messages }),
   getShouldKeepTurnOpen = shouldKeepTurnOpenForPendingToolOutput,
 }: {
-  /** Ends the browser-side turn trace. Must not reject. */
+  /** Clears client state for the completed logical turn. Must not reject. */
   endTurn: (error?: unknown) => Promise<void>;
   /** Persists the finished turn (store mirror, usage, summary). */
   finalize: (finish: TurnFinish) => void;
@@ -55,8 +55,8 @@ export function createTurnCompletionGate({
     try {
       await endTurn();
     } catch {
-      // Tracing is best-effort and `endTurn` is contractually non-throwing;
-      // never let a tracing failure block persistence.
+      // Cleanup is best-effort and `endTurn` is contractually non-throwing;
+      // never let a cleanup failure block persistence.
     }
     finalize(finish);
   };

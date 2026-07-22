@@ -301,8 +301,8 @@ def _is_string_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, str)
 
 
-def _is_span_kind(node: typing.Any) -> TypeGuard[ast.Name]:
-    return isinstance(node, ast.Name) and node.id == "span_kind"
+def _is_uppercase_enum(node: typing.Any) -> TypeGuard[ast.Name]:
+    return isinstance(node, ast.Name) and node.id in ("span_kind", "status_code")
 
 
 def _convert_to_uppercase(node: ast.expr) -> ast.expr:
@@ -521,9 +521,9 @@ class _FilterTranslator(_ProjectionTranslator):
                 left = comparator
             return ast.Call(func=ast.Name(id="and_", ctx=ast.Load()), args=args, keywords=[])
         left, op, right = self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
-        if _is_span_kind(left):
+        if _is_uppercase_enum(left):
             right = _convert_to_uppercase(right)
-        elif _is_span_kind(right):
+        elif _is_uppercase_enum(right):
             left = _convert_to_uppercase(left)
         if _is_subscript(left, "attributes"):
             left = (

@@ -1,18 +1,25 @@
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock
 
 from pydantic_ai import RunUsage
+from pydantic_ai.ui.vercel_ai.request_types import UIMessage
 from sqlalchemy import func, select
 from sqlalchemy.exc import SAWarning
 
 from phoenix.db import models
 from phoenix.server.api.routers.agents import (
+    TurnTraceContext,
     _build_message_metadata_chunk,
+    _emit_turn_root_span,
     _get_span_context,
     _persist_db_traces,
+    _resolve_turn_trace_ids,
+    _synthesize_client_tool_spans,
+    _turn_parent_context,
 )
 from phoenix.server.types import DbSessionFactory
-from phoenix.tracers import extract_otel_context
+from phoenix.tracers import Tracer, extract_otel_context
 
 
 def test_message_metadata_can_use_propagated_root_span_context() -> None:
@@ -22,6 +29,7 @@ def test_message_metadata_can_use_propagated_root_span_context() -> None:
 
     metadata_chunk = _build_message_metadata_chunk(
         span_context=_get_span_context(parent_context),
+        turn_trace_context=None,
         session_id="session-1",
         usage=RunUsage(input_tokens=1, output_tokens=2),
     )
@@ -31,6 +39,200 @@ def test_message_metadata_can_use_propagated_root_span_context() -> None:
     assert metadata.trace is not None
     assert metadata.trace.trace_id == trace_id
     assert metadata.trace.root_span_id == root_span_id
+
+
+def test_turn_trace_context_is_clamped_and_used_for_metadata() -> None:
+    now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
+    turn_trace_context = TurnTraceContext(
+        trace_id="1" * 32,
+        root_span_id="2" * 16,
+        started_at=now - timedelta(days=3),
+    )
+    turn_ids = _resolve_turn_trace_ids(turn_trace_context, now=now)
+    assert turn_ids.started_at == now - timedelta(hours=24)
+    span_context = _get_span_context(_turn_parent_context(turn_ids))
+    assert span_context is not None
+    assert span_context.trace_id == int("1" * 32, 16)
+
+    metadata = _build_message_metadata_chunk(
+        span_context=None,
+        turn_trace_context=turn_trace_context,
+        session_id="session-1",
+        usage=RunUsage(),
+    ).message_metadata
+    assert metadata is not None
+    assert metadata.turn_trace_context == turn_trace_context
+    assert metadata.trace is not None
+    assert metadata.trace.trace_id == turn_trace_context.trace_id
+    assert metadata.trace.root_span_id == turn_trace_context.root_span_id
+
+
+def test_zero_turn_ids_are_replaced() -> None:
+    now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
+    turn_ids = _resolve_turn_trace_ids(
+        TurnTraceContext(trace_id="0" * 32, root_span_id="0" * 16, started_at=now),
+        now=now,
+    )
+    assert turn_ids.trace_id != 0
+    assert turn_ids.root_span_id != 0
+
+
+def test_synthesizes_root_and_clamped_client_tool_span() -> None:
+    now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
+    turn_trace_context = TurnTraceContext(
+        trace_id="1" * 32,
+        root_span_id="2" * 16,
+        started_at=now,
+    )
+    turn_ids = _resolve_turn_trace_ids(turn_trace_context, now=now)
+    tracer = Tracer(span_cost_calculator=MagicMock())
+    messages = [
+        UIMessage.model_validate(
+            {
+                "id": "user-1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "Use the tool"}],
+            }
+        ),
+        UIMessage.model_validate(
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [
+                    {
+                        "type": "tool-open_page",
+                        "toolCallId": "call-1",
+                        "state": "output-available",
+                        "input": {"url": "/traces"},
+                        "output": {"ok": True},
+                        "callProviderMetadata": {
+                            "phoenix": {
+                                "tool_execution_environment": "client",
+                                "tool_input_emitted_at": (now + timedelta(seconds=1)).isoformat(),
+                                "client_started_at": (now - timedelta(minutes=1)).isoformat(),
+                                "client_ended_at": (now + timedelta(minutes=1)).isoformat(),
+                            }
+                        },
+                    }
+                ],
+            }
+        ),
+    ]
+    received_at = now + timedelta(seconds=5)
+
+    _synthesize_client_tool_spans(
+        tracer=tracer,
+        turn_ids=turn_ids,
+        messages=messages,
+        received_at=received_at,
+        session_id="session-1",
+    )
+    _emit_turn_root_span(
+        tracer=tracer,
+        turn_ids=turn_ids,
+        session_id="session-1",
+        input_text="Use the tool",
+        output_text="Done",
+        error_message=None,
+        end_time=received_at,
+        user_email=None,
+    )
+
+    db_traces = tracer.get_db_traces(project_id=1)
+    assert len(db_traces) == 1
+    spans_by_name = {span.name: span for span in db_traces[0].spans}
+    root = spans_by_name["pxi.turn"]
+    tool = spans_by_name["open_page"]
+    assert root.span_id == turn_trace_context.root_span_id
+    assert root.parent_id is None
+    assert root.status_code == "OK"
+    assert tool.parent_id == turn_trace_context.root_span_id
+    assert tool.start_time == now + timedelta(seconds=1)
+    assert tool.end_time == received_at
+    assert tool.status_code == "OK"
+    assert tool.attributes["tool"]["name"] == "open_page"
+
+
+def test_error_parts_record_exception_events() -> None:
+    now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
+    turn_trace_context = TurnTraceContext(
+        trace_id="3" * 32,
+        root_span_id="4" * 16,
+        started_at=now,
+    )
+    turn_ids = _resolve_turn_trace_ids(turn_trace_context, now=now)
+    tracer = Tracer(span_cost_calculator=MagicMock())
+    messages = [
+        UIMessage.model_validate(
+            {
+                "id": "user-1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "Use the tool"}],
+            }
+        ),
+        UIMessage.model_validate(
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [
+                    {
+                        "type": "tool-open_page",
+                        "toolCallId": "call-1",
+                        "state": "output-error",
+                        "input": {"url": "/traces"},
+                        "errorText": "tool exploded",
+                        "callProviderMetadata": {
+                            "phoenix": {
+                                "tool_execution_environment": "client",
+                                "tool_input_emitted_at": (now + timedelta(seconds=1)).isoformat(),
+                            }
+                        },
+                    }
+                ],
+            }
+        ),
+    ]
+    received_at = now + timedelta(seconds=5)
+
+    _synthesize_client_tool_spans(
+        tracer=tracer,
+        turn_ids=turn_ids,
+        messages=messages,
+        received_at=received_at,
+        session_id="session-1",
+    )
+    _emit_turn_root_span(
+        tracer=tracer,
+        turn_ids=turn_ids,
+        session_id="session-1",
+        input_text="Use the tool",
+        output_text=None,
+        error_message="turn failed",
+        end_time=received_at,
+        user_email=None,
+    )
+
+    db_traces = tracer.get_db_traces(project_id=1)
+    assert len(db_traces) == 1
+    spans_by_name = {span.name: span for span in db_traces[0].spans}
+    tool = spans_by_name["open_page"]
+    assert tool.status_code == "ERROR"
+    assert tool.events == [
+        {
+            "name": "exception",
+            "timestamp": received_at.isoformat(),
+            "attributes": {"exception.message": "tool exploded"},
+        }
+    ]
+    root = spans_by_name["pxi.turn"]
+    assert root.status_code == "ERROR"
+    assert root.events == [
+        {
+            "name": "exception",
+            "timestamp": received_at.isoformat(),
+            "attributes": {"exception.message": "turn failed"},
+        }
+    ]
 
 
 async def test_persist_db_traces_merges_existing_browser_trace(db: DbSessionFactory) -> None:

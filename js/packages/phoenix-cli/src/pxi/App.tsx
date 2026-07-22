@@ -1,3 +1,4 @@
+import type { EventEmitter } from "node:events";
 import { Box, Text, useApp, useInput, useStdin } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
@@ -623,7 +624,13 @@ export function ThinkingIndicator() {
  */
 export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   const { exit } = useApp();
-  const { internal_eventEmitter: inputEventEmitter } = useStdin();
+  // ink v7 narrowed useStdin()'s return type to its public props, but the
+  // context value still carries the internal raw-input emitter this app
+  // relies on for backspace/forward-delete/paste-marker handling that
+  // useInput does not surface.
+  const { internal_eventEmitter: inputEventEmitter } = useStdin() as ReturnType<
+    typeof useStdin
+  > & { internal_eventEmitter: EventEmitter };
   const [messages, setMessages] = useState<PxiMessage[]>(initialMessages);
   const [draft, setDraft] = useState<DraftEditorState>(
     EMPTY_DRAFT_EDITOR_STATE

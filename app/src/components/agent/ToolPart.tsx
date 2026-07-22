@@ -3,6 +3,10 @@ import { getToolName } from "ai";
 import { useEffect, useRef, useState } from "react";
 
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
+import {
+  CREATE_ANNOTATION_CONFIG_TOOL_NAME,
+  UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
+} from "@phoenix/agent/tools/annotationConfig";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { CREATE_DATASET_TOOL_NAME } from "@phoenix/agent/tools/createDataset";
@@ -54,6 +58,11 @@ import {
   AddDatasetExamplesToolDetails,
   getAddDatasetExamplesToolPreview,
 } from "./AddDatasetExamplesToolDetails";
+import {
+  AnnotationConfigWriteToolDetails,
+  getCreateAnnotationConfigToolPreview,
+  getUpdateAnnotationConfigToolPreview,
+} from "./AnnotationConfigWriteToolDetails";
 import {
   AskUserToolDetails,
   formatAskUserState,
@@ -113,6 +122,11 @@ import {
   getPatchExperimentToolPreview,
   PatchExperimentToolDetails,
 } from "./PatchExperimentToolDetails";
+import {
+  getReadSkillResourceToolPreview,
+  READ_SKILL_RESOURCE_TOOL_NAME,
+  ReadSkillResourceToolDetails,
+} from "./ReadSkillResourceToolDetails";
 import {
   formatRemovePromptInstanceState,
   getRemovePromptInstanceStatusVariant,
@@ -1173,6 +1187,22 @@ function getToolPresentation(
         statusVariant: getPatchExperimentStatusVariant(part) ?? statusVariant,
         details: <PatchExperimentToolDetails part={part} />,
       };
+    case CREATE_ANNOTATION_CONFIG_TOOL_NAME:
+      return {
+        preview: getCreateAnnotationConfigToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        icon: <Icons.Edit2 />,
+        details: <AnnotationConfigWriteToolDetails part={part} />,
+      };
+    case UPDATE_ANNOTATION_CONFIG_TOOL_NAME:
+      return {
+        preview: getUpdateAnnotationConfigToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        icon: <Icons.Edit2 />,
+        details: <AnnotationConfigWriteToolDetails part={part} />,
+      };
     case EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME:
       return {
         preview: getEditCodeEvaluatorDraftToolPreview(part),
@@ -1199,6 +1229,14 @@ function getToolPresentation(
         quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
       };
     }
+    case READ_SKILL_RESOURCE_TOOL_NAME:
+      return {
+        preview: getReadSkillResourceToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <ReadSkillResourceToolDetails part={part} />,
+        icon: <Icons.FileText />,
+      };
     case NATIVE_WEB_SEARCH_TOOL_NAME:
     case NATIVE_WEB_FETCH_TOOL_NAME:
       return {

@@ -305,12 +305,20 @@ After doing so, consider pasting the following settings into your workspace sett
   "oxc.path.oxlint": "app/node_modules/oxlint/bin/oxlint",
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
-  "typescript.tsdk": "app/node_modules/typescript/lib",
   "relay.rootDirectory": "app",
   "relay.pathToConfig": "app/relay.config.js",
   "relay.autoStartCompiler": true
 }
 ```
+
+> [!NOTE]
+> The repo compiles with TypeScript 7 (the native compiler), which no longer ships
+> `tsserver`, so do not set `typescript.tsdk`. For IntelliSense that matches the
+> compiler, install the [TypeScript (Native Preview)](https://marketplace.visualstudio.com/items?itemName=TypeScriptTeam.native-preview)
+> extension; otherwise VS Code's built-in TypeScript language service works fine for
+> editing. Tools that still need the JS compiler API (openapi-typescript, typedoc,
+> Storybook docgen) resolve the `@typescript/typescript6` bridge via `.pnpmfile.cjs`
+> in `app/` and `js/`.
 
 ### Debugging the Python Server
 

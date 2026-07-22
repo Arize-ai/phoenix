@@ -7,15 +7,12 @@ import {
   Button,
   Card,
   DialogTrigger,
+  DocumentationHelp,
   Icon,
   Icons,
-  LazyTabPanel,
   Loading,
   Modal,
   ModalOverlay,
-  Tab,
-  TabList,
-  Tabs,
   View,
 } from "@phoenix/components";
 import type { APIKeyFormParams } from "@phoenix/components/auth";
@@ -27,34 +24,19 @@ import {
 import type { APIKeysCardCreateSystemAPIKeyMutation } from "./__generated__/APIKeysCardCreateSystemAPIKeyMutation.graphql";
 import type { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
 import { SystemAPIKeysTable } from "./SystemAPIKeysTable";
-import { UserAPIKeysTable } from "./UserAPIKeysTable";
 
 function APIKeysCardContent({ fetchKey }: { fetchKey: number }) {
   const query = useLazyLoadQuery<APIKeysCardQuery>(
     graphql`
       query APIKeysCardQuery {
         ...SystemAPIKeysTableFragment
-        ...UserAPIKeysTableFragment
       }
     `,
     {},
     { fetchPolicy: "network-only", fetchKey }
   );
 
-  return (
-    <Tabs>
-      <TabList>
-        <Tab id="system">System Keys</Tab>
-        <Tab id="user">User Keys</Tab>
-      </TabList>
-      <LazyTabPanel id="system">
-        <SystemAPIKeysTable query={query} />
-      </LazyTabPanel>
-      <LazyTabPanel id="user">
-        <UserAPIKeysTable query={query} />
-      </LazyTabPanel>
-    </Tabs>
-  );
+  return <SystemAPIKeysTable query={query} />;
 }
 
 export function APIKeysCard() {
@@ -114,8 +96,13 @@ export function APIKeysCard() {
   return (
     <div>
       <Card
-        titleSeparator={false}
-        title="API Keys"
+        title="System API Keys"
+        titleExtra={
+          <DocumentationHelp topic="apiKeys">
+            Create system-wide credentials for automated and programmatic access
+            to Phoenix.
+          </DocumentationHelp>
+        }
         extra={
           <DialogTrigger
             isOpen={showCreateAPIKeyDialog}
@@ -123,8 +110,9 @@ export function APIKeysCard() {
           >
             <Button
               size="S"
+              variant="primary"
               onPress={() => setShowCreateAPIKeyDialog(true)}
-              leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
             >
               System Key
             </Button>

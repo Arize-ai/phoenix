@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<c22bfc24b7d470a2565fc7d880fba3a6>>
+ * @generated SignedSource<<085fd155d6f61d880c7094f659d7d2f2>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -55,7 +54,7 @@ v1 = {
   "storageKey": null
 },
 v2 = [
-  (v1/*: any*/),
+  (v1/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -78,7 +77,7 @@ v3 = {
   "kind": "LinkedField",
   "name": "viewer",
   "plural": false,
-  "selections": (v2/*: any*/),
+  "selections": (v2/*:: as any*/),
   "storageKey": null
 },
 v4 = [
@@ -116,20 +115,20 @@ v8 = {
   "kind": "LinkedField",
   "name": "user",
   "plural": false,
-  "selections": (v2/*: any*/),
+  "selections": (v2/*:: as any*/),
   "storageKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SpanNotesEditorQuery",
     "selections": [
-      (v3/*: any*/),
+      (v3/*:: as any*/),
       {
         "alias": "span",
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -146,11 +145,11 @@ return {
                 "name": "spanAnnotations",
                 "plural": true,
                 "selections": [
-                  (v1/*: any*/),
-                  (v5/*: any*/),
-                  (v6/*: any*/),
-                  (v7/*: any*/),
-                  (v8/*: any*/)
+                  (v1/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
+                  (v7/*:: as any*/),
+                  (v8/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -172,14 +171,14 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SpanNotesEditorQuery",
     "selections": [
-      (v3/*: any*/),
+      (v3/*:: as any*/),
       {
         "alias": "span",
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -192,7 +191,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v1/*: any*/),
+          (v1/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -204,11 +203,11 @@ return {
                 "name": "spanAnnotations",
                 "plural": true,
                 "selections": [
-                  (v1/*: any*/),
-                  (v5/*: any*/),
-                  (v6/*: any*/),
-                  (v7/*: any*/),
-                  (v8/*: any*/),
+                  (v1/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
+                  (v7/*:: as any*/),
+                  (v8/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,

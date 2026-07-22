@@ -14,7 +14,33 @@ import { z } from "zod";
 
 import { InvalidArgumentError } from "./exitCodes";
 
+export const OAuthTokensSchema = z.object({
+  accessToken: z
+    .string()
+    .min(1)
+    .describe(
+      "OAuth access token used as a bearer token for Phoenix API requests."
+    ),
+  refreshToken: z
+    .string()
+    .min(1)
+    .describe(
+      "OAuth refresh token used to rotate the access token when it is near expiry."
+    ),
+  expiresAt: z
+    .string()
+    .datetime()
+    .describe("ISO timestamp when the OAuth access token expires."),
+  scope: z
+    .string()
+    .describe("OAuth scope string returned by the token endpoint."),
+});
+
 export const ProfileEntrySchema = z.object({
+  // Deliberately looser than `validation/endpoint.ts`: one invalid field makes
+  // a non-strict load discard every profile in the file (see `loadSettings`),
+  // so an endpoint an older CLI was willing to write must not strand the
+  // profiles sitting next to it.
   endpoint: z
     .string()
     .url(
@@ -42,6 +68,9 @@ export const ProfileEntrySchema = z.object({
     .describe(
       "Extra HTTP headers sent with every request from this profile. Useful for custom auth or routing. Values override defaults."
     ),
+  oauthTokens: OAuthTokensSchema.optional().describe(
+    "OAuth token pair created by `px auth login`. Tokens are secrets and are stored in the settings file with mode 0600."
+  ),
 });
 
 export const SettingsFileSchema = z.object({
@@ -68,6 +97,8 @@ export const SettingsFileSchema = z.object({
  * override only a subset of configuration values.
  */
 export type ProfileEntry = z.infer<typeof ProfileEntrySchema>;
+
+export type OAuthTokens = z.infer<typeof OAuthTokensSchema>;
 
 /**
  * On-disk schema for the CLI settings file.
@@ -387,4 +418,7 @@ export function saveSettings(
     encoding: "utf-8",
     mode: 0o600,
   });
+  // writeFileSync only applies `mode` when it creates the file; the file holds
+  // secrets (API keys, OAuth tokens), so tighten a pre-existing permissive mode.
+  fs.chmodSync(filePath, 0o600);
 }

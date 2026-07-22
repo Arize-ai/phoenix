@@ -17,7 +17,7 @@ const popoverSurfaceCSS = css`
 export const dslFilterCodeMirrorCSS = css`
   flex: 1 1 auto;
   .cm-content {
-    padding: var(--global-dimension-static-size-100) 0;
+    padding: var(--global-dimension-size-100) 0;
   }
   .cm-editor {
     background-color: transparent !important;
@@ -31,16 +31,16 @@ export const dslFilterCodeMirrorCSS = css`
   /* Restyle the autocomplete tooltip as a design-system menu */
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
-    padding: var(--global-dimension-static-size-50);
+    padding: var(--global-dimension-size-50);
     z-index: ${NON_MODAL_FLOATING_Z_INDEX};
     /* CodeMirror anchors the tooltip to the text line inside the field, so
        the offset must clear the field's inner padding and border before it
        reads as a gap below the input itself. A transform (rather than
        margin) keeps CodeMirror's own tooltip measurement and positioning
        math untouched. */
-    transform: translateY(var(--global-dimension-static-size-200));
+    transform: translateY(var(--global-dimension-size-200));
     &.cm-tooltip-above {
-      transform: translateY(calc(-1 * var(--global-dimension-static-size-200)));
+      transform: translateY(calc(-1 * var(--global-dimension-size-200)));
     }
     & > ul {
       font-family: var(--global-font-family-sans);
@@ -51,9 +51,8 @@ export const dslFilterCodeMirrorCSS = css`
       max-width: 560px;
       & > completion-section {
         display: list-item;
-        padding: var(--global-dimension-static-size-100)
-          var(--global-dimension-static-size-100)
-          var(--global-dimension-static-size-50);
+        padding: var(--global-dimension-size-100)
+          var(--global-dimension-size-100) var(--global-dimension-size-50);
         font-size: var(--global-font-size-xs);
         font-weight: var(--font-weight-heavy);
         color: var(--global-text-color-500);
@@ -65,9 +64,9 @@ export const dslFilterCodeMirrorCSS = css`
         align-items: center;
         /* Guaranteed minimum separation between the option label and the
            right-aligned DSL preview, even when both are long */
-        gap: var(--global-dimension-static-size-300);
-        padding: var(--global-dimension-static-size-50)
-          var(--global-dimension-static-size-100);
+        gap: var(--global-dimension-size-300);
+        padding: var(--global-dimension-size-50)
+          var(--global-dimension-size-100);
         border-radius: var(--global-rounding-small);
         color: var(--global-text-color-900);
         cursor: pointer;
@@ -116,7 +115,7 @@ export const dslFilterCodeMirrorCSS = css`
     ${popoverSurfaceCSS}
     font-family: var(--global-font-family-sans);
     font-size: var(--global-font-size-s);
-    padding: var(--global-dimension-static-size-100);
+    padding: var(--global-dimension-size-100);
     color: var(--global-text-color-700);
     max-width: 300px;
   }
@@ -129,8 +128,7 @@ export const dslFilterCodeMirrorCSS = css`
  */
 export const dslFilterErrorTooltipCSS = css`
   ${popoverSurfaceCSS}
-  padding: var(--global-dimension-static-size-100)
-    var(--global-dimension-static-size-150);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   max-width: 400px;
 `;
 
@@ -168,17 +166,17 @@ export const dslFilterFieldCSS = css`
   }
   box-sizing: border-box;
   .filter-icon {
-    margin-left: var(--global-dimension-static-size-100);
-    margin-right: var(--global-dimension-static-size-50);
+    margin-left: var(--global-dimension-size-100);
+    margin-right: var(--global-dimension-size-50);
   }
   .error-badge {
     display: flex;
     align-items: center;
-    gap: var(--global-dimension-static-size-50);
+    gap: var(--global-dimension-size-50);
     max-width: 200px;
     overflow: hidden;
-    padding: 2px var(--global-dimension-static-size-65);
-    margin-right: var(--global-dimension-static-size-50);
+    padding: 2px var(--global-dimension-size-65);
+    margin-right: var(--global-dimension-size-50);
     border-radius: var(--global-rounding-small);
     background-color: var(--global-color-danger-100);
     color: var(--global-color-danger);
@@ -203,7 +201,7 @@ export const dslFilterFieldCSS = css`
     text-overflow: ellipsis;
   }
   .clear-button {
-    margin-right: var(--global-dimension-static-size-100);
+    margin-right: var(--global-dimension-size-100);
     padding: 2px;
     color: var(--global-text-color-700);
     border-radius: var(--global-rounding-small);

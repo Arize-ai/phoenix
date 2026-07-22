@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<fcb45e0bacb28b9550f35085cce08cea>>
+ * @generated SignedSource<<1bd6a581a90f8835369621f9e659272b>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -145,7 +144,7 @@ return {
         {
           "kind": "InlineFragment",
           "selections": [
-            (v0/*: any*/),
+            (v0/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -154,7 +153,7 @@ return {
               "name": "experimentAnnotationSummaries",
               "plural": true,
               "selections": [
-                (v1/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -207,7 +206,7 @@ return {
                       "name": "node",
                       "plural": false,
                       "selections": [
-                        (v0/*: any*/),
+                        (v0/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -223,7 +222,7 @@ return {
                           "name": "datasetVersion",
                           "plural": false,
                           "selections": [
-                            (v0/*: any*/)
+                            (v0/*:: as any*/)
                           ],
                           "storageKey": null
                         },
@@ -285,7 +284,7 @@ return {
                           "name": "annotationSummaries",
                           "plural": true,
                           "selections": [
-                            (v1/*: any*/),
+                            (v1/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -335,7 +334,7 @@ return {
                       "name": "node",
                       "plural": false,
                       "selections": [
-                        (v2/*: any*/),
+                        (v2/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -347,8 +346,8 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v2/*: any*/),
-                                (v3/*: any*/),
+                                (v2/*:: as any*/),
+                                (v3/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -381,10 +380,10 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v2/*: any*/),
-                                (v3/*: any*/),
-                                (v4/*: any*/),
-                                (v5/*: any*/)
+                                (v2/*:: as any*/),
+                                (v3/*:: as any*/),
+                                (v4/*:: as any*/),
+                                (v5/*:: as any*/)
                               ],
                               "type": "ContinuousAnnotationConfig",
                               "abstractKey": null
@@ -392,8 +391,8 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v2/*: any*/),
-                                (v3/*: any*/),
+                                (v2/*:: as any*/),
+                                (v3/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -401,8 +400,8 @@ return {
                                   "name": "threshold",
                                   "storageKey": null
                                 },
-                                (v4/*: any*/),
-                                (v5/*: any*/)
+                                (v4/*:: as any*/),
+                                (v5/*:: as any*/)
                               ],
                               "type": "FreeformAnnotationConfig",
                               "abstractKey": null

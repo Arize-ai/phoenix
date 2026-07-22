@@ -1,1 +1,12 @@
 build/
+
+# Added by px setup — local Phoenix credentials
+.env.phoenix
+
+# Agent MCP configs written by dogfooding `px setup --docs-mcp` in this package
+.mcp.json
+opencode.json
+.cursor/
+
+# Added by px setup — local Phoenix credentials
+.px/

@@ -3,7 +3,7 @@ import { graphql, useMutation } from "react-relay";
 
 import {
   Card,
-  ContextualHelp,
+  DocumentationHelp,
   Flex,
   Label,
   Switch,
@@ -54,9 +54,9 @@ export function SandboxConfigsCard({
     <Card
       title="Sandbox Configurations"
       titleExtra={
-        <ContextualHelp variant="info">
+        <DocumentationHelp topic="sandboxConfigurations">
           Reusable sandbox configurations for code evaluators.
-        </ContextualHelp>
+        </DocumentationHelp>
       }
       extra={
         <SandboxConfigDialogTrigger

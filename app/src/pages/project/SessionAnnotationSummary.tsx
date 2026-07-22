@@ -32,7 +32,7 @@ export function SessionAnnotationSummary({
   filterIoSubstringOrSessionId,
 }: SessionAnnotationSummaryProps) {
   const { projectId } = useParams();
-  const { timeRange } = useTimeRange();
+  const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<SessionAnnotationSummaryQuery>(
     graphql`
       query SessionAnnotationSummaryQuery(
@@ -56,10 +56,7 @@ export function SessionAnnotationSummary({
     {
       annotationName,
       id: projectId as string,
-      timeRange: {
-        start: timeRange?.start?.toISOString(),
-        end: timeRange?.end?.toISOString(),
-      },
+      timeRange: timeRangeISOStrings,
       filterIoSubstring: filterIoSubstringOrSessionId || null,
       sessionId: filterIoSubstringOrSessionId || null,
     }

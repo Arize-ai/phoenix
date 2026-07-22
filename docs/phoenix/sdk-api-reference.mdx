@@ -78,11 +78,15 @@ All packages respect common Phoenix environment variables for seamless configura
 
 | Variable | Description | Used By |
 |----------|-------------|---------|
-| `PHOENIX_COLLECTOR_ENDPOINT` | Trace collector URL | OTEL |
+| `PHOENIX_COLLECTOR_ENDPOINT` | Trace collector URL (server base URL, not a `/v1/traces` path) | OTEL |
 | `PHOENIX_BASE_URL` | Phoenix server URL | Client |
 | `PHOENIX_API_KEY` | API key for authentication | Client, OTEL |
-| `PHOENIX_PROJECT_NAME` | Default project name | OTEL |
+| `PHOENIX_PROJECT` | Default project name (canonical) | Client, OTEL, CLI |
+| `PHOENIX_PROJECT_NAME` | Alias for `PHOENIX_PROJECT`; `PHOENIX_PROJECT` wins if both are set | Client, OTEL |
 | `PHOENIX_CLIENT_HEADERS` | Custom HTTP headers | Client, OTEL |
+| `PHOENIX_DISCOVER_CONFIG` | Set to `false` to disable `.env.phoenix` credential-file discovery | Client, OTEL, CLI |
+
+Phoenix SDKs and the CLI also auto-load `PHOENIX_`-prefixed settings from a `.env.phoenix` file, discovered by walking up from the current directory. Process environment variables always take precedence. See [Environments](/docs/phoenix/environments).
 
 ---
 

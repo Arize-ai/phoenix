@@ -52,10 +52,13 @@ import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentA
 import { ExperimentTokenCosts } from "@phoenix/components/experiment/ExperimentTokenCosts";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
+  ColumnHeaderCell,
+  ColumnOrderingProvider,
   CompactJSONCell,
   createRowSelectionColumn,
   IntCell,
   LoadMoreRow,
+  useColumnOrder,
 } from "@phoenix/components/table";
 import { CellWithControlsWrap } from "@phoenix/components/table/CellWithControlsWrap";
 import {
@@ -87,10 +90,12 @@ import type {
   ExperimentsTableFragment$key,
 } from "./__generated__/ExperimentsTableFragment.graphql";
 import type { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
+import { ACTIONS_COLUMN_ID, ANNOTATION_COLUMN_PREFIX } from "./constants";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
+import { ExperimentsMetricsChartSelector } from "./ExperimentsMetricsChartSelector";
 
 const PAGE_SIZE = 100;
 
@@ -264,6 +269,10 @@ export function ExperimentsTable({
   const [columnSizing, setColumnSizing] = usePersistedState<
     Record<string, number>
   >(`phoenix-experiments-column-sizing-${data.id}`, {});
+  const [storedColumnOrder, setStoredColumnOrder] = usePersistedState<string[]>(
+    `phoenix-experiments-column-order-${data.id}`,
+    []
+  );
 
   const tableData = useMemo(
     () =>
@@ -428,20 +437,12 @@ export function ExperimentsTable({
       const { annotationName, minScore, maxScore } = annotationSummary;
       return {
         header: () => (
-          <Flex
-            direction="row"
-            gap="size-100"
-            alignItems="center"
-            justifyContent="end"
-          >
+          <Flex direction="row" gap="size-100" alignItems="center">
             <Text>{annotationName}</Text>
             <AnnotationColorSwatch annotationName={annotationName} />
           </Flex>
         ),
-        id: `annotation-${annotationName}`,
-        meta: {
-          textAlign: "right",
-        },
+        id: `${ANNOTATION_COLUMN_PREFIX}${annotationName}`,
         cell: ({ row }) => {
           const annotation = row.original.annotationSummaryMap[annotationName];
           if (!annotation || annotation.meanScore == null) {
@@ -473,17 +474,11 @@ export function ExperimentsTable({
     {
       header: "repetitions",
       accessorKey: "repetitions",
-      meta: {
-        textAlign: "right",
-      },
       cell: IntCell,
     },
     {
       header: "run count",
       accessorKey: "runCount",
-      meta: {
-        textAlign: "right",
-      },
       cell: IntCell,
     },
     {
@@ -500,9 +495,6 @@ export function ExperimentsTable({
           header: "job progress",
           id: "experimentJobProgress",
           minSize: 200,
-          meta: {
-            textAlign: "right",
-          },
           cell: ({ row }) => {
             const { runCount, expectedRunCount } = row.original;
             const progressValue =
@@ -531,9 +523,6 @@ export function ExperimentsTable({
     {
       header: "avg latency",
       accessorKey: "averageRunLatencyMs",
-      meta: {
-        textAlign: "right",
-      },
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
@@ -545,9 +534,6 @@ export function ExperimentsTable({
     {
       header: "total cost",
       accessorKey: "costSummary.total.cost",
-      meta: {
-        textAlign: "right",
-      },
       cell: ({ getValue, row }) => {
         const value = getValue() as number | null;
         const experimentId = row.original.id;
@@ -562,9 +548,6 @@ export function ExperimentsTable({
     {
       header: "total tokens",
       accessorKey: "costSummary.total.tokens",
-      meta: {
-        textAlign: "right",
-      },
       cell: ({ getValue, row }) => {
         const value = getValue() as number | null;
         const experimentId = row.original.id;
@@ -580,9 +563,6 @@ export function ExperimentsTable({
     {
       header: "error rate",
       accessorKey: "errorRate",
-      meta: {
-        textAlign: "right",
-      },
       cell: ErrorRateCell,
     },
     {
@@ -592,7 +572,7 @@ export function ExperimentsTable({
       cell: CompactJSONCell,
     },
     {
-      id: "actions",
+      id: ACTIONS_COLUMN_ID,
       minSize: 180,
       cell: ({ row }) => {
         const project = row.original.project;
@@ -633,16 +613,32 @@ export function ExperimentsTable({
     },
   ];
 
+  const columns = [...baseColumns, ...annotationColumns, ...tailColumns];
+  const {
+    leafColumnOrder,
+    visibleColumnOrder,
+    onVisibleColumnOrderChange,
+    getColumnOrderIndex,
+  } = useColumnOrder({
+    columns,
+    columnOrder: storedColumnOrder,
+    onColumnOrderChange: setStoredColumnOrder,
+    columnVisibility,
+    // The checkbox and the pinned actions column stay at the edges
+    nonOrderableColumnIds: [CHECKBOX_COLUMN_ID, ACTIONS_COLUMN_ID],
+  });
+
   const table = useReactTable<TableRow>({
-    columns: [...baseColumns, ...annotationColumns, ...tailColumns],
+    columns,
     data: tableData,
     state: {
       rowSelection,
       columnSizing,
       columnVisibility,
+      columnOrder: leafColumnOrder,
       columnPinning: {
         ...CHECKBOX_COLUMN_PINNING,
-        right: ["actions"],
+        right: [ACTIONS_COLUMN_ID],
       },
     },
     defaultColumn: defaultColumnSettings,
@@ -653,7 +649,7 @@ export function ExperimentsTable({
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const selectorColumns = table.getAllLeafColumns();
+  const selectorColumns = table.getAllColumns();
 
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExperiments = selectedRows.map((row) => row.original);
@@ -727,10 +723,13 @@ export function ExperimentsTable({
               onChange={setSearchText}
             />
           </View>
+          <ExperimentsMetricsChartSelector />
           <ExperimentColumnSelector
             columns={selectorColumns}
             columnVisibility={columnVisibility}
             onColumnVisibilityChange={setColumnVisibility}
+            columnOrder={storedColumnOrder}
+            onColumnOrderChange={setStoredColumnOrder}
           />
         </Flex>
       </View>
@@ -742,71 +741,90 @@ export function ExperimentsTable({
         ref={tableContainerRef}
         onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       >
-        <table
-          css={selectableTableCSS}
-          style={{
-            ...columnSizeVars,
-            width: table.getTotalSize(),
-            minWidth: "100%",
-          }}
+        <ColumnOrderingProvider
+          columnOrder={visibleColumnOrder}
+          onColumnOrderChange={onVisibleColumnOrderChange}
         >
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    colSpan={header.colSpan}
-                    key={header.id}
-                    style={{
-                      ...getCommonPinningStyles(header.column),
-                      width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
-                    }}
-                    align={header.column.columnDef?.meta?.textAlign}
-                  >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        <div>
-                          <Truncate maxWidth="100%">
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                          </Truncate>
-                        </div>
-                        <div
-                          {...{
-                            onMouseDown: header.getResizeHandler(),
-                            onTouchStart: header.getResizeHandler(),
-                            className: `resizer ${
-                              header.column.getIsResizing() ? "isResizing" : ""
-                            }`,
-                          }}
-                        />
-                      </>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          {columnSizingInfo.isResizingColumn ? (
-            <MemoizedTableBody
-              table={table}
-              hasNext={hasNext}
-              onLoadNext={() => loadNext(PAGE_SIZE)}
-              isLoadingNext={isLoadingNext}
-              dataset={data}
-            />
-          ) : (
-            <TableBody
-              table={table}
-              hasNext={hasNext}
-              onLoadNext={() => loadNext(PAGE_SIZE)}
-              isLoadingNext={isLoadingNext}
-              dataset={data}
-            />
-          )}
-        </table>
+          <table
+            css={selectableTableCSS}
+            style={{
+              ...columnSizeVars,
+              width: table.getTotalSize(),
+              minWidth: "100%",
+            }}
+          >
+            <thead>
+              {table.getHeaderGroups().map((headerGroup, headerGroupIndex) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <ColumnHeaderCell
+                      key={header.id}
+                      columnId={header.column.id}
+                      // Only the top header group is reorderable; sub-headers
+                      // of a group column move with it
+                      index={
+                        headerGroupIndex === 0
+                          ? getColumnOrderIndex(header.column.id)
+                          : -1
+                      }
+                      label={
+                        typeof header.column.columnDef.header === "string"
+                          ? header.column.columnDef.header
+                          : undefined
+                      }
+                      colSpan={header.colSpan}
+                      style={{
+                        ...getCommonPinningStyles(header.column),
+                        width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                      }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <>
+                          <div>
+                            <Truncate maxWidth="100%">
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                            </Truncate>
+                          </div>
+                          <div
+                            {...{
+                              onMouseDown: header.getResizeHandler(),
+                              onTouchStart: header.getResizeHandler(),
+                              className: `resizer ${
+                                header.column.getIsResizing()
+                                  ? "isResizing"
+                                  : ""
+                              }`,
+                            }}
+                          />
+                        </>
+                      )}
+                    </ColumnHeaderCell>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            {columnSizingInfo.isResizingColumn ? (
+              <MemoizedTableBody
+                table={table}
+                hasNext={hasNext}
+                onLoadNext={() => loadNext(PAGE_SIZE)}
+                isLoadingNext={isLoadingNext}
+                dataset={data}
+              />
+            ) : (
+              <TableBody
+                table={table}
+                hasNext={hasNext}
+                onLoadNext={() => loadNext(PAGE_SIZE)}
+                isLoadingNext={isLoadingNext}
+                dataset={data}
+              />
+            )}
+          </table>
+        </ColumnOrderingProvider>
         {selectedRows.length ? (
           <ExperimentSelectionToolbar
             datasetId={data.id}

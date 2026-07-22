@@ -59,7 +59,8 @@ export const BorderSizes: StoryFn = () => (
     <div
       css={css`
         ${tokenBoxCSS}
-        border: var(--global-border-size-thin) solid var(--global-border-color-default);
+        border: var(--global-border-size-thin) solid
+          var(--global-border-color-default);
       `}
     >
       <div>thin</div>
@@ -68,7 +69,8 @@ export const BorderSizes: StoryFn = () => (
     <div
       css={css`
         ${tokenBoxCSS}
-        border: var(--global-border-size-thick) solid var(--global-border-color-default);
+        border: var(--global-border-size-thick) solid
+          var(--global-border-color-default);
       `}
     >
       <div>thick</div>

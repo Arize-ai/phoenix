@@ -18,3 +18,13 @@ When performing evaluations, speed is paramount so that you can focus on improvi
 ## Why Use Executors
 
 Running thousands of evaluations manually is slow and error-prone. Executors automatically handle the complexity so you can focus on your evaluation logic instead of infrastructure.
+
+## Retries and Timeouts
+
+Both `evaluate_dataframe` and `async_evaluate_dataframe` accept a `max_retries` argument (default `10`) that bounds how many times a failing evaluation task is retried before it is marked failed.
+
+When you use the asynchronous executor (`async_evaluate_dataframe`), each task also has a `timeout` (default 60 seconds). **A timed-out task counts against `max_retries`.** A timeout is logged and the task requeued, and once the retry budget is exhausted the task is marked `FAILED` — honoring `exit_on_error` — rather than being retried forever. If you have long-running eval tasks that legitimately need more time, raise the timeout or increase `max_retries`; if tasks are hanging, lowering `max_retries` makes them fail faster.
+
+<Note>
+This applies to the async executor's per-task timeout. The synchronous executor retries on exceptions only and has no per-task timeout.
+</Note>

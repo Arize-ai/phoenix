@@ -76,8 +76,16 @@
                 "group": "Coding Agents",
                 "pages": [
                   "docs/phoenix/integrations/developer-tools/coding-agents",
-                  "docs/phoenix/integrations/phoenix-mcp-server",
                   "docs/phoenix/agent-assisted-setup"
+                ]
+              },
+              {
+                "group": "MCP",
+                "pages": [
+                  "docs/phoenix/integrations/mcp",
+                  "docs/phoenix/integrations/remote-mcp",
+                  "docs/phoenix/integrations/docs-mcp",
+                  "docs/phoenix/integrations/phoenix-mcp-server"
                 ]
               },
               "docs/phoenix/end-to-end-features-notebook",
@@ -209,6 +217,7 @@
                       "docs/phoenix/evaluation/pre-built-metrics/tool-invocation",
                       "docs/phoenix/evaluation/pre-built-metrics/tool-response-handling",
                       "docs/phoenix/evaluation/pre-built-metrics/refusal",
+                      "docs/phoenix/evaluation/pre-built-metrics/user-friction",
                       "docs/phoenix/evaluation/pre-built-metrics/exact-match",
                       "docs/phoenix/evaluation/pre-built-metrics/matches-regex",
                       "docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore",
@@ -488,7 +497,16 @@
             "group": "Developer Tools",
             "icon": "code",
             "pages": [
-              "docs/phoenix/integrations/developer-tools/coding-agents",
+              "docs/phoenix/integrations/developer-tools/coding-agents"
+            ]
+          },
+          {
+            "group": "MCP",
+            "icon": "plug",
+            "pages": [
+              "docs/phoenix/integrations/mcp",
+              "docs/phoenix/integrations/remote-mcp",
+              "docs/phoenix/integrations/docs-mcp",
               "docs/phoenix/integrations/phoenix-mcp-server"
             ]
           },
@@ -859,6 +877,20 @@
               "docs/phoenix/integrations/evaluation-integrations/ragas",
               "docs/phoenix/integrations/evaluation-integrations/uqlm"
             ]
+          },
+          {
+            "group": "Coding Agents",
+            "icon": "terminal",
+            "pages": [
+              "docs/phoenix/integrations/coding-agents/claude-code",
+              "docs/phoenix/integrations/coding-agents/codex",
+              "docs/phoenix/integrations/coding-agents/copilot",
+              "docs/phoenix/integrations/coding-agents/cursor",
+              "docs/phoenix/integrations/coding-agents/gemini",
+              "docs/phoenix/integrations/coding-agents/kiro",
+              "docs/phoenix/integrations/coding-agents/oh-my-pi",
+              "docs/phoenix/integrations/coding-agents/opencode"
+            ]
           }
         ]
       },
@@ -981,6 +1013,20 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-jsonl-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-evals-jsonl-file"
+                    ]
+                  },
+                  {
+                    "group": "Dataset Labels",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-dataset-labels",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/create-a-dataset-label",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/get-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/update-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/delete-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-the-labels-applied-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/replace-the-set-of-labels-applied-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/apply-a-label-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/remove-a-label-from-a-dataset"
                     ]
                   },
                   {
@@ -1116,7 +1162,10 @@
               "docs/phoenix/self-hosting/deployment-options/kubernetes",
               "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",
               "docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation",
-              "docs/phoenix/self-hosting/deployment-options/railway"
+              "docs/phoenix/self-hosting/deployment-options/railway",
+              "docs/phoenix/self-hosting/deployment-options/render",
+              "docs/phoenix/self-hosting/deployment-options/google-cloud-run",
+              "docs/phoenix/self-hosting/deployment-options/azure"
             ]
           },
           {
@@ -1281,6 +1330,8 @@
               {
                 "group": "07.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server",
+                  "docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables",
                   "docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api"
                 ]
               },

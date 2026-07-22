@@ -151,6 +151,10 @@ def _apply_project_session_filters(
     """Restrict a ``ProjectSession`` aggregation to the project, time range, and
     input/output substring filter used by the sessions table.
 
+    The time range uses interval-overlap semantics: a session is included iff
+    [start_time, end_time] intersects [time_range.start, time_range.end), i.e.
+    the session had activity inside the window.
+
     When ``session_id`` is provided, mirror the ``sessions`` resolver's search
     semantics: an exact session-ID match wins (ignoring the time range and
     substring filter); otherwise fall back to the substring/time-range filters,
@@ -161,7 +165,7 @@ def _apply_project_session_filters(
     conditions = []
     if time_range:
         if time_range.start:
-            conditions.append(time_range.start <= table.start_time)
+            conditions.append(time_range.start <= table.end_time)
         if time_range.end:
             conditions.append(table.start_time < time_range.end)
     if filter_io_substring:
@@ -574,7 +578,12 @@ class Project(Node):
             has_next_page=has_next_page,
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description="Sessions in the project. The time range filter uses interval-overlap "
+        "semantics: a session is included iff [startTime, endTime] intersects "
+        "[timeRange.start, timeRange.end), i.e. the session had activity inside the "
+        "window. Long-running sessions therefore appear in every window they overlap."
+    )  # type: ignore
     async def sessions(
         self,
         info: Info[Context, None],
@@ -1800,6 +1809,9 @@ class Project(Node):
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> "AnnotationScoreTimeSeries":
         stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        # Buckets by start_time (a session belongs to exactly one bucket), so unlike the
+        # sessions connection's interval-overlap filter, a long-running session appears
+        # only in the bucket where it started — the two surfaces intentionally differ.
         bucket = date_trunc(
             info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
         )

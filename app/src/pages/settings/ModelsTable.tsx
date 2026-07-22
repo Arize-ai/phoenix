@@ -7,7 +7,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useMemo, useRef } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useFragment } from "react-relay";
 
@@ -45,6 +46,10 @@ import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { CloneModelButton } from "./CloneModelButton";
 import { DeleteModelButton } from "./DeleteModelButton";
+
+// Initial estimate only — rows are measured once rendered. Roughly a 30px
+// size-S icon button + 2 * 8px cell padding + 1px row border.
+const ESTIMATED_ROW_HEIGHT = 47;
 
 type ModelsTableGenerativeModel =
   ModelsTable_generativeModels$data["generativeModels"]["edges"][number]["generativeModel"];
@@ -173,7 +178,7 @@ export function ModelsTable({
       {
         header: "name",
         accessorKey: "name",
-        size: 300,
+        size: 200,
         cell: ({ row }) => {
           const model = row.original;
           return (
@@ -217,17 +222,16 @@ export function ModelsTable({
       {
         header: "match pattern",
         accessorKey: "namePattern",
+        size: 200,
         cell: ({ row }) => {
           const namePattern = row.original.namePattern;
           const provider = row.original.provider;
           const providerKey = row.original.providerKey;
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
-              <span>
-                <Truncate maxWidth="100%" title={namePattern}>
-                  {namePattern}
-                </Truncate>
-              </span>
+              <Truncate maxWidth="100%" title={namePattern}>
+                {namePattern}
+              </Truncate>
               {provider && (
                 <TooltipTrigger delay={0}>
                   <Focusable>
@@ -381,6 +385,8 @@ export function ModelsTable({
         id: "actions",
         header: "",
         accessorKey: "id",
+        size: 120,
+        enableResizing: false,
         cell: ({ row }) => {
           const isCustomModel = row.original.kind === "CUSTOM";
           return (
@@ -440,6 +446,10 @@ export function ModelsTable({
   const table = useReactTable({
     columns,
     data: tableData,
+    defaultColumn: {
+      minSize: 100,
+    },
+    columnResizeMode: "onChange",
     state: {
       columnVisibility: {
         kind: false,
@@ -460,6 +470,28 @@ export function ModelsTable({
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
 
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line react-hooks-js/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    // Rows have fractional heights; the default integer offsetHeight
+    // accumulates enough error over hundreds of rows to clip the last one.
+    measureElement: (element) => element.getBoundingClientRect().height,
+    overscan: 5,
+  });
+  const virtualRows = virtualizer.getVirtualItems();
+  const totalHeight = virtualizer.getTotalSize();
+  // Spacer rows keep the scrollbar sized to the full row count while only the
+  // visible rows are mounted. Rows are not transformed so the pinned (sticky)
+  // name and actions columns keep working.
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
+  const paddingBottom =
+    virtualRows.length > 0
+      ? totalHeight - virtualRows[virtualRows.length - 1].end
+      : 0;
+
   if (isEmpty) {
     return (
       <Flex width="100%" justifyContent="center" alignItems="center">
@@ -470,13 +502,25 @@ export function ModelsTable({
 
   return (
     <div
+      ref={tableContainerRef}
       css={css`
-        flex: 1 1 auto;
+        // Fill the card body exactly so this div (the virtualizer's scroll
+        // element) is the one that scrolls, keeping the mounted rows in sync
+        // with the viewport.
+        height: 100%;
+        box-sizing: border-box;
         overflow: auto;
       `}
     >
       <table
-        css={tableCSS}
+        css={[
+          tableCSS,
+          // Fixed layout so long model names and match patterns truncate at
+          // their column size instead of stretching the column.
+          css`
+            table-layout: fixed;
+          `,
+        ]}
         style={{ width: table.getTotalSize(), minWidth: "100%" }}
       >
         <thead>
@@ -494,33 +538,46 @@ export function ModelsTable({
                   }}
                 >
                   {header.isPlaceholder ? null : (
-                    <div
-                      {...{
-                        className: header.column.getCanSort() ? "sort" : "",
-                        onClick: header.column.getToggleSortingHandler(),
-                        style: {
-                          textWrap: "nowrap",
-                          textAlign: header.column.columnDef.meta?.textAlign,
-                        },
-                      }}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() ? (
-                        <Icon
-                          className="sort-icon"
-                          svg={
-                            header.column.getIsSorted() === "asc" ? (
-                              <Icons.CaretUpFilled />
-                            ) : (
-                              <Icons.CaretDownFilled />
-                            )
-                          }
+                    <>
+                      <div
+                        {...{
+                          className: header.column.getCanSort() ? "sort" : "",
+                          onClick: header.column.getToggleSortingHandler(),
+                          style: {
+                            textWrap: "nowrap",
+                            textAlign: header.column.columnDef.meta?.textAlign,
+                          },
+                        }}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getIsSorted() ? (
+                          <Icon
+                            className="sort-icon"
+                            svg={
+                              header.column.getIsSorted() === "asc" ? (
+                                <Icons.CaretUpFilled />
+                              ) : (
+                                <Icons.CaretDownFilled />
+                              )
+                            }
+                          />
+                        ) : null}
+                      </div>
+                      {header.column.getCanResize() && (
+                        <div
+                          {...{
+                            onMouseDown: header.getResizeHandler(),
+                            onTouchStart: header.getResizeHandler(),
+                            className: `resizer ${
+                              header.column.getIsResizing() ? "isResizing" : ""
+                            }`,
+                          }}
                         />
-                      ) : null}
-                    </div>
+                      )}
+                    </>
                   )}
                 </th>
               ))}
@@ -528,9 +585,22 @@ export function ModelsTable({
           ))}
         </thead>
         <tbody>
-          {rows.map((row) => {
+          {paddingTop > 0 && (
+            <tr>
+              <td
+                colSpan={table.getVisibleLeafColumns().length}
+                style={{ height: paddingTop, padding: 0, border: "none" }}
+              />
+            </tr>
+          )}
+          {virtualRows.map((virtualRow) => {
+            const row = rows[virtualRow.index];
             return (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                data-index={virtualRow.index}
+                ref={virtualizer.measureElement}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
@@ -545,6 +615,14 @@ export function ModelsTable({
               </tr>
             );
           })}
+          {paddingBottom > 0 && (
+            <tr>
+              <td
+                colSpan={table.getVisibleLeafColumns().length}
+                style={{ height: paddingBottom, padding: 0, border: "none" }}
+              />
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

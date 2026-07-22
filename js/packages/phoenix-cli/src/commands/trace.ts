@@ -28,15 +28,17 @@ import {
   getAnnotationMutationHelpText,
   getResponseErrorMessage,
   normalizeAnnotationInput,
-} from "./annotationMutationUtils";
+} from "./annotationMutations";
 import {
-  formatAnnotationMutationOutput,
-  type OutputFormat as AnnotationMutationOutputFormat,
-} from "./formatAnnotationMutation";
+  fetchSpanAnnotations,
+  type SpanAnnotation,
+} from "./fetchSpanAnnotations";
 import {
-  formatNoteMutationOutput,
-  type OutputFormat as NoteMutationOutputFormat,
-} from "./formatNoteMutation";
+  fetchTraceAnnotations,
+  type TraceAnnotation,
+} from "./fetchTraceAnnotations";
+import { formatAnnotationMutationOutput } from "./formatAnnotationMutation";
+import { formatNoteMutationOutput } from "./formatNoteMutation";
 import {
   formatTraceOutput,
   formatTracesOutput,
@@ -46,12 +48,14 @@ import {
   buildNoteMutationResult,
   NOTE_ANNOTATION_NAME,
   normalizeNoteText,
-} from "./noteMutationUtils";
-import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
-import {
-  fetchTraceAnnotations,
-  type TraceAnnotation,
-} from "./traceAnnotations";
+} from "./noteMutations";
+import type {
+  AddNoteOptions,
+  AnnotationInclusionOptions,
+  AnnotateOptions,
+  DeleteOptions,
+  ProjectScopedOptions,
+} from "./options";
 
 type Span = componentsV1["schemas"]["Span"];
 
@@ -147,51 +151,56 @@ function getResolvedTraceId(spans: Span[]): string | undefined {
   return spans[0]?.context?.trace_id;
 }
 
-interface TraceGetOptions {
-  endpoint?: string;
-  project?: string;
-  apiKey?: string;
-  format?: TraceOutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px trace get`.
+ */
+interface TraceGetOptions
+  extends ProjectScopedOptions<TraceOutputFormat>, AnnotationInclusionOptions {
+  /**
+   * `--file <path>`: Write the trace to this file as JSON instead of stdout.
+   * When set, `--format` is ignored (a warning is printed if the user also
+   * passed a non-`json` `--format`).
+   *
+   * @example "./trace.json"
+   */
   file?: string;
-  includeAnnotations?: boolean;
-  includeNotes?: boolean;
 }
 
-interface TraceListOptions {
-  endpoint?: string;
-  project?: string;
-  apiKey?: string;
-  format?: TraceOutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px trace list`. Every filter is optional and they combine
+ * with AND; with none of them set the command returns the newest `limit`
+ * traces in the project.
+ */
+interface TraceListOptions
+  extends ProjectScopedOptions<TraceOutputFormat>, AnnotationInclusionOptions {
+  /**
+   * `-n, --limit <number>`: Fetch the last N traces, newest first. Defaults
+   * to 10.
+   *
+   * @example 50
+   */
   limit?: number;
+  /**
+   * `--last-n-minutes <number>`: Only fetch traces from the last N minutes.
+   * A relative alternative to `since`.
+   *
+   * @example 60
+   */
   lastNMinutes?: number;
+  /**
+   * `--since <timestamp>`: Only fetch traces started at or after this ISO
+   * 8601 timestamp.
+   *
+   * @example "2026-07-13T00:00:00Z"
+   */
   since?: string;
+  /**
+   * `--max-concurrent <number>`: Maximum concurrent requests when fetching
+   * annotations/notes or writing trace files to a directory. Defaults to 10.
+   *
+   * @example 5
+   */
   maxConcurrent?: number;
-  includeAnnotations?: boolean;
-  includeNotes?: boolean;
-}
-
-interface TraceAnnotateOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: AnnotationMutationOutputFormat;
-  progress?: boolean;
-  name?: string;
-  label?: string;
-  score?: string;
-  explanation?: string;
-  annotatorKind?: string;
-  identifier?: string;
-}
-
-interface TraceAddNoteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: NoteMutationOutputFormat;
-  progress?: boolean;
-  text?: string;
-  identifier?: string;
 }
 
 /**
@@ -799,7 +808,7 @@ export function createTraceListCommand(): Command {
  */
 async function traceAnnotateHandler(
   traceId: string,
-  options: TraceAnnotateOptions
+  options: AnnotateOptions
 ): Promise<void> {
   try {
     const config = resolveConfig({
@@ -914,7 +923,7 @@ export function createTraceAnnotateCommand(): Command {
 
 async function traceAddNoteHandler(
   traceId: string,
-  options: TraceAddNoteOptions
+  options: AddNoteOptions
 ): Promise<void> {
   try {
     const config = resolveConfig({
@@ -995,19 +1004,12 @@ export function createTraceAddNoteCommand(): Command {
     .action(traceAddNoteHandler);
 }
 
-interface TraceDeleteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  yes?: boolean;
-  progress?: boolean;
-}
-
 /**
  * Handler for `trace delete`
  */
 async function traceDeleteHandler(
   traceIdentifier: string,
-  options: TraceDeleteOptions
+  options: DeleteOptions
 ): Promise<void> {
   try {
     assertDeletesEnabled();

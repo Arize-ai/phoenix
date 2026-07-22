@@ -35,7 +35,7 @@ import { TraceAnnotationSummary } from "./TraceAnnotationSummary";
 export function SpansTableAside(props: { filterCondition?: string | null }) {
   const filterCondition = props.filterCondition || null;
   const projectId = useTracingContext((state) => state.projectId);
-  const { timeRange } = useTimeRange();
+  const { timeRangeISOStrings } = useTimeRange();
   const { fetchKey } = useStreamState();
   const data = useLazyLoadQuery<SpansTableAsideQuery>(
     graphql`
@@ -85,10 +85,7 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
     `,
     {
       id: projectId,
-      timeRange: {
-        start: timeRange?.start?.toISOString(),
-        end: timeRange?.end?.toISOString(),
-      },
+      timeRange: timeRangeISOStrings,
       filterCondition,
     },
     { fetchKey, fetchPolicy: "store-and-network" }

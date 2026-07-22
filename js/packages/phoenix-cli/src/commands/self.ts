@@ -24,7 +24,17 @@ const CLI_PACKAGE_ROOT = path.resolve(
   ".."
 );
 
+/**
+ * Options for `px self update`.
+ */
 interface SelfUpdateOptions {
+  /**
+   * `--check`: Only check whether a newer version is published on npm; print
+   * the current/latest version comparison and exit without installing
+   * anything.
+   *
+   * @example true // px self update --check
+   */
   check?: boolean;
 }
 

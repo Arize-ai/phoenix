@@ -34,7 +34,6 @@ import {
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
-import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
@@ -60,8 +59,6 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { SessionViewTabs } from "./SessionViewTabs";
-import type { SessionView } from "./SessionViewTabs";
 import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
 
 export const sessionDetailsTraceListQuery = graphql`
@@ -334,14 +331,7 @@ function SessionTurnDivider({
       >
         Trace
       </LinkButton>
-      <IDBadge id={traceId} />
-      <CopyToClipboardButton
-        text={traceId}
-        size="S"
-        variant="quiet"
-        tooltipText="Copy trace ID"
-        aria-label="Copy trace ID"
-      />
+      <IDBadge id={traceId} tooltipText="Copy Trace ID" />
     </Flex>
   );
 }
@@ -430,8 +420,7 @@ const turnListCSS = css`
 
   .react-aria-ListBoxItem {
     margin: 0;
-    padding: var(--global-dimension-static-size-150)
-      var(--global-dimension-static-size-200);
+    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
     border-radius: 0;
     border-left: 4px solid transparent;
     border-bottom: 1px solid var(--global-border-color-default);
@@ -570,14 +559,8 @@ const panelContentCSS = css`
 
 export function SessionDetailsTraceList({
   queryRef,
-  sessionView,
-  onSessionViewChange,
-  traceCount,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
-  sessionView: SessionView;
-  onSessionViewChange: (view: SessionView) => void;
-  traceCount: number;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
     sessionDetailsTraceListQuery,
@@ -749,15 +732,7 @@ export function SessionDetailsTraceList({
       `}
     >
       <Panel id="session-turns" defaultSize="20%" minSize="10%">
-        <div css={panelContentCSS}>
-          <SessionViewTabs
-            sessionView={sessionView}
-            onSessionViewChange={onSessionViewChange}
-            traceCount={traceCount}
-          >
-            {turnListPanel}
-          </SessionViewTabs>
-        </div>
+        <div css={panelContentCSS}>{turnListPanel}</div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />
       <Panel id="session-turn-details">

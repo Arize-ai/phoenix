@@ -1,12 +1,23 @@
 import type * as PhoenixOtel from "@arizeai/phoenix-otel";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type componentsV1, createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import { createClient, type PhoenixClient } from "../../src/client";
+import type { PhoenixClient } from "../../src/client";
 import * as getExperimentInfoModule from "../../src/experiments/getExperimentInfo";
 import { resumeExperiment } from "../../src/experiments/resumeExperiment";
-import type { Example } from "../../src/types/datasets";
+import type { Example, ExampleWithId } from "../../src/types/datasets";
+import { createTestClient } from "../testUtils";
 
-vi.mock("../../src/client");
 vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
   ...(await importOriginal<typeof PhoenixOtel>()),
   attachGlobalTracerProvider: vi.fn(() => ({
@@ -66,6 +77,32 @@ vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
   Tracer: vi.fn(),
 }));
 
+type IncompleteExperimentRun =
+  componentsV1["schemas"]["IncompleteExperimentRun"];
+type IncompleteExperimentEvaluation =
+  componentsV1["schemas"]["IncompleteExperimentEvaluation"];
+type CreateExperimentRunRequestBody =
+  componentsV1["schemas"]["CreateExperimentRunRequestBody"];
+type UpsertExperimentEvaluationRequestBody =
+  componentsV1["schemas"]["UpsertExperimentEvaluationRequestBody"];
+
+const http = createHttp();
+
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
+
 const mockExperimentInfo = {
   id: "exp-1",
   datasetId: "dataset-1",
@@ -81,29 +118,122 @@ const mockExperimentInfo = {
   missingRunCount: 2,
 };
 
-const mockIncompleteRuns = [
-  {
-    dataset_example: {
-      id: "ex-1",
-      input: { name: "Alice" },
-      output: { text: "Hello, Alice!" },
-      metadata: {},
-    },
-    repetition_numbers: [1, 2],
+const aliceIncompleteRun: IncompleteExperimentRun = {
+  dataset_example: {
+    id: "ex-1",
+    node_id: "ex-1",
+    input: { name: "Alice" },
+    output: { text: "Hello, Alice!" },
+    metadata: {},
+    updated_at: new Date().toISOString(),
   },
-  {
-    dataset_example: {
-      id: "ex-2",
-      input: { name: "Bob" },
-      output: { text: "Hello, Bob!" },
-      metadata: {},
-    },
-    repetition_numbers: [1],
+  repetition_numbers: [1, 2],
+};
+
+const bobIncompleteRun: IncompleteExperimentRun = {
+  dataset_example: {
+    id: "ex-2",
+    node_id: "ex-2",
+    input: { name: "Bob" },
+    output: { text: "Hello, Bob!" },
+    metadata: {},
+    updated_at: new Date().toISOString(),
   },
+  repetition_numbers: [1],
+};
+
+const mockIncompleteRuns: IncompleteExperimentRun[] = [
+  aliceIncompleteRun,
+  bobIncompleteRun,
 ];
 
+/**
+ * Serves incomplete-runs pages in order. Each page's `next_cursor` is the
+ * index of the following page, so the handler can resolve any cursor the
+ * client sends back. Captures the cursors and path params it receives.
+ */
+function serveIncompleteRunPages(pages: readonly IncompleteExperimentRun[][]) {
+  const receivedCursors: (string | null)[] = [];
+  const receivedExperimentIds: string[] = [];
+  server.use(
+    http.get(
+      "/v1/experiments/{experiment_id}/incomplete-runs",
+      ({ params, query, response }) => {
+        receivedExperimentIds.push(params.experiment_id);
+        const cursor = query.get("cursor");
+        receivedCursors.push(cursor);
+        const pageIndex = cursor === null ? 0 : Number(cursor);
+        const hasNextPage = pageIndex + 1 < pages.length;
+        return response(200).json({
+          data: pages[pageIndex] ?? [],
+          next_cursor: hasNextPage ? String(pageIndex + 1) : null,
+        });
+      }
+    )
+  );
+  return { receivedCursors, receivedExperimentIds };
+}
+
+/**
+ * Captures every experiment run submission, echoing back a created run.
+ */
+function captureExperimentRunPosts() {
+  const receivedBodies: CreateExperimentRunRequestBody[] = [];
+  const receivedExperimentIds: string[] = [];
+  server.use(
+    http.post(
+      "/v1/experiments/{experiment_id}/runs",
+      async ({ params, request, response }) => {
+        receivedExperimentIds.push(params.experiment_id);
+        receivedBodies.push(await request.json());
+        return response(200).json({ data: { id: "run-123" } });
+      }
+    )
+  );
+  return { receivedBodies, receivedExperimentIds };
+}
+
+/**
+ * Serves a single page of incomplete evaluations and counts how many times
+ * the endpoint is fetched.
+ */
+function serveIncompleteEvaluations(
+  incompleteEvaluations: readonly IncompleteExperimentEvaluation[]
+) {
+  let fetchCount = 0;
+  server.use(
+    http.get(
+      "/v1/experiments/{experiment_id}/incomplete-evaluations",
+      ({ response }) => {
+        fetchCount++;
+        return response(200).json({
+          data: [...incompleteEvaluations],
+          next_cursor: null,
+        });
+      }
+    )
+  );
+  return { getFetchCount: () => fetchCount };
+}
+
+/**
+ * Captures every evaluation submission, echoing back a created evaluation.
+ */
+function captureEvaluationPosts() {
+  const receivedBodies: UpsertExperimentEvaluationRequestBody[] = [];
+  server.use(
+    http.post("/v1/experiment_evaluations", async ({ request, response }) => {
+      receivedBodies.push(await request.json());
+      return response(200).json({ data: { id: "eval-123" } });
+    })
+  );
+  return { receivedBodies };
+}
+
 describe("resumeExperiment", () => {
-  let mockClient: PhoenixClient;
+  let client: PhoenixClient;
+  let incompleteRunRequests: ReturnType<typeof serveIncompleteRunPages>;
+  let experimentRunPosts: ReturnType<typeof captureExperimentRunPosts>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -113,36 +243,12 @@ describe("resumeExperiment", () => {
       mockExperimentInfo
     );
 
-    // Create mock client
-    mockClient = {
-      GET: vi.fn(),
-      POST: vi.fn(),
-      config: {
-        baseUrl: "http://localhost:6006",
-      },
-    };
+    client = createTestClient();
 
-    // Mock client.GET for incomplete runs
-    mockClient.GET.mockImplementation((url: string) => {
-      if (url.includes("incomplete-runs")) {
-        return Promise.resolve({
-          data: {
-            data: mockIncompleteRuns,
-            next_cursor: null,
-          },
-        });
-      }
-      return Promise.resolve({ data: {} });
-    });
-
-    // Mock client.POST for experiment runs
-    mockClient.POST.mockResolvedValue({
-      data: {
-        id: "run-123",
-      },
-    });
-
-    vi.mocked(createClient).mockReturnValue(mockClient);
+    // Default handlers: a single page of incomplete runs and a capture of
+    // submitted experiment runs. Tests can override with server.use().
+    incompleteRunRequests = serveIncompleteRunPages([mockIncompleteRuns]);
+    experimentRunPosts = captureExperimentRunPosts();
   });
 
   it("should resume incomplete runs with a simple task", async () => {
@@ -153,7 +259,7 @@ describe("resumeExperiment", () => {
     await resumeExperiment({
       experimentId: "exp-1",
       task: taskFn,
-      client: mockClient,
+      client,
     });
 
     // Task should be called exactly once per incomplete run (3 total)
@@ -161,32 +267,20 @@ describe("resumeExperiment", () => {
 
     // Should fetch experiment info
     expect(getExperimentInfoModule.getExperimentInfo).toHaveBeenCalledWith({
-      client: mockClient,
+      client,
       experimentId: "exp-1",
     });
 
     // Should fetch incomplete runs
-    expect(mockClient.GET).toHaveBeenCalledWith(
-      "/v1/experiments/{experiment_id}/incomplete-runs",
-      expect.objectContaining({
-        params: expect.objectContaining({
-          path: { experiment_id: "exp-1" },
-        }),
-      })
-    );
+    expect(incompleteRunRequests.receivedExperimentIds).toEqual(["exp-1"]);
 
     // Should submit experiment runs (3 total: 2 for ex-1, 1 for ex-2)
-    expect(mockClient.POST).toHaveBeenCalledTimes(3);
-    expect(mockClient.POST).toHaveBeenCalledWith(
-      "/v1/experiments/{experiment_id}/runs",
-      expect.objectContaining({
-        params: expect.objectContaining({
-          path: expect.objectContaining({
-            experiment_id: "exp-1",
-          }),
-        }),
-      })
-    );
+    expect(experimentRunPosts.receivedBodies).toHaveLength(3);
+    expect(experimentRunPosts.receivedExperimentIds).toEqual([
+      "exp-1",
+      "exp-1",
+      "exp-1",
+    ]);
   });
 
   it("should handle pagination of incomplete runs", async () => {
@@ -194,56 +288,26 @@ describe("resumeExperiment", () => {
       async (example: Example) => `Hello, ${example.input.name}!`
     );
 
-    // Mock pagination: first call returns cursor, second returns no cursor
-    mockClient.GET.mockImplementation(
-      (url: string, options?: { params?: { query?: { cursor?: string } } }) => {
-        if (url.includes("incomplete-runs")) {
-          const cursor = options?.params?.query?.cursor;
-          if (!cursor) {
-            // First page
-            return Promise.resolve({
-              data: {
-                data: [mockIncompleteRuns[0]],
-                next_cursor: "cursor-1",
-              },
-            });
-          } else {
-            // Second page
-            return Promise.resolve({
-              data: {
-                data: [mockIncompleteRuns[1]],
-                next_cursor: null,
-              },
-            });
-          }
-        }
-        return Promise.resolve({ data: {} });
-      }
-    );
+    // Pagination: first page returns a cursor, second returns no cursor
+    const pagedRequests = serveIncompleteRunPages([
+      [aliceIncompleteRun],
+      [bobIncompleteRun],
+    ]);
 
     await resumeExperiment({
       experimentId: "exp-1",
       task: taskFn,
-      client: mockClient,
+      client,
     });
 
     // Task should be called exactly once per incomplete run (3 total)
     expect(taskFn).toHaveBeenCalledTimes(3);
 
     // Should fetch incomplete runs twice (pagination)
-    const incompleteRunsCalls = mockClient.GET.mock.calls.filter(
-      (call: unknown[]) => (call[0] as string).includes("incomplete-runs")
-    );
-    expect(incompleteRunsCalls).toHaveLength(2);
+    expect(pagedRequests.receivedCursors).toHaveLength(2);
 
-    // Second call should include cursor
-    expect(incompleteRunsCalls[1][1]).toMatchObject({
-      params: {
-        query: expect.objectContaining({
-          cursor: "cursor-1",
-        }),
-      },
-    });
+    // Second call should include the cursor returned by the first page
+    expect(pagedRequests.receivedCursors[1]).toBe("1");
   });
 
   it("should handle empty incomplete runs", async () => {
@@ -251,30 +315,20 @@ describe("resumeExperiment", () => {
       async (example: Example) => `Hello, ${example.input.name}!`
     );
 
-    // Mock no incomplete runs
-    mockClient.GET.mockImplementation((url: string) => {
-      if (url.includes("incomplete-runs")) {
-        return Promise.resolve({
-          data: {
-            data: [],
-            next_cursor: null,
-          },
-        });
-      }
-      return Promise.resolve({ data: {} });
-    });
+    // No incomplete runs
+    serveIncompleteRunPages([[]]);
 
     await resumeExperiment({
       experimentId: "exp-1",
       task: taskFn,
-      client: mockClient,
+      client,
     });
 
     // Task should never be called when there are no incomplete runs
     expect(taskFn).not.toHaveBeenCalled();
 
     // Should not submit any experiment runs
-    expect(mockClient.POST).not.toHaveBeenCalled();
+    expect(experimentRunPosts.receivedBodies).toHaveLength(0);
   });
 
   it("should handle task failures gracefully", async () => {
@@ -288,14 +342,14 @@ describe("resumeExperiment", () => {
     await resumeExperiment({
       experimentId: "exp-1",
       task: taskFn,
-      client: mockClient,
+      client,
     });
 
     // Task should be called exactly once per incomplete run, even for failures (3 total)
     expect(taskFn).toHaveBeenCalledTimes(3);
 
     // Should still attempt all runs even if some fail
-    expect(mockClient.POST).toHaveBeenCalled();
+    expect(experimentRunPosts.receivedBodies.length).toBeGreaterThan(0);
   });
 
   it("should only evaluate incomplete evaluations, not all runs", async () => {
@@ -307,49 +361,32 @@ describe("resumeExperiment", () => {
       label: output === expected ? "correct" : "incorrect",
     }));
 
-    // Mock incomplete runs (3 runs need to be executed)
-    mockClient.GET.mockImplementation((url: string) => {
-      if (url.includes("incomplete-runs")) {
-        return Promise.resolve({
-          data: {
-            data: mockIncompleteRuns,
-            next_cursor: null,
-          },
-        });
-      }
-      // Mock incomplete evaluations: only 1 out of 3 completed runs needs evaluation
-      if (url.includes("incomplete-evaluations")) {
-        return Promise.resolve({
-          data: {
-            data: [
-              {
-                experiment_run: {
-                  id: "run-1",
-                  experiment_id: "exp-1",
-                  dataset_example_id: "ex-1",
-                  repetition_number: 1,
-                  output: { text: "Hello, Alice!" },
-                  start_time: new Date().toISOString(),
-                  end_time: new Date().toISOString(),
-                  error: null,
-                  trace_id: null,
-                },
-                dataset_example: {
-                  id: "ex-1",
-                  input: { name: "Alice" },
-                  output: { text: "Hello, Alice!" },
-                  metadata: {},
-                  updated_at: new Date().toISOString(),
-                },
-                evaluation_names: ["correctness"],
-              },
-            ],
-            next_cursor: null,
-          },
-        });
-      }
-      return Promise.resolve({ data: {} });
-    });
+    // Incomplete evaluations: only 1 out of 3 completed runs needs evaluation
+    const incompleteEvaluationRequests = serveIncompleteEvaluations([
+      {
+        experiment_run: {
+          id: "run-1",
+          experiment_id: "exp-1",
+          dataset_example_id: "ex-1",
+          repetition_number: 1,
+          output: { text: "Hello, Alice!" },
+          start_time: new Date().toISOString(),
+          end_time: new Date().toISOString(),
+          error: null,
+          trace_id: null,
+        },
+        dataset_example: {
+          id: "ex-1",
+          node_id: "ex-1",
+          input: { name: "Alice" },
+          output: { text: "Hello, Alice!" },
+          metadata: {},
+          updated_at: new Date().toISOString(),
+        },
+        evaluation_names: ["correctness"],
+      },
+    ]);
+    const evaluationPosts = captureEvaluationPosts();
 
     await resumeExperiment({
       experimentId: "exp-1",
@@ -361,7 +398,7 @@ describe("resumeExperiment", () => {
           evaluate: evaluatorFn,
         },
       ],
-      client: mockClient,
+      client,
     });
 
     // Task should be called for all 3 incomplete runs
@@ -372,18 +409,10 @@ describe("resumeExperiment", () => {
     expect(evaluatorFn).toHaveBeenCalledTimes(1);
 
     // Should fetch incomplete evaluations (confirms resumeEvaluation was called)
-    const incompleteEvaluationsCalls = mockClient.GET.mock.calls.filter(
-      (call: unknown[]) =>
-        (call[0] as string).includes("incomplete-evaluations")
-    );
-    expect(incompleteEvaluationsCalls).toHaveLength(1);
+    expect(incompleteEvaluationRequests.getFetchCount()).toBe(1);
 
     // Should post the evaluation result for the 1 incomplete evaluation
-    const evaluationPosts = mockClient.POST.mock.calls.filter(
-      (call: unknown[]) =>
-        (call[0] as string).includes("experiment_evaluations")
-    );
-    expect(evaluationPosts).toHaveLength(1);
+    expect(evaluationPosts.receivedBodies).toHaveLength(1);
   });
 
   describe("stopOnFirstError", () => {
@@ -405,7 +434,7 @@ describe("resumeExperiment", () => {
           experimentId: "exp-1",
           task: taskFn,
           stopOnFirstError: true,
-          client: mockClient,
+          client,
         })
       ).rejects.toThrow("Task failed for Alice");
 
@@ -419,7 +448,7 @@ describe("resumeExperiment", () => {
         experimentId: "exp-1",
         task: taskFn,
         stopOnFirstError: false,
-        client: mockClient,
+        client,
       });
 
       expect(taskFn).toHaveBeenCalledTimes(3);
@@ -427,41 +456,43 @@ describe("resumeExperiment", () => {
 
     it("should stop fetching new pages when stopOnFirstError is triggered", async () => {
       // Create more data to ensure pagination
-      const largeDataset = Array.from({ length: 100 }, (_, i) => ({
-        dataset_example: {
-          id: `ex-${i}`,
-          input: { name: i === 0 ? "Alice" : "Bob" },
-          output: { text: `Hello, ${i === 0 ? "Alice" : "Bob"}!` },
-          metadata: {},
-          updated_at: new Date().toISOString(),
-        },
-        repetition_numbers: [1],
-      }));
+      const largeDataset: IncompleteExperimentRun[] = Array.from(
+        { length: 100 },
+        (_unused, exampleIndex) => ({
+          dataset_example: {
+            id: `ex-${exampleIndex}`,
+            node_id: `ex-${exampleIndex}`,
+            input: { name: exampleIndex === 0 ? "Alice" : "Bob" },
+            output: {
+              text: `Hello, ${exampleIndex === 0 ? "Alice" : "Bob"}!`,
+            },
+            metadata: {},
+            updated_at: new Date().toISOString(),
+          },
+          repetition_numbers: [1],
+        })
+      );
 
-      // Mock pagination with multiple pages
+      // Pagination with multiple pages, sliced by the requested limit
       let pageCount = 0;
-      mockClient.GET.mockImplementation(
-        (
-          url: string,
-          options?: { params?: { query?: { cursor?: string; limit?: number } } }
-        ) => {
-          if (url.includes("incomplete-runs")) {
+      server.use(
+        http.get(
+          "/v1/experiments/{experiment_id}/incomplete-runs",
+          ({ query, response }) => {
             pageCount++;
-            const limit = options?.params?.query?.limit ?? 50;
-            const cursor = options?.params?.query?.cursor;
-            const startIdx = cursor ? parseInt(cursor) : 0;
-            const endIdx = Math.min(startIdx + limit, largeDataset.length);
+            const limitParam = query.get("limit");
+            const limit = limitParam === null ? 50 : Number(limitParam);
+            const cursor = query.get("cursor");
+            const startIndex = cursor === null ? 0 : Number(cursor);
+            const endIndex = Math.min(startIndex + limit, largeDataset.length);
 
-            return Promise.resolve({
-              data: {
-                data: largeDataset.slice(startIdx, endIdx),
-                next_cursor:
-                  endIdx < largeDataset.length ? String(endIdx) : null,
-              },
+            return response(200).json({
+              data: largeDataset.slice(startIndex, endIndex),
+              next_cursor:
+                endIndex < largeDataset.length ? String(endIndex) : null,
             });
           }
-          return Promise.resolve({ data: {} });
-        }
+        )
       );
 
       const taskFn = createFailingTask();
@@ -471,7 +502,7 @@ describe("resumeExperiment", () => {
           experimentId: "exp-1",
           task: taskFn,
           stopOnFirstError: true,
-          client: mockClient,
+          client,
         })
       ).rejects.toThrow("Task failed for Alice");
 
@@ -486,16 +517,13 @@ describe("resumeExperiment", () => {
           experimentId: "exp-1",
           task: taskFn,
           stopOnFirstError: true,
-          client: mockClient,
+          client,
         })
       ).rejects.toThrow();
 
-      expect(mockClient.POST).toHaveBeenCalledWith(
-        "/v1/experiments/{experiment_id}/runs",
+      expect(experimentRunPosts.receivedBodies).toContainEqual(
         expect.objectContaining({
-          body: expect.objectContaining({
-            error: "Task failed for Alice",
-          }),
+          error: "Task failed for Alice",
         })
       );
     });
@@ -504,7 +532,8 @@ describe("resumeExperiment", () => {
       const taskOrder: string[] = [];
 
       const taskFn = vi.fn(async (example: Example) => {
-        taskOrder.push(example.id);
+        // resumeExperiment always passes examples that carry an id
+        taskOrder.push((example as ExampleWithId).id);
 
         // Add slight delay to ensure concurrency
         await new Promise((resolve) => setTimeout(resolve, 5));
@@ -521,7 +550,7 @@ describe("resumeExperiment", () => {
           task: taskFn,
           stopOnFirstError: true,
           concurrency: 5,
-          client: mockClient,
+          client,
         });
       } catch {
         // Expected to throw
@@ -541,6 +570,9 @@ describe("resumeExperiment", () => {
 
       const evaluatorFn = vi.fn(async () => ({ score: 1, label: "correct" }));
 
+      const incompleteEvaluationRequests = serveIncompleteEvaluations([]);
+      captureEvaluationPosts();
+
       await expect(
         resumeExperiment({
           experimentId: "exp-1",
@@ -553,17 +585,14 @@ describe("resumeExperiment", () => {
             },
           ],
           stopOnFirstError: true,
-          client: mockClient,
+          client,
         })
       ).rejects.toThrow();
 
       expect(evaluatorFn).not.toHaveBeenCalled();
 
-      const incompleteEvaluationsCalls = mockClient.GET.mock.calls.filter(
-        (call: unknown[]) =>
-          (call[0] as string).includes("incomplete-evaluations")
-      );
-      expect(incompleteEvaluationsCalls).toHaveLength(0);
+      // Should never fetch incomplete evaluations
+      expect(incompleteEvaluationRequests.getFetchCount()).toBe(0);
     });
 
     it("should default to stopOnFirstError = false", async () => {
@@ -572,7 +601,7 @@ describe("resumeExperiment", () => {
       await resumeExperiment({
         experimentId: "exp-1",
         task: taskFn,
-        client: mockClient,
+        client,
       });
 
       expect(taskFn).toHaveBeenCalledTimes(3);

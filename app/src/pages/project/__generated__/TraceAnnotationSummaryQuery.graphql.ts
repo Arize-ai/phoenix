@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<cacf14ff34a1adc78e07ba907d4e0897>>
+ * @generated SignedSource<<f04d78317d75369b138fc1cba76d0039>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -113,10 +112,10 @@ v10 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v3/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -124,14 +123,14 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           {
-            "args": (v5/*: any*/),
+            "args": (v5/*:: as any*/),
             "kind": "FragmentSpread",
             "name": "TraceAnnotationSummaryValueFragment"
           }
@@ -145,24 +144,24 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v2/*: any*/),
-      (v0/*: any*/),
-      (v3/*: any*/),
-      (v1/*: any*/)
+      (v2/*:: as any*/),
+      (v0/*:: as any*/),
+      (v3/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "TraceAnnotationSummaryQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*: any*/),
-          (v7/*: any*/),
+          (v6/*:: as any*/),
+          (v7/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -190,11 +189,11 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v6/*: any*/),
+                          (v6/*:: as any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v8/*: any*/)
+                              (v8/*:: as any*/)
                             ],
                             "type": "AnnotationConfigBase",
                             "abstractKey": "__isAnnotationConfigBase"
@@ -202,8 +201,8 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v8/*: any*/),
-                              (v7/*: any*/),
+                              (v8/*:: as any*/),
+                              (v7/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -211,7 +210,7 @@ return {
                                 "name": "optimizationDirection",
                                 "storageKey": null
                               },
-                              (v9/*: any*/),
+                              (v9/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -220,7 +219,7 @@ return {
                                 "name": "values",
                                 "plural": true,
                                 "selections": [
-                                  (v10/*: any*/),
+                                  (v10/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -238,7 +237,7 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v7/*: any*/)
+                              (v7/*:: as any*/)
                             ],
                             "type": "Node",
                             "abstractKey": "__isNode"
@@ -254,13 +253,13 @@ return {
               },
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v5/*:: as any*/),
                 "concreteType": "AnnotationSummary",
                 "kind": "LinkedField",
                 "name": "traceAnnotationSummary",
                 "plural": false,
                 "selections": [
-                  (v9/*: any*/),
+                  (v9/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -290,7 +289,7 @@ return {
                     "name": "labelFractions",
                     "plural": true,
                     "selections": [
-                      (v10/*: any*/),
+                      (v10/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,

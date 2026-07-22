@@ -515,7 +515,7 @@ def generate_embedding(text: str) -> List[float]:
 Use the `suppress_tracing()` context manager to temporarily disable tracing:
 
 ```python
-from openinference.instrumentation import suppress_tracing
+from phoenix.otel import suppress_tracing
 
 with suppress_tracing():
     # This function call will not be traced
@@ -527,7 +527,7 @@ with suppress_tracing():
 Use `using_attributes()` to add context attributes to spans:
 
 ```python
-from openinference.instrumentation import using_attributes
+from phoenix.otel import using_attributes
 
 with using_attributes(session_id="123", user_id="user456"):
     # All spans created within this context will have these attributes

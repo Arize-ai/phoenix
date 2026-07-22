@@ -179,6 +179,13 @@ server:
   # Example: "OPENAI,ANTHROPIC"
   allowedProviders: ""
 
+  # -- Serve the built-in MCP server (PHOENIX_ENABLE_MCP_SERVER)
+  enableMcpServer: true
+
+  # -- Enable code mode for the built-in MCP server, which exposes tools through a code-execution interface (PHOENIX_ENABLE_MCP_CODE_MODE)
+  # Only applies when the MCP server is enabled
+  enableMcpCodeMode: true
+
 # Service configuration
 service:
   # -- Service type for Phoenix service (ClusterIP, NodePort, LoadBalancer, or ExternalName)
@@ -610,6 +617,35 @@ auth:
       #   # Advanced: Some IDPs require credentials in POST body instead of Basic Auth
       #   token_endpoint_auth_method: "client_secret_post"
 
+  # OAuth2 Authorization Server Configuration
+  # Phoenix acts as an OAuth2 authorization server (with PKCE) so clients such as the
+  # Phoenix CLI (`px auth login`) can obtain tokens through a browser-based consent flow.
+  # This is distinct from auth.oauth2 above, which configures external identity providers
+  # that Phoenix authenticates against as a client.
+  oauth2AuthorizationServer:
+    # -- Serve the built-in OAuth2 authorization server (PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER)
+    enabled: true
+
+    # -- Expiry ceiling in days applied to newly minted OAuth2 grants (PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS)
+    grantExpiryDays: 90
+
+    # -- Origin-header enforcement mode for the OAuth2 consent endpoint (PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK)
+    # Valid values: "strict" (reject consent decisions from untrusted origins) or "off"
+    consentOriginCheck: "strict"
+
+    # -- Dynamic client registration mode (PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION)
+    # Valid values: "disabled", "local_only" (loopback redirect URIs only), or "enabled"
+    dynamicClientRegistration: "enabled"
+
+    # -- List of HTTPS redirect hosts allowed for dynamically registered OAuth2 clients (PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS)
+    # When empty, all HTTPS redirect hosts are accepted while dynamicClientRegistration is "enabled";
+    # set this to restrict HTTPS deliveries to specific hosts. Loopback redirect URIs are always allowed.
+    # Example: ["app.example.com"]
+    allowedRedirectHosts: []
+
+    # -- Per-IP hourly rate limit for dynamic OAuth2 client registration (PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR)
+    dcrRateLimitPerHour: 10
+
 # SMTP (email) settings
 smtp:
   # -- SMTP server hostname for sending emails (PHOENIX_SMTP_HOSTNAME)
@@ -703,7 +739,7 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-17.21.0-nonroot
+  tag: version-19.3.0-nonroot
 
 # -- Resource configuration
 resources:

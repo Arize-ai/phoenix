@@ -1,5 +1,32 @@
 # Changelog
 
+## [3.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.1.1...arize-phoenix-evals-v3.2.0) (2026-07-21)
+
+
+### Features
+
+* **evals:** add user friction evaluator ([#14193](https://github.com/Arize-ai/phoenix/issues/14193)) ([1ae1a39](https://github.com/Arize-ai/phoenix/commit/1ae1a3933d4c0aa1dcf43660287da024dd8dbc6f))
+
+
+### Bug Fixes
+
+* **evals:** improve user friction prompt ([#14561](https://github.com/Arize-ai/phoenix/issues/14561)) ([115d3f2](https://github.com/Arize-ai/phoenix/commit/115d3f24c1f5244abc49d2d1a25ef27d40469fae))
+* **evals:** skip LiteLLM on Python 3.14 ([#14407](https://github.com/Arize-ai/phoenix/issues/14407)) ([bc9b533](https://github.com/Arize-ai/phoenix/commit/bc9b533e5b4526478a8d3ca59dce284e8a0acef3))
+
+
+### Documentation
+
+* fill small feature-gap docs across evals, tracing, playground, and packages ([e5764b3](https://github.com/Arize-ai/phoenix/commit/e5764b348eeaca2d824638264b9d929c5a730c5a))
+
+## [3.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.1.0...arize-phoenix-evals-v3.1.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **evals:** compute macro/weighted F-score per class to match sklearn semantics ([#13740](https://github.com/Arize-ai/phoenix/issues/13740)) ([c0f6267](https://github.com/Arize-ai/phoenix/commit/c0f6267f24e14d4e22e237be146fd05e0310f8f1))
+* **evals:** count AsyncExecutor timeouts against max_retries ([#14361](https://github.com/Arize-ai/phoenix/issues/14361)) ([90eee08](https://github.com/Arize-ai/phoenix/commit/90eee082b9e357a6669df29bc926a68f731fbc43))
+* **evals:** gate 0/1 positive_label auto-detection on default macro average ([#14012](https://github.com/Arize-ai/phoenix/issues/14012)) ([f96dbd9](https://github.com/Arize-ai/phoenix/commit/f96dbd9f6a405ead30a0acf5602f93e6f8488a43))
+
 ## [3.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.0.0...arize-phoenix-evals-v3.1.0) (2026-05-04)
 
 

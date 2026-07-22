@@ -42,6 +42,43 @@ npm install @arizeai/phoenix-config
 | `PHOENIX_PROJECT`            | `ENV_PHOENIX_PROJECT`            | Default project name for project-scoped operations (canonical) |
 | `PHOENIX_PROJECT_NAME`       | `ENV_PHOENIX_PROJECT_NAME`       | Supported alias for `PHOENIX_PROJECT`                          |
 | `PHOENIX_LOG_LEVEL`          | `ENV_PHOENIX_LOG_LEVEL`          | Log verbosity: `debug`, `info`, `warn`, `error`, or `silent`   |
+| `PHOENIX_DISCOVER_CONFIG`    | `ENV_PHOENIX_DISCOVER_CONFIG`    | Set to `false` to disable `.env.phoenix` file discovery        |
+
+## Credential File Discovery (`.env.phoenix`)
+
+When a Phoenix setting is not set in the process environment, the helpers look
+for a `.env.phoenix` file in the current working directory — walking up toward
+the filesystem root and stopping at the first match — and read
+`PHOENIX_`-prefixed keys from it (dotenv format):
+
+Add `.env.phoenix` to your repository's ignore rules before storing credentials
+in this file (the Phoenix repository already ignores it).
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_API_KEY=your-api-key
+```
+
+Process environment variables always take precedence — the file never overrides
+anything already set — and keys without a `PHOENIX_` prefix are ignored. Related
+settings are resolved as groups: when any credential (`PHOENIX_API_KEY`,
+`PHOENIX_CLIENT_HEADERS`) is set in the process environment, the file is ignored
+for the whole credential group, so process and file credentials are never mixed.
+Set `PHOENIX_DISCOVER_CONFIG=false` to disable discovery entirely.
+
+An endpoint from `.env.phoenix` can still be combined with credentials supplied
+explicitly or by the process environment. Consumers emit a one-time warning in
+that case naming the credential source, endpoint variable, and discovered file;
+credential values are never logged. Source-aware consumers should use
+`getStrFromEnvironmentWithSource()` and
+`getCredentialsFromEnvironmentWithSource()` rather than reconstructing the
+source tier themselves.
+
+Discovery results are cached per working directory for the lifetime of the
+process (including the absence of a file). Long-running processes that create
+the file after the first configuration lookup can call `clearEnvFileCache()` to
+re-discover it.
 
 ## Usage
 

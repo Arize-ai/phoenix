@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<6cf7a80d893154af1bea71228543642d>>
+ * @generated SignedSource<<1277306c3c28f2ed7bc032975716f270>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -55,21 +54,21 @@ v2 = {
   "variableName": "timeRange"
 },
 v3 = [
-  (v2/*: any*/)
+  (v2/*:: as any*/)
 ],
 v4 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
-      "args": (v3/*: any*/),
+      "args": (v3/*:: as any*/),
       "kind": "ScalarField",
       "name": "traceCount",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v3/*: any*/),
+      "args": (v3/*:: as any*/),
       "kind": "ScalarField",
       "name": "sessionCount",
       "storageKey": null
@@ -82,7 +81,7 @@ v4 = {
           "name": "probability",
           "value": 0.5
         },
-        (v2/*: any*/)
+        (v2/*:: as any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
@@ -94,20 +93,20 @@ v4 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectsPageProjectMetricsQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -117,13 +116,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ProjectsPageProjectMetricsQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -136,7 +135,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*: any*/),
+          (v4/*:: as any*/),
           {
             "alias": null,
             "args": null,

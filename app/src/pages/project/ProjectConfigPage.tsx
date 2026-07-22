@@ -90,7 +90,10 @@ const ProjectConfigContent = ({
 }: {
   project: PreloadedQuery<ProjectPageProjectConfigQueryType>;
 }) => {
-  const data = usePreloadedQuery(ProjectPageQueriesProjectConfigQuery, project);
+  const data = usePreloadedQuery<ProjectPageProjectConfigQueryType>(
+    ProjectPageQueriesProjectConfigQuery,
+    project
+  );
   return (
     <Flex direction="column" gap="size-200">
       <ProjectConfigCard

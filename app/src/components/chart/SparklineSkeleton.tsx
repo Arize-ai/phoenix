@@ -78,8 +78,8 @@ export function SparklineSkeleton({
   gridLineCount = 3,
   height = "100%",
   ref,
-  xAxisHeight = "var(--global-dimension-static-size-200)",
-  yAxisWidth = "var(--global-dimension-static-size-300)",
+  xAxisHeight = "var(--global-dimension-size-200)",
+  yAxisWidth = "var(--global-dimension-size-300)",
   "aria-hidden": ariaHidden = true,
   ...props
 }: SparklineSkeletonProps) {
@@ -126,8 +126,7 @@ const sparklineSkeletonCSS = css`
 
   .sparkline-skeleton__grid {
     position: absolute;
-    inset: var(--global-dimension-static-size-50)
-      var(--global-dimension-static-size-50)
+    inset: var(--global-dimension-size-50) var(--global-dimension-size-50)
       var(--sparkline-skeleton-x-axis-height) 0;
     display: flex;
     flex-direction: column;
@@ -141,8 +140,7 @@ const sparklineSkeletonCSS = css`
 
   .sparkline-skeleton__bars {
     position: absolute;
-    inset: var(--global-dimension-static-size-50)
-      var(--global-dimension-static-size-50)
+    inset: var(--global-dimension-size-50) var(--global-dimension-size-50)
       var(--sparkline-skeleton-x-axis-height)
       var(--sparkline-skeleton-y-axis-width);
     display: grid;

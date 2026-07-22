@@ -15,10 +15,10 @@ export interface paths {
          * List annotation configurations
          * @description Retrieve a paginated list of all annotation configurations in the system.
          */
-        get: operations["list_annotation_configs_v1_annotation_configs_get"];
+        get: operations["listAnnotationConfigs"];
         put?: never;
         /** Create an annotation configuration */
-        post: operations["create_annotation_config_v1_annotation_configs_post"];
+        post: operations["createAnnotationConfig"];
         delete?: never;
         options?: never;
         head?: never;
@@ -33,7 +33,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get an annotation configuration by ID or name */
-        get: operations["get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get"];
+        get: operations["getAnnotationConfig"];
         put?: never;
         post?: never;
         delete?: never;
@@ -51,10 +51,10 @@ export interface paths {
         };
         get?: never;
         /** Update an annotation configuration */
-        put: operations["update_annotation_config_v1_annotation_configs__config_id__put"];
+        put: operations["updateAnnotationConfig"];
         post?: never;
         /** Delete an annotation configuration */
-        delete: operations["delete_annotation_config_v1_annotation_configs__config_id__delete"];
+        delete: operations["deleteAnnotationConfig"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1190,7 +1190,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Annotate Span Documents */
+        /** Create span document annotations */
         post: operations["annotateSpanDocuments"];
         delete?: never;
         options?: never;
@@ -1277,6 +1277,114 @@ export interface paths {
         put: operations["upsertOrDeleteSecrets"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/user/api_keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the authenticated user's API keys
+         * @description Retrieve the API keys belonging to the currently authenticated user. The keys themselves are not recoverable and are never included in the response.
+         */
+        get: operations["getUserApiKeys"];
+        put?: never;
+        /**
+         * Create an API key for the authenticated user
+         * @description Create a personal API key for the currently authenticated user. The key inherits the user's role, so it grants no more access than the user already has. Creation requires an access-token session; API keys cannot mint replacement keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.
+         */
+        post: operations["createUserApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/api_keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all user API keys
+         * @description Retrieve API keys belonging to human users across the organization. System API keys are excluded. Restricted to admins.
+         */
+        get: operations["getAllUserApiKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/user/api_keys/{api_key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a user API key
+         * @description Permanently revoke a user API key. Users can revoke their own keys, and admins can revoke keys belonging to other users. The key stops working immediately.
+         */
+        delete: operations["deleteUserApiKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/system/api_keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List system API keys
+         * @description Retrieve all system API keys. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. The keys themselves are not recoverable and are never included in the response.
+         */
+        get: operations["getSystemApiKeys"];
+        put?: never;
+        /**
+         * Create a system API key
+         * @description Create a system API key. System keys belong to the system user rather than to any human, so this endpoint is restricted to admins. Creation requires an admin access-token session or the configured admin secret; API keys cannot mint keys. The response contains the key itself, which is shown only once and cannot be retrieved afterwards.
+         */
+        post: operations["createSystemApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/system/api_keys/{api_key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a system API key
+         * @description Permanently revoke a system API key. The key stops working immediately. Restricted to admins.
+         */
+        delete: operations["deleteSystemApiKey"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1654,6 +1762,49 @@ export interface components {
              */
             auth_method: "ANONYMOUS";
         };
+        /** ApiKey */
+        ApiKey: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** ApiKeyData */
+        ApiKeyData: {
+            /**
+             * Name
+             * @description A human-readable name for the API key.
+             */
+            name: string;
+            /**
+             * Description
+             * @description An optional description of what the API key is for.
+             */
+            description?: string | null;
+            /**
+             * Expires At
+             * @description When the API key expires. The key never expires when omitted.
+             */
+            expires_at?: string | null;
+        };
+        /** ApiKeyUser */
+        ApiKeyUser: {
+            /** Id */
+            id: string;
+            /** Username */
+            username: string;
+            /** Email */
+            email: string | null;
+        };
         /**
          * AppContext
          * @description Per-turn browser clock context for resolving relative time requests.
@@ -1679,9 +1830,15 @@ export interface components {
          * @description Wire schema for the chat stream's `message_metadata` payload.
          */
         AssistantMessageMetadata: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "assistant";
             /** Sessionid */
             sessionId: string;
             trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
         };
         /** AssistantMessageMetadataTraceIds */
@@ -1711,22 +1868,6 @@ export interface components {
             completion: number;
             /** Total */
             total: number;
-        };
-        /**
-         * AssistantMetadataUIMessage
-         * @description `UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`.
-         */
-        AssistantMetadataUIMessage: {
-            /** Id */
-            id: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "system" | "user" | "assistant";
-            metadata?: components["schemas"]["AssistantMessageMetadata"] | null;
-            /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * BuiltInProviderModelSelection
@@ -1810,7 +1951,7 @@ export interface components {
             /** Id */
             id: string;
             /** Messages */
-            messages: components["schemas"]["AssistantMetadataUIMessage"][];
+            messages: components["schemas"]["PhoenixUIMessage"][];
             /** Messageid */
             messageId?: string | null;
             /**
@@ -1844,6 +1985,7 @@ export interface components {
             requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1865,7 +2007,7 @@ export interface components {
             /** Id */
             id: string;
             /** Messages */
-            messages: components["schemas"]["AssistantMetadataUIMessage"][];
+            messages: components["schemas"]["PhoenixUIMessage"][];
             /**
              * Ingesttraces
              * @default false
@@ -1897,6 +2039,7 @@ export interface components {
             requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1955,6 +2098,14 @@ export interface components {
         CreateAnnotationConfigResponseBody: {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
+        /** CreateApiKeyRequestBody */
+        CreateApiKeyRequestBody: {
+            data: components["schemas"]["ApiKeyData"];
+        };
+        /** CreateApiKeyResponseBody */
+        CreateApiKeyResponseBody: {
+            data: components["schemas"]["CreatedApiKey"];
         };
         /** CreateDatasetLabelRequestBody */
         CreateDatasetLabelRequestBody: {
@@ -2149,6 +2300,27 @@ export interface components {
         CreateUserResponseBody: {
             /** Data */
             data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"];
+        };
+        /** CreatedApiKey */
+        CreatedApiKey: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
+            /**
+             * Key
+             * @description The API key. This is the only time it is returned; it cannot be recovered from the listing endpoints.
+             */
+            key: string;
         };
         /**
          * CustomProviderModelSelection
@@ -2778,6 +2950,13 @@ export interface components {
             /** Upper Bound */
             upper_bound?: number | null;
         };
+        /** GetAllUserApiKeysResponseBody */
+        GetAllUserApiKeysResponseBody: {
+            /** Data */
+            data: components["schemas"]["UserApiKey"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetAnnotationConfigResponseBody */
         GetAnnotationConfigResponseBody: {
             /** Data */
@@ -2789,6 +2968,11 @@ export interface components {
             data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** GetApiKeysResponseBody */
+        GetApiKeysResponseBody: {
+            /** Data */
+            data: components["schemas"]["ApiKey"][];
         };
         /** GetDatasetLabelResponseBody */
         GetDatasetLabelResponseBody: {
@@ -3403,6 +3587,23 @@ export interface components {
              * @description A developer-facing human readable error message.
              */
             message?: string | null;
+        };
+        /**
+         * PhoenixUIMessage
+         * @description `UIMessage` with `metadata` narrowed to the Phoenix wire shapes.
+         */
+        PhoenixUIMessage: {
+            /** Id */
+            id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "user" | "assistant";
+            /** Metadata */
+            metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
+            /** Parts */
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * PlaygroundBuiltinModelContext
@@ -5464,6 +5665,18 @@ export interface components {
              */
             end_time: string;
         };
+        /** TurnTraceContext */
+        TurnTraceContext: {
+            /** Traceid */
+            traceId: string;
+            /** Rootspanid */
+            rootSpanId: string;
+            /**
+             * Startedat
+             * Format: date-time
+             */
+            startedAt: string;
+        };
         /**
          * UIMessage
          * @description A message as displayed in the UI by Vercel AI Elements.
@@ -5644,6 +5857,38 @@ export interface components {
             /** Deleted Keys */
             deleted_keys: string[];
         };
+        /** UserApiKey */
+        UserApiKey: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
+            user: components["schemas"]["ApiKeyUser"];
+        };
+        /**
+         * UserMessageMetadata
+         * @description Wire schema for metadata the browser attaches to outgoing user messages.
+         */
+        UserMessageMetadata: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "user";
+            /** Currentdatetime */
+            currentDateTime: string;
+            /** Timezone */
+            timeZone: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -5705,6 +5950,34 @@ export interface components {
             summary: string;
         };
         /**
+         * ToolCallCallbackProviderMetadata
+         * @description Shape of the ``phoenix`` namespace the browser returns in
+         *     ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
+         *     plus browser-recorded execution timings.
+         */
+        ToolCallCallbackProviderMetadata: {
+            /**
+             * Tool Execution Environment
+             * @enum {string}
+             */
+            tool_execution_environment: "client" | "server";
+            /**
+             * Tool Input Emitted At
+             * @default null
+             */
+            tool_input_emitted_at?: string | null;
+            /**
+             * Client Started At
+             * @default null
+             */
+            client_started_at?: string | null;
+            /**
+             * Client Ended At
+             * @default null
+             */
+            client_ended_at?: string | null;
+        };
+        /**
          * ToolCallProviderMetadata
          * @description Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
          *     ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
@@ -5716,6 +5989,11 @@ export interface components {
              * @enum {string}
              */
             tool_execution_environment: "client" | "server";
+            /**
+             * Tool Input Emitted At
+             * @default null
+             */
+            tool_input_emitted_at?: string | null;
         };
     };
     responses: never;
@@ -5726,7 +6004,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_annotation_configs_v1_annotation_configs_get: {
+    listAnnotationConfigs: {
         parameters: {
             query?: {
                 /** @description Cursor for pagination (base64-encoded annotation config ID) */
@@ -5769,7 +6047,7 @@ export interface operations {
             };
         };
     };
-    create_annotation_config_v1_annotation_configs_post: {
+    createAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -5811,7 +6089,7 @@ export interface operations {
             };
         };
     };
-    get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get: {
+    getAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -5852,7 +6130,7 @@ export interface operations {
             };
         };
     };
-    update_annotation_config_v1_annotation_configs__config_id__put: {
+    updateAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -5897,7 +6175,7 @@ export interface operations {
             };
         };
     };
-    delete_annotation_config_v1_annotation_configs__config_id__delete: {
+    deleteAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -10018,6 +10296,368 @@ export interface operations {
             };
             /** @description Insufficient Storage */
             507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getUserApiKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The authenticated user's API keys. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetApiKeysResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createUserApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApiKeyRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The newly created API key, including the key itself. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateApiKeyResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getAllUserApiKeys: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (a UserApiKey GlobalID). */
+                cursor?: string | null;
+                /** @description The maximum number of API keys to return (at most 1000). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A paginated list of user API keys and their owners. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAllUserApiKeysResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteUserApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the API key. */
+                api_key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful deletion. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description API key not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getSystemApiKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The system API keys. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetApiKeysResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createSystemApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApiKeyRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The newly created system API key, including the key itself. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateApiKeyResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteSystemApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the system API key. */
+                api_key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful deletion. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description System API key not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

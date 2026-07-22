@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<5fe6cd8522c4373f8e05b91d455d93b7>>
+ * @generated SignedSource<<0f8108010f866507fa55c68b63554079>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -48,9 +47,17 @@ export type PromptMessageInput = {
   role: PromptMessageRole;
 };
 export type ContentPartInput = {
-  text?: TextContentValueInput | null;
-  toolCall?: ToolCallContentValueInput | null;
-  toolResult?: ToolResultContentValueInput | null;
+  text: TextContentValueInput;
+  toolCall?: never;
+  toolResult?: never;
+} | {
+  text?: never;
+  toolCall: ToolCallContentValueInput;
+  toolResult?: never;
+} | {
+  text?: never;
+  toolCall?: never;
+  toolResult: ToolResultContentValueInput;
 };
 export type TextContentValueInput = {
   text: string;
@@ -69,10 +76,25 @@ export type ToolResultContentValueInput = {
   toolCallId: string;
 };
 export type PromptInvocationParametersInput = {
-  anthropic?: PromptAnthropicInvocationParametersInput | null;
-  aws?: PromptAwsInvocationParametersInput | null;
-  google?: PromptGoogleInvocationParametersInput | null;
-  openai?: PromptOpenAIInvocationParametersInput | null;
+  anthropic?: never;
+  aws?: never;
+  google?: never;
+  openai: PromptOpenAIInvocationParametersInput;
+} | {
+  anthropic: PromptAnthropicInvocationParametersInput;
+  aws?: never;
+  google?: never;
+  openai?: never;
+} | {
+  anthropic?: never;
+  aws?: never;
+  google: PromptGoogleInvocationParametersInput;
+  openai?: never;
+} | {
+  anthropic?: never;
+  aws: PromptAwsInvocationParametersInput;
+  google?: never;
+  openai?: never;
 };
 export type PromptOpenAIInvocationParametersInput = {
   extraBody?: any | null;
@@ -99,9 +121,17 @@ export type PromptAnthropicOutputConfigInput = {
   effort?: AnthropicOutputConfigEffort | null;
 };
 export type PromptAnthropicThinkingConfigInput = {
-  adaptive?: AnthropicThinkingAdaptiveInput | null;
-  disabled?: AnthropicThinkingDisabledMarkerInput | null;
-  enabled?: AnthropicThinkingEnabledInput | null;
+  adaptive?: never;
+  disabled: AnthropicThinkingDisabledMarkerInput;
+  enabled?: never;
+} | {
+  adaptive?: never;
+  disabled?: never;
+  enabled: AnthropicThinkingEnabledInput;
+} | {
+  adaptive: AnthropicThinkingAdaptiveInput;
+  disabled?: never;
+  enabled?: never;
 };
 export type AnthropicThinkingDisabledMarkerInput = {
   disabled?: boolean;
@@ -140,8 +170,11 @@ export type PromptToolsInput = {
   tools: ReadonlyArray<PromptToolInput>;
 };
 export type PromptToolInput = {
-  function?: PromptToolFunctionDefinitionInput | null;
-  raw?: any | null;
+  function: PromptToolFunctionDefinitionInput;
+  raw?: never;
+} | {
+  function?: never;
+  raw: any;
 };
 export type PromptToolFunctionDefinitionInput = {
   description?: string | null;
@@ -150,10 +183,25 @@ export type PromptToolFunctionDefinitionInput = {
   strict?: boolean | null;
 };
 export type PromptToolChoiceInput = {
-  functionName?: string | null;
-  none?: boolean | null;
-  oneOrMore?: boolean | null;
-  zeroOrMore?: boolean | null;
+  functionName?: never;
+  none: boolean;
+  oneOrMore?: never;
+  zeroOrMore?: never;
+} | {
+  functionName?: never;
+  none?: never;
+  oneOrMore?: never;
+  zeroOrMore: boolean;
+} | {
+  functionName?: never;
+  none?: never;
+  oneOrMore: boolean;
+  zeroOrMore?: never;
+} | {
+  functionName: string;
+  none?: never;
+  oneOrMore?: never;
+  zeroOrMore?: never;
 };
 export type PromptResponseFormatJSONSchemaInput = {
   jsonSchema: PromptResponseFormatJSONSchemaDefinitionInput;
@@ -194,9 +242,17 @@ export type EvaluatorInputMappingInput = {
   pathMapping: any;
 };
 export type AnnotationConfigInput = {
-  categorical?: CategoricalAnnotationConfigInput | null;
-  continuous?: ContinuousAnnotationConfigInput | null;
-  freeform?: FreeformAnnotationConfigInput | null;
+  categorical: CategoricalAnnotationConfigInput;
+  continuous?: never;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous: ContinuousAnnotationConfigInput;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous?: never;
+  freeform: FreeformAnnotationConfigInput;
 };
 export type CategoricalAnnotationConfigInput = {
   description?: string | null;
@@ -303,7 +359,7 @@ v5 = {
 v6 = {
   "kind": "InlineFragment",
   "selections": [
-    (v5/*: any*/),
+    (v5/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -356,23 +412,23 @@ v8 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundOutputSubscription",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "chatCompletion",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/),
-          (v4/*: any*/),
-          (v6/*: any*/),
+          (v2/*:: as any*/),
+          (v3/*:: as any*/),
+          (v4/*:: as any*/),
+          (v6/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -384,7 +440,7 @@ return {
                 "name": "span",
                 "plural": false,
                 "selections": [
-                  (v5/*: any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -393,7 +449,7 @@ return {
                     "name": "trace",
                     "plural": false,
                     "selections": [
-                      (v7/*: any*/)
+                      (v7/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -404,7 +460,7 @@ return {
             "type": "ChatCompletionSubscriptionResult",
             "abstractKey": null
           },
-          (v8/*: any*/)
+          (v8/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -414,22 +470,22 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "PlaygroundOutputSubscription",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "chatCompletion",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/),
-          (v4/*: any*/),
-          (v6/*: any*/),
+          (v2/*:: as any*/),
+          (v3/*:: as any*/),
+          (v4/*:: as any*/),
+          (v6/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -441,7 +497,7 @@ return {
                 "name": "span",
                 "plural": false,
                 "selections": [
-                  (v5/*: any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -450,8 +506,8 @@ return {
                     "name": "trace",
                     "plural": false,
                     "selections": [
-                      (v7/*: any*/),
-                      (v5/*: any*/)
+                      (v7/*:: as any*/),
+                      (v5/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -462,7 +518,7 @@ return {
             "type": "ChatCompletionSubscriptionResult",
             "abstractKey": null
           },
-          (v8/*: any*/)
+          (v8/*:: as any*/)
         ],
         "storageKey": null
       }

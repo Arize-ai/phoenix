@@ -282,7 +282,7 @@ def _get_expected_schema_info(
 
     # Build index names
     foreign_key_index = _get_foreign_key_index_name(table_name, foreign_key_column)
-    index_names = {foreign_key_index}
+    index_names = {foreign_key_index, f"ix_{table_name}_user_id"}
 
     # Build constraint names
     constraint_names = _get_common_constraint_names(table_name)

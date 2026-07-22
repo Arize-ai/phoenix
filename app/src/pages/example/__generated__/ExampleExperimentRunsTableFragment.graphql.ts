@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<c0472ddfea17714aeaaca2b3feaca020>>
+ * @generated SignedSource<<4b689a6827e4a6cc58df9591e1a895fe>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -75,7 +74,7 @@ v2 = {
   "name": "trace",
   "plural": false,
   "selections": [
-    (v1/*: any*/),
+    (v1/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -113,7 +112,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -123,7 +122,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -161,7 +160,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -190,7 +189,7 @@ return {
                   "name": "output",
                   "storageKey": null
                 },
-                (v2/*: any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -215,7 +214,7 @@ return {
                           "name": "node",
                           "plural": false,
                           "selections": [
-                            (v1/*: any*/),
+                            (v1/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -258,7 +257,7 @@ return {
                               "name": "annotatorKind",
                               "storageKey": null
                             },
-                            (v2/*: any*/)
+                            (v2/*:: as any*/)
                           ],
                           "storageKey": null
                         }
@@ -327,7 +326,7 @@ return {
       ],
       "storageKey": null
     },
-    (v1/*: any*/)
+    (v1/*:: as any*/)
   ],
   "type": "DatasetExample",
   "abstractKey": null

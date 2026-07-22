@@ -57,8 +57,8 @@ export const fieldBaseCSS = css`
       border-color: var(--field-readonly-border-color-focus);
     }
     &:is([data-readonly], [readonly])[data-hovered]:not([data-invalid]):not(
-        [data-focus-visible]
-      ) {
+      [data-focus-visible]
+    ) {
       background-color: var(--field-readonly-background-color-hover);
       border-color: transparent;
     }
@@ -89,9 +89,9 @@ export const fieldBaseCSS = css`
   .react-aria-FieldError {
     /* The overriding cascade here is non ideal but it lets us have only one notion of text  */
     font-size: var(--global-font-size-xs) !important;
-    padding-top: var(--global-dimension-static-size-50);
+    padding-top: var(--global-dimension-size-50);
     display: inline-block;
-    line-height: var(--global-dimension-static-font-size-200) !important;
+    line-height: var(--global-dimension-font-size-200) !important;
   }
 
   [slot="description"] {

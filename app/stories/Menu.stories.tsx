@@ -278,6 +278,72 @@ const FILTER_OPTIONS = [
   { id: "23", name: "Category W", color: "#6B7280" },
 ];
 
+type MenuMaxHeightToken =
+  | "--global-menu-max-height-small"
+  | "--global-menu-max-height-large";
+
+function MenuMaxHeightTokenStory({
+  label,
+  token,
+}: {
+  label: string;
+  token: MenuMaxHeightToken;
+}) {
+  return (
+    <MenuTrigger defaultOpen>
+      <Button>{label}</Button>
+      <MenuContainer
+        placement="bottom start"
+        minHeight={0}
+        maxHeight={`var(${token})`}
+      >
+        <MenuHeader>
+          <MenuHeaderTitle>{token}</MenuHeaderTitle>
+        </MenuHeader>
+        <Menu aria-label={label} items={FILTER_OPTIONS}>
+          {({ id, name }) => <MenuItem id={id}>{name}</MenuItem>}
+        </Menu>
+      </MenuContainer>
+    </MenuTrigger>
+  );
+}
+
+export const SmallMaxHeightToken = {
+  render: () => (
+    <MenuMaxHeightTokenStory
+      label="Small max-height menu"
+      token="--global-menu-max-height-small"
+    />
+  ),
+  parameters: {
+    layout: "padded",
+    docs: {
+      description: {
+        story:
+          "The small semantic menu cutoff resolves to 480px and keeps longer menus scrollable.",
+      },
+    },
+  },
+};
+
+export const LargeMaxHeightToken = {
+  render: () => (
+    <MenuMaxHeightTokenStory
+      label="Large max-height menu"
+      token="--global-menu-max-height-large"
+    />
+  ),
+  parameters: {
+    layout: "padded",
+    docs: {
+      description: {
+        story:
+          "The large semantic menu cutoff resolves to 640px and is the default maximum height for MenuContainer.",
+      },
+    },
+  },
+};
+
 export const FilterMenu = () => {
   const { contains } = useFilter({ sensitivity: "base" });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

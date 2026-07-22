@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e78462cddafb14a5fa50ca525b8c2f37>>
+ * @generated SignedSource<<7653aa6934c57d8f0c87f4354026609e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -75,14 +74,14 @@ v6 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "TraceHeaderTraceAnnotationsQuery",
     "selections": [
       {
         "alias": "trace",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -109,19 +108,19 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "TraceHeaderTraceAnnotationsQuery",
     "selections": [
       {
         "alias": "trace",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -133,7 +132,7 @@ return {
                 "name": "project",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/),
+                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -158,7 +157,7 @@ return {
                             "name": "node",
                             "plural": false,
                             "selections": [
-                              (v2/*: any*/),
+                              (v2/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -176,8 +175,8 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v3/*: any*/),
-                                  (v4/*: any*/),
+                                  (v3/*:: as any*/),
+                                  (v4/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -193,8 +192,8 @@ return {
                                     "name": "values",
                                     "plural": true,
                                     "selections": [
-                                      (v5/*: any*/),
-                                      (v6/*: any*/)
+                                      (v5/*:: as any*/),
+                                      (v6/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -205,7 +204,7 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v3/*: any*/)
+                                  (v3/*:: as any*/)
                                 ],
                                 "type": "Node",
                                 "abstractKey": "__isNode"
@@ -230,10 +229,10 @@ return {
                 "name": "traceAnnotations",
                 "plural": true,
                 "selections": [
-                  (v3/*: any*/),
-                  (v4/*: any*/),
-                  (v5/*: any*/),
-                  (v6/*: any*/),
+                  (v3/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -270,7 +269,7 @@ return {
                         "name": "profilePictureUrl",
                         "storageKey": null
                       },
-                      (v3/*: any*/)
+                      (v3/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -321,7 +320,7 @@ return {
                         "name": "fraction",
                         "storageKey": null
                       },
-                      (v5/*: any*/)
+                      (v5/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -332,7 +331,7 @@ return {
                     "name": "meanScore",
                     "storageKey": null
                   },
-                  (v4/*: any*/)
+                  (v4/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -340,7 +339,7 @@ return {
             "type": "Trace",
             "abstractKey": null
           },
-          (v3/*: any*/)
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }

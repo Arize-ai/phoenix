@@ -33,14 +33,12 @@ export type SavePromptSubmitHandler = (
 export type SavePromptFormParams = {
   promptId?: string;
   name: string;
-  description: string;
+  description?: string;
   metadata?: string;
   tags?: string[];
 };
 
-type SavePromptFormValues = Omit<SavePromptFormParams, "description"> & {
-  description?: string;
-};
+type SavePromptFormValues = SavePromptFormParams;
 
 export function SavePromptForm({
   onCreate,
@@ -128,10 +126,7 @@ export function SavePromptForm({
 
   const onSubmit = useCallback(
     (params: SavePromptFormValues) => {
-      const description = params.description?.trim();
-      if (!description) {
-        return;
-      }
+      const description = params.description?.trim() || undefined;
       const normalizedParams: SavePromptFormParams = {
         ...params,
         description,
@@ -185,38 +180,20 @@ export function SavePromptForm({
             <Controller
               name="description"
               control={control}
-              rules={{
-                required: "Description is required",
-                validate: (value) =>
-                  (value ?? "").trim().length > 0 || "Description is required",
-              }}
-              render={({
-                field: { onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
+              render={({ field: { onChange, onBlur, value } }) => (
                 <TextField
-                  isInvalid={invalid}
                   onChange={onChange}
                   onBlur={onBlur}
                   value={value ?? ""}
                   size="S"
-                  isRequired
                 >
-                  <Label>
-                    {mode === "create"
-                      ? "Prompt Description"
-                      : "Change Description"}
-                  </Label>
+                  <Label>Description (optional)</Label>
                   <TextArea />
-                  {error ? (
-                    <FieldError>{error.message}</FieldError>
-                  ) : (
-                    <Text slot="description">
-                      {mode === "create"
-                        ? "A short description of this prompt"
-                        : "A short description of the changes in this version"}
-                    </Text>
-                  )}
+                  <Text slot="description">
+                    {mode === "create"
+                      ? "A short description of this prompt"
+                      : "A short description of the changes in this version"}
+                  </Text>
                 </TextField>
               )}
             />

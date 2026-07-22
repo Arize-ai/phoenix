@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<f9f8b9cb78d6d6ebd83c665408980953>>
+ * @generated SignedSource<<7f385202bf3ded4c34bed33b6e34ec6a>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -77,20 +76,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SpanSelectionToolbarAddSpansToDatasetMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SpanSelectionToolbarAddSpansToDatasetMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "1c694540190478b8fba8ef3c0cacf30c",

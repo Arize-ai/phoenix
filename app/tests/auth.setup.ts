@@ -89,8 +89,8 @@ setup(
       oldPassword: "admin",
       newPassword: "admin123",
     });
-    await page.goto(`${baseURL}/settings/general`);
-    await page.waitForURL("**/settings/general");
+    await page.goto(`${baseURL}/settings/users`);
+    await page.waitForURL("**/settings/users");
 
     // Add member user
     await page.getByRole("button", { name: "Add User" }).click();

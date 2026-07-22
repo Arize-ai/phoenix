@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<2ea47b278b274055451cc9cd544adbd6>>
+ * @generated SignedSource<<b33cbcd9a32116b9d51da908c436ce30>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -58,7 +57,7 @@ v2 = {
 v3 = {
   "kind": "InlineFragment",
   "selections": [
-    (v2/*: any*/)
+    (v2/*:: as any*/)
   ],
   "type": "Node",
   "abstractKey": "__isNode"
@@ -73,7 +72,7 @@ v4 = {
 v5 = {
   "kind": "InlineFragment",
   "selections": [
-    (v4/*: any*/),
+    (v4/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -94,14 +93,14 @@ v6 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectAnnotationConfigCardContentQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -146,8 +145,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/),
-                  (v5/*: any*/)
+                  (v3/*:: as any*/),
+                  (v5/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -163,20 +162,20 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ProjectAnnotationConfigCardContentQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*: any*/),
-          (v2/*: any*/),
+          (v6/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -204,16 +203,16 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v6/*: any*/),
+                          (v6/*:: as any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v4/*: any*/)
+                              (v4/*:: as any*/)
                             ],
                             "type": "AnnotationConfigBase",
                             "abstractKey": "__isAnnotationConfigBase"
                           },
-                          (v3/*: any*/)
+                          (v3/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -254,9 +253,9 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v6/*: any*/),
-                  (v3/*: any*/),
-                  (v5/*: any*/)
+                  (v6/*:: as any*/),
+                  (v3/*:: as any*/),
+                  (v5/*:: as any*/)
                 ],
                 "storageKey": null
               }

@@ -132,7 +132,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [, setSearchParams] = useSearchParams();
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
-  const preloadedData = usePreloadedQuery(
+  const preloadedData = usePreloadedQuery<ExperimentCompareTableQueryType>(
     ExperimentComparePageQueriesCompareGridQuery,
     props.queryRef
   );

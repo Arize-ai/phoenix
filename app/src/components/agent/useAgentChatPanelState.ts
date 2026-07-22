@@ -13,6 +13,29 @@ const CHAT_PATH_TEMPLATE =
 
 const ASSISTANT_AGENT_ID = "assistant";
 
+export function buildAgentModelSelection({
+  model,
+}: {
+  model: ModelMenuValue;
+}): AgentModelSelection {
+  if (model.customProvider) {
+    return {
+      providerType: "custom",
+      providerId: model.customProvider.id,
+      modelName: model.modelName,
+    };
+  }
+
+  const isOpenAIProvider =
+    model.provider === "OPENAI" || model.provider === "AZURE_OPENAI";
+  return {
+    providerType: "builtin",
+    provider: model.provider,
+    modelName: model.modelName,
+    ...(isOpenAIProvider && { openaiApiType: "responses" }),
+  };
+}
+
 /**
  * Encapsulates the non-visual state and side effects that drive
  * {@link AgentChatPanel}.
@@ -105,18 +128,7 @@ export function useAgentChatPanelState() {
   );
 
   const modelSelection = useMemo<AgentModelSelection>(
-    () =>
-      menuValue.customProvider
-        ? {
-            providerType: "custom",
-            providerId: menuValue.customProvider.id,
-            modelName: menuValue.modelName,
-          }
-        : {
-            providerType: "builtin",
-            provider: menuValue.provider,
-            modelName: menuValue.modelName,
-          },
+    () => buildAgentModelSelection({ model: menuValue }),
     [menuValue]
   );
 

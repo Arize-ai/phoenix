@@ -63,6 +63,34 @@ export PHOENIX_API_KEY="your-api-key"
 export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=value"
 ```
 
+### Credential File Discovery (`.env.phoenix`)
+
+When a setting is not provided by argument or environment variable, the client
+looks for a `.env.phoenix` file in the current working directory — walking up
+toward the filesystem root and stopping at the first match — and reads
+`PHOENIX_`-prefixed keys from it (dotenv format):
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_API_KEY=your-api-key
+```
+
+Explicit arguments and environment variables always take precedence — the file
+never overrides anything already set. Set `PHOENIX_DISCOVER_CONFIG=false` to
+disable discovery entirely.
+
+Credentials (`PHOENIX_API_KEY` and `PHOENIX_CLIENT_HEADERS`) and server location
+(`PHOENIX_COLLECTOR_ENDPOINT`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `PHOENIX_HOST`, and
+`PHOENIX_PORT`) are each resolved as a group from one source tier. If explicit
+or process credentials are paired with an endpoint from `.env.phoenix`, the
+client warns once and continues without logging credential values.
+
+Discovery results, including a missing file, are cached per working directory
+for the process lifetime. Long-running processes can call
+`phoenix.client.utils.config.clear_env_file_cache()` after creating or changing
+the file.
+
 ### Client Initialization
 
 The client automatically reads environment variables, or you can override them:
@@ -466,6 +494,9 @@ client = Client()
 projects = client.projects.list()
 for project in projects:
     print(f"Project: {project['name']} (ID: {project['id']})")
+
+# Filter server-side by a case-insensitive substring of the project name
+support_projects = client.projects.list(name_contains="support")
 
 # Create a new project
 new_project = client.projects.create(

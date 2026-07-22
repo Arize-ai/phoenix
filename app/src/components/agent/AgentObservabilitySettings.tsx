@@ -3,8 +3,11 @@ import type { ReactNode } from "react";
 
 import { ContextualHelp, Switch, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useIsAdmin } from "@phoenix/contexts/ViewerContext";
-import { getEffectiveTraceRecordingSettings } from "@phoenix/store/agentStore";
+import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
+import {
+  getEffectiveAttachUserId,
+  getEffectiveTraceRecordingSettings,
+} from "@phoenix/store/agentStore";
 
 import { SystemSettingsWarning } from "./SystemSettingsWarning";
 
@@ -101,8 +104,9 @@ export function AgentObservabilitySettings({
   const agentsConfig = useAgentContext((state) => state.agentsConfig);
   const observability = useAgentContext((state) => state.observability);
   const setObservability = useAgentContext((state) => state.setObservability);
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsAdminOrAuthDisabled();
   const isRemoteCollectorConfigured = Boolean(agentsConfig.collectorEndpoint);
+  const isTracingForced = agentsConfig.forceTracing;
 
   const localTracesOffInSystemSettings = !agentsConfig.allowLocalTraces;
   const remoteExportOffInSystemSettings = !agentsConfig.allowRemoteExport;
@@ -115,20 +119,28 @@ export function AgentObservabilitySettings({
   });
   const isTracingEnabled =
     effectiveRecording.ingestTraces || effectiveRecording.exportRemoteTraces;
+  const effectiveAttachUserId = getEffectiveAttachUserId({
+    agentsConfig,
+    observability,
+  });
 
   return (
     <div css={settingsContainerCSS}>
-      {/* The settings page already scopes its personal section to the browser. */}
-      {!isOnSettingsPage && (
+      {isTracingForced ? (
+        <Text color="text-500" size="S">
+          Tracing, remote export, and user attribution are enabled for all users
+          by this Phoenix deployment.
+        </Text>
+      ) : !isOnSettingsPage ? (
         <Text color="text-500" size="S">
           These settings apply only to this browser.
         </Text>
-      )}
+      ) : null}
       <ul css={settingsListCSS}>
         <li css={settingRowCSS}>
           <Switch
             isSelected={effectiveRecording.ingestTraces}
-            isDisabled={localTracesOffInSystemSettings}
+            isDisabled={localTracesOffInSystemSettings || isTracingForced}
             onChange={(storeLocalTraces) => {
               setObservability({ storeLocalTraces });
             }}
@@ -163,7 +175,7 @@ export function AgentObservabilitySettings({
           <li css={settingRowCSS}>
             <Switch
               isSelected={effectiveRecording.exportRemoteTraces}
-              isDisabled={remoteExportOffInSystemSettings}
+              isDisabled={remoteExportOffInSystemSettings || isTracingForced}
               onChange={(exportRemoteTraces) => {
                 setObservability({ exportRemoteTraces });
               }}
@@ -198,8 +210,8 @@ export function AgentObservabilitySettings({
         ) : null}
         <li css={settingRowCSS}>
           <Switch
-            isSelected={observability.attachUserId}
-            isDisabled={!isTracingEnabled}
+            isSelected={effectiveAttachUserId}
+            isDisabled={!isTracingEnabled || isTracingForced}
             onChange={(attachUserId) => {
               setObservability({ attachUserId });
             }}

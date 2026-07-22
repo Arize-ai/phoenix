@@ -1,0 +1,17 @@
+<tool name="update_annotation_config">
+  <description>Replace an existing annotation config in full. Use this to extend a config that is close but missing a label, or to revise its scheme, without growing a second differently-named rubric for the same thing.</description>
+  <when_to_use>
+    - An existing config almost fits but lacks a label (or bound) you need before annotating.
+    - The user asks to change the labels, description, or scale of an existing annotation dimension.
+  </when_to_use>
+  <preflight>
+    - Read the current config first (see the annotate-spans skill) so you have its id and its existing scheme.
+    - This is a FULL REPLACE, not a patch. Pass the complete config as it should be afterward: keep the same `name`, the same `type`, and include every value you want to keep plus any new ones. Omitting an existing value deletes it.
+    - Pass the config's GraphQL node id as `id`.
+  </preflight>
+  <rules>
+    - Propose the change by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and writes only when the user accepts; in bypass mode it is written immediately. The card is the approval surface — do not ask a separate yes/no question (or call `ask_user`) to confirm before calling it.
+    - Keep the `name` stable so existing annotations stay attached to the same dimension. To create a different dimension, use `create_annotation_config` instead.
+    - Tell the user what you changed and why — changing a rubric is a decision they may want to weigh in on.
+  </rules>
+</tool>

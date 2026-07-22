@@ -1,9 +1,17 @@
 import {
-  ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  getCredentialsFromEnvironmentWithSource,
   getProjectFromEnvironment,
-  getStrFromEnvironment,
+  getStrFromEnvironmentWithSource,
 } from "@arizeai/phoenix-config";
+
+/** Resolves the OTel endpoint and credentials as source-aware groups. */
+export function getEnvConfig() {
+  return {
+    credentials: getCredentialsFromEnvironmentWithSource(),
+    endpoint: getStrFromEnvironmentWithSource(ENV_PHOENIX_COLLECTOR_ENDPOINT),
+  };
+}
 
 /**
  * A utility function that gets the configured collector URL
@@ -11,7 +19,7 @@ import {
  */
 export function getEnvCollectorURL(): string | undefined {
   // TODO: support OTEL environment variables
-  return getStrFromEnvironment(ENV_PHOENIX_COLLECTOR_ENDPOINT);
+  return getEnvConfig().endpoint.value;
 }
 
 /**
@@ -20,7 +28,7 @@ export function getEnvCollectorURL(): string | undefined {
  * @returns The API key if the environment variable is set, otherwise `undefined`.
  */
 export function getEnvApiKey(): string | undefined {
-  return getStrFromEnvironment(ENV_PHOENIX_API_KEY);
+  return getEnvConfig().credentials.apiKey;
 }
 
 /**

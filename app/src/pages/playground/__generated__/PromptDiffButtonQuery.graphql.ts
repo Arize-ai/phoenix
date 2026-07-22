@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<da99a41229bf6a489eaf75eee0ef12ec>>
+ * @generated SignedSource<<05b31d6ee59f83766746b9debd59f6e9>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -118,7 +117,7 @@ v11 = {
 v12 = {
   "kind": "InlineFragment",
   "selections": [
-    (v7/*: any*/),
+    (v7/*:: as any*/),
     {
       "alias": "openaiMaxTokens",
       "args": null,
@@ -133,9 +132,9 @@ v12 = {
       "name": "maxCompletionTokens",
       "storageKey": null
     },
-    (v8/*: any*/),
-    (v9/*: any*/),
-    (v10/*: any*/),
+    (v8/*:: as any*/),
+    (v9/*:: as any*/),
+    (v10/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -157,7 +156,7 @@ v12 = {
       "name": "reasoningEffort",
       "storageKey": null
     },
-    (v11/*: any*/)
+    (v11/*:: as any*/)
   ],
   "type": "PromptOpenAIInvocationParameters",
   "abstractKey": null
@@ -179,9 +178,9 @@ v14 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v7/*: any*/),
-    (v10/*: any*/),
-    (v13/*: any*/),
+    (v7/*:: as any*/),
+    (v10/*:: as any*/),
+    (v13/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -208,7 +207,7 @@ v14 = {
       "name": "thinking",
       "plural": false,
       "selections": [
-        (v2/*: any*/),
+        (v2/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -261,7 +260,7 @@ v14 = {
       ],
       "storageKey": null
     },
-    (v11/*: any*/)
+    (v11/*:: as any*/)
   ],
   "type": "PromptAnthropicInvocationParameters",
   "abstractKey": null
@@ -269,7 +268,7 @@ v14 = {
 v15 = {
   "kind": "InlineFragment",
   "selections": [
-    (v7/*: any*/),
+    (v7/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -277,10 +276,10 @@ v15 = {
       "name": "maxOutputTokens",
       "storageKey": null
     },
-    (v13/*: any*/),
-    (v9/*: any*/),
-    (v8/*: any*/),
-    (v10/*: any*/),
+    (v13/*:: as any*/),
+    (v9/*:: as any*/),
+    (v8/*:: as any*/),
+    (v10/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -334,9 +333,9 @@ v16 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v7/*: any*/),
-    (v10/*: any*/),
-    (v13/*: any*/)
+    (v7/*:: as any*/),
+    (v10/*:: as any*/),
+    (v13/*:: as any*/)
   ],
   "type": "PromptAwsInvocationParameters",
   "abstractKey": null
@@ -356,8 +355,8 @@ v18 = {
   "name": "customProvider",
   "plural": false,
   "selections": [
-    (v4/*: any*/),
-    (v17/*: any*/)
+    (v4/*:: as any*/),
+    (v17/*:: as any*/)
   ],
   "storageKey": null
 },
@@ -391,8 +390,8 @@ v21 = {
       "name": "jsonSchema",
       "plural": false,
       "selections": [
-        (v17/*: any*/),
-        (v19/*: any*/),
+        (v17/*:: as any*/),
+        (v19/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -400,7 +399,7 @@ v21 = {
           "name": "schema",
           "storageKey": null
         },
-        (v20/*: any*/)
+        (v20/*:: as any*/)
       ],
       "storageKey": null
     }
@@ -422,7 +421,7 @@ v23 = {
   "name": "template",
   "plural": false,
   "selections": [
-    (v2/*: any*/),
+    (v2/*:: as any*/),
     {
       "kind": "InlineFragment",
       "selections": [
@@ -449,7 +448,7 @@ v23 = {
               "name": "content",
               "plural": true,
               "selections": [
-                (v2/*: any*/),
+                (v2/*:: as any*/),
                 {
                   "kind": "InlineFragment",
                   "selections": [
@@ -486,7 +485,7 @@ v23 = {
                       "name": "toolCall",
                       "plural": false,
                       "selections": [
-                        (v22/*: any*/),
+                        (v22/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -495,7 +494,7 @@ v23 = {
                           "name": "toolCall",
                           "plural": false,
                           "selections": [
-                            (v17/*: any*/),
+                            (v17/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -524,7 +523,7 @@ v23 = {
                       "name": "toolResult",
                       "plural": false,
                       "selections": [
-                        (v22/*: any*/),
+                        (v22/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -582,7 +581,7 @@ v24 = {
       "name": "tools",
       "plural": true,
       "selections": [
-        (v2/*: any*/),
+        (v2/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -594,8 +593,8 @@ v24 = {
               "name": "function",
               "plural": false,
               "selections": [
-                (v17/*: any*/),
-                (v19/*: any*/),
+                (v17/*:: as any*/),
+                (v19/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -603,7 +602,7 @@ v24 = {
                   "name": "parameters",
                   "storageKey": null
                 },
-                (v20/*: any*/)
+                (v20/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -665,31 +664,31 @@ v24 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PromptDiffButtonQuery",
     "selections": [
       {
         "alias": "version",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/),
+              (v3/*:: as any*/),
               {
                 "kind": "InlineDataFragmentSpread",
                 "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
                 "selections": [
-                  (v4/*: any*/),
-                  (v5/*: any*/),
-                  (v6/*: any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -702,11 +701,11 @@ return {
                         "kind": "InlineDataFragmentSpread",
                         "name": "PromptInvocationParametersReadableFragment",
                         "selections": [
-                          (v2/*: any*/),
-                          (v12/*: any*/),
-                          (v14/*: any*/),
-                          (v15/*: any*/),
-                          (v16/*: any*/)
+                          (v2/*:: as any*/),
+                          (v12/*:: as any*/),
+                          (v14/*:: as any*/),
+                          (v15/*:: as any*/),
+                          (v16/*:: as any*/)
                         ],
                         "args": null,
                         "argumentDefinitions": []
@@ -714,10 +713,10 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v18/*: any*/),
-                  (v21/*: any*/),
-                  (v23/*: any*/),
-                  (v24/*: any*/)
+                  (v18/*:: as any*/),
+                  (v21/*:: as any*/),
+                  (v23/*:: as any*/),
+                  (v24/*:: as any*/)
                 ],
                 "args": null,
                 "argumentDefinitions": []
@@ -735,26 +734,26 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "PromptDiffButtonQuery",
     "selections": [
       {
         "alias": "version",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v4/*: any*/),
+          (v2/*:: as any*/),
+          (v4/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/),
+              (v3/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -763,22 +762,22 @@ return {
                 "name": "invocationParameters",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
+                  (v2/*:: as any*/),
                   {
                     "kind": "TypeDiscriminator",
                     "abstractKey": "__isPromptInvocationParameters"
                   },
-                  (v12/*: any*/),
-                  (v14/*: any*/),
-                  (v15/*: any*/),
-                  (v16/*: any*/)
+                  (v12/*:: as any*/),
+                  (v14/*:: as any*/),
+                  (v15/*:: as any*/),
+                  (v16/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v18/*: any*/),
-              (v21/*: any*/),
-              (v23/*: any*/),
-              (v24/*: any*/)
+              (v18/*:: as any*/),
+              (v21/*:: as any*/),
+              (v23/*:: as any*/),
+              (v24/*:: as any*/)
             ],
             "type": "PromptVersion",
             "abstractKey": null

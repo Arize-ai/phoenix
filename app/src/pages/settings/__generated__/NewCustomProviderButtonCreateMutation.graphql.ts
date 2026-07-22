@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<c2455fb2cacfb8455bdde3fe73506179>>
+ * @generated SignedSource<<1e3d7445d4f924b8015133b3957d12e8>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -18,11 +17,35 @@ export type CreateGenerativeModelCustomProviderMutationInput = {
   provider: string;
 };
 export type GenerativeModelCustomerProviderConfigInput = {
-  anthropic?: AnthropicCustomProviderConfigInput | null;
-  awsBedrock?: AWSBedrockCustomProviderConfigInput | null;
-  azureOpenai?: AzureOpenAICustomProviderConfigInput | null;
-  googleGenai?: GoogleGenAICustomProviderConfigInput | null;
-  openai?: OpenAICustomProviderConfigInput | null;
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai: OpenAICustomProviderConfigInput;
+} | {
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai: AzureOpenAICustomProviderConfigInput;
+  googleGenai?: never;
+  openai?: never;
+} | {
+  anthropic: AnthropicCustomProviderConfigInput;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai?: never;
+} | {
+  anthropic?: never;
+  awsBedrock: AWSBedrockCustomProviderConfigInput;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai?: never;
+} | {
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai: GoogleGenAICustomProviderConfigInput;
+  openai?: never;
 };
 export type OpenAICustomProviderConfigInput = {
   openaiApiType?: OpenAIApiType | null;
@@ -44,9 +67,17 @@ export type AzureOpenAICustomProviderConfigInput = {
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
-  apiKey?: string | null;
-  azureAdTokenProvider?: AzureOpenAIADTokenProviderInput | null;
-  defaultCredentials?: boolean | null;
+  apiKey: string;
+  azureAdTokenProvider?: never;
+  defaultCredentials?: never;
+} | {
+  apiKey?: never;
+  azureAdTokenProvider: AzureOpenAIADTokenProviderInput;
+  defaultCredentials?: never;
+} | {
+  apiKey?: never;
+  azureAdTokenProvider?: never;
+  defaultCredentials: boolean;
 };
 export type AzureOpenAIADTokenProviderInput = {
   azureClientId: string;
@@ -74,8 +105,11 @@ export type AWSBedrockCustomProviderConfigInput = {
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput;
 };
 export type AWSBedrockAuthenticationMethodInput = {
-  accessKeys?: AWSBedrockAccessKeysInput | null;
-  defaultCredentials?: boolean | null;
+  accessKeys: AWSBedrockAccessKeysInput;
+  defaultCredentials?: never;
+} | {
+  accessKeys?: never;
+  defaultCredentials: boolean;
 };
 export type AWSBedrockAccessKeysInput = {
   awsAccessKeyId: string;
@@ -160,7 +194,7 @@ v4 = {
   "name": "provider",
   "plural": false,
   "selections": [
-    (v3/*: any*/),
+    (v3/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -211,7 +245,7 @@ v4 = {
       "name": "user",
       "plural": false,
       "selections": [
-        (v3/*: any*/),
+        (v3/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -235,8 +269,8 @@ v4 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -244,13 +278,13 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "CreateGenerativeModelCustomProviderMutationPayload",
         "kind": "LinkedField",
         "name": "createGenerativeModelCustomProvider",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -261,21 +295,21 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "NewCustomProviderButtonCreateMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "CreateGenerativeModelCustomProviderMutationPayload",
         "kind": "LinkedField",
         "name": "createGenerativeModelCustomProvider",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
+          (v4/*:: as any*/),
           {
             "alias": null,
             "args": null,

@@ -72,6 +72,7 @@ The `phoenix.evals.metrics` module provides ready-to-use evaluators for common t
 | Tool Invocation | `ToolInvocationEvaluator` | Checks whether the correct tool was called with the right arguments |
 | Tool Selection | `ToolSelectionEvaluator` | Evaluates whether the right tool was selected for the task |
 | Tool Response Handling | `ToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response |
+| User Friction | `UserFrictionEvaluator` | Detects expressed corrections, retries, frustration, and challenges |
 | Exact Match | `exact_match` | Checks for exact string equality between output and expected |
 | Regex Match | `MatchesRegex` | Checks whether the output matches a regular expression |
 | Precision/Recall | `PrecisionRecallFScore` | Computes precision, recall, and F-score for classification tasks |

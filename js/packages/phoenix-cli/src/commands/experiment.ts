@@ -21,23 +21,40 @@ import {
   formatExperimentsOutput,
   type OutputFormat as ExperimentsOutputFormat,
 } from "./formatExperiments";
+import type { CommonOptions, DeleteOptions } from "./options";
 
 type Experiment = componentsV1["schemas"]["Experiment"];
 
-interface ExperimentGetOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: OutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px experiment get <experiment-id>`.
+ */
+interface ExperimentGetOptions extends CommonOptions<OutputFormat> {
+  /**
+   * `--file <path>`: Save experiment to file instead of stdout. When set,
+   * output is always written as JSON regardless of `--format`.
+   *
+   * @example "./experiment.json"
+   */
   file?: string;
 }
 
-interface ExperimentListOptions {
-  endpoint?: string;
-  apiKey?: string;
+/**
+ * Options for `px experiment list [directory]`.
+ */
+interface ExperimentListOptions extends CommonOptions<ExperimentsOutputFormat> {
+  /**
+   * `--dataset <name-or-id>`: Dataset name or ID whose experiments to list.
+   * Required.
+   *
+   * @example "my-dataset"
+   */
   dataset?: string;
-  format?: ExperimentsOutputFormat;
-  progress?: boolean;
+  /**
+   * `--limit <number>`: Maximum number of experiments to fetch. Defaults to
+   * 100.
+   *
+   * @example 50
+   */
   limit?: number;
 }
 
@@ -371,19 +388,12 @@ export function createExperimentListCommand(): Command {
     .action(experimentListHandler);
 }
 
-interface ExperimentDeleteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  yes?: boolean;
-  progress?: boolean;
-}
-
 /**
  * Handler for `experiment delete`
  */
 async function experimentDeleteHandler(
   experimentId: string,
-  options: ExperimentDeleteOptions
+  options: DeleteOptions
 ): Promise<void> {
   try {
     assertDeletesEnabled();

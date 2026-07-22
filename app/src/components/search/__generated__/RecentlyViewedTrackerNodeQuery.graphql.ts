@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<eeaab7cab687d23e307c65ed3c0bde8d>>
+ * @generated SignedSource<<976710b1f330526ccbd8e3d895a35ca7>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -49,7 +48,7 @@ v2 = [
     "name": "name",
     "storageKey": null
   },
-  (v1/*: any*/)
+  (v1/*:: as any*/)
 ],
 v3 = [
   {
@@ -82,19 +81,19 @@ v3 = [
       },
       {
         "kind": "InlineFragment",
-        "selections": (v2/*: any*/),
+        "selections": (v2/*:: as any*/),
         "type": "Project",
         "abstractKey": null
       },
       {
         "kind": "InlineFragment",
-        "selections": (v2/*: any*/),
+        "selections": (v2/*:: as any*/),
         "type": "Dataset",
         "abstractKey": null
       },
       {
         "kind": "InlineFragment",
-        "selections": (v2/*: any*/),
+        "selections": (v2/*:: as any*/),
         "type": "Experiment",
         "abstractKey": null
       },
@@ -108,7 +107,7 @@ v3 = [
             "name": "name",
             "storageKey": null
           },
-          (v1/*: any*/)
+          (v1/*:: as any*/)
         ],
         "type": "Prompt",
         "abstractKey": null
@@ -119,20 +118,20 @@ v3 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "RecentlyViewedTrackerNodeQuery",
-    "selections": (v3/*: any*/),
+    "selections": (v3/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "RecentlyViewedTrackerNodeQuery",
-    "selections": (v3/*: any*/)
+    "selections": (v3/*:: as any*/)
   },
   "params": {
     "cacheID": "ba52f1cdbfb96c516dadf1e2710d1d90",

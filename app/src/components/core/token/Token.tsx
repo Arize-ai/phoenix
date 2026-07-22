@@ -53,10 +53,10 @@ const tokenBaseCSS = css`
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  gap: var(--global-dimension-static-size-100);
-  font-size: var(--global-dimension-static-font-size-75);
+  gap: var(--global-dimension-size-100);
+  font-size: var(--global-dimension-font-size-75);
   line-height: var(--global-line-height-s);
-  padding: 0 var(--global-dimension-static-size-100);
+  padding: 0 var(--global-dimension-size-100);
   border-radius: var(--global-rounding-large);
   border: 1px solid transparent;
   user-select: none;
@@ -69,15 +69,15 @@ const tokenBaseCSS = css`
   }
 
   &[data-size="S"] {
-    height: var(--global-dimension-static-size-200);
+    height: var(--global-dimension-size-200);
   }
 
   &[data-size="M"] {
-    height: var(--global-dimension-static-size-250);
+    height: var(--global-dimension-size-250);
   }
 
   &[data-size="L"] {
-    height: var(--global-dimension-static-size-300);
+    height: var(--global-dimension-size-300);
   }
 
   &[data-disabled] {
@@ -109,7 +109,7 @@ const tokenBaseCSS = css`
   }
 
   &[data-removable] {
-    padding-right: var(--global-dimension-static-size-25);
+    padding-right: var(--global-dimension-size-25);
   }
 
   > button {
@@ -137,15 +137,15 @@ function TokenLeadingVisual({
         display: flex;
         align-items: center;
         justify-content: center;
-        width: var(--global-dimension-static-size-200);
-        height: var(--global-dimension-static-size-200);
+        width: var(--global-dimension-size-200);
+        height: var(--global-dimension-size-200);
 
         &[data-size="M"] {
-          margin-right: var(--global-dimension-static-size-50);
+          margin-right: var(--global-dimension-size-50);
         }
 
         &[data-size="L"] {
-          margin-right: var(--global-dimension-static-size-100);
+          margin-right: var(--global-dimension-size-100);
         }
       `}
     >

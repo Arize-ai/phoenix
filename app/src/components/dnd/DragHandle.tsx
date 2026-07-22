@@ -1,31 +1,24 @@
-import type { DraggableAttributes } from "@dnd-kit/core";
 import { css } from "@emotion/react";
-import React from "react";
+import type { Ref } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
 
-// This is the type of the listeners object from useSortable
-// However it is not exported from @dnd-kit/core so we have to redefine it here
-// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-type Listeners = Record<string, Function>;
-
+/**
+ * A grab handle for dnd-kit sortables. Pass the sortable's `handleRef` as
+ * `ref`; give an `aria-label` naming what is being reordered.
+ */
 function DragHandle({
   ref,
-  listeners,
-  attributes,
+  "aria-label": ariaLabel = "Drag to reorder",
 }: {
-  listeners?: Listeners;
-  attributes: DraggableAttributes;
-  ref?: React.Ref<HTMLButtonElement>;
+  ref?: Ref<HTMLButtonElement>;
+  "aria-label"?: string;
 }) {
   return (
     <button
       ref={ref}
-      {...listeners}
-      {...attributes}
-      aria-roledescription="draggable"
-      aria-pressed="false"
-      aria-disabled="false"
+      type="button"
+      aria-label={ariaLabel}
       className="button--reset drag-handle"
       css={css`
         cursor: grab;

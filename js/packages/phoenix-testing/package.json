@@ -1,0 +1,53 @@
+{
+  "name": "@arizeai/phoenix-testing",
+  "version": "0.0.0",
+  "private": true,
+  "description": "MSW-based testing utilities that mock the Phoenix server from its OpenAPI definition",
+  "keywords": [
+    "arize",
+    "mock",
+    "msw",
+    "openapi",
+    "phoenix",
+    "testing"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js",
+      "default": "./dist/node.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.json",
+    "clean": "rimraf dist",
+    "generate": "openapi-typescript --empty-objects-unknown=true --default-non-nullable=false ../../../schemas/openapi.json -o ./src/__generated__/api/v1.ts",
+    "prebuild": "pnpm run clean && pnpm run generate",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arizeai/phoenix-config": "workspace:*",
+    "@mswjs/source": "^0.5.0",
+    "msw": "^2.15.0",
+    "openapi-msw": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "openapi-typescript": "^7.13.0",
+    "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

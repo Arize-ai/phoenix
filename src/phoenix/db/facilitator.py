@@ -83,6 +83,8 @@ class Facilitator:
             _ensure_builtin_evaluators,
             _ensure_user_feedback_annotation_config,
             _ensure_sandbox_providers,
+            _ensure_oauth2_clients,
+            _delete_expired_oauth2_authorization_codes,
             _delete_expired_childless_records,
         ):
             await fn(self._db)
@@ -155,6 +157,51 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
             )
             session.add(admin_user)
         await session.flush()
+
+
+PHOENIX_CLI_OAUTH2_CLIENT_ID = "phoenix-cli"
+PHOENIX_CLI_OAUTH2_CLIENT_NAME = "Phoenix CLI"
+PHOENIX_CLI_OAUTH2_REDIRECT_URIS = ["http://127.0.0.1/callback"]
+
+
+async def _ensure_oauth2_clients(db: DbSessionFactory) -> None:
+    """Idempotently seed and reconcile the first-party Phoenix CLI OAuth2 client."""
+    async with db() as session:
+        existing = await session.scalar(
+            sa.select(models.OAuth2Client).where(
+                models.OAuth2Client.client_id == PHOENIX_CLI_OAUTH2_CLIENT_ID
+            )
+        )
+        if existing is not None:
+            if existing.redirect_uris != PHOENIX_CLI_OAUTH2_REDIRECT_URIS:
+                existing.redirect_uris = list(PHOENIX_CLI_OAUTH2_REDIRECT_URIS)
+            return
+        session.add(
+            models.OAuth2Client(
+                client_id=PHOENIX_CLI_OAUTH2_CLIENT_ID,
+                name=PHOENIX_CLI_OAUTH2_CLIENT_NAME,
+                redirect_uris=list(PHOENIX_CLI_OAUTH2_REDIRECT_URIS),
+                grant_types=["authorization_code", "refresh_token"],
+                token_endpoint_auth_method="none",
+                is_first_party=True,
+            )
+        )
+        await session.flush()
+
+
+async def _delete_expired_oauth2_authorization_codes(db: DbSessionFactory) -> None:
+    """Remove authorization codes past their TTL so unredeemed approvals leave no residue."""
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        deleted_ids = (
+            await session.scalars(
+                sa.delete(models.OAuth2AuthorizationCode)
+                .where(models.OAuth2AuthorizationCode.expires_at <= now)
+                .returning(models.OAuth2AuthorizationCode.id)
+            )
+        ).all()
+        if deleted_ids:
+            logger.info("Deleted %s expired OAuth2 authorization codes", len(deleted_ids))
 
 
 async def _get_system_user_id(db: DbSessionFactory) -> None:

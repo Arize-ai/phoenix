@@ -219,6 +219,7 @@ class SetProjectAnnotationConfigsResponseBody(PaginatedResponseBody[AnnotationCo
 
 @router.get(
     "/annotation_configs",
+    operation_id="listAnnotationConfigs",
     summary="List annotation configurations",
     description="Retrieve a paginated list of all annotation configurations in the system.",
     response_description="A list of annotation configurations with pagination information",
@@ -277,6 +278,7 @@ async def list_annotation_configs(
 
 @router.get(
     "/annotation_configs/{config_identifier}",
+    operation_id="getAnnotationConfig",
     summary="Get an annotation configuration by ID or name",
 )
 async def get_annotation_config_by_name_or_id(
@@ -300,6 +302,7 @@ async def get_annotation_config_by_name_or_id(
 @router.post(
     "/annotation_configs",
     dependencies=[Depends(is_not_locked)],
+    operation_id="createAnnotationConfig",
     summary="Create an annotation configuration",
 )
 async def create_annotation_config(
@@ -335,6 +338,7 @@ async def create_annotation_config(
 @router.put(
     "/annotation_configs/{config_id}",
     dependencies=[Depends(is_not_locked)],
+    operation_id="updateAnnotationConfig",
     summary="Update an annotation configuration",
 )
 async def update_annotation_config(
@@ -380,6 +384,7 @@ async def update_annotation_config(
 
 @router.delete(
     "/annotation_configs/{config_id}",
+    operation_id="deleteAnnotationConfig",
     summary="Delete an annotation configuration",
 )
 async def delete_annotation_config(

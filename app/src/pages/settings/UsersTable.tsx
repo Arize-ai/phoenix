@@ -9,11 +9,23 @@ import {
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ConnectionHandler, graphql, usePaginationFragment } from "react-relay";
+import { useNavigate, useParams } from "react-router";
 
-import { Flex, Icon, Icons, Modal, ModalOverlay } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
+import { Counter } from "@phoenix/components/core/counter";
 import { RoleSelect } from "@phoenix/components/settings/RoleSelect";
 import { LoadMoreRow } from "@phoenix/components/table";
-import { tableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
@@ -44,6 +56,8 @@ const emailLinkCSS = css`
 const usersTableHeaderCSS = css`
   position: sticky;
   top: 0;
+  z-index: 2;
+  white-space: nowrap;
 `;
 
 /**
@@ -89,6 +103,8 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
               createdAt
               authMethod
               profilePictureUrl
+              apiKeyCount
+              oauth2GrantCount
               role {
                 name
               }
@@ -109,6 +125,8 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       createdAt: user.createdAt,
       role: user.role.name,
       authMethod: user.authMethod,
+      apiKeyCount: user.apiKeyCount,
+      oauth2GrantCount: user.oauth2GrantCount,
     }));
   }, [data]);
 
@@ -129,12 +147,15 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
     [hasNext, isLoadingNext, loadNext]
   );
   const { viewer } = useViewer();
+  const navigate = useNavigate();
+  const { userId: selectedUserId } = useParams();
   type TableRow = (typeof tableData)[number];
   const columns = useMemo((): ColumnDef<TableRow>[] => {
     return [
       {
         header: "user",
         accessorKey: "username",
+        size: 300,
         cell: ({ row }) => {
           return (
             <Flex direction="row" gap="size-50" alignItems="center">
@@ -143,9 +164,15 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                 profilePictureUrl={row.original.profilePictureUrl}
                 size={20}
               />
-              <span>{row.original.username}</span>
+              <Link to={`/settings/users/${row.original.id}`}>
+                {row.original.username}
+              </Link>
               {row.original.email && (
-                <a href={`mailto:${row.original.email}`} css={emailLinkCSS}>
+                <a
+                  href={`mailto:${row.original.email}`}
+                  css={emailLinkCSS}
+                  onClick={(event) => event.stopPropagation()}
+                >
                   {row.original.email}
                 </a>
               )}
@@ -154,14 +181,37 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         },
       },
       {
-        header: "method",
+        header: "API keys",
+        accessorKey: "apiKeyCount",
+        size: 100,
+        meta: {
+          textAlign: "right",
+        },
+        cell: ({ row }) => (
+          <Counter variant="quiet">{row.original.apiKeyCount}</Counter>
+        ),
+      },
+      {
+        header: "Authorized applications",
+        accessorKey: "oauth2GrantCount",
+        size: 190,
+        meta: {
+          textAlign: "right",
+        },
+        cell: ({ row }) => (
+          <Counter variant="quiet">{row.original.oauth2GrantCount}</Counter>
+        ),
+      },
+      {
+        header: "authentication",
         accessorKey: "authMethod",
-        size: 10,
+        size: 140,
         cell: ({ row }) => row.original.authMethod.toLowerCase(),
       },
       {
         header: "role",
         accessorKey: "role",
+        size: 160,
         cell: ({ row }) => {
           if (
             isDefaultAdminUser(row.original) ||
@@ -197,12 +247,14 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       {
         header: "created at",
         accessorKey: "createdAt",
+        size: 220,
         cell: TimestampCell,
       },
       {
+        id: "actions",
         header: "",
         accessorKey: "id",
-        size: 10,
+        size: 56,
         cell: ({ row }) => {
           if (isDefaultAdminUser(row.original)) {
             return null;
@@ -233,6 +285,11 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
+    state: {
+      columnPinning: {
+        right: ["actions"],
+      },
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
@@ -244,7 +301,10 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={tableCSS}>
+      <table
+        css={selectableTableCSS}
+        style={{ width: table.getTotalSize(), minWidth: "100%" }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -264,6 +324,15 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                             ? "none"
                             : undefined
                     }
+                    style={{
+                      width: header.column.getSize(),
+                      minWidth: header.column.getSize(),
+                      maxWidth: header.column.getSize(),
+                      ...(header.column.getIsPinned()
+                        ? getCommonPinningStyles(header.column)
+                        : {}),
+                      zIndex: header.column.getIsPinned() ? 3 : undefined,
+                    }}
                   >
                     {header.isPlaceholder ? null : (
                       <div
@@ -271,8 +340,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                           className: header.column.getCanSort() ? "sort" : "",
                           onClick: header.column.getToggleSortingHandler(),
                           style: {
-                            left: header.getStart(),
-                            width: header.getSize(),
+                            textAlign: header.column.columnDef.meta?.textAlign,
                           },
                         }}
                       >
@@ -305,11 +373,33 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         ) : (
           <tbody>
             {rows.map((row) => {
+              const isSelected = row.original.id === selectedUserId;
               return (
-                <tr key={row.id} css={userTableRowCSS}>
+                <tr
+                  key={row.id}
+                  css={userTableRowCSS}
+                  data-selected={isSelected}
+                  onClick={() => navigate(`/settings/users/${row.original.id}`)}
+                >
                   {row.getVisibleCells().map((cell) => {
                     return (
-                      <td key={cell.id}>
+                      <td
+                        key={cell.id}
+                        align={cell.column.columnDef.meta?.textAlign}
+                        style={
+                          cell.column.getIsPinned()
+                            ? getCommonPinningStyles(cell.column)
+                            : undefined
+                        }
+                        onClick={(event) => {
+                          if (
+                            cell.column.id === "role" ||
+                            cell.column.id === "id"
+                          ) {
+                            event.stopPropagation();
+                          }
+                        }}
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()

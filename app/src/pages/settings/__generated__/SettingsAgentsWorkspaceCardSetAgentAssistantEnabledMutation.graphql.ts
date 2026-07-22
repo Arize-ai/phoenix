@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<2632773ed6f093f16dedc3d89c3fe5ee>>
+ * @generated SignedSource<<dffbe298e65b8b4426f88375c17e5e42>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -61,20 +60,20 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "ec85b24f77e8ee6a2ccda1ed49454972",

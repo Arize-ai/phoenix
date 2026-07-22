@@ -2,7 +2,7 @@
 title: "The phoenix.otel Helpers"
 sidebarTitle: "phoenix.otel helpers"
 description: "The arize-phoenix-otel SDK collapses raw OpenTelemetry setup into a single register() call, with auto-instrumentation discovery and Phoenix-aware defaults."
-keywords: ['phoenix.otel', 'register', 'auto_instrument', 'PHOENIX_API_KEY', 'PHOENIX_COLLECTOR_ENDPOINT', 'PHOENIX_PROJECT_NAME']
+keywords: ['phoenix.otel', 'register', 'auto_instrument', 'PHOENIX_API_KEY', 'PHOENIX_COLLECTOR_ENDPOINT', 'PHOENIX_PROJECT', 'PHOENIX_PROJECT_NAME']
 ---
 
 The previous four pages — [Resource](/docs/phoenix/tracing/concepts-tracing/otel-openinference/resource), [Exporter](/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter), [Span Processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor), and [Tracer Provider](/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider) — walked through the OpenTelemetry tracing components one by one. Wiring them up by hand in every application is verbose. The `phoenix.otel` SDK collapses all of it into a single function call — and adds a few Phoenix-specific capabilities on top.
@@ -55,7 +55,7 @@ The convenience function handles four things for you. Each one has additional ca
 | **Tracer Provider** | A Phoenix-aware provider with sensible defaults. Combined with the OpenInference instrumentation libraries, it makes the [OpenInference context managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers) (`using_session`, `using_user`, `using_metadata`, etc.) attach attributes to spans automatically. |
 | **Span Processor** | Configured and pre-attached. `SimpleSpanProcessor` by default, `BatchSpanProcessor` when you pass `batch=True`. |
 | **Span Exporter** | Auto-detects gRPC or HTTP from the endpoint URL and configures the matching OTLP exporter. If `api_key` is set, it adds the `Authorization: Bearer <key>` header for you. |
-| **Resource** | Sets the project name automatically from your `project_name` argument (or the `PHOENIX_PROJECT_NAME` environment variable). |
+| **Resource** | Sets the project name automatically from your `project_name` argument (or the `PHOENIX_PROJECT` environment variable, with `PHOENIX_PROJECT_NAME` accepted as an alias). |
 
 # Auto-instrumentation
 
@@ -80,7 +80,7 @@ For the full set of installable instrumentors, see the [OpenInference repository
 
 | Argument | Environment variable | Notes |
 | :--- | :--- | :--- |
-| `project_name` | `PHOENIX_PROJECT_NAME` | Name of the project in Phoenix. Defaults to `"default"`. |
+| `project_name` | `PHOENIX_PROJECT` (alias `PHOENIX_PROJECT_NAME`) | Name of the project in Phoenix. If both env vars are set, `PHOENIX_PROJECT` wins. Defaults to `"default"`. |
 | `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | The collector endpoint. Defaults to `http://localhost:6006`. |
 | `api_key` | `PHOENIX_API_KEY` | Optional for local Phoenix. Required for Phoenix Cloud or any authenticated instance — added as a Bearer token header. |
 | `headers` | `PHOENIX_CLIENT_HEADERS` | Additional headers for the OTLP request (e.g. tenant identifiers). |

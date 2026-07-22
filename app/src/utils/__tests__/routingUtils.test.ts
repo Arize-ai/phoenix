@@ -1,8 +1,10 @@
 import { baseWindowConfig } from "../../../vitest.setup";
 import {
+  assignAppRelativeLocation,
   createLoginRedirectUrl,
   createRedirectUrlWithReturn,
   getReturnUrl,
+  isServerOwnedPath,
   sanitizeUrl,
 } from "../routingUtils";
 
@@ -35,6 +37,53 @@ describe("routingUtils", () => {
       writable: true,
     });
   });
+  describe("isServerOwnedPath", () => {
+    test.each([
+      "/oauth2/authorize",
+      "/oauth2/authorize?client_id=abc&state=xyz",
+      "/oauth2/authorize/",
+    ])("%s is server-owned - requires a full document load", (url) => {
+      expect(isServerOwnedPath(url)).toBe(true);
+    });
+
+    test.each([
+      "/",
+      "/account",
+      "/oauth2/consent",
+      "/oauth2/authorized",
+      "/login?returnUrl=%2Foauth2%2Fauthorize",
+    ])("%s is an SPA route - handled by the router", (url) => {
+      expect(isServerOwnedPath(url)).toBe(false);
+    });
+  });
+
+  describe("assignAppRelativeLocation", () => {
+    it("resolves the path against the current origin", () => {
+      const assign = vi.fn();
+      windowSpy.mockReturnValue({
+        origin: "http://localhost:6006",
+        assign,
+      });
+      assignAppRelativeLocation("/oauth2/authorize?client_id=abc");
+      expect(assign).toHaveBeenCalledWith(
+        "http://localhost:6006/oauth2/authorize?client_id=abc"
+      );
+    });
+
+    test.each(["javascript:alert(1)", "https://evil.example/phish"])(
+      "%s cannot navigate off the current origin",
+      (path) => {
+        const assign = vi.fn();
+        windowSpy.mockReturnValue({
+          origin: "http://localhost:6006",
+          assign,
+        });
+        assignAppRelativeLocation(path);
+        expect(assign).not.toHaveBeenCalled();
+      }
+    );
+  });
+
   describe("sanitizeRedirectUrl", () => {
     test.each(maliciousURLS)("%s is invalid - route to root", (url) => {
       expect(sanitizeUrl(url)).toEqual("/");

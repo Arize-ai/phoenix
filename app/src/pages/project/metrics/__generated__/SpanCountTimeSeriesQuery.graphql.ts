@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<f1c48ba3fb381643f8c9626d9262a397>>
+ * @generated SignedSource<<ccd143eea5d8bc5b94a9c89ec9edefcb>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -153,10 +152,10 @@ v5 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v3/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -164,13 +163,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*: any*/)
+          (v5/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -181,17 +180,17 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v3/*: any*/),
-      (v2/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v3/*:: as any*/),
+      (v2/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SpanCountTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -204,7 +203,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v5/*: any*/),
+          (v5/*:: as any*/),
           {
             "alias": null,
             "args": null,

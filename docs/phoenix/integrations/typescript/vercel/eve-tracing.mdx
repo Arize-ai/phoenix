@@ -4,7 +4,7 @@ description: "Trace Vercel Eve agents with OpenInference and send AI SDK spans t
 keywords: ['vercel', 'eve', 'agents', 'ai-sdk', 'opentelemetry', 'openinference', 'typescript', 'tracing', 'observability', 'phoenix']
 ---
 
-[Eve](https://eve.dev/) is Vercel's filesystem-first TypeScript framework for durable backend AI agents. You define an agent as files under an `agent/` directory and Eve compiles it into an app that runs on Vercel Functions. Eve emits [Vercel AI SDK](https://github.com/vercel/ai) OpenTelemetry spans for every turn, model call, and tool execution. Phoenix captures them by registering the [`@arizeai/openinference-vercel`](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel) span processor in Eve's `agent/instrumentation.ts`.
+[Eve](https://eve.dev/) is Vercel's filesystem-first TypeScript framework for durable backend AI agents. You define an agent as files under an `agent/` directory and Eve compiles it into an app that runs on Vercel Functions. Eve emits [Vercel AI SDK](https://github.com/vercel/ai) OpenTelemetry spans for every turn, model call, and tool execution. Phoenix captures them with a single [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) `register()` call in Eve's `agent/instrumentation.ts`.
 
 ## Prerequisites
 
@@ -14,19 +14,15 @@ keywords: ['vercel', 'eve', 'agents', 'ai-sdk', 'opentelemetry', 'openinference'
 
 ## Install
 
-In your Eve project, add the Arize OpenInference processor and the OpenTelemetry packages it exports through:
+In your Eve project, install `@arizeai/phoenix-otel` and the OpenInference span processor for the AI SDK:
 
 ```bash
-npm install @arizeai/openinference-vercel@^3 \
-  @arizeai/openinference-semantic-conventions \
-  @vercel/otel \
-  @opentelemetry/api \
-  @opentelemetry/exporter-trace-otlp-proto
+npm install @arizeai/phoenix-otel @arizeai/openinference-vercel
 ```
 
 ## Connect to Phoenix
 
-Run a [self-hosted Phoenix instance](/docs/phoenix/self-hosting), a local terminal, Kubernetes, etc., then point Eve at it by adding the following to your environment variables.
+Run a [self-hosted Phoenix instance](/docs/phoenix/self-hosting). A local Phoenix at `http://localhost:6006` needs no configuration; otherwise set:
 
 ```bash .local.env
 PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
@@ -34,46 +30,34 @@ PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 # optional; defaults to the agent name
 PHOENIX_PROJECT_NAME="weather-agent"
 
-# optional; use if using Vercel's AI Gateway with Eve
-# AI_GATEWAY_API_KEY="<your-ai-gateway-key>"
+# only if your Phoenix has auth enabled
+# PHOENIX_API_KEY="<your-phoenix-api-key>"
 ```
 
 ## Setup tracing
 
-Eve auto-discovers `agent/instrumentation.ts` and runs it once at server startup, before any agent code. Create or edit this file to register an OpenTelemetry provider in the `setup` callback like so:
+Eve auto-discovers `agent/instrumentation.ts` and runs it once at server startup. Call `register()` in the `setup` callback:
 
 ```typescript agent/instrumentation.ts
-import { defineInstrumentation } from "eve/instrumentation";
-import { registerOTel } from "@vercel/otel";
 import {
   isOpenInferenceSpan,
   OpenInferenceSimpleSpanProcessor,
 } from "@arizeai/openinference-vercel";
-import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+import { OTLPTraceExporter, register } from "@arizeai/phoenix-otel";
+import { defineInstrumentation } from "eve/instrumentation";
 
 export default defineInstrumentation({
   setup: ({ agentName }) => {
-    // Bail out if the collector endpoint is missing. This callback runs at server
-    // startup, so throwing here (an unset endpoint makes an unparseable exporter URL)
-    // would crash the agent runner with a "Runner did not become ready in time" error
-    // that never mentions Phoenix.
-    const endpoint = process.env.PHOENIX_COLLECTOR_ENDPOINT;
-    if (!endpoint) {
-      console.warn("PHOENIX_COLLECTOR_ENDPOINT not set — skipping Phoenix tracing");
-      return;
-    }
-    // Route to the project named by PHOENIX_PROJECT_NAME, falling back to the agent
-    // name. Without a project name, spans land in Phoenix's "default" project.
-    const projectName = process.env.PHOENIX_PROJECT_NAME ?? agentName;
-    return registerOTel({
-      serviceName: projectName,
-      attributes: { [SEMRESATTRS_PROJECT_NAME]: projectName },
+    register({
+      projectName: process.env.PHOENIX_PROJECT_NAME ?? agentName,
       spanProcessors: [
+        // The simple (non-batched) processor delivers each span as it ends,
+        // which is safe on the short-lived serverless functions Eve deploys to.
+        // Swap in OpenInferenceBatchSpanProcessor if you prefer batching.
         new OpenInferenceSimpleSpanProcessor({
           exporter: new OTLPTraceExporter({
-            url: `${endpoint}/v1/traces`,
-            // Only needed when your self-hosted Phoenix has auth enabled.
+            url: `${process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"}/v1/traces`,
+            // Only needed when Phoenix has auth enabled.
             headers: process.env.PHOENIX_API_KEY
               ? { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` }
               : undefined,
@@ -88,19 +72,17 @@ export default defineInstrumentation({
 ```
 
 <Accordion title="What the spanFilter and reparentOrphanedSpans options do">
-Both options act client-side, before spans are exported, and control which spans reach Phoenix and how each trace is rooted:
-
-- **`spanFilter: isOpenInferenceSpan`** keeps only the AI spans and drops the rest — the raw HTTP/fetch spans and Eve's Vercel Workflow spans — so your Phoenix **Traces** view isn't cluttered with non-AI spans.
-- **`reparentOrphanedSpans: true`** re-roots any AI span left orphaned when the filter drops its parent, so it no longer points at a parent that was never exported (which would otherwise show up orphaned on the Phoenix **Traces** tab). It also recognizes Eve's `ai.eve.turn` wrapper as an AI-like root and tags it `openinference.span.kind = AGENT`, so each turn shows up as a single clean **agent** root with its steps nested underneath.
+- **`spanFilter: isOpenInferenceSpan`** keeps only the AI spans, dropping the raw HTTP/fetch spans and Eve's workflow-engine spans.
+- **`reparentOrphanedSpans: true`** re-roots the AI spans left orphaned by the filter and promotes Eve's `ai.eve.turn` wrapper to an **agent** root, so each turn is one clean trace.
 </Accordion>
 
 <Note>
-`OpenInferenceSimpleSpanProcessor` exports each span synchronously as it ends, so it is safe on the short-lived serverless functions Eve runs on (no process-exit `forceFlush` to call). `@arizeai/openinference-vercel` translates the AI SDK spans into OpenInference before export.
+This setup is runnable end to end as the [eve-agent example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/eve-agent) in the Phoenix repo.
 </Note>
 
 ## Run Eve
 
-Start the Eve dev server, then open a session against the built-in HTTP channel:
+Start the Eve dev server:
 
 ```bash
 npm run dev
@@ -130,40 +112,32 @@ curl http://127.0.0.1:2000/eve/v1/session/<sessionId>/stream
 
 ## Observe in Phoenix
 
-New to reading traces in Phoenix? Here's how to make sense of what Eve sends, step by step.
-
-1. **Open your project.** Go to [localhost:6006](http://localhost:6006/) and click the project named `weather-agent` (or whatever you set in `PHOENIX_PROJECT_NAME`). That opens the project's **Spans** table. New spans show up within ~30 seconds of a turn. By default, only "Root spans" are shown. You can toggle on "All" to see all the spans.
-1. **Open a trace.** Navigate to the "Traces" tab. Each row in the Traces table is one _trace_: a full agent turn, from the incoming message to the final reply. Click a row to open a _span tree_. Each **span** is one unit of work inside the turn (a model call, a tool run, a reasoning step), nested to show what ran inside what.
-1. **Tell spans apart by their _kind_, not their _name_.** Eve emits [Vercel AI SDK spans](https://ai-sdk.dev/docs/ai-sdk-core/telemetry#collected-data) that follow OpenTelemetry's GenAI convention, so nearly every span is _named_ `gen_ai` (or `gen_ai.client` for the model request) rather than something descriptive like `ai.streamText` or `ai.toolCall`. To know what a span actually is, read its **span kind**, a colored label Phoenix adds to denote what it is:
+1. **Open your project.** Go to [localhost:6006](http://localhost:6006/) and click the project named `weather-agent` (or whatever you set in `PHOENIX_PROJECT_NAME`). New spans show up within ~30 seconds of a turn.
+1. **Open a trace.** Navigate to the "Traces" tab — each row is one full agent turn, from the incoming message to the final reply. Click a row to open the span tree; each **span** is one unit of work (a model call, a tool run), nested to show what ran inside what.
+1. **Read a span by its name and its _kind_.** Eve registers the AI SDK's [`@ai-sdk/otel`](https://ai-sdk.dev/docs/ai-sdk-core/telemetry) telemetry adapter, which names spans per OpenTelemetry's GenAI conventions — `invoke_agent gpt-4o-mini`, `step 1`, `chat gpt-4o-mini`, `execute_tool get_weather` — and the OpenInference span processor translates their attributes to OpenInference on export. Alongside the name, each span carries a **span kind**, a colored label Phoenix adds to denote what it is:
     - **agent** a step of the agent's turn (its reasoning and orchestration).
-    - **llm** a model request (the `gen_ai.client` span). Open it to see the prompt, the response, and token usage.
-    - **tool** a tool execution, carrying a `tool.name` attribute such as `get_weather`.
+    - **llm** a model request (the `chat` span). Open it to see the prompt, the response, and token usage.
+    - **tool** a tool execution (the `execute_tool` span), carrying a `tool.name` attribute such as `get_weather`.
 1. **Find the session context.** Click any span and open its **Attributes** panel. Eve attaches session identifiers under the `ai.settings.context.eve.*` prefix — `ai.settings.context.eve.session.id`, `ai.settings.context.eve.turn.id`, `ai.settings.context.eve.step.index`, and `ai.settings.context.eve.channel.kind` — so you can trace any span back to the session and turn it came from.
-1. **Read the tree top-down.** At the top sits Eve's `ai.eve.turn` span, shown as an **agent** root — `reparentOrphanedSpans` is promoting Eve's turn wrapper to a clean root, one per turn. Beneath it you'll see one or more `gen_ai` spans, one for each step Eve took in the turn. A step's `gen_ai` span often **nests another `gen_ai` span** inside it, the outer one being the step itself (either a **chain** or **agent** span kind), and the inner one is the actual model request (with a span kind of **llm**, and sometimes named `gen_ai.client`). So the "`gen_ai` inside a `gen_ai`" you're seeing is simply _a step wrapping its model call_. If the step ran a tool, that shows up as its own `gen_ai` span of kind **tool** carrying `tool.name`. Remember: the names are nearly all `gen_ai`, so lean on the **kind** label (and the nesting) to read what each one is.
-
-    <Note>
-    If you turn off `spanFilter`/`reparentOrphanedSpans` in **instrumentation.ts**, this tree will be cluttered with raw HTTP spans, or with the `gen_ai` spans floating loose under no root; see the accordion under [Setup tracing](#setup-tracing).
-    </Note>
-
+1. **Read the tree top-down.** At the top sits Eve's `ai.eve.turn` span, an **agent** root, one per turn. Beneath it sits one `invoke_agent` span (kind **agent**) per step Eve took, each wrapping a `step 1` span (kind **chain**) that holds the model request — a `chat` span of kind **llm**. If the step ran a tool, an `execute_tool` span of kind **tool** carries `tool.name`.
 1. If no traces appear at all, see [Troubleshooting](#troubleshooting).
 
-<Frame caption="A Vercel Eve turn trace in Phoenix. With reparentOrphanedSpans enabled, ai.eve.turn becomes an agent root over the per-step agent, llm, and tool spans.">
+<Frame caption="A Vercel Eve turn trace in Phoenix: the ai.eve.turn agent root over the per-step agent, llm, and tool spans.">
 ![Phoenix trace view of a Vercel Eve agent turn, showing the ai.eve.turn agent root span with nested agent, llm, and tool spans for each step](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/screen_phoenix-eve.jpg)
 </Frame>
 
 ## Troubleshooting
 
-- **No traces in Phoenix.** Confirm the file is exactly `agent/instrumentation.ts` (Eve discovers it by path), and that `PHOENIX_COLLECTOR_ENDPOINT` is set in the shell running `npm run dev`. If your Phoenix has auth enabled, also set `PHOENIX_API_KEY`. Enable OpenTelemetry debug logs with `export OTEL_LOG_LEVEL=debug` and re-run.
+- **No traces in Phoenix.** Confirm the file is exactly `agent/instrumentation.ts` (Eve discovers it by path), and that `PHOENIX_COLLECTOR_ENDPOINT` points at your Phoenix (it defaults to `http://localhost:6006` in the snippet above). If your Phoenix has auth enabled, also set `PHOENIX_API_KEY`. Enable OpenTelemetry debug logs with `export OTEL_LOG_LEVEL=debug` and re-run.
 - **Traces land in the wrong project.** Phoenix routes spans to a project by the project-name resource attribute. Set `PHOENIX_PROJECT_NAME` (or rely on the agent-name fallback above); without it, spans land in Phoenix's `default` project.
 - **Model auth errors.** Eve routes models through AI Gateway, so set `AI_GATEWAY_API_KEY`, or run `vercel link` to use a `VERCEL_OIDC_TOKEN`. To skip the gateway, switch the agent to a direct provider model (e.g. `@ai-sdk/openai` with `OPENAI_API_KEY`). A brand-new AI Gateway key also fails until you add a payment method. The turn errors with `GatewayInternalServerError: AI Gateway requires a valid credit card on file to service requests`, even if you only plan to use the free credits. Add a card in your Vercel **AI Gateway** dashboard to unlock them.
-- **Version mismatch.** Pin the OpenTelemetry packages to Eve's `@vercel/otel` major: `@vercel/otel@1.x` requires `@opentelemetry/*` `1.x`; `@vercel/otel@2.x` requires `2.x`. Mismatches surface as silently missing traces.
-- **`gen_ai` spans orphaned on the Traces tab.** This happens when `spanFilter: isOpenInferenceSpan` drops Eve's `ai.eve.turn` workflow span without re-rooting its children, leaving the per-step `gen_ai` spans with no parent. Set `reparentOrphanedSpans: true` as shown in [Setup tracing](#setup-tracing) for a single clean agent root per turn, and confirm `@arizeai/openinference-vercel` is **3.0.0 or later** (the v3 major maps Eve's v7 GenAI-convention spans and carries the `ai.eve.turn` reparenting fix first shipped in 2.8.1).
 
 ## Resources
 
 <CardGroup>
   <Card icon="signal-stream" href="/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js" title="Vercel AI SDK Tracing (JS)" horizontal />
+  <Card icon="wrench" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel" title="Setup Tracing with phoenix-otel" horizontal />
+  <Card icon="terminal" href="https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/eve-agent" title="Runnable Eve Agent Example" horizontal />
   <Card icon="book-open" href="https://vercel.com/docs/eve/observability" title="Eve Observability Docs" horizontal />
-  <Card icon="terminal" href="https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel" title="OpenInference Vercel Span Processor" horizontal />
   <Card icon="robot" href="https://eve.dev/docs/getting-started" title="Eve Getting Started" horizontal />
 </CardGroup>

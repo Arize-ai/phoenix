@@ -32,15 +32,8 @@ def get_context_capability_function(
     *,
     prompts: AgentPrompts,
 ) -> CapabilityFunc[AgentDependencies]:
-    """Return a ``CapabilityFunc`` that assembles per-run UI-context capabilities.
-
-    Each context capability self-gates via ``include_for_run`` based on the
-    presence of the matching dataclass on ``ctx.deps.contexts``.
-    ``GraphQLMutationsCapability`` is always included so the safe-default
-    DISABLED policy ships when no GraphQL context was supplied this turn.
-    """
-    capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
-        AppContextCapability(instructions=prompts.app_context),
+    """Return a ``CapabilityFunc`` that assembles per-run UI-context capabilities."""
+    dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
         ProjectContextCapability(instructions=prompts.project_context),
         TraceContextCapability(instructions=prompts.trace_context),
         SessionContextCapability(instructions=prompts.session_context),
@@ -55,7 +48,16 @@ def get_context_capability_function(
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
-        included = [cap for cap in capabilities if cap.include_for_run(ctx)]
+        static_capabilities: list[AbstractCapability[AgentDependencies]] = [
+            AppContextCapability(
+                instructions=prompts.app_context,
+                edit_permission=ctx.deps.edit_permission,
+            ),
+        ]
+        included = [
+            *static_capabilities,
+            *(cap for cap in dynamic_capabilities if cap.include_for_run(ctx)),
+        ]
         return CombinedCapability(capabilities=included)
 
     return _build

@@ -42,8 +42,8 @@ const commandPaletteCSS = css`
     flex-direction: row;
     align-items: center;
     flex: none;
-    gap: var(--global-dimension-static-size-100);
-    padding-right: var(--global-dimension-static-size-100);
+    gap: var(--global-dimension-size-100);
+    padding-right: var(--global-dimension-size-100);
     border-bottom: 1px solid var(--global-border-color-default);
 
     .search-field {
@@ -80,12 +80,11 @@ const commandPaletteCSS = css`
   }
 
   .command-palette__section:not(:first-child) {
-    margin-top: var(--global-dimension-static-size-100);
+    margin-top: var(--global-dimension-size-100);
   }
 
   .command-palette__section-header {
-    padding: var(--global-dimension-static-size-50)
-      var(--global-dimension-static-size-100);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
     color: var(--global-text-color-500);
     font-size: var(--global-font-size-xs);
     font-weight: 600;
@@ -98,16 +97,15 @@ const commandPaletteCSS = css`
     flex-direction: row;
     align-items: center;
     flex: none;
-    gap: var(--global-dimension-static-size-200);
-    padding: var(--global-dimension-static-size-150)
-      var(--global-dimension-static-size-200);
+    gap: var(--global-dimension-size-200);
+    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
     border-top: 1px solid var(--global-border-color-default);
   }
 
   .command-palette__hint {
     display: inline-flex;
     align-items: center;
-    gap: var(--global-dimension-static-size-100);
+    gap: var(--global-dimension-size-100);
   }
 
   .command-palette__empty-state {

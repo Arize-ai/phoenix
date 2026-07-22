@@ -48,11 +48,17 @@ type InteractiveLegendContentProps = RechartsLegendContentProps & {
   baseContent?: LegendProps["content"];
   hiddenDataKeys: ReadonlySet<InteractiveLegendDataKey>;
   onToggleDataKey: (dataKey: InteractiveLegendDataKey) => void;
+  additionalLegendItems?: ReadonlyArray<LegendPayload>;
 };
 
 export type InteractiveLegendProps = LegendProps & {
   hiddenDataKeys: ReadonlySet<InteractiveLegendDataKey>;
   onToggleDataKey: (dataKey: InteractiveLegendDataKey) => void;
+  /**
+   * Additional entries appended after Recharts' generated series. Entries
+   * without a data key are rendered as static, non-interactive items.
+   */
+  additionalLegendItems?: ReadonlyArray<LegendPayload>;
 };
 
 export type UseInteractiveLegendProps = {
@@ -188,7 +194,10 @@ function LegendIcon({
   iconType?: LegendType;
   inactiveColor: string;
 }) {
-  const preferredIconType = iconType ?? entry.type;
+  const isStaticEntry = getInteractiveDataKey(entry.dataKey) == null;
+  const preferredIconType = isStaticEntry
+    ? entry.type
+    : (iconType ?? entry.type);
   const color = entry.inactive ? inactiveColor : (entry.color ?? inactiveColor);
   const halfSize = LEGEND_ICON_VIEW_BOX_SIZE / 2;
   const thirdSize = LEGEND_ICON_VIEW_BOX_SIZE / 3;
@@ -460,9 +469,13 @@ function InteractiveLegendContent({
   onClick,
   onToggleDataKey,
   payload,
+  additionalLegendItems,
   ...contentProps
 }: InteractiveLegendContentProps) {
-  const enhancedPayload = getEnhancedPayload({ hiddenDataKeys, payload });
+  const enhancedPayload = getEnhancedPayload({
+    hiddenDataKeys,
+    payload: [...(payload ?? []), ...(additionalLegendItems ?? [])],
+  });
   const onLegendItemClick = (
     entry: LegendPayload,
     index: number,
@@ -525,6 +538,7 @@ export function InteractiveLegend({
   content,
   hiddenDataKeys,
   onToggleDataKey,
+  additionalLegendItems,
   ...legendProps
 }: InteractiveLegendProps) {
   return (
@@ -535,6 +549,7 @@ export function InteractiveLegend({
           baseContent={content}
           hiddenDataKeys={hiddenDataKeys}
           onToggleDataKey={onToggleDataKey}
+          additionalLegendItems={additionalLegendItems}
         />
       }
     />

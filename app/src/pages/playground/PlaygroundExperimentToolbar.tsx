@@ -3,12 +3,10 @@ import { useMemo } from "react";
 import {
   ExternalLinkButton,
   Flex,
-  Heading,
   Icon,
   Icons,
   RecordIcon,
   Timer,
-  View,
 } from "@phoenix/components";
 import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
 import { Switch } from "@phoenix/components/core/switch";
@@ -70,75 +68,60 @@ export function PlaygroundExperimentToolbar({
     });
   }, [instances]);
   return (
-    <View
-      flex="none"
-      paddingX="size-200"
-      paddingY={"size-100"}
-      borderBottomColor={"default"}
-      borderBottomWidth={"thin"}
-      height={50}
-    >
-      <Flex justifyContent="space-between" alignItems="center" height="100%">
-        <Flex gap="size-200" alignItems="center">
-          <Heading level={2} weight="heavy">
-            Experiment
-          </Heading>
-          {experimentIds.length > 0 && !isRunning ? (
-            <ExternalLinkButton
-              size="S"
-              isDisabled={isRunning}
-              variant="quiet"
-              trailingVisual={<Icon svg={<Icons.ExternalLink />} />}
-              href={prependBasename(
-                `/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`
-              )}
-            >
-              View Experiment{instances.length > 1 ? "s" : ""}
-            </ExternalLinkButton>
-          ) : null}
-        </Flex>
-        <Flex direction="row" gap="size-100" alignItems="center">
-          {isRunning ? (
-            <Flex alignItems="center" gap="size-100">
-              {recordExperiments ? (
-                <RecordIcon isActive />
-              ) : (
-                <ProgressCircle isIndeterminate size="S" />
-              )}
-              <Timer size="S" color="text-700" />
-            </Flex>
-          ) : (
-            <Switch
-              isSelected={recordExperiments}
-              onChange={setRecordExperiments}
-              labelPlacement="start"
-            >
-              Record
-            </Switch>
+    <Flex direction="row" gap="size-100" alignItems="center">
+      {experimentIds.length > 0 && !isRunning ? (
+        <ExternalLinkButton
+          size="S"
+          isDisabled={isRunning}
+          variant="quiet"
+          trailingVisual={<Icon svg={<Icons.ExternalLink />} />}
+          href={prependBasename(
+            `/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`
           )}
-          <PlaygroundEvaluatorSelect
-            evaluators={datasetEvaluators}
-            selectedIds={selectedDatasetEvaluatorIds}
-            onSelectionChange={onSelectionChange}
-            datasetId={datasetId}
-            updateConnectionIds={updateConnectionIds}
-            onEvaluatorCreated={onEvaluatorCreated}
-            query={query}
-            isDisabled={isRunning}
-            isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
-            onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
-            isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
-            onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
-            editingEvaluator={editingEvaluator}
-            onEditingEvaluatorChange={onEditingEvaluatorChange}
-          />
-          <PlaygroundDatasetSelect isDisabled={isRunning} />
-          <PlaygroundExperimentSettingsButton
-            isDisabled={isRunning}
-            datasetId={datasetId}
-          />
+        >
+          View Experiment{instances.length > 1 ? "s" : ""}
+        </ExternalLinkButton>
+      ) : null}
+      {isRunning ? (
+        <Flex alignItems="center" gap="size-100">
+          {recordExperiments ? (
+            <RecordIcon isActive />
+          ) : (
+            <ProgressCircle isIndeterminate size="S" />
+          )}
+          <Timer size="S" color="text-700" />
         </Flex>
-      </Flex>
-    </View>
+      ) : (
+        <Switch
+          size="S"
+          isSelected={recordExperiments}
+          onChange={setRecordExperiments}
+          labelPlacement="start"
+        >
+          Record
+        </Switch>
+      )}
+      <PlaygroundEvaluatorSelect
+        evaluators={datasetEvaluators}
+        selectedIds={selectedDatasetEvaluatorIds}
+        onSelectionChange={onSelectionChange}
+        datasetId={datasetId}
+        updateConnectionIds={updateConnectionIds}
+        onEvaluatorCreated={onEvaluatorCreated}
+        query={query}
+        isDisabled={isRunning}
+        isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
+        onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
+        isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
+        onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
+        editingEvaluator={editingEvaluator}
+        onEditingEvaluatorChange={onEditingEvaluatorChange}
+      />
+      <PlaygroundDatasetSelect isDisabled={isRunning} />
+      <PlaygroundExperimentSettingsButton
+        isDisabled={isRunning}
+        datasetId={datasetId}
+      />
+    </Flex>
   );
 }

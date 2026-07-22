@@ -204,7 +204,22 @@ def _get_stmt(
     name_column = annotation_model.name
     label_column = annotation_model.label
     score_column = annotation_model.score
-    time_column = entity_model.start_time
+
+    # Time-range filters, applied to both queries below. Sessions use
+    # interval-overlap semantics, matching the sessions table: a session is
+    # included iff [start_time, end_time] intersects [start, end).
+    time_range_conditions = []
+    if kind == "session":
+        if start_time:
+            time_range_conditions.append(start_time <= models.ProjectSession.end_time)
+        if end_time:
+            time_range_conditions.append(models.ProjectSession.start_time < end_time)
+    else:
+        time_column = entity_model.start_time
+        if start_time:
+            time_range_conditions.append(start_time <= time_column)
+        if end_time:
+            time_range_conditions.append(time_column < end_time)
 
     # First query: count distinct entities per annotation name
     # This is used later to calculate accurate fractions that account for entities without labels
@@ -234,11 +249,7 @@ def _get_stmt(
         or_(score_column.is_not(None), label_column.is_not(None))
     )
     entity_count_query = entity_count_query.where(name_column.in_(annotation_names))
-
-    if start_time:
-        entity_count_query = entity_count_query.where(start_time <= time_column)
-    if end_time:
-        entity_count_query = entity_count_query.where(time_column < end_time)
+    entity_count_query = entity_count_query.where(*time_range_conditions)
 
     entity_count_query = entity_count_query.group_by(name_column)
     entity_count_subquery = entity_count_query.subquery()
@@ -275,11 +286,7 @@ def _get_stmt(
 
     base_stmt = base_stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
     base_stmt = base_stmt.where(name_column.in_(annotation_names))
-
-    if start_time:
-        base_stmt = base_stmt.where(start_time <= time_column)
-    if end_time:
-        base_stmt = base_stmt.where(time_column < end_time)
+    base_stmt = base_stmt.where(*time_range_conditions)
 
     # Group to get one row per (span/trace)+name+label combination
     base_stmt = base_stmt.group_by(entity_id_column, name_column, label_column)

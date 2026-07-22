@@ -51,8 +51,7 @@ const alertCSS = css`
   --alert-border-color: lch(from var(--alert-base-color) 88 calc(c * 0.4) h);
   --alert-text-color: lch(from var(--alert-base-color) 45 c h);
 
-  padding: var(--global-dimension-static-size-100)
-    var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   border-radius: var(--global-rounding-small);
   color: var(--alert-text-color);
   display: flex;
@@ -101,10 +100,16 @@ const alertCSS = css`
     flex-direction: row;
 
     .icon-wrap {
-      margin-top: 4px;
-      margin-right: var(--global-dimension-static-size-200);
-      font-size: var(--global-font-size-l);
+      margin-right: var(--global-dimension-size-100);
+      font-size: var(--global-font-size-m);
+      display: flex;
+      align-items: center;
+      height: var(--global-line-height-s);
     }
+  }
+
+  &[data-has-title="true"] .alert__icon-title-wrap .icon-wrap {
+    height: var(--global-line-height-m);
   }
 `;
 
@@ -123,7 +128,7 @@ const dismissButtonCSS = css`
   cursor: pointer;
   width: 20px;
   height: 20px;
-  margin-left: var(--global-dimension-static-size-200);
+  margin-left: var(--global-dimension-size-200);
 `;
 
 export const Alert = ({
@@ -157,11 +162,11 @@ export const Alert = ({
         {icon}
         <div>
           {title ? (
-            <Text elementType="h5" size="L" weight="heavy" color="inherit">
+            <Text elementType="h5" size="M" weight="heavy" color="inherit">
               {title}
             </Text>
           ) : null}
-          <Text color="inherit" size="M">
+          <Text color="inherit" size="S">
             {children}
           </Text>
         </div>

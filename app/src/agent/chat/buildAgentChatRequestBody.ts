@@ -1,15 +1,20 @@
+import { isToolUIPart } from "ai";
+
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { components } from "@phoenix/api/__generated__/v1";
 import type { AgentModelSelection } from "@phoenix/components/agent/useGenerateSessionSummary";
 import {
+  getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
   type AgentObservabilitySettings,
   type AgentPermissions,
   type AgentServerConfig,
 } from "@phoenix/store/agentStore";
-import { getTimeZone, toLocalISOWithOffset } from "@phoenix/utils/timeUtils";
 
+import type { ClientToolTimingRecorder } from "./clientToolTimings";
+import { toServerSafeUIMessages } from "./serverSafeMessages";
+import type { TurnTraceContext } from "./turnTraceContext";
 import type { AgentUIMessage } from "./types";
 
 type BuildAgentChatRequestBodyOptions = {
@@ -34,31 +39,28 @@ type BuildAgentChatRequestBodyOptions = {
   contexts: AgentContext[];
   /** Provider + model selection for this turn. */
   modelSelection: AgentModelSelection;
+  /** Server-minted identity echoed on continuation requests. */
+  turnTraceContext?: TurnTraceContext | null;
+  /** Browser execution timings added to completed client-tool parts. */
+  toolTimings?: ClientToolTimingRecorder | null;
 };
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
+
+/**
+ * Browser-recorded execution timings added to the `phoenix` namespace of
+ * `callProviderMetadata` on resolved client-tool parts. Picked from the
+ * generated wire contract so a server-side rename fails compilation here.
+ */
+type ClientToolTimingMetadata = Pick<
+  components["schemas"]["ToolCallCallbackProviderMetadata"],
+  "client_started_at" | "client_ended_at"
+>;
 
 export type AgentChatRequestBodyPatch = Pick<
   BuildAgentChatRequestBodyResult,
   "requestedSkills"
 >;
-
-/**
- * Build request-only browser clock context for resolving relative time phrases.
- *
- * This is intentionally generated at send time instead of stored in agent
- * state: it changes every turn and should not appear as user-visible page
- * context.
- */
-function buildCurrentAppContext(): AgentContext {
-  const now = new Date();
-  const timeZone = getTimeZone();
-  return {
-    type: "app",
-    currentDateTime: toLocalISOWithOffset(now, timeZone),
-    timeZone,
-  };
-}
 
 /**
  * Build GraphQL context from the current capability snapshot.
@@ -111,13 +113,14 @@ export function buildAgentChatRequestBody({
   permissions,
   contexts,
   modelSelection,
+  turnTraceContext = null,
+  toolTimings = null,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const traceRecording = getEffectiveTraceRecordingSettings({
     agentsConfig,
     observability,
   });
   const requestContexts = [
-    buildCurrentAppContext(),
     buildGraphQLContext(capabilities),
     buildWebAccessContext(capabilities),
     buildSubagentsContext(capabilities),
@@ -126,14 +129,61 @@ export function buildAgentChatRequestBody({
   return {
     ...body,
     id,
-    messages,
+    messages: toServerSafeUIMessages(
+      enrichMessagesWithClientToolTimings({ messages, toolTimings })
+    ),
     trigger,
     messageId,
     ingestTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
-    attachUserId: observability.attachUserId,
+    attachUserId: getEffectiveAttachUserId({ agentsConfig, observability }),
     editPermission: permissions.edits,
     contexts: requestContexts,
     model: modelSelection,
+    turnTraceContext: turnTraceContext ?? undefined,
   };
+}
+
+/** Return a copy of resolved tool parts annotated with complete client timings. */
+export function enrichMessagesWithClientToolTimings({
+  messages,
+  toolTimings,
+}: {
+  messages: AgentUIMessage[];
+  toolTimings: ClientToolTimingRecorder | null;
+}): AgentUIMessage[] {
+  if (toolTimings == null) {
+    return messages;
+  }
+  return messages.map((message) => {
+    let hasChangedPart = false;
+    const parts = message.parts.map((part) => {
+      const isResolvedToolPart =
+        isToolUIPart(part) &&
+        (part.state === "output-available" || part.state === "output-error");
+      if (!isResolvedToolPart) {
+        return part;
+      }
+      const timing = toolTimings.get(part.toolCallId);
+      if (timing == null) {
+        return part;
+      }
+      hasChangedPart = true;
+      const timingMetadata: ClientToolTimingMetadata = {
+        client_started_at: timing.startedAt,
+        client_ended_at: timing.endedAt,
+      };
+      return {
+        ...part,
+        callProviderMetadata: {
+          ...part.callProviderMetadata,
+          phoenix: {
+            ...part.callProviderMetadata?.phoenix,
+            ...timingMetadata,
+          },
+        },
+      };
+    });
+    return hasChangedPart ? { ...message, parts } : message;
+  });
 }

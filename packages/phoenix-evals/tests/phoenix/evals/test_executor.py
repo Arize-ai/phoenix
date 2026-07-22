@@ -712,3 +712,31 @@ async def test_executor_ramps_up_when_target_increases() -> None:
     assert outputs == inputs
     assert max_inflight <= 4
     assert max_inflight >= 3
+
+
+async def test_async_executor_timeouts_count_toward_max_retries():
+    attempts = 0
+
+    async def always_slow(payload: int) -> int:
+        nonlocal attempts
+        attempts += 1
+        await asyncio.sleep(10)
+        return payload
+
+    executor = AsyncExecutor(
+        always_slow,
+        timeout=1,
+        max_retries=2,
+        concurrency=1,
+        exit_on_error=True,
+        fallback_return_value=-1,
+        enable_dynamic_concurrency=False,
+    )
+
+    outputs, details = await executor.execute([42])
+
+    assert attempts == 3  # 1 initial + 2 retries
+    assert outputs == [-1]
+    assert details[0].status == ExecutionStatus.FAILED
+    assert len(details[0].exceptions) == 3
+    assert all(isinstance(exc, TimeoutError) for exc in details[0].exceptions)

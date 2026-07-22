@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<3b445bb4778d0295c342487f91ba5516>>
+ * @generated SignedSource<<168ba0d9ce111c4206587a38a3942cc4>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -122,20 +121,20 @@ v12 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PromptVersionDiffCardsQuery",
     "selections": [
       {
         "alias": "baseline",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -162,19 +161,19 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "PromptVersionDiffCardsQuery",
     "selections": [
       {
         "alias": "baseline",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -186,7 +185,7 @@ return {
                 "name": "template",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
+                  (v2/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -213,7 +212,7 @@ return {
                             "name": "content",
                             "plural": true,
                             "selections": [
-                              (v2/*: any*/),
+                              (v2/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -250,7 +249,7 @@ return {
                                     "name": "toolCall",
                                     "plural": false,
                                     "selections": [
-                                      (v3/*: any*/),
+                                      (v3/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -266,7 +265,7 @@ return {
                                             "name": "arguments",
                                             "storageKey": null
                                           },
-                                          (v4/*: any*/)
+                                          (v4/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       }
@@ -288,7 +287,7 @@ return {
                                     "name": "toolResult",
                                     "plural": false,
                                     "selections": [
-                                      (v3/*: any*/),
+                                      (v3/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -352,7 +351,7 @@ return {
                 "name": "invocationParameters",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
+                  (v2/*:: as any*/),
                   {
                     "kind": "TypeDiscriminator",
                     "abstractKey": "__isPromptInvocationParameters"
@@ -360,7 +359,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v5/*: any*/),
+                      (v5/*:: as any*/),
                       {
                         "alias": "openaiMaxTokens",
                         "args": null,
@@ -375,9 +374,9 @@ return {
                         "name": "maxCompletionTokens",
                         "storageKey": null
                       },
-                      (v6/*: any*/),
-                      (v7/*: any*/),
-                      (v8/*: any*/),
+                      (v6/*:: as any*/),
+                      (v7/*:: as any*/),
+                      (v8/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -399,7 +398,7 @@ return {
                         "name": "reasoningEffort",
                         "storageKey": null
                       },
-                      (v9/*: any*/)
+                      (v9/*:: as any*/)
                     ],
                     "type": "PromptOpenAIInvocationParameters",
                     "abstractKey": null
@@ -414,9 +413,9 @@ return {
                         "name": "maxTokens",
                         "storageKey": null
                       },
-                      (v5/*: any*/),
-                      (v8/*: any*/),
-                      (v10/*: any*/),
+                      (v5/*:: as any*/),
+                      (v8/*:: as any*/),
+                      (v10/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -443,7 +442,7 @@ return {
                         "name": "thinking",
                         "plural": false,
                         "selections": [
-                          (v2/*: any*/),
+                          (v2/*:: as any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
@@ -496,7 +495,7 @@ return {
                         ],
                         "storageKey": null
                       },
-                      (v9/*: any*/)
+                      (v9/*:: as any*/)
                     ],
                     "type": "PromptAnthropicInvocationParameters",
                     "abstractKey": null
@@ -504,7 +503,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v5/*: any*/),
+                      (v5/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -512,10 +511,10 @@ return {
                         "name": "maxOutputTokens",
                         "storageKey": null
                       },
-                      (v10/*: any*/),
-                      (v7/*: any*/),
-                      (v6/*: any*/),
-                      (v8/*: any*/),
+                      (v10/*:: as any*/),
+                      (v7/*:: as any*/),
+                      (v6/*:: as any*/),
+                      (v8/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -569,9 +568,9 @@ return {
                         "name": "maxTokens",
                         "storageKey": null
                       },
-                      (v5/*: any*/),
-                      (v8/*: any*/),
-                      (v10/*: any*/)
+                      (v5/*:: as any*/),
+                      (v8/*:: as any*/),
+                      (v10/*:: as any*/)
                     ],
                     "type": "PromptAwsInvocationParameters",
                     "abstractKey": null
@@ -595,7 +594,7 @@ return {
                     "name": "tools",
                     "plural": true,
                     "selections": [
-                      (v2/*: any*/),
+                      (v2/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -607,8 +606,8 @@ return {
                             "name": "function",
                             "plural": false,
                             "selections": [
-                              (v4/*: any*/),
-                              (v11/*: any*/),
+                              (v4/*:: as any*/),
+                              (v11/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -616,7 +615,7 @@ return {
                                 "name": "parameters",
                                 "storageKey": null
                               },
-                              (v12/*: any*/)
+                              (v12/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -692,8 +691,8 @@ return {
                     "name": "jsonSchema",
                     "plural": false,
                     "selections": [
-                      (v4/*: any*/),
-                      (v11/*: any*/),
+                      (v4/*:: as any*/),
+                      (v11/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -701,7 +700,7 @@ return {
                         "name": "schema",
                         "storageKey": null
                       },
-                      (v12/*: any*/)
+                      (v12/*:: as any*/)
                     ],
                     "storageKey": null
                   }

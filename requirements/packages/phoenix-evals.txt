@@ -1,6 +1,6 @@
 -r ../ci.txt
 anthropic
 google-genai
-litellm>=1.83.14
+litellm>=1.83.14; python_version < '3.14'
 mypy-boto3-bedrock-runtime
 openai

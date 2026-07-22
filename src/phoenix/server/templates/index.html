@@ -144,6 +144,8 @@
               allowExternalResources: Boolean("{{allow_external_resources}}" == "True"),
               agentAssistantDisabled: Boolean("{{agent_assistant_disabled}}" == "True"),
               agentBashDisabled: Boolean("{{agent_bash_disabled}}" == "True"),
+              mcpServerEnabled: Boolean("{{mcp_server_enabled}}" == "True"),
+              mcpCodeModeEnabled: Boolean("{{mcp_code_mode_enabled}}" == "True"),
               authErrorMessages: {{auth_error_messages | tojson}},
           }),
           writable: false

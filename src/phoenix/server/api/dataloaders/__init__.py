@@ -111,8 +111,11 @@ from .trace_errors_by_type import TraceErrorsByTypeDataLoader
 from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByProjectIdDataLoader
 from .trace_root_spans import TraceRootSpansDataLoader
 from .trace_span_counts_by_kind import TraceSpanCountsByKindDataLoader
+from .user_credential_counts import UserCredentialCountsDataLoader
+from .user_ids import UserIdsDataLoader
 from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
+from .version_authors import VersionAuthorsDataLoader
 
 __all__ = [
     "CacheForDataLoaders",
@@ -167,6 +170,7 @@ class DataLoaders:
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     dataset_labels: DatasetLabelsDataLoader
+    dataset_authors: "VersionAuthorsDataLoader[models.DatasetVersion]"
     dataset_label_fields: TableFieldsDataLoader
     dataset_label_usage_counts: DatasetLabelUsageCountsDataLoader
     dataset_dataset_splits: DatasetDatasetSplitsDataLoader
@@ -223,6 +227,7 @@ class DataLoaders:
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     prompt_version_tag_fields: TableFieldsDataLoader
     prompt_version_tags_by_prompt: PromptVersionTagsByPromptDataLoader
+    prompt_authors: "VersionAuthorsDataLoader[models.PromptVersion]"
     latest_prompt_version_ids: LatestPromptVersionIdDataLoader
     latest_code_evaluator_versions: LatestCodeEvaluatorVersionDataLoader
     project_session_annotation_fields: TableFieldsDataLoader
@@ -239,6 +244,7 @@ class DataLoaders:
     session_num_traces_with_error: SessionNumTracesWithErrorDataLoader
     session_token_usages: SessionTokenUsagesDataLoader
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
+    session_user_ids: UserIdsDataLoader
     span_annotation_fields: TableFieldsDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_by_id: SpanByIdDataLoader
@@ -278,6 +284,8 @@ class DataLoaders:
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
     trace_root_spans: TraceRootSpansDataLoader
     trace_span_counts_by_kind: TraceSpanCountsByKindDataLoader
+    trace_user_ids: UserIdsDataLoader
+    user_credential_counts: UserCredentialCountsDataLoader
     user_roles: UserRolesDataLoader
     user_api_key_fields: TableFieldsDataLoader
     user_fields: TableFieldsDataLoader
@@ -315,6 +323,13 @@ def build_data_loaders(
         dataset_split_fields=TableFieldsDataLoader(db, models.DatasetSplit),
         dataset_version_fields=TableFieldsDataLoader(db, models.DatasetVersion),
         dataset_labels=DatasetLabelsDataLoader(db),
+        dataset_authors=VersionAuthorsDataLoader(
+            db,
+            models.DatasetVersion,
+            models.DatasetVersion.dataset_id,
+            # A dataset owns its creator, so only its last editor comes from its versions.
+            resolve_created_by=False,
+        ),
         dataset_label_fields=TableFieldsDataLoader(db, models.DatasetLabel),
         dataset_label_usage_counts=DatasetLabelUsageCountsDataLoader(db),
         document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
@@ -383,6 +398,9 @@ def build_data_loaders(
         prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
         prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
         prompt_version_tags_by_prompt=PromptVersionTagsByPromptDataLoader(db),
+        prompt_authors=VersionAuthorsDataLoader(
+            db, models.PromptVersion, models.PromptVersion.prompt_id
+        ),
         latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
         latest_code_evaluator_versions=LatestCodeEvaluatorVersionDataLoader(db),
         project_session_annotation_fields=TableFieldsDataLoader(
@@ -404,6 +422,7 @@ def build_data_loaders(
         session_num_traces_with_error=SessionNumTracesWithErrorDataLoader(db),
         session_token_usages=SessionTokenUsagesDataLoader(db),
         session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
+        session_user_ids=UserIdsDataLoader(db, "session"),
         span_annotation_fields=TableFieldsDataLoader(db, models.SpanAnnotation),
         span_annotations=SpanAnnotationsDataLoader(db),
         span_fields=TableFieldsDataLoader(db, models.Span),
@@ -452,8 +471,10 @@ def build_data_loaders(
             db, models.ProjectTraceRetentionPolicy
         ),
         trace_root_spans=TraceRootSpansDataLoader(db),
+        trace_user_ids=UserIdsDataLoader(db, "trace"),
         project_by_name=ProjectByNameDataLoader(db),
         project_has_traces=ProjectHasTracesDataLoader(db),
+        user_credential_counts=UserCredentialCountsDataLoader(db),
         users=UsersDataLoader(db),
         user_api_key_fields=TableFieldsDataLoader(db, models.ApiKey),
         user_fields=TableFieldsDataLoader(db, models.User),

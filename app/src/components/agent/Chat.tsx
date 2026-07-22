@@ -143,10 +143,11 @@ const chatCSS = css`
   .chat__input-meta {
     box-sizing: border-box;
     width: 100%;
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: var(--global-dimension-static-size-100);
+    column-gap: var(--global-dimension-size-100);
+    row-gap: 0;
     /* Match the prompt input footer's horizontal inset so the permission
        selector and token usage line up with the tools/submit row above. */
     padding: var(--global-dimension-size-100) 0;
@@ -160,8 +161,7 @@ const chatCSS = css`
   }
 
   .chat__children {
-    flex: 1 1 auto;
-    min-width: 0;
+    display: contents;
   }
 
   .chat__scroll-frame {

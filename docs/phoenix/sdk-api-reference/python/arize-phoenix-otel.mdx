@@ -36,10 +36,15 @@ The SDK automatically reads these environment variables:
 | Variable | Description |
 |----------|-------------|
 | `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix server URL |
-| `PHOENIX_PROJECT_NAME` | Project name for traces |
+| `PHOENIX_PROJECT` | Project name for traces (canonical) |
+| `PHOENIX_PROJECT_NAME` | Alias for `PHOENIX_PROJECT`; if both are set, `PHOENIX_PROJECT` wins |
 | `PHOENIX_API_KEY` | API key (automatically adds auth header) |
 | `PHOENIX_CLIENT_HEADERS` | Custom headers for requests |
 | `PHOENIX_GRPC_PORT` | Override default gRPC port |
+
+<Note>
+`register()` also auto-loads `PHOENIX_`-prefixed settings from a `.env.phoenix` file discovered by walking up from the current directory (process environment variables take precedence). Set `PHOENIX_DISCOVER_CONFIG=false` to opt out. See [Environments](/docs/phoenix/environments).
+</Note>
 
 ```python
 # Environment variables are picked up automatically
@@ -76,7 +81,7 @@ When using the `endpoint` argument, you must specify the fully qualified URL. HT
 
 | Parameter | Description |
 |-----------|-------------|
-| `project_name` | Phoenix project name (or `PHOENIX_PROJECT_NAME` env var) |
+| `project_name` | Phoenix project name (or the `PHOENIX_PROJECT` env var, alias `PHOENIX_PROJECT_NAME`) |
 | `endpoint` | Collector endpoint URL |
 | `protocol` | Transport protocol: `"grpc"` or `"http/protobuf"` |
 | `headers` | Custom headers for requests |

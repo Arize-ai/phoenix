@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<ca061285c9f3adf69fd47d301c77d1f0>>
+ * @generated SignedSource<<6eb513d36ee6bc67ea1636564427e9e7>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -80,9 +79,9 @@ v7 = {
   "variableName": "timeRange"
 },
 v8 = [
-  (v5/*: any*/),
-  (v6/*: any*/),
-  (v7/*: any*/)
+  (v5/*:: as any*/),
+  (v6/*:: as any*/),
+  (v7/*:: as any*/)
 ],
 v9 = {
   "kind": "InlineFragment",
@@ -103,21 +102,21 @@ v9 = {
     },
     {
       "alias": null,
-      "args": (v8/*: any*/),
+      "args": (v8/*:: as any*/),
       "kind": "ScalarField",
       "name": "sessionCount",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v8/*: any*/),
+      "args": (v8/*:: as any*/),
       "kind": "ScalarField",
       "name": "averageSessionDurationMs",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v8/*: any*/),
+      "args": (v8/*:: as any*/),
       "kind": "ScalarField",
       "name": "averageTracesPerSession",
       "storageKey": null
@@ -125,14 +124,14 @@ v9 = {
     {
       "alias": "sessionDurationMsP50",
       "args": [
-        (v5/*: any*/),
+        (v5/*:: as any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.5
         },
-        (v6/*: any*/),
-        (v7/*: any*/)
+        (v6/*:: as any*/),
+        (v7/*:: as any*/)
       ],
       "kind": "ScalarField",
       "name": "sessionDurationMsQuantile",
@@ -141,14 +140,14 @@ v9 = {
     {
       "alias": "sessionDurationMsP99",
       "args": [
-        (v5/*: any*/),
+        (v5/*:: as any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.99
         },
-        (v6/*: any*/),
-        (v7/*: any*/)
+        (v6/*:: as any*/),
+        (v7/*:: as any*/)
       ],
       "kind": "ScalarField",
       "name": "sessionDurationMsQuantile",
@@ -168,10 +167,10 @@ v9 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v3/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -179,13 +178,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v9/*: any*/)
+          (v9/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -196,17 +195,17 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v3/*: any*/),
-      (v0/*: any*/),
-      (v2/*: any*/)
+      (v1/*:: as any*/),
+      (v3/*:: as any*/),
+      (v0/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SessionsTableAsideQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*: any*/),
+        "args": (v4/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -219,7 +218,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v9/*: any*/),
+          (v9/*:: as any*/),
           {
             "alias": null,
             "args": null,

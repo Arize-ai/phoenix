@@ -21,6 +21,7 @@ from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.input_types.DeleteExperimentsInput import DeleteExperimentsInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PatchExperimentInput import PatchExperimentInput
+from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -60,6 +61,7 @@ class PatchExperimentPayload:
 
 @strawberry.type
 class SetExperimentBaselinePayload:
+    dataset: Dataset
     experiment: Experiment
     previous_baseline_experiment: Experiment | None = None
 
@@ -329,6 +331,7 @@ class ExperimentMutationMixin:
                 False,
             )
         return SetExperimentBaselinePayload(
+            dataset=Dataset(id=experiment.dataset_id),
             experiment=to_gql_experiment(experiment, is_baseline=baseline),
             previous_baseline_experiment=(
                 to_gql_experiment(previous_baseline_experiment, is_baseline=False)

@@ -1583,8 +1583,9 @@ async def async_evaluate_dataframe(
             progress bar is shown. Defaults to False.
         exit_on_error: Optional flag to control whether execution should stop on the first
             error. If None, uses AsyncExecutor's default (True).
-        max_retries: Optional number of times to retry on exceptions. If None, uses
-            AsyncExecutor's default (10).
+        max_retries: Optional number of times to retry on exceptions or timeouts. A task that
+            times out (default 60s per task) counts against this budget and is marked failed once
+            it is exhausted. If None, uses AsyncExecutor's default (10).
 
     Returns:
         A copy of the input dataframe with additional columns for scores and exceptions.

@@ -4,12 +4,13 @@ import type { HTMLAttributes, Ref } from "react";
 import type { TextProps } from "@phoenix/components";
 import { Icon, Icons, Text } from "@phoenix/components";
 import { getTextColor } from "@phoenix/components/core/content/textUtils";
+import { quietHoverCSS } from "@phoenix/components/core/styles";
 import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
 const tokenCountItemCSS = css`
   display: flex;
   flex-direction: row;
-  gap: var(--global-dimension-static-size-50);
+  gap: var(--global-dimension-size-50);
   align-items: center;
 
   &[data-size="S"] {
@@ -17,6 +18,12 @@ const tokenCountItemCSS = css`
   }
   &[data-size="M"] {
     font-size: var(--global-font-size-m);
+  }
+  &[role="button"] {
+    ${quietHoverCSS}
+  }
+  .icon-wrap {
+    font-size: 1em;
   }
 `;
 

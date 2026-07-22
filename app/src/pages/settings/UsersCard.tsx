@@ -6,6 +6,7 @@ import {
   Alert,
   Button,
   Card,
+  DocumentationHelp,
   Icon,
   Icons,
   Loading,
@@ -53,6 +54,11 @@ export function UsersCard() {
   return (
     <Card
       title="Users"
+      titleExtra={
+        <DocumentationHelp topic="userAccess">
+          Add users and manage access to this Phoenix instance.
+        </DocumentationHelp>
+      }
       extra={
         <Button
           onPress={() => {
@@ -78,7 +84,8 @@ export function UsersCard() {
             );
           }}
           size="S"
-          leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
+          variant="primary"
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
           isDisabled={isDisabled}
         >
           Add User

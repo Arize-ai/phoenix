@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<4fdf80e28ca946affb08f24369b2f447>>
+ * @generated SignedSource<<51371d1f1f1f47ff7f9adb12fdb20a3f>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -146,7 +145,7 @@ v12 = {
 v13 = {
   "kind": "InlineFragment",
   "selections": [
-    (v12/*: any*/)
+    (v12/*:: as any*/)
   ],
   "type": "AnnotationConfigBase",
   "abstractKey": "__isAnnotationConfigBase"
@@ -187,15 +186,15 @@ v18 = {
   "name": "values",
   "plural": true,
   "selections": [
-    (v16/*: any*/),
-    (v17/*: any*/)
+    (v16/*:: as any*/),
+    (v17/*:: as any*/)
   ],
   "storageKey": null
 },
 v19 = {
   "kind": "InlineFragment",
   "selections": [
-    (v11/*: any*/)
+    (v11/*:: as any*/)
   ],
   "type": "Node",
   "abstractKey": "__isNode"
@@ -259,12 +258,12 @@ v27 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v3/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v3/*:: as any*/),
+      (v4/*:: as any*/),
+      (v5/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -272,7 +271,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v6/*: any*/),
+        "args": (v6/*:: as any*/),
         "concreteType": "SpanAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "createSpanAnnotations",
@@ -288,7 +287,7 @@ return {
             "selections": [
               {
                 "alias": "project",
-                "args": (v7/*: any*/),
+                "args": (v7/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -298,7 +297,7 @@ return {
                     "kind": "InlineFragment",
                     "selections": [
                       {
-                        "args": (v8/*: any*/),
+                        "args": (v8/*:: as any*/),
                         "kind": "FragmentSpread",
                         "name": "AnnotationSummaryValueFragment"
                       }
@@ -311,7 +310,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v9/*: any*/),
+                "args": (v9/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -371,19 +370,19 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v2/*: any*/),
-      (v1/*: any*/),
-      (v4/*: any*/),
-      (v0/*: any*/),
-      (v5/*: any*/),
-      (v3/*: any*/)
+      (v2/*:: as any*/),
+      (v1/*:: as any*/),
+      (v4/*:: as any*/),
+      (v0/*:: as any*/),
+      (v5/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SpanAnnotationsEditorCreateAnnotationMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v6/*: any*/),
+        "args": (v6/*:: as any*/),
         "concreteType": "SpanAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "createSpanAnnotations",
@@ -399,14 +398,14 @@ return {
             "selections": [
               {
                 "alias": "project",
-                "args": (v7/*: any*/),
+                "args": (v7/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v10/*: any*/),
-                  (v11/*: any*/),
+                  (v10/*:: as any*/),
+                  (v11/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -434,21 +433,21 @@ return {
                                 "name": "node",
                                 "plural": false,
                                 "selections": [
-                                  (v10/*: any*/),
-                                  (v13/*: any*/),
+                                  (v10/*:: as any*/),
+                                  (v13/*:: as any*/),
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v12/*: any*/),
-                                      (v11/*: any*/),
-                                      (v14/*: any*/),
-                                      (v15/*: any*/),
-                                      (v18/*: any*/)
+                                      (v12/*:: as any*/),
+                                      (v11/*:: as any*/),
+                                      (v14/*:: as any*/),
+                                      (v15/*:: as any*/),
+                                      (v18/*:: as any*/)
                                     ],
                                     "type": "CategoricalAnnotationConfig",
                                     "abstractKey": null
                                   },
-                                  (v19/*: any*/)
+                                  (v19/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -460,16 +459,16 @@ return {
                       },
                       {
                         "alias": null,
-                        "args": (v8/*: any*/),
+                        "args": (v8/*:: as any*/),
                         "concreteType": "AnnotationSummary",
                         "kind": "LinkedField",
                         "name": "spanAnnotationSummary",
                         "plural": false,
                         "selections": [
-                          (v15/*: any*/),
-                          (v20/*: any*/),
-                          (v21/*: any*/),
-                          (v22/*: any*/),
+                          (v15/*:: as any*/),
+                          (v20/*:: as any*/),
+                          (v21/*:: as any*/),
+                          (v22/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -478,12 +477,12 @@ return {
                             "name": "labelFractions",
                             "plural": true,
                             "selections": [
-                              (v16/*: any*/),
-                              (v23/*: any*/)
+                              (v16/*:: as any*/),
+                              (v23/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v24/*: any*/)
+                          (v24/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -496,14 +495,14 @@ return {
               },
               {
                 "alias": null,
-                "args": (v9/*: any*/),
+                "args": (v9/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v10/*: any*/),
-                  (v11/*: any*/),
+                  (v10/*:: as any*/),
+                  (v11/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -515,7 +514,7 @@ return {
                         "name": "project",
                         "plural": false,
                         "selections": [
-                          (v11/*: any*/),
+                          (v11/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -540,20 +539,20 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v10/*: any*/),
-                                      (v13/*: any*/),
+                                      (v10/*:: as any*/),
+                                      (v13/*:: as any*/),
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
-                                          (v11/*: any*/),
-                                          (v15/*: any*/),
-                                          (v14/*: any*/),
-                                          (v18/*: any*/)
+                                          (v11/*:: as any*/),
+                                          (v15/*:: as any*/),
+                                          (v14/*:: as any*/),
+                                          (v18/*:: as any*/)
                                         ],
                                         "type": "CategoricalAnnotationConfig",
                                         "abstractKey": null
                                       },
-                                      (v19/*: any*/)
+                                      (v19/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -576,12 +575,12 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v10/*: any*/),
-                                      (v19/*: any*/),
+                                      (v10/*:: as any*/),
+                                      (v19/*:: as any*/),
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
-                                          (v15/*: any*/)
+                                          (v15/*:: as any*/)
                                         ],
                                         "type": "AnnotationConfigBase",
                                         "abstractKey": "__isAnnotationConfigBase"
@@ -606,12 +605,12 @@ return {
                         "name": "spanAnnotations",
                         "plural": true,
                         "selections": [
-                          (v11/*: any*/),
-                          (v15/*: any*/),
-                          (v16/*: any*/),
-                          (v17/*: any*/),
-                          (v25/*: any*/),
-                          (v26/*: any*/),
+                          (v11/*:: as any*/),
+                          (v15/*:: as any*/),
+                          (v16/*:: as any*/),
+                          (v17/*:: as any*/),
+                          (v25/*:: as any*/),
+                          (v26/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -634,11 +633,11 @@ return {
                                 "name": "profilePictureUrl",
                                 "storageKey": null
                               },
-                              (v11/*: any*/)
+                              (v11/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v27/*: any*/),
+                          (v27/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -678,9 +677,9 @@ return {
                         "name": "spanAnnotationSummaries",
                         "plural": true,
                         "selections": [
-                          (v20/*: any*/),
-                          (v21/*: any*/),
-                          (v22/*: any*/),
+                          (v20/*:: as any*/),
+                          (v21/*:: as any*/),
+                          (v22/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -689,13 +688,13 @@ return {
                             "name": "labelFractions",
                             "plural": true,
                             "selections": [
-                              (v23/*: any*/),
-                              (v16/*: any*/)
+                              (v23/*:: as any*/),
+                              (v16/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v24/*: any*/),
-                          (v15/*: any*/)
+                          (v24/*:: as any*/),
+                          (v15/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -734,13 +733,13 @@ return {
                         "name": "spanAnnotations",
                         "plural": true,
                         "selections": [
-                          (v11/*: any*/),
-                          (v15/*: any*/),
-                          (v25/*: any*/),
-                          (v17/*: any*/),
-                          (v16/*: any*/),
-                          (v27/*: any*/),
-                          (v26/*: any*/)
+                          (v11/*:: as any*/),
+                          (v15/*:: as any*/),
+                          (v25/*:: as any*/),
+                          (v17/*:: as any*/),
+                          (v16/*:: as any*/),
+                          (v27/*:: as any*/),
+                          (v26/*:: as any*/)
                         ],
                         "storageKey": null
                       }

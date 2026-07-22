@@ -91,6 +91,7 @@ async function createDatasetWithExample(page: Page, datasetName: string) {
   await page.getByLabel("Dataset Name").clear();
   await page.getByLabel("Dataset Name").fill(datasetName);
   await page
+    .getByTestId("dialog")
     .getByLabel("Description")
     .fill("Dataset for custom code evaluator flows");
 

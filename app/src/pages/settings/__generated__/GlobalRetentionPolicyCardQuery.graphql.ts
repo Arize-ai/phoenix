@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<a7874b4d031f31a55b4210d425eafd99>>
+ * @generated SignedSource<<ccc6b90977fec12e102f4f8fd0d99e58>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -103,7 +102,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "GlobalRetentionPolicyCardQuery",
-    "selections": (v0/*: any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -112,7 +111,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "GlobalRetentionPolicyCardQuery",
-    "selections": (v0/*: any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
     "cacheID": "cc26cab6fcf5acfdf11abdb30f7f937f",

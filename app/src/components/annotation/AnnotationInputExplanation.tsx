@@ -41,7 +41,7 @@ export const AnnotationInputExplanation = ({
           top: 6px;
           right: 0;
           width: ${EXPLANATION_LABEL_WIDTH};
-          font-size: var(--global-dimension-static-font-size-75);
+          font-size: var(--global-dimension-font-size-75);
           background: none;
           border: none;
           padding: 0 !important;

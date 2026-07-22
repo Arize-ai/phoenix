@@ -1,64 +1,55 @@
+import { HttpResponse } from "@arizeai/phoenix-testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AnnotationMutationResult } from "../src/commands/annotationMutationUtils";
+import type { AnnotationMutationResult } from "../src/commands/annotationMutations";
 import { formatAnnotationMutationOutput } from "../src/commands/formatAnnotationMutation";
 import { createSpanCommand } from "../src/commands/span";
 import { createTraceCommand } from "../src/commands/trace";
 import { ExitCode } from "../src/exitCodes";
+import { http, setupMockPhoenixServer } from "./mockServer";
+import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
 
-function makeFetchMock(
-  responses: Array<
-    { ok: boolean; status?: number; body?: unknown } | { error: Error }
-  >
-) {
-  let callIndex = 0;
-  return vi.fn().mockImplementation((requestOrUrl: Request | string) => {
-    const response = responses[callIndex++] ?? responses[responses.length - 1];
-    if ("error" in response) {
-      return Promise.reject(response.error);
-    }
-    const status = response.status ?? (response.ok ? 200 : 500);
-    const url =
-      requestOrUrl instanceof Request ? requestOrUrl.url : requestOrUrl;
-    const body = response.body ?? {};
-    const text = JSON.stringify(body);
-    return Promise.resolve({
-      ok: response.ok,
-      status,
-      statusText: response.ok ? "OK" : "Error",
-      url,
-      headers: new Headers(),
-      json: () => Promise.resolve(body),
-      text: () => Promise.resolve(text),
-    });
-  });
+const mock = setupMockPhoenixServer();
+
+interface CapturedAnnotationRequest {
+  query?: URLSearchParams;
+  body?: unknown;
+  count: number;
 }
 
-function getFetchUrl(arg: unknown): string {
-  if (arg instanceof Request) return arg.url;
-  return String(arg);
+/**
+ * Pin the span_annotations POST endpoint to a fixed inserted ID and record the
+ * request's query string, JSON body, and call count for later assertions.
+ */
+function captureSpanAnnotationsRequest(insertedId: string) {
+  const captured: CapturedAnnotationRequest = { count: 0 };
+  mock.server.use(
+    http.post("/v1/span_annotations", async ({ request, response }) => {
+      captured.count += 1;
+      captured.query = new URL(request.url).searchParams;
+      captured.body = await request.clone().json();
+      return response(200).json({ data: [{ id: insertedId }] });
+    })
+  );
+  return captured;
 }
 
-function getFetchMethod(arg: unknown, init?: RequestInit): string {
-  if (arg instanceof Request) return arg.method;
-  return init?.method ?? "GET";
+/**
+ * Pin the trace_annotations POST endpoint to a fixed inserted ID and record
+ * the request's query string, JSON body, and call count for later assertions.
+ */
+function captureTraceAnnotationsRequest(insertedId: string) {
+  const captured: CapturedAnnotationRequest = { count: 0 };
+  mock.server.use(
+    http.post("/v1/trace_annotations", async ({ request, response }) => {
+      captured.count += 1;
+      captured.query = new URL(request.url).searchParams;
+      captured.body = await request.clone().json();
+      return response(200).json({ data: [{ id: insertedId }] });
+    })
+  );
+  return captured;
 }
-
-async function getFetchBody(
-  arg: unknown,
-  init?: RequestInit
-): Promise<unknown> {
-  if (arg instanceof Request) {
-    const text = await arg.clone().text();
-    return text ? JSON.parse(text) : undefined;
-  }
-  if (typeof init?.body === "string") {
-    return JSON.parse(init.body);
-  }
-  return undefined;
-}
-
-const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--no-progress"];
 
 describe("formatAnnotationMutationOutput", () => {
   const annotation: AnnotationMutationResult = {
@@ -101,19 +92,11 @@ describe("formatAnnotationMutationOutput", () => {
 describe("span annotate", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("posts a sync span annotation and returns raw structured output", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: { data: [{ id: "span-annotation-1" }] },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const captured = captureSpanAnnotationsRequest("span-annotation-1");
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -130,17 +113,9 @@ describe("span annotate", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toContain(
-      "/v1/span_annotations"
-    );
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toContain("sync=true");
-    expect(
-      getFetchMethod(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).toBe("POST");
-    await expect(
-      getFetchBody(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).resolves.toEqual({
+    expect(captured.count).toBe(1);
+    expect(captured.query?.get("sync")).toBe("true");
+    expect(captured.body).toEqual({
       data: [
         {
           span_id: "span-123",
@@ -151,7 +126,7 @@ describe("span annotate", () => {
         },
       ],
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify({
         id: "span-annotation-1",
         targetType: "span",
@@ -164,19 +139,12 @@ describe("span annotate", () => {
         identifier: "",
       })
     );
-    expect(stderrSpy).not.toHaveBeenCalled();
+    expect(io.stderr).not.toHaveBeenCalled();
   });
 
   it("passes through a custom annotator kind for span annotation", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: { data: [{ id: "span-annotation-3" }] },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const captured = captureSpanAnnotationsRequest("span-annotation-3");
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -195,9 +163,7 @@ describe("span annotate", () => {
       { from: "user" }
     );
 
-    await expect(
-      getFetchBody(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).resolves.toEqual({
+    expect(captured.body).toEqual({
       data: [
         {
           span_id: "span-789",
@@ -208,7 +174,7 @@ describe("span annotate", () => {
         },
       ],
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify({
         id: "span-annotation-3",
         targetType: "span",
@@ -224,15 +190,8 @@ describe("span annotate", () => {
   });
 
   it("returns pretty output for a scored span annotation", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: { data: [{ id: "span-annotation-2" }] },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    captureSpanAnnotationsRequest("span-annotation-2");
+    const io = captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -249,23 +208,18 @@ describe("span annotate", () => {
       { from: "user" }
     );
 
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       expect.stringContaining("Target: span span-456")
     );
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       expect.stringContaining("Explanation: looks good")
     );
   });
 
   it("fails with INVALID_ARGUMENT when --name is missing", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureSpanAnnotationsRequest("span-annotation-unused");
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -275,18 +229,13 @@ describe("span annotate", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.count).toBe(0);
   });
 
   it("fails with INVALID_ARGUMENT when all result fields are blank", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureSpanAnnotationsRequest("span-annotation-unused");
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -306,18 +255,13 @@ describe("span annotate", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.count).toBe(0);
   });
 
   it("fails with INVALID_ARGUMENT when --score is invalid", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureSpanAnnotationsRequest("span-annotation-unused");
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -335,7 +279,7 @@ describe("span annotate", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.count).toBe(0);
     expect(stderrSpy).toHaveBeenCalledWith(
       expect.stringContaining(
         "Invalid value for --score: not-a-number. Expected a finite number."
@@ -344,14 +288,9 @@ describe("span annotate", () => {
   });
 
   it("fails with INVALID_ARGUMENT when --score contains trailing non-numeric characters", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureSpanAnnotationsRequest("span-annotation-unused");
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -369,7 +308,7 @@ describe("span annotate", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.count).toBe(0);
     expect(stderrSpy).toHaveBeenCalledWith(
       expect.stringContaining(
         "Invalid value for --score: 0abc. Expected a finite number."
@@ -378,14 +317,9 @@ describe("span annotate", () => {
   });
 
   it("fails with INVALID_ARGUMENT when --annotator-kind is invalid", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureSpanAnnotationsRequest("span-annotation-unused");
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -405,24 +339,17 @@ describe("span annotate", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.count).toBe(0);
   });
 
   it("surfaces 404 API errors", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: false,
-        status: 404,
-        body: { detail: "Spans with IDs missing-span do not exist." },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    mock.server.use(
+      http.post("/v1/span_annotations", ({ response }) =>
+        response(404).text("Spans with IDs missing-span do not exist.")
+      )
+    );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -447,18 +374,11 @@ describe("span annotate", () => {
   });
 
   it("uses NETWORK_ERROR on fetch failures", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        error: new TypeError("fetch failed"),
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    mock.server.use(
+      http.post("/v1/span_annotations", () => HttpResponse.error())
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createSpanCommand().parseAsync(
@@ -482,19 +402,11 @@ describe("span annotate", () => {
 describe("trace annotate", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("posts a sync trace annotation and returns json output", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: { data: [{ id: "trace-annotation-1" }] },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const captured = captureTraceAnnotationsRequest("trace-annotation-1");
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -511,14 +423,9 @@ describe("trace annotate", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toContain(
-      "/v1/trace_annotations"
-    );
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toContain("sync=true");
-    await expect(
-      getFetchBody(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).resolves.toEqual({
+    expect(captured.count).toBe(1);
+    expect(captured.query?.get("sync")).toBe("true");
+    expect(captured.body).toEqual({
       data: [
         {
           trace_id: "trace-123",
@@ -529,7 +436,7 @@ describe("trace annotate", () => {
         },
       ],
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify(
         {
           id: "trace-annotation-1",
@@ -549,15 +456,8 @@ describe("trace annotate", () => {
   });
 
   it("passes through a custom annotator kind for trace annotation", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: { data: [{ id: "trace-annotation-2" }] },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const captured = captureTraceAnnotationsRequest("trace-annotation-2");
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -576,9 +476,7 @@ describe("trace annotate", () => {
       { from: "user" }
     );
 
-    await expect(
-      getFetchBody(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).resolves.toEqual({
+    expect(captured.body).toEqual({
       data: [
         {
           trace_id: "trace-456",
@@ -589,7 +487,7 @@ describe("trace annotate", () => {
         },
       ],
     });
-    expect(stdoutSpy).toHaveBeenCalledWith(
+    expect(io.stdout).toHaveBeenCalledWith(
       JSON.stringify({
         id: "trace-annotation-2",
         targetType: "trace",
@@ -605,20 +503,20 @@ describe("trace annotate", () => {
   });
 
   it("surfaces 500 API errors for trace annotation", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: false,
-        status: 500,
-        body: { detail: "Internal server error" },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    mock.server.use(
+      http.post("/v1/trace_annotations", ({ response }) =>
+        response.untyped(
+          HttpResponse.json(
+            { detail: "Internal server error" },
+            {
+              status: 500,
+            }
+          )
+        )
+      )
+    );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createTraceCommand().parseAsync(
@@ -643,14 +541,9 @@ describe("trace annotate", () => {
   });
 
   it("fails with INVALID_ARGUMENT when trace --score is invalid", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureTraceAnnotationsRequest("trace-annotation-unused");
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createTraceCommand().parseAsync(
@@ -668,7 +561,7 @@ describe("trace annotate", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captured.count).toBe(0);
     expect(stderrSpy).toHaveBeenCalledWith(
       expect.stringContaining(
         "Invalid value for --score: NaN-ish. Expected a finite number."
@@ -680,24 +573,21 @@ describe("trace annotate", () => {
 describe("trace get", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("uses the resolved full trace ID when fetching trace annotations for a prefix lookup", async () => {
     const resolvedTraceId = "trace-1234567890abcdef";
     const traceIdPrefix = "trace-1234";
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: {
-          data: {
-            id: "project-default",
-          },
-        },
-      },
-      {
-        ok: true,
-        body: {
+    const capturedTraceAnnotations: { query?: URLSearchParams } = {};
+
+    mock.server.use(
+      http.get("/v1/projects/{project_identifier}", ({ response }) =>
+        response(200).json({
+          data: { id: "project-default", name: "default" },
+        })
+      ),
+      http.get("/v1/projects/{project_identifier}/spans", ({ response }) =>
+        response(200).json({
           data: [
             {
               name: "root",
@@ -719,26 +609,21 @@ describe("trace get", () => {
             },
           ],
           next_cursor: null,
-        },
-      },
-      {
-        ok: true,
-        body: {
-          data: [],
-          next_cursor: null,
-        },
-      },
-      {
-        ok: true,
-        body: {
-          data: [],
-          next_cursor: null,
-        },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+        })
+      ),
+      http.get(
+        "/v1/projects/{project_identifier}/trace_annotations",
+        ({ request, response }) => {
+          capturedTraceAnnotations.query = new URL(request.url).searchParams;
+          return response(200).json({ data: [], next_cursor: null });
+        }
+      ),
+      http.get(
+        "/v1/projects/{project_identifier}/span_annotations",
+        ({ response }) => response(200).json({ data: [], next_cursor: null })
+      )
+    );
+    captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -754,28 +639,25 @@ describe("trace get", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
-    const traceAnnotationsUrl = new URL(
-      getFetchUrl(fetchMock.mock.calls[2][0])
-    );
-    expect(traceAnnotationsUrl.searchParams.getAll("trace_ids")).toEqual([
+    expect(capturedTraceAnnotations.query?.getAll("trace_ids")).toEqual([
       resolvedTraceId,
     ]);
   });
 
   it("includes trace and span annotations in raw output when requested", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: {
-          data: {
-            id: "project-default",
-          },
-        },
-      },
-      {
-        ok: true,
-        body: {
+    const captured: {
+      traceAnnotationsProject?: string;
+      spanAnnotationsProject?: string;
+    } = {};
+
+    mock.server.use(
+      http.get("/v1/projects/{project_identifier}", ({ response }) =>
+        response(200).json({
+          data: { id: "project-default", name: "default" },
+        })
+      ),
+      http.get("/v1/projects/{project_identifier}/spans", ({ response }) =>
+        response(200).json({
           data: [
             {
               name: "root",
@@ -797,58 +679,62 @@ describe("trace get", () => {
             },
           ],
           next_cursor: null,
-        },
-      },
-      {
-        ok: true,
-        body: {
-          data: [
-            {
-              id: "trace-annotation-1",
-              created_at: "2026-01-13T10:00:00.500Z",
-              updated_at: "2026-01-13T10:00:00.500Z",
-              source: "API",
-              user_id: null,
-              name: "reviewer",
-              annotator_kind: "HUMAN",
-              result: {
-                label: "pass",
+        })
+      ),
+      http.get(
+        "/v1/projects/{project_identifier}/trace_annotations",
+        ({ params, response }) => {
+          captured.traceAnnotationsProject = params.project_identifier;
+          return response(200).json({
+            data: [
+              {
+                id: "trace-annotation-1",
+                created_at: "2026-01-13T10:00:00.500Z",
+                updated_at: "2026-01-13T10:00:00.500Z",
+                source: "API",
+                user_id: null,
+                name: "reviewer",
+                annotator_kind: "HUMAN",
+                result: {
+                  label: "pass",
+                },
+                metadata: null,
+                identifier: "",
+                trace_id: "trace-123",
               },
-              metadata: null,
-              identifier: "",
-              trace_id: "trace-123",
-            },
-          ],
-          next_cursor: null,
-        },
-      },
-      {
-        ok: true,
-        body: {
-          data: [
-            {
-              id: "span-annotation-1",
-              created_at: "2026-01-13T10:00:00.750Z",
-              updated_at: "2026-01-13T10:00:00.750Z",
-              source: "API",
-              user_id: null,
-              name: "accuracy",
-              annotator_kind: "CODE",
-              result: {
-                score: 0.9,
+            ],
+            next_cursor: null,
+          });
+        }
+      ),
+      http.get(
+        "/v1/projects/{project_identifier}/span_annotations",
+        ({ params, response }) => {
+          captured.spanAnnotationsProject = params.project_identifier;
+          return response(200).json({
+            data: [
+              {
+                id: "span-annotation-1",
+                created_at: "2026-01-13T10:00:00.750Z",
+                updated_at: "2026-01-13T10:00:00.750Z",
+                source: "API",
+                user_id: null,
+                name: "accuracy",
+                annotator_kind: "CODE",
+                result: {
+                  score: 0.9,
+                },
+                metadata: null,
+                identifier: "",
+                span_id: "span-123",
               },
-              metadata: null,
-              identifier: "",
-              span_id: "span-123",
-            },
-          ],
-          next_cursor: null,
-        },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+            ],
+            next_cursor: null,
+          });
+        }
+      )
+    );
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -864,15 +750,10 @@ describe("trace get", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
-    expect(getFetchUrl(fetchMock.mock.calls[2][0])).toContain(
-      "/v1/projects/project-default/trace_annotations"
-    );
-    expect(getFetchUrl(fetchMock.mock.calls[3][0])).toContain(
-      "/v1/projects/project-default/span_annotations"
-    );
+    expect(captured.traceAnnotationsProject).toBe("project-default");
+    expect(captured.spanAnnotationsProject).toBe("project-default");
 
-    const output = stdoutSpy.mock.calls[0]?.[0];
+    const output = io.stdout.mock.calls[0]?.[0];
     expect(output).toBeTruthy();
 
     const parsedOutput = JSON.parse(String(output));
@@ -896,19 +777,11 @@ describe("trace get", () => {
 describe("annotate --identifier round-trip", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("threads --identifier into the span_annotations request body", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: { data: [{ id: "span-annotation-id" }] },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const captured = captureSpanAnnotationsRequest("span-annotation-id");
+    captureCliOutput();
 
     await createSpanCommand().parseAsync(
       [
@@ -927,9 +800,7 @@ describe("annotate --identifier round-trip", () => {
       { from: "user" }
     );
 
-    await expect(
-      getFetchBody(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).resolves.toEqual({
+    expect(captured.body).toEqual({
       data: [
         {
           span_id: "span-123",
@@ -943,15 +814,8 @@ describe("annotate --identifier round-trip", () => {
   });
 
   it("threads --identifier into the trace_annotations request body", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: { data: [{ id: "trace-annotation-id" }] },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const captured = captureTraceAnnotationsRequest("trace-annotation-id");
+    captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -970,9 +834,7 @@ describe("annotate --identifier round-trip", () => {
       { from: "user" }
     );
 
-    await expect(
-      getFetchBody(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).resolves.toEqual({
+    expect(captured.body).toEqual({
       data: [
         {
           trace_id: "trace-123",
@@ -986,15 +848,8 @@ describe("annotate --identifier round-trip", () => {
   });
 
   it("echoes the supplied --identifier in the raw mutation result", async () => {
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: { data: [{ id: "trace-annotation-id" }] },
-      },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    captureTraceAnnotationsRequest("trace-annotation-id");
+    const io = captureCliOutput();
 
     await createTraceCommand().parseAsync(
       [
@@ -1013,7 +868,7 @@ describe("annotate --identifier round-trip", () => {
       { from: "user" }
     );
 
-    const echoed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    const echoed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(echoed.identifier).toBe("px-coding-session:abc12345");
   });
 });

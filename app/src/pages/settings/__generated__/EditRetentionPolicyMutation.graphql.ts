@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<dd9b4608b54066ab28679ffd6045f0f5>>
+ * @generated SignedSource<<96a151d31af1883ff1b9ae0c85f23b79>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -19,9 +18,17 @@ export type PatchProjectTraceRetentionPolicyInput = {
   rule?: ProjectTraceRetentionRuleInput | null;
 };
 export type ProjectTraceRetentionRuleInput = {
-  maxCount?: ProjectTraceRetentionRuleMaxCountInput | null;
-  maxDays?: ProjectTraceRetentionRuleMaxDaysInput | null;
-  maxDaysOrCount?: ProjectTraceRetentionRuleMaxDaysOrCountInput | null;
+  maxCount?: never;
+  maxDays: ProjectTraceRetentionRuleMaxDaysInput;
+  maxDaysOrCount?: never;
+} | {
+  maxCount: ProjectTraceRetentionRuleMaxCountInput;
+  maxDays?: never;
+  maxDaysOrCount?: never;
+} | {
+  maxCount?: never;
+  maxDays?: never;
+  maxDaysOrCount: ProjectTraceRetentionRuleMaxDaysOrCountInput;
 };
 export type ProjectTraceRetentionRuleMaxDaysInput = {
   maxDays: number;
@@ -107,14 +114,14 @@ v7 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "EditRetentionPolicyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "ProjectTraceRetentionPolicyMutationPayload",
         "kind": "LinkedField",
         "name": "patchProjectTraceRetentionPolicy",
@@ -145,13 +152,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "EditRetentionPolicyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "ProjectTraceRetentionPolicyMutationPayload",
         "kind": "LinkedField",
         "name": "patchProjectTraceRetentionPolicy",
@@ -167,7 +174,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "concreteType": "ProjectTraceRetentionPolicyConnection",
                 "kind": "LinkedField",
                 "name": "projectTraceRetentionPolicies",
@@ -189,8 +196,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/),
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -206,11 +213,11 @@ return {
                             "name": "rule",
                             "plural": false,
                             "selections": [
-                              (v5/*: any*/),
+                              (v5/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v6/*: any*/)
+                                  (v6/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxCount",
                                 "abstractKey": null
@@ -218,7 +225,7 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v7/*: any*/)
+                                  (v7/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxDays",
                                 "abstractKey": null
@@ -226,8 +233,8 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v7/*: any*/),
-                                  (v6/*: any*/)
+                                  (v7/*:: as any*/),
+                                  (v6/*:: as any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxDaysOrCount",
                                 "abstractKey": null
@@ -259,8 +266,8 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v4/*: any*/),
-                                      (v3/*: any*/)
+                                      (v4/*:: as any*/),
+                                      (v3/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -270,7 +277,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v5/*: any*/)
+                          (v5/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -314,7 +321,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v2/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "RetentionPoliciesTable_projectTraceRetentionPolicies",

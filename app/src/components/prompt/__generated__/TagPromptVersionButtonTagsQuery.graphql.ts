@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<d3d75e20284729d2e8dfbd1fa713551e>>
+ * @generated SignedSource<<ac1c8524f239294be0b0a18def54751c>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -60,7 +59,7 @@ v2 = {
   "storageKey": null
 },
 v3 = [
-  (v2/*: any*/),
+  (v2/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -79,7 +78,7 @@ v4 = {
       "kind": "LinkedField",
       "name": "versionTags",
       "plural": true,
-      "selections": (v3/*: any*/),
+      "selections": (v3/*:: as any*/),
       "storageKey": null
     }
   ],
@@ -103,7 +102,7 @@ v6 = {
       "kind": "LinkedField",
       "name": "tags",
       "plural": true,
-      "selections": (v3/*: any*/),
+      "selections": (v3/*:: as any*/),
       "storageKey": null
     }
   ],
@@ -119,32 +118,32 @@ v7 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "TagPromptVersionButtonTagsQuery",
     "selections": [
       {
         "alias": "prompt",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       },
       {
         "alias": "promptVersion",
-        "args": (v5/*: any*/),
+        "args": (v5/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*: any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -154,35 +153,35 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "TagPromptVersionButtonTagsQuery",
     "selections": [
       {
         "alias": "prompt",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*: any*/),
-          (v4/*: any*/),
-          (v2/*: any*/)
+          (v7/*:: as any*/),
+          (v4/*:: as any*/),
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       },
       {
         "alias": "promptVersion",
-        "args": (v5/*: any*/),
+        "args": (v5/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*: any*/),
-          (v6/*: any*/),
-          (v2/*: any*/)
+          (v7/*:: as any*/),
+          (v6/*:: as any*/),
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       }

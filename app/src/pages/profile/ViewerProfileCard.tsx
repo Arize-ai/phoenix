@@ -76,7 +76,7 @@ export function ViewerProfileCard() {
   }
   return (
     <Card
-      title="Profile"
+      title="Account"
       extra={
         viewer.authMethod === "LOCAL" && (
           <LinkButton size="S" to="/reset-password">

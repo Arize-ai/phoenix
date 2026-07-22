@@ -16,6 +16,13 @@ def get_filtered_session_rowids_subquery(
 ) -> ScalarSelect[int]:
     """
     Returns a subquery that contains the project session rowids that match the session filter.
+
+    The substring may match the root span input/output of any trace in the session,
+    regardless of when that trace occurred. ``start_time``/``end_time`` scope the
+    *sessions* by interval overlap: a session qualifies iff
+    [session.start_time, session.end_time] intersects [start_time, end_time). These are
+    the same semantics as the time range filter on the sessions connection, so all
+    callers agree on which sessions match for a given window.
     """
 
     filtered_session_rowids = (
@@ -36,12 +43,19 @@ def get_filtered_session_rowids_subquery(
             )
         )
     )
-    if start_time:
-        filtered_session_rowids = filtered_session_rowids.where(
-            start_time <= models.Trace.start_time
+    if start_time or end_time:
+        filtered_session_rowids = filtered_session_rowids.join(
+            models.ProjectSession,
+            models.Trace.project_session_rowid == models.ProjectSession.id,
         )
-    if end_time:
-        filtered_session_rowids = filtered_session_rowids.where(models.Trace.start_time < end_time)
+        if start_time:
+            filtered_session_rowids = filtered_session_rowids.where(
+                start_time <= models.ProjectSession.end_time
+            )
+        if end_time:
+            filtered_session_rowids = filtered_session_rowids.where(
+                models.ProjectSession.start_time < end_time
+            )
     return filtered_session_rowids.scalar_subquery()
 
 

@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from typing import Any, Generator, Optional
 from unittest.mock import MagicMock, Mock, patch
 from urllib.parse import urlparse
@@ -21,6 +23,7 @@ from phoenix.otel.otel import (
     _construct_phoenix_cloud_endpoint,
     register,
 )
+from phoenix.otel.settings import clear_env_file_cache
 
 
 def _get_exporter_from_processor(span_processor: Any) -> Optional[SpanExporter]:
@@ -482,6 +485,24 @@ class TestSpanExporters:
         if exporter._headers:
             headers_dict = {h[0].lower(): h[1] for h in exporter._headers}
             assert headers_dict.get("custom-header") == "custom-value"
+
+    def test_explicit_headers_with_file_endpoint_warns_and_continues(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_COLLECTOR_ENDPOINT=http://file-host:6006\n")
+        env_file.chmod(0o600)
+        clear_env_file_cache()
+
+        with patch.dict(os.environ, {}, clear=True):
+            with caplog.at_level("WARNING"):
+                exporter = HTTPSpanExporter(headers={"Authorization": "Bearer explicit-token"})
+
+        assert exporter._endpoint == "http://file-host:6006/v1/traces"
+        assert [record.message for record in caplog.records if record.levelname == "WARNING"] == [
+            "Credentials from explicit arguments will be sent to "
+            f"PHOENIX_COLLECTOR_ENDPOINT set by {env_file}."
+        ]
 
 
 class TestEndpointNormalization:

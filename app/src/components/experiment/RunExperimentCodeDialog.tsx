@@ -157,7 +157,7 @@ function RunExperimentPythonExample({
             fallback={
               <Text>
                 Your personal API keys can be created and managed on your{" "}
-                <ExternalLink href="/profile">Profile</ExternalLink>
+                <ExternalLink href="/profile/api-keys">Profile</ExternalLink>
               </Text>
             }
           >

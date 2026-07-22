@@ -34,8 +34,13 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
+  ACTIONS_COLUMN_ID,
   CellWithControlsWrap,
+  ColumnHeaderCell,
+  ColumnOrderingProvider,
   CompactJSONCell,
+  useColumnOrder,
+  UserCell,
 } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
@@ -44,6 +49,7 @@ import {
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifySuccess, useViewerCanModify } from "@phoenix/contexts";
+import { useDatasetsTableContext } from "@phoenix/contexts/DatasetsTableContext";
 import { toggleArrayItem } from "@phoenix/utils/arrayUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
@@ -89,7 +95,20 @@ export function DatasetsTable(props: DatasetsTableProps) {
     },
     [onLabelFilterChange]
   );
-  const [columnSizing, setColumnSizing] = useState({});
+  const columnVisibility = useDatasetsTableContext(
+    (state) => state.columnVisibility
+  );
+  const setColumnVisibility = useDatasetsTableContext(
+    (state) => state.setColumnVisibility
+  );
+  const columnSizing = useDatasetsTableContext((state) => state.columnSizing);
+  const setColumnSizing = useDatasetsTableContext(
+    (state) => state.setColumnSizing
+  );
+  const columnOrder = useDatasetsTableContext((state) => state.columnOrder);
+  const setColumnOrder = useDatasetsTableContext(
+    (state) => state.setColumnOrder
+  );
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -120,6 +139,15 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 description
                 metadata
                 createdAt
+                updatedAt
+                createdBy {
+                  username
+                  profilePictureUrl
+                }
+                updatedBy {
+                  username
+                  profilePictureUrl
+                }
                 exampleCount
                 experimentCount
                 evaluatorCount
@@ -248,6 +276,28 @@ export function DatasetsTable(props: DatasetsTableProps) {
         cell: TimestampCell,
       },
       {
+        header: "created by",
+        accessorKey: "createdBy",
+        enableSorting: false,
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
+          <UserCell user={row.original.createdBy} />
+        ),
+      },
+      {
+        header: "last updated",
+        accessorKey: "updatedAt",
+        enableSorting: false,
+        cell: TimestampCell,
+      },
+      {
+        header: "last updated by",
+        accessorKey: "updatedBy",
+        enableSorting: false,
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
+          <UserCell user={row.original.updatedBy} />
+        ),
+      },
+      {
         header: "examples",
         accessorKey: "exampleCount",
         enableSorting: false,
@@ -302,7 +352,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     if (canModify) {
       cols.push({
         header: "",
-        id: "actions",
+        id: ACTIONS_COLUMN_ID,
         enableSorting: false,
         size: 150,
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
@@ -381,14 +431,29 @@ export function DatasetsTable(props: DatasetsTableProps) {
     toggleLabelFilter,
   ]);
 
+  const {
+    leafColumnOrder,
+    visibleColumnOrder,
+    onVisibleColumnOrderChange,
+    getColumnOrderIndex,
+  } = useColumnOrder({
+    columns,
+    columnOrder,
+    onColumnOrderChange: setColumnOrder,
+    columnVisibility,
+    nonOrderableColumnIds: [ACTIONS_COLUMN_ID],
+  });
+
   const table = useReactTable({
     columns,
     data: tableData,
     state: {
       sorting,
       columnSizing,
+      columnVisibility,
+      columnOrder: leafColumnOrder,
       columnPinning: {
-        right: ["actions"],
+        right: [ACTIONS_COLUMN_ID],
       },
     },
     defaultColumn: defaultColumnSettings,
@@ -397,6 +462,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
+    onColumnVisibilityChange: setColumnVisibility,
     manualSorting: true,
   });
 
@@ -458,127 +524,143 @@ export function DatasetsTable(props: DatasetsTableProps) {
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table
-        data-testid="datasets-table"
-        css={selectableTableCSS}
-        style={{
-          ...columnSizeVars,
-          width: table.getTotalSize(),
-          minWidth: "100%",
-        }}
+      <ColumnOrderingProvider
+        columnOrder={visibleColumnOrder}
+        onColumnOrderChange={onVisibleColumnOrderChange}
       >
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                const sortDir = header.column.getIsSorted();
+        <table
+          data-testid="datasets-table"
+          css={selectableTableCSS}
+          style={{
+            ...columnSizeVars,
+            width: table.getTotalSize(),
+            minWidth: "100%",
+          }}
+        >
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  const sortDir = header.column.getIsSorted();
+                  return (
+                    <ColumnHeaderCell
+                      colSpan={header.colSpan}
+                      key={header.id}
+                      columnId={header.column.id}
+                      index={getColumnOrderIndex(header.column.id)}
+                      label={
+                        typeof header.column.columnDef.header === "string"
+                          ? header.column.columnDef.header
+                          : undefined
+                      }
+                      aria-sort={
+                        sortDir === "asc"
+                          ? "ascending"
+                          : sortDir === "desc"
+                            ? "descending"
+                            : header.column.getCanSort()
+                              ? "none"
+                              : undefined
+                      }
+                      style={{
+                        width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                        ...getCommonPinningStyles(header.column),
+                      }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <>
+                          <div
+                            {...{
+                              className: header.column.getCanSort()
+                                ? "sort"
+                                : "",
+                              onClick: header.column.getToggleSortingHandler(),
+                              style: {
+                                textAlign:
+                                  header.column.columnDef.meta?.textAlign,
+                              },
+                            }}
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                            {header.column.getIsSorted() ? (
+                              <Icon
+                                className="sort-icon"
+                                svg={
+                                  header.column.getIsSorted() === "asc" ? (
+                                    <Icons.CaretUpFilled />
+                                  ) : (
+                                    <Icons.CaretDownFilled />
+                                  )
+                                }
+                              />
+                            ) : null}
+                          </div>
+                          <div
+                            {...{
+                              onMouseDown: header.getResizeHandler(),
+                              onTouchStart: header.getResizeHandler(),
+                              className: `resizer ${
+                                header.column.getIsResizing()
+                                  ? "isResizing"
+                                  : ""
+                              }`,
+                            }}
+                          />
+                        </>
+                      )}
+                    </ColumnHeaderCell>
+                  );
+                })}
+              </tr>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmptyWrap>
+              <DatasetsEmpty />
+            </TableEmptyWrap>
+          ) : (
+            <tbody>
+              {rows.map((row) => {
                 return (
-                  <th
-                    colSpan={header.colSpan}
-                    key={header.id}
-                    aria-sort={
-                      sortDir === "asc"
-                        ? "ascending"
-                        : sortDir === "desc"
-                          ? "descending"
-                          : header.column.getCanSort()
-                            ? "none"
-                            : undefined
-                    }
-                    style={{
-                      width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
-                      ...getCommonPinningStyles(header.column),
+                  <tr
+                    key={row.id}
+                    onClick={() => {
+                      const hasExperiments = row.original.experimentCount > 0;
+                      const to = hasExperiments
+                        ? `${row.original.id}/experiments`
+                        : `${row.original.id}/examples`;
+                      navigate(to);
                     }}
                   >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        <div
-                          {...{
-                            className: header.column.getCanSort() ? "sort" : "",
-                            onClick: header.column.getToggleSortingHandler(),
-                            style: {
-                              textAlign:
-                                header.column.columnDef.meta?.textAlign,
-                            },
+                    {row.getVisibleCells().map((cell) => {
+                      const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
+                      return (
+                        <td
+                          key={cell.id}
+                          align={cell.column.columnDef.meta?.textAlign}
+                          style={{
+                            width: `calc(var(${colSizeVar}) * 1px)`,
+                            maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                            ...getCommonPinningStyles(cell.column),
                           }}
                         >
                           {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
+                            cell.column.columnDef.cell,
+                            cell.getContext()
                           )}
-                          {header.column.getIsSorted() ? (
-                            <Icon
-                              className="sort-icon"
-                              svg={
-                                header.column.getIsSorted() === "asc" ? (
-                                  <Icons.CaretUpFilled />
-                                ) : (
-                                  <Icons.CaretDownFilled />
-                                )
-                              }
-                            />
-                          ) : null}
-                        </div>
-                        <div
-                          {...{
-                            onMouseDown: header.getResizeHandler(),
-                            onTouchStart: header.getResizeHandler(),
-                            className: `resizer ${
-                              header.column.getIsResizing() ? "isResizing" : ""
-                            }`,
-                          }}
-                        />
-                      </>
-                    )}
-                  </th>
+                        </td>
+                      );
+                    })}
+                  </tr>
                 );
               })}
-            </tr>
-          ))}
-        </thead>
-        {isEmpty ? (
-          <TableEmptyWrap>
-            <DatasetsEmpty />
-          </TableEmptyWrap>
-        ) : (
-          <tbody>
-            {rows.map((row) => {
-              return (
-                <tr
-                  key={row.id}
-                  onClick={() => {
-                    const hasExperiments = row.original.experimentCount > 0;
-                    const to = hasExperiments
-                      ? `${row.original.id}/experiments`
-                      : `${row.original.id}/examples`;
-                    navigate(to);
-                  }}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
-                    return (
-                      <td
-                        key={cell.id}
-                        align={cell.column.columnDef.meta?.textAlign}
-                        style={{
-                          width: `calc(var(${colSizeVar}) * 1px)`,
-                          maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                          ...getCommonPinningStyles(cell.column),
-                        }}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        )}
-      </table>
+            </tbody>
+          )}
+        </table>
+      </ColumnOrderingProvider>
     </div>
   );
 }

@@ -9,8 +9,7 @@ export const tooltipCSS = css`
   color: var(--global-text-color-900);
   forced-color-adjust: none;
   outline: none;
-  padding: var(--global-dimension-static-size-100)
-    var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   max-width: 200px;
   font-size: var(--global-font-size-s);
   /* fixes FF gap */
@@ -26,12 +25,12 @@ export const tooltipCSS = css`
   }
 
   &[data-placement="top"] {
-    margin-bottom: var(--global-dimension-static-size-100);
+    margin-bottom: var(--global-dimension-size-100);
     --tooltip-origin: translateY(4px);
   }
 
   &[data-placement="bottom"] {
-    margin-top: var(--global-dimension-static-size-100);
+    margin-top: var(--global-dimension-size-100);
     --tooltip-origin: translateY(-4px);
 
     & .react-aria-OverlayArrow svg {
@@ -40,7 +39,7 @@ export const tooltipCSS = css`
   }
 
   &[data-placement="right"] {
-    margin-left: var(--global-dimension-static-size-100);
+    margin-left: var(--global-dimension-size-100);
     --tooltip-origin: translateX(-4px);
 
     & .react-aria-OverlayArrow svg {
@@ -49,7 +48,7 @@ export const tooltipCSS = css`
   }
 
   &[data-placement="left"] {
-    margin-right: var(--global-dimension-static-size-100);
+    margin-right: var(--global-dimension-size-100);
     --tooltip-origin: translateX(4px);
 
     & .react-aria-OverlayArrow svg {
@@ -74,7 +73,7 @@ export const richTooltipCSS = css`
   color: var(--global-text-color-900);
   forced-color-adjust: none;
   outline: none;
-  padding: var(--global-dimension-static-size-200);
+  padding: var(--global-dimension-size-200);
   min-width: 200px;
   font-size: var(--global-font-size-s);
   /* fixes FF gap */
@@ -90,12 +89,12 @@ export const richTooltipCSS = css`
   }
 
   &[data-placement="top"] {
-    margin-bottom: var(--global-dimension-static-size-100);
+    margin-bottom: var(--global-dimension-size-100);
     --tooltip-origin: translateY(4px);
   }
 
   &[data-placement="bottom"] {
-    margin-top: var(--global-dimension-static-size-100);
+    margin-top: var(--global-dimension-size-100);
     --tooltip-origin: translateY(-4px);
 
     & .react-aria-OverlayArrow svg {
@@ -104,7 +103,7 @@ export const richTooltipCSS = css`
   }
 
   &[data-placement="right"] {
-    margin-left: var(--global-dimension-static-size-100);
+    margin-left: var(--global-dimension-size-100);
     --tooltip-origin: translateX(-4px);
 
     & .react-aria-OverlayArrow svg {
@@ -113,7 +112,7 @@ export const richTooltipCSS = css`
   }
 
   &[data-placement="left"] {
-    margin-right: var(--global-dimension-static-size-100);
+    margin-right: var(--global-dimension-size-100);
     --tooltip-origin: translateX(4px);
 
     & .react-aria-OverlayArrow svg {

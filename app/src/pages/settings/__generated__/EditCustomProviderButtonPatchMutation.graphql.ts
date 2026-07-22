@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<6d7a9d77e8946910a96e9a1e1c4fc403>>
+ * @generated SignedSource<<64c6921468cca18520da57a079263b04>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -20,11 +19,35 @@ export type PatchGenerativeModelCustomProviderMutationInput = {
   provider?: string | null;
 };
 export type GenerativeModelCustomerProviderConfigInput = {
-  anthropic?: AnthropicCustomProviderConfigInput | null;
-  awsBedrock?: AWSBedrockCustomProviderConfigInput | null;
-  azureOpenai?: AzureOpenAICustomProviderConfigInput | null;
-  googleGenai?: GoogleGenAICustomProviderConfigInput | null;
-  openai?: OpenAICustomProviderConfigInput | null;
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai: OpenAICustomProviderConfigInput;
+} | {
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai: AzureOpenAICustomProviderConfigInput;
+  googleGenai?: never;
+  openai?: never;
+} | {
+  anthropic: AnthropicCustomProviderConfigInput;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai?: never;
+} | {
+  anthropic?: never;
+  awsBedrock: AWSBedrockCustomProviderConfigInput;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai?: never;
+} | {
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai: GoogleGenAICustomProviderConfigInput;
+  openai?: never;
 };
 export type OpenAICustomProviderConfigInput = {
   openaiApiType?: OpenAIApiType | null;
@@ -46,9 +69,17 @@ export type AzureOpenAICustomProviderConfigInput = {
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
-  apiKey?: string | null;
-  azureAdTokenProvider?: AzureOpenAIADTokenProviderInput | null;
-  defaultCredentials?: boolean | null;
+  apiKey: string;
+  azureAdTokenProvider?: never;
+  defaultCredentials?: never;
+} | {
+  apiKey?: never;
+  azureAdTokenProvider: AzureOpenAIADTokenProviderInput;
+  defaultCredentials?: never;
+} | {
+  apiKey?: never;
+  azureAdTokenProvider?: never;
+  defaultCredentials: boolean;
 };
 export type AzureOpenAIADTokenProviderInput = {
   azureClientId: string;
@@ -76,8 +107,11 @@ export type AWSBedrockCustomProviderConfigInput = {
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput;
 };
 export type AWSBedrockAuthenticationMethodInput = {
-  accessKeys?: AWSBedrockAccessKeysInput | null;
-  defaultCredentials?: boolean | null;
+  accessKeys: AWSBedrockAccessKeysInput;
+  defaultCredentials?: never;
+} | {
+  accessKeys?: never;
+  defaultCredentials: boolean;
 };
 export type AWSBedrockAccessKeysInput = {
   awsAccessKeyId: string;
@@ -203,7 +237,7 @@ v9 = {
   "name": "user",
   "plural": false,
   "selections": [
-    (v2/*: any*/),
+    (v2/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -229,14 +263,14 @@ v10 = {
   "name": "provider",
   "plural": false,
   "selections": [
-    (v2/*: any*/),
-    (v3/*: any*/),
-    (v4/*: any*/),
-    (v5/*: any*/),
-    (v6/*: any*/),
-    (v7/*: any*/),
-    (v8/*: any*/),
-    (v9/*: any*/)
+    (v2/*:: as any*/),
+    (v3/*:: as any*/),
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
+    (v6/*:: as any*/),
+    (v7/*:: as any*/),
+    (v8/*:: as any*/),
+    (v9/*:: as any*/)
   ],
   "storageKey": null
 },
@@ -256,20 +290,20 @@ v12 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "EditCustomProviderButtonPatchMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PatchGenerativeModelCustomProviderMutationPayload",
         "kind": "LinkedField",
         "name": "patchGenerativeModelCustomProvider",
         "plural": false,
         "selections": [
-          (v10/*: any*/),
+          (v10/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -295,19 +329,19 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "EditCustomProviderButtonPatchMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "PatchGenerativeModelCustomProviderMutationPayload",
         "kind": "LinkedField",
         "name": "patchGenerativeModelCustomProvider",
         "plural": false,
         "selections": [
-          (v10/*: any*/),
+          (v10/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -318,7 +352,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v11/*: any*/),
+                "args": (v11/*:: as any*/),
                 "concreteType": "GenerativeModelCustomProviderConnection",
                 "kind": "LinkedField",
                 "name": "generativeModelCustomProviders",
@@ -340,14 +374,14 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v2/*: any*/),
-                          (v3/*: any*/),
-                          (v4/*: any*/),
-                          (v5/*: any*/),
-                          (v6/*: any*/),
-                          (v7/*: any*/),
-                          (v8/*: any*/),
-                          (v9/*: any*/),
+                          (v2/*:: as any*/),
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/),
+                          (v5/*:: as any*/),
+                          (v6/*:: as any*/),
+                          (v7/*:: as any*/),
+                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -356,7 +390,7 @@ return {
                             "name": "config",
                             "plural": false,
                             "selections": [
-                              (v12/*: any*/),
+                              (v12/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -374,7 +408,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v12/*: any*/)
+                          (v12/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -418,7 +452,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v11/*: any*/),
+                "args": (v11/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "CustomProvidersCard_generativeModelCustomProviders",

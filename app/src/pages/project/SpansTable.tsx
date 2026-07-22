@@ -21,7 +21,6 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
-  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
@@ -37,10 +36,14 @@ import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { useTimeRange } from "@phoenix/components/datetime";
 import {
-  CellWithControlsWrap,
+  ColumnHeaderCell,
+  ColumnOrderingProvider,
+  CopyableTextCell,
   createRowSelectionColumn,
   LoadMoreRow,
+  useColumnOrder,
 } from "@phoenix/components/table";
 import {
   CHECKBOX_COLUMN_ID,
@@ -50,7 +53,6 @@ import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
-import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { TraceTokenCosts } from "@phoenix/components/trace";
@@ -74,6 +76,10 @@ import type {
 } from "./__generated__/SpansTable_spans.graphql";
 import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import {
+  SpanInputValueTooltipCell,
+  SpanOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
@@ -203,6 +209,11 @@ export function SpansTable(props: SpansTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>("");
   const { rootSpansOnly, setRootSpansOnly } = useSpanFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  // Source the time range directly here (rather than only via the preloaded
+  // parent query) so a live window sliding forward refetches with the filter
+  // still applied. The parent query is intentionally not reloaded on window
+  // slides — see the load effect in `ProjectPage` and issue #14216.
+  const { timeRangeISOStrings } = useTimeRange();
 
   // Advertise the current rootSpansOnly state so the agent's context message
   // reflects whether the toggle is mounted on this tab.
@@ -253,6 +264,7 @@ export function SpansTable(props: SpansTableProps) {
                 spanKind
                 name
                 metadata
+                userId
                 statusCode
                 statusMessage
                 startTime
@@ -581,49 +593,39 @@ export function SpansTable(props: SpansTableProps) {
       header: "span id",
       accessorKey: "spanId",
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const value = getValue() as string | null;
-        if (!value) return <>{"--"}</>;
-        return (
-          <CellWithControlsWrap
-            controls={<CopyToClipboardButton text={value} />}
-          >
-            <Truncate>
-              <Text>{value}</Text>
-            </Truncate>
-          </CellWithControlsWrap>
-        );
-      },
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     {
       header: "trace id",
       accessorKey: "trace.traceId",
       id: "traceId",
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const value = getValue() as string | null;
-        if (!value) return <>{"--"}</>;
-        return (
-          <CellWithControlsWrap
-            controls={<CopyToClipboardButton text={value} />}
-          >
-            <Truncate>
-              <Text>{value}</Text>
-            </Truncate>
-          </CellWithControlsWrap>
-        );
-      },
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     {
       header: "input",
       accessorKey: "input.value",
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SpanInputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
       enableSorting: false,
     },
     {
       header: "output",
       accessorKey: "output.value",
-      cell: TextCell,
+      cell: ({ getValue, row }) => (
+        <SpanOutputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
       enableSorting: false,
     },
     {
@@ -692,6 +694,14 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "metadata",
       cell: ({ row }) => <MetadataTableCell metadata={row.original.metadata} />,
       enableSorting: false,
+    },
+    {
+      header: "user",
+      accessorKey: "userId",
+      enableSorting: false,
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
     ...annotationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
     {
@@ -780,11 +790,19 @@ export function SpansTable(props: SpansTableProps) {
           first: PAGE_SIZE,
           filterCondition,
           rootSpansOnly,
+          timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch, filterCondition, fetchKey, rootSpansOnly]);
+  }, [
+    sorting,
+    refetch,
+    filterCondition,
+    fetchKey,
+    rootSpansOnly,
+    timeRangeISOStrings,
+  ]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -803,6 +821,22 @@ export function SpansTable(props: SpansTableProps) {
   );
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
   const columnSizing = useTracingContext((state) => state.columnSizing);
+  const storedColumnOrder = useTracingContext((state) => state.columnOrder);
+  const setStoredColumnOrder = useTracingContext(
+    (state) => state.setColumnOrder
+  );
+  const {
+    leafColumnOrder,
+    visibleColumnOrder,
+    onVisibleColumnOrderChange,
+    getColumnOrderIndex,
+  } = useColumnOrder({
+    columns,
+    columnOrder: storedColumnOrder,
+    onColumnOrderChange: setStoredColumnOrder,
+    columnVisibility,
+    nonOrderableColumnIds: [CHECKBOX_COLUMN_ID],
+  });
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -811,6 +845,7 @@ export function SpansTable(props: SpansTableProps) {
       columnVisibility,
       rowSelection,
       columnSizing,
+      columnOrder: leafColumnOrder,
       columnPinning: CHECKBOX_COLUMN_PINNING,
     },
     defaultColumn: defaultColumnSettings,
@@ -864,63 +899,63 @@ export function SpansTable(props: SpansTableProps) {
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
 
   return (
-    <Group orientation="horizontal" id="spans-table-layout">
-      <Panel>
-        <TableMetricsChartsPanelGroup view="spans">
-          <div css={spansTableCSS}>
-            <View
-              paddingTop="size-100"
-              paddingBottom="size-100"
-              paddingStart="size-200"
-              paddingEnd="size-200"
-              borderBottomColor="default"
-              borderBottomWidth="thin"
-              flex="none"
-            >
-              <Flex
-                direction="row"
-                gap="size-100"
-                width="100%"
-                alignItems="center"
-              >
-                <SpanFilterConditionField
-                  onValidCondition={setFilterCondition}
-                />
+    <TableMetricsChartsPanelGroup view="spans">
+      <div css={spansTableCSS}>
+        <View
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          borderBottomColor="default"
+          borderBottomWidth="thin"
+          flex="none"
+        >
+          <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+            <SpanFilterConditionField onValidCondition={setFilterCondition} />
 
-                <ToggleButtonGroup
-                  aria-label="Toggle between root and all spans"
-                  selectionMode="single"
-                  selectedKeys={[rootSpansOnly ? "root" : "all"]}
-                  onSelectionChange={(selection) => {
-                    if (selection.size === 0) {
-                      return;
-                    }
-                    const selectedKey = selection.keys().next().value;
-                    if (isRootSpanFilterValue(selectedKey)) {
-                      setRootSpansOnly(selectedKey === "root");
-                    } else {
-                      throw new Error(
-                        `Unknown root span filter selection: ${selectedKey}`
-                      );
-                    }
-                  }}
-                >
-                  <ToggleButton aria-label="root spans" id="root">
-                    Root Spans
-                  </ToggleButton>
-                  <ToggleButton aria-label="all spans" id="all">
-                    All
-                  </ToggleButton>
-                </ToggleButtonGroup>
-                <TableMetricsChartSelector view="spans" />
-                <SpanColumnSelector columns={computedColumns} query={data} />
-                <ProjectFilterConfigButton />
-                <TableAsideToggleButton />
-              </Flex>
-            </View>
+            <ToggleButtonGroup
+              aria-label="Toggle between root and all spans"
+              selectionMode="single"
+              selectedKeys={[rootSpansOnly ? "root" : "all"]}
+              onSelectionChange={(selection) => {
+                if (selection.size === 0) {
+                  return;
+                }
+                const selectedKey = selection.keys().next().value;
+                if (isRootSpanFilterValue(selectedKey)) {
+                  setRootSpansOnly(selectedKey === "root");
+                } else {
+                  throw new Error(
+                    `Unknown root span filter selection: ${selectedKey}`
+                  );
+                }
+              }}
+            >
+              <ToggleButton aria-label="root spans" id="root">
+                Root Spans
+              </ToggleButton>
+              <ToggleButton aria-label="all spans" id="all">
+                All
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <TableMetricsChartSelector view="spans" />
+            <SpanColumnSelector columns={table.getAllColumns()} query={data} />
+            <ProjectFilterConfigButton />
+            <TableAsideToggleButton />
+          </Flex>
+        </View>
+        <Group
+          orientation="horizontal"
+          id="spans-table-layout"
+          css={css`
+            flex: 1 1 auto;
+            min-height: 0;
+          `}
+        >
+          <Panel>
             <div
               css={css`
-                flex: 1 1 auto;
+                height: 100%;
                 overflow: auto;
               `}
               onScroll={(e) =>
@@ -928,113 +963,140 @@ export function SpansTable(props: SpansTableProps) {
               }
               ref={tableContainerRef}
             >
-              <table
-                css={selectableTableCSS}
-                style={{
-                  ...columnSizeVars,
-                  width: table.getTotalSize(),
-                  minWidth: "100%",
-                }}
+              <ColumnOrderingProvider
+                columnOrder={visibleColumnOrder}
+                onColumnOrderChange={onVisibleColumnOrderChange}
               >
-                <thead>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th
-                          colSpan={header.colSpan}
-                          style={{
-                            ...getCommonPinningStyles(header.column),
-                            width: `calc(var(--header-${header.id}-size) * 1px)`,
-                          }}
-                          key={header.id}
-                        >
-                          {header.isPlaceholder ? null : (
-                            <>
-                              <div
-                                {...{
-                                  className: header.column.getCanSort()
-                                    ? "sort"
-                                    : "",
-                                  onClick:
-                                    header.column.getToggleSortingHandler(),
-                                  style: {
-                                    left: header.getStart(),
-                                    width: header.getSize(),
-                                  },
-                                }}
-                              >
-                                <Truncate maxWidth={header.getSize()}>
-                                  {flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                  )}
-                                </Truncate>
-                                {header.column.getIsSorted() ? (
-                                  <Icon
-                                    className="sort-icon"
-                                    svg={
-                                      header.column.getIsSorted() === "asc" ? (
-                                        <Icons.CaretUpFilled />
-                                      ) : (
-                                        <Icons.CaretDownFilled />
-                                      )
-                                    }
+                <table
+                  css={selectableTableCSS}
+                  style={{
+                    ...columnSizeVars,
+                    width: table.getTotalSize(),
+                    minWidth: "100%",
+                  }}
+                >
+                  <thead>
+                    {table
+                      .getHeaderGroups()
+                      .map((headerGroup, headerGroupIndex) => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => {
+                            const headerStyle = {
+                              ...getCommonPinningStyles(header.column),
+                              width: `calc(var(--header-${header.id}-size) * 1px)`,
+                            };
+                            const headerContent =
+                              header.isPlaceholder ? null : (
+                                <>
+                                  <div
+                                    {...{
+                                      className: header.column.getCanSort()
+                                        ? "sort"
+                                        : "",
+                                      onClick:
+                                        header.column.getToggleSortingHandler(),
+                                      style: {
+                                        left: header.getStart(),
+                                        width: header.getSize(),
+                                      },
+                                    }}
+                                  >
+                                    <Truncate maxWidth={header.getSize()}>
+                                      {flexRender(
+                                        header.column.columnDef.header,
+                                        header.getContext()
+                                      )}
+                                    </Truncate>
+                                    {header.column.getIsSorted() ? (
+                                      <Icon
+                                        className="sort-icon"
+                                        svg={
+                                          header.column.getIsSorted() ===
+                                          "asc" ? (
+                                            <Icons.CaretUpFilled />
+                                          ) : (
+                                            <Icons.CaretDownFilled />
+                                          )
+                                        }
+                                      />
+                                    ) : null}
+                                  </div>
+                                  <div
+                                    {...{
+                                      onMouseDown: header.getResizeHandler(),
+                                      onTouchStart: header.getResizeHandler(),
+                                      className: `resizer ${
+                                        header.column.getIsResizing()
+                                          ? "isResizing"
+                                          : ""
+                                      }`,
+                                    }}
                                   />
-                                ) : null}
-                              </div>
-                              <div
-                                {...{
-                                  onMouseDown: header.getResizeHandler(),
-                                  onTouchStart: header.getResizeHandler(),
-                                  className: `resizer ${
-                                    header.column.getIsResizing()
-                                      ? "isResizing"
-                                      : ""
-                                  }`,
-                                }}
-                              />
-                            </>
-                          )}
-                        </th>
+                                </>
+                              );
+                            return (
+                              <ColumnHeaderCell
+                                key={header.id}
+                                columnId={header.column.id}
+                                // Only the top header group is reorderable;
+                                // sub-headers of a group column move with it
+                                index={
+                                  headerGroupIndex === 0
+                                    ? getColumnOrderIndex(header.column.id)
+                                    : -1
+                                }
+                                label={
+                                  typeof header.column.columnDef.header ===
+                                  "string"
+                                    ? header.column.columnDef.header
+                                    : undefined
+                                }
+                                colSpan={header.colSpan}
+                                style={headerStyle}
+                              >
+                                {headerContent}
+                              </ColumnHeaderCell>
+                            );
+                          })}
+                        </tr>
                       ))}
-                    </tr>
-                  ))}
-                </thead>
-                {isEmpty && !hasNext ? (
-                  // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
-                  // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
-                  // spans. This is an undesirable edge case. The optimization is a stopgap solution that
-                  // will be replaced to eliminate this condition.
-                  <ProjectTableEmpty />
-                ) : columnSizingInfo.isResizingColumn ? (
-                  <MemoizedTableBody
-                    table={table}
-                    hasNext={hasNext}
-                    onLoadNext={() => loadNext(PAGE_SIZE)}
-                    isLoadingNext={isLoadingNext}
-                  />
-                ) : (
-                  <TableBody
-                    table={table}
-                    hasNext={hasNext}
-                    onLoadNext={() => loadNext(PAGE_SIZE)}
-                    isLoadingNext={isLoadingNext}
-                  />
-                )}
-              </table>
+                  </thead>
+                  {isEmpty && !hasNext ? (
+                    // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
+                    // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
+                    // spans. This is an undesirable edge case. The optimization is a stopgap solution that
+                    // will be replaced to eliminate this condition.
+                    <ProjectTableEmpty />
+                  ) : columnSizingInfo.isResizingColumn ? (
+                    <MemoizedTableBody
+                      table={table}
+                      hasNext={hasNext}
+                      onLoadNext={() => loadNext(PAGE_SIZE)}
+                      isLoadingNext={isLoadingNext}
+                    />
+                  ) : (
+                    <TableBody
+                      table={table}
+                      hasNext={hasNext}
+                      onLoadNext={() => loadNext(PAGE_SIZE)}
+                      isLoadingNext={isLoadingNext}
+                    />
+                  )}
+                </table>
+              </ColumnOrderingProvider>
             </div>
-            {selectedRows.length ? (
-              <SpanSelectionToolbar
-                selectedSpans={selectedSpans}
-                onClearSelection={clearSelection}
-              />
-            ) : null}
-          </div>
-        </TableMetricsChartsPanelGroup>
-      </Panel>
-      <TableAsidePanel>
-        <SpansTableAside filterCondition={filterCondition} />
-      </TableAsidePanel>
-    </Group>
+          </Panel>
+          <TableAsidePanel>
+            <SpansTableAside filterCondition={filterCondition} />
+          </TableAsidePanel>
+        </Group>
+        {selectedRows.length ? (
+          <SpanSelectionToolbar
+            selectedSpans={selectedSpans}
+            onClearSelection={clearSelection}
+          />
+        ) : null}
+      </div>
+    </TableMetricsChartsPanelGroup>
   );
 }

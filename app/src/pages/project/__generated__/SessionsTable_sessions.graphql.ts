@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<8725c611cf9dbbd996db0d301dcc672b>>
+ * @generated SignedSource<<0b82baf799800f37768bc3937cc2cd08>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -76,6 +75,7 @@ export type SessionsTable_sessions$data = {
         };
         readonly traceLatencyMsP50: number | null;
         readonly traceLatencyMsP99: number | null;
+        readonly userId: string | null;
         readonly " $fragmentSpreads": FragmentRefs<"SessionAnnotationSummaryGroup">;
       };
     }>;
@@ -110,10 +110,10 @@ v2 = {
 },
 v3 = [
   {
-    "alias": null,
+    "alias": "value",
     "args": null,
     "kind": "ScalarField",
-    "name": "value",
+    "name": "truncatedValue",
     "storageKey": null
   }
 ],
@@ -173,7 +173,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -183,7 +183,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*: any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -197,7 +197,7 @@ return {
   },
   "name": "SessionsTable_sessions",
   "selections": [
-    (v1/*: any*/),
+    (v1/*:: as any*/),
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -248,12 +248,19 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
                   "name": "sessionId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "userId",
                   "storageKey": null
                 },
                 {
@@ -284,7 +291,7 @@ return {
                   "kind": "LinkedField",
                   "name": "firstInput",
                   "plural": false,
-                  "selections": (v3/*: any*/),
+                  "selections": (v3/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -294,7 +301,7 @@ return {
                   "kind": "LinkedField",
                   "name": "lastOutput",
                   "plural": false,
-                  "selections": (v3/*: any*/),
+                  "selections": (v3/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -378,10 +385,10 @@ return {
                   "name": "sessionAnnotations",
                   "plural": true,
                   "selections": [
-                    (v2/*: any*/),
-                    (v1/*: any*/),
-                    (v4/*: any*/),
-                    (v5/*: any*/),
+                    (v2/*:: as any*/),
+                    (v1/*:: as any*/),
+                    (v4/*:: as any*/),
+                    (v5/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -440,7 +447,7 @@ return {
                           "name": "fraction",
                           "storageKey": null
                         },
-                        (v4/*: any*/)
+                        (v4/*:: as any*/)
                       ],
                       "storageKey": null
                     },
@@ -451,7 +458,7 @@ return {
                       "name": "meanScore",
                       "storageKey": null
                     },
-                    (v1/*: any*/)
+                    (v1/*:: as any*/)
                   ],
                   "storageKey": null
                 },
@@ -463,7 +470,7 @@ return {
                   "name": "project",
                   "plural": false,
                   "selections": [
-                    (v2/*: any*/),
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -505,8 +512,8 @@ return {
                                 {
                                   "kind": "InlineFragment",
                                   "selections": [
-                                    (v2/*: any*/),
-                                    (v1/*: any*/),
+                                    (v2/*:: as any*/),
+                                    (v1/*:: as any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -522,8 +529,8 @@ return {
                                       "name": "values",
                                       "plural": true,
                                       "selections": [
-                                        (v4/*: any*/),
-                                        (v5/*: any*/)
+                                        (v4/*:: as any*/),
+                                        (v5/*:: as any*/)
                                       ],
                                       "storageKey": null
                                     }
@@ -607,13 +614,13 @@ return {
       ],
       "storageKey": null
     },
-    (v2/*: any*/)
+    (v2/*:: as any*/)
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "5b3f781dd578f1b1198e7de5a5daf95d";
+(node as any).hash = "98b3aa82f458ea6c6dbba4f424f3c15e";
 
 export default node;

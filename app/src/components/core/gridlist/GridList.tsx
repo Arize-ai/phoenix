@@ -102,7 +102,7 @@ const GridListItemContent = ({
         )}
         <Flex
           direction="column"
-          gap="var(--global-dimension-static-size-25)"
+          gap="var(--global-dimension-size-25)"
           minWidth={0}
           flex={1}
           css={css`

@@ -6,6 +6,8 @@ import {
 
 import {
   createAgentStore,
+  getEffectiveAttachUserId,
+  getEffectiveTraceRecordingSettings,
   hasAcknowledgedCurrentTraceConsent,
   resolveAssistantStorageKey,
 } from "../agentStore";
@@ -76,6 +78,36 @@ describe("agentStore", () => {
       // active is sessionId2
       store.getState().deleteSession(sessionId2);
       expect(store.getState().activeSessionId).toBe(sessionId1);
+    });
+  });
+
+  describe("setSessionResponsePending", () => {
+    it("removes settled sessions from the sparse pending lookup", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+
+      store.getState().setSessionResponsePending(sessionId, true);
+      expect(store.getState().isResponsePendingBySessionId[sessionId]).toBe(
+        true
+      );
+
+      store.getState().setSessionResponsePending(sessionId, false);
+      expect(
+        store.getState().isResponsePendingBySessionId[sessionId]
+      ).toBeUndefined();
+    });
+
+    it("does not recreate response state after its session is deleted", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setSessionResponsePending(sessionId, true);
+      store.getState().deleteSession(sessionId);
+
+      store.getState().setSessionResponsePending(sessionId, false);
+
+      expect(
+        store.getState().isResponsePendingBySessionId[sessionId]
+      ).toBeUndefined();
     });
   });
 
@@ -165,6 +197,7 @@ describe("agentStore", () => {
         questions: [],
       });
       store.getState().setSessionChatStatus(firstSessionId, "streaming");
+      store.getState().setSessionResponsePending(firstSessionId, true);
 
       const secondSessionId = store.getState().createSession();
 
@@ -176,6 +209,9 @@ describe("agentStore", () => {
       ).toBeUndefined();
       expect(
         store.getState().chatStatusBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(
+        store.getState().isResponsePendingBySessionId[firstSessionId]
       ).toBeUndefined();
     });
 
@@ -508,6 +544,22 @@ describe("agentStore", () => {
     });
   });
 
+  describe("setFabMode", () => {
+    it("defaults to the pinned top-nav button", () => {
+      const store = createAgentStore();
+
+      expect(store.getState().fabMode).toBe("pinned");
+    });
+
+    it("switches the assistant button to floating", () => {
+      const store = createAgentStore();
+
+      store.getState().setFabMode("floating");
+
+      expect(store.getState().fabMode).toBe("floating");
+    });
+  });
+
   describe("setFabPlacement", () => {
     it("updates the pinned FAB corner", () => {
       const store = createAgentStore();
@@ -540,6 +592,7 @@ describe("agentStore", () => {
         agentsConfig: {
           collectorEndpoint: "https://collector.example.com",
           assistantProjectName: "assistant_agent",
+          forceTracing: false,
           webAccessEnabled: false,
           assistantEnabled: true,
           allowLocalTraces: true,
@@ -583,6 +636,45 @@ describe("agentStore", () => {
           observability: store.getState().observability,
         })
       ).toBe(false);
+    });
+
+    it("forces tracing and bypasses consent when agent debugging is enabled", () => {
+      const store = createAgentStore({
+        agentsConfig: {
+          collectorEndpoint: "https://collector.example.com",
+          assistantProjectName: "assistant_agent",
+          forceTracing: true,
+          webAccessEnabled: false,
+          assistantEnabled: true,
+          allowLocalTraces: false,
+          allowRemoteExport: false,
+        },
+        observability: {
+          storeLocalTraces: false,
+          exportRemoteTraces: false,
+          attachUserId: false,
+          acknowledgedTraceConsent: null,
+        },
+      });
+
+      expect(
+        getEffectiveTraceRecordingSettings({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toEqual({ ingestTraces: true, exportRemoteTraces: true });
+      expect(
+        hasAcknowledgedCurrentTraceConsent({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toBe(true);
+      expect(
+        getEffectiveAttachUserId({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toBe(true);
     });
   });
 

@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<7275da20456e3fd11df1564cdc233f65>>
+ * @generated SignedSource<<553de167448793a7ab5f1bfa97974f4e>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -79,7 +78,7 @@ v3 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -109,20 +108,20 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PromptVersionCompareSelectQuery",
     "selections": [
       {
         "alias": "prompt",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/)
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -132,13 +131,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "PromptVersionCompareSelectQuery",
     "selections": [
       {
         "alias": "prompt",
-        "args": (v1/*: any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -151,8 +150,8 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v3/*: any*/),
-          (v2/*: any*/)
+          (v3/*:: as any*/),
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       }

@@ -101,6 +101,7 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE.split(".")
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
 RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
+USER_ID = SpanAttributes.USER_ID.split(".")
 
 
 class SubValues(Values, roles.CompoundElementRole):
@@ -740,7 +741,7 @@ class ProjectSession(HasId):
         nullable=False,
     )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True, nullable=False)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
@@ -751,6 +752,11 @@ class ProjectSession(HasId):
             "ix_project_sessions_project_id_start_time",
             "project_id",
             text("start_time DESC"),
+        ),
+        Index(
+            "ix_project_sessions_project_id_end_time",
+            "project_id",
+            text("end_time DESC"),
         ),
     )
 
@@ -918,6 +924,15 @@ class Span(HasId):
         return cls.attributes[OUTPUT_MIME_TYPE]
 
     @hybrid_property
+    def user_id(self) -> Any:
+        return get_attribute_value(self.attributes, USER_ID)
+
+    @user_id.inplace.expression
+    @classmethod
+    def _user_id_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[USER_ID]
+
+    @hybrid_property
     def metadata_(self) -> Any:
         return get_attribute_value(self.attributes, METADATA)
 
@@ -983,6 +998,12 @@ class Span(HasId):
             .as_string()
             .is_not(None),
             sqlite_where=column("attributes", JSON_)[["session", "id"]].as_string().is_not(None),
+        ),
+        Index(
+            "ix_spans_user_id",
+            column("attributes", JSON_)[["user", "id"]].as_string(),
+            postgresql_where=column("attributes", JSON_)[["user", "id"]].as_string().is_not(None),
+            sqlite_where=column("attributes", JSON_)[["user", "id"]].as_string().is_not(None),
         ),
     )
 
@@ -1164,7 +1185,9 @@ class SpanAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     span: Mapped["Span"] = relationship(back_populates="span_annotations")
     user: Mapped[Optional["User"]] = relationship("User")
@@ -1204,7 +1227,9 @@ class TraceAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -1242,7 +1267,9 @@ class DocumentAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     span: Mapped["Span"] = relationship(back_populates="document_annotations")
 
@@ -1283,7 +1310,9 @@ class ProjectSessionAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -1303,7 +1332,9 @@ class Dataset(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     user: Mapped[Optional["User"]] = relationship("User")
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
         "ExperimentTag", back_populates="dataset"
@@ -1411,7 +1442,9 @@ class DatasetVersion(HasId):
     description: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     user: Mapped[Optional["User"]] = relationship("User")
 
 
@@ -1419,14 +1452,13 @@ class DatasetExample(HasId):
     __tablename__ = "dataset_examples"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
-        index=True,
     )
     span_rowid: Mapped[Optional[int]] = mapped_column(
         ForeignKey("spans.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )
-    external_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    external_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     __table_args__ = (
@@ -1551,7 +1583,9 @@ class Experiment(HasId):
         server_default=sa.false(),
     )
     project_name: Mapped[Optional[str]] = mapped_column(index=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -1902,8 +1936,11 @@ class ExperimentLog(HasId):
     """
 
     __tablename__ = "experiment_logs"
+    # Plain index (alongside the partial ERROR index below): serves the runner's
+    # bulk DELETE by experiment_id and the FK cascade when experiments are deleted.
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
+        index=True,
     )
     occurred_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     category: Mapped[ExperimentLogCategory] = mapped_column(
@@ -1952,8 +1989,11 @@ class ExperimentTaskLog(ExperimentLog):
         server_default="TASK",
         nullable=False,
     )
+    # Indexed for the ON DELETE CASCADE from dataset_examples: without it, each
+    # deleted example triggers a full scan of this table.
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
     )
     repetition_number: Mapped[int] = mapped_column()
 
@@ -1979,11 +2019,16 @@ class ExperimentEvalLog(ExperimentLog):
         server_default="EVAL",
         nullable=False,
     )
+    # Both FKs indexed for their ON DELETE CASCADEs: experiment deletion cascades
+    # here once per experiment_run, and evaluator deletion once per dataset
+    # evaluator — unindexed, each cascade delete is a full scan of this table.
     experiment_run_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+        index=True,
     )
     dataset_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_evaluators.id", ondelete="CASCADE"),
+        index=True,
     )
 
     __mapper_args__ = {
@@ -2239,6 +2284,108 @@ class PasswordResetToken(HasId):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
+class OAuth2Client(HasId):
+    """Registered OAuth2 client that can request authorization codes and tokens."""
+
+    __tablename__ = "oauth2_clients"
+    client_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    logo_uri: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    redirect_uris: Mapped[list[str]] = mapped_column(JsonList, nullable=False)
+    grant_types: Mapped[list[str]] = mapped_column(JsonList, nullable=False)
+    token_endpoint_auth_method: Mapped[str] = mapped_column(String, nullable=False)
+    is_first_party: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    metadata_: Mapped[Optional[dict[str, Any]]] = mapped_column("metadata", JSON_, nullable=True)
+    # Server-observed peer address at registration. Kept out of metadata_, which holds
+    # unvalidated client-supplied fields, so no request body can forge this provenance.
+    # NULL for clients that were seeded rather than dynamically registered.
+    registration_client_ip: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    grants: Mapped[list["OAuth2Grant"]] = relationship(
+        "OAuth2Grant", back_populates="client", cascade="all, delete-orphan"
+    )
+    authorization_codes: Mapped[list["OAuth2AuthorizationCode"]] = relationship(
+        "OAuth2AuthorizationCode", back_populates="client", cascade="all, delete-orphan"
+    )
+    __table_args__ = (
+        # Bounds the per-IP registration rate-limit count to one address's own recent
+        # registrations instead of scanning every client registered in the window.
+        Index(
+            "ix_oauth2_clients_registration_client_ip",
+            "registration_client_ip",
+            "created_at",
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class OAuth2Grant(HasId):
+    """One consented OAuth2 session between a user and a client.
+
+    Each completed authorization creates a grant. Tokens hang off the grant; revoking the
+    grant ends the session. Grants are immutable — change access by revoking and re-authorizing.
+    """
+
+    __tablename__ = "oauth2_grants"
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    user: Mapped["User"] = relationship("User")
+    oauth2_client_id: Mapped[int] = mapped_column(
+        ForeignKey("oauth2_clients.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    client: Mapped["OAuth2Client"] = relationship("OAuth2Client", back_populates="grants")
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+        "RefreshToken", back_populates="oauth2_grant"
+    )
+    __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class OAuth2AuthorizationCode(HasId):
+    """Single-use authorization code issued after consent, redeemed for tokens.
+
+    The raw code is never stored — only its SHA-256 hash. Codes expire after a short TTL and
+    are deleted in the same transaction that creates the grant before token issuance.
+    """
+
+    __tablename__ = "oauth2_authorization_codes"
+    code_hash: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user: Mapped["User"] = relationship("User")
+    oauth2_client_id: Mapped[int] = mapped_column(
+        ForeignKey("oauth2_clients.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    client: Mapped["OAuth2Client"] = relationship(
+        "OAuth2Client", back_populates="authorization_codes"
+    )
+    redirect_uri: Mapped[str] = mapped_column(String, nullable=False)
+    code_challenge: Mapped[str] = mapped_column(String, nullable=False)
+    code_challenge_method: Mapped[str] = mapped_column(String, nullable=False)
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    resource: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
 class RefreshToken(HasId):
     __tablename__ = "refresh_tokens"
     user_id: Mapped[int] = mapped_column(
@@ -2248,6 +2395,21 @@ class RefreshToken(HasId):
     user: Mapped["User"] = relationship("User", back_populates="refresh_tokens")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    oauth2_grant_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("oauth2_grants.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    oauth2_grant: Mapped[Optional["OAuth2Grant"]] = relationship(
+        "OAuth2Grant", back_populates="refresh_tokens"
+    )
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    # Set when the token is spent in a rotation. NULL means live; a timestamp means the
+    # row is a tombstone, retained until expiry so that presenting the token again is
+    # recognizable as a replay rather than an unknown token. A consumed row must never
+    # authenticate: every read path filters on consumed_at IS NULL.
+    consumed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2265,6 +2427,8 @@ class AccessToken(HasId):
         index=True,
         unique=True,
     )
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2279,6 +2443,8 @@ class ApiKey(HasId):
     description: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
+    scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2340,7 +2506,6 @@ class TokenPrice(HasId):
     model_id: Mapped[int] = mapped_column(
         ForeignKey("generative_models.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     token_type: Mapped[str]
     is_prompt: Mapped[bool]
@@ -2422,7 +2587,6 @@ class PromptPromptLabel(HasId):
     __tablename__ = "prompts_prompt_labels"
     prompt_label_id: Mapped[int] = mapped_column(
         ForeignKey("prompt_labels.id", ondelete="CASCADE"),
-        index=True,
         nullable=False,
     )
     prompt_id: Mapped[int] = mapped_column(
@@ -2562,7 +2726,7 @@ class AnnotationConfig(HasId):
 class ProjectAnnotationConfig(HasId):
     __tablename__ = "project_annotation_configs"
     project_id: Mapped[int] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     annotation_config_id: Mapped[int] = mapped_column(
         ForeignKey("annotation_configs.id", ondelete="CASCADE"), nullable=False, index=True
@@ -2971,7 +3135,6 @@ class DatasetEvaluators(HasId):
     __tablename__ = "dataset_evaluators"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
-        index=True,
     )
     # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN)
     evaluator_id: Mapped[int] = mapped_column(

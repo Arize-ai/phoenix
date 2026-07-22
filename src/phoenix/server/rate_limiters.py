@@ -12,6 +12,7 @@ from typing_extensions import ParamSpec
 
 from phoenix.config import get_env_enable_prometheus
 from phoenix.exceptions import PhoenixException
+from phoenix.server.utils import strip_root_path
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
@@ -448,7 +449,11 @@ def fastapi_ip_rate_limiter(
     rate_limiter: ServerRateLimiter, paths: Iterable[str | re.Pattern[str]] | None = None
 ) -> Callable[[Request], Coroutine[Any, Any, Request]]:
     async def dependency(request: Request) -> Request:
-        if paths is None or any(path_match(request.url.path, path) for path in paths):
+        # Patterns are registered relative to the application mount point, but
+        # under PHOENIX_HOST_ROOT_PATH the request path carries the root-path
+        # prefix — strip it so the gate matches in both deployments.
+        request_path = strip_root_path(request.scope, request.url.path)
+        if paths is None or any(path_match(request_path, path) for path in paths):
             client = request.client
             if client:  # bypasses rate limiter if no client
                 client_ip = client.host

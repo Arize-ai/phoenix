@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<420a821c78cf02f1330ca2d315491506>>
+ * @generated SignedSource<<8d45d432c15780f289bc428c1e502465>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -51,7 +50,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "DatasetLabelConnection",
         "kind": "LinkedField",
         "name": "datasetLabels",
@@ -158,7 +157,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v0/*:: as any*/),
         "filters": null,
         "handle": "connection",
         "key": "DatasetLabelsTable__datasetLabels",

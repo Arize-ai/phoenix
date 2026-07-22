@@ -43,7 +43,6 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import {
   Tooltip,
@@ -115,7 +114,7 @@ import {
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
-import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgressIndicator";
+import { PlaygroundOutputHeader } from "./PlaygroundOutputHeader";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import type { PartialOutputToolCall } from "./PlaygroundToolCall";
 import { PlaygroundToolCall } from "./PlaygroundToolCall";
@@ -748,19 +747,7 @@ function PlaygroundInstanceOutputColumnHeader({
 
   return (
     <Flex direction="column" gap="size-50" width="100%">
-      <Flex
-        direction="row"
-        gap="size-100"
-        alignItems="center"
-        justifyContent="space-between"
-        width="100%"
-      >
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <AlphabeticIndexIcon index={index} size="XS" />
-          <span>Output</span>
-        </Flex>
-        <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
-      </Flex>
+      <PlaygroundOutputHeader instanceId={instanceId} index={index} />
       <ExperimentCostAndLatencySummary
         executionState={costExecutionState}
         experiment={costSummary}
