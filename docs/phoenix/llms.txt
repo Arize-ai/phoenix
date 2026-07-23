@@ -407,7 +407,6 @@
 - [Secrets](https://arize.com/docs/phoenix/settings/secrets): Store and manage encrypted API keys and credentials
 - [Data Retention](https://arize.com/docs/phoenix/settings/data-retention): Configure data retention policies
 - [Custom AI Providers](https://arize.com/docs/phoenix/settings/custom-ai-providers): Server-managed AI provider credentials for Playground and evals
-- [MCP](https://arize.com/docs/phoenix/settings/mcp): Find the in-product MCP endpoint and copy-paste client setup from the Settings tab
 - [Sandboxes](https://arize.com/docs/phoenix/settings/sandboxes): Configure sandbox backends and reusable configurations for code evaluators
 - [WebAssembly Sandbox](https://arize.com/docs/phoenix/settings/sandboxes/wasm): Run simple Python evaluators locally inside Phoenix with no credentials needed
 - [Deno Sandbox](https://arize.com/docs/phoenix/settings/sandboxes/deno): Run simple TypeScript evaluators locally inside Phoenix with no credentials needed

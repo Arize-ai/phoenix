@@ -383,7 +383,6 @@
               "docs/phoenix/settings/secrets",
               "docs/phoenix/settings/data-retention",
               "docs/phoenix/settings/custom-ai-providers",
-              "docs/phoenix/settings/mcp",
               {
                 "group": "Sandboxes",
                 "pages": [
