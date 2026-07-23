@@ -45,6 +45,7 @@ import {
   Loading,
   Modal,
   ModalOverlay,
+  SectionHeading,
   Tab,
   TabList,
   Tabs,
@@ -142,6 +143,72 @@ const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
 const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 400;
 const ASIDE_PANEL_MIN_SIZE_PIXELS = 300;
 const ASIDE_PANEL_MAX_SIZE_PIXELS = 500;
+
+const spanDetailsAnchorNavCSS = css`
+  flex: none;
+  border-bottom: 1px solid var(--global-border-color-default);
+
+  ul {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+    list-style: none;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  li {
+    flex: none;
+  }
+
+  a {
+    display: flex;
+    position: relative;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+    border-radius: var(--global-rounding-small);
+    color: var(--global-text-color-700);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+    text-decoration: none;
+    white-space: nowrap;
+    outline: none;
+
+    &:hover {
+      color: var(--global-text-color-900);
+      background: var(--global-color-primary-50);
+    }
+
+    &:focus-visible {
+      color: var(--global-text-color-900);
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: calc(-1 * var(--focus-ring-offset));
+    }
+  }
+`;
+
+const spanDetailsSectionsCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+
+  @media (prefers-reduced-motion: reduce) {
+    scroll-behavior: auto;
+  }
+
+  section:last-of-type:after {
+    content: "";
+    display: block;
+    height: var(--global-dimension-size-400);
+  }
+`;
+
 export function SpanDetails({
   spanNodeId,
 }: {
@@ -270,6 +337,12 @@ export function SpanDetails({
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
   }, [span]);
+  const spanDetailsSectionIds = {
+    info: `span-details-${span.spanId}-info`,
+    annotations: `span-details-${span.spanId}-annotations`,
+    attributes: `span-details-${span.spanId}-attributes`,
+    events: `span-details-${span.spanId}-events`,
+  } as const;
 
   return (
     <Group orientation="horizontal" id="span-details-layout">
@@ -335,39 +408,58 @@ export function SpanDetails({
               }
             />
           </View>
-          <Tabs>
-            <TabList>
-              <Tab id="info">Info</Tab>
-              <Tab id="annotations">
-                Annotations <Counter>{span.spanAnnotations.length}</Counter>
-              </Tab>
-              <Tab id="attributes">Attributes</Tab>
-              <Tab id="events">
-                Events{" "}
-                <Counter variant={hasExceptions ? "danger" : "default"}>
-                  {span.events.length}
-                </Counter>
-              </Tab>
-            </TabList>
-            <LazyTabPanel id="info">
-              <Flex direction="row" height="100%">
-                <SpanInfoWrap>
-                  <ErrorBoundary>
-                    <SpanInfo span={span} />
-                  </ErrorBoundary>
-                </SpanInfoWrap>
-              </Flex>
-            </LazyTabPanel>
-            <LazyTabPanel id="annotations">
+          <nav css={spanDetailsAnchorNavCSS} aria-label="Span detail sections">
+            <ul>
+              <li>
+                <a href={`#${spanDetailsSectionIds.info}`}>Info</a>
+              </li>
+              <li>
+                <a href={`#${spanDetailsSectionIds.annotations}`}>
+                  Annotations <Counter>{span.spanAnnotations.length}</Counter>
+                </a>
+              </li>
+              <li>
+                <a href={`#${spanDetailsSectionIds.attributes}`}>Attributes</a>
+              </li>
+              <li>
+                <a href={`#${spanDetailsSectionIds.events}`}>
+                  Events
+                  <Counter variant={hasExceptions ? "danger" : "default"}>
+                    {span.events.length}
+                  </Counter>
+                </a>
+              </li>
+            </ul>
+          </nav>
+          <div css={spanDetailsSectionsCSS}>
+            <section id={spanDetailsSectionIds.info} aria-label="Info">
+              <SectionHeading bordered={false}>Info</SectionHeading>
+              <ErrorBoundary>
+                <SpanInfo span={span} />
+              </ErrorBoundary>
+            </section>
+            <section
+              id={spanDetailsSectionIds.annotations}
+              aria-label="Annotations"
+            >
+              <SectionHeading>
+                <Flex
+                  elementType="span"
+                  direction="row"
+                  gap="size-100"
+                  alignItems="center"
+                >
+                  Annotations <Counter>{span.spanAnnotations.length}</Counter>
+                </Flex>
+              </SectionHeading>
               <SpanFeedback span={span} />
-            </LazyTabPanel>
-            <LazyTabPanel id="attributes">
-              <View
-                padding="size-200"
-                height="100%"
-                maxHeight="100%"
-                overflow="auto"
-              >
+            </section>
+            <section
+              id={spanDetailsSectionIds.attributes}
+              aria-label="Attributes"
+            >
+              <SectionHeading>Attributes</SectionHeading>
+              <View padding="size-200">
                 <Card
                   title="All Attributes"
                   {...defaultCardProps}
@@ -376,16 +468,28 @@ export function SpanDetails({
                   <AttributesJSONBlock attributes={span.attributes} />
                 </Card>
               </View>
-            </LazyTabPanel>
-
-            <LazyTabPanel id="events">
-              <View height="100%" overflow="auto">
+            </section>
+            <section id={spanDetailsSectionIds.events} aria-label="Events">
+              <SectionHeading>
+                <Flex
+                  elementType="span"
+                  direction="row"
+                  gap="size-100"
+                  alignItems="center"
+                >
+                  Events
+                  <Counter variant={hasExceptions ? "danger" : "default"}>
+                    {span.events.length}
+                  </Counter>
+                </Flex>
+              </SectionHeading>
+              <View>
                 <Suspense fallback={<Loading />}>
                   <SpanEventsList spanId={span.id} />
                 </Suspense>
               </View>
-            </LazyTabPanel>
-          </Tabs>
+            </section>
+          </div>
         </Flex>
       </Panel>
       <Separator
@@ -409,28 +513,6 @@ export function SpanDetails({
         <SpanAside span={span} />
       </Panel>
     </Group>
-  );
-}
-
-const spanInfoWrapCSS = css`
-  flex: 1 1 auto;
-  overflow-y: auto;
-  // Overflow fails to take into account padding
-  & > *:after {
-    content: "";
-    display: block;
-    height: var(--global-dimension-size-400);
-  }
-`;
-
-/**
- * A wrapper for the span info to style it with the appropriate overflow
- */
-function SpanInfoWrap({ children }: PropsWithChildren) {
-  return (
-    <div css={spanInfoWrapCSS} data-testid="span-info-wrap">
-      {children}
-    </div>
   );
 }
 

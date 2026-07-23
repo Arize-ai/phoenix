@@ -28,8 +28,8 @@ type SpanEventsListProps = {
 };
 
 /**
- * Wrapper component that lazily fetches span events with attributes
- * when the Events tab is selected.
+ * Wrapper component that fetches span events with their full attributes when
+ * the events section is mounted.
  */
 export function SpanEventsList({ spanId }: SpanEventsListProps) {
   const data = useLazyLoadQuery<SpanEventsListQuery>(
