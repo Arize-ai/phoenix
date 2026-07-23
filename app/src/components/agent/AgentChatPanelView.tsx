@@ -96,7 +96,6 @@ const sessionHeadingWrapCSS = css`
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.1s ease-in-out;
-    background: var(--agent-chat-panel-background-color);
   }
 
   &:hover .agent-chat-panel__edit-title-button,
