@@ -148,7 +148,7 @@ In order to experiment with our agent, we first need to define a dataset for it 
 We will use a small dataset for demo purposes:
 
 ```typescript
-import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
 
 // Step 2: define the dataset of questions to ask the agent
 const DATASET = [
@@ -164,7 +164,7 @@ const DATASET = [
     "Which Batman movie should I watch?"
 ]
 
-export const dataset = await createOrGetDataset({
+export const dataset = await createDataset({
     name: "movie-rec-questions",
     description: "Questions to ask a movie recommendation agent",
     examples: DATASET.map(question => ({
@@ -175,7 +175,7 @@ export const dataset = await createOrGetDataset({
 });
 ```
 
-The `createOrGetDataset` function will either retrieve an existing dataset by name or create a new one, making it safe to re-run the setup code.
+The `createDataset` function upserts by name: re-uploading a dataset with the same name updates it in place, and an unchanged upload is a no-op. This makes it safe to re-run the setup code.
 
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/ts-tutorial-upload-dataset.png" alt="Upload dataset in Phoenix" />
