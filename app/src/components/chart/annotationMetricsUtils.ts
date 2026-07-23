@@ -139,21 +139,11 @@ export function normalizeAnnotationMetrics({
       // The reference is a comparison point, not part of the visible window
       // used to decide whether an annotation offers label and/or score views.
       const referenceSummary = referenceSummariesByName.get(name);
-      const latestSummary = summaryByPoint
-        .slice()
-        .reverse()
-        .find(
-          ({ summary }) => (summary?.labelFractions.length ?? 0) > 0
-        )?.summary;
       // Individual summaries can have different labels, so build a stable
-      // union starting with the baseline and latest comparison points.
+      // union in baseline-then-chronological order.
       const labels = Array.from(
         new Set(
-          [
-            referenceSummary,
-            latestSummary,
-            ...summaryByPoint.map(({ summary }) => summary),
-          ]
+          [referenceSummary, ...summaryByPoint.map(({ summary }) => summary)]
             .filter((summary): summary is AnnotationSummary => summary != null)
             .flatMap((summary) =>
               summary.labelFractions.map(({ label }) => label)

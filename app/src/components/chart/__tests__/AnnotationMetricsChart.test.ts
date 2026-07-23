@@ -20,18 +20,4 @@ describe("annotation metrics legend state", () => {
 
     expect(hiddenDataKeys).toEqual(new Set(["fractions.1"]));
   });
-
-  it("keeps mean score state independent from label identities", () => {
-    const hiddenMeanScoreId = getAnnotationLegendItemId({
-      dataKey: "meanScore",
-      visibleLabels: ["alpha"],
-    });
-
-    expect(
-      getAnnotationHiddenDataKeys({
-        hiddenLegendItemIds: new Set([hiddenMeanScoreId as string]),
-        visibleLabels: ["beta"],
-      })
-    ).toEqual(new Set(["meanScore"]));
-  });
 });

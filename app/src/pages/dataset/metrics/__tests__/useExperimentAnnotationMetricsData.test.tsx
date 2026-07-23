@@ -31,10 +31,16 @@ describe("useExperimentAnnotationMetricNames", () => {
   });
 
   it("loads annotation names without requesting experiment metrics", async () => {
-    const requestedOperations: string[] = [];
+    const requestedOperations: {
+      name: string;
+      text: string | null | undefined;
+    }[] = [];
     const environment = new Environment({
       network: Network.create((operation) => {
-        requestedOperations.push(operation.name);
+        requestedOperations.push({
+          name: operation.name,
+          text: operation.text,
+        });
         return Observable.create(() => undefined);
       }),
       store: new Store(new RecordSource()),
@@ -52,10 +58,16 @@ describe("useExperimentAnnotationMetricNames", () => {
       );
     });
 
-    expect(requestedOperations).toEqual([
-      "useExperimentAnnotationMetricNamesQuery",
-    ]);
-    expect(container.textContent).toBe("loading annotation names");
+    expect(requestedOperations).toHaveLength(1);
+    expect(requestedOperations[0]?.name).toBe(
+      "useExperimentAnnotationMetricNamesQuery"
+    );
+    expect(requestedOperations[0]?.text).toContain(
+      "experimentAnnotationSummaries"
+    );
+    expect(requestedOperations[0]?.text).not.toContain("meanScore");
+    expect(requestedOperations[0]?.text).not.toContain("labelFractions");
+    expect(requestedOperations[0]?.text).not.toContain("metricsExperiments");
   });
 
   it("observes baseline replacements and clears through the Dataset link", async () => {

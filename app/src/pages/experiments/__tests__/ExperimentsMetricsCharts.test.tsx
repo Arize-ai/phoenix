@@ -1,17 +1,9 @@
-import { act, type ReactNode, Suspense } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { RelayEnvironmentProvider } from "react-relay";
-import {
-  Environment,
-  Network,
-  Observable,
-  RecordSource,
-  Store,
-} from "relay-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type * as ExperimentAnnotationMetricsDataModule from "@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricsData";
-import type * as ExperimentMetricsDataModule from "@phoenix/pages/dataset/metrics/useExperimentMetricsData";
+import type * as PhoenixComponents from "@phoenix/components";
+import type * as PhoenixChart from "@phoenix/components/chart";
 
 import { ExperimentsMetricsCharts } from "../ExperimentsMetricsCharts";
 
@@ -19,6 +11,8 @@ const datasetContextState = vi.hoisted(() => ({
   datasetId: "dataset-1",
   experimentsMetricChartKeys: ["latency"],
 }));
+const useExperimentMetricsDataMock = vi.hoisted(() => vi.fn());
+const useExperimentAnnotationMetricDataMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@phoenix/contexts/DatasetContext", () => ({
   useDatasetContext: (
@@ -26,55 +20,46 @@ vi.mock("@phoenix/contexts/DatasetContext", () => ({
   ) => selector(datasetContextState),
 }));
 
-vi.mock("@phoenix/components", () => ({
-  Loading: () => <div>loading</div>,
+vi.mock("@phoenix/components", async (importOriginal) => ({
+  ...(await importOriginal<typeof PhoenixComponents>()),
   View: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@phoenix/components/chart", () => ({
-  ChartPanel: ({ children }: { children: ReactNode }) => (
-    <Suspense fallback={<div>loading chart</div>}>{children}</Suspense>
-  ),
+vi.mock("@phoenix/components/chart", async (importOriginal) => ({
+  ...(await importOriginal<typeof PhoenixChart>()),
+  ChartPanel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock("@phoenix/components/resize", () => ({
   transparentResizeHandleCSS: {},
 }));
 
-vi.mock("@phoenix/pages/dataset/metrics/chartCatalog", async () => {
-  const { useExperimentMetricsData } = await vi.importActual<
-    typeof ExperimentMetricsDataModule
-  >("@phoenix/pages/dataset/metrics/useExperimentMetricsData");
-  const { useExperimentAnnotationMetricData } = await vi.importActual<
-    typeof ExperimentAnnotationMetricsDataModule
-  >("@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricsData");
+vi.mock("@phoenix/pages/dataset/metrics/useExperimentMetricsData", () => ({
+  useExperimentMetricsData: useExperimentMetricsDataMock,
+}));
 
-  function CoreMetricChart({ datasetId }: { datasetId: string }) {
-    useExperimentMetricsData(datasetId);
+vi.mock("@phoenix/pages/dataset/metrics/ExperimentLatencyChart", () => ({
+  ExperimentLatencyChart: ({ datasetId }: { datasetId: string }) => {
+    useExperimentMetricsDataMock(datasetId);
     return <div>core metric</div>;
-  }
+  },
+}));
 
-  function AnnotationMetricChart({ datasetId }: { datasetId: string }) {
-    useExperimentAnnotationMetricData({
+vi.mock(
+  "@phoenix/pages/dataset/metrics/ExperimentAnnotationMetricsGrid",
+  () => ({
+    ExperimentAnnotationMetricPanel: ({
       datasetId,
-      annotationName: "quality",
-    });
-    return <div>annotation metric</div>;
-  }
-
-  return {
-    getExperimentMetricCharts: (keys: string[]) =>
-      keys.map((key) => {
-        const isAnnotationChart = key.startsWith("annotation:");
-        return {
-          key,
-          name: key,
-          description: key,
-          Panel: isAnnotationChart ? AnnotationMetricChart : CoreMetricChart,
-        };
-      }),
-  };
-});
+      annotationName,
+    }: {
+      datasetId: string;
+      annotationName: string;
+    }) => {
+      useExperimentAnnotationMetricDataMock({ datasetId, annotationName });
+      return <div>annotation metric</div>;
+    },
+  })
+);
 
 describe("ExperimentsMetricsCharts", () => {
   let container: HTMLDivElement;
@@ -90,66 +75,30 @@ describe("ExperimentsMetricsCharts", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    useExperimentMetricsDataMock.mockReset();
+    useExperimentAnnotationMetricDataMock.mockReset();
   });
 
-  it("requests only core metrics for a built-in chart", async () => {
-    const requestedOperations: RequestedOperation[] = [];
-    const environment = createPendingEnvironment(requestedOperations);
+  it("loads core metrics for a built-in chart", () => {
+    act(() => root.render(<ExperimentsMetricsCharts />));
 
-    await act(async () => {
-      root.render(
-        <RelayEnvironmentProvider environment={environment}>
-          <ExperimentsMetricsCharts />
-        </RelayEnvironmentProvider>
-      );
-    });
-
-    expect(requestedOperations.map(({ name }) => name)).toEqual([
-      "useExperimentMetricsDataQuery",
-    ]);
-    expect(container.textContent).not.toContain("Something went wrong");
+    expect(useExperimentMetricsDataMock).toHaveBeenCalledExactlyOnceWith(
+      "dataset-1"
+    );
+    expect(useExperimentAnnotationMetricDataMock).not.toHaveBeenCalled();
   });
 
-  it("requests only the selected annotation's metrics", async () => {
-    datasetContextState.experimentsMetricChartKeys = ["annotation:quality"];
-    const requestedOperations: RequestedOperation[] = [];
-    const environment = createPendingEnvironment(requestedOperations);
+  it("loads a selected annotation even when its valid name is empty", () => {
+    datasetContextState.experimentsMetricChartKeys = ["annotation:"];
 
-    await act(async () => {
-      root.render(
-        <RelayEnvironmentProvider environment={environment}>
-          <ExperimentsMetricsCharts />
-        </RelayEnvironmentProvider>
-      );
+    act(() => root.render(<ExperimentsMetricsCharts />));
+
+    expect(
+      useExperimentAnnotationMetricDataMock
+    ).toHaveBeenCalledExactlyOnceWith({
+      datasetId: "dataset-1",
+      annotationName: "",
     });
-
-    expect(requestedOperations).toEqual([
-      {
-        name: "ExperimentAnnotationMetricQuery",
-        variables: {
-          annotationName: "quality",
-          count: 7,
-          id: "dataset-1",
-        },
-      },
-    ]);
+    expect(useExperimentMetricsDataMock).not.toHaveBeenCalled();
   });
 });
-
-type RequestedOperation = {
-  name: string;
-  variables: Record<string, unknown>;
-};
-
-function createPendingEnvironment(requestedOperations: RequestedOperation[]) {
-  return new Environment({
-    network: Network.create((operation, variables) => {
-      requestedOperations.push({
-        name: operation.name,
-        variables,
-      });
-      return Observable.create(() => undefined);
-    }),
-    store: new Store(new RecordSource()),
-  });
-}

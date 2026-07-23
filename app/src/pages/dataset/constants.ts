@@ -35,10 +35,7 @@ export function getExperimentAnnotationName(key: string): string | undefined {
   if (!key.startsWith(EXPERIMENT_ANNOTATION_METRIC_CHART_KEY_PREFIX)) {
     return undefined;
   }
-  const annotationName = key.slice(
-    EXPERIMENT_ANNOTATION_METRIC_CHART_KEY_PREFIX.length
-  );
-  return annotationName.length > 0 ? annotationName : undefined;
+  return key.slice(EXPERIMENT_ANNOTATION_METRIC_CHART_KEY_PREFIX.length);
 }
 
 /**
