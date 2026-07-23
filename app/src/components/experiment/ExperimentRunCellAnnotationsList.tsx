@@ -31,6 +31,7 @@ import { Skeleton } from "@phoenix/components/core/loading";
 import type { ExecutionState } from "@phoenix/components/core/types";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 const listCSS = css`
@@ -112,6 +113,8 @@ function getItemName(item: AnnotationListItem): string {
       return item.name;
     case "error":
       return item.error.evaluatorName;
+    default:
+      return assertUnreachable(item);
   }
 }
 

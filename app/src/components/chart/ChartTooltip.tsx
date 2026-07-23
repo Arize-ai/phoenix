@@ -113,6 +113,7 @@ const colorPreviewCSS = (previewShape: ColorPreviewShape) => {
       height: 8px;
     `;
   }
+  return undefined;
 };
 
 type PreviewShapeProps = {

@@ -1,5 +1,6 @@
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
 import { Flex } from "@phoenix/components";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
   ToolPartApprovalActions,
@@ -144,6 +145,8 @@ function describePreview(pending: PendingDatasetWrite): PreviewDescriptor {
         },
         note: null,
       };
+    default:
+      return assertUnreachable(preview);
   }
 }
 

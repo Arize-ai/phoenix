@@ -53,6 +53,7 @@ import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToData
 import { Icon, Icons } from "@phoenix/components";
 import type { Variant } from "@phoenix/components/core/types";
 import { MarkdownBlock } from "@phoenix/components/markdown";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
   AddDatasetExamplesToolDetails,
@@ -570,6 +571,8 @@ function renderToolPartStatus(
       return (
         <ToolPartStatus variant={statusVariant}>{stateLabel}</ToolPartStatus>
       );
+    default:
+      return assertUnreachable(state);
   }
 }
 

@@ -337,7 +337,7 @@ export function SpansTable(props: SpansTableProps) {
   const setTraceSequence = pagination?.setTraceSequence;
   useEffect(() => {
     if (!setTraceSequence) {
-      return;
+      return undefined;
     }
     setTraceSequence(
       data.spans.edges.map(({ span }) => ({

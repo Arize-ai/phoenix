@@ -15,6 +15,6 @@ export function MimeTypeCodeBlock({ value, mimeType }: SpanIOValue) {
     case "text":
       return <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>;
     default:
-      assertUnreachable(mimeType);
+      return assertUnreachable(mimeType);
   }
 }
