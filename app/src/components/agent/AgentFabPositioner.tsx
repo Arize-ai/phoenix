@@ -59,6 +59,10 @@ const positionerCSS = css`
     visibility: hidden;
   }
 
+  &[data-activation-suppressed="true"] {
+    pointer-events: none;
+  }
+
   &[data-dragging="true"],
   &[data-dragging="true"] * {
     cursor: grabbing;
@@ -230,6 +234,9 @@ export function AgentFabPositioner({
   const hasDraggedRef = useRef(false);
   const suppressNextClickRef = useRef(false);
   const suppressClickResetTimeoutIdRef = useRef<number | null>(null);
+  const suppressActivationRef = useRef(false);
+  const suppressActivationTimeoutIdRef = useRef<number | null>(null);
+  const previousLayerRef = useRef(layer);
   const [isDragging, setIsDragging] = useState(false);
   const requiresBoundary = Boolean(boundaryRef);
   const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
@@ -378,6 +385,12 @@ export function AgentFabPositioner({
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== PRIMARY_POINTER_BUTTON) return;
 
+    if (suppressActivationRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
     const positioner = positionerRef.current;
     if (!positioner) return;
 
@@ -464,6 +477,11 @@ export function AgentFabPositioner({
   };
 
   const handleClickCapture = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (suppressActivationRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (!suppressNextClickRef.current) return;
     suppressNextClickRef.current = false;
     if (suppressClickResetTimeoutIdRef.current != null) {
@@ -489,6 +507,36 @@ export function AgentFabPositioner({
       event.currentTarget.style.removeProperty("transition");
     }
   };
+
+  useLayoutEffect(() => {
+    const previousLayer = previousLayerRef.current;
+    previousLayerRef.current = layer;
+    if (previousLayer !== "modal" || layer !== "content") {
+      return;
+    }
+
+    finishDragSessionRef.current({
+      activateOnClick: false,
+      releaseTarget: positionerRef.current,
+    });
+    const positioner = positionerRef.current;
+    suppressActivationRef.current = true;
+    positioner?.setAttribute("data-activation-suppressed", "true");
+    suppressActivationTimeoutIdRef.current = window.setTimeout(() => {
+      suppressActivationRef.current = false;
+      positioner?.removeAttribute("data-activation-suppressed");
+      suppressActivationTimeoutIdRef.current = null;
+    }, 0);
+
+    return () => {
+      if (suppressActivationTimeoutIdRef.current != null) {
+        window.clearTimeout(suppressActivationTimeoutIdRef.current);
+        suppressActivationTimeoutIdRef.current = null;
+      }
+      suppressActivationRef.current = false;
+      positioner?.removeAttribute("data-activation-suppressed");
+    };
+  }, [layer]);
 
   useLayoutEffect(() => {
     if (!requiresBoundary) {
