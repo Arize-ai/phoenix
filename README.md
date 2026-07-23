@@ -60,6 +60,19 @@ Phoenix is vendor and language agnostic with out-of-the-box support for popular 
 
 Phoenix runs practically anywhere, including your local machine, a Jupyter notebook, a containerized deployment, or in the cloud.
 
+## Table of Contents
+
+- [Run Locally](#run-locally)
+- [Trace Your Application](#trace-your-application)
+  - [With a Coding Agent](#with-a-coding-agent)
+  - [With Code](#with-code)
+- [Deploy](#deploy)
+- [Packages](#packages)
+- [Tracing Integrations](#tracing-integrations)
+- [Coding Agent Skills](#coding-agent-skills)
+- [Security & Privacy](#security--privacy)
+- [Community](#community)
+
 ## Run Locally
 
 Install Phoenix via `pip` or `conda` and have a fully functional Phoenix
@@ -68,6 +81,54 @@ Install Phoenix via `pip` or `conda` and have a fully functional Phoenix
 pip install arize-phoenix
 phoenix serve
 ```
+
+Or spin up an ephemeral instance with a single command using [`uvx`](https://docs.astral.sh/uv/) — no install required:
+
+```shell
+uvx arize-phoenix serve
+```
+
+Phoenix runs at [http://localhost:6006](http://localhost:6006).
+
+## Trace Your Application
+
+Once Phoenix is running, send it traces from your app. Choose the path that fits you.
+
+### With a Coding Agent
+
+Point your coding agent (Claude Code, Cursor, and others) at Phoenix and let it add tracing to your app for you. From your project directory, run either:
+
+```shell
+px setup
+```
+
+or, without a local Phoenix install:
+
+```shell
+npx @arizeai/phoenix-cli setup
+```
+
+The setup command detects your framework and LLM provider, installs the right [OpenInference](https://github.com/Arize-ai/openinference) instrumentation, and wires up your app to send traces to Phoenix.
+
+### With Code
+
+Prefer to wire it up yourself? Install [`arize-phoenix-otel`](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-otel) plus the instrumentation for your framework, then call `register()`:
+
+```shell
+pip install arize-phoenix-otel openinference-instrumentation-openai
+```
+
+```python
+from phoenix.otel import register
+
+# Connect to your Phoenix instance and auto-trace supported libraries
+tracer_provider = register(
+    project_name="my-app",
+    auto_instrument=True,  # Auto-trace OpenAI, LangChain, LlamaIndex, and more
+)
+```
+
+That's it — every call your app makes to an instrumented library now shows up in Phoenix. See the [tracing documentation](https://arize.com/docs/phoenix/tracing/llm-traces) for manual spans, endpoint configuration, and authentication.
 
 ## Deploy
 
