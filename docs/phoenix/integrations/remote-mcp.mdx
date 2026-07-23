@@ -25,6 +25,10 @@ The MCP server is available at your Phoenix base URL plus `/mcp`:
 | Local       | `http://localhost:6006/mcp`          |
 | Self-hosted | `https://your-phoenix.example.com/mcp` |
 
+<Note>
+The `/mcp` endpoint requires **Phoenix 19.0.0 or later**. On older servers, upgrade Phoenix or use the standalone [npm package](/docs/phoenix/integrations/phoenix-mcp-server).
+</Note>
+
 ## Connect
 
 Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as its own authorization server and supports dynamic client registration, so there is nothing to pre-configure — add the server, and your client opens a browser window where you log in with your Phoenix account. Tokens are scoped to your user's permissions.
