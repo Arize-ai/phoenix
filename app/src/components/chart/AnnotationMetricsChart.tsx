@@ -24,6 +24,15 @@ import {
   percentFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
+import type {
+  AnnotationMetricsChartPoint,
+  AnnotationMetricsSeries,
+  AnnotationMetricsView,
+} from "./annotationMetricsUtils";
+import {
+  getAnnotationMetricsChartData,
+  getAnnotationOtherFraction,
+} from "./annotationMetricsUtils";
 import { ChartEmptyStateOverlay } from "./ChartEmptyStateOverlay";
 import { ChartTooltip, ChartTooltipItem } from "./ChartTooltip";
 import { getCategoryChartColor, useCategoryChartColors } from "./colors";
@@ -33,15 +42,6 @@ import {
   defaultCartesianGridProps,
   defaultTooltipProps,
 } from "./defaults";
-import type {
-  EvaluationMetricsChartPoint,
-  EvaluationMetricsSeries,
-  EvaluationMetricsView,
-} from "./evaluationMetricsUtils";
-import {
-  getEvaluationMetricsChartData,
-  getEvaluationOtherFraction,
-} from "./evaluationMetricsUtils";
 import {
   InteractiveLegend,
   type InteractiveLegendDataKey,
@@ -56,19 +56,24 @@ const OTHER_COLOR = "var(--global-color-gray-500)";
 // Recharts' slower line default makes mixed-view toggles feel sluggish next
 // to the bar animation, so keep both chart modes on the same duration.
 const SCORE_LINE_ANIMATION_DURATION_MS = 400;
+const SCORE_CHART_MARGIN = {
+  ...compactChartMargin,
+  // A score of exactly 1 puts the dot center on the top gridline.
+  top: 8,
+};
 const OTHER_LEGEND_ITEM: LegendPayload = {
   value: "other",
   type: "rect",
   color: OTHER_COLOR,
 };
-export const formatEvaluationFraction = (fraction: number) =>
+const formatAnnotationFraction = (fraction: number) =>
   percentFormatter(fraction * 100);
 
 function getLabelDataKey(index: number): string {
   return `${LABEL_DATA_KEY_PREFIX}${index}`;
 }
 
-export function getEvaluationLegendItemId({
+export function getAnnotationLegendItemId({
   dataKey,
   visibleLabels,
 }: {
@@ -89,7 +94,7 @@ export function getEvaluationLegendItemId({
   return label == null ? null : `${LABEL_LEGEND_ITEM_PREFIX}${label}`;
 }
 
-export function getEvaluationHiddenDataKeys({
+export function getAnnotationHiddenDataKeys({
   hiddenLegendItemIds,
   visibleLabels,
 }: {
@@ -108,17 +113,17 @@ export function getEvaluationHiddenDataKeys({
   return hiddenDataKeys;
 }
 
-function EvaluationMetricsTooltip({
+function AnnotationMetricsTooltip({
   active,
   payload,
   renderHeader,
 }: TooltipContentProps & {
-  renderHeader: (point: EvaluationMetricsChartPoint) => ReactNode;
+  renderHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
 }) {
   if (!active || !payload || payload.length === 0) {
     return null;
   }
-  const point = payload[0]?.payload as EvaluationMetricsChartPoint;
+  const point = payload[0]?.payload as AnnotationMetricsChartPoint;
   return (
     <ChartTooltip>
       {renderHeader(point)}
@@ -136,7 +141,7 @@ function EvaluationMetricsTooltip({
             value={
               isMeanScore
                 ? floatFormatter(Number(entry.value))
-                : formatEvaluationFraction(Number(entry.value))
+                : formatAnnotationFraction(Number(entry.value))
             }
           />
         );
@@ -145,7 +150,7 @@ function EvaluationMetricsTooltip({
   );
 }
 
-export function EvaluationMetricsChart({
+export function AnnotationMetricsChart({
   series,
   view,
   xAxisProps,
@@ -155,16 +160,21 @@ export function EvaluationMetricsChart({
   chartProps,
   additionalLegendItems,
   renderReference,
+  emptyStateMessage = "No chartable evaluation data",
 }: {
-  series: EvaluationMetricsSeries;
-  view: EvaluationMetricsView;
+  series: AnnotationMetricsSeries;
+  view: AnnotationMetricsView;
   xAxisProps: XAxisProps;
   yAxisProps: YAxisProps;
   syncId: string;
-  renderTooltipHeader: (point: EvaluationMetricsChartPoint) => ReactNode;
+  renderTooltipHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
   chartProps?: ComponentProps<typeof ComposedChart>;
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
-  renderReference?: (state: { isMeanScoreHidden: boolean }) => ReactNode;
+  emptyStateMessage?: string;
+  renderReference?: (state: {
+    isMeanScoreHidden: boolean;
+    isReferencePrepended: boolean;
+  }) => ReactNode;
 }) {
   const { theme } = useTheme();
   const categoryColors = useCategoryChartColors();
@@ -187,32 +197,36 @@ export function EvaluationMetricsChart({
       ? ([0, 1] as [number, number])
       : undefined;
   const visibleLabels = series.labels;
+  const isReferencePrepended =
+    !isScoreView &&
+    reference != null &&
+    !data.some(({ x }) => x === reference.x);
   // A score baseline is a non-chronological comparison value, so show it as
   // a horizontal reference without inserting it into the connected line.
   const baseChartData = isScoreView
     ? data
-    : getEvaluationMetricsChartData({ data, reference });
+    : getAnnotationMetricsChartData({ data, reference });
   // Labels hidden interactively stay classified so toggling a series does not
   // change the other values.
   const chartData = isScoreView
     ? baseChartData
     : baseChartData.map((point) => ({
         ...point,
-        otherFraction: getEvaluationOtherFraction({ point }),
+        otherFraction: getAnnotationOtherFraction({ point }),
       }));
   const hasOtherValues = chartData.some(
     (point) => "otherFraction" in point && point.otherFraction != null
   );
   const isDataKeyHidden = (dataKey: InteractiveLegendDataKey) => {
-    const legendItemId = getEvaluationLegendItemId({ dataKey, visibleLabels });
+    const legendItemId = getAnnotationLegendItemId({ dataKey, visibleLabels });
     return legendItemId != null && hiddenLegendItemIds.has(legendItemId);
   };
-  const hiddenDataKeys = getEvaluationHiddenDataKeys({
+  const hiddenDataKeys = getAnnotationHiddenDataKeys({
     hiddenLegendItemIds,
     visibleLabels,
   });
   const toggleDataKey = (dataKey: InteractiveLegendDataKey) => {
-    const legendItemId = getEvaluationLegendItemId({ dataKey, visibleLabels });
+    const legendItemId = getAnnotationLegendItemId({ dataKey, visibleLabels });
     if (legendItemId == null) {
       return;
     }
@@ -230,13 +244,13 @@ export function EvaluationMetricsChart({
   return (
     <ChartEmptyStateOverlay
       isEmpty={data.length === 0}
-      message="No evaluation data"
+      message={emptyStateMessage}
       chartType={isScoreView ? "line" : "bar"}
     >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={chartData}
-          margin={compactChartMargin}
+          margin={isScoreView ? SCORE_CHART_MARGIN : compactChartMargin}
           barSize={10}
           syncId={syncId}
           // A prepended label baseline changes indexes; synchronize by x-value.
@@ -249,7 +263,7 @@ export function EvaluationMetricsChart({
             {...yAxisProps}
             domain={domain}
             tickFormatter={
-              isScoreView ? floatFormatter : formatEvaluationFraction
+              isScoreView ? floatFormatter : formatAnnotationFraction
             }
           />
           <Tooltip
@@ -259,7 +273,7 @@ export function EvaluationMetricsChart({
               zIndex: "var(--chart-panel-tooltip-z-index, 1)",
             }}
             content={(props) => (
-              <EvaluationMetricsTooltip
+              <AnnotationMetricsTooltip
                 {...props}
                 renderHeader={renderTooltipHeader}
               />
@@ -267,6 +281,7 @@ export function EvaluationMetricsChart({
           />
           {renderReference?.({
             isMeanScoreHidden: isDataKeyHidden(MEAN_SCORE_DATA_KEY),
+            isReferencePrepended,
           })}
           {isScoreView && (
             <Line

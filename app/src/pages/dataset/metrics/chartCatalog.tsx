@@ -6,15 +6,16 @@ import type {
   ExperimentMetricChartKey,
 } from "@phoenix/pages/dataset/constants";
 import {
+  EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
   EXPERIMENT_METRIC_CHART_KEYS,
   EXPERIMENT_METRICS_EXPERIMENT_COUNT,
-  getExperimentEvaluationName,
+  getExperimentAnnotationName,
 } from "@phoenix/pages/dataset/constants";
 
+import { ExperimentAnnotationMetricPanel } from "./ExperimentAnnotationMetricsGrid";
 import { ExperimentAnnotationScoresChart } from "./ExperimentAnnotationScoresChart";
 import { ExperimentCostChart } from "./ExperimentCostChart";
 import { ExperimentErrorRateChart } from "./ExperimentErrorRateChart";
-import { ExperimentEvaluationMetricPanel } from "./ExperimentEvaluationMetricsGrid";
 import { ExperimentLatencyChart } from "./ExperimentLatencyChart";
 import { ExperimentTokensChart } from "./ExperimentTokensChart";
 import type { ExperimentMetricViewProps } from "./types";
@@ -56,8 +57,8 @@ const CHART_DEFINITIONS: Record<
   ExperimentMetricChartDefinition
 > = {
   annotation_scores: {
-    name: "Annotation scores",
-    description: `Annotation scores across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    name: "Annotation score comparison",
+    description: `Mean scores across all annotations for the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
     chartType: "line",
     Component: ExperimentAnnotationScoresChart,
   },
@@ -122,8 +123,8 @@ const CHARTS_BY_KEY = Object.fromEntries(
 ) as Record<BuiltInExperimentMetricChartKey, ExperimentMetricChart>;
 
 // Cache generated descriptors so their Panel closures stay stable and a
-// table refresh does not remount a selected evaluation chart.
-const EVALUATION_CHARTS_BY_KEY = new Map<
+// table refresh does not remount a selected annotation chart.
+const ANNOTATION_CHARTS_BY_KEY = new Map<
   ExperimentMetricChartKey,
   ExperimentMetricChart
 >();
@@ -131,28 +132,28 @@ const EVALUATION_CHARTS_BY_KEY = new Map<
 export const getExperimentMetricChart = (
   key: ExperimentMetricChartKey
 ): ExperimentMetricChart => {
-  const evaluationName = getExperimentEvaluationName(key);
-  if (evaluationName == null) {
+  const annotationName = getExperimentAnnotationName(key);
+  if (annotationName == null) {
     return CHARTS_BY_KEY[key as BuiltInExperimentMetricChartKey];
   }
-  const cachedChart = EVALUATION_CHARTS_BY_KEY.get(key);
+  const cachedChart = ANNOTATION_CHARTS_BY_KEY.get(key);
   if (cachedChart != null) {
     return cachedChart;
   }
   const chart: ExperimentMetricChart = {
     key,
-    name: evaluationName,
-    description: "Evaluation results by experiment",
+    name: annotationName,
+    description: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
     chartType: "line",
     Panel: ({ fillHeight = false, ...props }) => (
-      <ExperimentEvaluationMetricPanel
+      <ExperimentAnnotationMetricPanel
         {...props}
-        evaluationName={evaluationName}
+        annotationName={annotationName}
         fillHeight={fillHeight}
       />
     ),
   };
-  EVALUATION_CHARTS_BY_KEY.set(key, chart);
+  ANNOTATION_CHARTS_BY_KEY.set(key, chart);
   return chart;
 };
 

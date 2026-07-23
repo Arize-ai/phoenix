@@ -1,6 +1,6 @@
-export type EvaluationMetricsView = "labels" | "scores";
+export type AnnotationMetricsView = "labels" | "scores";
 
-export type EvaluationSummary = {
+export type AnnotationSummary = {
   readonly name: string;
   readonly meanScore: number | null;
   readonly labelFractions: ReadonlyArray<{
@@ -9,15 +9,15 @@ export type EvaluationSummary = {
   }>;
 };
 
-export type EvaluationMetricsInputPoint = {
+export type AnnotationMetricsInputPoint = {
   readonly x: number;
   readonly metadata?: Readonly<
     Record<string, string | number | boolean | null>
   >;
-  readonly summaries: ReadonlyArray<EvaluationSummary>;
+  readonly summaries: ReadonlyArray<AnnotationSummary>;
 };
 
-export type EvaluationMetricsChartPoint = {
+export type AnnotationMetricsChartPoint = {
   readonly x: number;
   readonly metadata: Readonly<Record<string, string | number | boolean | null>>;
   /** Distinguishes an empty axis category from a summary with no labels. */
@@ -26,21 +26,21 @@ export type EvaluationMetricsChartPoint = {
   readonly fractions: ReadonlyArray<number | undefined>;
 };
 
-export type EvaluationMetricsSeries = {
+export type AnnotationMetricsSeries = {
   readonly name: string;
-  readonly views: ReadonlyArray<EvaluationMetricsView>;
+  readonly views: ReadonlyArray<AnnotationMetricsView>;
   readonly labels: ReadonlyArray<string>;
   readonly dataByView: Readonly<
-    Record<EvaluationMetricsView, ReadonlyArray<EvaluationMetricsChartPoint>>
+    Record<AnnotationMetricsView, ReadonlyArray<AnnotationMetricsChartPoint>>
   >;
   readonly referenceByView: Readonly<
-    Partial<Record<EvaluationMetricsView, EvaluationMetricsChartPoint>>
+    Partial<Record<AnnotationMetricsView, AnnotationMetricsChartPoint>>
   >;
 };
 
-export function getEmptyEvaluationMetricsSeries(
+export function getEmptyAnnotationMetricsSeries(
   name: string
-): EvaluationMetricsSeries {
+): AnnotationMetricsSeries {
   return {
     name,
     views: [],
@@ -50,10 +50,10 @@ export function getEmptyEvaluationMetricsSeries(
   };
 }
 
-export function getDefaultEvaluationMetricsView(
-  series: EvaluationMetricsSeries
-): EvaluationMetricsView {
-  // Prefer labels for mixed evaluations because a distribution exposes more
+export function getDefaultAnnotationMetricsView(
+  series: AnnotationMetricsSeries
+): AnnotationMetricsView {
+  // Prefer labels for mixed annotations because a distribution exposes more
   // categorical detail than the aggregate score.
   return series.views.includes("labels") ? "labels" : "scores";
 }
@@ -63,16 +63,17 @@ export function getDefaultEvaluationMetricsView(
  * of the visible domain. Keeping this ordering outside the renderer makes the
  * baseline category invariant explicit and independently testable.
  */
-export function getEvaluationMetricsChartData({
+export function getAnnotationMetricsChartData({
   data,
   reference,
 }: {
-  data: ReadonlyArray<EvaluationMetricsChartPoint>;
-  reference?: EvaluationMetricsChartPoint;
-}): ReadonlyArray<EvaluationMetricsChartPoint> {
-  return reference == null
-    ? data
-    : [reference, ...data.filter(({ x }) => x !== reference.x)];
+  data: ReadonlyArray<AnnotationMetricsChartPoint>;
+  reference?: AnnotationMetricsChartPoint;
+}): ReadonlyArray<AnnotationMetricsChartPoint> {
+  if (reference == null || data.some(({ x }) => x === reference.x)) {
+    return data;
+  }
+  return [reference, ...data];
 }
 
 const OTHER_FRACTION_EPSILON = 1e-9;
@@ -81,10 +82,10 @@ const OTHER_FRACTION_EPSILON = 1e-9;
  * Returns the result-bearing share without a label. Missing labels are not
  * renormalized so each stacked distribution still totals 100%.
  */
-export function getEvaluationOtherFraction({
+export function getAnnotationOtherFraction({
   point,
 }: {
-  point: EvaluationMetricsChartPoint;
+  point: AnnotationMetricsChartPoint;
 }): number | undefined {
   if (!point.hasAnnotationSummary) {
     return undefined;
@@ -98,20 +99,20 @@ export function getEvaluationOtherFraction({
 }
 
 /**
- * Normalizes summary snapshots into one chart series per evaluation. Separate
- * score and label datasets let mixed evaluations switch views without putting
+ * Normalizes summary snapshots into one chart series per annotation. Separate
+ * score and label datasets let mixed annotations switch views without putting
  * scores and percentages on the same axis.
  */
-export function normalizeEvaluationMetrics({
+export function normalizeAnnotationMetrics({
   points,
   referencePoint,
   includeEmptyPoints = false,
 }: {
-  points: ReadonlyArray<EvaluationMetricsInputPoint>;
-  referencePoint?: EvaluationMetricsInputPoint;
+  points: ReadonlyArray<AnnotationMetricsInputPoint>;
+  referencePoint?: AnnotationMetricsInputPoint;
   /** Retain input categories that have no value for a supported view. */
   includeEmptyPoints?: boolean;
-}): EvaluationMetricsSeries[] {
+}): AnnotationMetricsSeries[] {
   const pointsWithSummariesByName = points.map((point) => ({
     point,
     summariesByName: new Map(
@@ -121,14 +122,14 @@ export function normalizeEvaluationMetrics({
   const referenceSummariesByName = new Map(
     referencePoint?.summaries.map((summary) => [summary.name, summary]) ?? []
   );
-  const evaluationNames = new Set<string>();
+  const annotationNames = new Set<string>();
   for (const { summariesByName } of pointsWithSummariesByName) {
-    summariesByName.forEach((_, name) => evaluationNames.add(name));
+    summariesByName.forEach((_, name) => annotationNames.add(name));
   }
 
-  return Array.from(evaluationNames)
+  return Array.from(annotationNames)
     .sort((left, right) => left.localeCompare(right))
-    .map((name): EvaluationMetricsSeries => {
+    .map((name): AnnotationMetricsSeries => {
       const summaryByPoint = pointsWithSummariesByName.map(
         ({ point, summariesByName }) => ({
           point,
@@ -136,7 +137,7 @@ export function normalizeEvaluationMetrics({
         })
       );
       // The reference is a comparison point, not part of the visible window
-      // used to decide whether an evaluation offers label and/or score views.
+      // used to decide whether an annotation offers label and/or score views.
       const referenceSummary = referenceSummariesByName.get(name);
       const latestSummary = summaryByPoint
         .slice()
@@ -153,7 +154,7 @@ export function normalizeEvaluationMetrics({
             latestSummary,
             ...summaryByPoint.map(({ summary }) => summary),
           ]
-            .filter((summary): summary is EvaluationSummary => summary != null)
+            .filter((summary): summary is AnnotationSummary => summary != null)
             .flatMap((summary) =>
               summary.labelFractions.map(({ label }) => label)
             )
@@ -164,9 +165,9 @@ export function normalizeEvaluationMetrics({
         point,
         summary,
       }: {
-        point: EvaluationMetricsInputPoint;
-        summary?: EvaluationSummary;
-      }): EvaluationMetricsChartPoint => ({
+        point: AnnotationMetricsInputPoint;
+        summary?: AnnotationSummary;
+      }): AnnotationMetricsChartPoint => ({
         x: point.x,
         metadata: point.metadata ?? {},
         hasAnnotationSummary: summary != null,
@@ -177,9 +178,9 @@ export function normalizeEvaluationMetrics({
         point,
         summary,
       }: {
-        point: EvaluationMetricsInputPoint;
-        summary?: EvaluationSummary;
-      }): EvaluationMetricsChartPoint => {
+        point: AnnotationMetricsInputPoint;
+        summary?: AnnotationSummary;
+      }): AnnotationMetricsChartPoint => {
         const fractionsByLabel = new Map(
           (summary?.labelFractions ?? []).map(({ label, fraction }) => [
             label,
@@ -214,7 +215,7 @@ export function normalizeEvaluationMetrics({
         : summaryByPoint.flatMap(({ point, summary }) =>
             summary == null ? [] : [makeLabelPoint({ point, summary })]
           );
-      const views: EvaluationMetricsView[] = [];
+      const views: AnnotationMetricsView[] = [];
       if (hasLabelValues) {
         views.push("labels");
       }

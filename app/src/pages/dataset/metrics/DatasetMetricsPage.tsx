@@ -7,14 +7,11 @@ import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants"
 import { ExperimentsEmpty } from "@phoenix/pages/experiments/ExperimentsEmpty";
 
 import { getExperimentMetricChart } from "./chartCatalog";
-import { ExperimentEvaluationMetricsGrid } from "./ExperimentEvaluationMetricsGrid";
-import {
-  ExperimentMetricsDataProvider,
-  useExperimentMetricsData,
-} from "./useExperimentMetricsData";
+import { ExperimentAnnotationMetricsGrid } from "./ExperimentAnnotationMetricsGrid";
+import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 /**
- * The overview charts shown above the per-evaluation grid. Each row is full
+ * The overview charts shown above the per-annotation grid. Each row is full
  * width so the existing aggregate metrics remain grouped together.
  */
 const METRIC_PAGE_ROWS: ExperimentMetricChartKey[][] = [
@@ -32,11 +29,7 @@ export function DatasetMetricsPage() {
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required to view experiment metrics");
 
-  return (
-    <ExperimentMetricsDataProvider datasetId={datasetId}>
-      <DatasetMetricsPageContent datasetId={datasetId} />
-    </ExperimentMetricsDataProvider>
-  );
+  return <DatasetMetricsPageContent datasetId={datasetId} />;
 }
 
 function DatasetMetricsPageContent({ datasetId }: { datasetId: string }) {
@@ -68,7 +61,7 @@ function DatasetMetricsPageContent({ datasetId }: { datasetId: string }) {
         {METRIC_PAGE_ROWS.map((row) => (
           <MetricRow datasetId={datasetId} row={row} key={row.join("+")} />
         ))}
-        <ExperimentEvaluationMetricsGrid datasetId={datasetId}>
+        <ExperimentAnnotationMetricsGrid datasetId={datasetId}>
           {TRAILING_METRIC_CHARTS.map((chartKey) => (
             <MetricPanel
               key={chartKey}
@@ -76,7 +69,7 @@ function DatasetMetricsPageContent({ datasetId }: { datasetId: string }) {
               chartKey={chartKey}
             />
           ))}
-        </ExperimentEvaluationMetricsGrid>
+        </ExperimentAnnotationMetricsGrid>
       </div>
     </section>
   );

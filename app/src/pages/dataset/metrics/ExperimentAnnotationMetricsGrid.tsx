@@ -4,16 +4,18 @@ import { Suspense, useState } from "react";
 
 import { Loading } from "@phoenix/components";
 import {
+  AnnotationMetricsChart,
+  type AnnotationMetricsInputPoint,
+  type AnnotationMetricsSeries,
+  AnnotationScoreLabelToggle,
   ChartPanel,
-  EvaluationMetricsChart,
-  type EvaluationMetricsInputPoint,
-  type EvaluationMetricsSeries,
-  EvaluationMetricsViewToggle,
-  getDefaultEvaluationMetricsView,
-  getEmptyEvaluationMetricsSeries,
-  normalizeEvaluationMetrics,
+  getDefaultAnnotationMetricsView,
+  getEmptyAnnotationMetricsSeries,
+  normalizeAnnotationMetrics,
 } from "@phoenix/components/chart";
 import { ErrorBoundary } from "@phoenix/components/exception";
+import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
+import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
 
 import {
   ExperimentBaselineDistributionSeparator,
@@ -28,11 +30,11 @@ import {
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import {
   useExperimentAnnotationMetricNames,
-  useExperimentEvaluationMetricData,
-  type ExperimentEvaluationMetricDatum,
-} from "./useExperimentMetricsData";
+  useExperimentAnnotationMetricData,
+  type ExperimentAnnotationMetricDatum,
+} from "./useExperimentAnnotationMetricsData";
 
-const evaluationGridCSS = css`
+const annotationGridCSS = css`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--global-dimension-size-200);
@@ -42,7 +44,7 @@ const evaluationGridCSS = css`
   }
 `;
 
-export function ExperimentEvaluationMetricsGrid({
+export function ExperimentAnnotationMetricsGrid({
   datasetId,
   children,
 }: {
@@ -50,10 +52,10 @@ export function ExperimentEvaluationMetricsGrid({
   children: ReactNode;
 }) {
   return (
-    <div css={evaluationGridCSS} data-testid="experiment-evaluation-grid">
+    <div css={annotationGridCSS} data-testid="experiment-annotation-grid">
       <ErrorBoundary>
         <Suspense fallback={<Loading />}>
-          <ExperimentEvaluationMetricsPanels datasetId={datasetId} />
+          <ExperimentAnnotationMetricsPanels datasetId={datasetId} />
         </Suspense>
       </ErrorBoundary>
       {/* Share this grid so trailing half-width charts fill an odd final row. */}
@@ -62,79 +64,77 @@ export function ExperimentEvaluationMetricsGrid({
   );
 }
 
-function ExperimentEvaluationMetricsPanels({
+function ExperimentAnnotationMetricsPanels({
   datasetId,
 }: {
   datasetId: string;
 }) {
-  const evaluationNames = useExperimentAnnotationMetricNames(datasetId);
+  const annotationNames = useExperimentAnnotationMetricNames(datasetId);
 
   return (
     <>
-      {evaluationNames.map((evaluationName) => (
-        <ExperimentEvaluationMetricPanel
-          key={evaluationName}
+      {annotationNames.map((annotationName) => (
+        <ExperimentAnnotationMetricPanel
+          key={annotationName}
           datasetId={datasetId}
-          evaluationName={evaluationName}
+          annotationName={annotationName}
         />
       ))}
     </>
   );
 }
 
-export function useExperimentEvaluationMetricSeries({
+export function useExperimentAnnotationMetricSeries({
   datasetId,
-  evaluationName,
+  annotationName,
+  fetchKey,
 }: {
   datasetId: string;
-  evaluationName: string;
+  annotationName: string;
+  fetchKey?: number;
 }) {
-  const { experiments, baselineExperiment } = useExperimentEvaluationMetricData(
-    { datasetId, evaluationName }
+  const { experiments, baselineExperiment } = useExperimentAnnotationMetricData(
+    { datasetId, annotationName, fetchKey }
   );
-  const evaluationSeries = normalizeEvaluationMetrics({
-    points: experiments.map(toEvaluationMetricsInputPoint),
+  const annotationSeries = normalizeAnnotationMetrics({
+    points: experiments.map(toAnnotationMetricsInputPoint),
     referencePoint:
       baselineExperiment == null
         ? undefined
-        : toEvaluationMetricsInputPoint(baselineExperiment),
-    // Every panel uses the same experiment categories even when an evaluation
+        : toAnnotationMetricsInputPoint(baselineExperiment),
+    // Every panel uses the same experiment categories even when an annotation
     // only ran on a subset of the seven-experiment window.
     includeEmptyPoints: true,
   });
 
   return {
     series:
-      evaluationSeries[0] ?? getEmptyEvaluationMetricsSeries(evaluationName),
+      annotationSeries[0] ?? getEmptyAnnotationMetricsSeries(annotationName),
     baselineSequenceNumber: baselineExperiment?.sequenceNumber,
   };
 }
 
-export function ExperimentEvaluationMetricPanel({
+export function ExperimentAnnotationMetricPanel({
   datasetId,
-  evaluationName,
+  annotationName,
   fillHeight = false,
 }: {
   datasetId: string;
-  evaluationName: string;
+  annotationName: string;
   fillHeight?: boolean;
 }) {
   return (
     <ErrorBoundary>
       <Suspense
         fallback={
-          <ChartPanel
-            title={evaluationName}
-            subtitle="Evaluation results by experiment"
-            fillHeight={fillHeight}
-          >
+          <ChartPanel title={annotationName} fillHeight={fillHeight}>
             <Loading />
           </ChartPanel>
         }
       >
-        <ExperimentEvaluationMetricPanelContent
+        <ExperimentAnnotationMetricPanelContent
           datasetId={datasetId}
-          evaluationName={evaluationName}
+          annotationName={annotationName}
           fillHeight={fillHeight}
         />
       </Suspense>
@@ -142,19 +142,26 @@ export function ExperimentEvaluationMetricPanel({
   );
 }
 
-function ExperimentEvaluationMetricPanelContent({
+function ExperimentAnnotationMetricPanelContent({
   datasetId,
-  evaluationName,
+  annotationName,
   fillHeight,
 }: {
   datasetId: string;
-  evaluationName: string;
+  annotationName: string;
   fillHeight: boolean;
 }) {
+  const fetchKey = useDatasetContext(
+    (state) => state.experimentAnnotationMetricsFetchKey
+  );
   const { series, baselineSequenceNumber } =
-    useExperimentEvaluationMetricSeries({ datasetId, evaluationName });
+    useExperimentAnnotationMetricSeries({
+      datasetId,
+      annotationName,
+      fetchKey,
+    });
   return (
-    <ExperimentEvaluationMetricsPanel
+    <ExperimentAnnotationMetricsPanel
       series={series}
       baselineSequenceNumber={baselineSequenceNumber}
       fillHeight={fillHeight}
@@ -162,37 +169,36 @@ function ExperimentEvaluationMetricPanelContent({
   );
 }
 
-export function ExperimentEvaluationMetricsPanel({
+export function ExperimentAnnotationMetricsPanel({
   series,
   baselineSequenceNumber,
   fillHeight = false,
 }: {
-  series: EvaluationMetricsSeries;
+  series: AnnotationMetricsSeries;
   baselineSequenceNumber?: number;
   fillHeight?: boolean;
 }) {
   const [view, setView] = useState(() =>
-    getDefaultEvaluationMetricsView(series)
+    getDefaultAnnotationMetricsView(series)
   );
-  // A refetch can change the visible evaluation shape while preserving this
+  // A refetch can change the visible annotation shape while preserving this
   // keyed panel, so fall back when its previous view is no longer available.
   const activeView = series.views.includes(view)
     ? view
-    : getDefaultEvaluationMetricsView(series);
+    : getDefaultAnnotationMetricsView(series);
   const reference = series.referenceByView[activeView];
   const showViewToggle = series.views.length > 1;
   return (
     <ChartPanel
       title={series.name}
-      subtitle="Evaluation results by experiment"
       fillHeight={fillHeight}
-      headerActions={
+      actions={
         showViewToggle ? (
-          <EvaluationMetricsViewToggle view={activeView} onChange={setView} />
+          <AnnotationScoreLabelToggle view={activeView} onChange={setView} />
         ) : undefined
       }
     >
-      <EvaluationMetricsChart
+      <AnnotationMetricsChart
         series={series}
         view={activeView}
         xAxisProps={{
@@ -203,6 +209,7 @@ export function ExperimentEvaluationMetricsPanel({
         }}
         yAxisProps={experimentMetricsYAxisProps}
         syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
+        emptyStateMessage={`No chartable evaluation data within the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`}
         additionalLegendItems={getExperimentBaselineLegendItems(
           activeView === "scores" ? reference?.meanScore : null
         )}
@@ -213,10 +220,14 @@ export function ExperimentEvaluationMetricsPanel({
             isBaseline={point.metadata.isBaseline === true}
           />
         )}
-        renderReference={({ isMeanScoreHidden }) => (
+        renderReference={({ isMeanScoreHidden, isReferencePrepended }) => (
           <>
             <ExperimentBaselineDistributionSeparator
-              value={activeView === "labels" ? reference?.x : null}
+              value={
+                activeView === "labels" && isReferencePrepended
+                  ? reference?.x
+                  : null
+              }
             />
             {activeView === "scores" && (
               <ExperimentBaselineValueLine
@@ -230,9 +241,9 @@ export function ExperimentEvaluationMetricsPanel({
   );
 }
 
-function toEvaluationMetricsInputPoint(
-  experiment: ExperimentEvaluationMetricDatum
-): EvaluationMetricsInputPoint {
+function toAnnotationMetricsInputPoint(
+  experiment: ExperimentAnnotationMetricDatum
+): AnnotationMetricsInputPoint {
   return {
     x: experiment.sequenceNumber,
     metadata: {

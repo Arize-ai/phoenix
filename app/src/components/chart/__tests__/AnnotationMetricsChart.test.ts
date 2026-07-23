@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  getEvaluationHiddenDataKeys,
-  getEvaluationLegendItemId,
-} from "../EvaluationMetricsChart";
+  getAnnotationHiddenDataKeys,
+  getAnnotationLegendItemId,
+} from "../AnnotationMetricsChart";
 
-describe("evaluation metrics legend state", () => {
+describe("annotation metrics legend state", () => {
   it("keeps a hidden label attached to its identity when labels reorder", () => {
-    const hiddenLabelId = getEvaluationLegendItemId({
+    const hiddenLabelId = getAnnotationLegendItemId({
       dataKey: "fractions.0",
       visibleLabels: ["alpha", "beta"],
     });
     expect(hiddenLabelId).toBe("label:alpha");
 
-    const hiddenDataKeys = getEvaluationHiddenDataKeys({
+    const hiddenDataKeys = getAnnotationHiddenDataKeys({
       hiddenLegendItemIds: new Set([hiddenLabelId as string]),
       visibleLabels: ["beta", "alpha"],
     });
@@ -22,13 +22,13 @@ describe("evaluation metrics legend state", () => {
   });
 
   it("keeps mean score state independent from label identities", () => {
-    const hiddenMeanScoreId = getEvaluationLegendItemId({
+    const hiddenMeanScoreId = getAnnotationLegendItemId({
       dataKey: "meanScore",
       visibleLabels: ["alpha"],
     });
 
     expect(
-      getEvaluationHiddenDataKeys({
+      getAnnotationHiddenDataKeys({
         hiddenLegendItemIds: new Set([hiddenMeanScoreId as string]),
         visibleLabels: ["beta"],
       })

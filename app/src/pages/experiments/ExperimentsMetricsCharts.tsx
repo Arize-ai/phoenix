@@ -11,7 +11,6 @@ import { View } from "@phoenix/components";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getExperimentMetricCharts } from "@phoenix/pages/dataset/metrics/chartCatalog";
-import { ExperimentMetricsDataProvider } from "@phoenix/pages/dataset/metrics/useExperimentMetricsData";
 
 const CHARTS_PANEL_DEFAULT_SIZE_PIXELS = 230;
 const CHARTS_PANEL_MIN_SIZE_PIXELS = 160;
@@ -52,23 +51,21 @@ export function ExperimentsMetricsCharts() {
   );
   const charts = getExperimentMetricCharts(selectedChartKeys);
   return (
-    <ExperimentMetricsDataProvider datasetId={datasetId}>
-      <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        height="100%"
-        overflow="visible"
-        position="relative"
-        zIndex={2}
-      >
-        <div css={chartsGridCSS}>
-          {charts.map(({ key, Panel }) => (
-            <Panel key={key} datasetId={datasetId} fillHeight />
-          ))}
-        </div>
-      </View>
-    </ExperimentMetricsDataProvider>
+    <View
+      paddingStart="size-200"
+      paddingEnd="size-200"
+      paddingTop="size-100"
+      height="100%"
+      overflow="visible"
+      position="relative"
+      zIndex={2}
+    >
+      <div css={chartsGridCSS}>
+        {charts.map(({ key, Panel }) => (
+          <Panel key={key} datasetId={datasetId} fillHeight />
+        ))}
+      </div>
+    </View>
   );
 }
 

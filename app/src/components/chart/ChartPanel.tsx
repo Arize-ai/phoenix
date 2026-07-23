@@ -48,7 +48,7 @@ const chartPanelCSS = css`
     min-width: 0;
   }
 
-  .chart-panel__header-actions {
+  .chart-panel__actions {
     flex: none;
   }
 
@@ -100,7 +100,7 @@ const fillHeightPanelCSS = css`
 interface ChartPanelHeaderProps {
   title: string;
   subtitle?: string;
-  headerActions?: React.ReactNode;
+  actions?: React.ReactNode;
   /**
    * Semantic heading level for the chart title. The visual size remains
    * consistent with the compact chart panel title treatment.
@@ -112,7 +112,7 @@ interface ChartPanelHeaderProps {
 function ChartPanelHeader({
   title,
   subtitle,
-  headerActions,
+  actions,
   headingLevel = 4,
 }: ChartPanelHeaderProps) {
   return (
@@ -137,9 +137,7 @@ function ChartPanelHeader({
           </Text>
         )}
       </div>
-      {headerActions && (
-        <div className="chart-panel__header-actions">{headerActions}</div>
-      )}
+      {actions && <div className="chart-panel__actions">{actions}</div>}
     </div>
   );
 }
@@ -164,7 +162,7 @@ interface ChartPanelProps extends ChartPanelHeaderProps {
 export function ChartPanel({
   title,
   subtitle,
-  headerActions,
+  actions,
   headingLevel,
   fillHeight = false,
   children,
@@ -178,7 +176,7 @@ export function ChartPanel({
       <ChartPanelHeader
         title={title}
         subtitle={subtitle}
-        headerActions={headerActions}
+        actions={actions}
         headingLevel={headingLevel}
       />
       <div
