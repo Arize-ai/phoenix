@@ -1001,6 +1001,18 @@
                     ]
                   },
                   {
+                    "group": "API Keys",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-the-authenticated-users-api-keys",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/create-an-api-key-for-the-authenticated-user",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/delete-a-user-api-key",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-all-user-api-keys",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-system-api-keys",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/create-a-system-api-key",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/delete-a-system-api-key"
+                    ]
+                  },
+                  {
                     "group": "Datasets",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets",
