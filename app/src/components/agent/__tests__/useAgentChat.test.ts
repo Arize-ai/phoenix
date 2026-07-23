@@ -9,7 +9,12 @@ describe("getRemovedUserMessageText", () => {
     const compactionMessage = {
       id: "compaction-message",
       role: "user",
-      metadata: { type: "compaction" },
+      metadata: {
+        type: "user",
+        currentDateTime: "2026-01-01T00:00:00Z",
+        timeZone: "UTC",
+        isCompactionMessage: true,
+      },
       parts: [{ type: "text", text: '{"objectives":["Understand traces"]}' }],
     } as AgentUIMessage;
 
