@@ -229,12 +229,6 @@ class AgentSessionMutationMixin:
                 for position, message in enumerate(regenerated_messages)
             ]
             session.add_all(regenerated_message_rows)
-            await session.flush()
-            session.add_all(
-                models.AgentSessionCompactionPoint(agent_session_message_id=row.id)
-                for row in regenerated_message_rows
-                if row.is_compaction_point
-            )
         return BranchAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(branch_session),
             query=Query(),

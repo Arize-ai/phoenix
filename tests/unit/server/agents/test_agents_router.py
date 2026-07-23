@@ -420,10 +420,12 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
         assert snapshot.bashkit_snapshot == b"shell-state"
         agent_session_rowid = snapshot.agent_session_id
         original_messages = await _load_session_messages(session, agent_session_rowid)
-        compaction_points = (
-            await session.scalars(select(models.AgentSessionCompactionPoint))
-        ).all()
-    assert len(compaction_points) == 1
+        compaction_message_count = await session.scalar(
+            select(func.count())
+            .select_from(models.AgentSessionMessage)
+            .where(models.AgentSessionMessage.is_compaction_message)
+        )
+    assert compaction_message_count == 1
     assert [message["id"] for message in original_messages] == [
         "user-1",
         "assistant-1",
@@ -473,10 +475,12 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     assert "Continue" in second_summary_input
     assert "Find the slow span" not in second_summary_input
     async with db() as session:
-        compaction_points = (
-            await session.scalars(select(models.AgentSessionCompactionPoint))
-        ).all()
-    assert len(compaction_points) == 2
+        compaction_message_count = await session.scalar(
+            select(func.count())
+            .select_from(models.AgentSessionMessage)
+            .where(models.AgentSessionMessage.is_compaction_message)
+        )
+    assert compaction_message_count == 2
 
     second_chat_response = await httpx_client.post(
         _chat_url(agent_session_id),

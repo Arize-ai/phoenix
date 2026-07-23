@@ -470,6 +470,7 @@ CREATE TABLE public.agent_session_messages (
     position INTEGER NOT NULL,
     message JSONB NOT NULL,
     message_id VARCHAR GENERATED ALWAYS AS (((message ->> 'id'::text))::character varying) STORED NOT NULL,
+    is_compaction_message BOOLEAN GENERATED ALWAYS AS (COALESCE(((message #>> '{metadata,isCompactionMessage}'::text[]))::boolean, false)) STORED NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_messages PRIMARY KEY (id),
     CONSTRAINT uq_agent_session_messages_agent_session_id_position
@@ -483,21 +484,8 @@ CREATE TABLE public.agent_session_messages (
         ON DELETE CASCADE
 );
 
-
--- Table: agent_session_compaction_points
--- --------------------------------------
-CREATE TABLE public.agent_session_compaction_points (
-    id bigserial NOT NULL,
-    agent_session_message_id BIGINT NOT NULL,
-    CONSTRAINT pk_agent_session_compaction_points PRIMARY KEY (id),
-    CONSTRAINT uq_agent_session_compaction_points_agent_session_message_id
-        UNIQUE (agent_session_message_id),
-    CONSTRAINT fk_agent_session_compaction_points_agent_session_messag_59bb
-        FOREIGN KEY
-        (agent_session_message_id)
-        REFERENCES public.agent_session_messages (id)
-        ON DELETE CASCADE
-);
+CREATE INDEX ix_agent_session_messages_compaction ON public.agent_session_messages
+    USING btree (agent_session_id, "position" DESC) WHERE is_compaction_message;
 
 
 -- Table: agent_session_snapshots
