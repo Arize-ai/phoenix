@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01fb5c846f7a490c96971ccbc5c54fe9>>
+ * @generated SignedSource<<ca5e913d1bdf416fceb3c6a163b19943>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type CreateAgentSessionInput = {
   temporary?: boolean;
   title?: string;
@@ -30,6 +31,7 @@ export type useAgentChatCreateAgentSessionMutation$data = {
         readonly profilePictureUrl: string | null;
         readonly username: string;
       } | null;
+      readonly " $fragmentSpreads": FragmentRefs<"EditAgentSessionTitleDialog_session">;
     };
   };
 };
@@ -147,6 +149,11 @@ return {
             "selections": [
               (v3/*:: as any*/),
               (v4/*:: as any*/),
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "EditAgentSessionTitleDialog_session"
+              },
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
@@ -251,16 +258,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "22c30bad5a527c4177f45242cbc53535",
+    "cacheID": "54928aa36e9c467058c835f7a21e286e",
     "id": null,
     "metadata": {},
     "name": "useAgentChatCreateAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      isTemporary\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation useAgentChatCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d3ff0e442d02e9ca6b87a79ded4c176a";
+(node as any).hash = "bf2a214d202d18185d935badc2e9e6f4";
 
 export default node;

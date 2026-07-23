@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<032e23f02a5598562e8b44f06ffc614e>>
+ * @generated SignedSource<<0a787187bb107c264ebdf2cc48327cdd>>
  * @lightSyntaxTransform
  */
 
@@ -18,6 +18,7 @@ export type AgentSessionsResource_sessions$data = {
         readonly isTemporary: boolean;
         readonly title: string;
         readonly updatedAt: string;
+        readonly " $fragmentSpreads": FragmentRefs<"EditAgentSessionTitleDialog_session">;
       };
     }>;
   };
@@ -111,6 +112,11 @@ return {
                   "storageKey": null
                 },
                 {
+                  "args": null,
+                  "kind": "FragmentSpread",
+                  "name": "EditAgentSessionTitleDialog_session"
+                },
+                {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
@@ -185,6 +191,6 @@ return {
 };
 })();
 
-(node as any).hash = "515fe0409f4dbcdc6ccaa745913ce438";
+(node as any).hash = "af28af2b0d4c3d22bbd920a5ae1c00f6";
 
 export default node;
