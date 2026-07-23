@@ -604,7 +604,9 @@ export function useAgentChat({
         const response = await authFetch(buildAgentCompactApiUrl(sessionId), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: modelSelectionRef.current }),
+          body: JSON.stringify({
+            model: selectAgentModel(store.getState()),
+          }),
         });
         if (!response.ok) {
           throw new Error(await getAgentCompactErrorMessage(response));
