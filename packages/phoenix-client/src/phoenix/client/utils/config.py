@@ -369,7 +369,9 @@ def get_base_url(*, credential_source: Optional[str] = None) -> httpx.URL:
     host = values.get(ENV_PHOENIX_HOST) or HOST
     if host == "0.0.0.0":
         host = "127.0.0.1"
-    return httpx.URL(f"http://{host}:{_coerce_port(values.get(ENV_PHOENIX_PORT))}")
+    base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+    base_url = base_url.rstrip("/") + get_env_host_root_path()
+    return httpx.URL(base_url)
 
 
 @overload
