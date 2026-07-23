@@ -218,6 +218,16 @@ input AnnotationFilterCondition {
   userIds: [ID]
 }
 
+type AnnotationMetricsTimeSeries {
+  data: [AnnotationMetricsTimeSeriesDataPoint!]!
+  names: [String!]!
+}
+
+type AnnotationMetricsTimeSeriesDataPoint {
+  timestamp: DateTime!
+  annotationSummaries: [AnnotationSummary!]!
+}
+
 type AnnotationNameCount {
   name: String!
   count: Int!
@@ -1749,6 +1759,7 @@ type ExperimentAnnotationSummary {
   errorCount: Int!
   scoreCount: Int!
   labelCount: Int!
+  labelFractions: [LabelFraction!]!
 }
 
 type ExperimentComparison implements Node {
@@ -2845,6 +2856,9 @@ type Project implements Node {
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   traceAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   sessionAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  spanAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
+  traceAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
+  sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }

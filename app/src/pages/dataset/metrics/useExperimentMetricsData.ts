@@ -16,6 +16,10 @@ const experimentMetricsExperimentFragment = graphql`
     annotationSummaries {
       annotationName
       meanScore
+      labelFractions {
+        label
+        fraction
+      }
     }
     costSummary {
       prompt {
@@ -68,6 +72,10 @@ export type ExperimentMetricsDatum = {
   annotationSummaries: readonly {
     annotationName: string;
     meanScore: number | null;
+    labelFractions: ReadonlyArray<{
+      label: string;
+      fraction: number;
+    }>;
   }[];
   promptCost: number | null;
   completionCost: number | null;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<29606fb8df445d913b609885ed4000fd>>
+ * @generated SignedSource<<7ab65d0d0bae7aef7d6fc838c21b9a57>>
  * @lightSyntaxTransform
  */
 
@@ -12,6 +12,10 @@ import { FragmentRefs } from "relay-runtime";
 export type useExperimentMetricsData_experiment$data = {
   readonly annotationSummaries: ReadonlyArray<{
     readonly annotationName: string;
+    readonly labelFractions: ReadonlyArray<{
+      readonly fraction: number;
+      readonly label: string;
+    }>;
     readonly meanScore: number | null;
   }>;
   readonly averageRunLatencyMs: number | null;
@@ -46,6 +50,6 @@ const node: ReaderInlineDataFragment = {
   "name": "useExperimentMetricsData_experiment"
 };
 
-(node as any).hash = "142fd431e6dc33362e831daef378b6a5";
+(node as any).hash = "e82479112e4dc7177174447cf487a131";
 
 export default node;

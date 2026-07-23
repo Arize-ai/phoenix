@@ -3,7 +3,7 @@ import { ReferenceLine } from "recharts";
 
 export const BASELINE_COLOR = "var(--global-color-indigo-500)";
 
-const BASELINE_STROKE_DASHARRAY = "4 4";
+export const BASELINE_STROKE_DASHARRAY = "4 4";
 
 const BASELINE_LEGEND_ITEMS: ReadonlyArray<LegendPayload> = [
   {
@@ -40,6 +40,27 @@ export function ExperimentBaselineValueLine({
       strokeDasharray={BASELINE_STROKE_DASHARRAY}
       strokeWidth={1}
       ifOverflow="extendDomain"
+    />
+  );
+}
+
+export function ExperimentBaselineDistributionSeparator({
+  value,
+}: {
+  value: number | null | undefined;
+}) {
+  if (typeof value !== "number") {
+    return null;
+  }
+  // Evaluation baselines are prepended as bars, so separate the first
+  // category from the seven-experiment comparison window.
+  return (
+    <ReferenceLine
+      x={value}
+      position="end"
+      stroke={BASELINE_COLOR}
+      strokeDasharray={BASELINE_STROKE_DASHARRAY}
+      strokeWidth={1}
     />
   );
 }

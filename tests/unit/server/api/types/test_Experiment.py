@@ -684,6 +684,10 @@ class TestExperimentAnnotationSummaries:
                         meanScore
                         count
                         errorCount
+                        labelFractions {
+                          label
+                          fraction
+                        }
                       }
                     }
                   }
@@ -720,6 +724,9 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": 1.0,
                                         "count": 2,
                                         "errorCount": 0,
+                                        "labelFractions": [
+                                            {"label": "label-1", "fraction": 1.0},
+                                        ],
                                     },
                                     {
                                         "annotationName": "annotation-name-3",
@@ -728,6 +735,7 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": None,
                                         "count": 4,
                                         "errorCount": 4,
+                                        "labelFractions": [],
                                     },
                                 ],
                             }
@@ -743,6 +751,10 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": 1 / 3,
                                         "count": 6,
                                         "errorCount": 0,
+                                        "labelFractions": [
+                                            {"label": "label-0", "fraction": 2 / 3},
+                                            {"label": "label-1", "fraction": 1 / 3},
+                                        ],
                                     },
                                     {
                                         "annotationName": "annotation-name-2",
@@ -751,6 +763,10 @@ class TestExperimentAnnotationSummaries:
                                         "meanScore": 3 / 4,
                                         "count": 4,
                                         "errorCount": 1,
+                                        "labelFractions": [
+                                            {"label": "label-0", "fraction": 1 / 2},
+                                            {"label": "label-1", "fraction": 1 / 2},
+                                        ],
                                     },
                                 ],
                             }
@@ -1205,11 +1221,12 @@ async def experiments_with_runs_and_annotations(
                 for run, score in zip(first_experiment_runs[:2], [0, 1])
             ]
             + [
+                # A labeled error must not enter the label-fraction denominator.
                 models.ExperimentRunAnnotation(
                     experiment_run_id=first_experiment_runs[3].id,
                     name="annotation-name-2",
                     annotator_kind="CODE",
-                    label=None,
+                    label="failed-label",
                     score=None,
                     explanation=None,
                     trace_id=None,
