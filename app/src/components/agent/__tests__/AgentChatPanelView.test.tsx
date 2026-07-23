@@ -144,6 +144,29 @@ describe("AgentChatHeader", () => {
     ).toBeNull();
   });
 
+  it("offers title editing for a persisted session", () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="Ping pong test"
+            orderedSessions={[]}
+            activeSessionId="session-1"
+            activeSessionTitleFragment={{} as never}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    expect(
+      container.querySelector('button[aria-label="Edit session title"]')
+    ).not.toBeNull();
+  });
+
   it("switches from pinned to floating mode", () => {
     const onPositionChange = vi.fn();
 

@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode, RefObject } from "react";
+import { useState } from "react";
 import { Pressable } from "react-aria";
 import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
@@ -23,8 +24,11 @@ import type {
   AgentFabPlacement,
   AgentPosition,
 } from "@phoenix/store/agentStore";
+import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import type { Size } from "@phoenix/types/geometry";
 
+import type { EditAgentSessionTitleDialog_session$key } from "./__generated__/EditAgentSessionTitleDialog_session.graphql";
+import { InlineEditAgentSessionTitle } from "./EditAgentSessionTitleDialog";
 import { PxiAnimatedGlyph } from "./PxiAnimatedGlyph";
 import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
@@ -62,6 +66,7 @@ const panelHeaderCSS = css`
   /* Inherit the panel surface so the header blends with whichever frame hosts
      it: the darker docked panel or the lighter floating panel. */
   background: transparent;
+  position: relative;
 `;
 
 const panelHeaderActionsCSS = css`
@@ -75,6 +80,38 @@ const sessionHeadingCSS = css`
   text-overflow: ellipsis;
   white-space: nowrap;
   flex-shrink: 1;
+`;
+
+const sessionHeadingWrapCSS = css`
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  flex-shrink: 1;
+
+  .agent-chat-panel__edit-title-button {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease-in-out;
+    background: var(--agent-chat-panel-background-color);
+  }
+
+  &:hover .agent-chat-panel__edit-title-button,
+  &:focus-within .agent-chat-panel__edit-title-button {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
+const inlineTitleEditorCSS = css`
+  position: absolute;
+  top: calc(100% + var(--global-dimension-size-50));
+  left: var(--global-dimension-size-150);
+  right: var(--global-dimension-size-150);
+  z-index: 1;
 `;
 
 const panelContentCSS = css`
@@ -102,6 +139,7 @@ export function AgentChatHeader({
   sessionDisplayName,
   orderedSessions,
   activeSessionId,
+  activeSessionTitleFragment,
   isActiveSessionTemporary = false,
   position,
   isPositionChangeDisabled = false,
@@ -117,6 +155,7 @@ export function AgentChatHeader({
   sessionDisplayName: string;
   orderedSessions: AgentSessionListItem[];
   activeSessionId: string | null;
+  activeSessionTitleFragment?: EditAgentSessionTitleDialog_session$key | null;
   isActiveSessionTemporary?: boolean;
   position?: AgentPosition;
   isPositionChangeDisabled?: boolean;
@@ -129,25 +168,42 @@ export function AgentChatHeader({
   onPositionChange?: (position: AgentPosition) => void;
   onClose: () => void;
 }) {
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const nextPosition = position === "pinned" ? "detached" : "pinned";
   const positionToggleLabel =
     position === "pinned"
       ? "Switch assistant to floating panel"
       : "Pin assistant to side";
   const showBetaBadge = sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME;
+  const canEditTitle =
+    activeSessionId != null &&
+    activeSessionId !== DRAFT_SESSION_ID &&
+    activeSessionTitleFragment != null;
 
   return (
     <div className="agent-chat-panel__header" css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
         <PxiAnimatedGlyph isIconSized />
         <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
-          <Text
-            weight="heavy"
-            css={sessionHeadingCSS}
-            title={sessionDisplayName}
-          >
-            {sessionDisplayName}
-          </Text>
+          <div css={sessionHeadingWrapCSS}>
+            <Text
+              weight="heavy"
+              css={sessionHeadingCSS}
+              title={sessionDisplayName}
+            >
+              {sessionDisplayName}
+            </Text>
+            {canEditTitle ? (
+              <Button
+                className="agent-chat-panel__edit-title-button"
+                variant="quiet"
+                size="S"
+                aria-label="Edit session title"
+                onPress={() => setEditingSessionId(activeSessionId)}
+                leadingVisual={<Icon svg={<Icons.Edit />} />}
+              />
+            ) : null}
+          </div>
           {isActiveSessionTemporary ? <TemporarySessionIcon /> : null}
         </Flex>
         {showBetaBadge ? (
@@ -174,6 +230,14 @@ export function AgentChatHeader({
           </TooltipTrigger>
         ) : null}
       </Flex>
+      {editingSessionId === activeSessionId && activeSessionTitleFragment ? (
+        <div css={inlineTitleEditorCSS}>
+          <InlineEditAgentSessionTitle
+            session={activeSessionTitleFragment}
+            onClose={() => setEditingSessionId(null)}
+          />
+        </div>
+      ) : null}
       <Flex
         direction="row"
         alignItems="center"

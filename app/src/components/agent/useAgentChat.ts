@@ -123,6 +123,7 @@ const createAgentSessionMutation = graphql`
         ) {
         id
         title
+        ...EditAgentSessionTitleDialog_session
         isTemporary
         createdAt
         updatedAt
@@ -145,6 +146,7 @@ const truncateAgentSessionMutation = graphql`
       agentSession {
         id
         title
+        ...EditAgentSessionTitleDialog_session
         updatedAt
         firstInput
         latestOutput
@@ -171,6 +173,7 @@ const branchAgentSessionMutation = graphql`
         ) {
         id
         title
+        ...EditAgentSessionTitleDialog_session
         isTemporary
         createdAt
         updatedAt
