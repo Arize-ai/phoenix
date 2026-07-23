@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<40414e54817426e1478c45bbd6c7d006>>
+ * @generated SignedSource<<bfdffcbe36cfb053789650cc407b4866>>
  * @lightSyntaxTransform
  */
 
@@ -187,16 +187,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4156aeb7cd08dc4f430ff30803a1a7b0",
+    "cacheID": "ccc1a8ebf1cd1a20762752202bf217e9",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourcePaginationQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourcePaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...AgentSessionsResource_sessions_2HEEH6\n}\n\nfragment AgentSessionsResource_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query AgentSessionsResourcePaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...AgentSessionsResource_sessions_2HEEH6\n}\n\nfragment AgentSessionsResource_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
   }
 };
 })();
 
-(node as any).hash = "515fe0409f4dbcdc6ccaa745913ce438";
+(node as any).hash = "af28af2b0d4c3d22bbd920a5ae1c00f6";
 
 export default node;

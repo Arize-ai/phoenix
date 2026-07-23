@@ -2487,6 +2487,7 @@ type Mutation {
   createAgentSession(input: CreateAgentSessionInput!): CreateAgentSessionMutationPayload!
   truncateAgentSession(input: TruncateAgentSessionInput!): TruncateAgentSessionMutationPayload!
   branchAgentSession(input: BranchAgentSessionInput!): BranchAgentSessionMutationPayload!
+  updateAgentSessionTitle(input: UpdateAgentSessionTitleInput!): UpdateAgentSessionTitleMutationPayload!
   deleteAgentSession(input: DeleteAgentSessionInput!): DeleteAgentSessionMutationPayload!
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
@@ -4704,6 +4705,16 @@ type UnparsableSecret {
 input UnsetPromptLabelsInput {
   promptId: ID!
   promptLabelIds: [ID!]!
+}
+
+input UpdateAgentSessionTitleInput {
+  id: ID!
+  title: String!
+}
+
+type UpdateAgentSessionTitleMutationPayload {
+  agentSession: AgentSession!
+  query: Query!
 }
 
 input UpdateAnnotationConfigInput {

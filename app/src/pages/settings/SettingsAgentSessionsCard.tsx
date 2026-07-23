@@ -68,6 +68,7 @@ export function SettingsAgentSessionsCard({
             node {
               id
               title
+              ...EditAgentSessionTitleDialog_session
               user {
                 username
                 profilePictureUrl
@@ -145,6 +146,7 @@ export function SettingsAgentSessionsCard({
                         <SettingsAgentSessionActionMenu
                           sessionId={node.id}
                           sessionTitle={node.title}
+                          session={node}
                         />
                       </Flex>
                     ) : null}

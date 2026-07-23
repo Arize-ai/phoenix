@@ -122,6 +122,7 @@ function AgentSessionsContent({
             node {
               id
               title
+              ...EditAgentSessionTitleDialog_session
               isTemporary
               createdAt
               updatedAt
@@ -307,6 +308,13 @@ function AgentSessionsContent({
         sessionDisplayName={sessionDisplayName}
         orderedSessions={orderedSessions}
         activeSessionId={activeSessionId}
+        activeSessionTitleFragment={
+          activeSessionId == null
+            ? null
+            : data.agentSessions.edges.find(
+                ({ node }) => node.id === activeSessionId
+              )?.node
+        }
         isActiveSessionTemporary={activeSession?.isTemporary}
         position={position}
         isPositionChangeDisabled={isPositionChangeDisabled}
