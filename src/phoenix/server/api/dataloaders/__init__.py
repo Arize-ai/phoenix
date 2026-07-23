@@ -37,6 +37,7 @@ from .document_evaluation_summaries import (
 from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .evaluator_by_id import EvaluatorByIdDataLoader
+from .experiment_annotation_label_fractions import ExperimentAnnotationLabelFractionsDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
 from .experiment_baseline_tags import ExperimentBaselineTagsDataLoader
 from .experiment_dataset_splits import ExperimentDatasetSplitsDataLoader
@@ -186,6 +187,7 @@ class DataLoaders:
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     evaluator_by_id: EvaluatorByIdDataLoader
+    experiment_annotation_label_fractions: ExperimentAnnotationLabelFractionsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_baseline_tags: ExperimentBaselineTagsDataLoader
     experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
@@ -342,6 +344,7 @@ def build_data_loaders(
         document_evaluations=DocumentEvaluationsDataLoader(db),
         document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
         evaluator_by_id=EvaluatorByIdDataLoader(db),
+        experiment_annotation_label_fractions=ExperimentAnnotationLabelFractionsDataLoader(db),
         annotation_summaries=AnnotationSummaryDataLoader(
             db,
             cache_map=(cache_for_dataloaders.annotation_summary if cache_for_dataloaders else None),

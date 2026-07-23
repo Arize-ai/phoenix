@@ -3,6 +3,7 @@ from statistics import mean
 from typing import Any
 
 import pytest
+import sqlalchemy
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -832,6 +833,80 @@ class TestExperimentAnnotationSummaries:
                 }
             }
         }
+
+    async def test_loads_label_fractions_only_when_selected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        experiments_with_runs_and_annotations: Any,
+    ) -> None:
+        annotation_query_count = 0
+
+        @sqlalchemy.event.listens_for(sqlalchemy.engine.Engine, "before_cursor_execute")
+        def count_annotation_queries(
+            conn: Any,
+            cursor: Any,
+            statement: str,
+            parameters: Any,
+            context: Any,
+            executemany: bool,
+        ) -> None:
+            nonlocal annotation_query_count
+            if "experiment_run_annotations" in statement:
+                annotation_query_count += 1
+
+        query = """
+          query ($datasetId: ID!, $includeLabelFractions: Boolean!) {
+            dataset: node(id: $datasetId) {
+              ... on Dataset {
+                experiments {
+                  edges {
+                    experiment: node {
+                      annotationSummaries(annotationName: "annotation-name-1") {
+                        annotationName
+                        meanScore
+                        labelFractions @include(if: $includeLabelFractions) {
+                          label
+                          fraction
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        try:
+            response = await gql_client.execute(
+                query=query,
+                variables={
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id="1")),
+                    "includeLabelFractions": False,
+                },
+            )
+            assert not response.errors
+            # Omitting the nested field preserves the pre-existing single
+            # annotation-summary statement for every experiment in the batch.
+            assert annotation_query_count == 1
+
+            annotation_query_count = 0
+            response = await gql_client.execute(
+                query=query,
+                variables={
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id="1")),
+                    "includeLabelFractions": True,
+                },
+            )
+            assert not response.errors
+            # All requested experiment/name pairs share one additional label
+            # statement rather than resolving labels with an N+1 query.
+            assert annotation_query_count == 2
+        finally:
+            sqlalchemy.event.remove(
+                sqlalchemy.engine.Engine,
+                "before_cursor_execute",
+                count_annotation_queries,
+            )
 
     async def test_label_fractions_weight_dataset_examples_instead_of_repetitions(
         self,
