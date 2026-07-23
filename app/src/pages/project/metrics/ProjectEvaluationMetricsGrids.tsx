@@ -54,9 +54,6 @@ function getProjectEvaluationMetricsSeries(
       x: new Date(point.timestamp).getTime(),
       summaries: point.annotationSummaries,
     })),
-    // Retain empty bins so score lines break instead of connecting across
-    // periods in which the evaluation produced no result.
-    includeEmptyPoints: true,
   });
 }
 
