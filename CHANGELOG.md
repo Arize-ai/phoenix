@@ -1,5 +1,37 @@
 # Changelog
 
+## [19.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.4.0...arize-phoenix-v19.5.0) (2026-07-23)
+
+
+### Features
+
+* add evaluation metrics aggregation APIs ([#14445](https://github.com/Arize-ai/phoenix/issues/14445)) ([ad41a4d](https://github.com/Arize-ai/phoenix/commit/ad41a4d5c18ae584c54f78072a533bd57056b6df))
+* **agents:** online trace evals with tool_count_per_turn and user_friction ([#14503](https://github.com/Arize-ai/phoenix/issues/14503)) ([bdff4b5](https://github.com/Arize-ai/phoenix/commit/bdff4b58dbe09042a5a0fee9163f9003aed3a59f))
+* **api:** expose dataset example source span ([#13814](https://github.com/Arize-ai/phoenix/issues/13814)) ([e0cf022](https://github.com/Arize-ai/phoenix/commit/e0cf0229c95ba43c33f66ed7040cf6e79e894b37))
+* **evals:** add toxicity gallery template with input/output-agnostic benchmark ([#14636](https://github.com/Arize-ai/phoenix/issues/14636)) ([1082155](https://github.com/Arize-ai/phoenix/commit/1082155e6e27e06d98a97af776c8d8b6892d4b2f))
+* **playground:** add Gemini 3.6 Flash and 3.5 Flash-lite support ([#14658](https://github.com/Arize-ai/phoenix/issues/14658)) ([60997e8](https://github.com/Arize-ai/phoenix/commit/60997e8a6330728614eb9b353d2ae4bf2f050dfd))
+* **ui:** add semantic PXI tool icons ([#14688](https://github.com/Arize-ai/phoenix/issues/14688)) ([3aa3527](https://github.com/Arize-ai/phoenix/commit/3aa3527b807d9d02c7cf7f78c46e87efdb586116))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#14616](https://github.com/Arize-ai/phoenix/issues/14616)) ([d45705b](https://github.com/Arize-ai/phoenix/commit/d45705b4caa9cb27493ec29a5acff1748c16a52d))
+* **deps:** declare FastMCP client extra ([#14663](https://github.com/Arize-ai/phoenix/issues/14663)) ([11a587d](https://github.com/Arize-ai/phoenix/commit/11a587d324393cd223afb536d2d609c3af37673d))
+* **deps:** update arize-phoenix-evals to 3.2.0 ([#14596](https://github.com/Arize-ai/phoenix/issues/14596)) ([efd5005](https://github.com/Arize-ai/phoenix/commit/efd500566bd590dee6a818a0d7ee15f2b277016e))
+* focus ring token consistency ([#14625](https://github.com/Arize-ai/phoenix/issues/14625)) ([c32d955](https://github.com/Arize-ai/phoenix/commit/c32d95579776cde765f43465ff16ef7a05200f30))
+* **pxi:** report current context token usage ([#14670](https://github.com/Arize-ai/phoenix/issues/14670)) ([208f02f](https://github.com/Arize-ai/phoenix/commit/208f02f349d4441c1fcf3ce90300ae751ded112d))
+* **ui:** close time range selector on focus exit ([#14631](https://github.com/Arize-ai/phoenix/issues/14631)) ([bf502e7](https://github.com/Arize-ai/phoenix/commit/bf502e73446336fba027a034d5e73e18aa0fb65c))
+* **ui:** commit column reorder during drag so headers stay in sync with body ([#14651](https://github.com/Arize-ai/phoenix/issues/14651)) ([92bce42](https://github.com/Arize-ai/phoenix/commit/92bce422a6a75b4d2b9b129f86fcedb1370c638c)), closes [#14609](https://github.com/Arize-ai/phoenix/issues/14609)
+* **ui:** preserve line breaks in user chat messages ([#14660](https://github.com/Arize-ai/phoenix/issues/14660)) ([a990381](https://github.com/Arize-ai/phoenix/commit/a9903818bd62bf87d7398807b500ad6ba29da605))
+
+
+### Documentation
+
+* add coding harness tracing integration pages ([#14184](https://github.com/Arize-ai/phoenix/issues/14184)) ([9f2094f](https://github.com/Arize-ai/phoenix/commit/9f2094fc49a13ee5d41556281a2482f85b52085f))
+* Add Phoenix release notes — 2026-07-22 ([#14619](https://github.com/Arize-ai/phoenix/issues/14619)) ([d1b68dc](https://github.com/Arize-ai/phoenix/commit/d1b68dc6e41ca0ac99aa7fdf5ebc6d56a0262e1f))
+* close weekly docs gaps (playground default, api-key REST reference, px auth, MCP settings, Gemini CLI) ([#14640](https://github.com/Arize-ai/phoenix/issues/14640)) ([dee59ed](https://github.com/Arize-ai/phoenix/commit/dee59edfdb30eb0b993f46f092262ef638dd8f7b))
+* comprehensive top-level README ([#14647](https://github.com/Arize-ai/phoenix/issues/14647)) ([84527b8](https://github.com/Arize-ai/phoenix/commit/84527b81f838aa0823a7a0cb44e4c7370aaa3608))
+
 ## [19.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.3.0...arize-phoenix-v19.4.0) (2026-07-22)
 
 
