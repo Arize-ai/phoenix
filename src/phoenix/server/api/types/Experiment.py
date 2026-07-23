@@ -304,11 +304,15 @@ class Experiment(Node):
 
     @strawberry.field
     async def annotation_summaries(
-        self, info: Info[Context, None]
+        self,
+        info: Info[Context, None],
+        annotation_name: Optional[str] = UNSET,
     ) -> list[ExperimentAnnotationSummary]:
         experiment_id = self.id
+        requested_annotation_name = annotation_name if isinstance(annotation_name, str) else None
         return [
             ExperimentAnnotationSummary(
+                experiment_id=experiment_id,
                 annotation_name=summary.annotation_name,
                 min_score=summary.min_score,
                 max_score=summary.max_score,
@@ -319,7 +323,7 @@ class Experiment(Node):
                 label_count=summary.label_count,
             )
             for summary in await info.context.data_loaders.experiment_annotation_summaries.load(
-                experiment_id
+                (experiment_id, requested_annotation_name)
             )
         ]
 

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
 import strawberry
 from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
+from pandas import DataFrame
 from sqlalchemy import Select, and_, case, desc, distinct, exists, false, func, or_, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
@@ -18,6 +19,7 @@ from typing_extensions import assert_never
 from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
+from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
@@ -1841,6 +1843,137 @@ class Project(Node):
         )
 
     @strawberry.field
+    async def span_annotation_metrics_time_series(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> "AnnotationMetricsTimeSeries":
+        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        bucket = date_trunc(
+            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
+        )
+        stmt: Select[Any] = (
+            select(
+                bucket.label("bucket"),
+                models.Span.id.label("entity_id"),
+                models.SpanAnnotation.name.label("name"),
+                models.SpanAnnotation.label.label("label"),
+                models.SpanAnnotation.score.label("score"),
+            )
+            .join_from(
+                models.SpanAnnotation,
+                models.Span,
+                onclause=models.SpanAnnotation.span_rowid == models.Span.id,
+            )
+            .join_from(
+                models.Span,
+                models.Trace,
+                onclause=models.Span.trace_rowid == models.Trace.id,
+            )
+            .where(models.Trace.project_rowid == self.id)
+            .where(
+                or_(
+                    models.SpanAnnotation.score.is_not(None),
+                    models.SpanAnnotation.label.is_not(None),
+                )
+            )
+        )
+        return await _annotation_metrics_time_series(
+            db=info.context.db,
+            stmt=stmt,
+            time_range=time_range,
+            start_time_col=models.Trace.start_time,
+            stride=stride,
+            utc_offset_minutes=utc_offset_minutes,
+        )
+
+    @strawberry.field
+    async def trace_annotation_metrics_time_series(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> "AnnotationMetricsTimeSeries":
+        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        bucket = date_trunc(
+            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
+        )
+        stmt: Select[Any] = (
+            select(
+                bucket.label("bucket"),
+                models.Trace.id.label("entity_id"),
+                models.TraceAnnotation.name.label("name"),
+                models.TraceAnnotation.label.label("label"),
+                models.TraceAnnotation.score.label("score"),
+            )
+            .join_from(
+                models.TraceAnnotation,
+                models.Trace,
+                onclause=models.TraceAnnotation.trace_rowid == models.Trace.id,
+            )
+            .where(models.Trace.project_rowid == self.id)
+            .where(
+                or_(
+                    models.TraceAnnotation.score.is_not(None),
+                    models.TraceAnnotation.label.is_not(None),
+                )
+            )
+        )
+        return await _annotation_metrics_time_series(
+            db=info.context.db,
+            stmt=stmt,
+            time_range=time_range,
+            start_time_col=models.Trace.start_time,
+            stride=stride,
+            utc_offset_minutes=utc_offset_minutes,
+        )
+
+    @strawberry.field
+    async def session_annotation_metrics_time_series(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> "AnnotationMetricsTimeSeries":
+        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        # Match `session_annotation_score_time_series` in this file: assign each
+        # session to its start-time bucket instead of using interval overlap.
+        bucket = date_trunc(
+            info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
+        )
+        stmt: Select[Any] = (
+            select(
+                bucket.label("bucket"),
+                models.ProjectSession.id.label("entity_id"),
+                models.ProjectSessionAnnotation.name.label("name"),
+                models.ProjectSessionAnnotation.label.label("label"),
+                models.ProjectSessionAnnotation.score.label("score"),
+            )
+            .join_from(
+                models.ProjectSessionAnnotation,
+                models.ProjectSession,
+                onclause=models.ProjectSessionAnnotation.project_session_id
+                == models.ProjectSession.id,
+            )
+            .where(models.ProjectSession.project_id == self.id)
+            .where(
+                or_(
+                    models.ProjectSessionAnnotation.score.is_not(None),
+                    models.ProjectSessionAnnotation.label.is_not(None),
+                )
+            )
+        )
+        return await _annotation_metrics_time_series(
+            db=info.context.db,
+            stmt=stmt,
+            time_range=time_range,
+            start_time_col=models.ProjectSession.start_time,
+            stride=stride,
+            utc_offset_minutes=utc_offset_minutes,
+        )
+
+    @strawberry.field
     async def top_models_by_cost(
         self,
         info: Info[Context, None],
@@ -2066,6 +2199,18 @@ class AnnotationScoreTimeSeries:
     names: list[str]
 
 
+@strawberry.type
+class AnnotationMetricsTimeSeriesDataPoint:
+    timestamp: datetime
+    annotation_summaries: list[AnnotationSummary]
+
+
+@strawberry.type
+class AnnotationMetricsTimeSeries:
+    data: list[AnnotationMetricsTimeSeriesDataPoint]
+    names: list[str]
+
+
 _TimeBinStride = Literal["minute", "hour", "day", "week", "month", "year"]
 
 
@@ -2136,6 +2281,80 @@ async def _annotation_score_time_series(
             )
     return AnnotationScoreTimeSeries(
         data=sorted(data.values(), key=lambda x: x.timestamp),
+        names=sorted(unique_names),
+    )
+
+
+async def _annotation_metrics_time_series(
+    db: DbSessionFactory,
+    stmt: Select[Any],
+    time_range: TimeRange,
+    start_time_col: InstrumentedAttribute[datetime],
+    stride: _TimeBinStride,
+    utc_offset_minutes: int,
+) -> AnnotationMetricsTimeSeries:
+    """Build bounded, entity-weighted summaries and fill in empty time bins."""
+    if time_range.start is None:
+        raise BadRequest("Start time is required")
+    stmt = stmt.where(time_range.start <= start_time_col)
+    if time_range.end:
+        stmt = stmt.where(start_time_col < time_range.end)
+
+    rows_by_timestamp_and_name: dict[tuple[datetime, str], list[dict[str, Any]]] = {}
+    unique_names: set[str] = set()
+    metrics_stmt = build_entity_weighted_annotation_metrics_stmt(stmt)
+    async with db.read() as session:
+        async for result_row in await session.stream(metrics_stmt):
+            timestamp = _as_datetime(result_row.bucket)
+            name = result_row.name
+            unique_names.add(name)
+            rows_by_timestamp_and_name.setdefault((timestamp, name), []).append(
+                {
+                    "label": result_row.label,
+                    "record_count": result_row.record_count,
+                    "label_count": result_row.label_count,
+                    "score_count": result_row.score_count,
+                    "score_sum": result_row.score_sum,
+                    "avg_label_fraction": result_row.avg_label_fraction,
+                    "avg_score": result_row.avg_score,
+                }
+            )
+
+    summaries_by_timestamp: dict[datetime, list[AnnotationSummary]] = {}
+    for (timestamp, name), rows in rows_by_timestamp_and_name.items():
+        summaries_by_timestamp.setdefault(timestamp, []).append(
+            AnnotationSummary(name=name, df=DataFrame(rows))
+        )
+
+    # Mirror `_annotation_score_time_series` in this file by emitting empty bins
+    # throughout the requested range, keeping all Project metrics time axes aligned.
+    min_time = min([*summaries_by_timestamp, time_range.start])
+    max_time = max(
+        [
+            *summaries_by_timestamp,
+            time_range.end if time_range.end else datetime.now(timezone.utc),
+        ]
+    )
+    data = {
+        timestamp: AnnotationMetricsTimeSeriesDataPoint(
+            timestamp=timestamp,
+            annotation_summaries=sorted(summaries, key=lambda summary: summary.name),
+        )
+        for timestamp, summaries in summaries_by_timestamp.items()
+    }
+    for timestamp in get_timestamp_range(
+        start_time=min_time,
+        end_time=max_time,
+        stride=stride,
+        utc_offset_minutes=utc_offset_minutes,
+    ):
+        if timestamp not in data:
+            data[timestamp] = AnnotationMetricsTimeSeriesDataPoint(
+                timestamp=timestamp,
+                annotation_summaries=[],
+            )
+    return AnnotationMetricsTimeSeries(
+        data=sorted(data.values(), key=lambda point: point.timestamp),
         names=sorted(unique_names),
     )
 
