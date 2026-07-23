@@ -15,19 +15,27 @@ class PhoenixServerAgent(BaseAgent):
         return "phoenix-server-agent"
 
     def version(self) -> str | None:
-        return "10"
+        return None
 
     async def setup(self, environment: BaseEnvironment) -> None:
         return None
+
+    @staticmethod
+    def _to_pydantic_ai_model_name(harbor_model_name: str) -> str:
+        """Convert a Harbor ``provider/model`` string to pydantic-ai's ``provider:model``."""
+        return harbor_model_name.replace("/", ":", 1)
 
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
     ) -> None:
         encoded = shlex.quote(instruction)
-        model = str(
-            getattr(self, "model_name", None)
-            or getattr(self, "model", "anthropic/claude-sonnet-4-5")
-        ).replace("anthropic/", "anthropic:", 1)
+        harbor_model_name = self.model_name
+        if not harbor_model_name:
+            raise ValueError(
+                "No model specified; pass one with the -m flag, "
+                "e.g. -m anthropic/claude-sonnet-4-5."
+            )
+        model_name = self._to_pydantic_ai_model_name(harbor_model_name)
         task_name = shlex.quote(environment.environment_name)
         # Harbor archives /logs/agent into a per-step directory after every
         # step, so trial-wide state (step counter, conversation history) must
@@ -42,7 +50,7 @@ n=$(($(cat "$state/step_counter" 2>/dev/null || printf 0) + 1))
 printf %s "$n" > "$state/step_counter"
 mutation_flag=""
 if printf %s "$config" | grep -q '"allow_mutations"[[:space:]]*:[[:space:]]*true'; then mutation_flag="--allow-mutations"; fi
-python /opt/phoenix-eval/run_server_agent.py --db-path /data/phoenix.db --instruction-file /tmp/instruction.md --model {shlex.quote(model)} --task-name {task_name} --out-dir "/logs/agent/steps/$n" --history-file "$state/messages.json" --trajectory-file /logs/agent/trajectory.json --session-id-file "$state/trajectory_session_id" $mutation_flag
+python /opt/phoenix-eval/run_server_agent.py --db-path /data/phoenix.db --instruction-file /tmp/instruction.md --model {shlex.quote(model_name)} --task-name {task_name} --out-dir "/logs/agent/steps/$n" --history-file "$state/messages.json" --trajectory-file /logs/agent/trajectory.json --session-id-file "$state/trajectory_session_id" $mutation_flag
 ln -sfn "/logs/agent/steps/$n" /logs/agent/latest
 cp "/logs/agent/steps/$n/messages.json" "$state/messages.json"
 cat /logs/agent/latest/answer.md"""

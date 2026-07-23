@@ -4,7 +4,7 @@ multi_step_reward_strategy = "mean"
 [task]
 name = "arize/phoenix-regression-triage"
 description = "Phoenix ServerAgent triages an experiment regression via GraphQL"
-keywords = ["phoenix", "agent", "graphql", "regression"]
+keywords = ["server_agent"]
 
 [environment]
 os = "linux"
@@ -12,7 +12,13 @@ cpus = 2
 memory_mb = 4096
 network_mode = "public"
 build_timeout_sec = 1200.0
-env = { ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}", HARBOR_PHOENIX_COLLECTOR_ENDPOINT = "${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}", HARBOR_PHOENIX_API_KEY = "${HARBOR_PHOENIX_API_KEY:-}", HARBOR_PHOENIX_PROJECT_NAME = "${HARBOR_PHOENIX_PROJECT_NAME:-harbor-server-agent-evals}" }
+
+[environment.env]
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+HARBOR_PHOENIX_COLLECTOR_ENDPOINT = "${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}"
+HARBOR_PHOENIX_API_KEY = "${HARBOR_PHOENIX_API_KEY:-}"
+HARBOR_PHOENIX_PROJECT_NAME = "${HARBOR_PHOENIX_PROJECT_NAME:-}"
 
 [[steps]]
 name = "step_01_aggregate"
