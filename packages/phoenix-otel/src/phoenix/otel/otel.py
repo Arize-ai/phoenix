@@ -175,8 +175,7 @@ def register(
         span_processor = BatchSpanProcessor(endpoint=endpoint, headers=headers, protocol=protocol)
     else:
         span_processor = SimpleSpanProcessor(endpoint=endpoint, headers=headers, protocol=protocol)
-    tracer_provider.add_span_processor(span_processor)
-    tracer_provider._default_processor = True
+    tracer_provider._set_default_processor(span_processor)
 
     if set_global_tracer_provider:
         trace_api.set_tracer_provider(tracer_provider)
@@ -264,19 +263,17 @@ class TracerProvider(_TracerProvider):
         validated_protocol = OTLPTransportProtocol(protocol)
         use_http = validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
         parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
-        self._default_processor = False
+        self._default_processor: Optional[SpanProcessor] = None
 
         if (
             _maybe_http_endpoint(parsed_url)
             or validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
         ):
             http_exporter: SpanExporter = HTTPSpanExporter(endpoint=endpoint)
-            self.add_span_processor(SimpleSpanProcessor(span_exporter=http_exporter))
-            self._default_processor = True
+            self._set_default_processor(SimpleSpanProcessor(span_exporter=http_exporter))
         elif _maybe_grpc_endpoint(parsed_url) or validated_protocol == OTLPTransportProtocol.GRPC:
             grpc_exporter: SpanExporter = GRPCSpanExporter(endpoint=endpoint)
-            self.add_span_processor(SimpleSpanProcessor(span_exporter=grpc_exporter))
-            self._default_processor = True
+            self._set_default_processor(SimpleSpanProcessor(span_exporter=grpc_exporter))
         if verbose:
             print(self._tracing_details())
 
@@ -286,14 +283,41 @@ class TracerProvider(_TracerProvider):
         """
         Registers a new `SpanProcessor` for this `TracerProvider`.
 
-        If this `TracerProvider` has a default processor, it will be removed.
+        If this `TracerProvider` has a default processor, it will be removed
+        (and a warning emitted). Pass `replace_default_processor=False` to keep
+        the default processor alongside the newly added one.
         """
 
-        if self._default_processor and replace_default_processor:
-            self._active_span_processor.shutdown()
-            self._active_span_processor._span_processors = tuple()  # remove default processors
-            self._default_processor = False
+        if self._default_processor is not None and replace_default_processor:
+            warnings.warn(
+                "The default span processor (the Phoenix exporter configured at "
+                "construction) is being replaced by the newly added span processor. "
+                "Spans will no longer be exported by the default processor. Pass "
+                "`replace_default_processor=False` to keep it alongside the new one.",
+                stacklevel=2,
+            )
+            self._shutdown_default_processor()
         return super().add_span_processor(*args, **kwargs)
+
+    def _set_default_processor(self, span_processor: SpanProcessor) -> None:
+        # Internal setup path (e.g. `register`): replacing the default here is the
+        # intended configuration step, so it happens without a warning.
+        self._shutdown_default_processor()
+        super().add_span_processor(span_processor)
+        self._default_processor = span_processor
+
+    def _shutdown_default_processor(self) -> None:
+        with self._active_span_processor._lock:
+            default_processor = self._default_processor
+            if default_processor is None:
+                return
+            self._active_span_processor._span_processors = tuple(
+                processor
+                for processor in self._active_span_processor._span_processors
+                if processor is not default_processor
+            )
+            self._default_processor = None
+        default_processor.shutdown()
 
     def _tracing_details(self) -> str:
         project = self.resource.attributes.get(PROJECT_NAME)
@@ -358,7 +382,7 @@ class TracerProvider(_TracerProvider):
             f"|  Transport: {transport}\n"
             f"|  Transport Headers: {headers}\n"
             "|  \n"
-            f"{configuration_msg if self._default_processor else ''}"
+            f"{configuration_msg if self._default_processor is not None else ''}"
             f"{span_processor_warning if using_simple_processor else ''}"
         )
         return details_msg
