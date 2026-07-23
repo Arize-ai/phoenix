@@ -360,6 +360,20 @@ ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
 The outstanding work-unit count above which the online-eval producer stops materializing
 new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
 """
+ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
+"""
+The maximum number of work units an online-eval consumer claims per tick. Together with
+PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS this bounds per-replica evaluation
+throughput at claim_batch_size / tick_interval evaluations per second. Defaults to 10.
+"""
+ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS = (
+    "PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS"
+)
+"""
+Seconds an online-eval consumer sleeps between claim cycles. Together with
+PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE this bounds per-replica evaluation throughput.
+Defaults to 5.0.
+"""
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
 The logging mode (either 'default' or 'structured').
@@ -3332,6 +3346,35 @@ def get_env_online_eval_max_outstanding() -> int:
             f"{max_outstanding}. Value must be a positive integer."
         )
     return max_outstanding
+
+
+def get_env_online_eval_claim_batch_size() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE environment variable.
+    """
+    batch_size = _int_val(ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE, 10)
+    if batch_size < 1:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE}: "
+            f"{batch_size}. Value must be a positive integer."
+        )
+    return batch_size
+
+
+def get_env_online_eval_consumer_tick_interval_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS
+    environment variable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS, 5.0)
+    if not isfinite(seconds) or seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS}: "
+            f"{seconds}. Value must be a finite positive number."
+        )
+    return seconds
 
 
 def get_env_client_headers() -> dict[str, str]:
