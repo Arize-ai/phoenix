@@ -23,7 +23,6 @@ import { useNavigate } from "react-router";
 import type { CardProps } from "@phoenix/components";
 import {
   Alert,
-  Button,
   Card,
   ContextualHelp,
   CopyToClipboardButton,
@@ -93,6 +92,7 @@ import type {
   SpanDetailsQuery,
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
+import { AddSpanToDatasetTrigger } from "./AddSpanToDatasetTrigger";
 import { DocumentItem } from "./DocumentItem";
 import { PreBlock, ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
 import { SpanAside } from "./SpanAside";
@@ -445,13 +445,7 @@ function AddSpanToDatasetButton({
   const navigate = useNavigate();
   return (
     <DialogTrigger>
-      <Button
-        variant="default"
-        size="S"
-        leadingVisual={<Icon svg={<Icons.Database />} />}
-      >
-        {buttonText}
-      </Button>
+      <AddSpanToDatasetTrigger buttonText={buttonText} />
       <ModalOverlay>
         <Modal variant="slideover" size="L">
           <Suspense fallback={<Loading />}>
