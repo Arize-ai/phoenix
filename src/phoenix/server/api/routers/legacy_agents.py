@@ -47,6 +47,7 @@ from phoenix.server.api.routers.agents import (
     _get_updated_provider_metadata,
     _is_async_generator,
     _persist_db_traces_and_emit_event,
+    _resolve_trace_recording,
     _subagents_enabled,
 )
 from phoenix.server.authorization import (
@@ -190,8 +191,12 @@ def create_legacy_agents_router(
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
         )
         recording = request.app.state.system_settings.agent_trace_recording
-        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
-        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
+        ingest_traces, export_remote_traces = _resolve_trace_recording(
+            ingest_traces=body.ingest_traces,
+            export_remote_traces=body.export_remote_traces,
+            allow_local_traces=recording.allow_local_traces,
+            allow_remote_export=recording.allow_remote_export,
+        )
         project_name = get_env_phoenix_agents_assistant_project_name()
         tracer = (
             Tracer(

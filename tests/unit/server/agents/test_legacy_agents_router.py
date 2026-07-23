@@ -20,6 +20,7 @@ from strawberry.relay import GlobalID
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
+from phoenix.tracers import Tracer
 
 _LEGACY_BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.legacy_agents.build_model"
 _BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
@@ -148,6 +149,47 @@ async def test_legacy_chat_route_accepts_a_multi_turn_transcript(
 
     assert response.status_code == 200
     assert "text-delta" in {chunk["type"] for chunk in _stream_chunks(response.text)}
+
+
+async def test_force_tracing_overrides_legacy_request_flags(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The compatibility route retains main's forced-tracing behavior even
+    when an old client omits the per-request observability flags."""
+    _mock_legacy_model(monkeypatch)
+    monkeypatch.setenv("PHOENIX_AGENTS_FORCE_TRACING", "true")
+    tracer_calls: list[dict[str, Any]] = []
+    original_tracer = Tracer
+
+    def _build_tracer(**kwargs: Any) -> Tracer:
+        tracer_calls.append(kwargs)
+        return original_tracer(**{**kwargs, "enable_remote_export": False})
+
+    monkeypatch.setattr("phoenix.server.api.routers.legacy_agents.Tracer", _build_tracer)
+
+    response = await httpx_client.post(
+        f"/agents/server/sessions/{_CLIENT_MINTED_SESSION_ID}/chat",
+        json=_legacy_chat_body([_user_message("hello")]),
+    )
+
+    assert response.status_code == 200
+    assert tracer_calls
+    assert tracer_calls[0]["enable_remote_export"] is True
+    async with db() as session:
+        project = await session.scalar(
+            select(models.Project).where(
+                models.Project.name == get_env_phoenix_agents_assistant_project_name()
+            )
+        )
+        assert project is not None
+        traces = (
+            await session.scalars(
+                select(models.Trace).where(models.Trace.project_rowid == project.id)
+            )
+        ).all()
+        assert traces
 
 
 async def test_new_chat_route_is_unaffected_by_the_legacy_registration(
