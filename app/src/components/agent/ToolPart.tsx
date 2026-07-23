@@ -141,6 +141,7 @@ import {
 } from "./SavePromptToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
 import { ToolExecutionSummary } from "./ToolExecutionSummary";
+import { getToolIconKey } from "./toolIconConfig";
 import {
   TOOL_PART_ENTRY_KEYFRAMES,
   TOOL_CALL_SUMMARY_LANE_RULES,
@@ -583,15 +584,8 @@ function ToolInvocationPartDetails({
   const uiBehavior = getAgentToolUIBehavior(toolName);
   const hasAutoOpenedRef = useRef(false);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
-  const {
-    preview,
-    stateLabel,
-    statusVariant,
-    details,
-    icon,
-    variant,
-    quietLabel,
-  } = getToolPresentation(toolName, part);
+  const { preview, stateLabel, statusVariant, details, variant, quietLabel } =
+    getToolPresentation(toolName, part);
   const shouldAutoOpen = shouldAutoOpenToolPart(part);
   const {
     ref: detailsRef,
@@ -653,7 +647,7 @@ function ToolInvocationPartDetails({
                 className="tool-part__chevron"
               />
               <Icon
-                svg={icon ?? <Icons.Wrench />}
+                svgKey={getToolIconKey({ toolName, input: part.input })}
                 className="tool-part__tool-icon"
               />
             </span>
@@ -1038,7 +1032,6 @@ function getToolPresentation(
   stateLabel: string;
   statusVariant?: StatusVariant;
   details: React.ReactNode;
-  icon?: React.ReactNode;
   variant?: ToolVariant;
   quietLabel?: string;
 } {
@@ -1050,7 +1043,6 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <BashToolDetails part={part} />,
-        icon: <Icons.Console />,
       };
     case "ask_user": {
       const stateLabel = formatAskUserState(part.state, part);
@@ -1177,7 +1169,6 @@ function getToolPresentation(
         preview: getBatchSpanAnnotateToolPreview(part),
         stateLabel: formatBatchSpanAnnotateState(part),
         statusVariant,
-        icon: <Icons.Edit2 />,
         details: <BatchSpanAnnotateToolDetails part={part} />,
       };
     case PATCH_EXPERIMENT_TOOL_NAME:
@@ -1192,7 +1183,6 @@ function getToolPresentation(
         preview: getCreateAnnotationConfigToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.Edit2 />,
         details: <AnnotationConfigWriteToolDetails part={part} />,
       };
     case UPDATE_ANNOTATION_CONFIG_TOOL_NAME:
@@ -1200,7 +1190,6 @@ function getToolPresentation(
         preview: getUpdateAnnotationConfigToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.Edit2 />,
         details: <AnnotationConfigWriteToolDetails part={part} />,
       };
     case EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME:
@@ -1224,7 +1213,6 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <LoadSkillToolDetails part={part} />,
-        icon: <Icons.GraduationCap />,
         variant: part.state === "output-available" ? "quiet" : "default",
         quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
       };
@@ -1235,7 +1223,6 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <ReadSkillResourceToolDetails part={part} />,
-        icon: <Icons.FileText />,
       };
     case NATIVE_WEB_SEARCH_TOOL_NAME:
     case NATIVE_WEB_FETCH_TOOL_NAME:
@@ -1243,10 +1230,6 @@ function getToolPresentation(
         preview: getNativeWebToolPreview(toolName, part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon:
-          toolName === NATIVE_WEB_SEARCH_TOOL_NAME ? (
-            <Icons.Globe />
-          ) : undefined,
         // Native web tools have no bespoke renderer — fall back to the generic
         // input/output/error JSON view.
         details: <GenericToolDetails part={part} />,
@@ -1259,7 +1242,6 @@ function getToolPresentation(
             ? "Running"
             : formatToolState(part.state),
         statusVariant,
-        icon: <Icons.Split />,
         details: <CallSubagentToolDetails part={part} />,
       };
     case SET_SPANS_FILTER_TOOL_NAME:
@@ -1267,7 +1249,6 @@ function getToolPresentation(
         preview: getSetSpansFilterToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.ListFilter />,
         details: <GenericToolDetails part={part} />,
       };
     default: {
