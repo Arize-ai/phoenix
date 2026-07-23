@@ -4,13 +4,18 @@ import { z } from "zod";
 
 import { outputConfigDraftSchema } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
+import {
+  evaluatorDraftPreviewInputSchema,
+  evaluatorMappingSourceSchema,
+} from "@phoenix/agent/tools/evaluatorDraftPreview";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
 
 export type LlmEvaluatorEditToolOutputSender = Chat<UIMessage>["addToolOutput"];
 
 export const readLlmEvaluatorDraftInputSchema = emptyToolInputSchema;
 
-export const testLlmEvaluatorDraftInputSchema = emptyToolInputSchema;
+export const testLlmEvaluatorDraftInputSchema =
+  evaluatorDraftPreviewInputSchema;
 
 // normalize* maps the model's snake_case keys onto the camelCase fields these schemas expect.
 function normalizeInputMappingAliases(input: unknown): unknown {
@@ -56,27 +61,6 @@ const inputMappingSchema = z
     literalMapping: value.literalMapping ?? {},
   }));
 
-const testPayloadSchema = z
-  .preprocess(
-    (input) =>
-      normalizeAliases(input, {
-        input: ["inputs"],
-        output: ["outputs"],
-      }),
-    z.object({
-      input: z.record(z.string(), z.unknown()).optional(),
-      output: z.record(z.string(), z.unknown()).optional(),
-      reference: z.record(z.string(), z.unknown()).optional(),
-      metadata: z.record(z.string(), z.unknown()).optional(),
-    })
-  )
-  .transform((value) => ({
-    input: value.input ?? {},
-    output: value.output ?? {},
-    reference: value.reference ?? {},
-    metadata: value.metadata ?? {},
-  }));
-
 const setNameOperationSchema = z.object({
   type: z.literal("set_name"),
   name: z.string(),
@@ -94,7 +78,7 @@ const setInputMappingOperationSchema = z.object({
 
 const setTestPayloadOperationSchema = z.object({
   type: z.literal("set_test_payload"),
-  testPayload: testPayloadSchema,
+  testPayload: evaluatorMappingSourceSchema,
 });
 
 const setIncludeExplanationOperationSchema = z.object({

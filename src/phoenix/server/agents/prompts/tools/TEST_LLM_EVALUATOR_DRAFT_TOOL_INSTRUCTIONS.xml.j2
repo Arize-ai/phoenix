@@ -8,7 +8,9 @@
     - Call `read_llm_evaluator_draft` first if you want to confirm the current draft before testing.
   </preflight>
   <guidelines>
-    - The preview result reports the judge's label and `explanation` on success, or an `error` when the judge run fails (for example a missing model-provider credential). Treat an error as an iteration signal: inspect it, revise the judge prompt or `testPayload`, and test again.
+    - When validating multiple examples, send all of them in one `cases` call with unique IDs instead of repeatedly editing `testPayload` and testing one case at a time.
+    - A `cases` call uses temporary payload overrides. It does not change the form and does not require edit approval. Omit `cases` to preview the form's current `testPayload` as before.
+    - Each case reports the judge's label and `explanation` on success, or an isolated `error` when its judge run fails. Treat errors as iteration signals: inspect them, revise the judge prompt if needed, and test the relevant cases again.
     - This tool does not create or update an evaluator. The user must still click Create or Update from the form when they are satisfied.
   </guidelines>
 </tool>

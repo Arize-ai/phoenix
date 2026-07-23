@@ -108,7 +108,10 @@ describe("llm evaluator draft test tool", () => {
     const output = { results: [{ annotation: { score: 1 } }] };
     const action = createTestLlmEvaluatorDraftClientAction({
       isDraftMounted: () => true,
-      runEvaluatorPreview: async () => ({ ok: true, output }),
+      createPreviewRunner: () => ({
+        ok: true,
+        output: async () => ({ ok: true, output }),
+      }),
     });
     const result = await action({});
     expect(result.ok).toBe(true);
@@ -119,7 +122,10 @@ describe("llm evaluator draft test tool", () => {
   it("errors when the form is not mounted", async () => {
     const action = createTestLlmEvaluatorDraftClientAction({
       isDraftMounted: () => false,
-      runEvaluatorPreview: async () => ({ ok: true, output: {} }),
+      createPreviewRunner: () => ({
+        ok: true,
+        output: async () => ({ ok: true, output: {} }),
+      }),
     });
     const result = await action({});
     expect(result.ok).toBe(false);
@@ -130,7 +136,10 @@ describe("llm evaluator draft test tool", () => {
   it("propagates a judge/API failure as the result error, not a crash", async () => {
     const action = createTestLlmEvaluatorDraftClientAction({
       isDraftMounted: () => true,
-      runEvaluatorPreview: async () => ({ ok: false, error: "judge failed" }),
+      createPreviewRunner: () => ({
+        ok: true,
+        output: async () => ({ ok: false, error: "judge failed" }),
+      }),
     });
     const result = await action({});
     expect(result.ok).toBe(false);

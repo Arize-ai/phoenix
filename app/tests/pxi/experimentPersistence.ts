@@ -82,6 +82,26 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI route-info smoke test: get_route_info tool selection and internal link generation.",
   },
+  codeEvaluatorBatchCalibration: {
+    id: "pxi-evaluator-draft:code-batch-calibration-v1",
+    prompt:
+      "Author the current Python code-evaluator draft to compare output.tool_calls with reference.expected_tools. Return label 'match' when the lists are equal and 'mismatch' otherwise. Configure matching classification output values, then calibrate it in exactly one test_code_evaluator_draft call with three named cases: single-tool-match (['search'] vs ['search'] => match), correct-abstention ([] vs [] => match), and partial-multi-tool-mismatch (['search'] vs ['search', 'calculator'] => mismatch). Use cases payload overrides; do not edit the form test payload and do not submit the evaluator. Report all three outcomes.",
+    expectedOutput:
+      "PXI authors the code evaluator and validates match, abstention, and partial mismatch in one named batch without set_test_payload edits.",
+    experimentNamePrefix: "pxi-e2e-code-evaluator-batch",
+    experimentDescription:
+      "PXI code-evaluator authoring regression for multi-case draft preview efficiency.",
+  },
+  llmEvaluatorBatchCalibration: {
+    id: "pxi-evaluator-draft:llm-batch-calibration-v1",
+    prompt:
+      "Author the current LLM-evaluator draft as an initial-response alignment judge with classification labels 'aligned' and 'not_aligned'. Then calibrate it in exactly one test_llm_evaluator_draft call with three named cases: exact-alignment (output 'Paris is the capital of France.' and reference 'Paris is the capital of France.' => aligned), semantic-paraphrase (output 'France's capital city is Paris.' and the same reference => aligned), and contradiction (output 'Lyon is the capital of France.' and the same reference => not_aligned). Use cases payload overrides; do not edit the form test payload and do not submit the evaluator. Report all three outcomes.",
+    expectedOutput:
+      "PXI authors the LLM judge and validates exact, paraphrase, and contradiction cases in one named batch without set_test_payload edits.",
+    experimentNamePrefix: "pxi-e2e-llm-evaluator-batch",
+    experimentDescription:
+      "PXI LLM-evaluator authoring regression for multi-case draft preview efficiency.",
+  },
 } as const;
 
 type PxiExperimentExample =

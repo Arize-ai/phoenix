@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
   createTestCodeEvaluatorDraftClientAction,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import type { EvaluatorPreviewRunnerFactory } from "@phoenix/agent/tools/evaluatorDraftPreview";
 import {
   Alert,
   Button,
@@ -29,7 +30,10 @@ import { ExperimentAnnotationButton } from "@phoenix/components/experiment/Exper
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
-import type { CodeEvaluatorLanguage } from "@phoenix/types";
+import type {
+  CodeEvaluatorLanguage,
+  EvaluatorMappingSource,
+} from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EvaluationPreviewResult =
@@ -197,92 +201,123 @@ export const CodeEvaluatorTestSection = ({
       }
     `);
 
-  const runEvaluatorPreview = useCallback(async (): Promise<
-    { ok: true; output: EvaluatorPreviewsOutput } | { ok: false; error: string }
-  > => {
-    setError(null);
-    setPreviewResults([]);
-
-    if (!sourceCode.trim()) {
-      const errorMessage = "Source code is required";
-      setError(errorMessage);
-      return { ok: false, error: errorMessage };
-    }
-
-    if (outputConfigs.length === 0) {
-      const errorMessage = "At least one output configuration is required";
-      setError(errorMessage);
-      return { ok: false, error: errorMessage };
-    }
-
-    if (sandboxConfigId == null) {
-      const errorMessage =
-        "Please select a sandbox configuration to test the evaluator";
-      setError(errorMessage);
-      return { ok: false, error: errorMessage };
-    }
-
-    const gqlOutputConfigs = buildOutputConfigsInput(outputConfigs);
-    return new Promise((resolve) => {
-      testEvaluator({
-        variables: {
-          input: {
-            previews: [
-              {
-                context: evaluatorMappingSource,
-                evaluator: {
-                  inlineCodeEvaluator: {
-                    name: evaluatorName,
-                    description: evaluatorDescription || null,
-                    language,
-                    sourceCode,
-                    outputConfigs: gqlOutputConfigs,
-                    sandboxConfigId,
+  const runEvaluatorPreview = useCallback(
+    async ({
+      testPayload,
+      shouldUpdateUi,
+    }: {
+      testPayload: EvaluatorMappingSource;
+      shouldUpdateUi: boolean;
+    }): Promise<
+      | { ok: true; output: EvaluatorPreviewsOutput }
+      | { ok: false; error: string }
+    > => {
+      if (shouldUpdateUi) {
+        // Match pre-batch behavior: a UI-visible preview run replaces any
+        // stale error/results from the previous run before starting.
+        setError(null);
+        setPreviewResults([]);
+      }
+      const gqlOutputConfigs = buildOutputConfigsInput(outputConfigs);
+      return new Promise((resolve) => {
+        testEvaluator({
+          variables: {
+            input: {
+              previews: [
+                {
+                  context: testPayload,
+                  evaluator: {
+                    inlineCodeEvaluator: {
+                      name: evaluatorName,
+                      description: evaluatorDescription || null,
+                      language,
+                      sourceCode,
+                      outputConfigs: gqlOutputConfigs,
+                      sandboxConfigId,
+                    },
                   },
+                  inputMapping,
                 },
-                inputMapping,
-              },
-            ],
+              ],
+            },
           },
-        },
-        onCompleted(response, errors) {
-          if (errors) {
-            const errorMessages =
-              getErrorMessagesFromRelayMutationError(errors);
+          onCompleted(response, errors) {
+            if (errors) {
+              const errorMessages =
+                getErrorMessagesFromRelayMutationError(errors);
+              const errorMessage =
+                errorMessages?.join("\n") ??
+                errors[0]?.message ??
+                "An unknown error occurred";
+              if (shouldUpdateUi) {
+                setError(errorMessage);
+              }
+              resolve({ ok: false, error: errorMessage });
+            } else {
+              const results = buildPreviewResults(response);
+              if (shouldUpdateUi) {
+                setPreviewResults(results);
+              }
+              resolve({ ok: true, output: response.evaluatorPreviews });
+            }
+          },
+          onError(error) {
+            const errorMessages = getErrorMessagesFromRelayMutationError(error);
             const errorMessage =
               errorMessages?.join("\n") ??
-              errors[0]?.message ??
+              error.message ??
               "An unknown error occurred";
-            setError(errorMessage);
+            if (shouldUpdateUi) {
+              setError(errorMessage);
+            }
             resolve({ ok: false, error: errorMessage });
-          } else {
-            const results = buildPreviewResults(response);
-            setPreviewResults(results);
-            resolve({ ok: true, output: response.evaluatorPreviews });
-          }
-        },
-        onError(error) {
-          const errorMessages = getErrorMessagesFromRelayMutationError(error);
-          const errorMessage =
-            errorMessages?.join("\n") ??
-            error.message ??
-            "An unknown error occurred";
-          setError(errorMessage);
-          resolve({ ok: false, error: errorMessage });
-        },
+          },
+        });
       });
-    });
-  }, [
-    evaluatorDescription,
-    evaluatorMappingSource,
-    evaluatorName,
-    inputMapping,
-    language,
-    outputConfigs,
-    sandboxConfigId,
-    sourceCode,
-    testEvaluator,
-  ]);
+    },
+    [
+      evaluatorDescription,
+      evaluatorName,
+      inputMapping,
+      language,
+      outputConfigs,
+      sandboxConfigId,
+      sourceCode,
+      testEvaluator,
+    ]
+  );
+
+  const buildPreviewRunner = ({
+    shouldUpdateUi,
+  }: {
+    shouldUpdateUi: boolean;
+  }) => {
+    if (!sourceCode.trim()) {
+      return { ok: false as const, error: "Source code is required" };
+    }
+    if (outputConfigs.length === 0) {
+      return {
+        ok: false as const,
+        error: "At least one output configuration is required",
+      };
+    }
+    if (sandboxConfigId == null) {
+      return {
+        ok: false as const,
+        error: "Please select a sandbox configuration to test the evaluator",
+      };
+    }
+    return {
+      ok: true as const,
+      output: (testPayload = evaluatorMappingSource) =>
+        runEvaluatorPreview({ testPayload, shouldUpdateUi }),
+    };
+  };
+  const createPreviewRunner: EvaluatorPreviewRunnerFactory = ({
+    shouldUpdateUi = false,
+  } = {}) => buildPreviewRunner({ shouldUpdateUi });
+  const createPreviewRunnerRef = useRef(createPreviewRunner);
+  createPreviewRunnerRef.current = createPreviewRunner;
 
   const agentStore = useAgentStore();
   useEffect(() => {
@@ -292,16 +327,24 @@ export const CodeEvaluatorTestSection = ({
       TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
       createTestCodeEvaluatorDraftClientAction({
         isDraftMounted,
-        runEvaluatorPreview,
+        createPreviewRunner: (options) =>
+          createPreviewRunnerRef.current(options),
       })
     );
     return () => {
       unregisterClientAction(TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME);
     };
-  }, [agentStore, isDraftMounted, runEvaluatorPreview]);
+  }, [agentStore, isDraftMounted]);
 
   const onTestEvaluator = () => {
-    void runEvaluatorPreview();
+    setError(null);
+    setPreviewResults([]);
+    const runner = buildPreviewRunner({ shouldUpdateUi: true });
+    if (!runner.ok) {
+      setError(runner.error);
+      return;
+    }
+    void runner.output();
   };
 
   const isShowingPreview =

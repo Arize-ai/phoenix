@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
+import type { EvaluatorPreviewRunnerFactory } from "@phoenix/agent/tools/evaluatorDraftPreview";
 import {
   createTestLlmEvaluatorDraftClientAction,
   TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
@@ -40,6 +41,10 @@ import {
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
+import type {
+  EvaluatorInputMapping,
+  EvaluatorMappingSource,
+} from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EvaluationPreviewResult =
@@ -151,115 +156,168 @@ export const EvaluatorOutputPreview = () => {
         }
       }
     `);
-  const runEvaluatorPreview = useCallback(async (): Promise<
-    { ok: true; output: EvaluatorPreviewsOutput } | { ok: false; error: string }
-  > => {
-    setError(null);
-    setPreviewResults([]);
-    const { instances } = playgroundStore.getState();
-    const instanceId = instances[0].id;
-    invariant(instanceId != null, "instanceId is required");
-    const state = evaluatorStore.getState();
-
-    let params:
-      | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
-      | { builtInEvaluatorId: string };
-    if (state.evaluator.isBuiltin) {
-      invariant(state.evaluator.id, "evaluator id is required");
-      params = {
-        builtInEvaluatorId: state.evaluator.id,
-      };
-    } else {
-      invariant(
-        state.outputConfigs.length > 0,
-        "at least one output config is required"
-      );
-      const payload = createLLMEvaluatorPayload({
-        playgroundStore,
-        description: state.evaluator.description,
-        name: state.evaluator.name || state.evaluator.globalName,
-        includeExplanation: state.evaluator.includeExplanation,
-        inputMapping: state.evaluator.inputMapping,
-        outputConfigs: state.outputConfigs,
-        instanceId,
-        datasetId: state.dataset?.id ?? "",
-      });
-      params = {
-        inlineLlmEvaluator: {
-          name: payload.name,
-          description: payload.description,
-          outputConfigs: payload.outputConfigs,
-          promptVersion: payload.promptVersion,
-        },
-      };
-    }
-
-    return new Promise((resolve) => {
-      previewEvaluator({
-        variables: {
-          input: {
-            previews: [
-              {
-                context: state.evaluatorMappingSource,
-                evaluator: params,
-                inputMapping: state.evaluator.inputMapping,
-              },
-            ],
-            credentials: toGqlCredentials(credentials),
+  const runEvaluatorPreview = useCallback(
+    async ({
+      params,
+      inputMapping,
+      testPayload,
+      shouldUpdateUi,
+    }: {
+      params:
+        | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
+        | { builtInEvaluatorId: string };
+      inputMapping: EvaluatorInputMapping;
+      testPayload: EvaluatorMappingSource;
+      shouldUpdateUi: boolean;
+    }): Promise<
+      | { ok: true; output: EvaluatorPreviewsOutput }
+      | { ok: false; error: string }
+    > => {
+      if (shouldUpdateUi) {
+        // Match pre-batch behavior: a UI-visible preview run replaces any
+        // stale error/results from the previous run before starting.
+        setError(null);
+        setPreviewResults([]);
+      }
+      return new Promise((resolve) => {
+        previewEvaluator({
+          variables: {
+            input: {
+              previews: [
+                {
+                  context: testPayload,
+                  evaluator: params,
+                  inputMapping,
+                },
+              ],
+              credentials: toGqlCredentials(credentials),
+            },
           },
-        },
-        onCompleted(response, errors) {
-          if (errors) {
-            const errorMessages =
-              getErrorMessagesFromRelayMutationError(errors);
+          onCompleted(response, errors) {
+            if (errors) {
+              const errorMessages =
+                getErrorMessagesFromRelayMutationError(errors);
+              const errorMessage =
+                errorMessages?.join("\n") ??
+                errors[0]?.message ??
+                "An unknown error occurred";
+              if (shouldUpdateUi) {
+                setError(errorMessage);
+              }
+              resolve({ ok: false, error: errorMessage });
+            } else {
+              const results: EvaluationPreviewResult[] =
+                response.evaluatorPreviews.results.map((result) => {
+                  if (result.error != null) {
+                    return {
+                      kind: "error" as const,
+                      evaluatorName: result.evaluatorName,
+                      message: result.error,
+                    };
+                  } else if (result.annotation != null) {
+                    return {
+                      kind: "success" as const,
+                      annotation: {
+                        id: result.annotation.id,
+                        name: result.annotation.name,
+                        label: result.annotation.label,
+                        score: result.annotation.score,
+                        explanation: result.annotation.explanation,
+                      },
+                    };
+                  } else {
+                    throw new Error(
+                      "Unknown error: no annotation or error returned"
+                    );
+                  }
+                });
+              if (shouldUpdateUi) {
+                setPreviewResults(results);
+              }
+              resolve({ ok: true, output: response.evaluatorPreviews });
+            }
+          },
+          onError(error) {
+            const errorMessages = getErrorMessagesFromRelayMutationError(error);
             const errorMessage =
               errorMessages?.join("\n") ??
-              errors[0]?.message ??
+              error.message ??
               "An unknown error occurred";
-            setError(errorMessage);
+            if (shouldUpdateUi) {
+              setError(errorMessage);
+            }
             resolve({ ok: false, error: errorMessage });
-          } else {
-            const results: EvaluationPreviewResult[] =
-              response.evaluatorPreviews.results.map((result) => {
-                if (result.error != null) {
-                  return {
-                    kind: "error" as const,
-                    evaluatorName: result.evaluatorName,
-                    message: result.error,
-                  };
-                } else if (result.annotation != null) {
-                  return {
-                    kind: "success" as const,
-                    annotation: {
-                      id: result.annotation.id,
-                      name: result.annotation.name,
-                      label: result.annotation.label,
-                      score: result.annotation.score,
-                      explanation: result.annotation.explanation,
-                    },
-                  };
-                } else {
-                  throw new Error(
-                    "Unknown error: no annotation or error returned"
-                  );
-                }
-              });
-            setPreviewResults(results);
-            resolve({ ok: true, output: response.evaluatorPreviews });
-          }
-        },
-        onError(error) {
-          const errorMessages = getErrorMessagesFromRelayMutationError(error);
-          const errorMessage =
-            errorMessages?.join("\n") ??
-            error.message ??
-            "An unknown error occurred";
-          setError(errorMessage);
-          resolve({ ok: false, error: errorMessage });
-        },
+          },
+        });
       });
-    });
-  }, [credentials, evaluatorStore, playgroundStore, previewEvaluator]);
+    },
+    [credentials, previewEvaluator]
+  );
+
+  const buildPreviewRunner = ({
+    shouldUpdateUi,
+  }: {
+    shouldUpdateUi: boolean;
+  }) => {
+    try {
+      const { instances } = playgroundStore.getState();
+      const instanceId = instances[0]?.id;
+      invariant(instanceId != null, "instanceId is required");
+      const state = evaluatorStore.getState();
+      const inputMapping = state.evaluator.inputMapping;
+      const formTestPayload = state.evaluatorMappingSource;
+      let params:
+        | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
+        | { builtInEvaluatorId: string };
+      if (state.evaluator.isBuiltin) {
+        invariant(state.evaluator.id, "evaluator id is required");
+        params = { builtInEvaluatorId: state.evaluator.id };
+      } else {
+        invariant(
+          state.outputConfigs.length > 0,
+          "at least one output config is required"
+        );
+        const payload = createLLMEvaluatorPayload({
+          playgroundStore,
+          description: state.evaluator.description,
+          name: state.evaluator.name || state.evaluator.globalName,
+          includeExplanation: state.evaluator.includeExplanation,
+          inputMapping,
+          outputConfigs: state.outputConfigs,
+          instanceId,
+          datasetId: state.dataset?.id ?? "",
+        });
+        params = {
+          inlineLlmEvaluator: {
+            name: payload.name,
+            description: payload.description,
+            outputConfigs: payload.outputConfigs,
+            promptVersion: payload.promptVersion,
+          },
+        };
+      }
+      return {
+        ok: true as const,
+        output: (testPayload = formTestPayload) =>
+          runEvaluatorPreview({
+            params,
+            inputMapping,
+            testPayload,
+            shouldUpdateUi,
+          }),
+      };
+    } catch (error) {
+      return {
+        ok: false as const,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  };
+  const createPreviewRunner: EvaluatorPreviewRunnerFactory = ({
+    shouldUpdateUi = false,
+  } = {}) => buildPreviewRunner({ shouldUpdateUi });
+  const createPreviewRunnerRef = useRef(createPreviewRunner);
+  createPreviewRunnerRef.current = createPreviewRunner;
 
   const agentStore = useAgentStore();
   const isLlmEvaluator = evaluatorKind === "LLM";
@@ -273,16 +331,24 @@ export const EvaluatorOutputPreview = () => {
       TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
       createTestLlmEvaluatorDraftClientAction({
         isDraftMounted: () => true,
-        runEvaluatorPreview,
+        createPreviewRunner: (options) =>
+          createPreviewRunnerRef.current(options),
       })
     );
     return () => {
       unregisterClientAction(TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME);
     };
-  }, [agentStore, isLlmEvaluator, runEvaluatorPreview]);
+  }, [agentStore, isLlmEvaluator]);
 
   const onTestEvaluator = () => {
-    void runEvaluatorPreview();
+    setError(null);
+    setPreviewResults([]);
+    const runner = buildPreviewRunner({ shouldUpdateUi: true });
+    if (!runner.ok) {
+      setError(runner.error);
+      return;
+    }
+    void runner.output();
   };
   const isShowingPreview =
     isLoadingEvaluatorPreview || previewResults.length > 0 || error != null;

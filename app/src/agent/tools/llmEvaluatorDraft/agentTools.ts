@@ -73,12 +73,12 @@ export const editLlmEvaluatorDraftAgentTool = defineClientActionTool<
   },
 });
 
-/** Runs the mounted LLM-evaluator draft against its test payload. */
+/** Runs the mounted LLM-evaluator draft against its form payload or named overrides. */
 export const testLlmEvaluatorDraftAgentTool =
   defineClientActionTool<TestLlmEvaluatorDraftInput>({
     name: TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
     parseInput: parseTestLlmEvaluatorDraftInput,
-    invalidInputErrorText: `Invalid ${TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME} input.`,
+    invalidInputErrorText: `Invalid ${TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME} input. Expected {} or { cases: [{ id, testPayload }] }.`,
     notMountedErrorText:
       "The LLM-evaluator form is not mounted; cannot test the draft.",
     defaultSuccessOutput: "LLM-evaluator draft tested.",
