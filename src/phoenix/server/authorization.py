@@ -84,6 +84,12 @@ def restrict_access_by_viewers(request: Request) -> None:
         )
 
 
+def is_agent_assistant_enabled(request: Request) -> None:
+    """Prevent access to agent routes when the assistant is disabled."""
+    if not request.app.state.system_settings.agent_assistant_enabled.enabled:
+        raise HTTPException(status_code=403, detail="Agents are disabled")
+
+
 def require_admin(request: Request) -> None:
     """
     FastAPI dependency to restrict access to admin or system users only.

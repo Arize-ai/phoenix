@@ -7960,7 +7960,6 @@
           "chat"
         ],
         "summary": "Run Server Agent",
-        "description": "Stream a chat turn from the GraphQL server agent (deprecated).\n\nDeprecated transcript-in/stream-out contract kept for published CLI\nclients (``@arizeai/phoenix-cli`` <= 1.10.x): the caller supplies the\nfull ``messages`` transcript and a self-minted session id, and the\nserver builds a fresh agent per request without persisting anything.\n\nRequests carrying the new single-``message`` body shape are instead\nserved by the persisted-session chat handler, without the\n``Deprecation`` header.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
         "operationId": "run_server_agent_agents_server_sessions__session_id__chat_post",
         "deprecated": true,
         "parameters": [
@@ -7998,6 +7997,120 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/{agent_id}/sessions": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Create Session",
+        "description": "Create a persisted agent session owned by the requesting user.",
+        "operationId": "create_session_agents__agent_id__sessions_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentSessionRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAgentSessionResponseBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/{agent_id}/sessions/{session_id}/compact": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Compact Agent Session",
+        "operationId": "compact_agent_session_agents__agent_id__sessions__session_id__compact_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompactAgentSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompactAgentSessionResponse"
+                }
               }
             }
           },
@@ -8135,6 +8248,37 @@
           "data"
         ],
         "title": "AddDatasetLabelToDatasetResponseBody"
+      },
+      "AgentModelSelection": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CustomProviderModelSelection"
+          },
+          {
+            "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "providerType",
+          "mapping": {
+            "builtin": "#/components/schemas/BuiltInProviderModelSelection",
+            "custom": "#/components/schemas/CustomProviderModelSelection"
+          }
+        }
+      },
+      "AgentSession": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The session's GlobalID \u2014 the ``session_id`` the chat route expects."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "AgentSession"
       },
       "AgentSpanContext": {
         "properties": {
@@ -8933,22 +9077,7 @@
             "description": "Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored."
           },
           "model": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
-              }
-            ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
+            "$ref": "#/components/schemas/AgentModelSelection"
           },
           "turnTraceContext": {
             "anyOf": [
@@ -9009,6 +9138,55 @@
         ],
         "title": "CodeEvaluatorContext",
         "description": "Code-evaluator create/edit form mounted in the current browser route."
+      },
+      "CompactAgentSessionRequest": {
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "title": "CompactAgentSessionRequest",
+        "description": "Request a model-generated checkpoint for a persisted conversation."
+      },
+      "CompactAgentSessionResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CompactAgentSessionResponseData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CompactAgentSessionResponse"
+      },
+      "CompactAgentSessionResponseData": {
+        "properties": {
+          "compacted": {
+            "type": "boolean",
+            "title": "Compacted"
+          },
+          "compaction_message": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhoenixUIMessage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "compacted"
+        ],
+        "title": "CompactAgentSessionResponseData",
+        "description": "Result of compacting the older complete turns in a conversation."
       },
       "ContinuousAnnotationConfig": {
         "properties": {
@@ -9126,6 +9304,37 @@
           "optimization_direction"
         ],
         "title": "ContinuousAnnotationConfigData"
+      },
+      "CreateAgentSessionRequestBody": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Optional initial title.",
+            "default": ""
+          },
+          "temporary": {
+            "type": "boolean",
+            "title": "Temporary",
+            "description": "Whether the session should expire after a period of inactivity.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "CreateAgentSessionRequestBody",
+        "description": "Request body for creating a persisted agent session."
+      },
+      "CreateAgentSessionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AgentSession"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateAgentSessionResponseBody"
       },
       "CreateAnnotationConfigData": {
         "oneOf": [
@@ -12123,22 +12332,7 @@
             "description": "Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route."
           },
           "model": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
-              }
-            ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
+            "$ref": "#/components/schemas/AgentModelSelection"
           }
         },
         "additionalProperties": true,
@@ -12231,22 +12425,7 @@
             "description": "Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route."
           },
           "model": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CustomProviderModelSelection"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
-              }
-            ],
-            "title": "Model",
-            "discriminator": {
-              "propertyName": "providerType",
-              "mapping": {
-                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
-                "custom": "#/components/schemas/CustomProviderModelSelection"
-              }
-            }
+            "$ref": "#/components/schemas/AgentModelSelection"
           }
         },
         "additionalProperties": true,
@@ -18493,6 +18672,11 @@
             "type": "string",
             "maxLength": 128,
             "title": "Timezone"
+          },
+          "isCompactionMessage": {
+            "type": "boolean",
+            "title": "Iscompactionmessage",
+            "default": false
           }
         },
         "additionalProperties": false,

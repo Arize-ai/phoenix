@@ -49,6 +49,12 @@ from phoenix.server.api.routers.agents import (
     _persist_db_traces_and_emit_event,
     _subagents_enabled,
 )
+from phoenix.server.authorization import (
+    is_agent_assistant_enabled,
+    is_not_locked,
+    prevent_access_in_read_only_mode,
+    restrict_access_by_viewers,
+)
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.tracers import Tracer, detached_otel_context
 
@@ -144,7 +150,14 @@ def create_legacy_agents_router(
     *,
     session_chat: SessionChatHandler,
 ) -> APIRouter:
-    dependencies = [Depends(is_authenticated)] if authentication_enabled else []
+    dependencies = [
+        Depends(is_agent_assistant_enabled),
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ]
+    if authentication_enabled:
+        dependencies.append(Depends(is_authenticated))
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
     @router.post(
@@ -156,26 +169,6 @@ def create_legacy_agents_router(
         request: Request,
         request_body: LegacyChatRequest | ChatRequest,
     ) -> Response:
-        """Stream a chat turn from the GraphQL server agent (deprecated).
-
-        Deprecated transcript-in/stream-out contract kept for published CLI
-        clients (``@arizeai/phoenix-cli`` <= 1.10.x): the caller supplies the
-        full ``messages`` transcript and a self-minted session id, and the
-        server builds a fresh agent per request without persisting anything.
-
-        Requests carrying the new single-``message`` body shape are instead
-        served by the persisted-session chat handler, without the
-        ``Deprecation`` header.
-
-        The request contexts gate capabilities — GraphQL mutations, web access,
-        and subagents — and mutations are refused for viewer users. When trace
-        recording is enabled (and permitted by system settings), the run is
-        traced; locally ingested traces are persisted to the agent's project
-        once the stream completes.
-
-        Returns ``403`` if agents or the server agent are disabled, or if a
-        viewer requests mutations.
-        """
         if isinstance(request_body, ChatRequest):
             return await session_chat(_SERVER_AGENT_ID, session_id, request, request_body)
         logger.warning(
@@ -184,8 +177,6 @@ def create_legacy_agents_router(
             "with a session created via the createAgentSession GraphQL mutation.",
             session_id,
         )
-        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
-            raise HTTPException(status_code=403, detail="Agents are disabled")
         if get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
 
@@ -198,9 +189,6 @@ def create_legacy_agents_router(
         graphql_mutations_enabled = (
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
         )
-        if graphql_mutations_enabled and is_viewer:
-            raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
-
         recording = request.app.state.system_settings.agent_trace_recording
         ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
         export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)

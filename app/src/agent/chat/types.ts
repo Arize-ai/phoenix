@@ -38,3 +38,20 @@ export function getAssistantMessageMetadata(
   const metadata = message.metadata;
   return metadata?.type === "assistant" ? metadata : undefined;
 }
+
+/** Whether a user-role transcript message is a durable compaction point. */
+export function isCompactionMessage(message: AgentUIMessage): boolean {
+  return (
+    message.role === "user" &&
+    message.metadata?.type === "user" &&
+    message.metadata.isCompactionMessage === true
+  );
+}
+
+/** Return the text content stored in a durable compaction message. */
+export function getCompactionSummary(message: AgentUIMessage): string {
+  return message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n");
+}

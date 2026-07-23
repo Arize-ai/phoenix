@@ -8,6 +8,10 @@ from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 from typing_extensions import NotRequired
 
 
+class AgentSession(TypedDict):
+    id: str
+
+
 class AgentSpanContext(TypedDict):
     type: Literal["span"]
     projectNodeId: NotRequired[str]
@@ -75,6 +79,15 @@ class CategoricalAnnotationValue(TypedDict):
 class CodeEvaluatorContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
+
+
+class CreateAgentSessionRequestBody(TypedDict):
+    title: NotRequired[str]
+    temporary: NotRequired[bool]
+
+
+class CreateAgentSessionResponseBody(TypedDict):
+    data: AgentSession
 
 
 class CreateApiKeyRequestBody(TypedDict):
@@ -1064,6 +1077,7 @@ class UserMessageMetadata(TypedDict):
     type: Literal["user"]
     currentDateTime: str
     timeZone: str
+    isCompactionMessage: NotRequired[bool]
 
 
 class ValidationError(TypedDict):
@@ -1645,6 +1659,10 @@ class AssistantMessageMetadata(TypedDict):
     usage: NotRequired[AssistantMessageMetadataUsage]
 
 
+class CompactAgentSessionRequest(TypedDict):
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+
+
 class CreateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1848,6 +1866,11 @@ class ChatRequest(TypedDict):
     trigger: NotRequired[str]
 
 
+class CompactAgentSessionResponseData(TypedDict):
+    compacted: bool
+    compaction_message: NotRequired[PhoenixUIMessage]
+
+
 class PromptChatTemplate(TypedDict):
     type: Literal["chat"]
     messages: Sequence[PromptMessage]
@@ -1897,6 +1920,10 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
+
+
+class CompactAgentSessionResponse(TypedDict):
+    data: CompactAgentSessionResponseData
 
 
 class CreatePromptRequestBody(TypedDict):

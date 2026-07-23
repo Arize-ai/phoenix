@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Button, Flex, Text } from "@phoenix/components";
+import { Alert, Button, Flex, Text } from "@phoenix/components";
 
 /** Which action the confirmation is gating. */
 export type MessageRewindMode = "rewind" | "fork";
@@ -81,11 +81,15 @@ const confirmationActionsCSS = css`
 export function MessageRewindConfirmation({
   mode,
   role,
+  error,
+  isPending = false,
   onConfirm,
   onCancel,
 }: {
   mode: MessageRewindMode;
   role: MessageRewindRole;
+  error?: string | null;
+  isPending?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -102,16 +106,23 @@ export function MessageRewindConfirmation({
         </Text>
         <Text color="text-700">{description}</Text>
       </div>
+      {error ? <Alert variant="danger">{error}</Alert> : null}
       <Flex direction="row" css={confirmationActionsCSS}>
-        <Button variant="default" size="S" onPress={onCancel}>
+        <Button
+          variant="default"
+          size="S"
+          isDisabled={isPending}
+          onPress={onCancel}
+        >
           Cancel
         </Button>
         <Button
           variant={mode === "rewind" ? "danger" : "primary"}
           size="S"
+          isDisabled={isPending}
           onPress={onConfirm}
         >
-          {confirmLabel}
+          {isPending ? "Working…" : confirmLabel}
         </Button>
       </Flex>
     </div>

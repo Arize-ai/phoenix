@@ -204,6 +204,22 @@ describe("agentStore", () => {
     });
   });
 
+  describe("setSessionCompactionPending", () => {
+    it("tracks compaction across remounts and clears it with session state", () => {
+      const store = createAgentStore();
+
+      store.getState().setSessionCompactionPending("session-node-id", true);
+      expect(
+        store.getState().isCompactionPendingBySessionId["session-node-id"]
+      ).toBe(true);
+
+      store.getState().clearSessionEphemeralState("session-node-id");
+      expect(
+        store.getState().isCompactionPendingBySessionId["session-node-id"]
+      ).toBeUndefined();
+    });
+  });
+
   describe("draft input", () => {
     it("sets and clears draft input", () => {
       const store = createAgentStore();
