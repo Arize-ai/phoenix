@@ -3,16 +3,32 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal, Optional
 from urllib.request import urlopen
 
 from pydantic import AfterValidator, BaseModel
+
+PROMPT_TOKEN_ATTRIBUTE = "llm.token_count.prompt"
+
+TIER_THRESHOLDS: tuple[tuple[str, int], ...] = (
+    ("128k", 128_000),
+    ("200k", 200_000),
+    ("272k", 272_000),
+)
+
+
+class ThresholdBasedTokenPriceCustomization(BaseModel):
+    type: Literal["threshold_based"] = "threshold_based"
+    key: str
+    threshold: float
+    new_rate: float
 
 
 class TokenPrice(BaseModel):
     base_rate: float
     is_prompt: bool
     token_type: str
+    customization: Optional[ThresholdBasedTokenPriceCustomization] = None
 
 
 def validate_regular_expression(value: str) -> str:
@@ -135,6 +151,37 @@ def fetch_data(url: str) -> dict[str, Any]:
         raise Exception(f"Error fetching data from URL: {e}")
 
 
+def _tier_customization(
+    model_info: dict[str, Any],
+    base_field: str,
+) -> Optional[ThresholdBasedTokenPriceCustomization]:
+    """
+    LiteLLM publishes whole-prompt tier rates as ``<base_field>_above_NNNk_tokens`` variants
+    (e.g. ``input_cost_per_token_above_200k_tokens``). Emit the first configured tier as a
+    ThresholdBasedTokenPriceCustomization keyed on the prompt token count, so that once the
+    prompt strictly exceeds the threshold every token bills at the elevated rate. Only a
+    single tier per model is emitted today; no publicly-priced model in the LiteLLM manifest
+    configures more than one tier for the same base field.
+    """
+    for label, threshold in TIER_THRESHOLDS:
+        tier_field = f"{base_field}_above_{label}_tokens"
+        tier_rate = model_info.get(tier_field)
+        if tier_rate is None:
+            continue
+        try:
+            new_rate = float(tier_rate)
+        except (TypeError, ValueError):
+            continue
+        if new_rate <= 0:
+            continue
+        return ThresholdBasedTokenPriceCustomization(
+            key=PROMPT_TOKEN_ATTRIBUTE,
+            threshold=float(threshold),
+            new_rate=new_rate,
+        )
+    return None
+
+
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
@@ -163,6 +210,7 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="input",
                     base_rate=input_cost,
                     is_prompt=True,
+                    customization=_tier_customization(model_info, "input_cost_per_token"),
                 )
             )
 
@@ -172,6 +220,7 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="output",
                     base_rate=output_cost,
                     is_prompt=False,
+                    customization=_tier_customization(model_info, "output_cost_per_token"),
                 )
             )
 
@@ -181,6 +230,7 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="cache_read",
                     base_rate=cache_read_cost,
                     is_prompt=True,
+                    customization=_tier_customization(model_info, "cache_read_input_token_cost"),
                 )
             )
 
@@ -190,6 +240,9 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="cache_write",
                     base_rate=cache_creation_cost,
                     is_prompt=True,
+                    customization=_tier_customization(
+                        model_info, "cache_creation_input_token_cost"
+                    ),
                 )
             )
 

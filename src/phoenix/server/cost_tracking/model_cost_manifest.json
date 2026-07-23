@@ -133,22 +133,46 @@
         {
           "base_rate": 3e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
         },
         {
           "base_rate": 0.000015,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
         },
         {
           "base_rate": 3e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
         },
         {
           "base_rate": 3.75e-6,
           "is_prompt": true,
-          "token_type": "cache_write"
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
         }
       ]
     },
@@ -511,22 +535,46 @@
         {
           "base_rate": 3e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
         },
         {
           "base_rate": 0.000015,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
         },
         {
           "base_rate": 3e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
         },
         {
           "base_rate": 3.75e-6,
           "is_prompt": true,
-          "token_type": "cache_write"
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
         }
       ]
     },
@@ -538,22 +586,46 @@
         {
           "base_rate": 3e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
         },
         {
           "base_rate": 0.000015,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
         },
         {
           "base_rate": 3e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
         },
         {
           "base_rate": 3.75e-6,
           "is_prompt": true,
-          "token_type": "cache_write"
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
         }
       ]
     },
@@ -565,22 +637,46 @@
         {
           "base_rate": 3e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
         },
         {
           "base_rate": 0.000015,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
         },
         {
           "base_rate": 3e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
         },
         {
           "base_rate": 3.75e-6,
           "is_prompt": true,
-          "token_type": "cache_write"
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
         }
       ]
     },
@@ -592,22 +688,46 @@
         {
           "base_rate": 3e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
         },
         {
           "base_rate": 0.000015,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
         },
         {
           "base_rate": 3e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
         },
         {
           "base_rate": 3.75e-6,
           "is_prompt": true,
-          "token_type": "cache_write"
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
         }
       ]
     },
@@ -781,12 +901,24 @@
         {
           "base_rate": 1.25e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 2.5e-6
+          }
         },
         {
           "base_rate": 0.00001,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.000015
+          }
         }
       ]
     },
@@ -1043,17 +1175,35 @@
         {
           "base_rate": 1.25e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 2.5e-6
+          }
         },
         {
           "base_rate": 0.00001,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.000015
+          }
         },
         {
           "base_rate": 1.25e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 2.5e-7
+          }
         }
       ]
     },
@@ -1065,17 +1215,35 @@
         {
           "base_rate": 1.25e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 2.5e-6
+          }
         },
         {
           "base_rate": 0.00001,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.000015
+          }
         },
         {
           "base_rate": 1.25e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 2.5e-7
+          }
         },
         {
           "base_rate": 7e-7,
@@ -1153,17 +1321,35 @@
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 4e-6
+          }
         },
         {
           "base_rate": 0.000012,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.000018
+          }
         },
         {
           "base_rate": 2e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 4e-7
+          }
         }
       ]
     },
@@ -1290,17 +1476,35 @@
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 4e-6
+          }
         },
         {
           "base_rate": 0.000012,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.000018
+          }
         },
         {
           "base_rate": 2e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 4e-7
+          }
         }
       ]
     },
@@ -1312,17 +1516,35 @@
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 4e-6
+          }
         },
         {
           "base_rate": 0.000012,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.000018
+          }
         },
         {
           "base_rate": 2e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 4e-7
+          }
         }
       ]
     },
@@ -3192,17 +3414,35 @@
         {
           "base_rate": 2.5e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-6
+          }
         },
         {
           "base_rate": 0.000015,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000225
+          }
         },
         {
           "base_rate": 2.5e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-7
+          }
         }
       ]
     },
@@ -3214,17 +3454,35 @@
         {
           "base_rate": 2.5e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-6
+          }
         },
         {
           "base_rate": 0.000015,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000225
+          }
         },
         {
           "base_rate": 2.5e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-7
+          }
         }
       ]
     },
@@ -3324,17 +3582,35 @@
         {
           "base_rate": 0.00003,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
         },
         {
           "base_rate": 0.00018,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00027
+          }
         },
         {
           "base_rate": 3e-6,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 6e-6
+          }
         }
       ]
     },
@@ -3346,17 +3622,35 @@
         {
           "base_rate": 0.00003,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
         },
         {
           "base_rate": 0.00018,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00027
+          }
         },
         {
           "base_rate": 3e-6,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 6e-6
+          }
         }
       ]
     },
@@ -3368,17 +3662,35 @@
         {
           "base_rate": 5e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00001
+          }
         },
         {
           "base_rate": 0.00003,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000045
+          }
         },
         {
           "base_rate": 5e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 1e-6
+          }
         }
       ]
     },
@@ -3390,17 +3702,35 @@
         {
           "base_rate": 5e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00001
+          }
         },
         {
           "base_rate": 0.00003,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000045
+          }
         },
         {
           "base_rate": 5e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 1e-6
+          }
         }
       ]
     },
@@ -3412,17 +3742,35 @@
         {
           "base_rate": 0.00003,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
         },
         {
           "base_rate": 0.00018,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00027
+          }
         },
         {
           "base_rate": 3e-6,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 6e-6
+          }
         }
       ]
     },
@@ -3434,17 +3782,35 @@
         {
           "base_rate": 0.00003,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
         },
         {
           "base_rate": 0.00018,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00027
+          }
         },
         {
           "base_rate": 3e-6,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 6e-6
+          }
         }
       ]
     },
@@ -3456,22 +3822,46 @@
         {
           "base_rate": 5e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00001
+          }
         },
         {
           "base_rate": 0.00003,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000045
+          }
         },
         {
           "base_rate": 5e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 1e-6
+          }
         },
         {
           "base_rate": 6.25e-6,
           "is_prompt": true,
-          "token_type": "cache_write"
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000125
+          }
         }
       ]
     },
@@ -3483,22 +3873,46 @@
         {
           "base_rate": 1e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-6
+          }
         },
         {
           "base_rate": 6e-6,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 9e-6
+          }
         },
         {
           "base_rate": 1e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
         },
         {
           "base_rate": 1.25e-6,
           "is_prompt": true,
-          "token_type": "cache_write"
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2.5e-6
+          }
         }
       ]
     },
@@ -3510,22 +3924,46 @@
         {
           "base_rate": 5e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00001
+          }
         },
         {
           "base_rate": 0.00003,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000045
+          }
         },
         {
           "base_rate": 5e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 1e-6
+          }
         },
         {
           "base_rate": 6.25e-6,
           "is_prompt": true,
-          "token_type": "cache_write"
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000125
+          }
         }
       ]
     },
@@ -3537,22 +3975,46 @@
         {
           "base_rate": 2.5e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-6
+          }
         },
         {
           "base_rate": 0.000015,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000225
+          }
         },
         {
           "base_rate": 2.5e-7,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-7
+          }
         },
         {
           "base_rate": 3.125e-6,
           "is_prompt": true,
-          "token_type": "cache_write"
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 6.25e-6
+          }
         }
       ]
     },
