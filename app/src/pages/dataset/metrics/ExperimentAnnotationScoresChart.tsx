@@ -144,6 +144,7 @@ export function ExperimentAnnotationScoresChart({
           data={chartData}
           margin={compactChartMargin}
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
+          syncMethod="value"
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis

@@ -8,7 +8,6 @@ import {
 } from "react-resizable-panels";
 
 import { View } from "@phoenix/components";
-import { ChartPanel } from "@phoenix/components/chart";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getExperimentMetricCharts } from "@phoenix/pages/dataset/metrics/chartCatalog";
@@ -45,7 +44,7 @@ const chartsGridCSS = css`
  * Any chart in the experiment metric chart catalog can be added. The
  * selection is persisted per dataset.
  */
-function ExperimentsMetricsCharts() {
+export function ExperimentsMetricsCharts() {
   const datasetId = useDatasetContext((state) => state.datasetId);
   const selectedChartKeys = useDatasetContext(
     (state) => state.experimentsMetricChartKeys
@@ -62,10 +61,13 @@ function ExperimentsMetricsCharts() {
       zIndex={2}
     >
       <div css={chartsGridCSS}>
-        {charts.map(({ key, name, description, Component }) => (
-          <ChartPanel key={key} title={name} subtitle={description} fillHeight>
-            <Component datasetId={datasetId} />
-          </ChartPanel>
+        {charts.map(({ key, annotationName, Panel }) => (
+          <Panel
+            key={key}
+            datasetId={datasetId}
+            annotationName={annotationName}
+            fillHeight
+          />
         ))}
       </div>
     </View>

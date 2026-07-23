@@ -78,6 +78,7 @@ export function ExperimentCostChart({ datasetId }: ExperimentMetricViewProps) {
           margin={compactChartMargin}
           barSize={10}
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
+          syncMethod="value"
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis
