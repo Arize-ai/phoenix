@@ -104,7 +104,7 @@
     "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-client",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p examples/tsconfig.examples.json"
   },
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^2.5.0",

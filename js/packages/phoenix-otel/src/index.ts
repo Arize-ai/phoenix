@@ -20,6 +20,9 @@ export * from "@arizeai/openinference-core";
 
 // Phoenix abstractions
 export * from "./createNoOpProvider";
+// Explicit re-export: takes precedence over the `getTracer` that
+// @arizeai/openinference-core's star export would otherwise provide.
+export { getTracer } from "./getTracer";
 export * from "./lazyOpenInferenceSpanProcessor";
 export * from "./register";
 export * from "./utils";
