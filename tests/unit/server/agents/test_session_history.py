@@ -100,11 +100,6 @@ async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
             for position, message in enumerate(messages)
         ]
         session.add_all(message_rows)
-        await session.flush()
-        session.add_all(
-            models.AgentSessionCompactionPoint(agent_session_message_id=message_rows[index].id)
-            for index in (2, 5)
-        )
         agent_session_rowid = agent_session.id
 
     async with db() as session:

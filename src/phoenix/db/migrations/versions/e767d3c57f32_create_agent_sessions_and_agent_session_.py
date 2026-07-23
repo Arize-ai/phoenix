@@ -111,6 +111,18 @@ def upgrade() -> None:
             unique=True,
         ),
         sa.Column(
+            "is_compaction_message",
+            sa.Boolean,
+            sa.Computed(
+                sa.func.coalesce(
+                    message[["metadata", "isCompactionMessage"]].as_boolean(),
+                    sa.false(),
+                ),
+                persisted=True,
+            ),
+            nullable=False,
+        ),
+        sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
@@ -118,6 +130,13 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint("agent_session_id", "position"),
         sqlite_autoincrement=True,
+    )
+    op.create_index(
+        "ix_agent_session_messages_compaction",
+        "agent_session_messages",
+        ["agent_session_id", sa.column("position").desc()],
+        postgresql_where=sa.text("is_compaction_message"),
+        sqlite_where=sa.text("is_compaction_message"),
     )
 
     op.create_table(
@@ -147,21 +166,8 @@ def upgrade() -> None:
         sqlite_autoincrement=True,
     )
 
-    op.create_table(
-        "agent_session_compaction_points",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column(
-            "agent_session_message_id",
-            _Integer,
-            sa.ForeignKey("agent_session_messages.id", ondelete="CASCADE"),
-            nullable=False,
-            unique=True,
-        ),
-    )
-
 
 def downgrade() -> None:
-    op.drop_table("agent_session_compaction_points")
     op.drop_table("agent_session_snapshots")
     op.drop_table("agent_session_messages")
     op.drop_table("agent_sessions")

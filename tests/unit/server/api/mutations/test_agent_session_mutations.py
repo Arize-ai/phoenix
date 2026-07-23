@@ -3,7 +3,7 @@ from uuid import UUID
 
 import pytest
 from fastapi import FastAPI
-from sqlalchemy import select
+from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -263,11 +263,6 @@ async def test_truncate_agent_session_restores_the_latest_surviving_compaction_p
             for position, message in enumerate(additional_messages, start=4)
         ]
         session.add_all(additional_rows)
-        await session.flush()
-        session.add_all(
-            models.AgentSessionCompactionPoint(agent_session_message_id=row.id)
-            for row in (additional_rows[0], additional_rows[3])
-        )
 
     response = await gql_client.execute(
         query=_TRUNCATE_MUTATION,
@@ -279,12 +274,16 @@ async def test_truncate_agent_session_restores_the_latest_surviving_compaction_p
     messages = response.data["truncateAgentSession"]["agentSession"]["messages"]
     assert [message["id"] for message in messages][-1] == "compaction-1"
     async with db() as session:
-        surviving_points = (await session.scalars(select(models.AgentSessionCompactionPoint))).all()
+        surviving_compaction_message_count = await session.scalar(
+            select(func.count())
+            .select_from(models.AgentSessionMessage)
+            .where(models.AgentSessionMessage.is_compaction_message)
+        )
         history = await _load_agent_session_history(
             session,
             agent_session_rowid=agent_session_rowid,
         )
-    assert len(surviving_points) == 1
+    assert surviving_compaction_message_count == 1
     assert [row.message.id for row in history] == ["compaction-1"]
 
 
@@ -415,8 +414,6 @@ async def test_branch_agent_session_copies_durable_compaction_points(
             ),
         )
         session.add_all((compaction_row, assistant_row))
-        await session.flush()
-        session.add(models.AgentSessionCompactionPoint(agent_session_message_id=compaction_row.id))
 
     response = await gql_client.execute(
         query=_BRANCH_MUTATION,
@@ -436,10 +433,12 @@ async def test_branch_agent_session_copies_durable_compaction_points(
     )
     assert copied_compaction["id"] != "source-compaction"
     async with db() as session:
-        compaction_points = (
-            await session.scalars(select(models.AgentSessionCompactionPoint))
-        ).all()
-    assert len(compaction_points) == 2
+        compaction_message_count = await session.scalar(
+            select(func.count())
+            .select_from(models.AgentSessionMessage)
+            .where(models.AgentSessionMessage.is_compaction_message)
+        )
+    assert compaction_message_count == 2
 
 
 async def test_branch_agent_session_copies_the_source_title(
