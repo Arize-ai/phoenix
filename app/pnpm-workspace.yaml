@@ -10,6 +10,12 @@ minimumReleaseAgeExclude:
   # published same-day as the TS 7 migration; remove once 3 days have passed.
   - typescript
   - "@typescript/*"
+  # oxlint@1.75.0 and oxlint-tsgolint@7 (type-aware linting) were published
+  # same-day as their adoption here; remove once 3 days have passed.
+  - oxlint
+  - "@oxlint/*"
+  - oxlint-tsgolint
+  - "@oxlint-tsgolint/*"
 
 allowBuilds:
   "@mongodb-js/zstd": false
