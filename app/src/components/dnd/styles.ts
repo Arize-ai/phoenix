@@ -1,5 +1,7 @@
 import { css } from "@emotion/react";
 
+import { hoverRevealCSS } from "@phoenix/components/core/styles";
+
 /**
  * Shared drag feedback for dnd-kit sortables: shadow on the dragged copy,
  * tint on the drop slot. Compose into a sortable's CSS.
@@ -25,11 +27,11 @@ export const dndDragFeedbackCSS = css`
  * handle's own layout CSS (size, position).
  */
 export const dndHandleAppearanceCSS = css`
+  ${hoverRevealCSS}
   border: none;
   background: none;
   padding: 0;
   color: var(--global-dnd-handle-color);
-  opacity: 0;
   cursor: grab;
   touch-action: none;
   border-radius: var(--global-rounding-small);

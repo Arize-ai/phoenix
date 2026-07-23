@@ -17,3 +17,23 @@ export const quietHoverCSS = css`
     background-color: var(--hover-background);
   }
 `;
+
+/**
+ * Keeps a hover-revealed control reachable outside pointer interaction.
+ * Compose this into the hidden control (or a wrapper around its controls),
+ * then let the consumer reveal it when the larger hover target is hovered.
+ */
+export const hoverRevealCSS = css`
+  opacity: 0;
+
+  &:hover,
+  &:focus-within,
+  &[data-hovered],
+  &[data-focus-visible] {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    opacity: 1;
+  }
+`;

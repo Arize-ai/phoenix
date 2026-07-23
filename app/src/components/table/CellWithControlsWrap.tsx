@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 
+import { hoverRevealCSS } from "@phoenix/components/core/styles";
+
 const cellWithControlsWrapCSS = css`
   position: relative;
   display: flex;
@@ -19,8 +21,8 @@ const cellWithControlsWrapCSS = css`
     align-items: center;
   }
   .controls {
+    ${hoverRevealCSS}
     transition: opacity 0.1s ease-in-out;
-    opacity: 0;
     z-index: 1;
   }
   &:hover .controls {

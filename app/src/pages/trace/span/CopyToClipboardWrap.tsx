@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 
 import { CopyToClipboardButton } from "@phoenix/components";
+import { hoverRevealCSS } from "@phoenix/components/core/styles";
 
 /**
  * Wraps content with a copy-to-clipboard button that is revealed on hover in
@@ -18,8 +19,8 @@ export function CopyToClipboardWrap({
       css={css`
         position: relative;
         .copy-to-clipboard-button {
+          ${hoverRevealCSS}
           transition: opacity 0.2s ease-in-out;
-          opacity: 0;
           position: absolute;
           right: ${paddingValue};
           top: ${paddingValue};
