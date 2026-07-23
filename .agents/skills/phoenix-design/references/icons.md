@@ -44,12 +44,12 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | PXI navigation tool | `Icons.ArrowUpRightCorner` | Route lookup and tools that open an editing surface. |
 | PXI read tool | `Icons.ScanText` | Read-only inspection of an existing user artifact. |
 | PXI run tool | `Icons.Play` | Playground and evaluator run actions, including cancellation. |
-| PXI search tool | `Icons.Search` | Searching Phoenix documentation or the web. |
+| PXI search tool | `Icons.Search` | Searching Phoenix documentation. |
 | PXI skill tool | `Icons.GraduationCap` | Loading a skill or reading one of its resources. |
 | PXI built-in skill | Semantic noun icon | Built-in skills use a noun icon such as `Database` for datasets or `Scale` for evaluators; unknown skills fall back to `GraduationCap`. |
 | PXI time tool | `Icons.Clock` | Reading or changing time context. |
 | PXI visualization tool | `Icons.BarChart` | Rendering generative charts or other data UI. |
-| PXI web retrieval tool | `Icons.Globe` | Fetching a known web page. |
+| PXI web tool | `Icons.Globe` | Searching the web or fetching a known web page. |
 | PXI tool (generic) | `Icons.Wrench` | Fallback for unknown tools or tools without a strong semantic category. |
 
 ## When you need an icon

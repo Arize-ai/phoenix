@@ -137,7 +137,6 @@ const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
   // Search
   query_docs_filesystem_phoenix: "search",
   search_phoenix: "search",
-  web_search: "search",
 
   // Skills
   load_skill: "skill",
@@ -150,7 +149,8 @@ const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
   // Generative UI
   render_generative_ui: "visualize",
 
-  // Web retrieval
+  // Web search and retrieval
+  web_search: "web",
   web_fetch: "web",
 };
 

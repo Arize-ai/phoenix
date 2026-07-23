@@ -13,6 +13,8 @@ describe("PXI tool icon configuration", () => {
     ["create_dataset", "Database"],
     ["query_docs_filesystem_phoenix", "Search"],
     ["search_phoenix", "Search"],
+    ["web_search", "Globe"],
+    ["web_fetch", "Globe"],
     ["run_playground", "Play"],
     ["cancel_playground_run", "Play"],
     ["load_skill", "GraduationCap"],
