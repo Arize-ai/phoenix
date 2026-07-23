@@ -22,7 +22,7 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     timeout-minutes: 45
     env:
-      UV_VERSION: "0.11.8"
+      UV_VERSION: "0.11.12"
       HARBOR_ENV: daytona
       # Two attempts, gated on the mean: a one-off agent slip passes while a
       # consistent regression still fails.
