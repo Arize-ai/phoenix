@@ -1,5 +1,6 @@
 import type { Completion } from "@codemirror/autocomplete";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
@@ -10,6 +11,7 @@ import {
   type DSLFilterSnippet,
   useDSLFilterConditionHistory,
 } from "@phoenix/components/filter";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import environment from "@phoenix/RelayEnvironment";
 
@@ -285,12 +287,33 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     [recentSearchesCompletionSource]
   );
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const handleValidCondition = useCallback(
     (condition: string) => {
       recordValidCondition(condition);
       onValidCondition(condition);
+      // Mirror the validated condition into the URL so any filtered view is
+      // shareable as a link. Only validated conditions are written (edits are
+      // debounced upstream), the write replaces rather than pushes so typing
+      // does not spam history, and an already-in-sync URL (including the
+      // no-filter, no-param case) is left untouched.
+      if ((searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? "") !== condition) {
+        setSearchParams(
+          (prevSearchParams) => {
+            const nextSearchParams = new URLSearchParams(prevSearchParams);
+            if (condition) {
+              nextSearchParams.set(SPAN_FILTER_CONDITION_PARAM, condition);
+            } else {
+              nextSearchParams.delete(SPAN_FILTER_CONDITION_PARAM);
+            }
+            return nextSearchParams;
+          },
+          { replace: true }
+        );
+      }
     },
-    [recordValidCondition, onValidCondition]
+    [recordValidCondition, onValidCondition, searchParams, setSearchParams]
   );
 
   // Advertise a project context that carries the current spanFilter while
