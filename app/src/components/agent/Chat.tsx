@@ -27,6 +27,7 @@ import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
+import { Alert } from "@phoenix/components";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import { PromptInput } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
@@ -73,6 +74,7 @@ import { PxiGlyph } from "./PxiGlyph";
 import { useScrollAnchor } from "./scrollAnchor";
 import { TemporaryChatToggle } from "./TemporaryChatToggle";
 import { isToolUIPart } from "./toolPartTypes";
+import type { AgentChatOperationError } from "./useAgentChat";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
@@ -296,6 +298,10 @@ const chatCSS = css`
     animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
+  .chat__operation-error {
+    margin-bottom: var(--global-dimension-size-100);
+  }
+
   /* Elicitation-style surfaces (consent gate, rewind confirmation, question
      carousel) can be taller than the panel; let the input region shrink and
      scroll internally instead of clipping at the panel edge. */
@@ -417,6 +423,14 @@ function ChatCompactionProgress() {
   );
 }
 
+function ChatCompactionStatus({ children }: { children: string }) {
+  return (
+    <div className="chat__compaction-divider" role="status" aria-live="polite">
+      <span className="chat__compaction-divider-label">{children}</span>
+    </div>
+  );
+}
+
 /**
  * Pure chat view used both by the legacy mounted panel and by the headless
  * controller path that keeps streaming alive while the panel is hidden.
@@ -433,6 +447,9 @@ export function ChatView({
   handleElicitationCancel,
   compactSession,
   isCompacting = false,
+  compactionStatus,
+  operationError,
+  clearOperationError,
   rewindToMessage,
   forkFromMessage,
   modelMenuValue,
@@ -456,6 +473,9 @@ export function ChatView({
   handleElicitationCancel: () => void;
   compactSession: PromptCommandContext["compactSession"];
   isCompacting?: boolean;
+  compactionStatus?: string | null;
+  operationError?: AgentChatOperationError | null;
+  clearOperationError?: () => void;
   /**
    * Truncates the active session at a message; resolves to user text to
    * restore. Absent on read-only surfaces, which hides the rewind/branch
@@ -463,7 +483,7 @@ export function ChatView({
    */
   rewindToMessage?: (messageId: string) => Promise<string | null>;
   /** Branches a new session from a message; absent hides the branch control. */
-  forkFromMessage?: (messageId: string) => void;
+  forkFromMessage?: (messageId: string) => Promise<void>;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
@@ -556,7 +576,10 @@ export function ChatView({
   });
   const latestMessage = messages.at(-1);
   const shouldShowInterruptedMessage =
-    status === "ready" && !error && latestMessage?.role === "user";
+    status === "ready" &&
+    !error &&
+    latestMessage?.role === "user" &&
+    !isCompactionMessage(latestMessage);
   const resolvedElicitationDraft =
     pendingElicitation &&
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
@@ -607,6 +630,9 @@ export function ChatView({
     messageId: string;
     role: MessageRewindRole;
   } | null>(null);
+  const [historyActionError, setHistoryActionError] =
+    useState<AgentChatOperationError | null>(null);
+  const [isHistoryActionPending, setIsHistoryActionPending] = useState(false);
 
   // Rewind/branch changes finalized history, so these actions are only offered
   // once the chat has settled — never mid-request.
@@ -616,7 +642,10 @@ export function ChatView({
     if (!hasChatSettled || !rewindToMessage) {
       return undefined;
     }
-    return (request) => setRewindRequest(request);
+    return (request) => {
+      setHistoryActionError(null);
+      setRewindRequest(request);
+    };
   }, [hasChatSettled, rewindToMessage]);
 
   const handleConfirmRewind = async () => {
@@ -624,17 +653,34 @@ export function ChatView({
       return;
     }
     const { mode, messageId } = rewindRequest;
-    setRewindRequest(null);
-    if (mode === "fork") {
-      // Forking switches the active session, which remounts this view; the
-      // forked session receives restored text through draftInputBySessionId.
-      forkFromMessage?.(messageId);
-    } else {
-      const restoredInput = (await rewindToMessage?.(messageId)) ?? null;
-      if (restoredInput != null) {
-        setSessionDraftInput(restoredInput);
-        textareaRef.current?.focus();
+    setHistoryActionError(null);
+    setIsHistoryActionPending(true);
+    try {
+      if (mode === "fork") {
+        // Forking switches the active session, which remounts this view; the
+        // forked session receives restored text through draftInputBySessionId.
+        await forkFromMessage?.(messageId);
+      } else {
+        const restoredInput = (await rewindToMessage?.(messageId)) ?? null;
+        if (restoredInput != null) {
+          setSessionDraftInput(restoredInput);
+          textareaRef.current?.focus();
+        }
       }
+      setRewindRequest(null);
+    } catch (error) {
+      setHistoryActionError({
+        title:
+          mode === "fork"
+            ? "Conversation could not be branched"
+            : "Conversation could not be rewound",
+        message:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred.",
+      });
+    } finally {
+      setIsHistoryActionPending(false);
     }
   };
 
@@ -648,12 +694,23 @@ export function ChatView({
     }
     // The server-side truncation must land before re-sending, or the resent
     // request would still carry the interrupted user turn.
-    const restoredInput = await rewindToMessage?.(message.id);
-    if (restoredInput == null) {
-      return;
+    setHistoryActionError(null);
+    try {
+      const restoredInput = await rewindToMessage?.(message.id);
+      if (restoredInput == null) {
+        return;
+      }
+      void scrollToBottom();
+      sendMessage({ text: messageText });
+    } catch (error) {
+      setHistoryActionError({
+        title: "Conversation could not be rewound",
+        message:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred.",
+      });
     }
-    void scrollToBottom();
-    sendMessage({ text: messageText });
   };
 
   const handleRetryInterruptedMessage = () => retryUserMessage(latestMessage);
@@ -761,6 +818,11 @@ export function ChatView({
                   );
                 })}
                 {isCompacting ? <ChatCompactionProgress /> : null}
+                {!isCompacting && compactionStatus ? (
+                  <ChatCompactionStatus>
+                    {compactionStatus}
+                  </ChatCompactionStatus>
+                ) : null}
                 {showThinkingIndicator && <Loading />}
                 {shouldShowInterruptedMessage ? (
                   <InterruptedChatMessage
@@ -789,6 +851,21 @@ export function ChatView({
           </div>
         </ChatScrollContext.Provider>
         <div className="chat__input">
+          {(operationError || (!rewindRequest && historyActionError)) && (
+            <div className="chat__operation-error" role="alert">
+              <Alert
+                variant="danger"
+                title={(operationError ?? historyActionError)?.title}
+                dismissable
+                onDismissClick={() => {
+                  clearOperationError?.();
+                  setHistoryActionError(null);
+                }}
+              >
+                {(operationError ?? historyActionError)?.message}
+              </Alert>
+            </div>
+          )}
           {!hasAcknowledgedConsent ? (
             <PromptInput status={status} isDisabled mode="elicitation">
               <AgentConsentGate />
@@ -798,8 +875,13 @@ export function ChatView({
               <MessageRewindConfirmation
                 mode={rewindRequest.mode}
                 role={rewindRequest.role}
+                error={historyActionError?.message}
+                isPending={isHistoryActionPending}
                 onConfirm={handleConfirmRewind}
-                onCancel={() => setRewindRequest(null)}
+                onCancel={() => {
+                  setHistoryActionError(null);
+                  setRewindRequest(null);
+                }}
               />
             </PromptInput>
           ) : pendingElicitation ? (

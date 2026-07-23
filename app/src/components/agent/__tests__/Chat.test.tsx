@@ -92,6 +92,9 @@ function renderChatView(
     sendMessage = vi.fn<ChatViewSendMessage>(),
     compactSession = vi.fn<ChatViewCompactSession>(),
     isCompacting = false,
+    compactionStatus,
+    operationError,
+    clearOperationError,
     rewindToMessage,
     forkFromMessage,
   }: {
@@ -106,8 +109,11 @@ function renderChatView(
     sendMessage?: ChatViewSendMessage;
     compactSession?: ChatViewCompactSession;
     isCompacting?: boolean;
+    compactionStatus?: string | null;
+    operationError?: { title: string; message: string } | null;
+    clearOperationError?: () => void;
     rewindToMessage?: (messageId: string) => Promise<string | null>;
-    forkFromMessage?: (messageId: string) => void;
+    forkFromMessage?: (messageId: string) => Promise<void>;
   } = {}
 ) {
   act(() => {
@@ -159,6 +165,9 @@ function renderChatView(
             handleElicitationCancel={vi.fn()}
             compactSession={compactSession}
             isCompacting={isCompacting}
+            compactionStatus={compactionStatus}
+            operationError={operationError}
+            clearOperationError={clearOperationError}
             rewindToMessage={rewindToMessage}
             forkFromMessage={forkFromMessage}
             modelMenuValue={{ provider: "ANTHROPIC", modelName: "claude" }}
@@ -363,6 +372,20 @@ describe("ChatView", () => {
     );
   });
 
+  it("renders an already-compact result inline in the transcript", () => {
+    renderChatView(root, {
+      compactionStatus:
+        "Conversation is already compact. There are no older complete turns to compact.",
+    });
+
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      "Conversation is already compact. There are no older complete turns to compact."
+    );
+
+    renderChatView(root, { compactionStatus: null });
+    expect(container.querySelector('[role="status"]')).toBeNull();
+  });
+
   it("renders a divider after the compacted transcript boundary", () => {
     const nextUserMessage = {
       id: "user-message-2",
@@ -452,6 +475,55 @@ describe("ChatView", () => {
     expect(summaries).toHaveLength(2);
     expect(summaries[0]?.textContent).toContain("first summary");
     expect(summaries[1]?.textContent).toContain("second summary");
+  });
+
+  it("does not treat a trailing compaction checkpoint as an interrupted turn", () => {
+    const compactionMessage = {
+      id: "compaction-message",
+      role: "user",
+      metadata: { type: "compaction" },
+      parts: [{ type: "text", text: '{"objectives":[]}' }],
+    } as AgentUIMessage;
+
+    renderChatView(root, {
+      chatMessages: [...messages, compactionMessage],
+      status: "ready",
+      rewindToMessage: vi.fn(),
+      forkFromMessage: vi.fn(),
+    });
+
+    expect(container.textContent).not.toContain("PXI did not respond.");
+    expect(container.textContent).not.toContain("Branch before message");
+    expect(
+      container.querySelector(
+        '[role="separator"][aria-label="Conversation context compacted"]'
+      )
+    ).not.toBeNull();
+  });
+
+  it("renders a dismissible operation error above the composer", () => {
+    const clearOperationError = vi.fn();
+    renderChatView(root, {
+      operationError: {
+        title: "Conversation could not be compacted",
+        message: "The compaction request failed.",
+      },
+      clearOperationError,
+    });
+
+    const operationError = container.querySelector(".chat__operation-error");
+    expect(operationError?.getAttribute("role")).toBe("alert");
+    expect(operationError?.textContent).toContain(
+      "Conversation could not be compacted"
+    );
+    expect(operationError?.textContent).toContain(
+      "The compaction request failed."
+    );
+
+    act(() => {
+      operationError?.querySelector("button")?.click();
+    });
+    expect(clearOperationError).toHaveBeenCalledOnce();
   });
 
   it("truncates and resends the last user message when retrying a failed turn", async () => {
@@ -551,7 +623,7 @@ describe("ChatView", () => {
   });
 
   it("confirms branching before an interrupted user message", () => {
-    const forkFromMessage = vi.fn(() => "branch-session");
+    const forkFromMessage = vi.fn(async () => undefined);
     renderChatView(root, {
       chatMessages: unansweredUserMessages,
       status: "ready",
@@ -610,7 +682,7 @@ describe("ChatView", () => {
   });
 
   it("confirms branching before a failed turn from the latest user message", () => {
-    const forkFromMessage = vi.fn(() => "forked-session");
+    const forkFromMessage = vi.fn(async () => undefined);
     renderChatView(root, {
       chatMessages: messages,
       error: new Error("provider unavailable"),
@@ -638,5 +710,36 @@ describe("ChatView", () => {
     });
 
     expect(forkFromMessage).toHaveBeenCalledWith("user-message");
+  });
+
+  it("keeps rewind confirmation open and shows a scoped mutation error", async () => {
+    const rewindToMessage = vi
+      .fn<(messageId: string) => Promise<string | null>>()
+      .mockRejectedValue(new Error("Session version changed."));
+    renderChatView(root, {
+      chatMessages: messages,
+      error: new Error("provider unavailable"),
+      status: "error",
+      rewindToMessage,
+      forkFromMessage: vi.fn(),
+    });
+
+    const undoButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Undo failed turn"
+    );
+    act(() => {
+      undoButton?.click();
+    });
+
+    const confirmButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Rewind conversation"
+    );
+    await act(async () => {
+      confirmButton?.click();
+    });
+
+    expect(container.querySelector('[role="alertdialog"]')).not.toBeNull();
+    expect(container.textContent).toContain("Session version changed.");
+    expect(container.textContent).toContain("Rewind conversation");
   });
 });
