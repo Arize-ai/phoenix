@@ -34,6 +34,7 @@ export {
   getOpenRouterCodePython,
   getOpenRouterCodeTypescript,
 } from "./openRouter";
+export { getDaoxeCodePython, getDaoxeCodeTypescript } from "./daoxe";
 export {
   getOtelInitCodePython,
   getOtelInitCodeTypescript,

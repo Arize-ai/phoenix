@@ -25,6 +25,7 @@ import {
   MistralAISVG,
   OpenAISVG,
   OpenRouterSVG,
+  DaoXESVG,
   PortkeySVG,
   PydanticAISVG,
   StrandsAgentsSVG,
@@ -58,6 +59,8 @@ import {
   getOpenLLMetryCodePython,
   getOpenRouterCodePython,
   getOpenRouterCodeTypescript,
+  getDaoxeCodePython,
+  getDaoxeCodeTypescript,
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
   getStrandsAgentsCodePython,
@@ -81,6 +84,9 @@ const ANTHROPIC_ENV: readonly EnvVar[] = [
 ];
 const OPENROUTER_ENV: readonly EnvVar[] = [
   { name: "OPENROUTER_API_KEY", value: "<your-openrouter-api-key>" },
+];
+const DAOXE_ENV: readonly EnvVar[] = [
+  { name: "DAOXE_API_KEY", value: "<your-daoxe-api-key>" },
 ];
 const CEREBRAS_ENV: readonly EnvVar[] = [
   { name: "CEREBRAS_API_KEY", value: "<your-cerebras-api-key>" },
@@ -671,6 +677,37 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
         envVars: OPENROUTER_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
+      },
+    },
+  },
+  {
+    id: "daoxe",
+    name: "DaoXE",
+    icon: <DaoXESVG />,
+    configs: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getDaoxeCodePython,
+        envVars: DAOXE_ENV,
+        docsHref: "https://daoxe.com",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getDaoxeCodeTypescript,
+        envVars: DAOXE_ENV,
+        docsHref: "https://daoxe.com",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
       },
