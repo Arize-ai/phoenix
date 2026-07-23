@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a137513e2788419730b80485b1511f97>>
+ * @generated SignedSource<<6afc5d0494a500c197dad03813bf2962>>
  * @lightSyntaxTransform
  */
 
@@ -144,13 +144,6 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "latestOutput",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
                     "name": "createdAt",
                     "storageKey": null
                   },
@@ -221,16 +214,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b086f4a5b4b4f32dc6decb65b0c602e9",
+    "cacheID": "121485761df44aa41f57339a2a67fbb8",
     "id": null,
     "metadata": {},
     "name": "SettingsAgentSessionsCardPaginationQuery",
     "operationKind": "query",
-    "text": "query SettingsAgentSessionsCardPaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...SettingsAgentSessionsCard_sessions_2HEEH6\n}\n\nfragment SettingsAgentSessionsCard_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SettingsAgentSessionsCardPaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...SettingsAgentSessionsCard_sessions_2HEEH6\n}\n\nfragment SettingsAgentSessionsCard_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f4a4f7d266ad46e0a3043682b5fd92d7";
+(node as any).hash = "efb76f37a87a4dc3e2b684e698e96faf";
 
 export default node;

@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { useState } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
@@ -11,16 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-  DialogTrigger,
-  Flex,
   Icon,
   Icons,
-  Menu,
-  MenuItem,
-  MenuTrigger,
   Modal,
   ModalOverlay,
-  Popover,
   Text,
   View,
 } from "@phoenix/components";
@@ -33,9 +28,27 @@ import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import type { SettingsAgentSessionActionMenuDeleteMutation } from "./__generated__/SettingsAgentSessionActionMenuDeleteMutation.graphql";
+import type { SettingsAgentSessionDeleteButtonMutation } from "./__generated__/SettingsAgentSessionDeleteButtonMutation.graphql";
 
-export function SettingsAgentSessionActionMenu({
+const deleteBusyIndicatorCSS = css`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--global-button-height-s);
+  height: var(--global-button-height-s);
+  color: var(--global-text-color-700);
+  font-size: var(--global-font-size-l);
+`;
+
+function DeleteBusyIndicator({ label }: { label: string }) {
+  return (
+    <span role="status" aria-label={label} css={deleteBusyIndicatorCSS}>
+      <Icon svg={<Icons.Loading />} />
+    </span>
+  );
+}
+
+export function SettingsAgentSessionConditionalDeleteButton({
   sessionId,
   sessionTitle,
 }: {
@@ -67,8 +80,8 @@ export function SettingsAgentSessionActionMenu({
     ),
   ];
   const [commitDelete, isDeleting] =
-    useMutation<SettingsAgentSessionActionMenuDeleteMutation>(graphql`
-      mutation SettingsAgentSessionActionMenuDeleteMutation(
+    useMutation<SettingsAgentSessionDeleteButtonMutation>(graphql`
+      mutation SettingsAgentSessionDeleteButtonMutation(
         $id: ID!
         $connectionIds: [ID!]!
       ) {
@@ -77,6 +90,10 @@ export function SettingsAgentSessionActionMenu({
         }
       }
     `);
+  const isDeleteBusy = isDeleteDisabled || isDeleting;
+  const deleteBusyLabel = isDeleting
+    ? `Deleting ${sessionTitle}`
+    : `${sessionTitle} is busy`;
 
   const deleteSession = () => {
     if (isDeleteDisabled) {
@@ -110,27 +127,18 @@ export function SettingsAgentSessionActionMenu({
 
   return (
     <>
-      <MenuTrigger>
+      {isDeleteBusy ? (
+        <DeleteBusyIndicator label={deleteBusyLabel} />
+      ) : (
         <Button
           size="S"
-          aria-label={`Actions for ${sessionTitle}`}
-          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
+          variant="danger"
+          aria-label={`Delete ${sessionTitle}`}
+          leadingVisual={<Icon svg={<Icons.Trash />} />}
+          onPress={() => setIsDeleteDialogOpen(true)}
         />
-        <Popover>
-          <Menu
-            disabledKeys={isDeleteDisabled ? ["delete"] : []}
-            onAction={() => setIsDeleteDialogOpen(true)}
-          >
-            <MenuItem id="delete" textValue="Delete session">
-              <Flex gap="size-75" alignItems="center">
-                <Icon svg={<Icons.Trash />} />
-                <Text>Delete</Text>
-              </Flex>
-            </MenuItem>
-          </Menu>
-        </Popover>
-      </MenuTrigger>
-      <DialogTrigger
+      )}
+      <ModalOverlay
         isOpen={isDeleteDialogOpen}
         onOpenChange={(isOpen) => {
           setIsDeleteDialogOpen(isOpen);
@@ -139,50 +147,52 @@ export function SettingsAgentSessionActionMenu({
           }
         }}
       >
-        <ModalOverlay>
-          <Modal size="S">
-            <Dialog>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete assistant session</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton slot="close" />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <View padding="size-200">
-                  {error ? (
-                    <Alert variant="danger" banner>
-                      {error}
-                    </Alert>
-                  ) : null}
-                  <Text>
-                    This will permanently delete &quot;{sessionTitle}&quot; and
-                    its messages. This action cannot be undone.
-                  </Text>
-                </View>
-                <DialogFooter>
-                  <Button
-                    size="S"
-                    variant="default"
-                    slot="close"
-                    isDisabled={isDeleting}
-                  >
-                    Cancel
-                  </Button>
+        <Modal size="S">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete assistant session</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                {error ? (
+                  <Alert variant="danger" banner>
+                    {error}
+                  </Alert>
+                ) : null}
+                <Text>
+                  This will permanently delete &quot;{sessionTitle}&quot; and
+                  its messages. This action cannot be undone.
+                </Text>
+              </View>
+              <DialogFooter>
+                <Button
+                  size="S"
+                  variant="default"
+                  slot="close"
+                  isDisabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                {isDeleteBusy ? (
+                  <DeleteBusyIndicator label={deleteBusyLabel} />
+                ) : (
                   <Button
                     size="S"
                     variant="danger"
                     onPress={deleteSession}
-                    isDisabled={isDeleting || isDeleteDisabled}
+                    leadingVisual={<Icon svg={<Icons.Trash />} />}
                   >
-                    {isDeleting ? "Deleting..." : "Delete session"}
+                    Delete session
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </>
   );
 }

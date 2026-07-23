@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<396325a8f2acccfc68371a03b069b0b7>>
+ * @generated SignedSource<<7ead5780ccb000a3216df7f9aab5d9ac>>
  * @lightSyntaxTransform
  */
 
@@ -161,13 +161,6 @@ return {
                     "kind": "ScalarField",
                     "name": "firstInput",
                     "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "latestOutput",
-                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -231,12 +224,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "01d8d401e21bbbbe617468b190138ae0",
+    "cacheID": "4da327fc99ed86f8840d74314bcd6250",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourceQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
