@@ -36,6 +36,7 @@ export const messageContentCSS = css`
     border-radius: var(--message-user-border-radius);
     padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
     max-width: 75%;
+    white-space: pre-wrap;
   }
 
   [data-from="assistant"] > & {
