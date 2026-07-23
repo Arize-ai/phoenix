@@ -80,7 +80,7 @@ pip install arize-phoenix
 phoenix serve
 ```
 
-Or spin up an ephemeral instance with a single command using [`uvx`](https://docs.astral.sh/uv/) — no install required:
+Or run it with a single command using [`uvx`](https://docs.astral.sh/uv/) — no install required:
 
 ```shell
 uvx arize-phoenix serve
