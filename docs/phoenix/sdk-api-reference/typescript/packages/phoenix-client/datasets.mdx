@@ -3,14 +3,14 @@ title: "Datasets"
 description: "Create and inspect datasets with @arizeai/phoenix-client"
 ---
 
-Datasets are the foundation for experiment runs. The dataset helpers cover creation, idempotent creation, record inspection, and example appends.
+Datasets are the foundation for experiment runs. The dataset helpers cover creation (which upserts by name), record inspection, and example appends.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
   <ul>
     <li>
-      <code>src/datasets/createOrGetDataset.ts</code> for the exact return
-      shape of the idempotent helper
+      <code>src/datasets/createDataset.ts</code> for the exact return shape and
+      upsert-by-name behavior
     </li>
   </ul>
 </section>
@@ -33,18 +33,25 @@ const { datasetId } = await createDataset({
 });
 ```
 
-## Reuse Or Append
+## Upsert Or Append
+
+`createDataset()` upserts by name: re-running it with the same name updates the existing dataset to match the examples you pass, and an unchanged upload is a no-op. To keep existing examples and add more, use `appendDatasetExamples()` instead of re-running `createDataset()` with the extra examples.
 
 ```ts
 import {
   appendDatasetExamples,
-  createOrGetDataset,
+  createDataset,
 } from "@arizeai/phoenix-client/datasets";
 
-const dataset = await createOrGetDataset({
+const dataset = await createDataset({
   name: "support-eval",
   description: "Support questions with expected answers",
-  examples: [],
+  examples: [
+    {
+      input: { question: "Where is my order?" },
+      output: { answer: "Use the tracking page in your account." },
+    },
+  ],
 });
 
 await appendDatasetExamples({
@@ -58,7 +65,7 @@ await appendDatasetExamples({
 });
 ```
 
-`createOrGetDataset()` returns `{ datasetId }`, so you can pass that object directly as the dataset selector for append or experiment calls.
+`createDataset()` returns `{ datasetId }`, so you can pass that object directly as the dataset selector for append or experiment calls.
 
 ## Read Back Dataset State
 
@@ -68,7 +75,6 @@ Use `getDataset`, `getDatasetExamples`, and `getDatasetInfo` to inspect datasets
   <h2>Source Map</h2>
   <ul>
     <li><code>src/datasets/createDataset.ts</code></li>
-    <li><code>src/datasets/createOrGetDataset.ts</code></li>
     <li><code>src/datasets/appendDatasetExamples.ts</code></li>
     <li><code>src/datasets/getDataset.ts</code></li>
     <li><code>src/datasets/getDatasetExamples.ts</code></li>
