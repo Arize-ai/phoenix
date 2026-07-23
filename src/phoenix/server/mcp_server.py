@@ -57,6 +57,7 @@ from phoenix.server.bearer_auth import (
     authenticated_claims,
     token_audience_permits,
 )
+from phoenix.server.mcp_span_analytics import build_span_analytics_tools
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.utils import prepend_root_path
 
@@ -460,6 +461,15 @@ def create_phoenix_mcp_app(app: "FastAPI") -> "StarletteWithLifespan":
         # a mutation.
         mcp_component_fn=_annotate_from_rest_method,
     )
+    # The hand-authored span analytics tools are registered before code mode /
+    # group gating so both surfaces pick them up. They query the database
+    # directly (resolving ``app.state.db`` lazily at call time) and carry the
+    # ``spans`` tag, so they gate and reveal with the same group as the
+    # generated span tools.
+    for analytics_tool in build_span_analytics_tools(app):
+        if isinstance(analytics_tool.parameters, dict):
+            _strip_schema_titles(analytics_tool.parameters)
+        mcp.add_tool(analytics_tool)
     if get_env_mcp_code_mode():
         # Code mode replaces the tool surface wholesale: clients see only the
         # discovery meta-tools and ``execute``. Group gating must NOT be installed
