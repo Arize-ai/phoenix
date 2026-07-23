@@ -1,0 +1,120 @@
+{
+  "cross_project_health": {
+    "live-view-demo": {
+      "error_rate_pct": 0.0,
+      "errors": 0,
+      "span_kinds": {
+        "CHAIN": 50,
+        "LLM": 50
+      },
+      "spans_sampled": 100
+    },
+    "llama_index_rag": {
+      "error_rate_pct": 0.0,
+      "errors": 0,
+      "span_kinds": {
+        "CHAIN": 40,
+        "EMBEDDING": 20,
+        "LLM": 20,
+        "RETRIEVER": 20
+      },
+      "spans_sampled": 100
+    },
+    "rosetta-agno-py": {
+      "error_rate_pct": 0.0,
+      "errors": 0,
+      "span_kinds": {
+        "AGENT": 1,
+        "LLM": 1
+      },
+      "spans_sampled": 2
+    },
+    "support-agent": {
+      "error_rate_pct": 6.0,
+      "errors": 6,
+      "span_kinds": {
+        "AGENT": 21,
+        "LLM": 37,
+        "RETRIEVER": 3,
+        "TOOL": 39
+      },
+      "spans_sampled": 100
+    }
+  },
+  "datasets_with_experiments": {
+    "acme support bot": 5,
+    "cli-agent-terminal-format": 4,
+    "cli-agent-terminal-format-benchmark": 5,
+    "csv-upload-f16a3d09": 2,
+    "debug_trace_skill_trigger": 9,
+    "envcheck suite": 1,
+    "envcheck-dataset": 5,
+    "evaluators_skill_trigger": 5,
+    "experiment_observations": 5,
+    "experiments_skill_trigger": 5,
+    "in_app_links": 6,
+    "playground_experiment_recording": 5,
+    "playground_model_switching": 6,
+    "playground_repetitions": 5,
+    "product_knowledge": 5,
+    "recipe creation": 8,
+    "route_info_tool_selection": 6,
+    "save_prompt": 14,
+    "set_spans_filter": 6,
+    "set_time_range": 6,
+    "support bot": 2
+  },
+  "error_themes": {
+    "error_spans": 352,
+    "project_spans_total": 7196,
+    "themes": {
+      "ContextLengthExceeded": 128,
+      "OrderNotFound": 34,
+      "PaymentProviderError": 32,
+      "RateLimitError": 138,
+      "UpstreamTimeout": 20
+    }
+  },
+  "latency_by_model": {
+    "claude-sonnet-5": {
+      "count": 4,
+      "max_ms": 367.47,
+      "mean_ms": 257.7,
+      "p50_ms": 223.28,
+      "p95_ms": 367.47
+    },
+    "gpt-4o": {
+      "count": 21,
+      "max_ms": 378.31,
+      "mean_ms": 251.3,
+      "p50_ms": 292.39,
+      "p95_ms": 377.52
+    },
+    "gpt-4o-mini": {
+      "count": 12,
+      "max_ms": 382.59,
+      "mean_ms": 243.05,
+      "p50_ms": 250.87,
+      "p95_ms": 382.59
+    }
+  },
+  "llm_latency": {
+    "count": 37,
+    "max_ms": 382.59,
+    "mean_ms": 249.32,
+    "p50_ms": 259.18,
+    "p95_ms": 378.31
+  },
+  "project_count": 22,
+  "slowest_span": {
+    "latency_ms": 1050.84,
+    "name": "agent.cancel_subscription",
+    "span_kind": "AGENT"
+  },
+  "span_kind_mix": {
+    "AGENT": 21,
+    "LLM": 37,
+    "RETRIEVER": 3,
+    "TOOL": 39
+  }
+}
