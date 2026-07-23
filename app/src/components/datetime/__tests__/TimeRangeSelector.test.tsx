@@ -140,4 +140,23 @@ describe("TimeRangeSelector", () => {
       "Last 12 Hours",
     ]);
   });
+
+  it("returns to the compact value when focus leaves the presets", async () => {
+    await renderSelector(() => undefined);
+    const searchInput = await openPresets();
+    const externalButton = document.createElement("button");
+    document.body.appendChild(externalButton);
+
+    await act(async () => {
+      externalButton.focus();
+      vi.runAllTimers();
+    });
+
+    expect(searchInput.isConnected).toBe(false);
+    expect(container.querySelector(".time-range-selector__fields")).toBeNull();
+    expect(
+      container.querySelector(".time-range-selector__value")
+    ).not.toBeNull();
+    externalButton.remove();
+  });
 });

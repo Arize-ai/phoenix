@@ -259,8 +259,9 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         return;
       }
       setIsEditing(false);
+      closePresets();
     });
-  }, [getFocusedElementWithin]);
+  }, [closePresets, getFocusedElementWithin]);
   const blurFocusedTimeRangeElement = useCallback(() => {
     getFocusedElementWithin()?.blur();
   }, [getFocusedElementWithin]);
@@ -530,6 +531,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 <Input
                   ref={searchInputRef}
                   placeholder='Search or type "25m"'
+                  onBlur={closeEditingIfFocusOutside}
                 />
               </SearchField>
               <ListBox
