@@ -88,7 +88,7 @@ uvx arize-phoenix serve
 
 ## Trace Your Application
 
-The fastest way to send traces is to let your [coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) (Claude Code, Cursor, and others) instrument your app. From your project directory, run:
+The fastest way to send traces is to let your [coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) (Claude Code, Codex, Cursor, and others) instrument your app. From your project directory, run:
 
 ```shell
 npx @arizeai/phoenix-cli setup
