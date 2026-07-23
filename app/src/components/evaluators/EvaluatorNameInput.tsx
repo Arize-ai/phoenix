@@ -8,6 +8,7 @@ import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
 import {
   transformIdentifierInput,
@@ -83,7 +84,6 @@ export const EvaluatorNameInput = ({
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
   const { control, trigger } = form;
-  const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
 
   // Register with the evaluator store so the parent can trigger
@@ -115,25 +115,6 @@ export const EvaluatorNameInput = ({
         const shouldShowError = error?.message && hasBlurredRef.current;
         const displayedError = shouldShowError ? error.message : undefined;
 
-        const handleChange = (value: string) => {
-          const input = inputRef.current;
-          const selectionStart = input?.selectionStart ?? value.length;
-
-          const transformed = transformIdentifierInput(value);
-
-          // Calculate new cursor position by transforming the text before cursor
-          const beforeCursor = value.slice(0, selectionStart);
-          const newCursorPosition =
-            transformIdentifierInput(beforeCursor).length;
-
-          field.onChange(transformed);
-
-          // Restore cursor position after React updates the DOM
-          requestAnimationFrame(() => {
-            input?.setSelectionRange(newCursorPosition, newCursorPosition);
-          });
-        };
-
         const handleFocus = () => {
           // Reset blur state so deferred validation doesn't run while typing
           hasBlurredRef.current = false;
@@ -147,21 +128,33 @@ export const EvaluatorNameInput = ({
         };
 
         return (
-          <TextField
-            {...field}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            autoComplete="off"
-            isInvalid={!!displayedError}
-            autoFocus
-            {...props}
+          <TransformingInputController
+            value={field.value}
+            onValueChange={field.onChange}
+            transformValue={transformIdentifierInput}
           >
-            <Label>Name</Label>
-            <Input ref={inputRef} placeholder={placeholder} />
-            <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
-            <FieldError>{displayedError}</FieldError>
-          </TextField>
+            {(transformingInput) => (
+              <TextField
+                {...field}
+                value={transformingInput.displayValue}
+                onChange={transformingInput.handleValueChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                autoComplete="off"
+                isInvalid={!!displayedError}
+                autoFocus
+                {...props}
+              >
+                <Label>Name</Label>
+                <Input
+                  {...transformingInput.inputProps}
+                  placeholder={placeholder}
+                />
+                <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
+                <FieldError>{displayedError}</FieldError>
+              </TextField>
+            )}
+          </TransformingInputController>
         );
       }}
     />

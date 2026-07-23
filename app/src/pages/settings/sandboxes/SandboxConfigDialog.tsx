@@ -44,6 +44,7 @@ import {
 } from "@phoenix/components/sandbox/SandboxProviderSelect";
 import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import { transformEnvironmentVariableInput } from "@phoenix/utils/environmentVariableUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import {
@@ -554,28 +555,35 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                     ? fieldState.error
                     : undefined;
                   return (
-                    <TextField
-                      {...field}
-                      onChange={(value) =>
-                        field.onChange(transformIdentifierInput(value))
-                      }
-                      onFocus={() => setIsNameFocused(true)}
-                      onBlur={() => {
-                        setIsNameFocused(false);
-                        field.onBlur();
-                        void form.trigger("name");
-                      }}
-                      isInvalid={!!displayedError}
+                    <TransformingInputController
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      transformValue={transformIdentifierInput}
                     >
-                      <Label>Name</Label>
-                      <Input />
-                      <Text slot="description" size="S" color="text-700">
-                        {IDENTIFIER_DESCRIPTION}
-                      </Text>
-                      {displayedError ? (
-                        <FieldError>{displayedError.message}</FieldError>
-                      ) : null}
-                    </TextField>
+                      {(transformingInput) => (
+                        <TextField
+                          {...field}
+                          value={transformingInput.displayValue}
+                          onChange={transformingInput.handleValueChange}
+                          onFocus={() => setIsNameFocused(true)}
+                          onBlur={() => {
+                            setIsNameFocused(false);
+                            field.onBlur();
+                            void form.trigger("name");
+                          }}
+                          isInvalid={!!displayedError}
+                        >
+                          <Label>Name</Label>
+                          <Input {...transformingInput.inputProps} />
+                          <Text slot="description" size="S" color="text-700">
+                            {IDENTIFIER_DESCRIPTION}
+                          </Text>
+                          {displayedError ? (
+                            <FieldError>{displayedError.message}</FieldError>
+                          ) : null}
+                        </TextField>
+                      )}
+                    </TransformingInputController>
                   );
                 }}
               />
@@ -784,23 +792,30 @@ function EnvVarRow({
         control={form.control}
         rules={{ required: "Name is required" }}
         render={({ field, fieldState }) => (
-          <TextField
-            {...field}
-            onChange={(value) =>
-              field.onChange(transformEnvironmentVariableInput(value))
-            }
-            isInvalid={fieldState.invalid}
+          <TransformingInputController
+            value={field.value}
+            onValueChange={field.onChange}
+            transformValue={transformEnvironmentVariableInput}
           >
-            <Label>Variable Name</Label>
-            <Input placeholder="MY_VAR" />
-            {fieldState.error ? (
-              <FieldError>{fieldState.error.message}</FieldError>
-            ) : (
-              <Text slot="description">
-                Uppercase letters, digits, and underscores
-              </Text>
+            {(transformingInput) => (
+              <TextField
+                {...field}
+                value={transformingInput.displayValue}
+                onChange={transformingInput.handleValueChange}
+                isInvalid={fieldState.invalid}
+              >
+                <Label>Variable Name</Label>
+                <Input {...transformingInput.inputProps} placeholder="MY_VAR" />
+                {fieldState.error ? (
+                  <FieldError>{fieldState.error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    Uppercase letters, digits, and underscores
+                  </Text>
+                )}
+              </TextField>
             )}
-          </TextField>
+          </TransformingInputController>
         )}
       />
     </div>

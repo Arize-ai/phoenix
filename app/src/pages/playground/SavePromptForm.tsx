@@ -23,6 +23,10 @@ import {
   DEFAULT_PROMPT_VERSION_TAGS,
   IDENTIFIER_DESCRIPTION,
 } from "@phoenix/constants";
+import {
+  TransformingInputController,
+  useTransformingInput,
+} from "@phoenix/hooks/useTransformingInput";
 import type { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import {
@@ -160,34 +164,42 @@ export function SavePromptForm({
             const shouldShowError =
               (fieldState.isTouched && !isPromptInputFocused) || isSubmitted;
             return (
-              <PromptComboBox
-                label="Prompt"
-                description={`Select a prompt, or enter a new name. ${IDENTIFIER_DESCRIPTION}`}
-                placeholder="Select or enter new prompt name"
-                isRequired
-                onFocus={() => setIsPromptInputFocused(true)}
-                onBlur={() => {
-                  setIsPromptInputFocused(false);
-                  onBlur();
+              <TransformingInputController
+                value={promptInputValue}
+                onValueChange={(value) => {
+                  setPromptInputValue(value);
+                  onChange(value);
                 }}
-                inputValue={promptInputValue}
-                onInputChange={(value) => {
-                  const transformedValue = transformIdentifierInput(value);
-                  setPromptInputValue(transformedValue);
-                  onChange(transformedValue);
-                }}
-                errorMessage={
-                  shouldShowError ? fieldState.error?.message : undefined
-                }
-                allowsCustomValue
-                onChange={(promptId) => {
-                  onChange(promptId);
-                  setSelectedPromptId(
-                    typeof promptId === "string" ? promptId : null
-                  );
-                }}
-                promptId={selectedPromptId}
-              />
+                transformValue={transformIdentifierInput}
+              >
+                {(transformingInput) => (
+                  <PromptComboBox
+                    label="Prompt"
+                    description={`Select a prompt, or enter a new name. ${IDENTIFIER_DESCRIPTION}`}
+                    placeholder="Select or enter new prompt name"
+                    isRequired
+                    onFocus={() => setIsPromptInputFocused(true)}
+                    onBlur={() => {
+                      setIsPromptInputFocused(false);
+                      onBlur();
+                    }}
+                    inputValue={transformingInput.displayValue}
+                    onInputChange={transformingInput.handleValueChange}
+                    inputProps={transformingInput.inputProps}
+                    errorMessage={
+                      shouldShowError ? fieldState.error?.message : undefined
+                    }
+                    allowsCustomValue
+                    onChange={(promptId) => {
+                      onChange(promptId);
+                      setSelectedPromptId(
+                        typeof promptId === "string" ? promptId : null
+                      );
+                    }}
+                    promptId={selectedPromptId}
+                  />
+                )}
+              </TransformingInputController>
             );
           }}
         />
@@ -342,6 +354,11 @@ function NewTagInlineForm({
 }) {
   const [inputValue, setInputValue] = useState("");
   const [hasStoppedEditing, setHasStoppedEditing] = useState(false);
+  const transformingInput = useTransformingInput({
+    value: inputValue,
+    onValueChange: setInputValue,
+    transformValue: transformIdentifierInput,
+  });
 
   const error = useMemo(() => {
     const trimmed = inputValue.trim();
@@ -370,8 +387,8 @@ function NewTagInlineForm({
       <TextField
         size="S"
         aria-label="New tag name"
-        value={inputValue}
-        onChange={(value) => setInputValue(transformIdentifierInput(value))}
+        value={transformingInput.displayValue}
+        onChange={transformingInput.handleValueChange}
         onFocus={() => setHasStoppedEditing(false)}
         onBlur={() => setHasStoppedEditing(true)}
         isInvalid={!!displayedError}
@@ -385,7 +402,7 @@ function NewTagInlineForm({
           }
         }}
       >
-        <Input placeholder="New tag name" />
+        <Input {...transformingInput.inputProps} placeholder="New tag name" />
         {displayedError ? (
           <FieldError>{displayedError}</FieldError>
         ) : (

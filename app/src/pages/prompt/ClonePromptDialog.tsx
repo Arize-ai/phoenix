@@ -26,6 +26,7 @@ import {
 } from "@phoenix/components/core/dialog";
 import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import type { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import {
@@ -158,31 +159,38 @@ export const ClonePromptDialog = ({
                           ? error
                           : undefined;
                       return (
-                        <TextField isInvalid={!!displayedError?.message}>
-                          <Label>Name</Label>
-                          <Input
-                            name="name"
-                            type="text"
-                            onChange={(event) =>
-                              onChange(
-                                transformIdentifierInput(event.target.value)
-                              )
-                            }
-                            onFocus={() => setIsNameFocused(true)}
-                            onBlur={() => {
-                              setIsNameFocused(false);
-                              onBlur();
-                            }}
-                            value={value}
-                            disabled={disabled}
-                          />
-                          {!displayedError && (
-                            <Text slot="description">
-                              {IDENTIFIER_DESCRIPTION}
-                            </Text>
+                        <TransformingInputController
+                          value={value}
+                          onValueChange={onChange}
+                          transformValue={transformIdentifierInput}
+                        >
+                          {(transformingInput) => (
+                            <TextField
+                              isInvalid={!!displayedError?.message}
+                              name="name"
+                              value={transformingInput.displayValue}
+                              onChange={transformingInput.handleValueChange}
+                              onFocus={() => setIsNameFocused(true)}
+                              onBlur={() => {
+                                setIsNameFocused(false);
+                                onBlur();
+                              }}
+                              isDisabled={disabled}
+                            >
+                              <Label>Name</Label>
+                              <Input
+                                {...transformingInput.inputProps}
+                                type="text"
+                              />
+                              {!displayedError && (
+                                <Text slot="description">
+                                  {IDENTIFIER_DESCRIPTION}
+                                </Text>
+                              )}
+                              <FieldError>{displayedError?.message}</FieldError>
+                            </TextField>
                           )}
-                          <FieldError>{displayedError?.message}</FieldError>
-                        </TextField>
+                        </TransformingInputController>
                       );
                     }}
                   />

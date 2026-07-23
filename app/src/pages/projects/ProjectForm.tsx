@@ -19,6 +19,7 @@ import {
   GradientCircleRadioGroup,
 } from "@phoenix/components/project";
 import { URI_SAFE_PATTERN } from "@phoenix/constants";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import { transformURISafeInput } from "@phoenix/utils/uriUtils";
 
 export type ProjectFormParams = {
@@ -226,23 +227,34 @@ export function ProjectForm({
               field: { onChange, onBlur, value },
               fieldState: { invalid, error },
             }) => (
-              <TextField
-                isInvalid={invalid}
-                onChange={(value) => onChange(transformURISafeInput(value))}
-                onBlur={onBlur}
+              <TransformingInputController
                 value={value.toString()}
+                onValueChange={onChange}
+                transformValue={transformURISafeInput}
               >
-                <Label>Project Name</Label>
-                <Input placeholder="e.x. my-ai-project" />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
-                    The name of the project. Must be URI safe (letters, numbers,
-                    hyphens, underscores, dots only).
-                  </Text>
+                {(transformingInput) => (
+                  <TextField
+                    isInvalid={invalid}
+                    onChange={transformingInput.handleValueChange}
+                    onBlur={onBlur}
+                    value={transformingInput.displayValue}
+                  >
+                    <Label>Project Name</Label>
+                    <Input
+                      {...transformingInput.inputProps}
+                      placeholder="e.x. my-ai-project"
+                    />
+                    {error?.message ? (
+                      <FieldError>{error.message}</FieldError>
+                    ) : (
+                      <Text slot="description">
+                        The name of the project. Must be URI safe (letters,
+                        numbers, hyphens, underscores, dots only).
+                      </Text>
+                    )}
+                  </TextField>
                 )}
-              </TextField>
+              </TransformingInputController>
             )}
           />
         )}

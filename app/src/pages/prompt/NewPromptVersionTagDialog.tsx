@@ -24,6 +24,7 @@ import {
   View,
 } from "@phoenix/components";
 import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 
 import {
   transformIdentifierInput,
@@ -128,29 +129,38 @@ export function NewPromptVersionDialog({
                         ? error
                         : undefined;
                     return (
-                      <TextField
-                        isInvalid={!!displayedError}
-                        onChange={(value) =>
-                          onChange(transformIdentifierInput(value))
-                        }
-                        onFocus={() => setIsNameFocused(true)}
-                        onBlur={() => {
-                          setIsNameFocused(false);
-                          onBlur();
-                        }}
-                        name={name}
+                      <TransformingInputController
                         value={value}
+                        onValueChange={onChange}
+                        transformValue={transformIdentifierInput}
                       >
-                        <Label>Tag Name</Label>
-                        <Input placeholder="e.x. prod" />
-                        {displayedError?.message ? (
-                          <FieldError>{displayedError.message}</FieldError>
-                        ) : (
-                          <Text slot="description">
-                            {IDENTIFIER_DESCRIPTION}
-                          </Text>
+                        {(transformingInput) => (
+                          <TextField
+                            isInvalid={!!displayedError}
+                            onChange={transformingInput.handleValueChange}
+                            onFocus={() => setIsNameFocused(true)}
+                            onBlur={() => {
+                              setIsNameFocused(false);
+                              onBlur();
+                            }}
+                            name={name}
+                            value={transformingInput.displayValue}
+                          >
+                            <Label>Tag Name</Label>
+                            <Input
+                              {...transformingInput.inputProps}
+                              placeholder="e.x. prod"
+                            />
+                            {displayedError?.message ? (
+                              <FieldError>{displayedError.message}</FieldError>
+                            ) : (
+                              <Text slot="description">
+                                {IDENTIFIER_DESCRIPTION}
+                              </Text>
+                            )}
+                          </TextField>
                         )}
-                      </TextField>
+                      </TransformingInputController>
                     );
                   }}
                 />

@@ -38,6 +38,7 @@ import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { URI_SAFE_PATTERN } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { transformURISafeInput } from "@phoenix/utils/uriUtils";
 
@@ -189,25 +190,34 @@ function NewProjectDialog({
                       field: { onChange, onBlur, value },
                       fieldState: { invalid, error: fieldError },
                     }) => (
-                      <TextField
-                        isInvalid={invalid}
-                        onChange={(value) =>
-                          onChange(transformURISafeInput(value))
-                        }
-                        onBlur={onBlur}
+                      <TransformingInputController
                         value={value}
-                        autoFocus
+                        onValueChange={onChange}
+                        transformValue={transformURISafeInput}
                       >
-                        <Label>Name</Label>
-                        <Input placeholder="e.g. customer-feedback" />
-                        {fieldError?.message ? (
-                          <FieldError>{fieldError.message}</FieldError>
-                        ) : (
-                          <Text slot="description">
-                            URI characters only, max 100 characters
-                          </Text>
+                        {(transformingInput) => (
+                          <TextField
+                            isInvalid={invalid}
+                            onChange={transformingInput.handleValueChange}
+                            onBlur={onBlur}
+                            value={transformingInput.displayValue}
+                            autoFocus
+                          >
+                            <Label>Name</Label>
+                            <Input
+                              {...transformingInput.inputProps}
+                              placeholder="e.g. customer-feedback"
+                            />
+                            {fieldError?.message ? (
+                              <FieldError>{fieldError.message}</FieldError>
+                            ) : (
+                              <Text slot="description">
+                                URI characters only, max 100 characters
+                              </Text>
+                            )}
+                          </TextField>
                         )}
-                      </TextField>
+                      </TransformingInputController>
                     )}
                   />
                 </View>
