@@ -2,17 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 
-import {
-  buildAgentModelSelection,
-  selectAgentModelSelection,
-} from "../useAgentChatPanelState";
+import { buildAgentModel, selectAgentModel } from "../useAgentChatPanelState";
 
-describe("buildAgentModelSelection", () => {
+describe("buildAgentModel", () => {
   it.each(["OPENAI", "AZURE_OPENAI"] as const)(
     "uses the Responses API for built-in %s models",
     (provider) => {
       expect(
-        buildAgentModelSelection({
+        buildAgentModel({
           model: { provider, modelName: "gpt-5.4" },
         })
       ).toEqual({
@@ -26,7 +23,7 @@ describe("buildAgentModelSelection", () => {
 
   it("does not set an OpenAI API type for other built-in providers", () => {
     expect(
-      buildAgentModelSelection({
+      buildAgentModel({
         model: { provider: "ANTHROPIC", modelName: "claude-opus-4-6" },
       })
     ).toEqual({
@@ -38,7 +35,7 @@ describe("buildAgentModelSelection", () => {
 
   it("omits the API type for custom provider selections", () => {
     expect(
-      buildAgentModelSelection({
+      buildAgentModel({
         model: {
           provider: "OPENAI",
           modelName: "custom-model",
@@ -53,10 +50,10 @@ describe("buildAgentModelSelection", () => {
   });
 });
 
-describe("selectAgentModelSelection", () => {
+describe("selectAgentModel", () => {
   it("derives a built-in selection from the store's default model config", () => {
     expect(
-      selectAgentModelSelection({
+      selectAgentModel({
         defaultModelConfig: {
           provider: "OPENAI",
           modelName: "gpt-5.5",
@@ -73,7 +70,7 @@ describe("selectAgentModelSelection", () => {
 
   it("derives a custom selection when the config names a custom provider", () => {
     expect(
-      selectAgentModelSelection({
+      selectAgentModel({
         defaultModelConfig: {
           provider: "OPENAI",
           modelName: "custom-model",

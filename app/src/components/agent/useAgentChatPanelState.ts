@@ -6,7 +6,7 @@ import type { AgentState } from "@phoenix/store/agentStore";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
 
-export function buildAgentModelSelection({
+export function buildAgentModel({
   model,
 }: {
   model: ModelMenuValue;
@@ -36,11 +36,11 @@ export function buildAgentModelSelection({
  * created by a since-unmounted surface (e.g. the draft that started the
  * session).
  */
-export function selectAgentModelSelection(
+export function selectAgentModel(
   state: Pick<AgentState, "defaultModelConfig">
 ): AgentModelSelection {
   const { defaultModelConfig } = state;
-  return buildAgentModelSelection({
+  return buildAgentModel({
     model: {
       provider: defaultModelConfig.provider,
       modelName: defaultModelConfig.modelName ?? "",

@@ -65,7 +65,7 @@ import {
   AGENT_SESSIONS_CONNECTION_KEY,
   refetchAgentSession,
 } from "./agentSessionRelay";
-import { selectAgentModelSelection } from "./useAgentChatPanelState";
+import { selectAgentModel } from "./useAgentChatPanelState";
 
 type TurnClientState = {
   turnTraceContext: ReturnType<typeof createTurnTraceContextManager>;
@@ -264,7 +264,7 @@ export function useAgentChat({
                 // The Chat is cached per-session in the runtime registry and
                 // may outlive the surface that created it, so the model must
                 // be read from the store at request time — never captured.
-                modelSelection: selectAgentModelSelection(store.getState()),
+                modelSelection: selectAgentModel(store.getState()),
                 turnTraceContext: turnTraceContext.getActive(),
                 toolTimings,
               }),
