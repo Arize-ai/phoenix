@@ -70,6 +70,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             requirements/
+            scripts/span_analytics_seeds/
             src/phoenix/
             packages/phoenix-evals/
             evals/
