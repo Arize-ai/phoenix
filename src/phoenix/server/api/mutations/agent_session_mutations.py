@@ -140,6 +140,7 @@ class AgentSessionMutationMixin:
                 session,
                 info=info,
                 agent_session_rowid=agent_session_rowid,
+                for_update=True,
             )
             target = (
                 await session.execute(
@@ -219,13 +220,20 @@ class AgentSessionMutationMixin:
             )
             session.add(branch_session)
             await session.flush()
-            session.add_all(
+            regenerated_message_rows = [
                 models.AgentSessionMessage(
                     agent_session_id=branch_session.id,
                     position=position,
                     message=message,
                 )
                 for position, message in enumerate(regenerated_messages)
+            ]
+            session.add_all(regenerated_message_rows)
+            await session.flush()
+            session.add_all(
+                models.AgentSessionCompactionPoint(agent_session_message_id=row.id)
+                for row in regenerated_message_rows
+                if row.is_compaction_point
             )
         return BranchAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(branch_session),
@@ -270,9 +278,13 @@ async def _load_owned_agent_session(
     *,
     info: Info[Context, None],
     agent_session_rowid: int,
+    for_update: bool = False,
 ) -> models.AgentSession:
     """Load a session the viewer owns, or raise a not-found error."""
-    agent_session = await session.get(models.AgentSession, agent_session_rowid)
+    statement = select(models.AgentSession).where(models.AgentSession.id == agent_session_rowid)
+    if for_update:
+        statement = statement.with_for_update()
+    agent_session = await session.scalar(statement)
     viewer_id = info.context.user_id
     if (
         agent_session is None

@@ -147,8 +147,21 @@ def upgrade() -> None:
         sqlite_autoincrement=True,
     )
 
+    op.create_table(
+        "agent_session_compaction_points",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "agent_session_message_id",
+            _Integer,
+            sa.ForeignKey("agent_session_messages.id", ondelete="CASCADE"),
+            nullable=False,
+            unique=True,
+        ),
+    )
+
 
 def downgrade() -> None:
+    op.drop_table("agent_session_compaction_points")
     op.drop_table("agent_session_snapshots")
     op.drop_table("agent_session_messages")
     op.drop_table("agent_sessions")

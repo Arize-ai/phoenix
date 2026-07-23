@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import {
   getAssistantMessageMetadata,
+  isCompactionMessage,
   type AgentUIMessage,
 } from "@phoenix/agent/chat/types";
 
@@ -31,19 +32,24 @@ export type AgentSessionUsage = {
 };
 
 /**
- * Accumulate token usage across the conversation while retaining cache details
- * from only the latest assistant turn that reported usage.
+ * Accumulate token usage after an optional message boundary while retaining
+ * cache details from only the latest assistant turn that reported usage.
  */
-export function getConversationUsage(
-  messages: AgentUIMessage[]
-): AgentSessionUsage | null {
+export function getConversationUsage({
+  messages,
+}: {
+  messages: AgentUIMessage[];
+}): AgentSessionUsage | null {
   let prompt = 0;
   let completion = 0;
   let total = 0;
   let promptDetails: AgentSessionUsage["tokenCount"]["promptDetails"];
   let hasUsage = false;
 
-  for (const message of messages) {
+  const boundaryIndex = messages.findLastIndex(isCompactionMessage);
+  const activeMessages = messages.slice(boundaryIndex + 1);
+
+  for (const message of activeMessages) {
     if (message?.role !== "assistant") {
       continue;
     }
@@ -73,7 +79,13 @@ export function getConversationUsage(
 }
 
 export const ChatSessionUsage = ({ messages }: ChatSessionUsageProps) => {
-  const usage = useMemo(() => getConversationUsage(messages), [messages]);
+  const usage = useMemo(
+    () =>
+      getConversationUsage({
+        messages,
+      }),
+    [messages]
+  );
   if (!usage) return null;
   return (
     <ChatTokenUsage

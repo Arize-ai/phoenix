@@ -65,7 +65,11 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     OutputConfig as OutputConfigModel,
 )
-from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, PhoenixUIMessageAdapter
+from phoenix.db.types.data_stream_protocol import (
+    PhoenixUIMessage,
+    PhoenixUIMessageAdapter,
+    UserMessageMetadata,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
 from phoenix.db.types.experiment_log import ExperimentLogDetail
@@ -3314,9 +3318,22 @@ class AgentSessionMessage(HasId):
         unique=True,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    @property
+    def is_compaction_point(self) -> bool:
+        metadata = self.message.metadata
+        return isinstance(metadata, UserMessageMetadata) and metadata.is_compaction_message
+
     agent_session: Mapped[AgentSession] = relationship(
         "AgentSession",
         back_populates="messages",
+    )
+    compaction_point: Mapped[Optional["AgentSessionCompactionPoint"]] = relationship(
+        "AgentSessionCompactionPoint",
+        back_populates="message",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
     )
     __table_args__ = (
         UniqueConstraint("agent_session_id", "position"),
@@ -3341,3 +3358,16 @@ class AgentSessionSnapshot(HasId):
         back_populates="snapshot",
     )
     __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class AgentSessionCompactionPoint(HasId):
+    __tablename__ = "agent_session_compaction_points"
+    agent_session_message_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_session_messages.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    message: Mapped[AgentSessionMessage] = relationship(
+        "AgentSessionMessage",
+        back_populates="compaction_point",
+    )
