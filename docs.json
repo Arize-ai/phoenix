@@ -183,6 +183,7 @@
                 "group": "Tutorial",
                 "pages": [
                   "docs/phoenix/evaluation/tutorials/run-evals-with-built-in-evals",
+                  "docs/phoenix/evaluation/tutorials/evaluate-tool-calls",
                   "docs/phoenix/evaluation/tutorials/customize-your-llm-endpoint",
                   "docs/phoenix/evaluation/tutorials/customize-eval-template"
                 ]
