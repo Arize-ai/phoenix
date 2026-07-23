@@ -1,3 +1,4 @@
+import sys
 from dataclasses import replace
 
 import pytest
@@ -46,6 +47,10 @@ def test_render_displays_configured_urls() -> None:
     assert "http://localhost:6006/phoenix/v1/traces" in rendered
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows output is ASCII-sanitized, which removes the Unicode dividers",
+)
 def test_render_uses_uniform_dividers_and_places_tracing_section_last() -> None:
     rendered = _boot_message().render(unicode_ok=True)
 
@@ -79,6 +84,10 @@ def test_render_shows_development_section_when_dev_tooling_configured() -> None:
     assert "localhost:5678" in rendered
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows output is ASCII-sanitized, which removes the Unicode dividers",
+)
 def test_render_keeps_uniform_dividers_with_development_section() -> None:
     message = replace(_boot_message(), dev_vite_url="http://localhost:5173")
 
