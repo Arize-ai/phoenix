@@ -35,6 +35,7 @@ from phoenix.db.helpers import (
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.db.types.prompts import PromptMessageRole
+from phoenix.server.api.agent_session_access import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -1640,8 +1641,9 @@ class Query:
 
     @strawberry.field(
         description=(
-            "The viewer's persisted assistant chat sessions, most recently active "
-            "first. When authentication is disabled, all sessions are returned."
+            "Persisted assistant chat sessions, most recently active first. Admins "
+            "can see all sessions; other users can see their own sessions. When "
+            "authentication is disabled, all sessions are returned."
         ),
     )  # type: ignore
     async def agent_sessions(
@@ -1652,8 +1654,8 @@ class Query:
     ) -> Connection[AgentSession]:
         page_size = first or 20
         stmt = select(models.AgentSession).where(models.AgentSession.expires_at.is_(None))
-        if (viewer_id := info.context.user_id) is not None:
-            stmt = stmt.where(models.AgentSession.user_id == viewer_id)
+        if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
+            stmt = stmt.where(owner_filter)
         after_cursor = Cursor.from_string(after) if isinstance(after, CursorString) else None
         if after_cursor is not None and after_cursor.sort_column is not None:
             stmt = stmt.where(

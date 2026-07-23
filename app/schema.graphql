@@ -90,6 +90,15 @@ type AgentSession implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
 
+  """The user that owns the session."""
+  user: User
+
+  """The text of the first user message in the session."""
+  firstInput: String
+
+  """The text of the latest assistant message in the session."""
+  latestOutput: String
+
   """Whether the session expires after a period of inactivity."""
   isTemporary: Boolean!
 
@@ -3682,7 +3691,7 @@ type Query {
   serverStatus: ServerStatus!
 
   """
-  The viewer's persisted assistant chat sessions, most recently active first. When authentication is disabled, all sessions are returned.
+  Persisted assistant chat sessions, most recently active first. Admins can see all sessions; other users can see their own sessions. When authentication is disabled, all sessions are returned.
   """
   agentSessions(first: Int = 20, after: String): AgentSessionConnection!
   agentsConfig: AgentsConfig!

@@ -20,6 +20,10 @@ function sessionPayload({
         title,
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z",
+        firstInput: "Question",
+        latestOutput: "Answer",
+        isTemporary: false,
+        user: null,
         messages,
       },
     },
@@ -40,11 +44,21 @@ function createEnvironment(payloads: ReturnType<typeof sessionPayload>[]) {
 }
 
 function getSessionRecord(environment: Environment, id: string) {
-  let record: { title: unknown; messages: unknown } | null = null;
+  let record: {
+    title: unknown;
+    firstInput: unknown;
+    latestOutput: unknown;
+    messages: unknown;
+  } | null = null;
   commitLocalUpdate(environment, (store) => {
     const node = store.get(id);
     record = node
-      ? { title: node.getValue("title"), messages: node.getValue("messages") }
+      ? {
+          title: node.getValue("title"),
+          firstInput: node.getValue("firstInput"),
+          latestOutput: node.getValue("latestOutput"),
+          messages: node.getValue("messages"),
+        }
       : null;
   });
   return record;
@@ -67,6 +81,8 @@ describe("refetchAgentSession", () => {
 
     expect(getSessionRecord(environment, "agent-session-1")).toEqual({
       title: "First",
+      firstInput: "Question",
+      latestOutput: "Answer",
       messages: [{ id: "m1", role: "user", parts: [] }],
     });
   });
@@ -99,6 +115,8 @@ describe("refetchAgentSession", () => {
 
     expect(getSessionRecord(environment, "agent-session-1")).toEqual({
       title: "Summarized title",
+      firstInput: "Question",
+      latestOutput: "Answer",
       messages: [
         { id: "m1", role: "user", parts: [] },
         { id: "m2", role: "assistant", parts: [] },
