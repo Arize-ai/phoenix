@@ -174,13 +174,13 @@ export function TraceDetails(props: TraceDetailsProps) {
         </Panel>
         <Separator css={compactResizeHandleCSS} />
         <Panel id="span-details">
-          <ScrollingTabsWrapper>
+          <SpanDetailsWrapper>
             {selectedSpanNodeId ? (
               <Suspense fallback={<Loading />}>
                 <SpanDetails spanNodeId={selectedSpanNodeId} />
               </Suspense>
             ) : null}
-          </ScrollingTabsWrapper>
+          </SpanDetailsWrapper>
         </Panel>
       </Group>
     </main>
@@ -323,30 +323,13 @@ function TraceHeader({
   );
 }
 
-function ScrollingTabsWrapper({ children }: PropsWithChildren) {
+function SpanDetailsWrapper({ children }: PropsWithChildren) {
   return (
     <div
       data-testid="scrolling-tabs-wrapper"
       css={css`
         height: 100%;
         overflow: hidden;
-        .tabs {
-          height: 100%;
-          overflow: hidden;
-          .tabs__extra {
-            width: 100%;
-            padding-right: var(--global-dimension-size-200);
-            padding-bottom: var(--global-dimension-size-50);
-          }
-          .tabs__pane-container {
-            min-height: 100%;
-            height: 100%;
-            overflow-y: auto;
-            div[role="tabpanel"] {
-              height: 100%;
-            }
-          }
-        }
       `}
     >
       {children}
