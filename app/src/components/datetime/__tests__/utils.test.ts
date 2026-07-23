@@ -138,6 +138,45 @@ describe("datetime utils", () => {
     ).toBeNull();
   });
 
+  it("accepts deep-link start/end aliases when canonical bounds are absent", () => {
+    // Server-generated deep links carry short `start`/`end` params.
+    const aliased = getTimeRangeFromSearchParams(
+      new URLSearchParams(
+        "start=2026-06-09T09%3A00%3A00.000Z&end=2026-06-09T10%3A00%3A00.000Z"
+      )
+    );
+    expect(aliased).toEqual({
+      timeRangeKey: "custom",
+      start: new Date("2026-06-09T09:00:00.000Z"),
+      end: new Date("2026-06-09T10:00:00.000Z"),
+    });
+
+    // Canonical bounds win over aliases when both are present.
+    const canonicalWins = getTimeRangeFromSearchParams(
+      new URLSearchParams(
+        "timeRangeStart=2026-06-09T08%3A00%3A00.000Z&timeRangeEnd=2026-06-09T09%3A00%3A00.000Z&start=2026-06-09T01%3A00%3A00.000Z&end=2026-06-09T02%3A00%3A00.000Z"
+      )
+    );
+    expect(canonicalWins).toEqual({
+      timeRangeKey: "custom",
+      start: new Date("2026-06-09T08:00:00.000Z"),
+      end: new Date("2026-06-09T09:00:00.000Z"),
+    });
+
+    // Invalid or inverted aliases are unusable, so callers fall back to the
+    // stored preference rather than crashing.
+    expect(
+      getTimeRangeFromSearchParams(new URLSearchParams("start=not-a-date"))
+    ).toBeNull();
+    expect(
+      getTimeRangeFromSearchParams(
+        new URLSearchParams(
+          "start=2026-06-09T10%3A00%3A00.000Z&end=2026-06-09T09%3A00%3A00.000Z"
+        )
+      )
+    ).toBeNull();
+  });
+
   it("serializes selected time ranges to URL search params", () => {
     const searchParams = new URLSearchParams(
       "timeRangeKey=7d&selectedSpanNodeId=span-1"
@@ -172,6 +211,27 @@ describe("datetime utils", () => {
     expect(presetParams.get("timeRangeStart")).toBeNull();
     expect(presetParams.get("timeRangeEnd")).toBeNull();
     expect(presetParams.get("selectedSpanNodeId")).toBe("span-1");
+  });
+
+  it("clears deep-link start/end aliases when a new range is written", () => {
+    const deepLinkParams = new URLSearchParams(
+      "start=2026-06-09T09%3A00%3A00.000Z&end=2026-06-09T10%3A00%3A00.000Z&filter=span_kind+%3D%3D+%27LLM%27"
+    );
+    const nextParams = setTimeRangeSearchParams({
+      searchParams: deepLinkParams,
+      timeRange: {
+        timeRangeKey: "1h",
+        ...getTimeRangeFromLastNTimeRangeKey(
+          "1h",
+          new Date("2026-06-09T10:20:30.000Z").getTime()
+        ),
+      },
+    });
+    // The superseded aliases are dropped; unrelated params are preserved.
+    expect(nextParams.get("start")).toBeNull();
+    expect(nextParams.get("end")).toBeNull();
+    expect(nextParams.get("timeRangeKey")).toBe("1h");
+    expect(nextParams.get("filter")).toBe("span_kind == 'LLM'");
   });
 });
 

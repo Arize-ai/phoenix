@@ -44,6 +44,31 @@ export const TIME_RANGE_START_PARAM = "timeRangeStart";
 export const TIME_RANGE_END_PARAM = "timeRangeEnd";
 
 /**
+ * Short inbound alias for {@link TIME_RANGE_START_PARAM}, accepted on
+ * server-generated deep links (e.g. `?start=...&end=...`). Only consulted
+ * when the canonical param is absent, and cleared whenever a new time range
+ * is written to the URL.
+ */
+export const TIME_RANGE_START_ALIAS_PARAM = "start";
+
+/**
+ * Short inbound alias for {@link TIME_RANGE_END_PARAM}, accepted on
+ * server-generated deep links (e.g. `?start=...&end=...`). Only consulted
+ * when the canonical param is absent, and cleared whenever a new time range
+ * is written to the URL.
+ */
+export const TIME_RANGE_END_ALIAS_PARAM = "end";
+
+/**
+ * The search param that carries a span filter condition (the same DSL the
+ * filter condition field accepts) into the spans and traces tables. Inbound
+ * links (e.g. server-generated cohort permalinks) seed the filter field from
+ * it, and the last valid condition typed into the field is mirrored back so
+ * any filtered view is shareable as a URL.
+ */
+export const SPAN_FILTER_CONDITION_PARAM = "filter";
+
+/**
  * The search param that holds the label ids used to filter a list of resources
  * (e.g. prompts or datasets). Stored as a repeated param so multiple labels can
  * be selected, e.g. `?labelId=a&labelId=b`. Persisting to the URL makes the

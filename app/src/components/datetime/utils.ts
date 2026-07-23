@@ -9,8 +9,10 @@ import {
 import type { DateValue } from "react-aria-components";
 
 import {
+  TIME_RANGE_END_ALIAS_PARAM,
   TIME_RANGE_END_PARAM,
   TIME_RANGE_KEY_PARAM,
+  TIME_RANGE_START_ALIAS_PARAM,
   TIME_RANGE_START_PARAM,
 } from "@phoenix/constants/searchParams";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -144,6 +146,11 @@ function getDateFromSearchParamValue(value: string | null) {
  * key is present, which also means a legacy URL carrying both is read as a live
  * preset. Invalid or incomplete params return null so callers can fall back to
  * the user's stored preference.
+ *
+ * Each bound also accepts a short inbound alias
+ * ({@link TIME_RANGE_START_ALIAS_PARAM}/{@link TIME_RANGE_END_ALIAS_PARAM}),
+ * used by server-generated deep links, consulted only when the corresponding
+ * canonical param is absent.
  */
 export function getTimeRangeFromSearchParams(
   searchParams: URLSearchParams,
@@ -157,10 +164,12 @@ export function getTimeRangeFromSearchParams(
     };
   }
   const start = getDateFromSearchParamValue(
-    searchParams.get(TIME_RANGE_START_PARAM)
+    searchParams.get(TIME_RANGE_START_PARAM) ??
+      searchParams.get(TIME_RANGE_START_ALIAS_PARAM)
   );
   const end = getDateFromSearchParamValue(
-    searchParams.get(TIME_RANGE_END_PARAM)
+    searchParams.get(TIME_RANGE_END_PARAM) ??
+      searchParams.get(TIME_RANGE_END_ALIAS_PARAM)
   );
   // Non-parseable bounds, no bounds at all, or an inverted window are unusable.
   if (start === undefined || end === undefined) {
@@ -195,6 +204,10 @@ export function setTimeRangeSearchParams({
   timeRange: OpenTimeRangeWithKey;
 }): URLSearchParams {
   const nextSearchParams = new URLSearchParams(searchParams);
+  // Inbound deep-link aliases are superseded by whatever range is being
+  // written, so drop them rather than leaving stale bounds in the URL.
+  nextSearchParams.delete(TIME_RANGE_START_ALIAS_PARAM);
+  nextSearchParams.delete(TIME_RANGE_END_ALIAS_PARAM);
   const setOrDelete = (param: string, value: Date | null | undefined) => {
     if (value != null) {
       nextSearchParams.set(param, value.toISOString());
