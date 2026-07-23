@@ -57,7 +57,7 @@ dependencies = [
   "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # no Windows wheels for >=3.50; Windows + 3.14 will fail at install (no cp314 wheels exist)
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=3.2.0",
+  "arize-phoenix-evals>=3.3.0",
   "arize-phoenix-otel>=0.16.1",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "fastmcp-slim[client,server,code-mode]>=3.4.2",  # client powers pydantic-ai's MCPToolset used by the agent assistant; server powers the in-process MCP server mounted at /mcp; code-mode provides the pydantic-monty sandbox for PHOENIX_ENABLE_MCP_CODE_MODE
