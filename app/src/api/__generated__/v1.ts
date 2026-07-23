@@ -8422,6 +8422,12 @@ export interface operations {
                 include_spans?: boolean;
                 /** @description List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned. */
                 session_identifier?: string[] | null;
+                /** @description Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI. */
+                error?: boolean | null;
+                /** @description Inclusive lower bound on trace latency in milliseconds. */
+                min_latency_ms?: number | null;
+                /** @description Inclusive upper bound on trace latency in milliseconds. */
+                max_latency_ms?: number | null;
             };
             header?: never;
             path: {

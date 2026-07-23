@@ -575,3 +575,306 @@ class TestListProjectTraces:
         assert trace_data["token_count_prompt"] == 100
         assert trace_data["token_count_completion"] == 50
         assert trace_data["token_count_total"] == 150
+
+
+async def _insert_trace(
+    db: DbSessionFactory,
+    project_row_id: int,
+    *,
+    start_time: datetime,
+    latency_ms: float,
+    span_status_codes: list[str],
+) -> models.Trace:
+    """Insert a single trace with a given latency and one span per status code."""
+    end_time = start_time + timedelta(milliseconds=latency_ms)
+    async with db() as session:
+        trace_row_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id=token_hex(16),
+                project_rowid=project_row_id,
+                start_time=start_time,
+                end_time=end_time,
+            )
+            .returning(models.Trace.id)
+        )
+        assert trace_row_id is not None
+        for i, status_code in enumerate(span_status_codes):
+            await session.scalar(
+                insert(models.Span)
+                .values(
+                    trace_rowid=trace_row_id,
+                    span_id=token_hex(8),
+                    parent_id=None if i == 0 else token_hex(8),
+                    name=f"span-{i}",
+                    span_kind="LLM" if i == 0 else "CHAIN",
+                    start_time=start_time,
+                    end_time=end_time,
+                    attributes={},
+                    events=[],
+                    status_code=status_code,
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                .returning(models.Span.id)
+            )
+        trace = await session.get(models.Trace, trace_row_id)
+        assert trace is not None
+    return trace
+
+
+class TestListProjectTracesErrorAndLatencyFilters:
+    async def test_filter_error_true_returns_only_errored_traces(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project_row_id = await session.scalar(
+                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+            )
+            project = await session.get(models.Project, project_row_id)
+            assert project is not None
+        assert project_row_id is not None
+
+        base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        ok_trace = await _insert_trace(
+            db, project_row_id, start_time=base_time, latency_ms=100, span_status_codes=["OK", "OK"]
+        )
+        error_trace = await _insert_trace(
+            db,
+            project_row_id,
+            start_time=base_time + timedelta(hours=1),
+            latency_ms=200,
+            span_status_codes=["OK", "ERROR"],
+        )
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces", params={"error": "true"}
+        )
+        assert response.status_code == 200
+        returned = {t["trace_id"] for t in response.json()["data"]}
+        assert returned == {error_trace.trace_id}
+        assert ok_trace.trace_id not in returned
+
+    async def test_filter_error_false_returns_only_clean_traces(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project_row_id = await session.scalar(
+                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+            )
+            project = await session.get(models.Project, project_row_id)
+            assert project is not None
+        assert project_row_id is not None
+
+        base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        ok_trace = await _insert_trace(
+            db, project_row_id, start_time=base_time, latency_ms=100, span_status_codes=["OK", "OK"]
+        )
+        error_trace = await _insert_trace(
+            db,
+            project_row_id,
+            start_time=base_time + timedelta(hours=1),
+            latency_ms=200,
+            span_status_codes=["OK", "ERROR"],
+        )
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces", params={"error": "false"}
+        )
+        assert response.status_code == 200
+        returned = {t["trace_id"] for t in response.json()["data"]}
+        assert returned == {ok_trace.trace_id}
+        assert error_trace.trace_id not in returned
+
+    async def test_no_error_filter_returns_all_traces(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project_row_id = await session.scalar(
+                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+            )
+            project = await session.get(models.Project, project_row_id)
+            assert project is not None
+        assert project_row_id is not None
+
+        base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        await _insert_trace(
+            db, project_row_id, start_time=base_time, latency_ms=100, span_status_codes=["OK"]
+        )
+        await _insert_trace(
+            db,
+            project_row_id,
+            start_time=base_time + timedelta(hours=1),
+            latency_ms=200,
+            span_status_codes=["ERROR"],
+        )
+
+        response = await httpx_client.get(f"v1/projects/{project.name}/traces")
+        assert response.status_code == 200
+        assert len(response.json()["data"]) == 2
+
+    async def test_filter_min_latency(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project_row_id = await session.scalar(
+                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+            )
+            project = await session.get(models.Project, project_row_id)
+            assert project is not None
+        assert project_row_id is not None
+
+        base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        await _insert_trace(
+            db, project_row_id, start_time=base_time, latency_ms=100, span_status_codes=["OK"]
+        )
+        slow_trace = await _insert_trace(
+            db,
+            project_row_id,
+            start_time=base_time + timedelta(hours=1),
+            latency_ms=500,
+            span_status_codes=["OK"],
+        )
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces", params={"min_latency_ms": 300}
+        )
+        assert response.status_code == 200
+        returned = {t["trace_id"] for t in response.json()["data"]}
+        assert returned == {slow_trace.trace_id}
+
+    async def test_filter_max_latency(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project_row_id = await session.scalar(
+                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+            )
+            project = await session.get(models.Project, project_row_id)
+            assert project is not None
+        assert project_row_id is not None
+
+        base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        fast_trace = await _insert_trace(
+            db, project_row_id, start_time=base_time, latency_ms=100, span_status_codes=["OK"]
+        )
+        await _insert_trace(
+            db,
+            project_row_id,
+            start_time=base_time + timedelta(hours=1),
+            latency_ms=500,
+            span_status_codes=["OK"],
+        )
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces", params={"max_latency_ms": 300}
+        )
+        assert response.status_code == 200
+        returned = {t["trace_id"] for t in response.json()["data"]}
+        assert returned == {fast_trace.trace_id}
+
+    async def test_filter_latency_range(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project_row_id = await session.scalar(
+                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+            )
+            project = await session.get(models.Project, project_row_id)
+            assert project is not None
+        assert project_row_id is not None
+
+        base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        await _insert_trace(
+            db, project_row_id, start_time=base_time, latency_ms=100, span_status_codes=["OK"]
+        )
+        mid_trace = await _insert_trace(
+            db,
+            project_row_id,
+            start_time=base_time + timedelta(hours=1),
+            latency_ms=300,
+            span_status_codes=["OK"],
+        )
+        await _insert_trace(
+            db,
+            project_row_id,
+            start_time=base_time + timedelta(hours=2),
+            latency_ms=800,
+            span_status_codes=["OK"],
+        )
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"min_latency_ms": 200, "max_latency_ms": 500},
+        )
+        assert response.status_code == 200
+        returned = {t["trace_id"] for t in response.json()["data"]}
+        assert returned == {mid_trace.trace_id}
+
+    async def test_filter_error_and_latency_compose(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project_row_id = await session.scalar(
+                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+            )
+            project = await session.get(models.Project, project_row_id)
+            assert project is not None
+        assert project_row_id is not None
+
+        base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        # errored but fast -> excluded by latency
+        await _insert_trace(
+            db, project_row_id, start_time=base_time, latency_ms=50, span_status_codes=["ERROR"]
+        )
+        # clean and slow -> excluded by error
+        await _insert_trace(
+            db,
+            project_row_id,
+            start_time=base_time + timedelta(hours=1),
+            latency_ms=500,
+            span_status_codes=["OK"],
+        )
+        # errored and slow -> matches
+        match_trace = await _insert_trace(
+            db,
+            project_row_id,
+            start_time=base_time + timedelta(hours=2),
+            latency_ms=500,
+            span_status_codes=["ERROR"],
+        )
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"error": "true", "min_latency_ms": 300},
+        )
+        assert response.status_code == 200
+        returned = {t["trace_id"] for t in response.json()["data"]}
+        assert returned == {match_trace.trace_id}
+
+    async def test_negative_latency_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _, _, _ = await _insert_project_with_traces(db, num_traces=1)
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces", params={"min_latency_ms": -1}
+        )
+        assert response.status_code == 422
