@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "7.0.0",
+  "version": "7.0.1",
   "description": "A client for the Phoenix API",
   "keywords": [
     "arize",
