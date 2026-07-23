@@ -33,7 +33,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 
-from phoenix.db.types.data_stream_protocol import ToolOutputAvailablePart, UIMessage
+from phoenix.db.types.data_stream_protocol import UIMessage, UIToolPart
 from phoenix.server.agents.capabilities.skills import Skill
 
 logger = logging.getLogger(__name__)
@@ -131,9 +131,9 @@ def _build_synthetic_load_skill_message(
     one. ``message_factory`` keeps the synthetic message the same concrete type
     as the surrounding history, so the homogeneous request list is preserved.
     """
-    part = ToolOutputAvailablePart(
+    part = UIToolPart(
         type=_LOAD_SKILL_PART_TYPE,
-        tool_call_id=tool_call_id,
+        toolCallId=tool_call_id,
         state="output-available",
         input={"skill_name": skill.name},
         output=rendered_content,

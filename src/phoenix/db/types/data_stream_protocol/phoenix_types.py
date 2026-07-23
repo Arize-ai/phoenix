@@ -6,8 +6,8 @@ from typing import Annotated, Literal
 from pydantic import ConfigDict, Field, StringConstraints, TypeAdapter, model_validator
 
 from ._models import CamelBaseModel
+from ._ui_messages import UIMessage
 from .provider_metadata import ToolCallCallbackProviderMetadata
-from .request_types import UIMessage
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 _ToolCallCallbackProviderMetadataAdapter = TypeAdapter(ToolCallCallbackProviderMetadata)

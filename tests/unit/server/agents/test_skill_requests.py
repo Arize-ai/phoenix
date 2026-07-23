@@ -7,9 +7,9 @@ from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import UIMessage as PydanticAIUIMessage
 
 from phoenix.db.types.data_stream_protocol import (
-    TextUIPart,
-    ToolOutputAvailablePart,
     UIMessage,
+    UITextPart,
+    UIToolPart,
 )
 from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.prompts.templating import get_template
@@ -34,13 +34,13 @@ def _make_skill(name: str) -> Skill:
 
 
 def _user_message(text: str) -> UIMessage:
-    return UIMessage(id="u1", role="user", parts=[TextUIPart(type="text", text=text)])
+    return UIMessage(id="u1", role="user", parts=[UITextPart(type="text", text=text)])
 
 
-def _load_skill_part(message: UIMessage) -> ToolOutputAvailablePart:
+def _load_skill_part(message: UIMessage) -> UIToolPart:
     """Return the synthetic load-skill part, narrowing the part union for mypy."""
     part = message.parts[0]
-    assert isinstance(part, ToolOutputAvailablePart)
+    assert isinstance(part, UIToolPart)
     return part
 
 

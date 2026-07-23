@@ -999,6 +999,122 @@ class TurnTraceContext(TypedDict):
     startedAt: str
 
 
+class UICustomPart(TypedDict):
+    type: Literal["custom"]
+    kind: str
+    providerMetadata: NotRequired[Mapping[str, Any]]
+
+
+class UIDataPart(TypedDict):
+    type: str
+    data: Any
+    id: NotRequired[str]
+    transient: NotRequired[bool]
+
+
+class UIFilePart(TypedDict):
+    type: Literal["file"]
+    mediaType: str
+    url: str
+    filename: NotRequired[str]
+    providerReference: NotRequired[Mapping[str, Any]]
+    providerMetadata: NotRequired[Mapping[str, Any]]
+
+
+class UIReasoningFilePart(TypedDict):
+    type: Literal["reasoning-file"]
+    mediaType: str
+    url: str
+    providerMetadata: NotRequired[Mapping[str, Any]]
+
+
+class UIReasoningPart(TypedDict):
+    type: Literal["reasoning"]
+    text: str
+    state: NotRequired[Literal["streaming", "done"]]
+    providerMetadata: NotRequired[Mapping[str, Any]]
+
+
+class UISourceDocumentPart(TypedDict):
+    type: Literal["source-document"]
+    sourceId: str
+    mediaType: str
+    title: str
+    filename: NotRequired[str]
+    providerMetadata: NotRequired[Mapping[str, Any]]
+
+
+class UISourceUrlPart(TypedDict):
+    type: Literal["source-url"]
+    sourceId: str
+    url: str
+    title: NotRequired[str]
+    providerMetadata: NotRequired[Mapping[str, Any]]
+
+
+class UIStepStartPart(TypedDict):
+    type: Literal["step-start"]
+
+
+class UITextPart(TypedDict):
+    type: Literal["text"]
+    text: str
+    state: NotRequired[Literal["streaming", "done"]]
+    providerMetadata: NotRequired[Mapping[str, Any]]
+
+
+class UIToolApproval(TypedDict):
+    id: str
+    approved: NotRequired[bool]
+    reason: NotRequired[str]
+    isAutomatic: NotRequired[bool]
+
+
+class UIToolInvocationPart(TypedDict):
+    type: Literal["tool-invocation"]
+    toolInvocationId: str
+    toolName: str
+    args: NotRequired[Mapping[str, Any]]
+    state: NotRequired[
+        Literal[
+            "input-streaming",
+            "input-available",
+            "approval-requested",
+            "approval-responded",
+            "output-available",
+            "output-error",
+            "output-denied",
+        ]
+    ]
+    result: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+
+
+class UIToolPart(TypedDict):
+    type: str
+    toolCallId: str
+    state: Literal[
+        "input-streaming",
+        "input-available",
+        "approval-requested",
+        "approval-responded",
+        "output-available",
+        "output-error",
+        "output-denied",
+    ]
+    input: NotRequired[Any]
+    output: NotRequired[Any]
+    rawInput: NotRequired[Any]
+    errorText: NotRequired[str]
+    approval: NotRequired[UIToolApproval]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Any]]
+    resultProviderMetadata: NotRequired[Mapping[str, Any]]
+    toolMetadata: NotRequired[Mapping[str, Any]]
+    preliminary: NotRequired[bool]
+    title: NotRequired[str]
+
+
 class UpdateDatasetLabelRequestBody(TypedDict):
     name: NotRequired[str]
     color: NotRequired[str]
@@ -1632,6 +1748,32 @@ class TraceData(TypedDict):
     spans: NotRequired[Sequence[TraceSpanData]]
 
 
+class UIDynamicToolPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    state: Literal[
+        "input-streaming",
+        "input-available",
+        "approval-requested",
+        "approval-responded",
+        "output-available",
+        "output-error",
+        "output-denied",
+    ]
+    input: NotRequired[Any]
+    output: NotRequired[Any]
+    rawInput: NotRequired[Any]
+    errorText: NotRequired[str]
+    approval: NotRequired[UIToolApproval]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Any]]
+    resultProviderMetadata: NotRequired[Mapping[str, Any]]
+    toolMetadata: NotRequired[Mapping[str, Any]]
+    preliminary: NotRequired[bool]
+    title: NotRequired[str]
+
+
 class UpdateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1786,34 +1928,27 @@ class LegacyChatSubmitMessage(TypedDict):
 
 
 class PhoenixUIMessage(TypedDict):
-    id: str
-    role: Literal["system", "user", "assistant"]
-    parts: Sequence[
-        Union[
-            TextUIPart,
-            ReasoningUIPart,
-            ToolInputStreamingPart,
-            ToolInputAvailablePart,
-            ToolOutputAvailablePart,
-            ToolOutputErrorPart,
-            ToolApprovalRequestedPart,
-            ToolApprovalRespondedPart,
-            ToolOutputDeniedPart,
-            DynamicToolInputStreamingPart,
-            DynamicToolInputAvailablePart,
-            DynamicToolOutputAvailablePart,
-            DynamicToolOutputErrorPart,
-            DynamicToolApprovalRequestedPart,
-            DynamicToolApprovalRespondedPart,
-            DynamicToolOutputDeniedPart,
-            SourceUrlUIPart,
-            SourceDocumentUIPart,
-            FileUIPart,
-            DataUIPart,
-            StepStartUIPart,
+    role: Literal["user", "assistant", "system"]
+    id: NotRequired[str]
+    metadata: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
+    parts: NotRequired[
+        Sequence[
+            Union[
+                UITextPart,
+                UIReasoningPart,
+                UICustomPart,
+                UIToolInvocationPart,
+                UIStepStartPart,
+                UIToolPart,
+                UIDynamicToolPart,
+                UIFilePart,
+                UIReasoningFilePart,
+                UISourceUrlPart,
+                UISourceDocumentPart,
+                UIDataPart,
+            ]
         ]
     ]
-    metadata: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
 
 
 class PromptAnthropicInvocationParameters(TypedDict):

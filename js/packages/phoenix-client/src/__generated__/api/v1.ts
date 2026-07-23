@@ -3712,16 +3712,16 @@ export interface components {
          */
         PhoenixUIMessage: {
             /** Id */
-            id: string;
+            id?: string;
             /**
              * Role
              * @enum {string}
              */
-            role: "system" | "user" | "assistant";
+            role: "user" | "assistant" | "system";
             /** Metadata */
             metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts?: (components["schemas"]["UITextPart"] | components["schemas"]["UIReasoningPart"] | components["schemas"]["UICustomPart"] | components["schemas"]["UIToolInvocationPart"] | components["schemas"]["UIStepStartPart"] | components["schemas"]["UIToolPart"] | components["schemas"]["UIDynamicToolPart"] | components["schemas"]["UIFilePart"] | components["schemas"]["UIReasoningFilePart"] | components["schemas"]["UISourceUrlPart"] | components["schemas"]["UISourceDocumentPart"] | components["schemas"]["UIDataPart"])[];
         };
         /**
          * PlaygroundBuiltinModelContext
@@ -5794,6 +5794,324 @@ export interface components {
              * Format: date-time
              */
             startedAt: string;
+        };
+        /**
+         * UICustomPart
+         * @description Provider-specific content that does not fit standard UI parts.
+         */
+        UICustomPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "custom";
+            /** Kind */
+            kind: string;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UIDataPart
+         * @description Custom data part with a dynamic ``data-*`` type.
+         */
+        UIDataPart: {
+            /** Type */
+            type: string;
+            /** Id */
+            id?: string | null;
+            /** Data */
+            data: unknown;
+            /** Transient */
+            transient?: boolean | null;
+        };
+        /**
+         * UIDynamicToolPart
+         * @description Dynamic tool part where the tool name is a field, not the type suffix.
+         */
+        UIDynamicToolPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "input-streaming" | "input-available" | "approval-requested" | "approval-responded" | "output-available" | "output-error" | "output-denied";
+            /** Input */
+            input?: unknown | null;
+            /** Output */
+            output?: unknown | null;
+            /** Rawinput */
+            rawInput?: unknown | null;
+            /** Errortext */
+            errorText?: string | null;
+            approval?: components["schemas"]["UIToolApproval"] | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Toolmetadata */
+            toolMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Title */
+            title?: string | null;
+        };
+        /**
+         * UIFilePart
+         * @description File part. TODO: FilePart not yet supported in core messages.
+         */
+        UIFilePart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "file";
+            /** Mediatype */
+            mediaType: string;
+            /** Url */
+            url: string;
+            /** Filename */
+            filename?: string | null;
+            /** Providerreference */
+            providerReference?: {
+                [key: string]: unknown;
+            } | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UIReasoningFilePart
+         * @description Reasoning file part generated as part of model reasoning.
+         */
+        UIReasoningFilePart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "reasoning-file";
+            /** Mediatype */
+            mediaType: string;
+            /** Url */
+            url: string;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UIReasoningPart
+         * @description Reasoning/thinking content part in AI SDK v6 format.
+         *
+         *     Wire shape from the AI SDK frontend is
+         *     ``{type: "reasoning", text, state}``.  ``state`` is
+         *     ``"streaming"`` while the block is open and ``"done"`` once closed;
+         *     we accept it but don't currently route on it.
+         */
+        UIReasoningPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "reasoning";
+            /** Text */
+            text: string;
+            /** State */
+            state?: ("streaming" | "done") | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UISourceDocumentPart
+         * @description Source document part. TODO: SourceDocumentPart not yet supported.
+         */
+        UISourceDocumentPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "source-document";
+            /** Sourceid */
+            sourceId: string;
+            /** Mediatype */
+            mediaType: string;
+            /** Title */
+            title: string;
+            /** Filename */
+            filename?: string | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UISourceUrlPart
+         * @description Source URL part. TODO: SourceUrlPart not yet supported.
+         */
+        UISourceUrlPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "source-url";
+            /** Sourceid */
+            sourceId: string;
+            /** Url */
+            url: string;
+            /** Title */
+            title?: string | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UIStepStartPart
+         * @description Step boundary marker. Skipped during conversion to internal format.
+         */
+        UIStepStartPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "step-start";
+        };
+        /**
+         * UITextPart
+         * @description Text content part in AI SDK v6 format.
+         */
+        UITextPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "text";
+            /** Text */
+            text: string;
+            /** State */
+            state?: ("streaming" | "done") | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UIToolApproval
+         * @description Approval state on a tool part (AI SDK v6 protocol).
+         *
+         *     Present when a tool requires user approval before execution.
+         *     ``id`` matches the hook label used by the ToolApproval hook.
+         *     ``approved`` is None while awaiting a response, True/False after.
+         */
+        UIToolApproval: {
+            /** Id */
+            id: string;
+            /** Approved */
+            approved?: boolean | null;
+            /** Reason */
+            reason?: string | null;
+            /** Isautomatic */
+            isAutomatic?: boolean | null;
+        };
+        /**
+         * UIToolInvocationPart
+         * @description Tool invocation part in AI SDK v6 format.
+         *
+         *     Note: The AI SDK frontend typically sends tool-{toolName} format instead.
+         *     The legacy type is ``tool-invocation``.
+         *     This model is kept for backwards compatibility.
+         *
+         *     Reference: https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message
+         */
+        UIToolInvocationPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "tool-invocation";
+            /** Toolinvocationid */
+            toolInvocationId: string;
+            /** Toolname */
+            toolName: string;
+            /** Args */
+            args?: {
+                [key: string]: unknown;
+            };
+            /**
+             * State
+             * @default input-available
+             * @enum {string}
+             */
+            state?: "input-streaming" | "input-available" | "approval-requested" | "approval-responded" | "output-available" | "output-error" | "output-denied";
+            /** Result */
+            result?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+        };
+        /**
+         * UIToolPart
+         * @description Tool part with dynamic type pattern: tool-{toolName}.
+         *
+         *     The AI SDK frontend sends tool parts with type like "tool-get_weather"
+         *     where the tool name is embedded in the type string.
+         */
+        UIToolPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "input-streaming" | "input-available" | "approval-requested" | "approval-responded" | "output-available" | "output-error" | "output-denied";
+            /** Input */
+            input?: unknown;
+            /** Output */
+            output?: unknown | null;
+            /** Rawinput */
+            rawInput?: unknown | null;
+            /** Errortext */
+            errorText?: string | null;
+            approval?: components["schemas"]["UIToolApproval"] | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Toolmetadata */
+            toolMetadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Title */
+            title?: string | null;
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {

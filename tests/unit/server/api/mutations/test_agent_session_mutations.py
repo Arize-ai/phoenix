@@ -9,7 +9,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
-    TextUIPart,
+    UITextPart,
 )
 from phoenix.server.api.routers.agents import (
     _build_compaction_message,
@@ -108,22 +108,25 @@ def _transcript_messages() -> list[PhoenixUIMessage]:
         PhoenixUIMessage(
             id="user-1",
             role="user",
-            parts=[TextUIPart(text="How do I trace OpenAI?")],
+            parts=[UITextPart(type="text", text="How do I trace OpenAI?")],
         ),
         PhoenixUIMessage(
             id="assistant-1",
             role="assistant",
-            parts=[TextUIPart(text="Use register().")],
+            parts=[UITextPart(type="text", text="Use register().")],
         ),
         PhoenixUIMessage(
             id="user-2",
             role="user",
-            parts=[TextUIPart(text="Show "), TextUIPart(text="an example")],
+            parts=[
+                UITextPart(type="text", text="Show "),
+                UITextPart(type="text", text="an example"),
+            ],
         ),
         PhoenixUIMessage(
             id="assistant-2",
             role="assistant",
-            parts=[TextUIPart(text="Here is an example.")],
+            parts=[UITextPart(type="text", text="Here is an example.")],
         ),
     ]
 
@@ -235,23 +238,23 @@ async def test_truncate_agent_session_restores_the_latest_surviving_compaction_p
             PhoenixUIMessage(
                 id="user-3",
                 role="user",
-                parts=[TextUIPart(text="Continue")],
+                parts=[UITextPart(type="text", text="Continue")],
             ),
             PhoenixUIMessage(
                 id="assistant-3",
                 role="assistant",
-                parts=[TextUIPart(text="Continued")],
+                parts=[UITextPart(type="text", text="Continued")],
             ),
             _build_compaction_message(message_id="compaction-2", summary="second summary"),
             PhoenixUIMessage(
                 id="user-4",
                 role="user",
-                parts=[TextUIPart(text="Continue again")],
+                parts=[UITextPart(type="text", text="Continue again")],
             ),
             PhoenixUIMessage(
                 id="assistant-4",
                 role="assistant",
-                parts=[TextUIPart(text="Continued again")],
+                parts=[UITextPart(type="text", text="Continued again")],
             ),
         ]
         additional_rows = [
@@ -411,7 +414,7 @@ async def test_branch_agent_session_copies_durable_compaction_points(
             message=PhoenixUIMessage(
                 id="assistant-after-compaction",
                 role="assistant",
-                parts=[TextUIPart(text="retained answer")],
+                parts=[UITextPart(type="text", text="retained answer")],
             ),
         )
         session.add_all((compaction_row, assistant_row))

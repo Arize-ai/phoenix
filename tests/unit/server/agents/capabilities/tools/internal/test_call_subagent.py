@@ -5,7 +5,7 @@ from pydantic_ai import Agent, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
-from phoenix.db.types.data_stream_protocol import TextUIPart
+from phoenix.db.types.data_stream_protocol import UITextPart
 from phoenix.server.agents.capabilities.tools.internal.call_subagent import (
     CallSubagentOutput,
     CallSubAgentToolset,
@@ -74,7 +74,7 @@ class TestCallSubAgentToolset:
         message = final_chunk.output.message
         assert message.role == "assistant"
         assert any(
-            isinstance(part, TextUIPart) and part.text == "subagent summary"
+            isinstance(part, UITextPart) and part.text == "subagent summary"
             for part in message.parts
         )
         dumped_chunk = final_chunk.model_dump(by_alias=True, exclude_none=True)

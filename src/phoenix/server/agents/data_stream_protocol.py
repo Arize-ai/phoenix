@@ -34,50 +34,24 @@ from pydantic_ai.ui.vercel_ai.response_types import (
 )
 
 from phoenix.db.types.data_stream_protocol import (
-    DataUIPart,
-    DynamicToolApprovalRequestedPart,
-    DynamicToolInputAvailablePart,
-    DynamicToolInputStreamingPart,
-    DynamicToolOutputAvailablePart,
-    DynamicToolOutputDeniedPart,
-    DynamicToolOutputErrorPart,
-    FileUIPart,
     ProviderMetadata,
-    ReasoningUIPart,
-    SourceDocumentUIPart,
-    SourceUrlUIPart,
-    StepStartUIPart,
-    TextUIPart,
-    ToolApprovalRequested,
-    ToolApprovalRequestedPart,
-    ToolInputAvailablePart,
-    ToolInputStreamingPart,
-    ToolOutputAvailablePart,
-    ToolOutputDeniedPart,
-    ToolOutputErrorPart,
+    UIDataPart,
+    UIDynamicToolPart,
+    UIFilePart,
     UIMessage,
     UIMessagePart,
+    UIReasoningPart,
+    UISourceDocumentPart,
+    UISourceUrlPart,
+    UIStepStartPart,
+    UITextPart,
+    UIToolApproval,
+    UIToolPart,
 )
 
 _UNKNOWN_TOOL_NAME = "unknown"
 
-_STATIC_TOOL_PART_TYPES = (
-    ToolInputStreamingPart,
-    ToolInputAvailablePart,
-    ToolOutputAvailablePart,
-    ToolOutputErrorPart,
-    ToolApprovalRequestedPart,
-    ToolOutputDeniedPart,
-)
-_DYNAMIC_TOOL_PART_TYPES = (
-    DynamicToolInputStreamingPart,
-    DynamicToolInputAvailablePart,
-    DynamicToolOutputAvailablePart,
-    DynamicToolOutputErrorPart,
-    DynamicToolApprovalRequestedPart,
-    DynamicToolOutputDeniedPart,
-)
-_TOOL_PART_TYPES = (*_STATIC_TOOL_PART_TYPES, *_DYNAMIC_TOOL_PART_TYPES)
+_TOOL_PART_TYPES = (UIToolPart, UIDynamicToolPart)
 
 
 async def accumulate_ui_message_chunks_to_ui_messages(
@@ -119,12 +93,13 @@ async def accumulate_ui_message_chunks_to_ui_messages(
                 message.metadata = _merge_metadata(message.metadata, chunk.message_metadata)
                 changed = True
         elif isinstance(chunk, StartStepChunk):
-            message.parts.append(StepStartUIPart())
+            message.parts.append(UIStepStartPart(type="step-start"))
             changed = True
         elif isinstance(chunk, TextStartChunk):
             text_part_indices_by_id[chunk.id] = len(message.parts)
             message.parts.append(
-                TextUIPart(
+                UITextPart(
+                    type="text",
                     text="",
                     state="streaming",
                     provider_metadata=chunk.provider_metadata,
@@ -134,7 +109,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
         elif isinstance(chunk, TextDeltaChunk):
             index = _ensure_text_part(message, text_part_indices_by_id, chunk.id)
             part = message.parts[index]
-            assert isinstance(part, TextUIPart)
+            assert isinstance(part, UITextPart)
             part.text += chunk.delta
             part.provider_metadata = _merge_provider_metadata(
                 part.provider_metadata,
@@ -144,7 +119,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
         elif isinstance(chunk, TextEndChunk):
             index = _ensure_text_part(message, text_part_indices_by_id, chunk.id)
             part = message.parts[index]
-            assert isinstance(part, TextUIPart)
+            assert isinstance(part, UITextPart)
             part.state = "done"
             part.provider_metadata = _merge_provider_metadata(
                 part.provider_metadata,
@@ -154,7 +129,8 @@ async def accumulate_ui_message_chunks_to_ui_messages(
         elif isinstance(chunk, ReasoningStartChunk):
             reasoning_part_indices_by_id[chunk.id] = len(message.parts)
             message.parts.append(
-                ReasoningUIPart(
+                UIReasoningPart(
+                    type="reasoning",
                     text="",
                     state="streaming",
                     provider_metadata=chunk.provider_metadata,
@@ -164,7 +140,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
         elif isinstance(chunk, ReasoningDeltaChunk):
             index = _ensure_reasoning_part(message, reasoning_part_indices_by_id, chunk.id)
             part = message.parts[index]
-            assert isinstance(part, ReasoningUIPart)
+            assert isinstance(part, UIReasoningPart)
             part.text += chunk.delta
             part.provider_metadata = _merge_provider_metadata(
                 part.provider_metadata,
@@ -174,7 +150,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
         elif isinstance(chunk, ReasoningEndChunk):
             index = _ensure_reasoning_part(message, reasoning_part_indices_by_id, chunk.id)
             part = message.parts[index]
-            assert isinstance(part, ReasoningUIPart)
+            assert isinstance(part, UIReasoningPart)
             part.state = "done"
             part.provider_metadata = _merge_provider_metadata(
                 part.provider_metadata,
@@ -352,8 +328,9 @@ async def accumulate_ui_message_chunks_to_ui_messages(
             changed = True
         elif isinstance(chunk, SourceUrlChunk):
             message.parts.append(
-                SourceUrlUIPart(
-                    source_id=chunk.source_id,
+                UISourceUrlPart(
+                    type="source-url",
+                    sourceId=chunk.source_id,
                     url=chunk.url,
                     title=chunk.title,
                     provider_metadata=chunk.provider_metadata,
@@ -362,9 +339,10 @@ async def accumulate_ui_message_chunks_to_ui_messages(
             changed = True
         elif isinstance(chunk, SourceDocumentChunk):
             message.parts.append(
-                SourceDocumentUIPart(
-                    source_id=chunk.source_id,
-                    media_type=chunk.media_type,
+                UISourceDocumentPart(
+                    type="source-document",
+                    sourceId=chunk.source_id,
+                    mediaType=chunk.media_type,
                     title=chunk.title,
                     filename=chunk.filename,
                     provider_metadata=chunk.provider_metadata,
@@ -372,19 +350,19 @@ async def accumulate_ui_message_chunks_to_ui_messages(
             )
             changed = True
         elif isinstance(chunk, FileChunk):
-            message.parts.append(FileUIPart(url=chunk.url, media_type=chunk.media_type))
+            message.parts.append(UIFilePart(type="file", url=chunk.url, mediaType=chunk.media_type))
             changed = True
         elif isinstance(chunk, DataChunk):
             if chunk.transient is not True:
-                message.parts.append(DataUIPart(type=chunk.type, id=chunk.id, data=chunk.data))
+                message.parts.append(UIDataPart(type=chunk.type, id=chunk.id, data=chunk.data))
                 changed = True
         elif isinstance(chunk, ErrorChunk):
             message.parts.append(
-                DataUIPart(type="data-error", data={"errorText": chunk.error_text})
+                UIDataPart(type="data-error", data={"errorText": chunk.error_text})
             )
             changed = True
         elif isinstance(chunk, AbortChunk):
-            message.parts.append(DataUIPart(type="data-abort", data={"reason": chunk.reason}))
+            message.parts.append(UIDataPart(type="data-abort", data={"reason": chunk.reason}))
             changed = True
 
         if changed:
@@ -400,7 +378,7 @@ def _ensure_text_part(
     if index is None:
         index = len(message.parts)
         indices_by_id[part_id] = index
-        message.parts.append(TextUIPart(text="", state="streaming"))
+        message.parts.append(UITextPart(type="text", text="", state="streaming"))
     return index
 
 
@@ -413,7 +391,7 @@ def _ensure_reasoning_part(
     if index is None:
         index = len(message.parts)
         indices_by_id[part_id] = index
-        message.parts.append(ReasoningUIPart(text="", state="streaming"))
+        message.parts.append(UIReasoningPart(type="reasoning", text="", state="streaming"))
     return index
 
 
@@ -454,16 +432,19 @@ def _build_tool_input_streaming_part(
     dynamic: bool,
 ) -> UIMessagePart:
     if dynamic:
-        return DynamicToolInputStreamingPart(
-            tool_name=tool_name,
-            tool_call_id=tool_call_id,
+        return UIDynamicToolPart(
+            type="dynamic-tool",
+            toolName=tool_name,
+            toolCallId=tool_call_id,
+            state="input-streaming",
             input=input_value,
             provider_executed=provider_executed,
             call_provider_metadata=provider_metadata,
         )
-    return ToolInputStreamingPart(
+    return UIToolPart(
         type=_get_tool_type(tool_name),
-        tool_call_id=tool_call_id,
+        toolCallId=tool_call_id,
+        state="input-streaming",
         input=input_value,
         provider_executed=provider_executed,
         call_provider_metadata=provider_metadata,
@@ -480,16 +461,19 @@ def _build_tool_input_available_part(
     dynamic: bool,
 ) -> UIMessagePart:
     if dynamic:
-        return DynamicToolInputAvailablePart(
-            tool_name=tool_name,
-            tool_call_id=tool_call_id,
+        return UIDynamicToolPart(
+            type="dynamic-tool",
+            toolName=tool_name,
+            toolCallId=tool_call_id,
+            state="input-available",
             input=input_value,
             provider_executed=provider_executed,
             call_provider_metadata=provider_metadata,
         )
-    return ToolInputAvailablePart(
+    return UIToolPart(
         type=_get_tool_type(tool_name),
-        tool_call_id=tool_call_id,
+        toolCallId=tool_call_id,
+        state="input-available",
         input=input_value,
         provider_executed=provider_executed,
         call_provider_metadata=provider_metadata,
@@ -509,18 +493,21 @@ def _build_tool_output_available_part(
     existing_type: str | None = None,
 ) -> UIMessagePart:
     if dynamic:
-        return DynamicToolOutputAvailablePart(
-            tool_name=tool_name,
-            tool_call_id=tool_call_id,
+        return UIDynamicToolPart(
+            type="dynamic-tool",
+            toolName=tool_name,
+            toolCallId=tool_call_id,
+            state="output-available",
             input=input_value,
             output=output,
             provider_executed=provider_executed,
             call_provider_metadata=provider_metadata,
             preliminary=preliminary,
         )
-    return ToolOutputAvailablePart(
+    return UIToolPart(
         type=existing_type or _get_tool_type(tool_name),
-        tool_call_id=tool_call_id,
+        toolCallId=tool_call_id,
+        state="output-available",
         input=input_value,
         output=output,
         provider_executed=provider_executed,
@@ -542,17 +529,20 @@ def _build_tool_output_error_part(
     raw_input: Any | None = None,
 ) -> UIMessagePart:
     if dynamic:
-        return DynamicToolOutputErrorPart(
-            tool_name=tool_name,
-            tool_call_id=tool_call_id,
+        return UIDynamicToolPart(
+            type="dynamic-tool",
+            toolName=tool_name,
+            toolCallId=tool_call_id,
+            state="output-error",
             input=input_value,
             error_text=error_text,
             provider_executed=provider_executed,
             call_provider_metadata=provider_metadata,
         )
-    return ToolOutputErrorPart(
+    return UIToolPart(
         type=existing_type or _get_tool_type(tool_name),
-        tool_call_id=tool_call_id,
+        toolCallId=tool_call_id,
+        state="output-error",
         input=input_value,
         raw_input=raw_input,
         error_text=error_text,
@@ -572,19 +562,22 @@ def _build_tool_approval_requested_part(
     approval_id: str,
     existing_type: str | None = None,
 ) -> UIMessagePart:
-    approval = ToolApprovalRequested(id=approval_id)
+    approval = UIToolApproval(id=approval_id)
     if dynamic:
-        return DynamicToolApprovalRequestedPart(
-            tool_name=tool_name,
-            tool_call_id=tool_call_id,
+        return UIDynamicToolPart(
+            type="dynamic-tool",
+            toolName=tool_name,
+            toolCallId=tool_call_id,
+            state="approval-requested",
             input=input_value,
             provider_executed=provider_executed,
             call_provider_metadata=provider_metadata,
             approval=approval,
         )
-    return ToolApprovalRequestedPart(
+    return UIToolPart(
         type=existing_type or _get_tool_type(tool_name),
-        tool_call_id=tool_call_id,
+        toolCallId=tool_call_id,
+        state="approval-requested",
         input=input_value,
         provider_executed=provider_executed,
         call_provider_metadata=provider_metadata,
@@ -603,16 +596,19 @@ def _build_tool_output_denied_part(
     existing_type: str | None = None,
 ) -> UIMessagePart:
     if dynamic:
-        return DynamicToolOutputDeniedPart(
-            tool_name=tool_name,
-            tool_call_id=tool_call_id,
+        return UIDynamicToolPart(
+            type="dynamic-tool",
+            toolName=tool_name,
+            toolCallId=tool_call_id,
+            state="output-denied",
             input=input_value,
             provider_executed=provider_executed,
             call_provider_metadata=provider_metadata,
         )
-    return ToolOutputDeniedPart(
+    return UIToolPart(
         type=existing_type or _get_tool_type(tool_name),
-        tool_call_id=tool_call_id,
+        toolCallId=tool_call_id,
+        state="output-denied",
         input=input_value,
         provider_executed=provider_executed,
         call_provider_metadata=provider_metadata,
@@ -624,19 +620,19 @@ def _get_tool_type(tool_name: str) -> str:
 
 
 def _get_tool_name(part: UIMessagePart | None) -> str:
-    if isinstance(part, _DYNAMIC_TOOL_PART_TYPES):
+    if isinstance(part, UIDynamicToolPart):
         return part.tool_name
-    if isinstance(part, _STATIC_TOOL_PART_TYPES):
+    if isinstance(part, UIToolPart):
         return part.type.removeprefix("tool-")
     return _UNKNOWN_TOOL_NAME
 
 
 def _get_static_tool_type(part: UIMessagePart | None) -> str | None:
-    return part.type if isinstance(part, _STATIC_TOOL_PART_TYPES) else None
+    return part.type if isinstance(part, UIToolPart) else None
 
 
 def _is_dynamic_tool_part(part: UIMessagePart | None) -> bool:
-    return isinstance(part, _DYNAMIC_TOOL_PART_TYPES)
+    return isinstance(part, UIDynamicToolPart)
 
 
 def _get_tool_input(part: UIMessagePart | None) -> Any:

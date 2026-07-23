@@ -13395,9 +13395,9 @@
           "role": {
             "type": "string",
             "enum": [
-              "system",
               "user",
-              "assistant"
+              "assistant",
+              "system"
             ],
             "title": "Role"
           },
@@ -13430,67 +13430,40 @@
             "items": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/TextUIPart"
+                  "$ref": "#/components/schemas/UITextPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ReasoningUIPart"
+                  "$ref": "#/components/schemas/UIReasoningPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                  "$ref": "#/components/schemas/UICustomPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolInputAvailablePart"
+                  "$ref": "#/components/schemas/UIToolInvocationPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                  "$ref": "#/components/schemas/UIStepStartPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                  "$ref": "#/components/schemas/UIToolPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
+                  "$ref": "#/components/schemas/UIDynamicToolPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
+                  "$ref": "#/components/schemas/UIFilePart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
+                  "$ref": "#/components/schemas/UIReasoningFilePart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                  "$ref": "#/components/schemas/UISourceUrlPart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
+                  "$ref": "#/components/schemas/UISourceDocumentPart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceUrlUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/SourceDocumentUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/FileUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/DataUIPart"
-                },
-                {
-                  "$ref": "#/components/schemas/StepStartUIPart"
+                  "$ref": "#/components/schemas/UIDataPart"
                 }
               ]
             },
@@ -13501,9 +13474,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "id",
-          "role",
-          "parts"
+          "role"
         ],
         "title": "PhoenixUIMessage",
         "description": "``UIMessage`` with metadata narrowed to the Phoenix wire shapes."
@@ -18223,6 +18194,809 @@
           "startedAt"
         ],
         "title": "TurnTraceContext"
+      },
+      "UICustomPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "custom",
+            "title": "Type"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "kind"
+        ],
+        "title": "UICustomPart",
+        "description": "Provider-specific content that does not fit standard UI parts."
+      },
+      "UIDataPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "data": {
+            "title": "Data"
+          },
+          "transient": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transient"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "data"
+        ],
+        "title": "UIDataPart",
+        "description": "Custom data part with a dynamic ``data-*`` type."
+      },
+      "UIDynamicToolPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "input-streaming",
+              "input-available",
+              "approval-requested",
+              "approval-responded",
+              "output-available",
+              "output-error",
+              "output-denied"
+            ],
+            "title": "State"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "rawInput": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawinput"
+          },
+          "errorText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errortext"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UIToolApproval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "resultProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultprovidermetadata"
+          },
+          "toolMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toolmetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolName",
+          "toolCallId",
+          "state"
+        ],
+        "title": "UIDynamicToolPart",
+        "description": "Dynamic tool part where the tool name is a field, not the type suffix."
+      },
+      "UIFilePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "file",
+            "title": "Type"
+          },
+          "mediaType": {
+            "type": "string",
+            "title": "Mediatype"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "providerReference": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerreference"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "mediaType",
+          "url"
+        ],
+        "title": "UIFilePart",
+        "description": "File part. TODO: FilePart not yet supported in core messages."
+      },
+      "UIReasoningFilePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "reasoning-file",
+            "title": "Type"
+          },
+          "mediaType": {
+            "type": "string",
+            "title": "Mediatype"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "mediaType",
+          "url"
+        ],
+        "title": "UIReasoningFilePart",
+        "description": "Reasoning file part generated as part of model reasoning."
+      },
+      "UIReasoningPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "reasoning",
+            "title": "Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "streaming",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "UIReasoningPart",
+        "description": "Reasoning/thinking content part in AI SDK v6 format.\n\nWire shape from the AI SDK frontend is\n``{type: \"reasoning\", text, state}``.  ``state`` is\n``\"streaming\"`` while the block is open and ``\"done\"`` once closed;\nwe accept it but don't currently route on it."
+      },
+      "UISourceDocumentPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "source-document",
+            "title": "Type"
+          },
+          "sourceId": {
+            "type": "string",
+            "title": "Sourceid"
+          },
+          "mediaType": {
+            "type": "string",
+            "title": "Mediatype"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "sourceId",
+          "mediaType",
+          "title"
+        ],
+        "title": "UISourceDocumentPart",
+        "description": "Source document part. TODO: SourceDocumentPart not yet supported."
+      },
+      "UISourceUrlPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "source-url",
+            "title": "Type"
+          },
+          "sourceId": {
+            "type": "string",
+            "title": "Sourceid"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "sourceId",
+          "url"
+        ],
+        "title": "UISourceUrlPart",
+        "description": "Source URL part. TODO: SourceUrlPart not yet supported."
+      },
+      "UIStepStartPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "step-start",
+            "title": "Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "UIStepStartPart",
+        "description": "Step boundary marker. Skipped during conversion to internal format."
+      },
+      "UITextPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text",
+            "title": "Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "streaming",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "UITextPart",
+        "description": "Text content part in AI SDK v6 format."
+      },
+      "UIToolApproval": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "approved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "isAutomatic": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isautomatic"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "UIToolApproval",
+        "description": "Approval state on a tool part (AI SDK v6 protocol).\n\nPresent when a tool requires user approval before execution.\n``id`` matches the hook label used by the ToolApproval hook.\n``approved`` is None while awaiting a response, True/False after."
+      },
+      "UIToolInvocationPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tool-invocation",
+            "title": "Type"
+          },
+          "toolInvocationId": {
+            "type": "string",
+            "title": "Toolinvocationid"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "args": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Args"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "input-streaming",
+              "input-available",
+              "approval-requested",
+              "approval-responded",
+              "output-available",
+              "output-error",
+              "output-denied"
+            ],
+            "title": "State",
+            "default": "input-available"
+          },
+          "result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolInvocationId",
+          "toolName"
+        ],
+        "title": "UIToolInvocationPart",
+        "description": "Tool invocation part in AI SDK v6 format.\n\nNote: The AI SDK frontend typically sends tool-{toolName} format instead.\nThe legacy type is ``tool-invocation``.\nThis model is kept for backwards compatibility.\n\nReference: https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message"
+      },
+      "UIToolPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "input-streaming",
+              "input-available",
+              "approval-requested",
+              "approval-responded",
+              "output-available",
+              "output-error",
+              "output-denied"
+            ],
+            "title": "State"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "rawInput": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawinput"
+          },
+          "errorText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errortext"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UIToolApproval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "resultProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultprovidermetadata"
+          },
+          "toolMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toolmetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId",
+          "state"
+        ],
+        "title": "UIToolPart",
+        "description": "Tool part with dynamic type pattern: tool-{toolName}.\n\nThe AI SDK frontend sends tool parts with type like \"tool-get_weather\"\nwhere the tool name is embedded in the type string."
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {

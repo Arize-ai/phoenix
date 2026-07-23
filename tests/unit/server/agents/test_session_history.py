@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from phoenix.db import models
-from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TextUIPart, UserMessageMetadata
+from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, UITextPart, UserMessageMetadata
 from phoenix.server.api.routers.agents import (
     _build_compaction_message,
     _load_agent_session_history,
@@ -28,7 +28,7 @@ def test_build_compaction_message_creates_a_marked_user_message() -> None:
     assert message.role == "user"
     assert isinstance(message.metadata, UserMessageMetadata)
     assert message.metadata.is_compaction_message
-    assert "\n".join(part.text for part in message.parts if isinstance(part, TextUIPart)) == (
+    assert "\n".join(part.text for part in message.parts if isinstance(part, UITextPart)) == (
         '{"objectives":["continue"]}'
     )
 

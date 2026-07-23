@@ -1,0 +1,307 @@
+# serializer version: 1
+# name: test_persisted_contract_schema
+  dict({
+    'PhoenixUIMessage': dict({
+      'models': dict({
+        'AssistantMessageMetadata': dict({
+          'additionalProperties': True,
+          'fields': list([
+            'sessionId',
+            'trace',
+            'turnTraceContext',
+            'type',
+            'usage',
+          ]),
+          'required': list([
+            'sessionId',
+          ]),
+        }),
+        'AssistantMessageMetadataTraceIds': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'rootSpanId',
+            'traceId',
+          ]),
+          'required': list([
+            'traceId',
+            'rootSpanId',
+          ]),
+        }),
+        'AssistantMessageMetadataUsage': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'promptDetails',
+            'tokens',
+          ]),
+          'required': list([
+            'tokens',
+          ]),
+        }),
+        'AssistantMessageMetadataUsageTokenDetails': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'cacheRead',
+            'cacheWrite',
+          ]),
+          'required': list([
+            'cacheRead',
+            'cacheWrite',
+          ]),
+        }),
+        'AssistantMessageMetadataUsageTokens': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'completion',
+            'prompt',
+            'total',
+          ]),
+          'required': list([
+            'prompt',
+            'completion',
+            'total',
+          ]),
+        }),
+        'TurnTraceContext': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'rootSpanId',
+            'startedAt',
+            'traceId',
+          ]),
+          'required': list([
+            'traceId',
+            'rootSpanId',
+            'startedAt',
+          ]),
+        }),
+        'UICustomPart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'kind',
+            'providerMetadata',
+            'type',
+          ]),
+          'required': list([
+            'type',
+            'kind',
+          ]),
+        }),
+        'UIDataPart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'data',
+            'id',
+            'transient',
+            'type',
+          ]),
+          'required': list([
+            'type',
+            'data',
+          ]),
+        }),
+        'UIDynamicToolPart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'approval',
+            'callProviderMetadata',
+            'errorText',
+            'input',
+            'output',
+            'preliminary',
+            'providerExecuted',
+            'rawInput',
+            'resultProviderMetadata',
+            'state',
+            'title',
+            'toolCallId',
+            'toolMetadata',
+            'toolName',
+            'type',
+          ]),
+          'required': list([
+            'type',
+            'toolName',
+            'toolCallId',
+            'state',
+          ]),
+        }),
+        'UIFilePart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'filename',
+            'mediaType',
+            'providerMetadata',
+            'providerReference',
+            'type',
+            'url',
+          ]),
+          'required': list([
+            'type',
+            'mediaType',
+            'url',
+          ]),
+        }),
+        'UIReasoningFilePart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'mediaType',
+            'providerMetadata',
+            'type',
+            'url',
+          ]),
+          'required': list([
+            'type',
+            'mediaType',
+            'url',
+          ]),
+        }),
+        'UIReasoningPart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'providerMetadata',
+            'state',
+            'text',
+            'type',
+          ]),
+          'required': list([
+            'type',
+            'text',
+          ]),
+        }),
+        'UISourceDocumentPart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'filename',
+            'mediaType',
+            'providerMetadata',
+            'sourceId',
+            'title',
+            'type',
+          ]),
+          'required': list([
+            'type',
+            'sourceId',
+            'mediaType',
+            'title',
+          ]),
+        }),
+        'UISourceUrlPart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'providerMetadata',
+            'sourceId',
+            'title',
+            'type',
+            'url',
+          ]),
+          'required': list([
+            'type',
+            'sourceId',
+            'url',
+          ]),
+        }),
+        'UIStepStartPart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'type',
+          ]),
+          'required': list([
+            'type',
+          ]),
+        }),
+        'UITextPart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'providerMetadata',
+            'state',
+            'text',
+            'type',
+          ]),
+          'required': list([
+            'type',
+            'text',
+          ]),
+        }),
+        'UIToolApproval': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'approved',
+            'id',
+            'isAutomatic',
+            'reason',
+          ]),
+          'required': list([
+            'id',
+          ]),
+        }),
+        'UIToolInvocationPart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'args',
+            'providerExecuted',
+            'result',
+            'state',
+            'toolInvocationId',
+            'toolName',
+            'type',
+          ]),
+          'required': list([
+            'type',
+            'toolInvocationId',
+            'toolName',
+          ]),
+        }),
+        'UIToolPart': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'approval',
+            'callProviderMetadata',
+            'errorText',
+            'input',
+            'output',
+            'preliminary',
+            'providerExecuted',
+            'rawInput',
+            'resultProviderMetadata',
+            'state',
+            'title',
+            'toolCallId',
+            'toolMetadata',
+            'type',
+          ]),
+          'required': list([
+            'type',
+            'toolCallId',
+            'state',
+          ]),
+        }),
+        'UserMessageMetadata': dict({
+          'additionalProperties': False,
+          'fields': list([
+            'currentDateTime',
+            'isCompactionMessage',
+            'timeZone',
+            'type',
+          ]),
+          'required': list([
+            'currentDateTime',
+            'timeZone',
+          ]),
+        }),
+      }),
+      'root': dict({
+        'additionalProperties': False,
+        'fields': list([
+          'id',
+          'metadata',
+          'parts',
+          'role',
+        ]),
+        'required': list([
+          'role',
+        ]),
+      }),
+      'sha256': 'd9f7d9235df386402d7d06242e08f220da2f46d65dca393e908addf18d440752',
+    }),
+  })
+# ---

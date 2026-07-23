@@ -44,16 +44,17 @@ from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
-    TextUIPart,
-    ToolOutputAvailablePart,
     TurnTraceContext,
     UIMessage,
+    UITextPart,
+    UIToolPart,
 )
 from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.routers.agents import (
+    ChatSubmitMessage,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -61,6 +62,7 @@ from phoenix.server.api.routers.agents import (
     _persist_db_traces,
     _resolve_turn_trace_ids,
     _synthesize_client_tool_spans,
+    _to_pydantic_ai_request_data,
     _turn_parent_context,
 )
 from phoenix.server.settings.registry import (
@@ -159,6 +161,36 @@ async def _create_agent_session_row(
             for position, message in enumerate(messages or [])
         )
         return str(GlobalID("AgentSession", str(agent_session.id)))
+
+
+def test_shared_ui_message_subset_validates_through_pydantic_ai_bridge() -> None:
+    request = ChatSubmitMessage.model_validate(
+        _chat_body(
+            "session-1",
+            _user_message("find latency"),
+        )
+    )
+    assistant_message = PhoenixUIMessage.model_validate(
+        {
+            "id": "msg-assistant-1",
+            "role": "assistant",
+            "parts": [
+                {
+                    "type": "tool-lookup",
+                    "toolCallId": "call-1",
+                    "state": "output-available",
+                    "input": {"query": "latency"},
+                    "output": {"rows": 3},
+                }
+            ],
+        }
+    )
+
+    runtime_request = _to_pydantic_ai_request_data(
+        request,
+        messages=[request.message, assistant_message],
+    )
+    assert len(runtime_request.messages) == 2
 
 
 async def _accumulate_streamed_assistant_message(
@@ -754,10 +786,10 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
         for part in persisted_assistant.message.parts
         if getattr(part, "tool_call_id", None) == tool_part["toolCallId"]
     )
-    assert isinstance(persisted_tool_part, ToolOutputAvailablePart)
+    assert isinstance(persisted_tool_part, UIToolPart)
     assert persisted_tool_part.output == {"datasets": []}
     assert any(
-        isinstance(part, TextUIPart) and part.text == "done"
+        isinstance(part, UITextPart) and part.text == "done"
         for part in persisted_assistant.message.parts
     )
 

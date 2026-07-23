@@ -88,18 +88,16 @@ from phoenix.db.types.data_stream_protocol import (
     AssistantMessageMetadataUsage,
     AssistantMessageMetadataUsageTokenDetails,
     AssistantMessageMetadataUsageTokens,
-    DynamicToolOutputAvailablePart,
-    DynamicToolOutputErrorPart,
     PhoenixUIMessage,
     ProviderMetadata,
-    TextUIPart,
     ToolCallCallbackProviderMetadata,
     ToolCallProviderMetadata,
     ToolExecutionEnvironment,
-    ToolOutputAvailablePart,
-    ToolOutputErrorPart,
     TurnTraceContext,
+    UIDynamicToolPart,
     UIMessage,
+    UITextPart,
+    UIToolPart,
     UserMessageMetadata,
 )
 from phoenix.server.agents.agent_factory import build_agent
@@ -565,7 +563,7 @@ def _get_last_user_text(messages: Iterable[UIMessage]) -> str | None:
         if message.role != "user":
             continue
         for part in reversed(message.parts):
-            if isinstance(part, TextUIPart):
+            if isinstance(part, UITextPart):
                 text = part.text.strip()
                 return text or None
         return None
@@ -676,15 +674,12 @@ def _synthesize_client_tool_spans(
         (index for index, message in enumerate(message_list) if message.role == "user"),
         default=-1,
     )
-    resolved_tool_types = (
-        ToolOutputAvailablePart,
-        ToolOutputErrorPart,
-        DynamicToolOutputAvailablePart,
-        DynamicToolOutputErrorPart,
-    )
     for message in message_list[last_user_index + 1 :]:
         for part in message.parts:
-            if not isinstance(part, resolved_tool_types):
+            if not (
+                isinstance(part, (UIToolPart, UIDynamicToolPart))
+                and part.state in ("output-available", "output-error")
+            ):
                 continue
             timings = _extract_client_tool_timings(part.call_provider_metadata)
             if timings is None:
@@ -704,14 +699,7 @@ def _synthesize_client_tool_spans(
                 if timings.client_ended_at is not None
                 else received_at
             )
-            tool_name = (
-                part.tool_name
-                if isinstance(
-                    part,
-                    (DynamicToolOutputAvailablePart, DynamicToolOutputErrorPart),
-                )
-                else part.type.removeprefix("tool-")
-            )
+            tool_name = part.tool_name
             # Later requests may repeat earlier tool parts; deterministic
             # span IDs make persistence and remote ingestion idempotent.
             span_id = (
@@ -732,11 +720,12 @@ def _synthesize_client_tool_spans(
                 SpanAttributes.SESSION_ID: session_id,
             }
             events: tuple[Event, ...] = ()
-            if isinstance(part, (ToolOutputErrorPart, DynamicToolOutputErrorPart)):
-                attributes[SpanAttributes.OUTPUT_VALUE] = part.error_text
+            if part.state == "output-error":
+                error_text = part.error_text or "Tool execution failed"
+                attributes[SpanAttributes.OUTPUT_VALUE] = error_text
                 attributes[SpanAttributes.OUTPUT_MIME_TYPE] = "text/plain"
-                status = Status(StatusCode.ERROR, part.error_text)
-                events = (_build_exception_event(message=part.error_text, timestamp=end_time),)
+                status = Status(StatusCode.ERROR, error_text)
+                events = (_build_exception_event(message=error_text, timestamp=end_time),)
             else:
                 attributes[SpanAttributes.OUTPUT_VALUE] = json.dumps(part.output)
                 attributes[SpanAttributes.OUTPUT_MIME_TYPE] = "application/json"
@@ -1545,7 +1534,7 @@ def _build_compaction_message(*, message_id: str, summary: str) -> PhoenixUIMess
             time_zone="UTC",
             is_compaction_message=True,
         ),
-        parts=[TextUIPart(type="text", text=summary)],
+        parts=[UITextPart(type="text", text=summary)],
     )
 
 
