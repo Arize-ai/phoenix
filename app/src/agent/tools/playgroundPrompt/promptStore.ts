@@ -145,12 +145,12 @@ export function clonePromptInstance({
       return state;
     }
     const clonedMessageIds = copiedMessages.map((message) => message.id);
-    const clonedMessages = copiedMessages.reduce(
+    const clonedMessages = copiedMessages.reduce<Record<number, ChatMessage>>(
       (acc, message) => {
         acc[message.id] = message;
         return acc;
       },
-      {} as Record<number, ChatMessage>
+      {}
     );
     clonedInstanceId = generateInstanceId();
     return {

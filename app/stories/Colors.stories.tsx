@@ -17,17 +17,16 @@ export default meta;
 
 const Template: StoryFn = () => {
   // Group colors by family
-  const colorsByFamily = GLOBAL_COLORS.reduce(
-    (acc, color) => {
-      const family = color.split("-")[0];
-      if (!acc[family]) {
-        acc[family] = [];
-      }
-      acc[family].push(color);
-      return acc;
-    },
-    {} as Record<string, typeof GLOBAL_COLORS>
-  );
+  const colorsByFamily = GLOBAL_COLORS.reduce<
+    Record<string, typeof GLOBAL_COLORS>
+  >((acc, color) => {
+    const family = color.split("-")[0];
+    if (!acc[family]) {
+      acc[family] = [];
+    }
+    acc[family].push(color);
+    return acc;
+  }, {});
 
   return (
     <Flex direction="column" gap="size-100">
