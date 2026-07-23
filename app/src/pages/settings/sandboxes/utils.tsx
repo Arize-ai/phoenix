@@ -19,9 +19,7 @@ import type {
   SandboxProvider,
 } from "./types";
 
-type Language =
-  | SandboxProvider["supportedLanguages"][number]
-   ;
+type Language = SandboxProvider["supportedLanguages"][number];
 
 export function StatusText({
   status,
@@ -84,7 +82,7 @@ export function hostingTypeLabel(hostingType: HostingType) {
     case "HOSTED":
       return "Hosted";
     default:
-      assertUnreachable(hostingType);
+      return assertUnreachable(hostingType);
   }
 }
 
@@ -139,7 +137,7 @@ export function statusLabel(status: BackendInfo["status"]) {
     case "DISABLED":
       return "Disabled";
     default:
-      assertUnreachable(status);
+      return assertUnreachable(status);
   }
 }
 

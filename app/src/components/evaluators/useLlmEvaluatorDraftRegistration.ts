@@ -59,7 +59,7 @@ export const useLlmEvaluatorDraftRegistration = ({
   const draftHostRef = useRef<LlmEvaluatorDraftHost | null>(null);
   useEffect(() => {
     if (instanceId == null) {
-      return;
+      return undefined;
     }
     const buildSnapshot = (): LLMEvaluatorDraftSnapshot => {
       const state = store.getState();

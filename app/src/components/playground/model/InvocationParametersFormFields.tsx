@@ -275,18 +275,15 @@ export const InvocationParametersFormFields = ({
   );
 
   const values = useMemo(() => {
-    return specs.reduce< Record<string, unknown>>(
-      (acc, spec) => {
-        const value = readInvocationConfigField(
-          model.provider,
-          instance.model.invocationParameters,
-          spec.name
-        );
-        acc[spec.name] = value ?? null;
-        return acc;
-      },
-      {}
-    );
+    return specs.reduce<Record<string, unknown>>((acc, spec) => {
+      const value = readInvocationConfigField(
+        model.provider,
+        instance.model.invocationParameters,
+        spec.name
+      );
+      acc[spec.name] = value ?? null;
+      return acc;
+    }, {});
   }, [model.provider, instance.model.invocationParameters, specs]);
 
   const form = useForm({

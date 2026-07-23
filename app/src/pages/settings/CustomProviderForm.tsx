@@ -886,6 +886,7 @@ function SDKFieldsRenderer({
       // without updating this switch statement
       const exhaustiveCheck: never = sdk;
       invariant(false, `Unsupported SDK type: ${exhaustiveCheck}`);
+      return null;
     }
   }
 }

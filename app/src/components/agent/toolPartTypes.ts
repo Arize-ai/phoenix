@@ -1,6 +1,8 @@
 import type { UIMessage } from "ai";
 import { isToolUIPart } from "ai";
 
+import { assertUnreachable } from "@phoenix/typeUtils";
+
 /**
  * Union type of all message parts.
  */
@@ -44,6 +46,8 @@ export function formatToolState(state: ToolUIPartState): string {
       return "Error";
     case "output-denied":
       return "Denied";
+    default:
+      return assertUnreachable(state);
   }
 }
 

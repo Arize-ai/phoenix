@@ -42,6 +42,6 @@ export function getBinName(bin: GqlBin): string {
     case "%other":
       throw new Error("Unexpected bin type %other");
     default:
-      assertUnreachable(binType);
+      return assertUnreachable(binType);
   }
 }

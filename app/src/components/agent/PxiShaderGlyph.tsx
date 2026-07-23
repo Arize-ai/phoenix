@@ -43,7 +43,7 @@ export function PxiShaderGlyph(props: PxiShaderGlyphProps) {
   // chrome wants to render it as a white box during reload
   useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") {
-      return;
+      return undefined;
     }
 
     const hideShader = () => {

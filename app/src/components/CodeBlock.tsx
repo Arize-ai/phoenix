@@ -17,6 +17,6 @@ export function CodeBlock({
         <TypeScriptBlock value={value} basicSetup={{ lineNumbers: true }} />
       );
     default:
-      assertUnreachable(language);
+      return assertUnreachable(language);
   }
 }

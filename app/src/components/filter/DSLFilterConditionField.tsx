@@ -339,7 +339,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
       startTransition(() => {
         onValidCondition("");
       });
-      return;
+      return undefined;
     }
 
     onValidationStateChange?.(false);

@@ -121,7 +121,7 @@ export function ChartEmptyStateOverlay({
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!isEmpty || container == null) {
-      return;
+      return undefined;
     }
     const measure = () => {
       const nextInset = measurePlotAreaInset(container);

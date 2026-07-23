@@ -277,7 +277,8 @@ export function ExperimentsTable({
   const tableData = useMemo(
     () =>
       data.experiments.edges.map((edge) => {
-        const annotationSummaryMap = edge.experiment.annotationSummaries.reduce< Record<
+        const annotationSummaryMap = edge.experiment.annotationSummaries.reduce<
+          Record<
             string,
             | {
                 annotationName: string;
@@ -286,19 +287,17 @@ export function ExperimentsTable({
                 totalRunCount: number;
               }
             | undefined
-          >>(
-          (acc, summary) => {
-            const totalRunCount = edge.experiment.runCount;
-            const annotatedCount = summary.count - summary.errorCount;
-            acc[summary.annotationName] = {
-              ...summary,
-              annotatedCount,
-              totalRunCount,
-            };
-            return acc;
-          },
-          {}
-        );
+          >
+        >((acc, summary) => {
+          const totalRunCount = edge.experiment.runCount;
+          const annotatedCount = summary.count - summary.errorCount;
+          acc[summary.annotationName] = {
+            ...summary,
+            annotatedCount,
+            totalRunCount,
+          };
+          return acc;
+        }, {});
         return {
           ...edge.experiment,
           annotationSummaryMap,

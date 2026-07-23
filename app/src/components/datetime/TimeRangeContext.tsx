@@ -193,7 +193,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   // minute or hour) so the displayed window keeps tracking "now".
   useEffect(() => {
     if (!isLastNTimeRangeKey(timeRange.timeRangeKey)) {
-      return;
+      return undefined;
     }
     const timeRangeKey = timeRange.timeRangeKey;
     const timeoutId = window.setTimeout(() => {

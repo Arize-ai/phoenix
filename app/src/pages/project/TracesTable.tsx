@@ -954,7 +954,7 @@ export function TracesTable(props: TracesTableProps) {
   const setTraceSequence = pagination?.setTraceSequence;
   useEffect(() => {
     if (!setTraceSequence) {
-      return;
+      return undefined;
     }
     setTraceSequence(
       data.rootSpans.edges.map(({ rootSpan }) => ({

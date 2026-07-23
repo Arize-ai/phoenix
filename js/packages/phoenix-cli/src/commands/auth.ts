@@ -238,7 +238,13 @@ function formatCredentialSource(
       return "oauth";
     case "none":
       return "none";
+    default:
+      return assertNever(source);
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected value: ${String(value)}`);
 }
 
 function formatAuthOutput(
@@ -287,6 +293,8 @@ function exitCodeForResult(result: FetchViewerResult): ExitCode {
       return ExitCode.NETWORK_ERROR;
     case "unknown_error":
       return ExitCode.FAILURE;
+    default:
+      return assertNever(result);
   }
 }
 
@@ -304,7 +312,7 @@ async function verifyViewerOrExit(config: PhoenixConfig): Promise<ViewerUser> {
     process.exit(ExitCode.NETWORK_ERROR);
   }
   writeError({ message: `Could not verify login: ${result.message}` });
-  process.exit(ExitCode.FAILURE);
+  return process.exit(ExitCode.FAILURE);
 }
 
 /**

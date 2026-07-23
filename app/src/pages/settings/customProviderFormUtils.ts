@@ -120,6 +120,7 @@ export function createDefaultFormData(
         `Unknown SDK type "${String(_exhaustive)}" received. ` +
           `The frontend may need to be updated to support this SDK type.`
       );
+      return _exhaustive;
     }
   }
 }
@@ -253,6 +254,7 @@ export function transformConfigToFormValues(
         `Unknown SDK type "${String(_exhaustive)}" received from backend. ` +
           `The frontend may need to be updated to support this SDK type.`
       );
+      return _exhaustive;
     }
   }
 }
@@ -307,8 +309,9 @@ export function buildClientConfig(
       // Build auth method based on selected type
       // Note: We don't use compressObject here because the GraphQL types require
       // specific fields to be non-optional
+      const azureAuthMethod = formData.azure_auth_method;
       const authMethod: AzureOpenAIAuthenticationMethodInput = (() => {
-        switch (formData.azure_auth_method) {
+        switch (azureAuthMethod) {
           case "default_credentials":
             return { defaultCredentials: true };
           case "ad_token_provider":
@@ -338,11 +341,14 @@ export function buildClientConfig(
               "Azure API key is required when using API key authentication"
             );
             return { apiKey: formData.azure_api_key };
-          default:
+          default: {
+            const _exhaustive: never = azureAuthMethod;
             invariant(
               false,
-              `Unknown Azure auth method: ${formData.azure_auth_method}`
+              `Unknown Azure auth method: ${String(_exhaustive)}`
             );
+            return _exhaustive;
+          }
         }
       })();
 
@@ -392,8 +398,9 @@ export function buildClientConfig(
       );
 
       // Build auth method based on selected type
+      const awsAuthMethodInput = formData.aws_auth_method;
       const awsAuthMethod = (() => {
-        switch (formData.aws_auth_method) {
+        switch (awsAuthMethodInput) {
           case "default_credentials":
             return { defaultCredentials: true as const };
           case "access_keys":
@@ -414,11 +421,11 @@ export function buildClientConfig(
                 }),
               },
             };
-          default:
-            invariant(
-              false,
-              `Unknown AWS auth method: ${formData.aws_auth_method}`
-            );
+          default: {
+            const _exhaustive: never = awsAuthMethodInput;
+            invariant(false, `Unknown AWS auth method: ${String(_exhaustive)}`);
+            return _exhaustive;
+          }
         }
       })();
 
@@ -456,7 +463,7 @@ export function buildClientConfig(
       };
     }
     default: {
-      assertUnreachable(formData);
+      return assertUnreachable(formData);
     }
   }
 }
@@ -586,7 +593,7 @@ function hasConfigChanged(
       );
     }
     default: {
-      assertUnreachable(formData);
+      return assertUnreachable(formData);
     }
   }
 }

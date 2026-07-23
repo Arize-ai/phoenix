@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 import { Badge, Text } from "@phoenix/components";
 import type { BadgeVariant } from "@phoenix/components/core/badge/types";
 import type { TextColorValue } from "@phoenix/components/core/types/style";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import type { SpanStatusCodeType } from "./types";
 
@@ -14,6 +15,8 @@ function getStatusVariant(statusCode: SpanStatusCodeType): BadgeVariant {
       return "danger";
     case "UNSET":
       return "default";
+    default:
+      return assertUnreachable(statusCode);
   }
 }
 
@@ -28,6 +31,8 @@ function getStatusTextColor(
       return "danger";
     case "UNSET":
       return labelVariant === "short" ? "text-300" : "text-700";
+    default:
+      return assertUnreachable(statusCode);
   }
 }
 
@@ -42,6 +47,8 @@ function getStatusLabel(
       return labelVariant === "full" ? "Error" : "ERR";
     case "UNSET":
       return labelVariant === "full" ? "Unset" : "––";
+    default:
+      return assertUnreachable(statusCode);
   }
 }
 

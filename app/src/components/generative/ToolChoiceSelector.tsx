@@ -86,7 +86,7 @@ const canonicalToId = (
     case "SPECIFIC_FUNCTION":
       return `${SPECIFIC_FUNCTION_PREFIX}${choice.functionName ?? ""}`;
     default:
-      assertUnreachable(choice.type);
+      return assertUnreachable(choice.type);
   }
 };
 

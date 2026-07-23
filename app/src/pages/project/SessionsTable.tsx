@@ -262,7 +262,7 @@ export function SessionsTable(props: SessionsTableProps) {
   const setSessionSequence = useSessionPagination()?.setSessionSequence;
   useEffect(() => {
     if (!setSessionSequence) {
-      return;
+      return undefined;
     }
     setSessionSequence(
       data.sessions.edges.map(({ session }) => ({

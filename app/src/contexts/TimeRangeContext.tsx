@@ -162,7 +162,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
         };
       }
       default:
-        assertUnreachable(timePreset);
+        return assertUnreachable(timePreset);
     }
   }, [timePreset, timeRangeBounds]);
   return timeRange;

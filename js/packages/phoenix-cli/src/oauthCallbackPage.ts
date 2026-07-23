@@ -51,7 +51,13 @@ function getCallbackPageContent(
         title: "Something went wrong",
         body: `${escapeHtml(result.message)} Return to your terminal and try running px auth login again.`,
       };
+    default:
+      return assertNever(result);
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported callback status: ${String(value)}`);
 }
 
 /**

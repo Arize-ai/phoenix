@@ -234,7 +234,7 @@ const SplitMenuApplyContent = ({
   // derive checkbox states for each split based on the selectedPartialExamples
   type SplitState = Record<string, "checked" | "indeterminate" | "unchecked">;
   const splitStates: SplitState = useMemo(() => {
-    return splits.reduce< SplitState>((acc, split) => {
+    return splits.reduce<SplitState>((acc, split) => {
       acc[split.id] = "unchecked";
       // if split id is is some selected example, set to indeterminate
       if (

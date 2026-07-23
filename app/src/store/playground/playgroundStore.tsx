@@ -108,7 +108,7 @@ export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
       __type: "chat",
       messageIds: template.messages.map((message) => message.id),
     } satisfies PlaygroundNormalizedChatTemplate,
-    messages: template.messages.reduce< Record<number, ChatMessage>>(
+    messages: template.messages.reduce<Record<number, ChatMessage>>(
       (acc, message) => {
         acc[message.id] = message;
         return acc;
@@ -372,7 +372,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             id: generateMessageId(),
           }));
         newMessageIds = copiedMessages.map((message) => message.id);
-        newMessageMap = copiedMessages.reduce< Record<number, ChatMessage>>(
+        newMessageMap = copiedMessages.reduce<Record<number, ChatMessage>>(
           (acc, message) => {
             acc[message.id] = message;
             return acc;
@@ -649,7 +649,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         {
           allInstanceMessages: {
             ...get().allInstanceMessages,
-            ...newMessages.reduce< Record<number, ChatMessage>>(
+            ...newMessages.reduce<Record<number, ChatMessage>>(
               (acc, message) => {
                 acc[message.id] = message;
                 return acc;
@@ -1312,13 +1312,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
               return instance;
             }
             const repetition = instance.repetitions[repetitionNumber];
-            const toolCallsById = toolCalls.reduce< Record<string, PartialOutputToolCall>>(
-              (acc, toolCall) => {
-                acc[toolCall.id] = toolCall;
-                return acc;
-              },
-              {}
-            );
+            const toolCallsById = toolCalls.reduce<
+              Record<string, PartialOutputToolCall>
+            >((acc, toolCall) => {
+              acc[toolCall.id] = toolCall;
+              return acc;
+            }, {});
             return {
               ...instance,
               repetitions: {

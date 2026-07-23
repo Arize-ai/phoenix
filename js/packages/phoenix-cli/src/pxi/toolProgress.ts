@@ -77,7 +77,13 @@ function getStatusText(state: ToolProgressState): string {
       return "Failed";
     case "output-denied":
       return "Denied";
+    default:
+      return assertNever(state);
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unknown tool progress state: ${String(value)}`);
 }
 
 /**
