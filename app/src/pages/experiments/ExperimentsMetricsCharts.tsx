@@ -61,8 +61,13 @@ export function ExperimentsMetricsCharts() {
       zIndex={2}
     >
       <div css={chartsGridCSS}>
-        {charts.map(({ key, Panel }) => (
-          <Panel key={key} datasetId={datasetId} fillHeight />
+        {charts.map(({ key, annotationName, Panel }) => (
+          <Panel
+            key={key}
+            datasetId={datasetId}
+            annotationName={annotationName}
+            fillHeight
+          />
         ))}
       </div>
     </View>
