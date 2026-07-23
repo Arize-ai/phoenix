@@ -75,7 +75,14 @@ interface SpanLike {
   name?: string;
   kind?: string;
   global_id?: string;
-  context?: Record<string, unknown>;
+  context?: {
+    trace_id?: string;
+    traceId?: string;
+    span_id?: string;
+    spanId?: string;
+    parent_span_id?: string;
+    parentSpanId?: string;
+  };
   span_id?: string;
   id?: string;
   spanId?: string;
@@ -268,9 +275,9 @@ async function main() {
   const spansByTrace = new Map<string, SpanLike[]>();
   for (const span of allSpans) {
     const traceId =
-      (span.context?.trace_id as string) ||
+      span.context?.trace_id ||
       span.trace_id ||
-      (span.context?.traceId as string) ||
+      span.context?.traceId ||
       span.traceId;
     if (traceId) {
       if (!spansByTrace.has(traceId)) {
@@ -285,9 +292,9 @@ async function main() {
     const rootSpansInTrace = spans.filter((span) => {
       const parentId =
         span.parent_span_id ||
-        (span.context?.parent_span_id as string) ||
+        span.context?.parent_span_id ||
         span.parentSpanId ||
-        (span.context?.parentSpanId as string);
+        span.context?.parentSpanId;
 
       if (!parentId) {
         return true;
@@ -295,10 +302,10 @@ async function main() {
       const parentInTrace = spans.some((s) => {
         const sId =
           s.global_id ||
-          (s.context?.span_id as string) ||
+          s.context?.span_id ||
           s.span_id ||
           s.id ||
-          (s.context?.spanId as string) ||
+          s.context?.spanId ||
           s.spanId;
         return sId === parentId;
       });

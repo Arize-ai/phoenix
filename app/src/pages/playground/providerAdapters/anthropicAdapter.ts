@@ -13,6 +13,7 @@ import { z } from "zod";
 
 import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import type { PromptInvocationParametersReadableFragment$data } from "../__generated__/PromptInvocationParametersReadableFragment.graphql";
 import type {
@@ -752,8 +753,8 @@ export function anthropicWriteField(
 // ---------- adapter object ---------------------------------------------------
 
 function pickExtraBody(value: unknown): Record<string, unknown> | undefined {
-  if (value != null && typeof value === "object" && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
+  if (isPlainObject(value)) {
+    return value;
   }
   return undefined;
 }

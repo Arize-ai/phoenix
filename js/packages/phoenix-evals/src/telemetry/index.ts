@@ -41,7 +41,7 @@ export function getTelemetryIntegrations(
     // Duck-typed so integrations from a different copy of `@ai-sdk/otel`
     // are still recognized.
     (integration) =>
-      (integration as { tracer?: unknown }).tracer === integrationTracer
+      "tracer" in integration && integration.tracer === integrationTracer
   );
   if (hasTracerIntegration) {
     return globalIntegrations;

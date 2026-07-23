@@ -46,7 +46,7 @@ export function ColumnSelector(props: {
       placeholder="Select a column"
       value={selectedColumn ?? NONE_KEY}
       onChange={(key) => {
-        onChange(key === NONE_KEY ? null : (key as string));
+        onChange(key === NONE_KEY ? null : String(key));
       }}
     >
       {label && <Label>{label}</Label>}

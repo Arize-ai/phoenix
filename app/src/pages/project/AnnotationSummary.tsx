@@ -72,6 +72,7 @@ export function AnnotationSummary({
     `,
     {
       annotationName,
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition
       id: projectId as string,
       timeRange: timeRangeISOStrings,
       filterCondition: filterCondition || null,
@@ -208,6 +209,7 @@ export function AnnotationSummaryValueView({
       scoreCount={summary?.scoreCount}
       labelCount={summary?.labelCount}
       annotationConfig={
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- node carries the full AnnotationConfig fields via the GraphQL fragment; the prop type is intentionally minimal
         annotationConfigs?.edges.find((edge) => edge.node.name === name)
           ?.node as AnnotationConfig | undefined
       }
@@ -426,6 +428,7 @@ export function SummaryValuePreview({
       {hasLabelFractions ? (
         <PieChart {...chartDimensions}>
           <Pie
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- recharts Pie requires a mutable array; source is a readonly GraphQL array
             data={labelFractions as Mutable<typeof labelFractions>}
             dataKey="fraction"
             nameKey="label"

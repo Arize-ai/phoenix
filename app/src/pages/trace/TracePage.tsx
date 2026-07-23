@@ -73,6 +73,7 @@ export function TracePage() {
                 <DialogCloseButton close={close} />
                 <TraceDetailsPaginator currentId={paginationSubjectId} />
                 <DialogTitle>
+                  {/* oxlint-disable-next-line typescript/no-unsafe-type-assertion -- traceId is a required route param */}
                   <TitleWithID title="Trace" id={traceId as string} />
                 </DialogTitle>
               </Flex>
@@ -87,7 +88,9 @@ export function TracePage() {
             </DialogHeader>
             <Suspense fallback={<Loading />}>
               <TraceDetails
+                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- traceId is a required route param
                 traceId={traceId as string}
+                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- projectId is a required route param
                 projectId={projectId as string}
               />
             </Suspense>

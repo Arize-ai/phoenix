@@ -1,7 +1,4 @@
-import type {
-  CompletionContext,
-  CompletionResult,
-} from "@codemirror/autocomplete";
+import type { CompletionContext } from "@codemirror/autocomplete";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -176,14 +173,16 @@ describe("useDSLFilterConditionHistory", () => {
     mountHarness();
 
     // A browsing context: the empty field was focused, opening the dropdown
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- CompletionContext is an opaque CodeMirror class; the test only exercises the fields the source reads
     const context = {
       pos: 0,
       explicit: true,
       state: { doc: { sliceString: () => "" } },
     } as unknown as CompletionContext;
-    const result = (await history.completionSource(
-      context
-    )) as CompletionResult;
+    const result = await history.completionSource(context);
+    if (result == null) {
+      throw new Error("expected a completion result");
+    }
 
     expect(result.options.map((option) => option.label)).toEqual([
       "latency_ms > 100",
@@ -208,14 +207,16 @@ describe("useDSLFilterConditionHistory", () => {
     // The field already holds a partial expression; the recent surfaced at
     // the trailing token must not be spliced in at that token
     const typed = "latency_ms > ";
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- CompletionContext is an opaque CodeMirror class; the test only exercises the fields the source reads
     const context = {
       pos: typed.length,
       explicit: true,
       state: { doc: { sliceString: () => typed } },
     } as unknown as CompletionContext;
-    const result = (await history.completionSource(
-      context
-    )) as CompletionResult;
+    const result = await history.completionSource(context);
+    if (result == null) {
+      throw new Error("expected a completion result");
+    }
 
     const option = result.options[0];
     const apply = option?.apply;
@@ -223,6 +224,7 @@ describe("useDSLFilterConditionHistory", () => {
       throw new Error("expected recent search to have a custom apply");
     }
     const dispatch = vi.fn();
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- EditorView is an opaque CodeMirror class; the test only exercises the fields apply reads
     const view = {
       state: { doc: { length: typed.length } },
       dispatch,

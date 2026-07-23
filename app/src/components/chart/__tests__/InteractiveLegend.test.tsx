@@ -31,8 +31,10 @@ function findLegendButton(label: string) {
   const button = Array.from(container.querySelectorAll("button")).find(
     (element) => element.getAttribute("aria-label") === label
   );
-  expect(button).not.toBeNull();
-  return button as HTMLButtonElement;
+  if (!button) {
+    throw new Error(`No legend button with aria-label "${label}"`);
+  }
+  return button;
 }
 
 function TestChart({

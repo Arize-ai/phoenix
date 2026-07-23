@@ -167,6 +167,7 @@ describe("openinference re-exports", () => {
       function (this: { prefix: string }) {
         return `${this.prefix}:${trace.getActiveSpan()?.spanContext().traceId}`;
       },
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- minimal decorator context for the test
       {
         name: "run",
       } as ClassMethodDecoratorContext

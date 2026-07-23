@@ -475,6 +475,7 @@ export const promptSDKCodeSnippets: Record<
         template: {
           ...prompt.template,
           messages: prompt.template.messages.map((m) =>
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- messages in the openai branch are OpenAI-format by construction
             convertOpenAIMessageToOpenAISDKMessage(m as OpenAIMessage)
           ),
         },
@@ -521,6 +522,7 @@ export const promptSDKCodeSnippets: Record<
         template: {
           ...prompt.template,
           messages: prompt.template.messages.map((m) =>
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- messages in the openai branch are OpenAI-format by construction
             convertOpenAIMessageToOpenAISDKMessage(m as OpenAIMessage)
           ),
         },

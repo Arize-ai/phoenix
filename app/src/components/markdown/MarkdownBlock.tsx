@@ -13,6 +13,7 @@ import type { MarkdownDisplayMode } from "./types";
 // streamdown's published .d.ts references a different shiki resolution. The
 // runtime interface is identical.
 const plugins: PluginConfig = {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- @streamdown/code and streamdown resolve to different shiki type versions; the runtime interface is identical
   code: code as unknown as PluginConfig["code"],
 };
 

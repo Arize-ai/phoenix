@@ -128,7 +128,7 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
  * are returned so the empty state is never blank.
  */
 export function buildAgentQuickActions(
-  contextTypes: readonly AgentContextType[]
+  contextTypes: readonly string[]
 ): EmptyStateQuickAction[] {
   const present = new Set(contextTypes);
   const actions: EmptyStateQuickAction[] = [];
@@ -174,7 +174,5 @@ function selectActiveContextKey(state: AgentState): string {
  */
 export function useAgentQuickActions(): EmptyStateQuickAction[] {
   const contextKey = useAgentContext(selectActiveContextKey);
-  return buildAgentQuickActions(
-    contextKey ? (contextKey.split(",") as AgentContextType[]) : []
-  );
+  return buildAgentQuickActions(contextKey ? contextKey.split(",") : []);
 }

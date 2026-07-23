@@ -173,7 +173,10 @@ const main = async () => {
             return {
               score: result.score,
               label: result.name,
-              explanation: (result.metadata?.rationale as string) ?? "",
+              explanation:
+                typeof result.metadata?.rationale === "string"
+                  ? result.metadata.rationale
+                  : "",
               metadata: result.metadata ?? {},
             };
           },

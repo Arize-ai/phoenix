@@ -58,7 +58,6 @@ import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import type { AnnotationConfig as AnnotationConfigType } from "@phoenix/pages/settings/types";
 import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
-import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { AnnotationFormData } from "./SpanAnnotationInput";
@@ -429,14 +428,11 @@ function SessionAnnotationsList(props: {
     data.session
   );
   const sessionNodeId = data.session.id;
-  const allSessionAnnotations = session.sessionAnnotations as Mutable<
-    typeof session.sessionAnnotations
-  >;
   // Only the current user's annotations are editable in this form. When
   // unauthenticated, fall back to system annotations (no associated user).
   const sessionAnnotations = useMemo(
     () =>
-      allSessionAnnotations.filter((annotation) => {
+      session.sessionAnnotations.filter((annotation) => {
         if (annotation.name === "note") {
           return false;
         }
@@ -444,7 +440,7 @@ function SessionAnnotationsList(props: {
           ? annotation.user?.id === viewer.id
           : annotation.user == null;
       }),
-    [allSessionAnnotations, viewer]
+    [session.sessionAnnotations, viewer]
   );
   const annotations = useMemo(() => {
     // we can only show one config per annotation name
@@ -660,13 +656,15 @@ function SessionAnnotationsList(props: {
             accept={excludeExplanationButton}
           />
           {annotationConfigs?.map((annotationConfig, idx) => {
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- bridges the Relay __typename union to the app's annotationType-discriminated AnnotationConfig union
+            const config = annotationConfig.config as AnnotationConfig;
             const annotation = annotations.find(
-              (annotation) => annotation.name === annotationConfig.config.name
+              (annotation) => annotation.name === config.name
             );
             return (
               <AnnotationFormProvider
-                key={`${idx}_${annotationConfig.config.name}_form`}
-                annotationConfig={annotationConfig.config as AnnotationConfig}
+                key={`${idx}_${config.name}_form`}
+                annotationConfig={config}
                 currentAnnotationIDs={currentAnnotationIds}
                 annotation={annotation}
                 onCreate={handleCreate}
@@ -675,7 +673,7 @@ function SessionAnnotationsList(props: {
               >
                 <SpanAnnotationInput
                   annotation={annotation}
-                  annotationConfig={annotationConfig.config as AnnotationConfig}
+                  annotationConfig={config}
                 />
               </AnnotationFormProvider>
             );

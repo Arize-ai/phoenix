@@ -38,6 +38,7 @@ function AuthorizationStatus() {
 }
 
 function buildViewer(role: string): NonNullable<ViewerContextType["viewer"]> {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- test fixture; the real viewer type carries relay $fragmentSpreads that cannot be constructed here
   return {
     authMethod: "LOCAL",
     email: `${role.toLowerCase()}@localhost`,

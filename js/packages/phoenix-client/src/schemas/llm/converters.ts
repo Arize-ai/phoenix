@@ -201,18 +201,22 @@ export const fromOpenAIMessage = <
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.OPENAI.messages.fromOpenAI.parse(
         message
       ) as ReturnType;
     case "ANTHROPIC":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.ANTHROPIC.messages.fromOpenAI.parse(
         message
       ) as ReturnType;
     case "PHOENIX":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.PHOENIX.messages.fromOpenAI.parse(
         message
       ) as ReturnType;
     case "VERCEL_AI":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.VERCEL_AI.messages.fromOpenAI.parse(
         message
       ) as ReturnType;
@@ -278,18 +282,22 @@ export const fromOpenAIToolCall = <
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.OPENAI.toolCalls.fromOpenAI.parse(
         toolCall
       ) as ReturnType;
     case "ANTHROPIC":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.ANTHROPIC.toolCalls.fromOpenAI.parse(
         toolCall
       ) as ReturnType;
     case "PHOENIX":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.PHOENIX.toolCalls.fromOpenAI.parse(
         toolCall
       ) as ReturnType;
     case "VERCEL_AI":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.VERCEL_AI.toolCalls.fromOpenAI.parse(
         toolCall
       ) as ReturnType;
@@ -357,18 +365,22 @@ export const fromOpenAIToolChoice = <
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.OPENAI.toolChoices.fromOpenAI.parse(
         toolChoice
       ) as ReturnType;
     case "ANTHROPIC":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.ANTHROPIC.toolChoices.fromOpenAI.parse(
         toolChoice
       ) as ReturnType;
     case "PHOENIX":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.PHOENIX.toolChoices.fromOpenAI.parse(
         toolChoice
       ) as ReturnType;
     case "VERCEL_AI":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.VERCEL_AI.toolChoices.fromOpenAI.parse(
         toolChoice
       ) as ReturnType;
@@ -431,18 +443,22 @@ export const fromOpenAIToolDefinition = <
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.OPENAI.toolDefinitions.fromOpenAI.parse(
         toolDefinition
       ) as ReturnType;
     case "ANTHROPIC":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.ANTHROPIC.toolDefinitions.fromOpenAI.parse(
         toolDefinition
       ) as ReturnType;
     case "PHOENIX":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.PHOENIX.toolDefinitions.fromOpenAI.parse(
         toolDefinition
       ) as ReturnType;
     case "VERCEL_AI":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
       return SDKProviderConverterMap.VERCEL_AI.toolDefinitions.fromOpenAI.parse(
         toolDefinition
       ) as ReturnType;
@@ -520,6 +536,7 @@ export function findToolCallArguments(
   const heuristic = toolCallHeuristicSchema.safeParse(subject);
   if (heuristic.success) {
     return (
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- heuristic tool-call arguments are untyped JSON trusted to be a JSONLiteral
       ((heuristic.data.arguments ??
         heuristic.data.function?.arguments) as JSONLiteral) ?? null
     );

@@ -329,6 +329,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   const evaluatorLanguage = evaluator.language;
   const evaluatorSourceCode = currentVersion.sourceCode;
 
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Relay data is deeply readonly; Mutable strips readonly for the store's expected shape
   const loadedOutputConfigs = (
     datasetEvaluator.outputConfigs?.length
       ? datasetEvaluator.outputConfigs

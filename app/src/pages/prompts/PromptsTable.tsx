@@ -493,9 +493,7 @@ export function PromptsTable(props: PromptsTableProps) {
             flex: 1 1 auto;
             overflow: auto;
           `}
-          onScroll={(event) =>
-            fetchMoreOnBottomReached(event.target as HTMLDivElement)
-          }
+          onScroll={(event) => fetchMoreOnBottomReached(event.currentTarget)}
           ref={tableContainerRef}
         >
           <ColumnOrderingProvider

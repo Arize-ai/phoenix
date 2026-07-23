@@ -398,9 +398,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                               splitIds: splits.map((s) => s.id),
                             });
                           } else {
-                            const newSelectedIds = Array.from(
-                              keys as Set<string>
-                            );
+                            const newSelectedIds = Array.from(keys, String);
                             const prevSelectedIds =
                               selectedSplitIds.length === 0
                                 ? ["all-examples"]

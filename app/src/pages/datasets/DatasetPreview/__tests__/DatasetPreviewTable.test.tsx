@@ -5,11 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DatasetPreviewTable } from "../DatasetPreviewTable";
 
-const getPollutedValue = () =>
-  (Object.prototype as Record<string, unknown>).polluted;
+const getPollutedValue = (): unknown =>
+  Reflect.get(Object.prototype, "polluted");
 
 const deletePollutedValue = () => {
-  delete (Object.prototype as Record<string, unknown>).polluted;
+  Reflect.deleteProperty(Object.prototype, "polluted");
 };
 
 vi.mock("@phoenix/components", () => ({

@@ -200,6 +200,7 @@ describe("instrumentApp with --agent", () => {
         ...NO_DOCS,
         agentDetection: detected(),
         // The command layer validates ids; the step defends the same contract.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- intentionally invalid agent id to exercise runtime validation
         agent: "aider" as never,
         mode: BACKGROUND_BYPASS,
       })

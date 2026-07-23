@@ -10,13 +10,21 @@
  */
 import type { Evaluator } from "@arizeai/phoenix-client/vitest";
 
+/** Extracts the `label` property when the value is an object carrying one. */
+const getLabel = (value: unknown): unknown => {
+  if (typeof value === "object" && value !== null && "label" in value) {
+    return value.label;
+  }
+  return undefined;
+};
+
 /** Boolean-as-1/0 agreement between the predicted label and the ground truth. */
 export const accuracy: Evaluator = {
   name: "accuracy",
   kind: "CODE",
   evaluate: ({ output, expected }) => {
-    const predicted = (output as { label?: string } | null | undefined)?.label;
-    const truth = (expected as { label?: string } | undefined)?.label;
+    const predicted = getLabel(output);
+    const truth = getLabel(expected);
     return predicted === truth ? 1 : 0;
   },
 };

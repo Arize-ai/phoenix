@@ -69,7 +69,9 @@ function getComponentReference(prompt: string) {
 }
 
 function getToolFriendlyJsonSchema(schema: object): object {
-  return removeRequiredField(schema, "visible") as object;
+  const result = removeRequiredField(schema, "visible");
+  // removeRequiredField preserves object-ness for object inputs; the fallback is unreachable.
+  return typeof result === "object" && result !== null ? result : schema;
 }
 
 /**

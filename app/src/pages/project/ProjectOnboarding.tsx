@@ -63,6 +63,7 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
     preferredProgrammingLanguage
   );
 
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens to string[]; keys are the OnboardingTab config keys
   const tabs = Object.keys(integration.configs) as OnboardingTab[];
   const effectiveTab: OnboardingTab = tabs.includes(selectedTab)
     ? selectedTab
@@ -88,6 +89,7 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
             selectedIntegration={integration}
             onSelectionChange={(nextIntegration) => {
               setIntegration(nextIntegration);
+              // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens to string[]; keys are the OnboardingTab config keys
               const nextTabs = Object.keys(
                 nextIntegration.configs
               ) as OnboardingTab[];
@@ -99,6 +101,7 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
           <Tabs
             selectedKey={effectiveTab}
             onSelectionChange={(key) =>
+              // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Tabs selection key is one of the rendered OnboardingTab ids
               setSelectedTab(String(key) as OnboardingTab)
             }
           >

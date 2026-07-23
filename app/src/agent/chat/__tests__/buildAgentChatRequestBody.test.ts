@@ -135,6 +135,7 @@ describe("buildAgentChatRequestBody", () => {
       messages: [] as AgentUIMessage[],
       trigger: "submit-message",
       messageId: undefined,
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- deliberately incomplete to exercise runtime defaulting of missing flags
       capabilities: {} as AgentCapabilities,
       observability: {
         storeLocalTraces: false,

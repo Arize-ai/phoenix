@@ -19,6 +19,16 @@ import type { ElicitationCarouselProps, ElicitationDraftState } from "./types";
 /** Sentinel option ID for the auto-generated "Type your own answer" option. */
 const FREEFORM_OPTION_ID = "__freeform__";
 
+/**
+ * Narrow an answer value to the selected option IDs for single/multi
+ * questions. Freeform (string) or missing answers yield an empty list.
+ */
+function getSelectedOptionIds(
+  answer: ElicitationAnswers[string] | undefined
+): string[] {
+  return Array.isArray(answer) ? answer : [];
+}
+
 // ---------------------------------------------------------------------------
 // Animation
 // ---------------------------------------------------------------------------
@@ -106,7 +116,7 @@ export function ElicitationCarousel({
     optionId: string,
     type: "single" | "multi"
   ) => {
-    const current = (answers[questionId] as string[]) || [];
+    const current = getSelectedOptionIds(answers[questionId]);
     let next: string[];
     if (type === "single") {
       next = current.includes(optionId) ? [] : [optionId];
@@ -165,14 +175,16 @@ export function ElicitationCarousel({
     if (e.key !== "Enter" || e.nativeEvent.isComposing) {
       return;
     }
-    const target = e.target as HTMLElement;
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
     const isTextarea = target.tagName === "TEXTAREA";
     if (isTextarea) {
       return;
     }
     const isSingleLineInput =
-      target.tagName === "INPUT" &&
-      (target as HTMLInputElement).type === "text";
+      target instanceof HTMLInputElement && target.type === "text";
     if (e.metaKey || e.ctrlKey || isSingleLineInput) {
       e.preventDefault();
       advanceOrSubmit();
@@ -211,6 +223,13 @@ export function ElicitationCarousel({
   const hasAnswer = Array.isArray(currentAnswers)
     ? currentAnswers.length > 0
     : !!currentAnswers;
+
+  // Narrowed selection mode: null for freeform questions, otherwise the
+  // single/multi mode. Stored in a const so the narrowing survives closures.
+  const selectionType = question.type === "freeform" ? null : question.type;
+  const freeformAnswerText =
+    typeof currentAnswers === "string" ? currentAnswers : "";
+  const selectedOptionIds = getSelectedOptionIds(currentAnswers);
 
   const canSkip = question.allow_skip === true;
   const canAdvance = hasAnswer || canSkip;
@@ -276,7 +295,7 @@ export function ElicitationCarousel({
               </motion.div>
 
               {/* Freeform textarea */}
-              {question.type === "freeform" ? (
+              {selectionType === null ? (
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -288,7 +307,7 @@ export function ElicitationCarousel({
                 >
                   <textarea
                     className="elicitation__freeform"
-                    value={(answers[question.id] as string) || ""}
+                    value={freeformAnswerText}
                     onChange={(e) =>
                       setFreeformAnswer(question.id, e.target.value)
                     }
@@ -312,18 +331,12 @@ export function ElicitationCarousel({
                       }}
                     >
                       <ElicitationOptionButton
-                        selected={(
-                          (answers[question.id] as string[]) || []
-                        ).includes(opt.id)}
-                        type={question.type as "single" | "multi"}
+                        selected={selectedOptionIds.includes(opt.id)}
+                        type={selectionType}
                         label={opt.label}
                         description={opt.description}
                         onToggle={() =>
-                          toggleOption(
-                            question.id,
-                            opt.id,
-                            question.type as "single" | "multi"
-                          )
+                          toggleOption(question.id, opt.id, selectionType)
                         }
                       />
                     </motion.div>
@@ -344,10 +357,10 @@ export function ElicitationCarousel({
                       }}
                     >
                       <ElicitationOptionButton
-                        selected={(
-                          (answers[question.id] as string[]) || []
-                        ).includes(FREEFORM_OPTION_ID)}
-                        type={question.type as "single" | "multi"}
+                        selected={selectedOptionIds.includes(
+                          FREEFORM_OPTION_ID
+                        )}
+                        type={selectionType}
                         label="Type your own answer"
                         isFreeformEntry
                         textValue={freeformTexts[question.id]}
@@ -355,7 +368,7 @@ export function ElicitationCarousel({
                           toggleOption(
                             question.id,
                             FREEFORM_OPTION_ID,
-                            question.type as "single" | "multi"
+                            selectionType
                           )
                         }
                         onTextChange={(v) =>

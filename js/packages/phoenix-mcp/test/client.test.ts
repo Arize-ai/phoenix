@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+type CreateClientArg = { options: { headers: Record<string, string> } };
+
 const { createClientMock } = vi.hoisted(() => ({
-  createClientMock: vi.fn(() => ({}) as unknown),
+  createClientMock: vi.fn((_arg: CreateClientArg) => ({}) as unknown),
 }));
 
 vi.mock("@arizeai/phoenix-client", () => ({
@@ -11,10 +13,8 @@ vi.mock("@arizeai/phoenix-client", () => ({
 import { createPhoenixClient } from "../src/client";
 import { USER_AGENT } from "../src/constants";
 
-type CreateClientArg = { options: { headers: Record<string, string> } };
-
 const headersFromLastCall = (): Record<string, string> =>
-  (createClientMock.mock.calls.at(-1)![0] as CreateClientArg).options.headers;
+  createClientMock.mock.calls.at(-1)![0].options.headers;
 
 describe("createPhoenixClient", () => {
   afterEach(() => {

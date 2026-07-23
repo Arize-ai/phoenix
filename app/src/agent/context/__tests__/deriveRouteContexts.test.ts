@@ -11,8 +11,11 @@ import { deriveRouteContexts } from "../deriveRouteContexts";
 function match(params: Record<string, string>): UIMatch {
   return {
     id: "test",
+    pathname: "/",
     params,
-  } as unknown as UIMatch;
+    loaderData: undefined,
+    handle: undefined,
+  };
 }
 
 describe("deriveRouteContexts", () => {

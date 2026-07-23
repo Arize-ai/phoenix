@@ -185,15 +185,19 @@ function computeClassCounts(
   }
   for (const [index, expectedLabel] of expected.entries()) {
     // `output` is validated to have the same length as `expected`.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- length-validated parallel index access
     const outputLabel = output[index] as ClassificationLabel;
     // `labels` is derived from these same `expected`/`output` arrays, so both
     // labels are always pre-populated keys in `countsByLabel`.
     if (labelsAreEqual(expectedLabel, outputLabel)) {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- label pre-populated as a key in countsByLabel
       const counts = countsByLabel.get(expectedLabel) as ClassCounts;
       counts.truePositive += 1;
     } else {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- label pre-populated as a key in countsByLabel
       const predictedCounts = countsByLabel.get(outputLabel) as ClassCounts;
       predictedCounts.falsePositive += 1;
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- label pre-populated as a key in countsByLabel
       const expectedCounts = countsByLabel.get(expectedLabel) as ClassCounts;
       expectedCounts.falseNegative += 1;
     }

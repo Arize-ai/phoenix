@@ -31,6 +31,7 @@ export function useAdvertiseAgentContext(context: AgentContext | null): void {
 
   useEffect(() => {
     const mountId = mountIdRef.current!;
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- round-trip of the AgentContext serialized above; shape is known
     const parsed = serialized ? (JSON.parse(serialized) as AgentContext) : null;
     if (parsed) {
       store.getState().setMountedContext(mountId, parsed);

@@ -132,6 +132,7 @@ export function PlaygroundResponseFormat({
           value={initialResponseFormatDefinition}
           onChange={onChange}
           jsonSchema={
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- branches yield a Zod schema or z.toJSONSchema output, unified as JSONSchema7 for the editor
             (instanceProvider === "GOOGLE" || instanceProvider === "AWS"
               ? jsonSchemaZodSchema
               : instanceProvider === "ANTHROPIC"

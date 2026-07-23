@@ -96,9 +96,11 @@ describe("ChatTokenUsage", () => {
     const chart = container.querySelector<HTMLElement>(
       '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
     );
-    const chartSegments = Array.from(chart?.children ?? []);
-    const promptSegment = chartSegments[0] as HTMLElement;
-    const completionSegment = chartSegments[1] as HTMLElement;
+    const chartSegments = Array.from(
+      chart?.querySelectorAll<HTMLElement>(":scope > *") ?? []
+    );
+    const promptSegment = chartSegments[0];
+    const completionSegment = chartSegments[1];
 
     expect(chartSegments).toHaveLength(2);
     expect(promptSegment.style.minWidth).toBe("1%");
@@ -122,8 +124,10 @@ describe("ChatTokenUsage", () => {
     const chart = container.querySelector<HTMLElement>(
       '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
     );
-    const chartSegments = Array.from(chart?.children ?? []);
-    const promptSegment = chartSegments[0] as HTMLElement;
+    const chartSegments = Array.from(
+      chart?.querySelectorAll<HTMLElement>(":scope > *") ?? []
+    );
+    const promptSegment = chartSegments[0];
 
     expect(chartSegments).toHaveLength(1);
     expect(promptSegment.style.width).toBe("100%");

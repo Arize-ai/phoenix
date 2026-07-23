@@ -10,12 +10,9 @@
     "typescript/no-require-imports": "error",
     "typescript/no-import-type-side-effects": "error",
     "typescript/prefer-ts-expect-error": "error",
-    // TODO: Re-promote no-unsafe-type-assertion to "error" once existing
-    // violations are fixed. It became far stricter when tsgolint (type-aware
-    // linting) was adopted and pre-existing code has not been cleaned up yet.
     "typescript/consistent-return": "error",
     "typescript/consistent-type-imports": "error",
-    "typescript/no-unsafe-type-assertion": "warn",
+    "typescript/no-unsafe-type-assertion": "error",
     // "eslint/no-shadow": "warn",
     "eqeqeq": ["error", "smart"],
     "eslint/prefer-const": "error",

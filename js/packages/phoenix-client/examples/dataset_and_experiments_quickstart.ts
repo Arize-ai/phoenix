@@ -82,6 +82,7 @@ async function main() {
   const task: RunExperimentParams["task"] = async (example: Example) => {
     // Safely access question with a type assertion
     const question =
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- example input is untyped JSON; treat question as a string
       (example.input.question as string) || "No question provided";
     const messageContent = taskPromptTemplate.replace("{question}", question);
 
@@ -153,6 +154,7 @@ async function main() {
     kind: "CODE" as AnnotatorKind,
     evaluate: async ({ output, expected }) => {
       const actualWords = new Set(String(output).toLowerCase().split(" "));
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- expected output is untyped JSON; treat answer as a string
       const expectedAnswer = (expected?.answer as string) || "";
       const expectedWords = new Set(expectedAnswer.toLowerCase().split(" "));
 
@@ -205,8 +207,10 @@ async function main() {
     kind: "LLM" as AnnotatorKind,
     evaluate: async ({ input, output, expected }) => {
       // Safely access question and answer with type assertions and fallbacks
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- example input is untyped JSON; treat question as a string
       const question = (input.question as string) || "No question provided";
       const referenceAnswer =
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- expected output is untyped JSON; treat answer as a string
         (expected?.answer as string) || "No reference answer provided";
       const answer = String(output);
 

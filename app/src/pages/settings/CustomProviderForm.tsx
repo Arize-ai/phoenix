@@ -50,6 +50,12 @@ import {
 } from "@phoenix/constants/generativeConstants";
 import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
 
+/**
+ * The HTTP headers JSON schema typed for the JSONEditor.
+ */
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- interop: zod's toJSONSchema output is structurally a JSON schema but is not typed as JSONSchema7
+const HTTP_HEADERS_JSON_SCHEMA = httpHeadersJSONSchema as JSONSchema7;
+
 import type { CustomProviderFormTestCredentialsMutation } from "./__generated__/CustomProviderFormTestCredentialsMutation.graphql";
 import { providerFormSchema } from "./customProviderFormSchema";
 import {
@@ -303,7 +309,7 @@ function OpenAIFields({
             <JSONEditor
               value={typeof value === "string" ? value : ""}
               onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+              jsonSchema={HTTP_HEADERS_JSON_SCHEMA}
               placeholder='{"X-Custom-Header": "value"}'
               optionalLint
             />
@@ -531,7 +537,7 @@ function AzureOpenAIFields({
             <JSONEditor
               value={typeof value === "string" ? value : ""}
               onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+              jsonSchema={HTTP_HEADERS_JSON_SCHEMA}
               placeholder='{"X-Custom-Header": "value"}'
               optionalLint
             />
@@ -599,7 +605,7 @@ function AnthropicFields({
             <JSONEditor
               value={typeof value === "string" ? value : ""}
               onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+              jsonSchema={HTTP_HEADERS_JSON_SCHEMA}
               placeholder='{"X-Custom-Header": "value"}'
               optionalLint
             />
@@ -824,7 +830,7 @@ function GoogleFields({
             <JSONEditor
               value={typeof value === "string" ? value : ""}
               onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+              jsonSchema={HTTP_HEADERS_JSON_SCHEMA}
               placeholder='{"X-Custom-Header": "value"}'
               optionalLint
             />
@@ -938,9 +944,9 @@ function SDKSelect({
         <Select
           value={field.value}
           onChange={(key) => {
-            if (key != null) {
+            const newSDK = SDK_OPTIONS.find((opt) => opt.id === key)?.id;
+            if (newSDK != null) {
               const oldSDK = field.value;
-              const newSDK = key as GenerativeModelSDK;
               // Note: We don't call field.onChange here because handleSDKChange
               // calls reset() which sets all form values including the SDK field.
               // Calling both would be redundant and could cause race conditions.

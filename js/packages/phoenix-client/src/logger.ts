@@ -35,7 +35,7 @@ const VALID_LOG_LEVELS: readonly LogLevel[] = [
 ];
 
 function isLogLevel(value: string): value is LogLevel {
-  return VALID_LOG_LEVELS.includes(value as LogLevel);
+  return (VALID_LOG_LEVELS as readonly string[]).includes(value);
 }
 
 function getLogLevelFromEnvironment(): LogLevel {

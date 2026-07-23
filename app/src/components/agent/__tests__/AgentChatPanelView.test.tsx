@@ -215,17 +215,15 @@ describe("AgentChatHeader", () => {
       );
     });
 
-    const panel = container.querySelector(".resizable-floating-panel");
+    const panel = container.querySelector<HTMLElement>(
+      ".resizable-floating-panel"
+    );
     expect(panel).not.toBeNull();
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("152px");
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-y"
-      )
-    ).toBe("88px");
+    expect(panel!.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+      "152px"
+    );
+    expect(panel!.style.getPropertyValue("--resizable-floating-panel-y")).toBe(
+      "88px"
+    );
   });
 });

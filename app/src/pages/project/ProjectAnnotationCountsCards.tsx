@@ -627,6 +627,7 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
                 <RadioGroup
                   value={timeRangeField}
                   onChange={(value) => {
+                    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- RadioGroup value is one of the Radio option ids (AnnotationTimeRangeField)
                     setTimeRangeField(value as AnnotationTimeRangeField);
                     setDeleteError(null);
                   }}

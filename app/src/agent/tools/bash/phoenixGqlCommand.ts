@@ -283,10 +283,10 @@ export const createPhoenixGqlCommand = ({
         ? "[permissions: queries + mutations]\n"
         : "[permissions: queries only]\n";
 
-      const payload = (await response.json()) as {
+      const payload: {
         data?: unknown;
         errors?: Array<{ message: string }>;
-      };
+      } = await response.json();
       const graphqlErrorText = payload.errors?.length
         ? formatGraphqlErrors(payload.errors)
         : "";

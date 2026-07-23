@@ -97,7 +97,7 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
         flex: 1 1 auto;
         overflow: auto;
       `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
       ref={tableContainerRef}
     >
       <table css={tableCSS}>

@@ -537,8 +537,9 @@ export const phoenixTopicDataset = {
     "Mixed on-topic and off-topic questions to seed Phoenix traces with realistic inputs",
   examples: phoenixTopicExamples.map((example) => ({
     ...example,
-    splits: example.metadata?.category
-      ? [example.metadata.category as string]
-      : [],
+    splits:
+      typeof example.metadata?.category === "string"
+        ? [example.metadata.category]
+        : [],
   })),
 };

@@ -128,7 +128,8 @@ describe("logSpans", () => {
     }
 
     expect(thrown).toBeInstanceOf(SpanCreationError);
-    const err = thrown as SpanCreationError;
+    if (!(thrown instanceof SpanCreationError)) return;
+    const err = thrown;
     expect(err.totalReceived).toBe(2);
     expect(err.totalQueued).toBe(0);
     expect(err.totalInvalid).toBe(1);
@@ -178,7 +179,8 @@ describe("logSpans", () => {
     }
 
     expect(thrown).toBeInstanceOf(SpanCreationError);
-    const err = thrown as SpanCreationError;
+    if (!(thrown instanceof SpanCreationError)) return;
+    const err = thrown;
     expect(err.totalReceived).toBe(3);
     expect(err.totalQueued).toBe(0);
     expect(err.invalidSpans).toEqual([

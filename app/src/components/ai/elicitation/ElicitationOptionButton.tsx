@@ -45,8 +45,11 @@ export function ElicitationOptionButton({
         // Only intercept Enter/Space when the event target is this div itself.
         // If focus is on a child input/textarea, let the keypress through
         // so the user can type freely (e.g. space in freeform text entry).
-        const target = e.target as HTMLElement;
-        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        const target = e.target;
+        if (
+          target instanceof HTMLElement &&
+          (target.tagName === "INPUT" || target.tagName === "TEXTAREA")
+        ) {
           return;
         }
         // Let the carousel-level shortcut handle submit/advance without this

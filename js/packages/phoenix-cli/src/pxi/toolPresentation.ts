@@ -79,9 +79,11 @@ const NATIVE_WEB_URL_FIELDS = ["url", "uri", "href"];
 const NATIVE_WEB_SEARCH_QUERY_FIELDS = ["query", "q", "search_query"];
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to a non-null, non-array object above
+  return value as Record<string, unknown>;
 }
 
 function getStringField({

@@ -107,6 +107,7 @@ export const toAI = <PromptVariables extends Variables>({
         toolsRecord[name] = converted;
       }
       if (Object.keys(toolsRecord).length > 0) {
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- raw tool records are trusted to match the Vercel AI ToolSet shape; no validation here
         tools = toolsRecord as ToolSet;
       }
     }

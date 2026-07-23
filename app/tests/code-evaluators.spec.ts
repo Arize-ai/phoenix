@@ -517,23 +517,21 @@ test.describe.serial("Code Evaluators", () => {
     await dialog.getByRole("button", { name: "Update" }).click();
 
     const patchResponse = await patchCodeEvaluatorResponse;
-    const patchRequestBody = patchResponse.request().postDataJSON() as {
+    const patchRequestBody: {
       variables: {
         input: {
           sandboxConfigId?: string | null;
         };
       };
-    };
+    } = patchResponse.request().postDataJSON();
     expect(patchRequestBody.variables.input.sandboxConfigId).toBeNull();
 
     const createVersionResponse = await createCodeEvaluatorVersionResponse;
-    const createVersionRequestBody = createVersionResponse
-      .request()
-      .postDataJSON() as {
+    const createVersionRequestBody: {
       variables: {
         input: Record<string, unknown>;
       };
-    };
+    } = createVersionResponse.request().postDataJSON();
     // Sandbox rebinding lives exclusively on patchCodeEvaluator; the version
     // input no longer accepts a sandbox identifier. Lock that boundary in.
     expect(createVersionRequestBody.variables.input).not.toHaveProperty(

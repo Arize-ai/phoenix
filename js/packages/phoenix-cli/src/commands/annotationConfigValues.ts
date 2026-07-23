@@ -79,18 +79,20 @@ function parseValuesJson(raw: string): CategoricalAnnotationValue[] {
       "--values must be a non-empty JSON array of label objects"
     );
   }
-  return parsed.map((entry) => {
+  return parsed.map((entry: unknown) => {
     if (
       typeof entry !== "object" ||
       entry === null ||
-      typeof (entry as { label?: unknown }).label !== "string" ||
-      (entry as { label: string }).label.length === 0
+      !("label" in entry) ||
+      typeof entry.label !== "string" ||
+      entry.label.length === 0
     ) {
       throw new InvalidArgumentError(
         'Each --values entry must be an object with a non-empty string "label"'
       );
     }
-    const { label, score } = entry as { label: string; score?: unknown };
+    const label = entry.label;
+    const score: unknown = "score" in entry ? entry.score : undefined;
     if (score !== undefined && score !== null && typeof score !== "number") {
       throw new InvalidArgumentError(
         '--values "score" must be a number when provided'

@@ -3,11 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { BackendInfo, SandboxConfigFormValues } from "../types";
 import { formValuesToConfigPatch, getDependencyPreview } from "../utils";
 
-type PartialBackend = Pick<
-  BackendInfo,
-  "backendType" | "supportsEnvVars" | "internetAccess" | "supportsDependencies"
->;
-
 const emptyValues: SandboxConfigFormValues = {
   sandboxProviderId: "",
   language: "PYTHON",
@@ -19,25 +14,39 @@ const emptyValues: SandboxConfigFormValues = {
   dependenciesText: "",
 };
 
-const wasmNoCapabilityBackend: PartialBackend = {
+const wasmNoCapabilityBackend: BackendInfo = {
   backendType: "WASM",
-  supportsEnvVars: false,
+  credentialSpecs: [],
+  dependencyHints: [],
+  displayName: "WASM",
+  hostingType: "LOCAL",
   internetAccess: "NONE",
+  status: "AVAILABLE",
+  statusDetail: null,
+  supportedLanguages: ["PYTHON"],
   supportsDependencies: false,
+  supportsEnvVars: false,
 };
 
-const e2bFullCapabilityBackend: PartialBackend = {
+const e2bFullCapabilityBackend: BackendInfo = {
   backendType: "E2B",
-  supportsEnvVars: true,
+  credentialSpecs: [],
+  dependencyHints: [],
+  displayName: "E2B",
+  hostingType: "HOSTED",
   internetAccess: "BOOLEAN",
+  status: "AVAILABLE",
+  statusDetail: null,
+  supportedLanguages: ["PYTHON"],
   supportsDependencies: true,
+  supportsEnvVars: true,
 };
 
 describe("formValuesToConfigPatch — variant + capability output", () => {
   it("(a) no capabilities supported: variant carries only language", () => {
     const result = formValuesToConfigPatch(
       emptyValues,
-      wasmNoCapabilityBackend as BackendInfo
+      wasmNoCapabilityBackend
     );
 
     // WASM variant is the kind-mapped key; inner config carries only
@@ -57,10 +66,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
       envVars: [{ name: "NEW", secretKey: "new_secret" }],
     };
 
-    const result = formValuesToConfigPatch(
-      values,
-      e2bFullCapabilityBackend as BackendInfo
-    );
+    const result = formValuesToConfigPatch(values, e2bFullCapabilityBackend);
 
     expect(result).toEqual({
       e2b: {
@@ -79,10 +85,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
       dependenciesText: "numpy\npandas",
     };
 
-    const result = formValuesToConfigPatch(
-      values,
-      e2bFullCapabilityBackend as BackendInfo
-    );
+    const result = formValuesToConfigPatch(values, e2bFullCapabilityBackend);
 
     expect(result).toEqual({
       e2b: {
@@ -99,7 +102,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
   it("(negative) envVars absent when supportsEnvVars but envVars is empty", () => {
     const result = formValuesToConfigPatch(
       emptyValues,
-      e2bFullCapabilityBackend as BackendInfo
+      e2bFullCapabilityBackend
     );
 
     // internetAccess is always emitted for BOOLEAN backends; envVars is omitted
@@ -112,7 +115,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
   it("(negative) dependencies absent when supportsDependencies is true but dependenciesText is empty", () => {
     const result = formValuesToConfigPatch(
       { ...emptyValues, dependenciesText: "" },
-      e2bFullCapabilityBackend as BackendInfo
+      e2bFullCapabilityBackend
     );
 
     expect(result["e2b"]).not.toHaveProperty("dependencies");
@@ -121,7 +124,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
   it("(negative) internetAccess absent when internetAccess is NONE", () => {
     const result = formValuesToConfigPatch(
       { ...emptyValues, internetAccessEnabled: true },
-      wasmNoCapabilityBackend as BackendInfo
+      wasmNoCapabilityBackend
     );
 
     expect(result["wasm"]).not.toHaveProperty("internetAccess");
@@ -133,10 +136,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
       envVars: [{ name: "OPENAI_API_KEY", secretKey: "openai_k" }],
     };
 
-    const result = formValuesToConfigPatch(
-      values,
-      e2bFullCapabilityBackend as BackendInfo
-    );
+    const result = formValuesToConfigPatch(values, e2bFullCapabilityBackend);
 
     expect(result).toEqual({
       e2b: {

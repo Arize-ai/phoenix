@@ -37,6 +37,7 @@ async function main() {
     example: { input: Record<string, unknown> },
     options?: { simulateFailure?: boolean }
   ) => {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- example input is untyped JSON; treat question as a string
     const question = example.input.question as string;
     if (options?.simulateFailure && Math.random() < 0.5) {
       // 50% failure rate to simulate incomplete runs
@@ -65,7 +66,8 @@ async function main() {
           // Simulate varied accuracy scores for visibility in UI
           const outputObj =
             typeof output === "object"
-              ? (output as Record<string, unknown>)
+              ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- task output is untyped JSON narrowed to a record
+                (output as Record<string, unknown>)
               : {};
           const outputStr = String(outputObj.answer || "");
           const expectedStr = String(expected?.answer || "");
@@ -109,7 +111,8 @@ async function main() {
             // Simulate varied accuracy scores for visibility in UI
             const outputObj =
               typeof output === "object"
-                ? (output as Record<string, unknown>)
+                ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- task output is untyped JSON narrowed to a record
+                  (output as Record<string, unknown>)
                 : {};
             const outputStr = String(outputObj.answer || "");
             const expectedStr = String(expected?.answer || "");

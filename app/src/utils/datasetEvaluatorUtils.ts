@@ -28,17 +28,26 @@ export type DatasetEvaluatorForConfig = {
 };
 
 /**
+ * Type guard for the known optimization direction enum values.
+ */
+function isOptimizationDirection(
+  value: string | undefined
+): value is "MAXIMIZE" | "MINIMIZE" | "NONE" {
+  return value === "MAXIMIZE" || value === "MINIMIZE" || value === "NONE";
+}
+
+/**
  * Converts a single output config to an AnnotationConfig.
  */
 function outputConfigToAnnotationConfig(
   outputConfig: DatasetEvaluatorOutputConfig,
   fallbackName: string
 ): AnnotationConfig {
-  const optimizationDirection = outputConfig.optimizationDirection as
-    | "MAXIMIZE"
-    | "MINIMIZE"
-    | "NONE"
-    | undefined;
+  const optimizationDirection = isOptimizationDirection(
+    outputConfig.optimizationDirection
+  )
+    ? outputConfig.optimizationDirection
+    : undefined;
 
   switch (outputConfig.__typename) {
     case "CategoricalAnnotationConfig":

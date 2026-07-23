@@ -32,7 +32,7 @@ type SandboxBackendInfo =
   datasetEvaluatorDetailsLoaderQuery["response"]["sandboxBackends"][number];
 
 type OutputConfig = {
-  name: string;
+  name?: string;
   optimizationDirection?: string | null;
   values?: ReadonlyArray<{
     label?: string | null;
@@ -478,26 +478,19 @@ export function CodeDatasetEvaluatorDetails({
       ? sandboxBackendByType.get(sandboxConfig.provider.backendType)
       : undefined;
 
-  const pathMappingEntries = useMemo(
-    () =>
-      Object.entries(
-        (datasetEvaluator.inputMapping.pathMapping as Record<
-          string,
-          unknown
-        >) ?? {}
-      ),
-    [datasetEvaluator.inputMapping.pathMapping]
-  );
-  const literalMappingEntries = useMemo(
-    () =>
-      Object.entries(
-        (datasetEvaluator.inputMapping.literalMapping as Record<
-          string,
-          unknown
-        >) ?? {}
-      ),
-    [datasetEvaluator.inputMapping.literalMapping]
-  );
+  const pathMappingEntries = useMemo(() => {
+    const pathMapping: unknown = datasetEvaluator.inputMapping.pathMapping;
+    return typeof pathMapping === "object" && pathMapping !== null
+      ? Object.entries(pathMapping)
+      : [];
+  }, [datasetEvaluator.inputMapping.pathMapping]);
+  const literalMappingEntries = useMemo(() => {
+    const literalMapping: unknown =
+      datasetEvaluator.inputMapping.literalMapping;
+    return typeof literalMapping === "object" && literalMapping !== null
+      ? Object.entries(literalMapping)
+      : [];
+  }, [datasetEvaluator.inputMapping.literalMapping]);
 
   const canManageSandboxes = useViewerCanManageSandboxes();
 
@@ -628,10 +621,7 @@ export function CodeDatasetEvaluatorDetails({
           <View padding="size-200">
             <Flex direction="column" gap="size-200">
               {outputConfigs.map((config, idx) => (
-                <OutputConfigBlock
-                  key={config.name || idx}
-                  config={config as OutputConfig}
-                />
+                <OutputConfigBlock key={config.name || idx} config={config} />
               ))}
             </Flex>
           </View>

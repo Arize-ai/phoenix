@@ -251,7 +251,9 @@ describe("createExperiment", () => {
     }
 
     expect(thrown).toBeInstanceOf(HttpError);
-    expect((thrown as HttpError).status).toBe(404);
+    if (thrown instanceof HttpError) {
+      expect(thrown.status).toBe(404);
+    }
   });
 
   it("should throw error when response data is missing", async () => {
@@ -301,7 +303,9 @@ describe("createExperiment", () => {
     }
 
     expect(thrown).toBeInstanceOf(HttpError);
-    expect((thrown as HttpError).status).toBe(422);
+    if (thrown instanceof HttpError) {
+      expect(thrown.status).toBe(422);
+    }
   });
 
   it("should handle readonly splits array", async () => {

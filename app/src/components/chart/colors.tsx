@@ -105,6 +105,7 @@ const sequentialChartColors: SequentialChartColors = Object.freeze({
  * The list of sequential colors that are available for use in the charting components.
  * This is a list of the keys of the sequentialChartColors object.
  */
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys on an exhaustive record whose keys are exactly keyof SequentialChartColors
 export const SEQUENTIAL_CHART_COLORS = Object.keys(
   sequentialChartColors
 ) as (keyof SequentialChartColors)[];
@@ -146,9 +147,20 @@ export const getChartColor = (index: number, colors: SequentialChartColors) => {
   const [group, maxShades] = colorGroups[groupIndex];
   // reduce in shades by 100 for each group, each iteration
   const shade = 500 - 100 * (shadeIndex % maxShades);
-  const colorKey = `${group}${shade}` as keyof SequentialChartColors;
-  return colors[colorKey] || colors.default;
+  const colorKey = `${group}${shade}`;
+  return isSequentialChartColorKey(colorKey)
+    ? colors[colorKey]
+    : colors.default;
 };
+
+/**
+ * Type guard for keys of {@link SequentialChartColors}. Some generated keys
+ * (e.g. the "pink" group) do not exist in the palette and fall back to the
+ * default color.
+ */
+const isSequentialChartColorKey = (
+  key: string
+): key is keyof SequentialChartColors => key in sequentialChartColors;
 
 export type SemanticChartColor = "danger" | "success" | "warning" | "info";
 
@@ -159,6 +171,7 @@ const semanticChartColors: Record<SemanticChartColor, string> = {
   info: "var(--global-color-blue-700)",
 };
 
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys on an exhaustive record whose keys are exactly SemanticChartColor
 export const SEMANTIC_CHART_COLORS = Object.keys(
   semanticChartColors
 ) as SemanticChartColor[];
@@ -226,6 +239,7 @@ export const useCategoryChartColors = (): Record<
   );
 };
 
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys on an exhaustive record whose keys are exactly CategoricalChartColor
 export const CATEGORICAL_CHART_COLORS = Object.keys(
   CategoryChartLightColors
 ) as CategoricalChartColor[];
@@ -281,6 +295,7 @@ export const useGrayscaleCategoricalColors = (): Record<
   );
 };
 
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys on an exhaustive record whose keys are exactly GrayscaleCategoricalColor
 export const GRAYSCALE_CATEGORICAL_COLORS = Object.keys(
   GrayscaleCategoricalLightColors
 ) as GrayscaleCategoricalColor[];

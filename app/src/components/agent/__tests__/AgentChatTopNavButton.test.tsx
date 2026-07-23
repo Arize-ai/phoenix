@@ -212,10 +212,7 @@ describe("AgentChatTopNavButton", () => {
   });
 
   it("does not arm the flash when reduced motion is preferred", () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn().mockReturnValue({ matches: true } as MediaQueryList)
-    );
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
     renderButton({ position: "detached" });
 
     act(() => agentStore?.getState().setIsOpen(true));

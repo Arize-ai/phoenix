@@ -20,7 +20,7 @@ import {
 function createTestEnvironment() {
   return new Environment({
     network: Network.create((_operation, variables) => {
-      const { datasetId } = variables as { datasetId: string };
+      const datasetId = String(variables.datasetId);
 
       return Observable.create((sink) => {
         // Return a distinct payload per query ref so the test can prove that
@@ -68,6 +68,7 @@ function loadDatasetQueryRef({
 
 function spyOnReleaseQuery(queryRef: ReturnType<typeof loadDatasetQueryRef>) {
   return vi.spyOn(
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- spy on the internal releaseQuery not present on the public PreloadedQuery type
     queryRef as typeof queryRef & { releaseQuery: () => void },
     "releaseQuery"
   );

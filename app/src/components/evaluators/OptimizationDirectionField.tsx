@@ -80,12 +80,11 @@ export const OptimizationDirectionField = ({
   return (
     <Select
       value={optimizationDirection}
-      onChange={(e) =>
-        setOutputConfigOptimizationDirectionAtIndex(
-          0,
-          e as EvaluatorOptimizationDirection
-        )
-      }
+      onChange={(e) => {
+        if (e === "MAXIMIZE" || e === "MINIMIZE" || e === "NONE") {
+          setOutputConfigOptimizationDirectionAtIndex(0, e);
+        }
+      }}
       isDisabled={isDisabled}
       aria-label="Optimization direction"
       data-testid="optimization-direction-picker"

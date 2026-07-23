@@ -29,6 +29,7 @@ describe("createTemplateVariablesProxy", () => {
     expect(proxied[1]).toBe(42);
     // Nested objects should be proxied
     expect(typeof proxied[2]).toBe("object");
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- proxied array element is a stringifiable object here
     expect((proxied[2] as { toString(): string }).toString()).toBe(
       JSON.stringify({ nested: "object" })
     );
@@ -253,11 +254,7 @@ describe("createTemplateVariablesProxy", () => {
     obj.self = obj; // Create circular reference
 
     // JSON.stringify will throw on circular references, but our proxy should handle it
-    const proxied = createTemplateVariablesProxy(obj) as {
-      name: string;
-      self: unknown;
-      toString(): string;
-    };
+    const proxied = createTemplateVariablesProxy(obj);
 
     expect(proxied.name).toBe("test");
     // toString() will throw when JSON.stringify encounters the circular reference

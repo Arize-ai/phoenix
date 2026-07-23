@@ -418,13 +418,17 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "MOONSHOT":
     case "PERPLEXITY":
     case "TOGETHER":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToMessageMap[T] from a switch on targetProvider
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToMessageMap[T] from a switch on targetProvider
       return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
     case "AWS":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToMessageMap[T] from a switch on targetProvider
       return openAIMessageToAws.parse(message) as ProviderToMessageMap[T];
     case "GOOGLE":
       // TODO: Add Google message support
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToMessageMap[T] from a switch on targetProvider
       return message as ProviderToMessageMap[T];
     default:
       return assertUnreachable(targetProvider);

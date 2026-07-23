@@ -157,10 +157,11 @@ function AnnotationsTable({
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
   ]);
+  const data = useMemo(() => [...annotations], [annotations]);
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     columns,
-    data: annotations as SessionAnnotation[],
+    data,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,

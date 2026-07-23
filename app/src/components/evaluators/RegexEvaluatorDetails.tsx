@@ -7,11 +7,9 @@ export function RegexEvaluatorDetails({
   inputMapping: EvaluatorInputMapping | null;
 }) {
   const textPath = inputMapping?.pathMapping?.text as string | undefined;
-  const textLiteral = inputMapping?.literalMapping?.text as string | undefined;
+  const textLiteral = inputMapping?.literalMapping?.text;
   const patternPath = inputMapping?.pathMapping?.pattern as string | undefined;
-  const patternLiteral = inputMapping?.literalMapping?.pattern as
-    | string
-    | undefined;
+  const patternLiteral = inputMapping?.literalMapping?.pattern;
   const fullMatch = inputMapping?.literalMapping?.full_match;
 
   return (

@@ -150,7 +150,7 @@ export class PxiDriver {
       if (!stored) {
         return null;
       }
-      const parsed = JSON.parse(stored) as {
+      const parsed: {
         state?: {
           activeSessionId?: string | null;
           sessionMap?: Record<
@@ -168,7 +168,7 @@ export class PxiDriver {
             }
           >;
         };
-      };
+      } = JSON.parse(stored);
       const activeSessionId = parsed.state?.activeSessionId;
       if (!activeSessionId) {
         return null;
@@ -196,11 +196,10 @@ export class PxiDriver {
       }
       return { assistantText, parts: latestAssistant?.parts ?? [], traceId };
     });
-    const turn = (await turnHandle.jsonValue()) as {
-      assistantText: string;
-      parts: unknown[];
-      traceId: string;
-    };
+    const turn = await turnHandle.jsonValue();
+    if (turn === null) {
+      throw new Error("Expected an assistant turn payload to be available");
+    }
     const calledTools = await this.getToolNamesForTrace(turn.traceId);
     const uiCalledTools = getUiMessageToolNames(turn.parts);
     return {
@@ -274,12 +273,16 @@ export class PxiDriver {
     const handle = await this.page.waitForFunction(() => {
       const stored = localStorage.getItem("arize-phoenix-assistant");
       if (!stored) return null;
-      const parsed = JSON.parse(stored) as {
+      const parsed: {
         state?: { activeSessionId?: string | null };
-      };
+      } = JSON.parse(stored);
       return parsed.state?.activeSessionId ?? null;
     });
-    return (await handle.jsonValue()) as string;
+    const activeSessionId = await handle.jsonValue();
+    if (activeSessionId === null) {
+      throw new Error("Expected an active session id to be available");
+    }
+    return activeSessionId;
   }
 
   async listRecentProjectTraces(sinceIsoTimestamp: string): Promise<
@@ -299,12 +302,7 @@ export class PxiDriver {
       })
     );
     const traces = response.data;
-    return Array.isArray(traces)
-      ? (traces as Array<{
-          trace_id: string;
-          spans: Array<{ span_kind: string; name: string }>;
-        }>)
-      : [];
+    return Array.isArray(traces) ? traces : [];
   }
 }
 

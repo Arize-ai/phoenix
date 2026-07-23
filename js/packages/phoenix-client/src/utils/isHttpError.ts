@@ -16,16 +16,11 @@ export function isHttpError(
     return false;
   }
 
-  const errorWithResponse = error as { response: unknown };
+  const response = error.response;
 
-  if (
-    typeof errorWithResponse.response !== "object" ||
-    errorWithResponse.response === null
-  ) {
+  if (typeof response !== "object" || response === null) {
     return false;
   }
-
-  const response = errorWithResponse.response as Record<string, unknown>;
 
   return "status" in response && typeof response.status === "number";
 }

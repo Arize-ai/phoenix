@@ -170,9 +170,11 @@ export const SDK_LABELS: Readonly<Record<GenerativeModelSDK, string>> = {
 export const SDK_OPTIONS: ReadonlyArray<{
   id: GenerativeModelSDK;
   label: string;
-}> = (Object.entries(SDK_LABELS) as Array<[GenerativeModelSDK, string]>).map(
-  ([id, label]) => ({ id, label })
-);
+}> =
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens Record keys to string
+  (Object.entries(SDK_LABELS) as Array<[GenerativeModelSDK, string]>).map(
+    ([id, label]) => ({ id, label })
+  );
 
 /**
  * Default provider string values for each SDK type.
@@ -203,9 +205,17 @@ const AZURE_AUTH_METHOD_LABELS: Readonly<Record<AzureAuthMethod, string>> = {
 export const AZURE_AUTH_METHOD_OPTIONS: ReadonlyArray<{
   id: AzureAuthMethod;
   label: string;
-}> = (
-  Object.entries(AZURE_AUTH_METHOD_LABELS) as Array<[AzureAuthMethod, string]>
-).map(([id, label]) => ({ id, label }));
+}> = [
+  { id: "api_key", label: AZURE_AUTH_METHOD_LABELS.api_key },
+  {
+    id: "ad_token_provider",
+    label: AZURE_AUTH_METHOD_LABELS.ad_token_provider,
+  },
+  {
+    id: "default_credentials",
+    label: AZURE_AUTH_METHOD_LABELS.default_credentials,
+  },
+];
 
 /**
  * Human-readable labels for AWS Bedrock authentication methods.
@@ -221,6 +231,10 @@ const AWS_AUTH_METHOD_LABELS: Readonly<Record<AWSAuthMethod, string>> = {
 export const AWS_AUTH_METHOD_OPTIONS: ReadonlyArray<{
   id: AWSAuthMethod;
   label: string;
-}> = (
-  Object.entries(AWS_AUTH_METHOD_LABELS) as Array<[AWSAuthMethod, string]>
-).map(([id, label]) => ({ id, label }));
+}> = [
+  {
+    id: "default_credentials",
+    label: AWS_AUTH_METHOD_LABELS.default_credentials,
+  },
+  { id: "access_keys", label: AWS_AUTH_METHOD_LABELS.access_keys },
+];

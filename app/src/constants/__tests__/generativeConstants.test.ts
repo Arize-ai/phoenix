@@ -5,8 +5,11 @@ import {
 
 describe("generativeConstants", () => {
   describe("ProviderToCredentialsMap", () => {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens the ModelProviders record keys to string
+    const providers = Object.keys(ModelProviders) as ModelProvider[];
+
     it("should have credentials defined for every provider", () => {
-      const providers = Object.keys(ModelProviders) as ModelProvider[];
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens the record keys to string
       const credentialProviders = Object.keys(
         ProviderToCredentialsConfigMap
       ) as ModelProvider[];
@@ -42,8 +45,6 @@ describe("generativeConstants", () => {
     });
 
     it("should have at least one required credential per provider", () => {
-      const providers = Object.keys(ModelProviders) as ModelProvider[];
-
       providers.forEach((provider) => {
         const credentials = ProviderToCredentialsConfigMap[provider];
         const hasRequiredCredential = credentials.some(
@@ -58,8 +59,6 @@ describe("generativeConstants", () => {
     });
 
     it("should have unique environment variable names per provider", () => {
-      const providers = Object.keys(ModelProviders) as ModelProvider[];
-
       providers.forEach((provider) => {
         const credentials = ProviderToCredentialsConfigMap[provider];
         const envVarNames = credentials.map(

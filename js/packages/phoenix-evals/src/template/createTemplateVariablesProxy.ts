@@ -9,6 +9,7 @@ export function createTemplateVariablesProxy<T>(obj: T): T {
   }
 
   if (Array.isArray(obj)) {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- recursive map preserves the array element type of the generic T
     return obj.map(createTemplateVariablesProxy) as T;
   }
 

@@ -172,6 +172,10 @@ interface SetupCommandOptions {
   apiUrl?: string;
 }
 
+function isCodingAgentId(value: string): value is CodingAgentId {
+  return (CODING_AGENT_IDS as readonly string[]).includes(value);
+}
+
 /** Reject bad flag values before any side effect runs. */
 function toSetupOptions(options: SetupCommandOptions): SetupOptions {
   const format = options.format ?? "pretty";
@@ -183,17 +187,18 @@ function toSetupOptions(options: SetupCommandOptions): SetupOptions {
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
-  if (
-    options.agent !== undefined &&
-    !CODING_AGENT_IDS.includes(options.agent as CodingAgentId)
-  ) {
-    writeStructuredError({
-      format,
-      message: `Invalid --agent: ${options.agent}.`,
-      code: "INVALID_ARGUMENT",
-      hint: `px setup --agent <${CODING_AGENT_IDS.join("|")}>`,
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
+  let agent: CodingAgentId | undefined;
+  if (options.agent !== undefined) {
+    if (!isCodingAgentId(options.agent)) {
+      writeStructuredError({
+        format,
+        message: `Invalid --agent: ${options.agent}.`,
+        code: "INVALID_ARGUMENT",
+        hint: `px setup --agent <${CODING_AGENT_IDS.join("|")}>`,
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+    agent = options.agent;
   }
   // `parsePositiveIntOption` yields NaN for a value a worker pool can't run on.
   if (Number.isNaN(options.workers)) {
@@ -211,7 +216,7 @@ function toSetupOptions(options: SetupCommandOptions): SetupOptions {
     project: options.project,
     noInput: options.input === false,
     apiUrl: options.apiUrl,
-    agent: options.agent as CodingAgentId | undefined,
+    agent,
     languages: options.language,
     instrument: options.instrument,
     skills: options.skills,

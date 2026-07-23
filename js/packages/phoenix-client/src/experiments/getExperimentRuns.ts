@@ -63,6 +63,7 @@ export async function getExperimentRuns({
         datasetExampleId: run.dataset_example_id,
         startTime: new Date(run.start_time),
         endTime: new Date(run.end_time),
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- run.output is arbitrary JSON typed as unknown by the API schema
         output: run.output as ExperimentRun["output"],
         error: run.error || null,
       }))

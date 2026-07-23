@@ -30,10 +30,13 @@ function IconsGallery() {
   const [search, setSearch] = useState("");
   const isSearching = search.length > 0;
 
-  const iconEntries = Object.keys(Icons).filter((name) => {
-    if (!search) return true;
-    return name.toLowerCase().includes(search.toLowerCase());
-  });
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys over the Icons record returns exactly its own keys
+  const iconEntries = (Object.keys(Icons) as Array<keyof typeof Icons>).filter(
+    (name) => {
+      if (!search) return true;
+      return name.toLowerCase().includes(search.toLowerCase());
+    }
+  );
 
   return (
     <View padding="size-200">
@@ -60,7 +63,7 @@ function IconsGallery() {
             }}
           >
             {iconEntries.map((name) => {
-              const Svg = Icons[name as keyof typeof Icons];
+              const Svg = Icons[name];
               return (
                 <li
                   key={name}
@@ -95,7 +98,7 @@ function IconsGallery() {
             }}
           >
             {iconEntries.map((name) => {
-              const Svg = Icons[name as keyof typeof Icons];
+              const Svg = Icons[name];
               return (
                 <li key={name}>
                   <TooltipTrigger delay={0}>

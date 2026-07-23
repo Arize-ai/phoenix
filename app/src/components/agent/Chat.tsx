@@ -68,6 +68,10 @@ export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
 const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
 
+const chatStyle: CSSProperties & Record<`--${string}`, string> = {
+  "--chat-sidebar-inset": CHAT_SIDEBAR_INSET_CSS,
+};
+
 /**
  * Keeps the trailing Thinking indicator visible for the initial request wait
  * and while the latest assistant turn ends in a tool call.
@@ -590,15 +594,7 @@ export function ChatView({
 
   return (
     <ElicitationDraftProvider draft={resolvedElicitationDraft}>
-      <div
-        css={chatCSS}
-        className={chatClassName}
-        style={
-          {
-            "--chat-sidebar-inset": CHAT_SIDEBAR_INSET_CSS,
-          } as CSSProperties
-        }
-      >
+      <div css={chatCSS} className={chatClassName} style={chatStyle}>
         <ChatLantern isVisible={showsEmptyState} />
         <ChatScrollContext.Provider value={chatScrollContextValue}>
           <div className="chat__scroll-frame">

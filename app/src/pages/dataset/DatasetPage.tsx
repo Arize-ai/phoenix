@@ -81,7 +81,7 @@ export function DatasetPage() {
   return (
     <DatasetProvider
       datasetId={data.dataset.id}
-      datasetName={data.dataset.name as string}
+      datasetName={data.dataset.name ?? ""}
       latestVersion={latestVersion}
     >
       <Suspense fallback={<Loading />}>
@@ -173,8 +173,8 @@ function DatasetPageContent({
   const navigate = useNavigate();
   const onTabChange = useCallback(
     (tabIndex: number) => {
-      if (TABS_CONFIG[tabIndex as keyof typeof TABS_CONFIG]) {
-        const path = TABS_CONFIG[tabIndex as keyof typeof TABS_CONFIG];
+      const path: TabName | undefined = TABS_LIST[tabIndex];
+      if (path) {
         navigate(`/datasets/${datasetId}/${path}`);
       }
     },

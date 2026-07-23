@@ -12,6 +12,7 @@ import { MessageToolbar } from "@phoenix/components/ai/message/MessageToolbar";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import { MessageCopyAction } from "./MessageCopyAction";
@@ -77,8 +78,10 @@ async function getResponseErrorMessage(response: Response) {
     return `Request failed with status ${response.status}`;
   }
   try {
-    const parsed = JSON.parse(text) as { detail?: string };
-    return typeof parsed.detail === "string" ? parsed.detail : text;
+    const parsed: unknown = JSON.parse(text);
+    return isPlainObject(parsed) && typeof parsed.detail === "string"
+      ? parsed.detail
+      : text;
   } catch {
     return text;
   }

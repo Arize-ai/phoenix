@@ -158,7 +158,9 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
 }: SwitchableEvaluatorInputProps<TFieldValues>) {
   const [mode, setMode] = useState<MappingMode>(defaultMode);
 
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- runtime-built RHF field path cannot be proven to be a Path<TFieldValues>
   const pathFieldName = `pathMapping.${fieldName}` as Path<TFieldValues>;
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- runtime-built RHF field path cannot be proven to be a Path<TFieldValues>
   const literalFieldName = `literalMapping.${fieldName}` as Path<TFieldValues>;
 
   const handleModeChange = (key: Key | Key[] | null) => {
@@ -169,6 +171,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
         // Switching to path mode, clear the literal value
         setValue(
           literalFieldName,
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- clearing a generic RHF field value requires asserting undefined to the field's value type
           undefined as TFieldValues[typeof literalFieldName]
         );
       } else {
@@ -176,6 +179,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
         onPathInputChange?.("");
         setValue(
           pathFieldName,
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- clearing a generic RHF field value requires asserting undefined to the field's value type
           undefined as TFieldValues[typeof pathFieldName]
         );
       }
@@ -255,8 +259,8 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
                         onPathInputChange?.("");
                         field.onChange(undefined);
                       } else {
-                        onPathInputChange?.(key as string);
-                        field.onChange(key as string);
+                        onPathInputChange?.(String(key));
+                        field.onChange(String(key));
                       }
                     }}
                     onInputChange={(value) => {

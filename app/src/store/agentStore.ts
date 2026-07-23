@@ -9,6 +9,7 @@ import {
   type AgentContext,
 } from "@phoenix/agent/context/agentContextTypes";
 import {
+  AGENT_CAPABILITY_DEFINITIONS,
   createDefaultAgentCapabilities,
   type AgentCapabilities,
   type AgentCapabilityKey,
@@ -527,17 +528,14 @@ function normalizeAgentCapabilities({
   const persistedCapabilities = capabilities as Partial<
     Record<AgentCapabilityKey, unknown>
   >;
-  return Object.fromEntries(
-    (Object.keys(defaultCapabilities) as AgentCapabilityKey[]).map((key) => {
-      const persistedValue = persistedCapabilities[key];
-      return [
-        key,
-        typeof persistedValue === "boolean"
-          ? persistedValue
-          : defaultCapabilities[key],
-      ];
-    })
-  ) as AgentCapabilities;
+  const normalized: AgentCapabilities = { ...defaultCapabilities };
+  for (const { key } of AGENT_CAPABILITY_DEFINITIONS) {
+    const persistedValue = persistedCapabilities[key];
+    if (typeof persistedValue === "boolean") {
+      normalized[key] = persistedValue;
+    }
+  }
+  return normalized;
 }
 
 function mergeAgentPersistedState(

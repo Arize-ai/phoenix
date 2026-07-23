@@ -300,7 +300,7 @@ const SplitMenuApplyContent = ({
       selectionMode="none"
       // ensure that menu items are re-rendered when splitStates changes
       dependencies={[splitStates]}
-      onAction={(key) => handleSplitToggle(key as string)}
+      onAction={(key) => handleSplitToggle(String(key))}
     >
       {({ id, name, color }) => (
         <MenuItem id={id} textValue={name}>

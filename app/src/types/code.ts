@@ -11,7 +11,7 @@ export const programmingLanguages: ProgrammingLanguage[] = [
 export function isProgrammingLanguage(l: unknown): l is ProgrammingLanguage {
   return (
     typeof l === "string" &&
-    programmingLanguages.includes(l as ProgrammingLanguage)
+    (programmingLanguages as readonly string[]).includes(l)
   );
 }
 
@@ -34,7 +34,7 @@ const packageManagers = [
 export function isPackageManager(value: unknown): value is PackageManager {
   return (
     typeof value === "string" &&
-    packageManagers.includes(value as PackageManager)
+    (packageManagers as readonly string[]).includes(value)
   );
 }
 

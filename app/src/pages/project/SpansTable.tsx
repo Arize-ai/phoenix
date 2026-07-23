@@ -193,6 +193,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
 };
 
 // special memoized wrapper for our table body that we will use during column resizing
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- React.memo drops the generic component signature; restore it to keep TableBody's type
 export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
@@ -556,7 +557,7 @@ export function SpansTable(props: SpansTableProps) {
       minSize: 50,
       maxSize: 50,
       cell: ({ getValue }) => {
-        const statusCode = getValue() as SpanStatusCode;
+        const statusCode = getValue<SpanStatusCode>();
         return <SpanStatusCodeIcon statusCode={statusCode} />;
       },
     },
@@ -566,7 +567,7 @@ export function SpansTable(props: SpansTableProps) {
       maxSize: 100,
       enableSorting: false,
       cell: ({ getValue }) => {
-        return <SpanKindToken spanKind={getValue() as string} />;
+        return <SpanKindToken spanKind={getValue<string>()} />;
       },
     },
     {
@@ -584,7 +585,7 @@ export function SpansTable(props: SpansTableProps) {
               searchParams,
             })}
           >
-            {getValue() as string}
+            {getValue<string>()}
           </Link>
         );
       },
@@ -594,7 +595,7 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "spanId",
       enableSorting: false,
       cell: ({ getValue }) => (
-        <CopyableTextCell value={getValue() as string | null} />
+        <CopyableTextCell value={getValue<string | null>()} />
       ),
     },
     {
@@ -603,7 +604,7 @@ export function SpansTable(props: SpansTableProps) {
       id: "traceId",
       enableSorting: false,
       cell: ({ getValue }) => (
-        <CopyableTextCell value={getValue() as string | null} />
+        <CopyableTextCell value={getValue<string | null>()} />
       ),
     },
     {
@@ -647,7 +648,7 @@ export function SpansTable(props: SpansTableProps) {
       id: "error",
       enableSorting: false,
       cell: ({ getValue }) => {
-        const value = getValue() as string;
+        const value = getValue<string>();
         if (!value) {
           return "--";
         }
@@ -700,7 +701,7 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "userId",
       enableSorting: false,
       cell: ({ getValue }) => (
-        <CopyableTextCell value={getValue() as string | null} />
+        <CopyableTextCell value={getValue<string | null>()} />
       ),
     },
     ...annotationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
@@ -962,9 +963,7 @@ export function SpansTable(props: SpansTableProps) {
                 height: 100%;
                 overflow: auto;
               `}
-              onScroll={(e) =>
-                fetchMoreOnBottomReached(e.target as HTMLDivElement)
-              }
+              onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
               ref={tableContainerRef}
             >
               <ColumnOrderingProvider

@@ -47,6 +47,7 @@ afterEach(() => {
 function createToolPart(
   overrides: Partial<ToolInvocationPart> = {}
 ): ToolInvocationPart {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fixture factory coerces a loose literal into the state-discriminated tool part union
   return {
     type: `tool-${READ_PROMPT_TOOL_NAME}`,
     toolCallId: "tool-call-1",
@@ -61,6 +62,7 @@ function createToolPart(
 function createAutoOpenToolPart(
   overrides: Partial<ToolInvocationPart> = {}
 ): ToolInvocationPart {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fixture factory coerces a loose literal into the state-discriminated tool part union
   return {
     type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
     toolCallId: "tool-call-edit",

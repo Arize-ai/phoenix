@@ -32,7 +32,7 @@ export function isPendingRenderGenerativeUIToolPart(part: DataPart): boolean {
   if (!isRenderGenerativeUIToolPart(part)) {
     return false;
   }
-  const state = (part as { state?: unknown }).state;
+  const state = isPlainObject(part) ? part.state : undefined;
   return state !== "output-available" && state !== "output-error";
 }
 
@@ -131,7 +131,8 @@ function getState(parts: DataPart[]): Record<string, unknown> {
  * user-visible tool errors.
  */
 function isRenderableRenderGenerativeUIToolPart(part: DataPart): boolean {
-  if ((part as { state?: unknown }).state !== "output-available") {
+  const state = isPlainObject(part) ? part.state : undefined;
+  if (state !== "output-available") {
     return false;
   }
   return isRenderGenerativeUIToolPart(part) && hasRenderableToolInput(part);
@@ -145,10 +146,12 @@ function isRenderGenerativeUIToolPart(part: DataPart): boolean {
   if (part.type !== "dynamic-tool") {
     return false;
   }
-  const candidate = part as { toolName?: unknown; tool?: unknown };
+  if (!isPlainObject(part)) {
+    return false;
+  }
   return (
-    candidate.toolName === GENERATIVE_UI_TOOL_NAME ||
-    candidate.tool === GENERATIVE_UI_TOOL_NAME
+    part.toolName === GENERATIVE_UI_TOOL_NAME ||
+    part.tool === GENERATIVE_UI_TOOL_NAME
   );
 }
 
@@ -160,11 +163,12 @@ function hasRenderableToolInput(part: DataPart): boolean {
 
 /** Reads the AI SDK tool input without depending on a specific tool part union. */
 function getToolInput(part: DataPart): unknown {
-  return (part as { input?: unknown }).input;
+  return isPlainObject(part) ? part.input : undefined;
 }
 
 /** Validates an unknown value against the generative UI render spec contract. */
 function parseSpec(value: unknown): Spec | null {
   const result = renderGenerativeUISpecSchema.safeParse(value);
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- validated by renderGenerativeUISpecSchema; zod output shape differs from the library Spec type
   return result.success ? (value as Spec) : null;
 }

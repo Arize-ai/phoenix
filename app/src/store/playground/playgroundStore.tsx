@@ -15,6 +15,7 @@ import {
   parseInvocationConfig,
   writeInvocationConfigField,
 } from "@phoenix/pages/playground/providerAdapters";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
 import {
@@ -181,8 +182,9 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
   if (initialProps.instances != null && initialProps.instances.length > 0) {
     let initialInstancesMessageMap: Record<number, ChatMessage> = {};
     const normalizedInstances = initialProps.instances.map((instance) => {
-      if (instance.template.__type === "chat") {
-        const normalizedTemplate = normalizeChatTemplate(instance.template);
+      const { template } = instance;
+      if (template.__type === "chat") {
+        const normalizedTemplate = normalizeChatTemplate(template);
         initialInstancesMessageMap = {
           ...initialInstancesMessageMap,
           ...normalizedTemplate.messages,
@@ -192,7 +194,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
           template: normalizedTemplate.template,
         } satisfies PlaygroundNormalizedInstance;
       }
-      return instance as PlaygroundNormalizedInstance;
+      return { ...instance, template } satisfies PlaygroundNormalizedInstance;
     });
     return {
       instances: normalizedInstances,
@@ -1566,9 +1568,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       },
       merge: (persistedState, currentState) => {
         try {
-          const persisted = persistedState as Record<string, unknown>;
+          const persisted = isStringKeyedObject(persistedState)
+            ? persistedState
+            : {};
           // Handle both old format (flat record) and new format (object with stateByDatasetId)
-          const stateByDatasetId = persisted?.stateByDatasetId
+          const stateByDatasetId = persisted.stateByDatasetId
             ? PlaygroundStateByDatasetIdSchema.parse(persisted.stateByDatasetId)
             : PlaygroundStateByDatasetIdSchema.parse(persistedState);
           const merged = {
@@ -1578,8 +1582,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
               ...stateByDatasetId,
             },
             recordExperiments:
-              (persisted?.recordExperiments as boolean) ??
-              currentState.recordExperiments,
+              typeof persisted.recordExperiments === "boolean"
+                ? persisted.recordExperiments
+                : currentState.recordExperiments,
           };
 
           return merged;

@@ -254,19 +254,18 @@ export function ChatEmptyShaderHero({
   const glyphSize = getHeroGlyphSize(containerSize);
   const paddingTop = getHeroPaddingTop(glyphSize);
   const glyphTopOffset = getHeroGlyphTopOffset(glyphSize);
+  const heroStyle: CSSProperties & Record<`--${string}`, string> = {
+    "--hero-glyph-size": `${glyphSize}px`,
+    "--hero-padding-top": `${paddingTop}px`,
+    "--hero-glyph-top-offset": `${glyphTopOffset}px`,
+  };
 
   return (
     <div
       ref={heroRef}
       css={heroCSS}
       className="chat__empty-hero"
-      style={
-        {
-          "--hero-glyph-size": `${glyphSize}px`,
-          "--hero-padding-top": `${paddingTop}px`,
-          "--hero-glyph-top-offset": `${glyphTopOffset}px`,
-        } as CSSProperties
-      }
+      style={heroStyle}
     >
       <div css={glyphCSS} className="chat__empty-glyph">
         <PxiShaderGlyph size={glyphSize} />

@@ -4,12 +4,14 @@ import { makeTraceUrls } from "../TracePaginationContext";
 
 describe("makeTraceUrls", () => {
   it("preserves recreatable URL state while replacing selected span", () => {
-    const location = {
+    const location: Parameters<typeof makeTraceUrls>[0] = {
       pathname: "/projects/project-1/spans/current-trace",
       search:
         "?timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z&selectedSpanNodeId=current-span",
       hash: "#details",
-    } as Parameters<typeof makeTraceUrls>[0];
+      state: null,
+      key: "default",
+    };
 
     const traceSequence = [
       { traceId: "current-trace", spanId: "current-span" },
@@ -24,11 +26,13 @@ describe("makeTraceUrls", () => {
   });
 
   it("adds the selected span when there is no other search state to preserve", () => {
-    const location = {
+    const location: Parameters<typeof makeTraceUrls>[0] = {
       pathname: "/projects/project-1/traces/current-trace",
       search: "",
       hash: "",
-    } as Parameters<typeof makeTraceUrls>[0];
+      state: null,
+      key: "default",
+    };
 
     const traceSequence = [
       { traceId: "previous-trace", spanId: "previous-span" },

@@ -84,9 +84,7 @@ describe("llm evaluator draft read tool", () => {
     const result = await action({});
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const snapshot = JSON.parse(
-      result.output ?? ""
-    ) as LLMEvaluatorDraftSnapshot;
+    const snapshot: LLMEvaluatorDraftSnapshot = JSON.parse(result.output ?? "");
     expect(snapshot.mode).toBe("create");
     expect(snapshot.judge.model).toBe("gpt-4o");
     expect(snapshot.judge.messages).toHaveLength(1);
@@ -463,14 +461,17 @@ function makeFakePlaygroundStore(): {
       calls.setTemplateFormat.push(templateFormat);
     },
   };
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- minimal getState/setState stub standing in for the full zustand PlaygroundStore
   const store = {
     getState: () => state,
-    setState: (updater: unknown) => {
+    setState: (
+      updater: ((s: typeof state) => typeof state) | Partial<typeof state>
+    ) => {
       calls.setStateCalls += 1;
       if (typeof updater === "function") {
         state = {
           ...state,
-          ...(updater as (s: typeof state) => typeof state)(state),
+          ...updater(state),
         };
       }
     },

@@ -310,6 +310,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
               projectId ? [] : [ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES]
             }
             onAction={(firedAction) => {
+              // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- menu keys are ExperimentAction values by construction; the switch default asserts exhaustiveness
               const action = firedAction as ExperimentAction;
               switch (action) {
                 case ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES: {

@@ -50,7 +50,7 @@ describe("playground prompt agent tools", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const snapshot = JSON.parse(result.output ?? "") as PromptSnapshot;
+    const snapshot: PromptSnapshot = JSON.parse(result.output ?? "");
     expect(snapshot.instanceId).toBe(0);
     expect(snapshot.label).toBe("A");
     expect(snapshot.revision).toMatch(/^prompt-/);
@@ -72,19 +72,19 @@ describe("playground prompt agent tools", () => {
     const readResult = await readAction({});
     expect(readResult.ok).toBe(true);
     if (!readResult.ok) return;
-    const original = JSON.parse(readResult.output ?? "") as PromptSnapshot;
+    const original: PromptSnapshot = JSON.parse(readResult.output ?? "");
 
     const cloneResult = await cloneAction({ instanceId: original.instanceId });
 
     expect(cloneResult.ok).toBe(true);
     if (!cloneResult.ok) return;
-    const cloneOutput = JSON.parse(cloneResult.output ?? "") as {
+    const cloneOutput: {
       sourceInstanceId: number;
       sourceLabel: string;
       clonedInstanceId: number;
       clonedLabel: string;
       revision: string;
-    };
+    } = JSON.parse(cloneResult.output ?? "");
     expect(cloneOutput.sourceInstanceId).toBe(original.instanceId);
     expect(cloneOutput.sourceLabel).toBe("A");
     expect(cloneOutput.clonedInstanceId).not.toBe(original.instanceId);
@@ -95,7 +95,7 @@ describe("playground prompt agent tools", () => {
     });
     expect(clonedRead.ok).toBe(true);
     if (!clonedRead.ok) return;
-    const cloned = JSON.parse(clonedRead.output ?? "") as PromptSnapshot;
+    const cloned: PromptSnapshot = JSON.parse(clonedRead.output ?? "");
     expect(cloned.messages.map((message) => message.content)).toEqual(
       original.messages.map((message) => message.content)
     );
@@ -154,10 +154,10 @@ describe("playground prompt agent tools", () => {
 
     expect(addResult.ok).toBe(true);
     if (!addResult.ok) return;
-    const addOutput = JSON.parse(addResult.output ?? "") as {
+    const addOutput: {
       status: "added";
       addedInstance: PromptSnapshot;
-    };
+    } = JSON.parse(addResult.output ?? "");
     expect(addOutput.status).toBe("added");
     expect(addOutput.addedInstance.label).toBe("B");
     expect(addOutput.addedInstance.revision).toMatch(/^prompt-/);
@@ -541,7 +541,7 @@ describe("playground prompt agent tools", () => {
     const readResult = await readAction({});
     expect(readResult.ok).toBe(true);
     if (!readResult.ok) return;
-    const snapshot = JSON.parse(readResult.output ?? "") as PromptSnapshot;
+    const snapshot: PromptSnapshot = JSON.parse(readResult.output ?? "");
     let resolveToolOutput: (() => void) | undefined;
     const toolOutputPromise = new Promise<void>((resolve) => {
       resolveToolOutput = resolve;
@@ -610,7 +610,7 @@ describe("playground prompt agent tools", () => {
     const readResult = await readAction({});
     expect(readResult.ok).toBe(true);
     if (!readResult.ok) return;
-    const snapshot = JSON.parse(readResult.output ?? "") as PromptSnapshot;
+    const snapshot: PromptSnapshot = JSON.parse(readResult.output ?? "");
     let resolveToolOutput: (() => void) | undefined;
     const toolOutputPromise = new Promise<void>((resolve) => {
       resolveToolOutput = resolve;
@@ -673,7 +673,7 @@ describe("playground prompt agent tools", () => {
     const readResult = await readAction({});
     expect(readResult.ok).toBe(true);
     if (!readResult.ok) return;
-    const snapshot = JSON.parse(readResult.output ?? "") as PromptSnapshot;
+    const snapshot: PromptSnapshot = JSON.parse(readResult.output ?? "");
     playgroundStore.getState().updateMessage({
       instanceId: snapshot.instanceId,
       messageId: snapshot.messages[1]!.id,
@@ -721,7 +721,7 @@ describe("playground prompt agent tools", () => {
     const readResult = await readAction({});
     expect(readResult.ok).toBe(true);
     if (!readResult.ok) return;
-    const snapshot = JSON.parse(readResult.output ?? "") as PromptSnapshot;
+    const snapshot: PromptSnapshot = JSON.parse(readResult.output ?? "");
 
     const result = await editAction(
       {

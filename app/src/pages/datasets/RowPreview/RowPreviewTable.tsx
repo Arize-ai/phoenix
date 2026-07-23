@@ -106,15 +106,20 @@ export function RowPreviewTable({ columns, rows }: RowPreviewTableProps) {
         <tbody>
           {table.getRowModel().rows.map((row) => (
             <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td
-                  key={cell.id}
-                  css={cellCSS}
-                  title={cell.getValue() as string | undefined}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
+              {row.getVisibleCells().map((cell) => {
+                const cellValue = cell.getValue();
+                return (
+                  <td
+                    key={cell.id}
+                    css={cellCSS}
+                    title={
+                      typeof cellValue === "string" ? cellValue : undefined
+                    }
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

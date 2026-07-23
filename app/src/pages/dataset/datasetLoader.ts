@@ -11,11 +11,13 @@ import { DatasetPageQueryNode } from "./DatasetPage";
  */
 export async function datasetLoader(args: LoaderFunctionArgs) {
   const { datasetId } = args.params;
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- datasetId is guaranteed present by the :datasetId route param
+  const id = datasetId as string;
   const queryRef = loadQuery<DatasetPageQuery>(
     RelayEnvironment,
     DatasetPageQueryNode,
     {
-      id: datasetId as string,
+      id,
     }
   );
 
@@ -24,7 +26,7 @@ export async function datasetLoader(args: LoaderFunctionArgs) {
     RelayEnvironment,
     DatasetPageQueryNode,
     {
-      id: datasetId as string,
+      id,
     }
   ).toPromise();
 

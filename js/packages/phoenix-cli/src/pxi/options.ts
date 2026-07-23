@@ -154,7 +154,7 @@ function getExpectedProviderMessage(): string {
 }
 
 function isBuiltInProvider(provider: string): provider is BuiltInProvider {
-  return BUILT_IN_PROVIDERS.includes(provider as BuiltInProvider);
+  return (BUILT_IN_PROVIDERS as readonly string[]).includes(provider);
 }
 
 function normalizeBuiltInProvider({ provider }: { provider: string }): string {

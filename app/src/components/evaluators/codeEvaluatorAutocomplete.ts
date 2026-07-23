@@ -18,8 +18,8 @@ function getTypeDescription(value: unknown): string {
     if (value.length === 0) return "array (empty)";
     return `array (${value.length} items)`;
   }
-  if (typeof value === "object") {
-    const keys = Object.keys(value as Record<string, unknown>);
+  if (typeof value === "object" && value !== null) {
+    const keys = Object.keys(value);
     if (keys.length <= 3) return `object { ${keys.join(", ")} }`;
     return `object (${keys.length} keys)`;
   }

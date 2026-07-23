@@ -9,6 +9,7 @@ import type { ToolInvocationPart } from "../toolPartTypes";
 function createLoadSkillPart(
   overrides: Partial<ToolInvocationPart> = {}
 ): ToolInvocationPart {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fixture factory coerces a loose literal into the state-discriminated tool part union
   return {
     type: `tool-${LOAD_SKILL_TOOL_NAME}`,
     toolCallId: "tool-call-1",

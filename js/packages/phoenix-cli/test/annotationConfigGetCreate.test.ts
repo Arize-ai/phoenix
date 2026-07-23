@@ -158,7 +158,7 @@ describe("annotation-config create", () => {
     );
 
     expect(captured.count).toBe(1);
-    const body = captured.body as Record<string, unknown>;
+    const body = captured.body!;
     expect(body.type).toBe("CATEGORICAL");
     expect(body.name).toBe("quality");
     expect(body.optimization_direction).toBe("MAXIMIZE");
@@ -189,7 +189,7 @@ describe("annotation-config create", () => {
       { from: "user" }
     );
 
-    const body = captured.body as Record<string, unknown>;
+    const body = captured.body!;
     expect(body.type).toBe("CONTINUOUS");
     expect(body.optimization_direction).toBe("NONE");
     expect(body.lower_bound).toBe(0);
@@ -315,7 +315,7 @@ describe("annotation-config create", () => {
       { from: "user" }
     );
 
-    const body = captured.body as Record<string, unknown>;
+    const body = captured.body!;
     expect(body.optimization_direction).toBe("MAXIMIZE");
   });
 });

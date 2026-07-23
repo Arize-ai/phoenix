@@ -109,7 +109,7 @@ describe("ExpandableContent", () => {
     // observer callback so we can drive a later resize by hand.
     let resizeCallback: ResizeObserverCallback | null = null;
     const realResizeObserver = globalThis.ResizeObserver;
-    class CapturingResizeObserver {
+    class CapturingResizeObserver implements ResizeObserver {
       constructor(callback: ResizeObserverCallback) {
         resizeCallback = callback;
       }
@@ -117,8 +117,7 @@ describe("ExpandableContent", () => {
       unobserve() {}
       disconnect() {}
     }
-    globalThis.ResizeObserver =
-      CapturingResizeObserver as unknown as typeof ResizeObserver;
+    globalThis.ResizeObserver = CapturingResizeObserver;
 
     try {
       mockScrollHeight(100);
@@ -128,8 +127,13 @@ describe("ExpandableContent", () => {
 
       // Content grows past the collapsed height, then the observer fires.
       mockScrollHeight(500);
+      const dummyObserver: ResizeObserver = {
+        observe() {},
+        unobserve() {},
+        disconnect() {},
+      };
       act(() => {
-        resizeCallback?.([], {} as ResizeObserver);
+        resizeCallback?.([], dummyObserver);
       });
       expect(
         container.querySelector('[aria-label="Show more"]')

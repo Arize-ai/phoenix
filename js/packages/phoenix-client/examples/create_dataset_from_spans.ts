@@ -50,6 +50,7 @@ function extractInput(
   if (inputValue) {
     const parsed = parseJsonValue(inputValue);
     if (typeof parsed === "object" && parsed !== null) {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- parsed JSON object narrowed to a string-keyed record
       return parsed as Record<string, unknown>;
     }
     return { value: parsed };
@@ -68,6 +69,7 @@ function extractOutput(
   if (outputValue) {
     const parsed = parseJsonValue(outputValue);
     if (typeof parsed === "object" && parsed !== null) {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- parsed JSON object narrowed to a string-keyed record
       return parsed as Record<string, unknown>;
     }
     return { value: parsed };

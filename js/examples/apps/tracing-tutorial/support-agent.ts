@@ -41,6 +41,13 @@ interface Message {
   content: string;
 }
 
+/**
+ * Narrow an unknown value to a plain record.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 // =============================================================================
 // Order Database (for tool calls)
 // =============================================================================
@@ -342,11 +349,13 @@ Respond with JSON only:
             let orderInfo: Record<string, unknown> | null = null;
             for (const step of toolDecision.steps || []) {
               if (step.toolResults && step.toolResults.length > 0) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                orderInfo = (step.toolResults[0] as any).output as Record<
-                  string,
-                  unknown
-                >;
+                const firstToolResult: unknown = step.toolResults[0];
+                if (
+                  isRecord(firstToolResult) &&
+                  isRecord(firstToolResult.output)
+                ) {
+                  orderInfo = firstToolResult.output;
+                }
                 break;
               }
             }

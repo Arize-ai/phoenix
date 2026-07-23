@@ -176,13 +176,14 @@ export function getInitialSettingsFile(): SettingsFile {
 /**
  * Format a Zod error path segment for human-readable messages.
  */
-function formatZodPath(pathSegments: (string | number)[]): string {
+function formatZodPath(pathSegments: PropertyKey[]): string {
   return pathSegments
     .map((segment, i) => {
       if (typeof segment === "number") {
         return `[${segment}]`;
       }
-      return i === 0 ? segment : `.${segment}`;
+      const key = String(segment);
+      return i === 0 ? key : `.${key}`;
     })
     .join("");
 }
@@ -207,20 +208,20 @@ function parseSettingsFile(rawJson: string): SettingsParseResult {
   }
 
   const issue = result.error.issues[0];
-  const issuePath = issue.path as (string | number)[];
+  const issuePath = issue.path;
 
   if (issuePath.length === 0) {
     return { ok: false, reason: "Settings file root must be an object" };
   }
 
   if (issuePath.length === 2 && issuePath[0] === "profiles") {
-    const name = issuePath[1];
+    const name = String(issuePath[1]);
     return { ok: false, reason: `Profile "${name}" must be an object` };
   }
 
   if (issuePath.length === 3 && issuePath[0] === "profiles") {
-    const name = issuePath[1];
-    const field = issuePath[2];
+    const name = String(issuePath[1]);
+    const field = String(issuePath[2]);
     if (field === "headers") {
       return {
         ok: false,
@@ -248,8 +249,8 @@ function parseSettingsFile(rawJson: string): SettingsParseResult {
     issuePath[0] === "profiles" &&
     issuePath[2] === "headers"
   ) {
-    const name = issuePath[1];
-    const key = issuePath[3];
+    const name = String(issuePath[1]);
+    const key = String(issuePath[3]);
     return {
       ok: false,
       reason: `Profile "${name}".headers["${key}"] must be a string`,
@@ -371,7 +372,8 @@ export function loadSettings(options?: LoadSettingsOptions): SettingsFile {
     if (
       typeof err === "object" &&
       err !== null &&
-      (err as NodeJS.ErrnoException).code === "ENOENT"
+      "code" in err &&
+      err.code === "ENOENT"
     ) {
       return getInitialSettingsFile();
     }

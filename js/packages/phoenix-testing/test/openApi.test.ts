@@ -21,6 +21,7 @@ describe("createOpenApiHandlers", () => {
   it("creates a handler for every operation in the OpenAPI definition", async () => {
     const handlers = await createOpenApiHandlers();
     const document = getOpenApiDocument();
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- OpenAPI paths object shape is known
     const paths = document.paths as Record<string, Record<string, unknown>>;
     const operationCount = Object.values(paths)
       .map((operations) => Object.keys(operations).length)

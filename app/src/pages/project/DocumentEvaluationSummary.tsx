@@ -32,6 +32,7 @@ export function DocumentEvaluationSummary({
       }
     `,
     {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition
       id: projectId as string,
       evaluationName,
       timeRange: timeRangeISOStrings,

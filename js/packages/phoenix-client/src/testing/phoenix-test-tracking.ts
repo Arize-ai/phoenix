@@ -134,16 +134,13 @@ function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
     return "[" + value.map(stableStringify).join(",") + "]";
   }
-  const keys = Object.keys(value as object).sort();
+  const entries = Object.entries(value).sort(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0
+  );
   return (
     "{" +
-    keys
-      .map(
-        (k) =>
-          JSON.stringify(k) +
-          ":" +
-          stableStringify((value as Record<string, unknown>)[k])
-      )
+    entries
+      .map(([k, v]) => JSON.stringify(k) + ":" + stableStringify(v))
       .join(",") +
     "}"
   );
@@ -305,11 +302,13 @@ export async function initializeSuite(suite: SuiteState): Promise<void> {
       }
       const queue = inputKeyToTestNames.get(stableKey(ex.input));
       if (queue && queue.length) {
-        const testName = queue.shift() as string;
-        suite.exampleIdsByTest.set(testName, {
-          exampleId: ex.id,
-          nodeId: ex.node_id,
-        });
+        const testName = queue.shift();
+        if (testName !== undefined) {
+          suite.exampleIdsByTest.set(testName, {
+            exampleId: ex.id,
+            nodeId: ex.node_id,
+          });
+        }
       }
     }
   } catch {
@@ -540,7 +539,8 @@ export async function postExperimentRun(
         body: {
           dataset_example_id: example.nodeId,
           output: run.outputSet
-            ? (run.output as Record<string, unknown> | string | null)
+            ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- user-recorded output is unknown; serialized as-is into the experiment run body
+              (run.output as Record<string, unknown> | string | null)
             : null,
           repetition_number: run.repetitionNumber,
           start_time: run.startTime.toISOString(),

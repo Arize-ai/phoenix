@@ -733,6 +733,7 @@ describe("agentStore", () => {
     it("updates one capability without clobbering the others", () => {
       const store = createAgentStore();
       const defaultCapabilities = createDefaultAgentCapabilities();
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys of a Record widens to string[]
       const [capabilityToToggle] = Object.keys(defaultCapabilities) as Array<
         keyof typeof defaultCapabilities
       >;
@@ -744,6 +745,7 @@ describe("agentStore", () => {
 
       expect(store.getState().capabilities[capabilityToToggle]).toBe(true);
 
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries of a Record widens keys to string
       for (const [capabilityKey, enabled] of Object.entries(
         defaultCapabilities
       ) as Array<[keyof typeof defaultCapabilities, boolean]>) {

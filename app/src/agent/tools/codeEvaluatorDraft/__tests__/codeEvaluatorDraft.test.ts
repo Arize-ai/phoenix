@@ -77,9 +77,9 @@ describe("code evaluator draft agent tools", () => {
     const result = await action({});
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const snapshot = JSON.parse(
+    const snapshot: CodeEvaluatorDraftSnapshot = JSON.parse(
       result.output ?? ""
-    ) as CodeEvaluatorDraftSnapshot;
+    );
     expect(snapshot.mode).toBe("create");
   });
 

@@ -141,7 +141,9 @@ function formatPromptPretty(promptVersion: PromptVersion): string {
     lines.push(`│`);
     lines.push(`│  Invocation Parameters:`);
     const params = promptVersion.invocation_parameters;
-    const providerParams = params[params.type as keyof typeof params];
+    const providerParams = Object.entries(params).find(
+      ([key]) => key !== "type"
+    )?.[1];
     if (providerParams && typeof providerParams === "object") {
       for (const [key, value] of Object.entries(providerParams)) {
         lines.push(`│    ${key}: ${JSON.stringify(value)}`);

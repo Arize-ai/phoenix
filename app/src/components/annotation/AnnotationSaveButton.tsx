@@ -19,6 +19,7 @@ export function AnnotationSaveButton({
     (e) => {
       e.preventDefault();
       e.stopPropagation();
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- bridging a react-hotkeys keyboard event to react-aria's PressEvent to reuse the button's onPress handler
       props.onPress?.(e as unknown as PressEvent);
     },
     {
