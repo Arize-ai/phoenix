@@ -18,7 +18,6 @@ import {
 import {
   buildAgentChatRequestBody,
   type AgentChatRequestBodyPatch,
-  type AgentModelSelection,
 } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
@@ -69,6 +68,7 @@ import {
   AGENT_SESSIONS_CONNECTION_KEY,
   refetchAgentSession,
 } from "./agentSessionRelay";
+import { selectAgentModel } from "./useAgentChatPanelState";
 
 type TurnClientState = {
   turnTraceContext: ReturnType<typeof createTurnTraceContextManager>;
@@ -169,14 +169,16 @@ const branchAgentSessionMutation = graphql`
 
 /**
  * Subscribes the current render surface to the persistent AI SDK chat runtime
- * for a single agent session/model pair.
+ * for a single agent session.
  *
  * `useChat` alone is tied to the current mounted component, which is too short-
  * lived for this agent UX: the visible chat surface can move between the docked
- * panel and the trace slideover, and model changes intentionally replace the
- * underlying transport. This hook keeps the imperative AI SDK `Chat` instance
- * in the app-level runtime registry, then binds the current React surface to
- * whichever runtime instance should own the session right now.
+ * panel and the trace slideover. This hook keeps the imperative AI SDK `Chat`
+ * instance in the app-level runtime registry, then binds the current React
+ * surface to whichever runtime instance should own the session right now. The
+ * transport reads per-send state (model selection, capabilities, contexts)
+ * from the store at request time, so those settings apply to the next send
+ * without rebuilding the cached chat.
  *
  * Session lifecycle: sessions are created imperatively on the server. When
  * `sessionId` is the draft sentinel ({@link DRAFT_SESSION_ID}) no server
@@ -187,7 +189,6 @@ const branchAgentSessionMutation = graphql`
  */
 export function useAgentChat({
   sessionId,
-  modelSelection,
   initialMessages,
 }: {
   /**
@@ -195,7 +196,6 @@ export function useAgentChat({
    * not-yet-persisted new-chat draft.
    */
   sessionId: string | null;
-  modelSelection: AgentModelSelection;
   /** Server transcript used to seed the runtime chat on its first bind. */
   initialMessages?: AgentUIMessage[];
 }) {
@@ -234,13 +234,6 @@ export function useAgentChat({
   // Guards the draft surface against double-submits while the create-session
   // mutation is in flight.
   const isCreatingSessionRef = useRef(false);
-
-  // The Chat is cached per-session in the runtime registry, so its transport
-  // and onFinish closures are captured once and reused across model changes.
-  // Read through the ref so the latest model selection takes effect on the
-  // next send without rebuilding the Chat.
-  const modelSelectionRef = useRef(modelSelection);
-  modelSelectionRef.current = modelSelection;
 
   /**
    * Builds the imperative AI SDK chat runtime for a persisted session. The
@@ -294,7 +287,10 @@ export function useAgentChat({
                 agentsConfig: store.getState().agentsConfig,
                 permissions: store.getState().permissions,
                 contexts: selectActiveContexts(store.getState()),
-                modelSelection: modelSelectionRef.current,
+                // The Chat is cached per-session in the runtime registry and
+                // may outlive the surface that created it, so the model must
+                // be read from the store at request time — never captured.
+                modelSelection: selectAgentModel(store.getState()),
                 turnTraceContext: turnTraceContext.getActive(),
                 toolTimings,
               }),
@@ -608,7 +604,9 @@ export function useAgentChat({
         const response = await authFetch(buildAgentCompactApiUrl(sessionId), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: modelSelectionRef.current }),
+          body: JSON.stringify({
+            model: selectAgentModel(store.getState()),
+          }),
         });
         if (!response.ok) {
           throw new Error(await getAgentCompactErrorMessage(response));
