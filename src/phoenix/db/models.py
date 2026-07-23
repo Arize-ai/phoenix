@@ -3317,6 +3317,17 @@ class AgentSessionMessage(HasId):
         nullable=False,
         unique=True,
     )
+    is_compaction_message: Mapped[bool] = mapped_column(
+        Boolean,
+        sa.Computed(
+            func.coalesce(
+                message[["metadata", "isCompactionMessage"]].as_boolean(),
+                sa.false(),
+            ),
+            persisted=True,
+        ),
+        nullable=False,
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     @property
@@ -3328,15 +3339,15 @@ class AgentSessionMessage(HasId):
         "AgentSession",
         back_populates="messages",
     )
-    compaction_point: Mapped[Optional["AgentSessionCompactionPoint"]] = relationship(
-        "AgentSessionCompactionPoint",
-        back_populates="message",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-        uselist=False,
-    )
     __table_args__ = (
         UniqueConstraint("agent_session_id", "position"),
+        Index(
+            "ix_agent_session_messages_compaction",
+            "agent_session_id",
+            position.desc(),
+            postgresql_where=text("is_compaction_message"),
+            sqlite_where=text("is_compaction_message"),
+        ),
         dict(sqlite_autoincrement=True),
     )
 
@@ -3358,16 +3369,3 @@ class AgentSessionSnapshot(HasId):
         back_populates="snapshot",
     )
     __table_args__ = (dict(sqlite_autoincrement=True),)
-
-
-class AgentSessionCompactionPoint(HasId):
-    __tablename__ = "agent_session_compaction_points"
-    agent_session_message_id: Mapped[int] = mapped_column(
-        ForeignKey("agent_session_messages.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-    )
-    message: Mapped[AgentSessionMessage] = relationship(
-        "AgentSessionMessage",
-        back_populates="compaction_point",
-    )

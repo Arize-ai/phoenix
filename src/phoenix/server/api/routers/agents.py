@@ -1511,15 +1511,13 @@ async def _load_agent_session_history(
     agent_session_rowid: int,
 ) -> list[models.AgentSessionMessage]:
     """Load messages from the latest surviving compaction point onward."""
-    compaction_message = models.AgentSessionMessage.__table__.alias("compaction_message")
     latest_compaction_position = (
-        select(compaction_message.c.position)
-        .join(
-            models.AgentSessionCompactionPoint,
-            models.AgentSessionCompactionPoint.agent_session_message_id == compaction_message.c.id,
+        select(models.AgentSessionMessage.position)
+        .where(
+            models.AgentSessionMessage.agent_session_id == agent_session_rowid,
+            models.AgentSessionMessage.is_compaction_message,
         )
-        .where(compaction_message.c.agent_session_id == agent_session_rowid)
-        .order_by(compaction_message.c.position.desc())
+        .order_by(models.AgentSessionMessage.position.desc())
         .limit(1)
         .scalar_subquery()
     )
@@ -1707,12 +1705,6 @@ def create_agents_router(
                 message=compaction_message,
             )
             session.add(compaction_message_row)
-            await session.flush()
-            session.add(
-                models.AgentSessionCompactionPoint(
-                    agent_session_message_id=compaction_message_row.id,
-                )
-            )
         return CompactAgentSessionResponse(
             data=CompactAgentSessionResponseData(
                 compacted=True,
