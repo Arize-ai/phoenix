@@ -3,6 +3,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { transformEnvironmentVariableInput } from "@phoenix/utils/environmentVariableUtils";
+import { transformIdentifierInput } from "@phoenix/utils/identifierUtils";
+import { transformURISafeInput } from "@phoenix/utils/uriUtils";
+
 import { useTransformingInput } from "../useTransformingInput";
 
 function setNativeInputValue({
@@ -29,10 +33,12 @@ function TransformingInputHarness({
   initialValue,
   onValueCommitted,
   transformValue,
+  shouldWireInputProps = true,
 }: {
   initialValue: string;
   onValueCommitted: (value: string) => void;
   transformValue: (value: string) => string;
+  shouldWireInputProps?: boolean;
 }) {
   const [value, setValue] = useState(initialValue);
   const transformingInput = useTransformingInput({
@@ -45,7 +51,7 @@ function TransformingInputHarness({
   });
   return (
     <input
-      {...transformingInput.inputProps}
+      {...(shouldWireInputProps ? transformingInput.inputProps : {})}
       value={transformingInput.displayValue}
       onChange={(event) =>
         transformingInput.handleValueChange(event.currentTarget.value)
@@ -97,10 +103,12 @@ describe("useTransformingInput", () => {
         .toLowerCase()
         .replace(/\s+/g, "-")
         .replace(/[^a-z0-9-]/g, ""),
+    shouldWireInputProps = true,
   }: {
     initialValue: string;
     onValueCommitted?: (value: string) => void;
     transformValue?: (value: string) => string;
+    shouldWireInputProps?: boolean;
   }) => {
     act(() => {
       root.render(
@@ -108,6 +116,7 @@ describe("useTransformingInput", () => {
           initialValue={initialValue}
           onValueCommitted={onValueCommitted}
           transformValue={transformValue}
+          shouldWireInputProps={shouldWireInputProps}
         />
       );
     });
@@ -133,6 +142,70 @@ describe("useTransformingInput", () => {
     expect(input.selectionStart).toBe(6);
     expect(input.selectionEnd).toBe(6);
   });
+
+  it("restores the caret when a dropped character leaves the value unchanged", () => {
+    const input = renderHarness({ initialValue: "alpha-beta" });
+
+    act(() => {
+      setNativeInputValue({
+        input,
+        value: "alpha!-beta",
+        selectionStart: 6,
+      });
+    });
+    flushAnimationFrames();
+
+    expect(input.value).toBe("alpha-beta");
+    expect(input.selectionStart).toBe(5);
+    expect(input.selectionEnd).toBe(5);
+  });
+
+  it.each([
+    {
+      name: "identifier",
+      transformValue: transformIdentifierInput,
+      rawValue: "Alpha Beta",
+      selectionStart: 6,
+      expectedValue: "alpha-beta",
+      expectedSelectionStart: 6,
+    },
+    {
+      name: "environment variable",
+      transformValue: transformEnvironmentVariableInput,
+      rawValue: "API KEY",
+      selectionStart: 4,
+      expectedValue: "API_KEY",
+      expectedSelectionStart: 4,
+    },
+    {
+      name: "URI-safe",
+      transformValue: transformURISafeInput,
+      rawValue: "My Project",
+      selectionStart: 3,
+      expectedValue: "My-Project",
+      expectedSelectionStart: 3,
+    },
+  ])(
+    "maps the caret through the production $name transform",
+    ({
+      transformValue,
+      rawValue,
+      selectionStart,
+      expectedValue,
+      expectedSelectionStart,
+    }) => {
+      const input = renderHarness({ initialValue: "", transformValue });
+
+      act(() => {
+        setNativeInputValue({ input, value: rawValue, selectionStart });
+      });
+      flushAnimationFrames();
+
+      expect(input.value).toBe(expectedValue);
+      expect(input.selectionStart).toBe(expectedSelectionStart);
+      expect(input.selectionEnd).toBe(expectedSelectionStart);
+    }
+  );
 
   it("maps a selection through expanding and collapsing transforms", () => {
     const input = renderHarness({
@@ -213,5 +286,25 @@ describe("useTransformingInput", () => {
     expect(scheduledFrames.size).toBe(1);
     flushAnimationFrames();
     expect(input.selectionStart).toBe(8);
+  });
+
+  it("warns once when inputProps are not wired to the native input", () => {
+    const consoleWarning = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const input = renderHarness({
+      initialValue: "alpha",
+      shouldWireInputProps: false,
+    });
+
+    act(() => {
+      setNativeInputValue({ input, value: "Alpha" });
+      setNativeInputValue({ input, value: "Alpha Beta" });
+    });
+
+    expect(consoleWarning).toHaveBeenCalledTimes(1);
+    expect(consoleWarning).toHaveBeenCalledWith(
+      "useTransformingInput could not access the native input. Spread the returned inputProps onto the Input element to preserve selection and IME composition."
+    );
   });
 });

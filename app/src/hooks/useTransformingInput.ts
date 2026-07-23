@@ -36,9 +36,12 @@ export type UseTransformingInputOptions = {
  * Applies a live text transform without disrupting the user's selection or an
  * in-progress input-method-editor (IME) composition.
  *
- * Selection mapping assumes the transform is prefix-stable: transforming a
- * prefix must produce the same prefix as transforming the complete value. The
- * identifier, environment-variable, and URI-safe transforms satisfy this.
+ * Selection mapping applies the transform to the raw text before each
+ * selection boundary. The transform must therefore map every raw prefix to
+ * the correct selection boundary in the complete transformed value. Transforms
+ * that depend on trailing context, such as `trim()`, are not supported. The
+ * identifier, environment-variable, and URI-safe transforms satisfy this
+ * requirement.
  *
  * @param params - Controlled input configuration.
  * @param params.value - The committed controlled value.
@@ -53,6 +56,7 @@ export function useTransformingInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const isComposingRef = useRef(false);
   const scheduledAnimationFrameRef = useRef<number | null>(null);
+  const hasWarnedAboutMissingInputPropsRef = useRef(false);
   const [compositionValue, setCompositionValue] = useState<string | null>(null);
 
   const cancelScheduledSelection = () => {
@@ -85,6 +89,17 @@ export function useTransformingInput({
 
   const getCurrentSelection = (rawValue: string): TextSelection => {
     const input = inputRef.current;
+    if (
+      import.meta.env.DEV &&
+      input == null &&
+      !hasWarnedAboutMissingInputPropsRef.current
+    ) {
+      hasWarnedAboutMissingInputPropsRef.current = true;
+      // eslint-disable-next-line no-console
+      console.warn(
+        "useTransformingInput could not access the native input. Spread the returned inputProps onto the Input element to preserve selection and IME composition."
+      );
+    }
     return {
       start: input?.selectionStart ?? rawValue.length,
       end: input?.selectionEnd ?? rawValue.length,
