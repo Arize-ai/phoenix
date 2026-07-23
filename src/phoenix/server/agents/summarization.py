@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field
 from pydantic_ai.messages import (
     InstructionPart,
     ModelMessage,
+    ModelRequest,
     ToolCallPart,
+    UserPromptPart,
 )
 from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.tools import ToolDefinition
@@ -69,7 +71,14 @@ async def summarize_messages(
     )
     try:
         response = await model.request(
-            [*messages],
+            [
+                *messages,
+                ModelRequest(
+                    # Explicitly add user message to support anthropic models that forbid assistant
+                    # message prefill
+                    parts=[UserPromptPart(content="Create the conversation title now.")]
+                ),
+            ],
             model_settings=None,
             model_request_parameters=request_params,
         )
@@ -101,7 +110,14 @@ async def summarize_messages_for_compaction(
     )
     try:
         response = await model.request(
-            messages,
+            [
+                *messages,
+                ModelRequest(
+                    # Explicitly add user message to support anthropic models that forbid assistant
+                    # message prefill
+                    parts=[UserPromptPart(content="Create the conversation checkpoint now.")]
+                ),
+            ],
             model_settings=None,
             model_request_parameters=request_params,
         )
