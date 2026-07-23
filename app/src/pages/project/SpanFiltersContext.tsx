@@ -8,11 +8,13 @@ import {
   useEffectEvent,
   useState,
 } from "react";
+import { useSearchParams } from "react-router";
 
 import {
   SET_SPANS_FILTER_TOOL_NAME,
   type SetSpansFilterInput,
 } from "@phoenix/agent/tools/spansFilter";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
@@ -46,7 +48,14 @@ export function useSpanFilters() {
 }
 
 export function SpanFiltersProvider(props: PropsWithChildren) {
-  const [filterCondition, _setFilterCondition] = useState<string>("");
+  const [searchParams] = useSearchParams();
+  // Seed the filter from the URL so server-generated deep links (e.g. cohort
+  // permalinks carrying `?filter=...`) open the table pre-filtered. The
+  // search param arrives URL-decoded from useSearchParams, so the condition
+  // lands in the field verbatim.
+  const [filterCondition, _setFilterCondition] = useState<string>(
+    () => searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? ""
+  );
   const [rootSpansOnly, _setRootSpansOnly] = useState<boolean>(true);
 
   const setFilterCondition = useCallback((condition: string) => {
