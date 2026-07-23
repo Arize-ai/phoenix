@@ -11,6 +11,7 @@ from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     TextUIPart,
 )
+from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
 from phoenix.server.api.routers.agents import (
     _build_compaction_message,
     _load_agent_session_history,
@@ -634,6 +635,20 @@ async def test_create_agent_session_mints_distinct_sessions(
         assert len(set(project_session_ids)) == 2
 
 
+async def test_create_agent_session_rejects_long_title(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_CREATE_MUTATION,
+        variables={"title": "x" * (MAX_AGENT_SESSION_TITLE_LENGTH + 1)},
+    )
+
+    assert response.errors
+    assert response.errors[0].message == (
+        f"Agent session title cannot exceed {MAX_AGENT_SESSION_TITLE_LENGTH} characters"
+    )
+
+
 async def test_update_agent_session_title(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
@@ -684,6 +699,37 @@ async def test_update_agent_session_title_rejects_empty_title(
 
     assert response.errors
     assert response.errors[0].message == "Agent session title cannot be empty"
+    async with db() as session:
+        assert await session.scalar(select(models.AgentSession.title)) == "Old title"
+
+
+async def test_update_agent_session_title_rejects_long_title(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        agent_session = models.AgentSession(
+            project_session_id="11111111-1111-4111-8111-111111111111",
+            user_id=None,
+            title="Old title",
+            project_name="assistant_agent",
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+    response = await gql_client.execute(
+        query=_UPDATE_TITLE_MUTATION,
+        variables={
+            "id": agent_session_id,
+            "title": "x" * (MAX_AGENT_SESSION_TITLE_LENGTH + 1),
+        },
+    )
+
+    assert response.errors
+    assert response.errors[0].message == (
+        f"Agent session title cannot exceed {MAX_AGENT_SESSION_TITLE_LENGTH} characters"
+    )
     async with db() as session:
         assert await session.scalar(select(models.AgentSession.title)) == "Old title"
 
