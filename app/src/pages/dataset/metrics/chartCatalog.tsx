@@ -130,7 +130,7 @@ function ExperimentAnnotationChartPanel({
   ...props
 }: ExperimentMetricPanelProps) {
   invariant(
-    annotationName,
+    annotationName != null,
     "annotationName is required for an annotation metric chart"
   );
   return (

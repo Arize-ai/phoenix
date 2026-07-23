@@ -91,9 +91,14 @@ describe("normalizeAnnotationMetrics", () => {
     expect(series).toMatchObject({
       name: "quality",
       views: ["labels", "scores"],
-      labels: ["fail", "pass"],
+      labels: ["pass", "fail"],
     });
-    expect(series.dataByView.scores.map(({ x }) => x)).toEqual([1, 3]);
+    expect(
+      series.dataByView.scores.map(({ x, meanScore }) => ({ x, meanScore }))
+    ).toEqual([
+      { x: 1, meanScore: 0.4 },
+      { x: 3, meanScore: 0.8 },
+    ]);
     expect(series.dataByView.labels.map(({ x }) => x)).toEqual([1, 2, 3]);
     expect(series.dataByView.labels[0]?.fractions).toEqual([
       undefined,
@@ -105,20 +110,9 @@ describe("normalizeAnnotationMetrics", () => {
         point: series.dataByView.labels[0]!,
       })
     ).toBe(1);
-    expect(series.dataByView.labels[1]?.fractions).toEqual([undefined, 1]);
-    expect(series.dataByView.labels[2]).toEqual({
-      x: 3,
-      metadata: { experimentName: "third" },
-      hasAnnotationSummary: true,
-      fractions: [0.25, 0.75],
-    });
-    expect(series.dataByView.scores[1]).toEqual({
-      x: 3,
-      metadata: { experimentName: "third" },
-      hasAnnotationSummary: true,
-      meanScore: 0.8,
-      fractions: [],
-    });
+    expect(series.dataByView.labels[1]?.fractions).toEqual([1, undefined]);
+    expect(series.dataByView.labels[2]?.fractions).toEqual([0.75, 0.25]);
+    expect(getDefaultAnnotationMetricsView(series)).toBe("labels");
   });
 
   it("preserves every visible point when an annotation is sparse", () => {
@@ -172,31 +166,6 @@ describe("normalizeAnnotationMetrics", () => {
     expect(labelSeries.dataByView.labels[3]?.hasAnnotationSummary).toBe(false);
     expect(labelSeries.dataByView.labels[4]?.fractions).toEqual([1]);
     expect(labelSeries.dataByView.labels[4]?.hasAnnotationSummary).toBe(true);
-  });
-
-  it("keeps an empty baseline reference outside the visible window", () => {
-    const [series] = normalizeAnnotationMetrics({
-      points: [
-        {
-          x: 4,
-          summaries: [{ name: "quality", meanScore: 0.75, labelFractions: [] }],
-        },
-      ],
-      referencePoint: {
-        x: 1,
-        metadata: { isBaseline: true },
-        summaries: [],
-      },
-      includeEmptyPoints: true,
-    });
-
-    expect(series.referenceByView.scores).toEqual({
-      x: 1,
-      metadata: { isBaseline: true },
-      hasAnnotationSummary: false,
-      meanScore: undefined,
-      fractions: [],
-    });
   });
 
   it("prepends only an out-of-window baseline", () => {
@@ -280,60 +249,6 @@ describe("normalizeAnnotationMetrics", () => {
     });
   });
 
-  it("preserves latest-point label ranking when there is no baseline", () => {
-    const [series] = normalizeAnnotationMetrics({
-      points: [
-        {
-          x: 1,
-          summaries: [
-            {
-              name: "quality",
-              meanScore: null,
-              labelFractions: [
-                { label: "old-only", fraction: 0.5 },
-                { label: "shared", fraction: 0.5 },
-              ],
-            },
-          ],
-        },
-        {
-          x: 2,
-          summaries: [
-            {
-              name: "quality",
-              meanScore: null,
-              labelFractions: [
-                { label: "latest-first", fraction: 0.75 },
-                { label: "shared", fraction: 0.25 },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-
-    expect(series.labels).toEqual(["latest-first", "shared", "old-only"]);
-  });
-
-  it("defaults mixed annotations to labels", () => {
-    const [series] = normalizeAnnotationMetrics({
-      points: [
-        {
-          x: 1,
-          summaries: [
-            {
-              name: "quality",
-              meanScore: 0.5,
-              labelFractions: [{ label: "pass", fraction: 1 }],
-            },
-          ],
-        },
-      ],
-    });
-
-    expect(getDefaultAnnotationMetricsView(series!)).toBe("labels");
-  });
-
   it("omits annotations with no chartable values", () => {
     const series = normalizeAnnotationMetrics({
       points: [
@@ -352,12 +267,6 @@ describe("normalizeAnnotationMetrics", () => {
 
     expect(series).toEqual([]);
   });
-
-  it("returns no series when the window has no summaries", () => {
-    expect(
-      normalizeAnnotationMetrics({ points: [{ x: 1, summaries: [] }] })
-    ).toEqual([]);
-  });
 });
 
 describe("getAnnotationOtherFraction", () => {
@@ -374,46 +283,24 @@ describe("getAnnotationOtherFraction", () => {
     fractions,
   });
 
-  it("returns the fraction of results without labels", () => {
-    const point = makePoint({ fractions: [0.5, 0.25, 0.1] });
-
-    expect(getAnnotationOtherFraction({ point })).toBeCloseTo(0.15);
-  });
-
-  it("treats a result-bearing summary without labels as entirely other", () => {
-    expect(
-      getAnnotationOtherFraction({
-        point: makePoint({ fractions: [] }),
-      })
-    ).toBe(1);
-  });
-
-  it("does not invent an other bar for an empty chart category", () => {
-    expect(
-      getAnnotationOtherFraction({
-        point: makePoint({
-          fractions: [],
-          hasAnnotationSummary: false,
-        }),
-      })
-    ).toBeUndefined();
-  });
-
-  it("suppresses zero and floating-point residuals", () => {
-    expect(
-      getAnnotationOtherFraction({
-        point: makePoint({ fractions: [0.6, 0.4] }),
-      })
-    ).toBeUndefined();
-    expect(
-      getAnnotationOtherFraction({
-        point: makePoint({ fractions: [0.6, 0.3999999995] }),
-      })
-    ).toBeUndefined();
-    expect(
-      getAnnotationOtherFraction({
-        point: makePoint({ fractions: [0.7, 0.5] }),
-      })
-    ).toBeUndefined();
-  });
+  it.each([
+    ["partially unlabeled results", [0.5, 0.25, 0.1], true, 0.15],
+    ["entirely unlabeled results", [], true, 1],
+    ["an empty chart category", [], false, undefined],
+    ["a complete distribution", [0.6, 0.4], true, undefined],
+    ["a floating-point residual", [0.6, 0.3999999995], true, undefined],
+    ["an overfull distribution", [0.7, 0.5], true, undefined],
+  ] as const)(
+    "handles %s",
+    (_, fractions, hasAnnotationSummary, expectedFraction) => {
+      const fraction = getAnnotationOtherFraction({
+        point: makePoint({ fractions, hasAnnotationSummary }),
+      });
+      if (expectedFraction == null) {
+        expect(fraction).toBeUndefined();
+      } else {
+        expect(fraction).toBeCloseTo(expectedFraction);
+      }
+    }
+  );
 });

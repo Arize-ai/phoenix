@@ -43,20 +43,12 @@ describe("datasetStore", () => {
     });
 
     it("hydrates a persisted selection", () => {
-      seedPersistedState({ experimentsMetricChartKeys: ["cost", "tokens"] });
-      const store = createStore();
-      expect(store.getState().experimentsMetricChartKeys).toEqual([
-        "cost",
-        "tokens",
-      ]);
-    });
-
-    it("hydrates a persisted per-annotation chart selection", () => {
       seedPersistedState({
-        experimentsMetricChartKeys: ["annotation:quality"],
+        experimentsMetricChartKeys: ["cost", "annotation:quality"],
       });
       const store = createStore();
       expect(store.getState().experimentsMetricChartKeys).toEqual([
+        "cost",
         "annotation:quality",
       ]);
     });
