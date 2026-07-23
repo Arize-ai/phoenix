@@ -80,7 +80,7 @@ pip install arize-phoenix
 phoenix serve
 ```
 
-Or run it with a single command using [`uvx`](https://docs.astral.sh/uv/) — no install required:
+Or run it with no install using [`uvx`](https://docs.astral.sh/uv/):
 
 ```shell
 uvx arize-phoenix serve
@@ -88,21 +88,14 @@ uvx arize-phoenix serve
 
 ## Trace Your Application
 
-Once Phoenix is running, send it traces from your app. The fastest way is to point your [coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) (Claude Code, Cursor, and others) at Phoenix and let it add tracing for you. From your project directory, run either:
-
-```shell
-px setup
-```
-
-or, without a local Phoenix install:
+The fastest way to send traces is to let your [coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) (Claude Code, Cursor, and others) instrument your app. From your project directory, run:
 
 ```shell
 npx @arizeai/phoenix-cli setup
+# or, with Phoenix installed: px setup
 ```
 
-The setup command detects your framework and LLM provider, installs the right [OpenInference](https://github.com/Arize-ai/openinference) instrumentation, and wires up your app to send traces to Phoenix.
-
-Prefer to wire it up yourself with code? See the [tracing documentation](https://arize.com/docs/phoenix/tracing/llm-traces) for the [`register()` quickstart](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing), manual spans, endpoint configuration, and authentication.
+Setup detects your framework and LLM provider, installs the right [OpenInference](https://github.com/Arize-ai/openinference) instrumentation, and wires up trace export. Prefer to wire it up in code? See the [tracing documentation](https://arize.com/docs/phoenix/tracing/llm-traces).
 
 ## Deploy
 
