@@ -95,17 +95,27 @@ _FILTER_DESCRIPTION = (
     "describeSpans works verbatim. Operators: comparisons (==, !=, <, <=, >, >=), "
     "`and`/`or`/`not`, `in`/`not in` (substring test on strings, membership on a list), "
     "`is None`/`is not None`; casts `str(...)`, `float(...)`, `int(...)`. Function "
-    "calls other than casts are rejected. Temporal predicates are rejected here — "
+    "calls other than casts are rejected. Annotation predicates are supported in "
+    "exactly two forms — `evals['<name>'].score <op> <number>` and "
+    "`evals['<name>'].label ==/!= '<string>'` — and only as top-level AND conjuncts "
+    "(combinable with other conditions via `and`); placement under `or`/`not` or any "
+    "richer annotation expression is rejected. Their semantics are any-annotator "
+    "(any matching annotation row satisfies the predicate), disclosed in the "
+    "response's `annotation_semantics` field. Temporal predicates are rejected here — "
     "scope time with time_range, its only home. Examples: "
     "\"span_kind == 'LLM' and latency_ms > 1000\"; \"status_code == 'ERROR'\"; "
-    "\"'rate limit' in output.value\"; \"metadata['release'] == 'v42'\"."
+    "\"'rate limit' in output.value\"; \"metadata['release'] == 'v42'\"; "
+    "\"evals['correctness'].score < 0.5\"."
 )
 
 _PROJECT_DESCRIPTION = "Project id or name (either form works; list projects with getProjects)."
 
 _VALIDATE_ONLY_DESCRIPTION = (
-    "If true, resolve and validate the query without executing anything: returns "
-    "{status: 'ok', valid: true} or the structured error the real call would return."
+    "If true, resolve and validate the query without executing it: returns "
+    "{status: 'ok', valid: true} or the structured error the real call would return. "
+    "Observed attribute paths are additionally checked against the discovery sample; "
+    "paths the sample never saw come back as structured `warnings` (open admission — "
+    "a warning, never an error)."
 )
 
 
@@ -166,7 +176,10 @@ _CALCULATIONS_SCHEMA: dict[str, Any] = {
                 "type": ["string", "null"],
                 "description": (
                     "Field to aggregate. Required for every function except count; "
-                    "count with a field counts rows where the field is non-NULL."
+                    "count with a field counts rows where the field is non-NULL. "
+                    "count and count_distinct accept any field, authored or "
+                    "observed; sum/avg/min/max/percentiles require a "
+                    "value-aggregatable field."
                 ),
             },
         },
@@ -348,7 +361,22 @@ def _capabilities(field: registry.AuthoredField) -> list[str]:
         capabilities.append("breakdown")
     if field.aggregatable:
         capabilities.append("aggregate")
+    # Presence aggregations (count, count_distinct) never compute on the
+    # value, so every field carries the count capability.
+    capabilities.append("count")
     return capabilities
+
+
+def _observed_filter_paths(filter_condition: Optional[str]) -> set[tuple[str, ...]]:
+    """Attribute paths a filter reads that are not authored fields —
+    the observed-path portion of the filter, for admission checks."""
+    if not filter_condition:
+        return set()
+    return {
+        keys
+        for keys in compiler.attribute_paths_in_filter(filter_condition)
+        if registry.canonical_attribute_spelling(keys) not in registry.AUTHORED_BY_ID
+    }
 
 
 def _build_describe_spans(app: "FastAPI") -> Tool:
@@ -360,7 +388,7 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
             async with db.read() as session:
                 project_rowid = await compiler.resolve_project_rowid(session, project)
                 if project_rowid is None:
-                    raise compiler.project_not_found(project)
+                    raise await compiler.project_not_found_error(session, project)
                 sample_count, stats = await discovery.sample_observed_paths(session, project_rowid)
         except QueryError as error:
             return error.envelope()
@@ -407,7 +435,11 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
                 "missing_frequency": round(1 - path_stats.count / sample_count, 4)
                 if sample_count
                 else None,
-                "capabilities": ["select", "filter", "breakdown"],
+                # Observed fields admit presence aggregations (count,
+                # count_distinct) — they never compute on the value — but
+                # not value aggregations, whose cast semantics for arbitrary
+                # JSON paths are undefined.
+                "capabilities": ["select", "filter", "breakdown", "count"],
                 "sampled": True,
             }
             if len(observed_types) > 1:
@@ -452,9 +484,11 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
             "canonical query spelling and works verbatim in querySpanRows "
             "fields/filter and aggregateSpans filter/breakdowns — copy identifiers "
             "from here instead of constructing them. Capabilities per entry: select, "
-            "filter, breakdown, aggregate. Start here before aggregating or "
-            "filtering. Full field-level documentation is in the JSON schema's "
-            "descriptions (get_schema detail='full')."
+            "filter, breakdown, aggregate (value aggregations: sum/avg/min/max/"
+            "percentiles), count (presence aggregations: count, count_distinct — "
+            "valid on any field because they never compute on the value). Start "
+            "here before aggregating or filtering. Full field-level documentation "
+            "is in the JSON schema's descriptions (get_schema detail='full')."
         ),
         tags={SPANS_GROUP_TAG, ANALYTICS_TAG},
         annotations=_READ_ONLY_ANNOTATIONS,
@@ -572,8 +606,25 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
             async with db.read() as session:
                 project_rowid = await compiler.resolve_project_rowid(session, project)
                 if project_rowid is None:
-                    raise compiler.project_not_found(project)
-                plan = compiler.compile_aggregate(query, project_rowid, db.dialect)
+                    raise await compiler.project_not_found_error(session, project)
+                try:
+                    plan = compiler.compile_aggregate(query, project_rowid, db.dialect)
+                except QueryError as error:
+                    if error.code == "field_not_groupable":
+                        # The static alternatives list only authored ids; the
+                        # dimensions a caller actually groups by are usually the
+                        # project's own discovered attributes, so the rejection
+                        # is augmented with the top observed ones.
+                        observed_dims = await discovery.top_observed_groupables(
+                            session, project_rowid
+                        )
+                        if observed_dims:
+                            error.suggestions.extend(observed_dims)
+                            error.message += (
+                                " Observed dimensions in this project (top by "
+                                f"observed count): {', '.join(observed_dims)}."
+                            )
+                    raise
                 applied: dict[str, Any] = {
                     "limit": plan.applied_limit,
                     "time_range_resolved": envelope.time_range_resolved(plan.time_range),
@@ -583,8 +634,28 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                         else None
                     },
                 }
+                # Admission teaching for observed paths: every observed path
+                # the query references (breakdowns, calculations, filter) is
+                # checked against the discovery sample; unsampled ones get a
+                # structured not_observed note rather than an error, because a
+                # path can be real but unsampled (open admission).
+                observed_targets: dict[tuple[str, ...], str] = {
+                    f.keys: f.id for f in plan.observed_fields
+                }
+                for keys in _observed_filter_paths(query.filter):
+                    observed_targets.setdefault(keys, registry.canonical_attribute_spelling(keys))
+                field_notes: list[dict[str, Any]] = (
+                    await discovery.not_observed_field_notes(
+                        session, project_rowid, observed_targets
+                    )
+                    if observed_targets
+                    else []
+                )
                 if validate_only:
-                    return {"status": "ok", "valid": True, "applied": applied}
+                    validated: dict[str, Any] = {"status": "ok", "valid": True, "applied": applied}
+                    if field_notes:
+                        validated["warnings"] = field_notes
+                    return validated
                 await compiler.apply_statement_timeout(session, db.dialect)
                 raw_rows = (await session.execute(plan.stmt)).all()
                 groups_total = (
@@ -645,11 +716,15 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 basis_value = row.get(share_basis)
                 if isinstance(basis_value, (int, float)):
                     row["share"] = basis_value / overall_basis
+            # The row's link must select the same cohort the row's numbers
+            # were computed over: the query's own filter conjoined with the
+            # breakdown-key equalities, not the equalities alone.
             row["ui_url"] = links.cohort_url(
                 cohort_base,
                 plan.breakdowns,
                 raw[: len(plan.breakdowns)],
                 plan.time_range,
+                filter_condition=query.filter,
             )
             rows.append(row)
 
@@ -665,6 +740,33 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
         }
         if guidance is not None:
             result["guidance"] = guidance
+        # A breakdown that produced only a null group key is the aggregate
+        # face of the all-NULL projection: the query succeeded and quietly
+        # said nothing. When the path itself was sampled (so not_observed
+        # did not fire), say so per field.
+        noted_fields = {note["field"] for note in field_notes}
+        if rows:
+            for breakdown in plan.breakdowns:
+                if (
+                    breakdown.is_time_bucket
+                    or breakdown.column.type != "json"
+                    or breakdown.id in noted_fields
+                    or any(row.get(breakdown.id) is not None for row in rows)
+                ):
+                    continue
+                field_notes.append(
+                    {
+                        "field": breakdown.id,
+                        "code": "all_null",
+                        "note": (
+                            f"{breakdown.id!r} produced only a null group: no span in "
+                            "the current window/filter carries this path, though it "
+                            "was observed in the project's sample."
+                        ),
+                    }
+                )
+        if field_notes:
+            result["field_notes"] = field_notes
         notes: list[str] = []
         if plan.uses_annotation_filter:
             result["annotation_semantics"] = "any"
@@ -696,9 +798,10 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
         name="aggregateSpans",
         description=(
             "Aggregate (group by) a project's spans into metrics: named calculations "
-            "(count, count_distinct, sum, avg, min, max, p50/p90/p95/p99 percentiles) "
-            "over aggregatable fields, grouped by breakdowns (groupable fields and/or "
-            "hourly time buckets), filtered, ordered, and bounded to the top-N "
+            "(count and count_distinct on any field; sum, avg, min, max, "
+            "p50/p90/p95/p99 percentiles on value-aggregatable fields), grouped by "
+            "breakdowns (groupable fields and/or hourly time buckets), filtered, "
+            "ordered, and bounded to the top-N "
             "groups. Answers analytics questions like error rate by model, token "
             "totals by release, or latency percentiles per hour: error rate is "
             "avg(is_error), error count is sum(is_error). Returns typed columns, "
@@ -739,6 +842,7 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                     ),
                 },
                 "applied": {"type": "object"},
+                "field_notes": envelope.FIELD_NOTES_SCHEMA,
                 "annotation_semantics": envelope.ANNOTATION_SEMANTICS_SCHEMA,
                 "guidance": envelope.GUIDANCE_SCHEMA,
                 "note": {"type": "string"},
@@ -839,7 +943,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
             async with db.read() as session:
                 project_rowid = await compiler.resolve_project_rowid(session, project)
                 if project_rowid is None:
-                    raise compiler.project_not_found(project)
+                    raise await compiler.project_not_found_error(session, project)
                 plan = compiler.compile_rows(query, project_rowid, db.dialect)
                 applied: dict[str, Any] = {
                     "limit": plan.applied_limit,
@@ -853,8 +957,28 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
                         else None
                     },
                 }
+                # Admission teaching for observed paths: every observed path
+                # the query references (selected fields, filter) is checked
+                # against the discovery sample; unsampled ones get a
+                # structured not_observed note rather than an error, because
+                # a path can be real but unsampled (open admission).
+                observed_targets: dict[tuple[str, ...], str] = {
+                    f.keys: f.id for f in plan.observed_fields
+                }
+                for keys in _observed_filter_paths(query.filter):
+                    observed_targets.setdefault(keys, registry.canonical_attribute_spelling(keys))
+                field_notes: list[dict[str, Any]] = (
+                    await discovery.not_observed_field_notes(
+                        session, project_rowid, observed_targets
+                    )
+                    if observed_targets
+                    else []
+                )
                 if validate_only:
-                    return {"status": "ok", "valid": True, "applied": applied}
+                    validated: dict[str, Any] = {"status": "ok", "valid": True, "applied": applied}
+                    if field_notes:
+                        validated["warnings"] = field_notes
+                    return validated
                 await compiler.apply_statement_timeout(session, db.dialect)
                 sample_note: Optional[str] = None
                 if plan.sample is not None:
@@ -925,26 +1049,35 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
         }
         if guidance is not None:
             result["guidance"] = guidance
-        # An observed-path column that is NULL on every returned row is
-        # indistinguishable from a misspelled path: the projection compiles,
-        # returns, and quietly says nothing. Say so per column instead of
-        # letting the silence read as data. Authored fields are exempt —
-        # their NULLs carry documented meaning (no cost recorded, fewer
-        # than two messages).
+        # An observed-path column that is NULL on every returned row still
+        # deserves a note when the path itself was sampled (so not_observed
+        # did not fire): the projection compiled, returned, and quietly said
+        # nothing about this slice. Authored fields are exempt — their NULLs
+        # carry documented meaning (no cost recorded, fewer than two
+        # messages).
+        noted_fields = {note["field"] for note in field_notes}
         if kept_rows:
-            column_notes = [
-                {
-                    "column": spec.id,
-                    "note": (
-                        "path not observed in these results — verify the spelling "
-                        "via describeSpans."
-                    ),
-                }
-                for spec in plan.columns
-                if spec.type == "json" and all(row.get(spec.id) is None for row in kept_rows)
-            ]
-            if column_notes:
-                result["column_notes"] = column_notes
+            for spec in plan.columns:
+                if (
+                    spec.type != "json"
+                    or spec.id in noted_fields
+                    or any(row.get(spec.id) is not None for row in kept_rows)
+                ):
+                    continue
+                field_notes.append(
+                    {
+                        "field": spec.id,
+                        "code": "all_null",
+                        "note": (
+                            f"{spec.id!r} was NULL on every returned row, though it "
+                            "was observed in the project's sample; the current "
+                            "filter/window slice may simply not carry it. Verify via "
+                            "describeSpans if a value was expected."
+                        ),
+                    }
+                )
+        if field_notes:
+            result["field_notes"] = field_notes
         notes: list[str] = []
         if plan.uses_annotation_filter:
             result["annotation_semantics"] = "any"
@@ -1012,21 +1145,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
                         "span_id and field id; getSpan returns full values."
                     ),
                 },
-                "column_notes": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "column": {"type": "string"},
-                            "note": {"type": "string"},
-                        },
-                    },
-                    "description": (
-                        "Present when a selected observed attribute path was NULL on "
-                        "every returned row — usually a misspelled path; verify via "
-                        "describeSpans."
-                    ),
-                },
+                "field_notes": envelope.FIELD_NOTES_SCHEMA,
                 "annotation_semantics": envelope.ANNOTATION_SEMANTICS_SCHEMA,
                 "guidance": envelope.GUIDANCE_SCHEMA,
                 "note": {"type": "string"},
@@ -1056,7 +1175,7 @@ def _build_get_span(app: "FastAPI") -> Tool:
             async with db.read() as session:
                 project_rowid = await compiler.resolve_project_rowid(session, project)
                 if project_rowid is None:
-                    raise compiler.project_not_found(project)
+                    raise await compiler.project_not_found_error(session, project)
                 stmt = compiler.scoped_base(
                     [models.Span, models.Trace.trace_id], project_rowid, None
                 ).where(models.Span.span_id == span_id)
@@ -1193,7 +1312,7 @@ def _build_get_trace(app: "FastAPI") -> Tool:
             async with db.read() as session:
                 project_rowid = await compiler.resolve_project_rowid(session, project)
                 if project_rowid is None:
-                    raise compiler.project_not_found(project)
+                    raise await compiler.project_not_found_error(session, project)
                 stmt = (
                     compiler.scoped_base(
                         [

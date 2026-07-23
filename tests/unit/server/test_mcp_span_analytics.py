@@ -13,6 +13,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import math
+import random
 import sys
 from collections import Counter
 from contextlib import AsyncExitStack
@@ -27,10 +28,16 @@ from asgi_lifespan import LifespanManager
 from sqlalchemy import text
 from sqlalchemy.dialects import postgresql, sqlite
 
+from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.app import create_app
 from phoenix.server.mcp_server import MCP_MOUNT_PATH
-from phoenix.server.mcp_span_analytics import build_span_analytics_tools, compiler, registry
+from phoenix.server.mcp_span_analytics import (
+    build_span_analytics_tools,
+    compiler,
+    discovery,
+    registry,
+)
 from phoenix.server.mcp_span_analytics.compiler import (
     AggregateQuery,
     Calculation,
@@ -414,7 +421,9 @@ class TestCompilerValidation:
             compiler.compile_aggregate(query, 1, SupportedSQLDialect.SQLITE)
         assert info.value.code == "field_not_aggregatable"
 
-    def test_observed_field_not_aggregatable(self) -> None:
+    def test_observed_field_not_value_aggregatable(self) -> None:
+        """Value aggregation on an observed field is rejected with the
+        presence/value distinction named; presence aggregations compile."""
         query = AggregateQuery(
             project="p",
             time_range=TimeRange(**FULL_WINDOW),
@@ -423,6 +432,19 @@ class TestCompilerValidation:
         with pytest.raises(QueryError) as info:
             compiler.compile_aggregate(query, 1, SupportedSQLDialect.SQLITE)
         assert info.value.code == "field_not_aggregatable"
+        assert "presence aggregations (count, count_distinct)" in info.value.message
+        assert "value aggregations" in info.value.message
+
+        presence = AggregateQuery(
+            project="p",
+            time_range=TimeRange(**FULL_WINDOW),
+            calculations=[
+                Calculation(name="tenants", fn="count_distinct", field="metadata.tenant"),
+                Calculation(name="with_tenant", fn="count", field="metadata.tenant"),
+            ],
+        )
+        plan = compiler.compile_aggregate(presence, 1, SupportedSQLDialect.SQLITE)
+        assert [c.name for c in plan.calculations] == ["tenants", "with_tenant"]
 
     def test_limit_clamped_not_rejected(self) -> None:
         query = RowQuery(project="p", time_range=TimeRange(**FULL_WINDOW), limit=100_000)
@@ -556,12 +578,18 @@ async def test_tools_gate_with_spans_group_and_advertise_contracts(mcp_app: Any)
             statuses = [arm["properties"]["status"].get("const") for arm in arms]
             assert "ok" in statuses and "error" in statuses
 
-        # The filter documentation teaches only what the surface accepts:
-        # annotation lookups are rejected, so they are not advertised.
+        # The filter documentation teaches exactly what the surface accepts,
+        # annotation predicates included: the two supported comparison forms,
+        # the top-level-AND-only placement, and the any-annotator semantics
+        # with their disclosure field.
         for name in ("aggregateSpans", "querySpanRows"):
             filter_description = tools[name].inputSchema["properties"]["filter"]["description"]
-            assert "evals[" not in filter_description
-            assert "annotations[" not in filter_description
+            assert "evals['<name>'].score" in filter_description
+            assert "evals['<name>'].label" in filter_description
+            assert "top-level AND" in filter_description
+            assert "any-annotator" in filter_description
+            assert "annotation_semantics" in filter_description
+            assert "rejected" in filter_description
             assert "llm.model_name" in filter_description
             assert "time_range" in filter_description
 
@@ -592,7 +620,10 @@ async def test_describe_spans_effective_catalog(mcp_app: Any, seeded: Any) -> No
     release = entries["metadata.release"]
     assert release["source"] == "observed_attribute"
     assert release["observed_types"] == ["string"]
+    # Observed fields carry the presence-aggregation capability (count,
+    # count_distinct never compute on values) but not value aggregation.
     assert "aggregate" not in release["capabilities"]
+    assert "count" in release["capabilities"]
     # The discovery sample is drawn across the project's whole id range, so
     # dimension values that stopped occurring (the pre-cut release) are
     # visible alongside current ones — a recency-only sample would hide
@@ -604,10 +635,11 @@ async def test_describe_spans_effective_catalog(mcp_app: Any, seeded: Any) -> No
     assert tenant["source"] == "observed_attribute"
     assert {v["value"] for v in tenant["top_values"]} <= set(seed_incident.TENANTS)
 
-    # cost.total: a declared reduction, select-and-aggregate only.
+    # cost.total: a declared reduction, select-and-aggregate only (plus the
+    # universal presence-aggregation capability).
     cost_entry = entries["cost.total"]
     assert cost_entry["unit"] == "USD"
-    assert set(cost_entry["capabilities"]) == {"select", "aggregate"}
+    assert set(cost_entry["capabilities"]) == {"select", "aggregate", "count"}
 
     # The message fields appear as authored convention entries in
     # list-index subscript spelling, select-only, and the message lists
@@ -615,7 +647,7 @@ async def test_describe_spans_effective_catalog(mcp_app: Any, seeded: Any) -> No
     # omitted from observed discovery).
     first_content = entries["llm.input_messages[0].message.content"]
     assert first_content["source"] == "openinference_convention"
-    assert first_content["capabilities"] == ["select"]
+    assert first_content["capabilities"] == ["select", "count"]
     assert not any(
         e["source"] == "observed_attribute" and "input_messages" in e["field"]
         for e in result["fields"]
@@ -692,6 +724,24 @@ async def test_discovery_round_trip(mcp_app: Any, seeded: Any) -> None:
                     )
                 )
                 assert grouped["status"] == "ok", (field_id, grouped)
+            if "count" in capabilities:
+                counted = _payload(
+                    await client.call_tool(
+                        "aggregateSpans",
+                        {
+                            "project": seed_incident.MAIN_PROJECT_NAME,
+                            "time_range": FULL_WINDOW,
+                            "calculations": [
+                                {
+                                    "name": "distinct_values",
+                                    "fn": "count_distinct",
+                                    "field": field_id,
+                                }
+                            ],
+                        },
+                    )
+                )
+                assert counted["status"] == "ok", (field_id, counted)
 
 
 async def test_aggregate_error_rate_by_release_matches_ground_truth(
@@ -885,7 +935,7 @@ async def test_cost_field_top10_matches_answer_key_and_nulls(mcp_app: Any, seede
         )
         (costless_row,) = costless["rows"]
         assert costless_row["cost.total"] is None
-        assert "column_notes" not in costless
+        assert "field_notes" not in costless
 
         # cost.total is select-and-aggregate only: a filter reference is
         # rejected instead of silently reading a nonexistent attribute.
@@ -1223,6 +1273,154 @@ async def test_cohort_links_time_buckets_and_null_keys(mcp_app: Any, seeded: Any
     assert "filter" not in null_params
 
 
+async def test_cohort_links_carry_the_query_filter(mcp_app: Any, seeded: Any) -> None:
+    """The deep link selects the row's cohort, not just its breakdown slice:
+    the query's own filter is conjoined with the breakdown equalities, so
+    re-running the link's condition reproduces the row's exact count — for a
+    filtered breakdown and for a filtered time-bucket breakdown (the bucket
+    narrows the window, never the condition)."""
+    from urllib.parse import parse_qs, urlparse
+
+    from phoenix.trace.dsl.filter import SpanFilter
+
+    filter_condition = "metadata['release'] == 'v42' and status_code == 'ERROR'"
+
+    async def requery(client: Any, condition: str, window: dict[str, str]) -> int:
+        result = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": window,
+                    "calculations": [{"name": "spans_n", "fn": "count"}],
+                    "filter": condition,
+                },
+            )
+        )
+        assert result["status"] == "ok", result
+        return cast(int, result["overall"]["spans_n"])
+
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        filtered = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": FULL_WINDOW,
+                    "calculations": [{"name": "spans_n", "fn": "count"}],
+                    "filter": filter_condition,
+                    "breakdowns": ["metadata.tenant"],
+                    "limit": 200,
+                },
+            )
+        )
+        assert filtered["status"] == "ok"
+        keyed_rows = [r for r in filtered["rows"] if r["metadata.tenant"] is not None]
+        assert keyed_rows
+        for row in keyed_rows:
+            params = parse_qs(urlparse(row["ui_url"]).query)
+            condition = params["filter"][0]
+            assert condition.startswith(f"({filter_condition}) and ")
+            SpanFilter(condition)  # the UI grammar accepts the composed condition
+            window = {"start": params["start"][0], "end": params["end"][0]}
+            assert await requery(client, condition, window) == row["spans_n"], row
+
+        # The null group key is skipped by declared necessity, but the query
+        # filter itself must survive into the link. Orphan spans carry no
+        # metadata, so this breakdown yields exactly the null group.
+        orphan_filter = f"name == '{seed_incident.ORPHAN_SPAN_NAME}'"
+        orphans = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": FULL_WINDOW,
+                    "calculations": [{"name": "spans_n", "fn": "count"}],
+                    "filter": orphan_filter,
+                    "breakdowns": ["metadata.tenant"],
+                },
+            )
+        )
+        assert orphans["status"] == "ok"
+        null_row = next(r for r in orphans["rows"] if r["metadata.tenant"] is None)
+        null_condition = parse_qs(urlparse(null_row["ui_url"]).query)["filter"][0]
+        assert null_condition == orphan_filter
+
+        bucketed = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": FULL_WINDOW,
+                    "calculations": [{"name": "spans_n", "fn": "count"}],
+                    "filter": "status_code == 'ERROR'",
+                    "breakdowns": [{"bucket": "hour"}, "metadata.tenant"],
+                    "limit": 200,
+                },
+            )
+        )
+        assert bucketed["status"] == "ok"
+        bucket_row = next(r for r in bucketed["rows"] if r["metadata.tenant"] is not None)
+        params = parse_qs(urlparse(bucket_row["ui_url"]).query)
+        start = datetime.fromisoformat(params["start"][0])
+        end = datetime.fromisoformat(params["end"][0])
+        assert end - start == timedelta(hours=1)  # the bucket narrowed the window
+        condition = params["filter"][0]
+        assert condition.startswith("(status_code == 'ERROR') and ")
+        assert "time_bucket" not in condition  # buckets scope time, not the condition
+        window = {"start": params["start"][0], "end": params["end"][0]}
+        assert await requery(client, condition, window) == bucket_row["spans_n"]
+
+
+async def test_presence_aggregations_on_observed_fields(mcp_app: Any, seeded_copilot: Any) -> None:
+    """count and count_distinct never compute on values, so they work on any
+    scalar field — 'how many distinct users' is one aggregate over the
+    observed user.id — while value aggregation on the same field stays
+    rejected with the presence/value distinction named."""
+    spans_with_user = [
+        span for span in seeded_copilot.spans if isinstance(span.attributes.get("user"), dict)
+    ]
+    expected_users = {span.attributes["user"]["id"] for span in spans_with_user}
+    expected_names = {span.name for span in seeded_copilot.spans}
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        result = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_support_copilot.PROJECT_NAME,
+                    "time_range": COPILOT_WINDOW,
+                    "calculations": [
+                        {"name": "distinct_users", "fn": "count_distinct", "field": "user.id"},
+                        {"name": "spans_with_user", "fn": "count", "field": "user.id"},
+                        {"name": "distinct_names", "fn": "count_distinct", "field": "name"},
+                    ],
+                },
+            )
+        )
+        assert result["status"] == "ok"
+        overall = result["overall"]
+        assert overall["distinct_users"] == len(expected_users)
+        assert overall["spans_with_user"] == len(spans_with_user)
+        assert overall["distinct_names"] == len(expected_names)
+
+        rejected = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_support_copilot.PROJECT_NAME,
+                    "time_range": COPILOT_WINDOW,
+                    "calculations": [{"name": "s", "fn": "sum", "field": "user.id"}],
+                },
+            )
+        )
+        assert rejected["status"] == "error"
+        assert rejected["code"] == "field_not_aggregatable"
+        assert "presence aggregations (count, count_distinct)" in rejected["message"]
+        assert "latency_ms" in rejected["suggestions"]
+
+
 async def test_message_fields_select_and_clip(mcp_app: Any, seeded: Any) -> None:
     """The first-two-input-message fields read the OpenInference message
     lists: correct role/content for messages 0 and 1, NULL second message on
@@ -1288,9 +1486,9 @@ async def test_message_fields_select_and_clip(mcp_app: Any, seeded: Any) -> None
 
 
 async def test_silent_null_projection_note(mcp_app: Any, seeded: Any) -> None:
-    """A selected observed path that is NULL on every returned row gets a
-    per-column note (it is indistinguishable from a misspelling); a sparse
-    path with some values present does not."""
+    """A selected observed path the discovery sample never saw gets a
+    per-field not_observed note (a misspelling is indistinguishable from a
+    real-but-absent path); a sparse path with some values present does not."""
     async with _mcp_client(mcp_app) as client:
         await _enable_spans(client)
         missing = _payload(
@@ -1306,8 +1504,10 @@ async def test_silent_null_projection_note(mcp_app: Any, seeded: Any) -> None:
         )
         assert missing["status"] == "ok"
         assert any(
-            note["column"] == "metadata.nonexistent_key" and "describeSpans" in note["note"]
-            for note in missing["column_notes"]
+            note["field"] == "metadata.nonexistent_key"
+            and note["code"] == "not_observed"
+            and "describeSpans" in note["note"]
+            for note in missing["field_notes"]
         )
 
         # A genuinely sparse path: orphan spans carry no metadata, ordinary
@@ -1331,7 +1531,205 @@ async def test_silent_null_projection_note(mcp_app: Any, seeded: Any) -> None:
         assert sparse["status"] == "ok"
         values = [row["metadata.tenant"] for row in sparse["rows"]]
         assert any(v is None for v in values) and any(v is not None for v in values)
-        assert "column_notes" not in sparse
+        assert "field_notes" not in sparse
+
+
+async def test_all_null_slice_of_observed_path_is_noted(mcp_app: Any, seeded: Any) -> None:
+    """A path the sample did observe but the returned slice never carries
+    draws an all_null note — in rows (every returned row NULL) and in
+    aggregates (only a null group key)."""
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        # Orphan spans carry no metadata at all, so this slice is all-NULL
+        # for a path that exists everywhere else in the project.
+        rows = _payload(
+            await client.call_tool(
+                "querySpanRows",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": FULL_WINDOW,
+                    "fields": ["metadata.tenant", "name"],
+                    "filter": f"name == '{seed_incident.ORPHAN_SPAN_NAME}'",
+                    "limit": 200,
+                },
+            )
+        )
+        assert rows["status"] == "ok"
+        assert rows["rows"] and all(r["metadata.tenant"] is None for r in rows["rows"])
+        (note,) = rows["field_notes"]
+        assert note["field"] == "metadata.tenant"
+        assert note["code"] == "all_null"
+        assert "observed" in note["note"]
+
+        grouped = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": FULL_WINDOW,
+                    "calculations": [{"name": "spans_n", "fn": "count"}],
+                    "filter": f"name == '{seed_incident.ORPHAN_SPAN_NAME}'",
+                    "breakdowns": ["metadata.tenant"],
+                },
+            )
+        )
+        assert grouped["status"] == "ok"
+        (row,) = grouped["rows"]
+        assert row["metadata.tenant"] is None
+        (grouped_note,) = grouped["field_notes"]
+        assert (grouped_note["field"], grouped_note["code"]) == ("metadata.tenant", "all_null")
+
+
+async def test_not_observed_breakdown_teaches_instead_of_silence(mcp_app: Any, seeded: Any) -> None:
+    """The misspelled-breakdown trap: a typo'd observed path still succeeds
+    (open admission — a path can be real but unsampled) but the response
+    carries a not_observed note with nearest observed-path suggestions,
+    instead of one silent null group presented as a complete answer."""
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        result = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": FULL_WINDOW,
+                    "calculations": [{"name": "spans_n", "fn": "count"}],
+                    "breakdowns": ["metadata.releas"],
+                },
+            )
+        )
+        assert result["status"] == "ok"
+        (row,) = result["rows"]
+        assert row["metadata.releas"] is None  # the silent null group, now disclosed
+        (note,) = result["field_notes"]
+        assert note["field"] == "metadata.releas"
+        assert note["code"] == "not_observed"
+        assert "describeSpans" in note["note"]
+        assert "metadata.release" in note["suggestions"]
+
+        # The same typo as a projection: one not_observed note, no duplicate
+        # all_null note for the same field.
+        projected = _payload(
+            await client.call_tool(
+                "querySpanRows",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": FULL_WINDOW,
+                    "fields": ["metadata.releas", "name"],
+                    "limit": 20,
+                },
+            )
+        )
+        assert projected["status"] == "ok"
+        typo_notes = [n for n in projected["field_notes"] if n["field"] == "metadata.releas"]
+        (projected_note,) = typo_notes
+        assert projected_note["code"] == "not_observed"
+        assert "metadata.release" in projected_note["suggestions"]
+
+        # A typo'd filter path draws the note too.
+        filtered = _payload(
+            await client.call_tool(
+                "querySpanRows",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": FULL_WINDOW,
+                    "filter": "metadata['releas'] == 'v42'",
+                },
+            )
+        )
+        assert filtered["status"] == "ok"
+        assert any(
+            n["code"] == "not_observed" and "metadata.release" in n["suggestions"]
+            for n in filtered["field_notes"]
+        )
+
+
+async def test_validate_only_surfaces_not_observed_warnings(mcp_app: Any, seeded: Any) -> None:
+    """validate_only checks observed paths against the discovery sample and
+    returns structured warnings for unsampled ones — a warning, never an
+    error, because open admission stands."""
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        result = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": FULL_WINDOW,
+                    "calculations": [{"name": "spans_n", "fn": "count"}],
+                    "breakdowns": ["metadata.releas"],
+                    "validate_only": True,
+                },
+            )
+        )
+        assert result["status"] == "ok" and result["valid"] is True
+        (warning,) = result["warnings"]
+        assert warning["field"] == "metadata.releas"
+        assert warning["code"] == "not_observed"
+        assert "metadata.release" in warning["suggestions"]
+
+
+async def test_real_but_unsampled_path_succeeds_with_note(
+    mcp_app: Any, seeded: Any, db: DbSessionFactory
+) -> None:
+    """Open admission is real: a path present in the data but absent from
+    the bounded discovery sample still returns its values — accompanied by
+    the not_observed note, which is sampled evidence, not proof of absence."""
+    async with db() as session:
+        span_ids = list(
+            (
+                await session.execute(
+                    sqlalchemy.select(models.Span.id)
+                    .join(
+                        models.Trace,
+                        models.Span.trace_rowid == models.Trace.id,
+                    )
+                    .join(
+                        models.Project,
+                        models.Trace.project_rowid == models.Project.id,
+                    )
+                    .where(models.Project.name == seed_incident.MAIN_PROJECT_NAME)
+                )
+            ).scalars()
+        )
+        # Replicate the seeded discovery draw exactly and plant the rare
+        # path on a span the draw provably skips.
+        id_range = range(min(span_ids), max(span_ids) + 1)
+        assert len(id_range) > discovery.SAMPLE_SIZE  # the draw actually samples
+        sampled = set(random.Random(discovery.SAMPLE_SEED).sample(id_range, discovery.SAMPLE_SIZE))
+        unsampled_rowid = next(i for i in span_ids if i not in sampled)
+        span = (
+            await session.execute(
+                sqlalchemy.select(models.Span).where(models.Span.id == unsampled_rowid)
+            )
+        ).scalar_one()
+        attributes = dict(span.attributes)
+        attributes.setdefault("metadata", {})
+        attributes["metadata"] = {**attributes["metadata"], "rare_flag": "on"}
+        span.attributes = attributes
+        planted_span_id = span.span_id
+        await session.commit()
+
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        result = _payload(
+            await client.call_tool(
+                "querySpanRows",
+                {
+                    "project": seed_incident.MAIN_PROJECT_NAME,
+                    "time_range": FULL_WINDOW,
+                    "fields": ["metadata.rare_flag"],
+                    "filter": f"span_id == '{planted_span_id}'",
+                },
+            )
+        )
+    assert result["status"] == "ok"
+    (row,) = result["rows"]
+    assert row["metadata.rare_flag"] == "on"  # the value comes back
+    assert any(
+        n["field"] == "metadata.rare_flag" and n["code"] == "not_observed"
+        for n in result["field_notes"]
+    )
 
 
 async def test_get_span_fields_match_row_values(mcp_app: Any, seeded: Any) -> None:
@@ -1564,6 +1962,27 @@ async def test_nearest_name_error_surfaces_through_the_client(mcp_app: Any, seed
     assert "latency_ms" in result["suggestions"]
 
 
+async def test_project_not_found_suggests_near_names(mcp_app: Any, seeded: Any) -> None:
+    """A near-miss project name gets nearest-name suggestions from the
+    project list — safe while every project is listable by every caller
+    (getProjects discloses the same names); under per-project authorization
+    the candidate list must first be filtered to the caller's visible set."""
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        result = _payload(
+            await client.call_tool(
+                "querySpanRows",
+                {
+                    "project": "payment-agent",
+                    "time_range": FULL_WINDOW,
+                },
+            )
+        )
+    assert result["status"] == "error"
+    assert result["code"] == "project_not_found"
+    assert seed_incident.MAIN_PROJECT_NAME in result["suggestions"]
+
+
 async def test_malformed_order_shape_is_structured(mcp_app: Any, seeded: Any) -> None:
     """A wrong parameter shape must surface on the error union with a plain
     message and a usable path — never as raw validation text with internal
@@ -1680,6 +2099,11 @@ async def test_two_control_beat_clamping_and_admission(
         assert rejected["status"] == "error"
         assert rejected["code"] == "field_not_groupable"
         assert rejected["suggestions"]
+        # The suggestions include the project's own discovered dimensions —
+        # the breakdowns an agent actually reaches for — beside authored ids.
+        assert "metadata.tenant" in rejected["suggestions"]
+        assert "metadata.release" in rejected["suggestions"]
+        assert "Observed dimensions" in rejected["message"]
 
 
 async def test_filter_grammar_rejections_are_structured(mcp_app: Any, seeded: Any) -> None:

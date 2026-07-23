@@ -19,9 +19,12 @@ namespace:
   ``custom_flag``). Project-specific context lives in the free-form
   attribute blob and varies per deployment, so it is discovered from the
   data rather than assumed. Observed fields are selectable, filterable, and
-  groupable, but never aggregatable: cast and mixed-type semantics for
-  arbitrary JSON paths are undefined, so typed aggregation stays on
-  authored fields.
+  groupable, and they admit **presence aggregations** (``count``,
+  ``count_distinct``), which count rows and distinct values without ever
+  computing on them. **Value aggregations** (``sum``, ``avg``, ``min``,
+  ``max``, percentiles) stay on authored fields: cast and mixed-type
+  semantics for arbitrary JSON paths are undefined, so typed arithmetic
+  needs declared semantics.
 
 Expressions are built per SQL dialect because JSON access and percentile
 aggregation genuinely differ between PostgreSQL and SQLite; every factory in
@@ -61,6 +64,10 @@ _ExprFactory = Callable[[SupportedSQLDialect], SQLColumnExpression[Any]]
 class AuthoredField:
     """A hand-defined field with declared type, unit, and capabilities.
 
+    ``aggregatable`` grants *value* aggregations (sum, avg, min, max,
+    percentiles); presence aggregations (count, count_distinct) never
+    compute on values and are valid on every field, so no flag gates them.
+
     ``source`` records the field's provenance so a caller can tell which
     identifiers are portable across projects and which are not:
     ``"column"`` for physical span columns, ``"computed"`` for derived
@@ -92,13 +99,14 @@ class ObservedField:
     The value is extracted as the raw JSON value (deserialized by the JSON
     result processor on both dialects), so strings and numbers come back
     natively typed. Observed fields carry no declared type and are never
-    aggregatable.
+    *value*-aggregatable; presence aggregations (count, count_distinct)
+    remain valid because they never compute on the value.
     """
 
     id: str
     keys: tuple[str, ...]
 
-    #: Observed fields support everything except aggregation.
+    #: Observed fields support everything except value aggregation.
     filterable: bool = True
     groupable: bool = True
     aggregatable: bool = False
@@ -619,12 +627,19 @@ class Aggregation:
     value (``count``, ``sum``); share-of-total is meaningful only for those.
     An average or percentile of a subgroup carries no share of the overall
     average, so shares are omitted for non-additive calculations.
+
+    ``presence`` marks functions that count rows and distinct values
+    without ever computing on the value (``count``, ``count_distinct``):
+    they are type-safe on any field, authored or observed. Every other
+    function is a value aggregation, gated on a field's declared
+    ``aggregatable`` capability.
     """
 
     fn: str
     additive: bool
     requires_field: bool
     accepts_field: bool = True
+    presence: bool = False
     description: str = ""
 
 
@@ -634,6 +649,7 @@ AGGREGATIONS: Mapping[str, Aggregation] = MappingProxyType(
             fn="count",
             additive=True,
             requires_field=False,
+            presence=True,
             description=(
                 "Row count. With a field, counts rows where the field is non-NULL — "
                 "the missingness probe for guarded numeric fields."
@@ -643,6 +659,7 @@ AGGREGATIONS: Mapping[str, Aggregation] = MappingProxyType(
             fn="count_distinct",
             additive=False,
             requires_field=True,
+            presence=True,
             description="Number of distinct non-NULL values of the field.",
         ),
         "sum": Aggregation(fn="sum", additive=True, requires_field=True),
