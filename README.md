@@ -58,14 +58,12 @@ Phoenix is an open-source AI observability platform designed for experimentation
 
 Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) and LLM providers ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm), and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
-Phoenix runs practically anywhere, including your local machine, a Jupyter notebook, a containerized deployment, or in the cloud.
+Phoenix runs practically anywhere, including your local machine, a Jupyter notebook, a containerized deployment, or in the cloud. See [Environments](https://arize.com/docs/phoenix/environments) for a walkthrough of each option, or jump straight into the [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 ## Table of Contents
 
 - [Run Locally](#run-locally)
 - [Trace Your Application](#trace-your-application)
-  - [With a Coding Agent](#with-a-coding-agent)
-  - [With Code](#with-code)
 - [Deploy](#deploy)
 - [Packages](#packages)
 - [Tracing Integrations](#tracing-integrations)
@@ -75,7 +73,7 @@ Phoenix runs practically anywhere, including your local machine, a Jupyter noteb
 
 ## Run Locally
 
-Install Phoenix via `pip` or `conda` and have a fully functional Phoenix
+Install Phoenix via `pip` or `conda` and have a fully functional Phoenix. For all installation and hosting options, see the [install guide](https://arize.com/docs/phoenix).
 
 ```shell
 pip install arize-phoenix
@@ -92,11 +90,7 @@ Phoenix runs at [http://localhost:6006](http://localhost:6006).
 
 ## Trace Your Application
 
-Once Phoenix is running, send it traces from your app. Choose the path that fits you.
-
-### With a Coding Agent
-
-Point your coding agent (Claude Code, Cursor, and others) at Phoenix and let it add tracing to your app for you. From your project directory, run either:
+Once Phoenix is running, send it traces from your app. The fastest way is to point your [coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) (Claude Code, Cursor, and others) at Phoenix and let it add tracing for you. From your project directory, run either:
 
 ```shell
 px setup
@@ -110,25 +104,7 @@ npx @arizeai/phoenix-cli setup
 
 The setup command detects your framework and LLM provider, installs the right [OpenInference](https://github.com/Arize-ai/openinference) instrumentation, and wires up your app to send traces to Phoenix.
 
-### With Code
-
-Prefer to wire it up yourself? Install [`arize-phoenix-otel`](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-otel) plus the instrumentation for your framework, then call `register()`:
-
-```shell
-pip install arize-phoenix-otel openinference-instrumentation-openai
-```
-
-```python
-from phoenix.otel import register
-
-# Connect to your Phoenix instance and auto-trace supported libraries
-tracer_provider = register(
-    project_name="my-app",
-    auto_instrument=True,  # Auto-trace OpenAI, LangChain, LlamaIndex, and more
-)
-```
-
-That's it — every call your app makes to an instrumented library now shows up in Phoenix. See the [tracing documentation](https://arize.com/docs/phoenix/tracing/llm-traces) for manual spans, endpoint configuration, and authentication.
+Prefer to wire it up yourself with code? See the [tracing documentation](https://arize.com/docs/phoenix/tracing/llm-traces) for the [`register()` quickstart](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing), manual spans, endpoint configuration, and authentication.
 
 ## Deploy
 
@@ -175,7 +151,7 @@ The `arize-phoenix` package includes the entire Phoenix platform. However, if yo
 
 ## Tracing Integrations
 
-Phoenix is built on top of OpenTelemetry and is vendor, language, and framework agnostic. For details about tracing integrations and example applications, see the [OpenInference](https://github.com/Arize-ai/openinference) project.
+Phoenix is built on top of OpenTelemetry and is vendor, language, and framework agnostic. For details about tracing integrations and example applications, see the [OpenInference](https://github.com/Arize-ai/openinference) project and the [integrations documentation](https://arize.com/docs/phoenix/integrations).
 
 **Python Integrations**
 | | Integration | Package | Version |
@@ -259,7 +235,7 @@ Normalize and convert data across other instrumentation libraries by adding span
 
 ## Coding Agent Skills
 
-This repository includes [skills](https://docs.anthropic.com/en/docs/claude-code/skills) that teach coding agents how to work with Phoenix. They are located in [`.agents/skills/`](.agents/skills/) and can be used with Claude Code, Cursor, and other compatible tools.
+This repository includes [skills](https://docs.anthropic.com/en/docs/claude-code/skills) that teach coding agents how to work with Phoenix. They are located in [`.agents/skills/`](.agents/skills/) and can be used with Claude Code, Cursor, and other compatible tools. See the [coding agents documentation](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) for setup and usage.
 
 | Skill                                              | Description                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
