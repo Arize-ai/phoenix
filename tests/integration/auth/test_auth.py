@@ -2129,7 +2129,7 @@ class TestVercelChatStreamRouterAuth:
             response.raise_for_status()
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
-    def test_all_authenticated_roles_reach_chat_session_lookup(
+    def test_session_token_roles_reach_chat_session_lookup_except_viewers(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
@@ -2140,10 +2140,11 @@ class TestVercelChatStreamRouterAuth:
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
         response = _httpx_client(_app, logged_in_user.tokens).post(_path, json=_body)
-        assert response.status_code == 404
+        expected_status_code = 403 if user.role is UserRoleInput.VIEWER else 404
+        assert response.status_code == expected_status_code
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
-    def test_api_key_authentication_reaches_chat_session_lookup(
+    def test_api_key_roles_reach_chat_session_lookup_except_viewers(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
@@ -2155,7 +2156,8 @@ class TestVercelChatStreamRouterAuth:
         logged_in_user = user.log_in(_app)
         api_key = logged_in_user.create_api_key(_app)
         response = _httpx_client(_app, api_key).post(_path, json=_body)
-        assert response.status_code == 404
+        expected_status_code = 403 if user.role is UserRoleInput.VIEWER else 404
+        assert response.status_code == expected_status_code
 
 
 class TestBruteForceLoginProtection:

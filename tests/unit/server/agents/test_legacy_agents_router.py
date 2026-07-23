@@ -12,6 +12,7 @@ from typing import Any
 
 import httpx
 import pytest
+from fastapi import FastAPI
 from pydantic_ai.models.test import TestModel
 from sqlalchemy import select
 from strawberry.relay import GlobalID
@@ -256,3 +257,17 @@ async def test_unknown_agent_id_still_returns_not_found(
         },
     )
     assert response.status_code == 404
+
+
+async def test_legacy_chat_route_is_forbidden_in_read_only_mode(
+    app: FastAPI,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Read-only mode turns off the legacy route at the router level."""
+    app.state.read_only = True
+
+    response = await httpx_client.post(
+        f"/agents/server/sessions/{_CLIENT_MINTED_SESSION_ID}/chat",
+        json=_legacy_chat_body([_user_message("hello")]),
+    )
+    assert response.status_code == 403

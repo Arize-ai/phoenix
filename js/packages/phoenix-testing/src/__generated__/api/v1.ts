@@ -1557,27 +1557,28 @@ export interface paths {
         /**
          * Run Server Agent
          * @deprecated
-         * @description Stream a chat turn from the GraphQL server agent (deprecated).
-         *
-         *     Deprecated transcript-in/stream-out contract kept for published CLI
-         *     clients (``@arizeai/phoenix-cli`` <= 1.10.x): the caller supplies the
-         *     full ``messages`` transcript and a self-minted session id, and the
-         *     server builds a fresh agent per request without persisting anything.
-         *
-         *     Requests carrying the new single-``message`` body shape are instead
-         *     served by the persisted-session chat handler, without the
-         *     ``Deprecation`` header.
-         *
-         *     The request contexts gate capabilities — GraphQL mutations, web access,
-         *     and subagents — and mutations are refused for viewer users. When trace
-         *     recording is enabled (and permitted by system settings), the run is
-         *     traced; locally ingested traces are persisted to the agent's project
-         *     once the stream completes.
-         *
-         *     Returns ``403`` if agents or the server agent are disabled, or if a
-         *     viewer requests mutations.
          */
         post: operations["run_server_agent_agents_server_sessions__session_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/{agent_id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Session
+         * @description Create a persisted agent session owned by the requesting user.
+         */
+        post: operations["create_session_agents__agent_id__sessions_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1659,6 +1660,15 @@ export interface components {
         /** AddDatasetLabelToDatasetResponseBody */
         AddDatasetLabelToDatasetResponseBody: {
             data: components["schemas"]["DatasetLabel"];
+        };
+        AgentModelSelection: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+        /** AgentSession */
+        AgentSession: {
+            /**
+             * Id
+             * @description The session's GlobalID — the ``session_id`` the chat route expects.
+             */
+            id: string;
         };
         /**
          * AgentSpanContext
@@ -1962,8 +1972,7 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
              */
             requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            model: components["schemas"]["AgentModelSelection"];
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             /**
              * Trigger
@@ -2024,6 +2033,28 @@ export interface components {
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
+        };
+        /**
+         * CreateAgentSessionRequestBody
+         * @description Request body for creating a persisted agent session.
+         */
+        CreateAgentSessionRequestBody: {
+            /**
+             * Title
+             * @description Optional initial title.
+             * @default
+             */
+            title?: string;
+            /**
+             * Temporary
+             * @description Whether the session should expire after a period of inactivity.
+             * @default false
+             */
+            temporary?: boolean;
+        };
+        /** CreateAgentSessionResponseBody */
+        CreateAgentSessionResponseBody: {
+            data: components["schemas"]["AgentSession"];
         };
         /** CreateAnnotationConfigData */
         CreateAnnotationConfigData: components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"];
@@ -3200,8 +3231,7 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route.
              */
             requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            model: components["schemas"]["AgentModelSelection"];
         } & {
             [key: string]: unknown;
         };
@@ -3253,8 +3283,7 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route.
              */
             requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            model: components["schemas"]["AgentModelSelection"];
         } & {
             [key: string]: unknown;
         };
@@ -10977,6 +11006,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_session_agents__agent_id__sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentSessionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateAgentSessionResponseBody"];
                 };
             };
             /** @description Validation Error */
