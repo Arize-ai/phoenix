@@ -12,6 +12,8 @@ const codeEditorFormWrapperCSS = css`
   }
   &.is-focused {
     border-color: var(--global-input-field-border-color-active);
+  }
+  &:has(.cm-content:focus-visible) {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
