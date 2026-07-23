@@ -94,7 +94,7 @@ helm/charts/*.tgz
 .hypothesis
 .claude/worktrees/
 
-# Locally built wheels for Harbor evaluations
+# Build-context artifacts copied into each task's environment
 /evals/harbor/**/*.whl
 /evals/harbor/tasks/**/environment/run_server_agent.py
 
