@@ -484,15 +484,29 @@ CREATE TABLE public.agent_session_messages (
 );
 
 
+-- Table: agent_session_compaction_points
+-- --------------------------------------
+CREATE TABLE public.agent_session_compaction_points (
+    id bigserial NOT NULL,
+    agent_session_message_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_agent_session_compaction_points PRIMARY KEY (id),
+    CONSTRAINT uq_agent_session_compaction_points_agent_session_message_id
+        UNIQUE (agent_session_message_id),
+    CONSTRAINT fk_agent_session_compaction_points_agent_session_messag_59bb
+        FOREIGN KEY
+        (agent_session_message_id)
+        REFERENCES public.agent_session_messages (id)
+        ON DELETE CASCADE
+);
+
+
 -- Table: agent_session_snapshots
 -- ------------------------------
 CREATE TABLE public.agent_session_snapshots (
     id bigserial NOT NULL,
     agent_session_id BIGINT NOT NULL,
     bashkit_snapshot BYTEA,
-    compaction_summary TEXT,
-    compacted_through_position INTEGER,
-    compaction_event_position INTEGER,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_snapshots PRIMARY KEY (id),
