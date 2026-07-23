@@ -180,7 +180,7 @@ async function handleFetchError(
 /**
  * Sets up OpenTelemetry tracer for experiment tracing
  */
-async function setupTracer({
+function setupTracer({
   projectName,
   baseUrl,
   headers,
@@ -194,11 +194,11 @@ async function setupTracer({
   useBatchSpanProcessor: boolean;
   diagLogLevel?: DiagLogLevel;
   setGlobalTracerProvider: boolean;
-}): Promise<{
+}): {
   provider: NodeTracerProvider;
   tracer: Tracer;
   globalRegistration: GlobalTracerProviderRegistration | null;
-} | null> {
+} | null {
   if (!projectName) {
     return null;
   }
@@ -313,7 +313,7 @@ export async function resumeExperiment({
   );
 
   // Initialize tracer (only if experiment has a project_name)
-  const tracerSetup = await setupTracer({
+  const tracerSetup = setupTracer({
     projectName: experiment.projectName,
     baseUrl,
     headers: client.config.headers

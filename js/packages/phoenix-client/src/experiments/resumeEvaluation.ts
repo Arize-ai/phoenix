@@ -197,7 +197,7 @@ async function handleEvaluationFetchError(
 /**
  * Sets up OpenTelemetry tracer for evaluation tracing
  */
-async function setupEvaluationTracer({
+function setupEvaluationTracer({
   projectName,
   baseUrl,
   headers,
@@ -211,11 +211,11 @@ async function setupEvaluationTracer({
   useBatchSpanProcessor: boolean;
   diagLogLevel?: DiagLogLevel;
   setGlobalTracerProvider: boolean;
-}): Promise<{
+}): {
   provider: NodeTracerProvider;
   tracer: Tracer;
   globalRegistration: GlobalTracerProviderRegistration | null;
-} | null> {
+} | null {
   if (!projectName) {
     return null;
   }
@@ -328,7 +328,7 @@ export async function resumeEvaluation({
     "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
   );
 
-  const tracerSetup = await setupEvaluationTracer({
+  const tracerSetup = setupEvaluationTracer({
     projectName: experiment.projectName,
     baseUrl,
     headers: client.config.headers
