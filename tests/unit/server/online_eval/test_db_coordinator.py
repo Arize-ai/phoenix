@@ -312,10 +312,11 @@ async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
     assert empty.running_count == 0
     assert empty.retryable_error_count == 0
     assert empty.exhausted_error_count == 0
+    assert empty.expired_count == 0
     assert empty.frontier_gap == 0
     assert empty.oldest_pending_age_seconds is None
 
-    unit_ids = await _seed_work_units(db, 6)
+    unit_ids = await _seed_work_units(db, 7)
     now = datetime.now(timezone.utc)
     async with db() as session:
         await session.execute(
@@ -346,6 +347,11 @@ async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
                 created_at=now - timedelta(seconds=3600),
             )
         )
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_ids[6])
+            .values(status="EXPIRED", error="pending TTL exceeded")
+        )
         session.add(
             models.EvalWorkCursor(
                 evaluation_target="SPAN",
@@ -360,6 +366,7 @@ async def test_lag_reports_counts_frontier_gap_and_oldest_pending_age(
     assert lag.running_count == 1
     assert lag.retryable_error_count == 1
     assert lag.exhausted_error_count == 1
+    assert lag.expired_count == 1
     assert lag.frontier_gap == 7
     assert lag.oldest_pending_age_seconds is not None
     assert 100.0 <= lag.oldest_pending_age_seconds < 300.0
