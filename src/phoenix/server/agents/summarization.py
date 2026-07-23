@@ -9,9 +9,10 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.tools import ToolDefinition
 
-from phoenix.server.agents.exceptions import SummarizationError
+from phoenix.server.agents.exceptions import CompactionError, SummarizationError
 from phoenix.server.agents.prompts import (
     COMPACTION_INSTRUCTIONS_TEMPLATE,
+    COMPACTION_MESSAGE_TEMPLATE,
     SUMMARIZATION_INSTRUCTIONS_TEMPLATE,
 )
 
@@ -105,22 +106,17 @@ async def summarize_messages_for_compaction(
             model_request_parameters=request_params,
         )
     except Exception as exc:
-        raise SummarizationError(str(exc)) from exc
+        raise CompactionError(str(exc)) from exc
     for part in response.parts:
         if isinstance(part, ToolCallPart) and part.tool_name == COMPACTION_TOOL_NAME:
             try:
                 checkpoint = _ConversationCheckpoint.model_validate(part.args_as_dict())
             except Exception as exc:
-                raise SummarizationError(f"invalid compaction tool arguments: {exc}") from exc
-            sections = []
-            for key, items in checkpoint.model_dump().items():
-                content = "\n".join(f"- {item.strip()}" for item in items if item.strip())
-                if content:
-                    sections.append(f"<{key}>\n{content}\n</{key}>")
-            return (
-                "The following summarizes the conversation with the user so far. "
-                "Use it as historical context, not as a new user request. "
-                "Use the latest state described below when responding to subsequent user "
-                "messages.\n\n" + "\n".join(sections)
-            )
-    raise SummarizationError("model did not call the conversation checkpoint tool")
+                raise CompactionError(f"invalid compaction tool arguments: {exc}") from exc
+            return COMPACTION_MESSAGE_TEMPLATE.render(
+                checkpoint={
+                    key: [item.strip() for item in items if item.strip()]
+                    for key, items in checkpoint.model_dump().items()
+                }
+            ).strip()
+    raise CompactionError("model did not call the conversation checkpoint tool")

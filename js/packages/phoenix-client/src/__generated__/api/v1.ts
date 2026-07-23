@@ -2022,25 +2022,18 @@ export interface components {
         CompactAgentSessionRequest: {
             model: components["schemas"]["AgentModelSelection"];
         };
-        /**
-         * CompactAgentSessionResponse
-         * @description Result of compacting the older complete turns in a conversation.
-         */
+        /** CompactAgentSessionResponse */
         CompactAgentSessionResponse: {
-            /** Compacted */
-            compacted: boolean;
-            compactionMessage?: components["schemas"]["PhoenixUIMessage"] | null;
+            data: components["schemas"]["CompactAgentSessionResponseData"];
         };
         /**
-         * CompactionMessageMetadata
-         * @description Marks a durable user-role message as a conversation compaction point.
+         * CompactAgentSessionResponseData
+         * @description Result of compacting the older complete turns in a conversation.
          */
-        CompactionMessageMetadata: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "compaction";
+        CompactAgentSessionResponseData: {
+            /** Compacted */
+            compacted: boolean;
+            compaction_message?: components["schemas"]["PhoenixUIMessage"] | null;
         };
         /** ContinuousAnnotationConfig */
         ContinuousAnnotationConfig: {
@@ -3726,7 +3719,7 @@ export interface components {
              */
             role: "system" | "user" | "assistant";
             /** Metadata */
-            metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["CompactionMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
+            metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
             /** Parts */
             parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
@@ -5996,6 +5989,11 @@ export interface components {
             currentDateTime: string;
             /** Timezone */
             timeZone: string;
+            /**
+             * Iscompactionmessage
+             * @default false
+             */
+            isCompactionMessage?: boolean;
         };
         /** ValidationError */
         ValidationError: {

@@ -65,7 +65,11 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     OutputConfig as OutputConfigModel,
 )
-from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, PhoenixUIMessageAdapter
+from phoenix.db.types.data_stream_protocol import (
+    PhoenixUIMessage,
+    PhoenixUIMessageAdapter,
+    UserMessageMetadata,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
 from phoenix.db.types.experiment_log import ExperimentLogDetail
@@ -3314,6 +3318,12 @@ class AgentSessionMessage(HasId):
         unique=True,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    @property
+    def is_compaction_point(self) -> bool:
+        metadata = self.message.metadata
+        return isinstance(metadata, UserMessageMetadata) and metadata.is_compaction_message
+
     agent_session: Mapped[AgentSession] = relationship(
         "AgentSession",
         back_populates="messages",
@@ -3361,5 +3371,3 @@ class AgentSessionCompactionPoint(HasId):
         "AgentSessionMessage",
         back_populates="compaction_point",
     )
-    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    __table_args__ = (dict(sqlite_autoincrement=True),)

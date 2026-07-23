@@ -201,6 +201,7 @@ SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
 COMPACTION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/COMPACTION_PROMPT_INSTRUCTIONS.xml.j2"
 )
+COMPACTION_MESSAGE_TEMPLATE = get_template("summarization/COMPACTION_MESSAGE.xml.j2")
 
 
 @dataclass(frozen=True)
@@ -318,6 +319,7 @@ class ServerAgentPrompts:
 __all__ = [
     "AgentPrompts",
     "COMPACTION_INSTRUCTIONS_TEMPLATE",
+    "COMPACTION_MESSAGE_TEMPLATE",
     "ServerAgentPrompts",
     "SUMMARIZATION_INSTRUCTIONS_TEMPLATE",
 ]

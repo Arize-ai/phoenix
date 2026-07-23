@@ -58,16 +58,11 @@ class UserMessageMetadata(CamelBaseModel):
     type: Literal["user"] = "user"
     current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
     time_zone: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
-
-
-class CompactionMessageMetadata(CamelBaseModel):
-    """Marks a durable user-role message as a conversation compaction point."""
-
-    type: Literal["compaction"] = "compaction"
+    is_compaction_message: bool = False
 
 
 MessageMetadata = Annotated[
-    AssistantMessageMetadata | CompactionMessageMetadata | UserMessageMetadata,
+    AssistantMessageMetadata | UserMessageMetadata,
     Field(discriminator="type"),
 ]
 

@@ -15,7 +15,7 @@ from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
 )
 from phoenix.db import models
-from phoenix.db.types.data_stream_protocol import CompactionMessageMetadata, PhoenixUIMessage
+from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.api.auth import IsAgentAssistantEnabled, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -233,7 +233,7 @@ class AgentSessionMutationMixin:
             session.add_all(
                 models.AgentSessionCompactionPoint(agent_session_message_id=row.id)
                 for row in regenerated_message_rows
-                if isinstance(row.message.metadata, CompactionMessageMetadata)
+                if row.is_compaction_point
             )
         return BranchAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(branch_session),

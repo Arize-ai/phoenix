@@ -45,7 +45,12 @@ describe("getConversationUsage", () => {
       {
         id: "older-compaction-boundary",
         role: "user",
-        metadata: { type: "compaction" },
+        metadata: {
+          type: "user",
+          currentDateTime: "2026-01-01T00:00:00Z",
+          timeZone: "UTC",
+          isCompactionMessage: true,
+        },
         parts: [{ type: "text", text: "older summary" }],
       },
       createAssistantMessage({
@@ -131,7 +136,12 @@ describe("getConversationUsage", () => {
       {
         id: "compaction-boundary",
         role: "user",
-        metadata: { type: "compaction" },
+        metadata: {
+          type: "user",
+          currentDateTime: "2026-01-01T00:00:00Z",
+          timeZone: "UTC",
+          isCompactionMessage: true,
+        },
         parts: [{ type: "text", text: "summary" }],
       },
       createAssistantMessage({
@@ -170,7 +180,12 @@ describe("getConversationUsage", () => {
       {
         id: "compaction-boundary",
         role: "user",
-        metadata: { type: "compaction" },
+        metadata: {
+          type: "user",
+          currentDateTime: "2026-01-01T00:00:00Z",
+          timeZone: "UTC",
+          isCompactionMessage: true,
+        },
         parts: [{ type: "text", text: "summary" }],
       },
     ];

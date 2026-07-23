@@ -1,11 +1,10 @@
 from uuid import uuid4
 
 from phoenix.db import models
-from phoenix.db.types.data_stream_protocol import CompactionMessageMetadata, PhoenixUIMessage
-from phoenix.server.agents.session_history import (
-    build_compaction_message,
-    get_compaction_summary,
-    load_agent_session_history,
+from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TextUIPart, UserMessageMetadata
+from phoenix.server.api.routers.agents import (
+    _build_compaction_message,
+    _load_agent_session_history,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -21,14 +20,17 @@ def _message(*, message_id: str, role: str, text: str) -> PhoenixUIMessage:
 
 
 def test_build_compaction_message_creates_a_marked_user_message() -> None:
-    message = build_compaction_message(
+    message = _build_compaction_message(
         message_id="compaction-1",
         summary='{"objectives":["continue"]}',
     )
 
     assert message.role == "user"
-    assert isinstance(message.metadata, CompactionMessageMetadata)
-    assert get_compaction_summary(message) == '{"objectives":["continue"]}'
+    assert isinstance(message.metadata, UserMessageMetadata)
+    assert message.metadata.is_compaction_message
+    assert "\n".join(part.text for part in message.parts if isinstance(part, TextUIPart)) == (
+        '{"objectives":["continue"]}'
+    )
 
 
 async def test_load_agent_session_history_returns_the_full_uncompacted_transcript(
@@ -58,13 +60,13 @@ async def test_load_agent_session_history_returns_the_full_uncompacted_transcrip
         agent_session_rowid = agent_session.id
 
     async with db() as session:
-        history = await load_agent_session_history(
+        history = await _load_agent_session_history(
             session,
             agent_session_rowid=agent_session_rowid,
         )
 
-    assert history.messages == messages
-    assert history.latest_compaction is None
+    assert [row.message for row in history] == messages
+    assert not history[0].is_compaction_point
 
 
 async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
@@ -73,10 +75,10 @@ async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
     messages = [
         _message(message_id="user-1", role="user", text="old question"),
         _message(message_id="assistant-1", role="assistant", text="old answer"),
-        build_compaction_message(message_id="compaction-1", summary="first summary"),
+        _build_compaction_message(message_id="compaction-1", summary="first summary"),
         _message(message_id="user-2", role="user", text="newer question"),
         _message(message_id="assistant-2", role="assistant", text="newer answer"),
-        build_compaction_message(message_id="compaction-2", summary="second summary"),
+        _build_compaction_message(message_id="compaction-2", summary="second summary"),
         _message(message_id="user-3", role="user", text="retained question"),
         _message(message_id="assistant-3", role="assistant", text="retained answer"),
     ]
@@ -106,15 +108,15 @@ async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
         agent_session_rowid = agent_session.id
 
     async with db() as session:
-        history = await load_agent_session_history(
+        history = await _load_agent_session_history(
             session,
             agent_session_rowid=agent_session_rowid,
         )
 
-    assert [message.id for message in history.messages] == [
+    assert [row.message.id for row in history] == [
         "compaction-2",
         "user-3",
         "assistant-3",
     ]
-    assert history.latest_compaction is not None
-    assert history.latest_compaction.message.id == "compaction-2"
+    assert history[0].is_compaction_point
+    assert history[0].message.id == "compaction-2"

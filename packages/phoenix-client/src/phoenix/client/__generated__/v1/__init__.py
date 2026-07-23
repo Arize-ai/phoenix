@@ -81,10 +81,6 @@ class CodeEvaluatorContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
-class CompactionMessageMetadata(TypedDict):
-    type: Literal["compaction"]
-
-
 class CreateAgentSessionRequestBody(TypedDict):
     title: NotRequired[str]
     temporary: NotRequired[bool]
@@ -1081,6 +1077,7 @@ class UserMessageMetadata(TypedDict):
     type: Literal["user"]
     currentDateTime: str
     timeZone: str
+    isCompactionMessage: NotRequired[bool]
 
 
 class ValidationError(TypedDict):
@@ -1816,9 +1813,7 @@ class PhoenixUIMessage(TypedDict):
             StepStartUIPart,
         ]
     ]
-    metadata: NotRequired[
-        Union[AssistantMessageMetadata, CompactionMessageMetadata, UserMessageMetadata]
-    ]
+    metadata: NotRequired[Union[AssistantMessageMetadata, UserMessageMetadata]]
 
 
 class PromptAnthropicInvocationParameters(TypedDict):
@@ -1871,9 +1866,9 @@ class ChatRequest(TypedDict):
     trigger: NotRequired[str]
 
 
-class CompactAgentSessionResponse(TypedDict):
+class CompactAgentSessionResponseData(TypedDict):
     compacted: bool
-    compactionMessage: NotRequired[PhoenixUIMessage]
+    compaction_message: NotRequired[PhoenixUIMessage]
 
 
 class PromptChatTemplate(TypedDict):
@@ -1925,6 +1920,10 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
+
+
+class CompactAgentSessionResponse(TypedDict):
+    data: CompactAgentSessionResponseData
 
 
 class CreatePromptRequestBody(TypedDict):

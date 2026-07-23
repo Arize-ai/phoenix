@@ -11,9 +11,9 @@ from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     TextUIPart,
 )
-from phoenix.server.agents.session_history import (
-    build_compaction_message,
-    load_agent_session_history,
+from phoenix.server.api.routers.agents import (
+    _build_compaction_message,
+    _load_agent_session_history,
 )
 from phoenix.server.settings.registry import AgentAssistantEnabledSetting
 from phoenix.server.types import DbSessionFactory
@@ -231,7 +231,7 @@ async def test_truncate_agent_session_restores_the_latest_surviving_compaction_p
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert agent_session_rowid is not None
         additional_messages = [
-            build_compaction_message(message_id="compaction-1", summary="first summary"),
+            _build_compaction_message(message_id="compaction-1", summary="first summary"),
             PhoenixUIMessage(
                 id="user-3",
                 role="user",
@@ -242,7 +242,7 @@ async def test_truncate_agent_session_restores_the_latest_surviving_compaction_p
                 role="assistant",
                 parts=[TextUIPart(text="Continued")],
             ),
-            build_compaction_message(message_id="compaction-2", summary="second summary"),
+            _build_compaction_message(message_id="compaction-2", summary="second summary"),
             PhoenixUIMessage(
                 id="user-4",
                 role="user",
@@ -280,12 +280,12 @@ async def test_truncate_agent_session_restores_the_latest_surviving_compaction_p
     assert [message["id"] for message in messages][-1] == "compaction-1"
     async with db() as session:
         surviving_points = (await session.scalars(select(models.AgentSessionCompactionPoint))).all()
-        history = await load_agent_session_history(
+        history = await _load_agent_session_history(
             session,
             agent_session_rowid=agent_session_rowid,
         )
     assert len(surviving_points) == 1
-    assert [message.id for message in history.messages] == ["compaction-1"]
+    assert [row.message.id for row in history] == ["compaction-1"]
 
 
 async def test_truncate_agent_session_with_unknown_message_id_is_not_found(
@@ -400,7 +400,7 @@ async def test_branch_agent_session_copies_durable_compaction_points(
         compaction_row = models.AgentSessionMessage(
             agent_session_id=source_session_rowid,
             position=4,
-            message=build_compaction_message(
+            message=_build_compaction_message(
                 message_id="source-compaction",
                 summary="durable summary",
             ),
@@ -430,7 +430,9 @@ async def test_branch_agent_session_copies_durable_compaction_points(
     assert response.data is not None
     branch_messages = response.data["branchAgentSession"]["agentSession"]["messages"]
     copied_compaction = next(
-        message for message in branch_messages if message.get("metadata") == {"type": "compaction"}
+        message
+        for message in branch_messages
+        if message.get("metadata", {}).get("isCompactionMessage") is True
     )
     assert copied_compaction["id"] != "source-compaction"
     async with db() as session:

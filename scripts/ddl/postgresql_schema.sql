@@ -489,7 +489,6 @@ CREATE TABLE public.agent_session_messages (
 CREATE TABLE public.agent_session_compaction_points (
     id bigserial NOT NULL,
     agent_session_message_id BIGINT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_compaction_points PRIMARY KEY (id),
     CONSTRAINT uq_agent_session_compaction_points_agent_session_message_id
         UNIQUE (agent_session_message_id),

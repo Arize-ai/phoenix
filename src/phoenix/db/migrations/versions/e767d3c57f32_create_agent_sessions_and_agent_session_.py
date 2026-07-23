@@ -157,13 +157,6 @@ def upgrade() -> None:
             nullable=False,
             unique=True,
         ),
-        sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sqlite_autoincrement=True,
     )
 
 

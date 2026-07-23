@@ -50,6 +50,8 @@ from phoenix.server.api.routers.agents import (
     _subagents_enabled,
 )
 from phoenix.server.authorization import (
+    is_agent_assistant_enabled,
+    is_not_locked,
     prevent_access_in_read_only_mode,
     restrict_access_by_viewers,
 )
@@ -148,10 +150,14 @@ def create_legacy_agents_router(
     *,
     session_chat: SessionChatHandler,
 ) -> APIRouter:
-    dependencies = [Depends(prevent_access_in_read_only_mode)]
+    dependencies = [
+        Depends(is_agent_assistant_enabled),
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ]
     if authentication_enabled:
         dependencies.append(Depends(is_authenticated))
-        dependencies.append(Depends(restrict_access_by_viewers))
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
     @router.post(
@@ -171,8 +177,6 @@ def create_legacy_agents_router(
             "with a session created via the createAgentSession GraphQL mutation.",
             session_id,
         )
-        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
-            raise HTTPException(status_code=403, detail="Agents are disabled")
         if get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
 

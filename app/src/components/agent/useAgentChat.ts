@@ -604,11 +604,11 @@ export function useAgentChat({
           throw new Error(await getAgentCompactErrorMessage(response));
         }
         const result: unknown = await response.json();
+        const data =
+          isRecord(result) && isRecord(result.data) ? result.data : null;
         const wasCompacted =
-          isRecord(result) && typeof result.compacted === "boolean"
-            ? result.compacted
-            : false;
-        const compactionMessage = getCompactionMessageFromResponse(result);
+          data && typeof data.compacted === "boolean" ? data.compacted : false;
+        const compactionMessage = getCompactionMessageFromResponse(data);
         if (
           compactionMessage &&
           !chatInstance.messages.some(
@@ -953,16 +953,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getCompactionMessageFromResponse(
   result: unknown
 ): AgentUIMessage | null {
-  if (!isRecord(result) || !isRecord(result.compactionMessage)) {
+  if (!isRecord(result) || !isRecord(result.compaction_message)) {
     return null;
   }
-  const message = result.compactionMessage;
+  const message = result.compaction_message;
   if (
     typeof message.id !== "string" ||
     message.role !== "user" ||
     !Array.isArray(message.parts) ||
     !isRecord(message.metadata) ||
-    message.metadata.type !== "compaction"
+    message.metadata.type !== "user" ||
+    message.metadata.isCompactionMessage !== true
   ) {
     return null;
   }

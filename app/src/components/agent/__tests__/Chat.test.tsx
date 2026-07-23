@@ -372,7 +372,12 @@ describe("ChatView", () => {
     const compactionMessage = {
       id: "compaction-message",
       role: "user",
-      metadata: { type: "compaction" },
+      metadata: {
+        type: "user",
+        currentDateTime: "2026-01-01T00:00:00Z",
+        timeZone: "UTC",
+        isCompactionMessage: true,
+      },
       parts: [
         {
           type: "text",
@@ -422,7 +427,12 @@ describe("ChatView", () => {
         ({
           id: `compaction-${index}`,
           role: "user",
-          metadata: { type: "compaction" },
+          metadata: {
+            type: "user",
+            currentDateTime: "2026-01-01T00:00:00Z",
+            timeZone: "UTC",
+            isCompactionMessage: true,
+          },
           parts: [{ type: "text", text: summary }],
         }) as AgentUIMessage
     );

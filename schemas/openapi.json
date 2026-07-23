@@ -9154,11 +9154,23 @@
       },
       "CompactAgentSessionResponse": {
         "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CompactAgentSessionResponseData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CompactAgentSessionResponse"
+      },
+      "CompactAgentSessionResponseData": {
+        "properties": {
           "compacted": {
             "type": "boolean",
             "title": "Compacted"
           },
-          "compactionMessage": {
+          "compaction_message": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/PhoenixUIMessage"
@@ -9173,22 +9185,8 @@
         "required": [
           "compacted"
         ],
-        "title": "CompactAgentSessionResponse",
+        "title": "CompactAgentSessionResponseData",
         "description": "Result of compacting the older complete turns in a conversation."
-      },
-      "CompactionMessageMetadata": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "compaction",
-            "title": "Type",
-            "default": "compaction"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "CompactionMessageMetadata",
-        "description": "Marks a durable user-role message as a conversation compaction point."
       },
       "ContinuousAnnotationConfig": {
         "properties": {
@@ -13411,9 +13409,6 @@
                     "$ref": "#/components/schemas/AssistantMessageMetadata"
                   },
                   {
-                    "$ref": "#/components/schemas/CompactionMessageMetadata"
-                  },
-                  {
                     "$ref": "#/components/schemas/UserMessageMetadata"
                   }
                 ],
@@ -13421,7 +13416,6 @@
                   "propertyName": "type",
                   "mapping": {
                     "assistant": "#/components/schemas/AssistantMessageMetadata",
-                    "compaction": "#/components/schemas/CompactionMessageMetadata",
                     "user": "#/components/schemas/UserMessageMetadata"
                   }
                 }
@@ -18678,6 +18672,11 @@
             "type": "string",
             "maxLength": 128,
             "title": "Timezone"
+          },
+          "isCompactionMessage": {
+            "type": "boolean",
+            "title": "Iscompactionmessage",
+            "default": false
           }
         },
         "additionalProperties": false,

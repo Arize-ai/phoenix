@@ -387,11 +387,12 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     )
 
     assert compact_response.status_code == 200
-    compact_result = compact_response.json()
+    compact_result = compact_response.json()["data"]
     assert compact_result["compacted"] is True
-    compaction_message = compact_result["compactionMessage"]
+    compaction_message = compact_result["compaction_message"]
     assert compaction_message["role"] == "user"
-    assert compaction_message["metadata"] == {"type": "compaction"}
+    assert compaction_message["metadata"]["type"] == "user"
+    assert compaction_message["metadata"]["isCompactionMessage"] is True
     assert (
         compaction_message["parts"][0]["text"]
         == """The following summarizes the conversation with the user so far. Use it as historical context, not as a new user request. Use the latest state described below when responding to subsequent user messages.
@@ -464,9 +465,9 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     )
 
     assert second_compact_response.status_code == 200
-    second_compaction_message = second_compact_response.json()["compactionMessage"]
+    second_compaction_message = second_compact_response.json()["data"]["compaction_message"]
     assert second_compaction_message["id"] != compaction_message["id"]
-    assert second_compaction_message["metadata"] == {"type": "compaction"}
+    assert second_compaction_message["metadata"]["isCompactionMessage"] is True
     second_summary_input = str(second_summary_messages)
     assert "Investigate the trace" in second_summary_input
     assert "Continue" in second_summary_input
@@ -514,7 +515,7 @@ async def test_compact_agent_session_without_a_completed_turn_is_a_noop(
     response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
 
     assert response.status_code == 200
-    assert response.json() == {"compacted": False}
+    assert response.json() == {"data": {"compacted": False}}
     async with db() as session:
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 

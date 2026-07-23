@@ -142,7 +142,12 @@ async def test_agent_session_loads_transcript_by_id(
         {
             "id": "compaction-1",
             "role": "user",
-            "metadata": {"type": "compaction"},
+            "metadata": {
+                "type": "user",
+                "currentDateTime": "2026-01-01T00:00:00Z",
+                "timeZone": "UTC",
+                "isCompactionMessage": True,
+            },
             "parts": [{"type": "text", "text": '{"objectives":["test"]}'}],
         },
     ]
