@@ -18,6 +18,13 @@ success or ``{status: "error", code, path, message, suggestions}`` on
 semantic failure, so callers branch on data instead of parsing prose.
 ``ToolError`` is reserved for transport-level failures.
 
+The supporting mechanics live in sibling modules — query compilation in
+:mod:`.compiler`, the field registry in :mod:`.registry`, observed-path
+sampling in :mod:`.discovery`, response envelopes and size budgeting in
+:mod:`.envelope`, and UI link composition in :mod:`.links`. This module
+owns the tool definitions themselves: parameter schemas, handlers, and
+descriptions.
+
 Field declarations use the ``param: T = Field(default=..., description=...)``
 style; ``Annotated`` wrapping nests descriptions inside an extra ``anyOf``
 level where JSON-schema consumers do not look.
@@ -25,27 +32,16 @@ level where JSON-schema consumers do not look.
 
 from __future__ import annotations
 
-import json
-import os
-import random
 import re
-from collections import Counter
-from copy import deepcopy
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, Union
-from urllib.parse import urlencode
 
 from fastmcp.server.dependencies import get_http_request
 from fastmcp.tools.base import Tool
 from mcp.types import ToolAnnotations
 from pydantic import Field, TypeAdapter, ValidationError
-from sqlalchemy import func
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from phoenix.config import ENV_PHOENIX_ROOT_URL, get_env_root_url
 from phoenix.db import models
-from phoenix.server.mcp_span_analytics import compiler, registry
+from phoenix.server.mcp_span_analytics import compiler, discovery, envelope, links, registry
 from phoenix.server.mcp_span_analytics.compiler import (
     AggregateOrderEntry,
     AggregateQuery,
@@ -57,7 +53,6 @@ from phoenix.server.mcp_span_analytics.compiler import (
     TimeBucket,
     TimeRange,
 )
-from phoenix.server.utils import prepend_root_path
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -89,28 +84,6 @@ _READ_ONLY_ANNOTATIONS = ToolAnnotations(
 _DEFAULT_MAX_RESULT_CHARS = 50_000
 _GET_SPAN_MAX_RESULT_CHARS = 100_000
 _DEFAULT_MAX_CELL_CHARS = 400
-
-#: Upper bound on spans scanned for observed-field discovery and
-#: zero-result diagnosis. A bounded sample drawn evenly across the
-#: project's span id range, never a full scan.
-_DISCOVERY_SAMPLE_SIZE = 500
-
-#: Declared sampling strategy of the discovery scan: up to N span ids
-#: drawn uniformly across the project's id range (approximately
-#: time-ordered, since ids are allocated in ingestion order).
-_DISCOVERY_STRATEGY = f"id_spread_{_DISCOVERY_SAMPLE_SIZE}"
-
-#: Fixed seed of the discovery draw: the same project state always yields
-#: the same sample, so repeated discovery calls agree with each other.
-_DISCOVERY_SAMPLE_SEED = 0
-
-#: Cap on observed-field entries in one describeSpans response.
-_DISCOVERY_MAX_OBSERVED_FIELDS = 100
-
-#: Observed values are tracked for top-value reporting only up to this many
-#: distinct values per path and this many characters per value.
-_TOP_VALUES_LIMIT = 20
-_TOP_VALUE_MAX_CHARS = 100
 
 _FILTER_DESCRIPTION = (
     "Boolean expression selecting spans, written in Python syntax and compiled to SQL. "
@@ -333,164 +306,18 @@ def _parse_shape(adapter: TypeAdapter[Any], value: Any, param: str, expected: st
         )
 
 
-#: Structural disclosure attached whenever a filter used an annotation
-#: predicate: existence tests are any-annotator by construction.
-_ANNOTATION_SEMANTICS_NOTE = (
-    "The filter's annotation predicate uses any-annotator semantics: any "
-    "matching annotation row satisfies it; consensus or reduced semantics "
-    "are not implemented."
-)
-
-_ANNOTATION_SEMANTICS_SCHEMA: dict[str, Any] = {
-    "type": "string",
-    "enum": ["any"],
-    "description": (
-        "Present when the filter used an annotation predicate: the predicate "
-        "is satisfied by any matching annotation row (any-annotator "
-        "semantics); consensus/reduced semantics are not implemented."
-    ),
-}
-
-
 # --------------------------------------------------------------------------
-# Output schemas
+# UI links
 # --------------------------------------------------------------------------
-
-_ERROR_ARM: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "status": {"const": "error"},
-        "code": {
-            "type": "string",
-            "description": (
-                "Machine-readable failure class, e.g. unknown_field, invalid_filter, "
-                "invalid_shape, field_not_groupable, project_not_found."
-            ),
-        },
-        "path": {
-            "type": ["string", "null"],
-            "description": "Request location the error anchors to, e.g. 'order[0].field'.",
-        },
-        "message": {"type": "string"},
-        "suggestions": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "Nearest-name or alternative-usage candidates, directly usable.",
-        },
-    },
-    "required": ["status", "code", "message"],
-}
-
-_VALIDATE_ARM: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "status": {"const": "ok"},
-        "valid": {"const": True},
-        "applied": {"type": "object"},
-    },
-    "required": ["status", "valid"],
-}
-
-
-def _union_schema(
-    ok_properties: dict[str, Any],
-    ok_required: Sequence[str],
-    validate_arm: bool = False,
-) -> dict[str, Any]:
-    ok_arm: dict[str, Any] = {
-        "type": "object",
-        "properties": {"status": {"const": "ok"}, **ok_properties},
-        "required": ["status", *ok_required],
-    }
-    arms = [ok_arm, *([_VALIDATE_ARM] if validate_arm else []), _ERROR_ARM]
-    return {"type": "object", "oneOf": arms}
-
-
-_COLUMNS_SCHEMA: dict[str, Any] = {
-    "type": "array",
-    "items": {
-        "type": "object",
-        "properties": {
-            "id": {"type": "string"},
-            "type": {"type": "string"},
-            "unit": {"type": ["string", "null"]},
-        },
-    },
-    "description": "Typed metadata of the result columns, in order.",
-}
-
-_GUIDANCE_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "cause": {
-            "type": "string",
-            "enum": ["window_empty", "path_not_observed", "no_matches"],
-        },
-        "detail": {"type": "string"},
-    },
-    "description": (
-        "Present when the result is empty: which of the enumerated causes applies. "
-        "path_not_observed is sampled evidence, not proof of absence."
-    ),
-}
-
-
-# --------------------------------------------------------------------------
-# Serialization helpers
-# --------------------------------------------------------------------------
-
-
-def _cell(value: Any) -> Any:
-    if isinstance(value, datetime):
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc).isoformat()
-    if isinstance(value, Decimal):
-        return float(value)
-    return value
-
-
-def _serialized_size(obj: Any) -> int:
-    return len(json.dumps(obj, ensure_ascii=False, default=str))
-
-
-def _iso(value: datetime) -> str:
-    return value.astimezone(timezone.utc).isoformat()
-
-
-def _time_range_resolved(time_range: TimeRange) -> dict[str, str]:
-    return {"start": _iso(time_range.start), "end": _iso(time_range.end)}
 
 
 def _public_url(path: str) -> str:
-    """Compose an absolute Phoenix UI link for ``path``.
+    """Absolute Phoenix UI link for ``path``; see :func:`links.public_url`.
 
-    Behind a reverse proxy, only two parties can know the public origin:
-    explicit configuration, or the incoming request itself — the server's
-    own host/port settings describe where it listens, not where clients
-    reach it. Precedence follows the OAuth machinery's ``public_origin``:
-    ``PHOENIX_ROOT_URL`` when set; otherwise the current MCP request's
-    origin with its ASGI ``root_path`` prepended; and the
-    environment-composed URL only as the last resort when no request
-    context exists.
+    The transport's request accessor is resolved here, at the tool layer,
+    and injected into the composition logic.
     """
-    if os.getenv(ENV_PHOENIX_ROOT_URL):
-        return f"{str(get_env_root_url()).rstrip('/')}{path}"
-    try:
-        request = get_http_request()
-    except RuntimeError:
-        return f"{str(get_env_root_url()).rstrip('/')}{path}"
-    origin = f"{request.base_url.scheme}://{request.base_url.netloc}"
-    # The request is seen inside the mounted MCP app, so its ASGI root_path
-    # is "<deployment prefix><MCP mount>". The deployment prefix (a reverse
-    # proxy's) belongs in UI links; the app's own MCP mount does not — a UI
-    # route lives at /projects/..., never /mcp/projects/....
-    from phoenix.server.mcp_server import MCP_MOUNT_PATH
-
-    root_path = str(request.scope.get("root_path", "")).rstrip("/")
-    if root_path.endswith(MCP_MOUNT_PATH):
-        root_path = root_path[: -len(MCP_MOUNT_PATH)]
-    return f"{origin}{prepend_root_path({'root_path': root_path}, path)}"
+    return links.public_url(path, get_http_request)
 
 
 def _ui_span_url(span_id: str) -> str:
@@ -499,281 +326,6 @@ def _ui_span_url(span_id: str) -> str:
 
 def _ui_trace_url(trace_id: str) -> str:
     return _public_url(f"/redirects/traces/{trace_id}")
-
-
-def _filter_literal(value: Any) -> str:
-    """Render one group-key value as a filter-grammar literal.
-
-    Strings are escaped for the grammar (which parses Python string
-    literals): backslashes first, then single quotes — a value like
-    ``o'brien-corp`` must survive both the grammar and URL encoding.
-    """
-    if isinstance(value, str):
-        escaped = value.replace("\\", "\\\\").replace("'", "\\'")
-        return f"'{escaped}'"
-    return repr(value)
-
-
-def _bucket_start(value: Any) -> Optional[datetime]:
-    if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-    if isinstance(value, str) and value:
-        return datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
-    return None
-
-
-def _cohort_ui_url(
-    base: str,
-    breakdowns: Sequence[Any],
-    raw_values: Sequence[Any],
-    time_range: "TimeRange",
-) -> str:
-    """Deep link to the group's cohort in the Phoenix UI span view.
-
-    The link carries the group's condition as a ``filter`` in the filter
-    grammar (breakdown-key equalities ANDed) plus ``start``/``end``. A
-    time bucket contributes nothing to ``filter``; it narrows the time
-    params to its hour instead. A **null group key is skipped**: the UI
-    filter grammar cannot express "attribute is absent" today, so the
-    null bucket links to the window without that conjunct — a wider
-    cohort than the row, by declared necessity.
-    """
-    conjuncts: list[str] = []
-    window_start, window_end = time_range.start, time_range.end
-    for breakdown, value in zip(breakdowns, raw_values):
-        if breakdown.is_time_bucket:
-            bucket = _bucket_start(value)
-            if bucket is not None:
-                window_start, window_end = bucket, bucket + timedelta(hours=1)
-        elif value is not None:
-            conjuncts.append(f"{breakdown.id} == {_filter_literal(value)}")
-    params: dict[str, str] = {}
-    if conjuncts:
-        params["filter"] = " and ".join(conjuncts)
-    params["start"] = _iso(window_start)
-    params["end"] = _iso(window_end)
-    return f"{base}?{urlencode(params)}"
-
-
-def _clip_strings_to_budget(
-    obj: Any,
-    budget: int,
-    marker: str,
-    min_keep: int = 500,
-) -> tuple[Any, list[str]]:
-    """Clip the largest string leaves of a JSON-like object until it fits.
-
-    Returns the (possibly copied and clipped) object and the dotted paths of
-    clipped leaves. Whole values are never dropped — clipping a cell and
-    pointing at the recovery path degrades better than losing the row.
-    """
-    size = _serialized_size(obj)
-    if size <= budget:
-        return obj, []
-    obj = deepcopy(obj)
-    leaves: list[tuple[int, Any, Any, str]] = []
-
-    def collect(node: Any, path: str) -> None:
-        if isinstance(node, dict):
-            for key, value in node.items():
-                child_path = f"{path}.{key}" if path else str(key)
-                if isinstance(value, str) and len(value) > min_keep:
-                    leaves.append((len(value), node, key, child_path))
-                else:
-                    collect(value, child_path)
-        elif isinstance(node, list):
-            for index, value in enumerate(node):
-                child_path = f"{path}[{index}]"
-                if isinstance(value, str) and len(value) > min_keep:
-                    leaves.append((len(value), node, index, child_path))
-                else:
-                    collect(value, child_path)
-
-    collect(obj, "")
-    leaves.sort(key=lambda item: item[0], reverse=True)
-    clipped: list[str] = []
-    for length, container, key, path in leaves:
-        if size <= budget:
-            break
-        text_value = container[key]
-        excess = size - budget
-        keep = max(min_keep, len(text_value) - excess - len(marker))
-        if keep >= len(text_value):
-            continue
-        suffix = f"…[clipped {len(text_value) - keep} chars; {marker}]"
-        container[key] = text_value[:keep] + suffix
-        size += len(suffix) + keep - len(text_value)
-        clipped.append(path)
-    return obj, clipped
-
-
-# --------------------------------------------------------------------------
-# Observed-path sampling
-# --------------------------------------------------------------------------
-
-
-class _PathStats:
-    """Streaming statistics for one attribute path in the discovery sample."""
-
-    __slots__ = ("count", "types", "values", "values_complete")
-
-    def __init__(self) -> None:
-        self.count = 0
-        self.types: Counter[str] = Counter()
-        self.values: Counter[Any] = Counter()
-        #: True while every observed value has been tracked; long values and
-        #: high cardinality forfeit top-value reporting rather than
-        #: misreport it as complete.
-        self.values_complete = True
-
-    def record(self, value: Any) -> None:
-        self.count += 1
-        if isinstance(value, bool):
-            self.types["boolean"] += 1
-        elif isinstance(value, int):
-            self.types["integer"] += 1
-        elif isinstance(value, float):
-            self.types["float"] += 1
-        else:
-            self.types["string"] += 1
-        trackable = not isinstance(value, str) or len(value) <= _TOP_VALUE_MAX_CHARS
-        if not trackable:
-            self.values_complete = False
-            return
-        if value in self.values or len(self.values) < _TOP_VALUES_LIMIT + 1:
-            self.values[value] += 1
-        else:
-            self.values_complete = False
-
-    def top_values(self) -> Optional[list[dict[str, Any]]]:
-        if not self.values_complete or not self.values or len(self.values) > _TOP_VALUES_LIMIT:
-            return None
-        return [
-            {"value": value, "count": count}
-            for value, count in sorted(self.values.items(), key=lambda kv: (-kv[1], str(kv[0])))
-        ]
-
-
-def _flatten_scalars(
-    blob: Mapping[str, Any],
-    prefix: tuple[str, ...],
-    out: dict[tuple[str, ...], _PathStats],
-    depth: int = 0,
-) -> None:
-    if depth > 6:
-        return
-    for key, value in blob.items():
-        if not isinstance(key, str):
-            continue
-        path = (*prefix, key)
-        if isinstance(value, dict):
-            _flatten_scalars(value, path, out, depth + 1)
-        elif isinstance(value, (str, int, float, bool)):
-            out.setdefault(path, _PathStats()).record(value)
-        # None and list values are skipped: only scalar paths are fields.
-        # List-valued paths (message lists, retrieval documents) are
-        # deliberately omitted from observed discovery rather than emitted
-        # with empty capabilities — list-entry access is defined by authored
-        # convention fields, not by arbitrary observed indexing.
-
-
-async def _sample_observed_paths(
-    session: AsyncSession,
-    project_rowid: int,
-) -> tuple[int, dict[tuple[str, ...], _PathStats]]:
-    """Scan a bounded, time-spread sample of the project's spans.
-
-    Value discovery biased toward recent rows hides dimension values that
-    stopped occurring — exactly the values an investigation of a change
-    needs (the pre-cut release tag, the retired model name). So instead of
-    the most recent N spans, the sample draws span ids uniformly across
-    the project's whole id range: ids are allocated in ingestion order, so
-    the draw reaches old and new rows alike, in one bounded IN-list query.
-    The draw is seeded and therefore deterministic across calls, and it is
-    random rather than fixed-stride because trace structure is periodic
-    (root/child spans alternate ids) and a stride aliases with that period
-    — an even stride can sample only root spans and miss every LLM
-    attribute. Drawn ids that do not exist (gaps, other projects'
-    interleaved rows) simply reduce the scanned row count, which is
-    reported as ``sample_count``.
-    """
-    min_id, max_id = (
-        await session.execute(
-            compiler.scoped_base(
-                [func.min(models.Span.id), func.max(models.Span.id)], project_rowid, None
-            )
-        )
-    ).one()
-    if min_id is None or max_id is None:
-        return 0, {}
-    id_range = range(min_id, max_id + 1)
-    if len(id_range) <= _DISCOVERY_SAMPLE_SIZE:
-        candidate_ids = list(id_range)
-    else:
-        rng = random.Random(_DISCOVERY_SAMPLE_SEED)
-        candidate_ids = sorted(rng.sample(id_range, _DISCOVERY_SAMPLE_SIZE))
-    stmt = (
-        compiler.scoped_base([models.Span.attributes], project_rowid, None)
-        .where(models.Span.id.in_(candidate_ids))
-        .order_by(models.Span.id.asc())
-        .limit(_DISCOVERY_SAMPLE_SIZE)
-    )
-    stats: dict[tuple[str, ...], _PathStats] = {}
-    sample_count = 0
-    for attributes in (await session.execute(stmt)).scalars():
-        sample_count += 1
-        if isinstance(attributes, dict):
-            _flatten_scalars(attributes, (), stats)
-    return sample_count, stats
-
-
-async def _zero_result_guidance(
-    session: AsyncSession,
-    project_rowid: int,
-    time_range: Optional[TimeRange],
-    filter_condition: Optional[str],
-) -> dict[str, str]:
-    """Diagnose an empty result with bounded checks only.
-
-    The window check counts spans within the queried window — never an
-    unrestricted historical scan — and the path check reads the same
-    bounded time-spread sample discovery uses.
-    """
-    window_count = await session.scalar(
-        compiler.scoped_base([func.count()], project_rowid, time_range)
-    )
-    if not window_count:
-        detail = "The project has no spans"
-        if time_range is not None:
-            detail += (
-                f" between {_iso(time_range.start)} and {_iso(time_range.end)}"
-                " (the check counted only within this window)"
-            )
-        return {"cause": "window_empty", "detail": detail + "."}
-    if filter_condition:
-        referenced = compiler.attribute_paths_in_filter(filter_condition)
-        if referenced:
-            sample_count, stats = await _sample_observed_paths(session, project_rowid)
-            missing = sorted(
-                registry.canonical_attribute_spelling(keys)
-                for keys in referenced
-                if keys not in stats
-            )
-            if missing:
-                return {
-                    "cause": "path_not_observed",
-                    "detail": (
-                        f"Attribute path(s) {', '.join(missing)} did not appear in a "
-                        f"sample of {sample_count} spans drawn across the project's "
-                        "history — sampled evidence, not proof of absence."
-                    ),
-                }
-    return {
-        "cause": "no_matches",
-        "detail": (
-            "The window contains spans and the query is well-formed; nothing matched the filter."
-        ),
-    }
 
 
 # --------------------------------------------------------------------------
@@ -809,7 +361,7 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
                 project_rowid = await compiler.resolve_project_rowid(session, project)
                 if project_rowid is None:
                     raise compiler.project_not_found(project)
-                sample_count, stats = await _sample_observed_paths(session, project_rowid)
+                sample_count, stats = await discovery.sample_observed_paths(session, project_rowid)
         except QueryError as error:
             return error.envelope()
 
@@ -842,8 +394,8 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
         observed_spellings = sorted(
             stats_by_spelling, key=lambda spelling: -stats_by_spelling[spelling].count
         )
-        capped = len(observed_spellings) > _DISCOVERY_MAX_OBSERVED_FIELDS
-        for spelling in observed_spellings[:_DISCOVERY_MAX_OBSERVED_FIELDS]:
+        capped = len(observed_spellings) > discovery.MAX_OBSERVED_FIELDS
+        for spelling in observed_spellings[: discovery.MAX_OBSERVED_FIELDS]:
             path_stats = stats_by_spelling[spelling]
             observed_types = sorted(path_stats.types)
             entry = {
@@ -870,7 +422,7 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
             "project": project,
             "fields": fields,
             "sampling": {
-                "strategy": _DISCOVERY_STRATEGY,
+                "strategy": discovery.STRATEGY,
                 "sample_count": sample_count,
                 "note": (
                     f"Observed fields come from a bounded sample of {sample_count} "
@@ -883,7 +435,7 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
         }
         if capped:
             result["note"] = (
-                f"Observed fields were capped at {_DISCOVERY_MAX_OBSERVED_FIELDS} "
+                f"Observed fields were capped at {discovery.MAX_OBSERVED_FIELDS} "
                 "entries (ordered by observation count)."
             )
         return result
@@ -906,7 +458,7 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
         ),
         tags={SPANS_GROUP_TAG, ANALYTICS_TAG},
         annotations=_READ_ONLY_ANNOTATIONS,
-        output_schema=_union_schema(
+        output_schema=envelope.union_schema(
             {
                 "project": {"type": "string"},
                 "fields": {
@@ -1024,7 +576,7 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 plan = compiler.compile_aggregate(query, project_rowid, db.dialect)
                 applied: dict[str, Any] = {
                     "limit": plan.applied_limit,
-                    "time_range_resolved": _time_range_resolved(plan.time_range),
+                    "time_range_resolved": envelope.time_range_resolved(plan.time_range),
                     "timeout": {
                         "statement_timeout_ms": compiler.STATEMENT_TIMEOUT_MS
                         if db.dialect.value == "postgresql"
@@ -1042,7 +594,7 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 )
                 overall_row = (await session.execute(plan.overall_stmt)).one()
                 guidance = (
-                    await _zero_result_guidance(
+                    await discovery.zero_result_guidance(
                         session, project_rowid, plan.time_range, query.filter
                     )
                     if not raw_rows
@@ -1060,7 +612,9 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 message="The request has an invalid shape; check the parameter descriptions.",
             ).envelope()
 
-        overall = {calc.name: _cell(value) for calc, value in zip(plan.calculations, overall_row)}
+        overall = {
+            calc.name: envelope.cell(value) for calc, value in zip(plan.calculations, overall_row)
+        }
         columns = [b.column.as_dict() for b in plan.breakdowns] + [
             {"id": c.name, "type": "float", "unit": None} for c in plan.calculations
         ]
@@ -1082,16 +636,16 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 row[breakdown.id] = (
                     registry.normalize_time_bucket_value(value)
                     if breakdown.is_time_bucket
-                    else _cell(value)
+                    else envelope.cell(value)
                 )
             offset = len(plan.breakdowns)
             for calc, value in zip(plan.calculations, raw[offset:]):
-                row[calc.name] = _cell(value)
+                row[calc.name] = envelope.cell(value)
             if share_basis is not None and overall_basis:
                 basis_value = row.get(share_basis)
                 if isinstance(basis_value, (int, float)):
                     row["share"] = basis_value / overall_basis
-            row["ui_url"] = _cohort_ui_url(
+            row["ui_url"] = links.cohort_url(
                 cohort_base,
                 plan.breakdowns,
                 raw[: len(plan.breakdowns)],
@@ -1114,7 +668,7 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
         notes: list[str] = []
         if plan.uses_annotation_filter:
             result["annotation_semantics"] = "any"
-            notes.append(_ANNOTATION_SEMANTICS_NOTE)
+            notes.append(envelope.ANNOTATION_SEMANTICS_NOTE)
         if groups_total is not None and groups_total > len(rows):
             notes.append(
                 f"Top {len(rows)} of {groups_total} groups returned; ordering ties at "
@@ -1125,15 +679,8 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 "share is omitted: none of the calculations is additive (only count "
                 "and sum have meaningful shares of the overall total)."
             )
-        if _serialized_size(rows) > max_result_chars:
-            kept: list[dict[str, Any]] = []
-            used = 0
-            for row in rows:
-                cost = _serialized_size(row)
-                if kept and used + cost > max_result_chars:
-                    break
-                kept.append(row)
-                used += cost
+        if envelope.serialized_size(rows) > max_result_chars:
+            kept = envelope.rows_within_budget(rows, max_result_chars)
             notes.append(
                 f"Only {len(kept)} of {len(rows)} groups fit max_result_chars; narrow "
                 "breakdowns or raise the budget."
@@ -1165,9 +712,9 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
         ),
         tags={SPANS_GROUP_TAG, ANALYTICS_TAG},
         annotations=_READ_ONLY_ANNOTATIONS,
-        output_schema=_union_schema(
+        output_schema=envelope.union_schema(
             {
-                "columns": _COLUMNS_SCHEMA,
+                "columns": envelope.COLUMNS_SCHEMA,
                 "rows": {
                     "type": "array",
                     "items": {"type": "object"},
@@ -1192,8 +739,8 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                     ),
                 },
                 "applied": {"type": "object"},
-                "annotation_semantics": _ANNOTATION_SEMANTICS_SCHEMA,
-                "guidance": _GUIDANCE_SCHEMA,
+                "annotation_semantics": envelope.ANNOTATION_SEMANTICS_SCHEMA,
+                "guidance": envelope.GUIDANCE_SCHEMA,
                 "note": {"type": "string"},
             },
             ["columns", "rows", "groups_total", "groups_returned", "overall", "applied"],
@@ -1296,7 +843,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
                 plan = compiler.compile_rows(query, project_rowid, db.dialect)
                 applied: dict[str, Any] = {
                     "limit": plan.applied_limit,
-                    "time_range_resolved": _time_range_resolved(plan.time_range),
+                    "time_range_resolved": envelope.time_range_resolved(plan.time_range),
                     "time_range_defaulted": plan.time_range_defaulted,
                     "max_cell_chars": max_cell_chars,
                     "max_result_chars": max_result_chars,
@@ -1330,7 +877,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
                     assert plan.stmt is not None
                     raw_rows = (await session.execute(plan.stmt)).all()
                 guidance = (
-                    await _zero_result_guidance(
+                    await discovery.zero_result_guidance(
                         session, project_rowid, plan.time_range, query.filter
                     )
                     if not raw_rows
@@ -1352,7 +899,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
         clipped: list[dict[str, Any]] = []
         rows: list[dict[str, Any]] = []
         for raw in raw_rows:
-            row = {column_id: _cell(value) for column_id, value in zip(column_ids, raw)}
+            row = {column_id: envelope.cell(value) for column_id, value in zip(column_ids, raw)}
             span_id = row.get("span_id")
             for column_id, value in row.items():
                 if isinstance(value, str) and len(value) > max_cell_chars:
@@ -1362,14 +909,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
                     clipped.append({"row": span_id, "field": column_id})
             rows.append(row)
 
-        kept_rows: list[dict[str, Any]] = []
-        used = 0
-        for row in rows:
-            cost = _serialized_size(row)
-            if kept_rows and used + cost > max_result_chars:
-                break
-            kept_rows.append(row)
-            used += cost
+        kept_rows = envelope.rows_within_budget(rows, max_result_chars)
 
         result: dict[str, Any] = {
             "status": "ok",
@@ -1408,7 +948,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
         notes: list[str] = []
         if plan.uses_annotation_filter:
             result["annotation_semantics"] = "any"
-            notes.append(_ANNOTATION_SEMANTICS_NOTE)
+            notes.append(envelope.ANNOTATION_SEMANTICS_NOTE)
         if sample_note:
             notes.append(sample_note)
         if clipped:
@@ -1448,9 +988,9 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
         ),
         tags={SPANS_GROUP_TAG, ANALYTICS_TAG},
         annotations=_READ_ONLY_ANNOTATIONS,
-        output_schema=_union_schema(
+        output_schema=envelope.union_schema(
             {
-                "columns": _COLUMNS_SCHEMA,
+                "columns": envelope.COLUMNS_SCHEMA,
                 "rows": {
                     "type": "array",
                     "items": {"type": "object"},
@@ -1487,8 +1027,8 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
                         "describeSpans."
                     ),
                 },
-                "annotation_semantics": _ANNOTATION_SEMANTICS_SCHEMA,
-                "guidance": _GUIDANCE_SCHEMA,
+                "annotation_semantics": envelope.ANNOTATION_SEMANTICS_SCHEMA,
+                "guidance": envelope.GUIDANCE_SCHEMA,
                 "note": {"type": "string"},
             },
             ["columns", "rows", "row_count", "applied", "clipped"],
@@ -1545,7 +1085,10 @@ def _build_get_span(app: "FastAPI") -> Tool:
             return error.envelope()
 
         registry_fields = (
-            {field.id: _cell(value) for field, value in zip(registry.AUTHORED_FIELDS, fields_row)}
+            {
+                field.id: envelope.cell(value)
+                for field, value in zip(registry.AUTHORED_FIELDS, fields_row)
+            }
             if fields_row is not None
             else {}
         )
@@ -1556,13 +1099,13 @@ def _build_get_span(app: "FastAPI") -> Tool:
             "name": span.name,
             "span_kind": span.span_kind,
             "status": {"code": span.status_code, "message": span.status_message},
-            "start_time": _cell(span.start_time),
-            "end_time": _cell(span.end_time),
+            "start_time": envelope.cell(span.start_time),
+            "end_time": envelope.cell(span.end_time),
             "latency_ms": span.latency_ms,
             "attributes": span.attributes,
             "events": span.events,
         }
-        payload, clipped_paths = _clip_strings_to_budget(
+        payload, clipped_paths = envelope.clip_strings_to_budget(
             payload,
             max_result_chars,
             marker="raise max_result_chars for more",
@@ -1596,7 +1139,7 @@ def _build_get_span(app: "FastAPI") -> Tool:
         ),
         tags={SPANS_GROUP_TAG, ANALYTICS_TAG},
         annotations=_READ_ONLY_ANNOTATIONS,
-        output_schema=_union_schema(
+        output_schema=envelope.union_schema(
             {
                 "span": {
                     "type": "object",
@@ -1687,7 +1230,7 @@ def _build_get_trace(app: "FastAPI") -> Tool:
                 "name": name,
                 "span_kind": span_kind,
                 "status_code": status_code,
-                "start_time": _cell(start_time),
+                "start_time": envelope.cell(start_time),
                 "latency_ms": latency_ms,
                 "ui_url": _ui_span_url(span_id),
             }
@@ -1713,7 +1256,7 @@ def _build_get_trace(app: "FastAPI") -> Tool:
                     "to fit max_result_chars; raise it or drill into spans with "
                     "getSpan."
                 )
-            if _serialized_size(result) <= max_result_chars or len(summaries) <= 1:
+            if envelope.serialized_size(result) <= max_result_chars or len(summaries) <= 1:
                 return result
             drop = max(1, len(summaries) // 10)
             summaries = summaries[:-drop]
@@ -1730,7 +1273,7 @@ def _build_get_trace(app: "FastAPI") -> Tool:
         ),
         tags={SPANS_GROUP_TAG},
         annotations=_READ_ONLY_ANNOTATIONS,
-        output_schema=_union_schema(
+        output_schema=envelope.union_schema(
             {
                 "trace_id": {"type": "string"},
                 "span_count": {"type": "integer"},
