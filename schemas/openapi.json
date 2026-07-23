@@ -5303,6 +5303,151 @@
         }
       }
     },
+    "/v1/projects/{project_identifier}/spans/backfill_costs": {
+      "post": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Backfill token-based cost for historical LLM spans",
+        "description": "Computes and stores cost records for historical LLM spans in a project that do not already have one, using the same pricing logic applied during live ingestion. Work is done one bounded batch per request: call repeatedly, passing back `next_cursor` each time, until it is `null`. Existing cost records are never modified. Intended to be driven from a client script so that each request stays bounded and limits its impact on live ingestion.",
+        "operationId": "backfillSpanCosts",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound on span start time (ISO 8601).",
+              "title": "Start Time"
+            },
+            "description": "Inclusive lower bound on span start time (ISO 8601)."
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound on span start time (ISO 8601).",
+              "title": "End Time"
+            },
+            "description": "Exclusive upper bound on span start time (ISO 8601)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of spans to process in this batch.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of spans to process in this batch."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor (Span GlobalID) returned by a previous call.",
+              "title": "Cursor"
+            },
+            "description": "Pagination cursor (Span GlobalID) returned by a previous call."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-batch backfill counts and the cursor for the next batch.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackfillSpanCostsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      }
+    },
     "/v1/prompts": {
       "get": {
         "tags": [
@@ -8723,6 +8868,57 @@
           "total"
         ],
         "title": "AssistantMessageMetadataUsageTokens"
+      },
+      "BackfillSpanCostsData": {
+        "properties": {
+          "spans_scanned": {
+            "type": "integer",
+            "title": "Spans Scanned",
+            "description": "Number of eligible LLM spans (without an existing cost record) examined in this batch."
+          },
+          "costs_inserted": {
+            "type": "integer",
+            "title": "Costs Inserted",
+            "description": "Number of span cost records created in this batch."
+          },
+          "spans_skipped": {
+            "type": "integer",
+            "title": "Spans Skipped",
+            "description": "Number of examined spans for which no cost could be derived (e.g. missing model name or token counts, or no matching price)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "spans_scanned",
+          "costs_inserted",
+          "spans_skipped"
+        ],
+        "title": "BackfillSpanCostsData"
+      },
+      "BackfillSpanCostsResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BackfillSpanCostsData"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Cursor for the next batch. Pass it back as the `cursor` query parameter to continue. `null` once the project has been fully processed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "BackfillSpanCostsResponseBody"
       },
       "BuiltInProviderModelSelection": {
         "properties": {

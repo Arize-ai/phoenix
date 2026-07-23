@@ -1,0 +1,41 @@
+# SQLite-backed Phoenix stack for the cost-backfill performance harness.
+#
+# Phoenix is built from the local source tree (../../Dockerfile) so that the
+# /v1/projects/{id}/spans/backfill_costs endpoint under test is included.
+#
+# The SQLite database lives on a named volume so a helper container (`dbtools`)
+# can reach the file. The published Phoenix image is distroless (no shell), so
+# the harness cannot exec into it to touch the database directly; `dbtools`
+# mounts the same volume and is used to delete span_cost rows (to simulate
+# historical, un-costed traces) and to poll row counts.
+#
+# `user: "0:0"` runs both containers as root so they can share the named
+# volume without file-ownership friction (fine for a throwaway perf stack).
+#
+# Usage (driven by run_perf_test.py, but usable standalone):
+#   docker compose -p backfillperf -f docker-compose.sqlite.yml up -d --build
+services:
+  phoenix:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    user: "0:0"
+    ports:
+      - "6006:6006"
+    environment:
+      # No PHOENIX_SQL_DATABASE_URL -> Phoenix defaults to SQLite in the working dir.
+      - PHOENIX_WORKING_DIR=/phoenix-data
+      - PHOENIX_MAX_SPANS_QUEUE_SIZE=5000
+      - PHOENIX_LOGGING_LEVEL=info
+    volumes:
+      - phoenix_sqlite:/phoenix-data
+
+  dbtools:
+    image: python:3.12-slim
+    user: "0:0"
+    command: ["sleep", "infinity"]
+    volumes:
+      - phoenix_sqlite:/phoenix-data
+
+volumes:
+  phoenix_sqlite:

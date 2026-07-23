@@ -862,6 +862,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/spans/backfill_costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Backfill token-based cost for historical LLM spans
+         * @description Computes and stores cost records for historical LLM spans in a project that do not already have one, using the same pricing logic applied during live ingestion. Work is done one bounded batch per request: call repeatedly, passing back `next_cursor` each time, until it is `null`. Existing cost records are never modified. Intended to be driven from a client script so that each request stays bounded and limits its impact on live ingestion.
+         */
+        post: operations["backfillSpanCosts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/prompts": {
         parameters: {
             query?: never;
@@ -1868,6 +1888,33 @@ export interface components {
             completion: number;
             /** Total */
             total: number;
+        };
+        /** BackfillSpanCostsData */
+        BackfillSpanCostsData: {
+            /**
+             * Spans Scanned
+             * @description Number of eligible LLM spans (without an existing cost record) examined in this batch.
+             */
+            spans_scanned: number;
+            /**
+             * Costs Inserted
+             * @description Number of span cost records created in this batch.
+             */
+            costs_inserted: number;
+            /**
+             * Spans Skipped
+             * @description Number of examined spans for which no cost could be derived (e.g. missing model name or token counts, or no matching price).
+             */
+            spans_skipped: number;
+        };
+        /** BackfillSpanCostsResponseBody */
+        BackfillSpanCostsResponseBody: {
+            data: components["schemas"]["BackfillSpanCostsData"];
+            /**
+             * Next Cursor
+             * @description Cursor for the next batch. Pass it back as the `cursor` query parameter to continue. `null` once the project has been fully processed.
+             */
+            next_cursor: string | null;
         };
         /**
          * BuiltInProviderModelSelection
@@ -8975,6 +9022,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    backfillSpanCosts: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound on span start time (ISO 8601). */
+                start_time?: string | null;
+                /** @description Exclusive upper bound on span start time (ISO 8601). */
+                end_time?: string | null;
+                /** @description Maximum number of spans to process in this batch. */
+                limit?: number;
+                /** @description Pagination cursor (Span GlobalID) returned by a previous call. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Per-batch backfill counts and the cursor for the next batch. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackfillSpanCostsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
