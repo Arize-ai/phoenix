@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a0017fc8fbfc0da62ed80546da8aa1c6>>
+ * @generated SignedSource<<58c18d34272a71ad5e4162e7ed606d70>>
  * @lightSyntaxTransform
  */
 
@@ -16,7 +16,6 @@ export type SettingsAgentSessionsCard_sessions$data = {
         readonly createdAt: string;
         readonly firstInput: string | null;
         readonly id: string;
-        readonly latestOutput: string | null;
         readonly title: string;
         readonly updatedAt: string;
         readonly user: {
@@ -151,13 +150,6 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "latestOutput",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
                   "name": "createdAt",
                   "storageKey": null
                 },
@@ -222,6 +214,6 @@ return {
 };
 })();
 
-(node as any).hash = "f4a4f7d266ad46e0a3043682b5fd92d7";
+(node as any).hash = "efb76f37a87a4dc3e2b684e698e96faf";
 
 export default node;

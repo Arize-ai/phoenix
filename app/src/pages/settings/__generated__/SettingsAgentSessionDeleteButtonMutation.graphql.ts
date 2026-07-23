@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<14cb1416a26c7dfd72b2549c019949b5>>
+ * @generated SignedSource<<051dd67472feffcb125232c5ab39636b>>
  * @lightSyntaxTransform
  */
 
@@ -8,18 +8,18 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SettingsAgentSessionActionMenuDeleteMutation$variables = {
+export type SettingsAgentSessionDeleteButtonMutation$variables = {
   connectionIds: ReadonlyArray<string>;
   id: string;
 };
-export type SettingsAgentSessionActionMenuDeleteMutation$data = {
+export type SettingsAgentSessionDeleteButtonMutation$data = {
   readonly deleteAgentSession: {
     readonly deletedAgentSessionId: string;
   };
 };
-export type SettingsAgentSessionActionMenuDeleteMutation = {
-  response: SettingsAgentSessionActionMenuDeleteMutation$data;
-  variables: SettingsAgentSessionActionMenuDeleteMutation$variables;
+export type SettingsAgentSessionDeleteButtonMutation = {
+  response: SettingsAgentSessionDeleteButtonMutation$data;
+  variables: SettingsAgentSessionDeleteButtonMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -61,7 +61,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsAgentSessionActionMenuDeleteMutation",
+    "name": "SettingsAgentSessionDeleteButtonMutation",
     "selections": [
       {
         "alias": null,
@@ -86,7 +86,7 @@ return {
       (v0/*:: as any*/)
     ],
     "kind": "Operation",
-    "name": "SettingsAgentSessionActionMenuDeleteMutation",
+    "name": "SettingsAgentSessionDeleteButtonMutation",
     "selections": [
       {
         "alias": null,
@@ -119,16 +119,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "80eca0948839e7c0ad1aa1ad235acfb2",
+    "cacheID": "cc70a6a6f9058c995fb6c115acb7aefc",
     "id": null,
     "metadata": {},
-    "name": "SettingsAgentSessionActionMenuDeleteMutation",
+    "name": "SettingsAgentSessionDeleteButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsAgentSessionActionMenuDeleteMutation(\n  $id: ID!\n) {\n  deleteAgentSession(input: {id: $id}) {\n    deletedAgentSessionId\n  }\n}\n"
+    "text": "mutation SettingsAgentSessionDeleteButtonMutation(\n  $id: ID!\n) {\n  deleteAgentSession(input: {id: $id}) {\n    deletedAgentSessionId\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f4a96034d7cf6ccd1984ae7bc7aa3f7e";
+(node as any).hash = "a9fd01482eb8d068c586ff57d8638fbb";
 
 export default node;

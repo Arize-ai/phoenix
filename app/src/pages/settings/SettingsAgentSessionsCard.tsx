@@ -1,16 +1,16 @@
 import { css } from "@emotion/react";
 import { graphql, usePaginationFragment } from "react-relay";
 
-import { Button, Card, Flex, Truncate } from "@phoenix/components";
+import { Button, Card, Flex, Truncate, View } from "@phoenix/components";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { UserCell } from "@phoenix/components/table/UserCell";
 import { useViewerCanModify } from "@phoenix/contexts/ViewerContext";
 import { useTimeFormatters } from "@phoenix/hooks";
 
 import type { SettingsAgentSessionsCard_sessions$key } from "./__generated__/SettingsAgentSessionsCard_sessions.graphql";
 import type { SettingsAgentSessionsCardPaginationQuery } from "./__generated__/SettingsAgentSessionsCardPaginationQuery.graphql";
-import { SettingsAgentSessionActionMenu } from "./SettingsAgentSessionActionMenu";
+import { SettingsAgentSessionConditionalDeleteButton } from "./SettingsAgentSessionConditionalDeleteButton";
 import { SETTINGS_AGENT_SESSIONS_PAGE_SIZE } from "./settingsAgentSessionConstants";
 
 const sessionsTableWrapperCSS = css`
@@ -20,28 +20,42 @@ const sessionsTableWrapperCSS = css`
 const sessionsTableCSS = css(
   tableCSS,
   css`
-    min-width: 900px;
-    table-layout: fixed;
+    table-layout: auto;
 
     thead {
       position: static;
     }
 
-    .sessions-table__author,
-    .sessions-table__title {
+    .sessions-table__author {
       width: 16%;
     }
 
-    .sessions-table__preview {
-      width: 21%;
-    }
-
     .sessions-table__timestamp {
-      width: 13%;
+      width: 100px;
+      min-width: 100px;
+      max-width: 100px;
     }
 
-    th:last-of-type {
+    .sessions-table__content {
+      width: 100%;
+      min-width: 250px;
+      max-width: 0;
+    }
+
+    .sessions-table__actions {
+      position: sticky;
+      right: 0;
       width: 48px;
+      min-width: 48px;
+      box-sizing: border-box;
+      border-left: 1px solid var(--global-border-color-default);
+      background-color: var(--global-table-pinned-column-background-color);
+      z-index: 1;
+    }
+
+    th.sessions-table__actions {
+      background-color: var(--global-table-header-background-color);
+      z-index: 3;
     }
   `
 );
@@ -73,7 +87,6 @@ export function SettingsAgentSessionsCard({
                 profilePictureUrl
               }
               firstInput
-              latestOutput
               createdAt
               updatedAt
             }
@@ -85,64 +98,61 @@ export function SettingsAgentSessionsCard({
   );
   const { fullTimeFormatter } = useTimeFormatters();
   const canDeleteSessions = useViewerCanModify();
-  const shouldShowAuthor = window.Config.authenticationEnabled;
   const edges = data.agentSessions.edges;
 
   return (
-    <Card title="Assistant sessions" collapsible defaultOpen={false}>
-      <div css={sessionsTableWrapperCSS}>
-        <table css={sessionsTableCSS}>
-          <thead>
-            <tr>
-              {shouldShowAuthor ? (
+    <Card title="Assistant sessions">
+      {edges.length === 0 ? (
+        <View padding="size-500">
+          <EmptyState
+            graphic={<EmptyStateGraphic variant="session" />}
+            description="No saved assistant sessions"
+          />
+        </View>
+      ) : (
+        <div css={sessionsTableWrapperCSS}>
+          <table css={sessionsTableCSS}>
+            <thead>
+              <tr>
                 <th className="sessions-table__author">Author</th>
-              ) : null}
-              <th className="sessions-table__title">Title</th>
-              <th className="sessions-table__preview">First session input</th>
-              <th className="sessions-table__preview">Latest session output</th>
-              <th className="sessions-table__timestamp">Created at</th>
-              <th className="sessions-table__timestamp">Updated at</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          {edges.length === 0 ? (
-            <TableEmpty message="No saved assistant sessions" />
-          ) : (
+                <th>Content</th>
+                <th className="sessions-table__timestamp">Created at</th>
+                <th className="sessions-table__timestamp">Updated at</th>
+                <th className="sessions-table__actions" aria-label="Actions" />
+              </tr>
+            </thead>
             <tbody>
               {edges.map(({ node }) => (
                 <tr key={node.id}>
-                  {shouldShowAuthor ? (
-                    <td>
-                      <UserCell user={node.user} />
-                    </td>
-                  ) : null}
                   <td>
-                    <Truncate title={node.title}>{node.title}</Truncate>
+                    <UserCell user={node.user} />
                   </td>
-                  <td>
-                    <Truncate title={node.firstInput ?? undefined}>
-                      {node.firstInput ?? "--"}
+                  <td className="sessions-table__content">
+                    <Truncate
+                      title={
+                        node.firstInput
+                          ? `${node.title} ${node.firstInput}`
+                          : node.title
+                      }
+                    >
+                      <strong>{node.title}</strong>
+                      {node.firstInput ? ` ${node.firstInput}` : null}
                     </Truncate>
                   </td>
-                  <td>
-                    <Truncate title={node.latestOutput ?? undefined}>
-                      {node.latestOutput ?? "--"}
-                    </Truncate>
-                  </td>
-                  <td>
+                  <td className="sessions-table__timestamp">
                     <time title={node.createdAt}>
                       {fullTimeFormatter(new Date(node.createdAt))}
                     </time>
                   </td>
-                  <td>
+                  <td className="sessions-table__timestamp">
                     <time title={node.updatedAt}>
                       {fullTimeFormatter(new Date(node.updatedAt))}
                     </time>
                   </td>
-                  <td>
+                  <td className="sessions-table__actions">
                     {canDeleteSessions ? (
                       <Flex justifyContent="end">
-                        <SettingsAgentSessionActionMenu
+                        <SettingsAgentSessionConditionalDeleteButton
                           sessionId={node.id}
                           sessionTitle={node.title}
                         />
@@ -152,9 +162,9 @@ export function SettingsAgentSessionsCard({
                 </tr>
               ))}
             </tbody>
-          )}
-        </table>
-      </div>
+          </table>
+        </div>
+      )}
       {hasNext ? (
         <Flex
           justifyContent="end"

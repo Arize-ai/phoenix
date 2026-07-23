@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a9b333cb8b8ec2eb6cea87b1640e1370>>
+ * @generated SignedSource<<84066aa3a5e0eef1bd4224991af01be4>>
  * @lightSyntaxTransform
  */
 
@@ -133,13 +133,6 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "latestOutput",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
                     "name": "createdAt",
                     "storageKey": null
                   },
@@ -210,12 +203,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4d141a1982a33f445ca5dfe80c3060a5",
+    "cacheID": "65940b9d3b92e1e6fb1b38e6166f54bc",
     "id": null,
     "metadata": {},
     "name": "settingsAgentsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsAgentsPageLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsAgentsPageLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
