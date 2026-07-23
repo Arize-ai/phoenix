@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import type {
   LegendPayload,
@@ -42,15 +41,10 @@ import {
   defaultCartesianGridProps,
   defaultTooltipProps,
 } from "./defaults";
-import {
-  InteractiveLegend,
-  type InteractiveLegendDataKey,
-} from "./InteractiveLegend";
+import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
 
 const MEAN_SCORE_DATA_KEY = "meanScore";
-const MEAN_SCORE_LEGEND_ITEM_ID = "score:mean";
 const LABEL_DATA_KEY_PREFIX = "fractions.";
-const LABEL_LEGEND_ITEM_PREFIX = "label:";
 const OTHER_DATA_KEY = "otherFraction";
 const OTHER_COLOR = "var(--global-color-gray-500)";
 // Recharts' slower line default makes mixed-view toggles feel sluggish next
@@ -71,46 +65,6 @@ const formatAnnotationFraction = (fraction: number) =>
 
 function getLabelDataKey(index: number): string {
   return `${LABEL_DATA_KEY_PREFIX}${index}`;
-}
-
-export function getAnnotationLegendItemId({
-  dataKey,
-  visibleLabels,
-}: {
-  dataKey: InteractiveLegendDataKey;
-  visibleLabels: ReadonlyArray<string>;
-}): string | null {
-  if (dataKey === MEAN_SCORE_DATA_KEY) {
-    return MEAN_SCORE_LEGEND_ITEM_ID;
-  }
-  if (
-    typeof dataKey !== "string" ||
-    !dataKey.startsWith(LABEL_DATA_KEY_PREFIX)
-  ) {
-    return null;
-  }
-  const index = Number(dataKey.slice(LABEL_DATA_KEY_PREFIX.length));
-  const label = visibleLabels[index];
-  return label == null ? null : `${LABEL_LEGEND_ITEM_PREFIX}${label}`;
-}
-
-export function getAnnotationHiddenDataKeys({
-  hiddenLegendItemIds,
-  visibleLabels,
-}: {
-  hiddenLegendItemIds: ReadonlySet<string>;
-  visibleLabels: ReadonlyArray<string>;
-}): ReadonlySet<InteractiveLegendDataKey> {
-  const hiddenDataKeys = new Set<InteractiveLegendDataKey>();
-  if (hiddenLegendItemIds.has(MEAN_SCORE_LEGEND_ITEM_ID)) {
-    hiddenDataKeys.add(MEAN_SCORE_DATA_KEY);
-  }
-  visibleLabels.forEach((label, index) => {
-    if (hiddenLegendItemIds.has(`${LABEL_LEGEND_ITEM_PREFIX}${label}`)) {
-      hiddenDataKeys.add(getLabelDataKey(index));
-    }
-  });
-  return hiddenDataKeys;
 }
 
 function AnnotationMetricsTooltip({
@@ -150,18 +104,7 @@ function AnnotationMetricsTooltip({
   );
 }
 
-export function AnnotationMetricsChart({
-  series,
-  view,
-  xAxisProps,
-  yAxisProps,
-  syncId,
-  renderTooltipHeader,
-  chartProps,
-  additionalLegendItems,
-  renderReference,
-  emptyStateMessage = "No chartable evaluation data",
-}: {
+type AnnotationMetricsChartProps = {
   series: AnnotationMetricsSeries;
   view: AnnotationMetricsView;
   xAxisProps: XAxisProps;
@@ -175,14 +118,35 @@ export function AnnotationMetricsChart({
     isMeanScoreHidden: boolean;
     isReferencePrepended: boolean;
   }) => ReactNode;
-}) {
+};
+
+export function AnnotationMetricsChart(props: AnnotationMetricsChartProps) {
+  // Label series use positional data keys. Reset temporary legend selections
+  // when that position-to-label mapping changes instead of hiding a new label.
+  return (
+    <AnnotationMetricsChartContent
+      key={JSON.stringify(props.series.labels)}
+      {...props}
+    />
+  );
+}
+
+function AnnotationMetricsChartContent({
+  series,
+  view,
+  xAxisProps,
+  yAxisProps,
+  syncId,
+  renderTooltipHeader,
+  chartProps,
+  additionalLegendItems,
+  renderReference,
+  emptyStateMessage = "No chartable evaluation data",
+}: AnnotationMetricsChartProps) {
   const { theme } = useTheme();
   const categoryColors = useCategoryChartColors();
-  // Recharts keys are positional (`fractions.0`, etc.), so retain semantic
-  // label identities to avoid hiding a different label after labels reorder.
-  const [hiddenLegendItemIds, setHiddenLegendItemIds] = useState<
-    ReadonlySet<string>
-  >(() => new Set());
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
   const data = series.dataByView[view];
   const reference = series.referenceByView[view];
   const isScoreView = view === "scores";
@@ -217,29 +181,6 @@ export function AnnotationMetricsChart({
   const hasOtherValues = chartData.some(
     (point) => "otherFraction" in point && point.otherFraction != null
   );
-  const isDataKeyHidden = (dataKey: InteractiveLegendDataKey) => {
-    const legendItemId = getAnnotationLegendItemId({ dataKey, visibleLabels });
-    return legendItemId != null && hiddenLegendItemIds.has(legendItemId);
-  };
-  const hiddenDataKeys = getAnnotationHiddenDataKeys({
-    hiddenLegendItemIds,
-    visibleLabels,
-  });
-  const toggleDataKey = (dataKey: InteractiveLegendDataKey) => {
-    const legendItemId = getAnnotationLegendItemId({ dataKey, visibleLabels });
-    if (legendItemId == null) {
-      return;
-    }
-    setHiddenLegendItemIds((currentIds) => {
-      const nextIds = new Set(currentIds);
-      if (nextIds.has(legendItemId)) {
-        nextIds.delete(legendItemId);
-      } else {
-        nextIds.add(legendItemId);
-      }
-      return nextIds;
-    });
-  };
 
   return (
     <ChartEmptyStateOverlay
