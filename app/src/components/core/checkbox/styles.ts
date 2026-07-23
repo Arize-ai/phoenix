@@ -24,7 +24,9 @@ export const checkboxCSS = css`
     height: var(--checkbox-size);
     border: 2px solid var(--border-color);
     border-radius: var(--global-rounding-small);
-    transition: all 200ms;
+    transition:
+      background-color 200ms,
+      border-color 200ms;
     display: flex;
     align-items: center;
     justify-content: center;
