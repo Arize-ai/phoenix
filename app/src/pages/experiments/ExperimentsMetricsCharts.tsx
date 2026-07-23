@@ -44,8 +44,13 @@ export function ExperimentsMetricsCharts() {
   const charts = getExperimentMetricCharts(selectedChartKeys);
   return (
     <ChartPanelStrip chartCount={charts.length}>
-      {charts.map(({ key, Panel }) => (
-        <Panel key={key} datasetId={datasetId} fillHeight />
+      {charts.map(({ key, annotationName, Panel }) => (
+        <Panel
+          key={key}
+          datasetId={datasetId}
+          annotationName={annotationName}
+          fillHeight
+        />
       ))}
     </ChartPanelStrip>
   );

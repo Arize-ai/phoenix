@@ -109,6 +109,6 @@ function MetricPanel({
   datasetId: string;
   chartKey: ExperimentMetricChartKey;
 }) {
-  const { Panel } = getExperimentMetricChart(chartKey);
-  return <Panel datasetId={datasetId} />;
+  const { annotationName, Panel } = getExperimentMetricChart(chartKey);
+  return <Panel datasetId={datasetId} annotationName={annotationName} />;
 }

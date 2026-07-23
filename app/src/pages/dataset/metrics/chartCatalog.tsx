@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import invariant from "tiny-invariant";
 
 import { ChartPanel, type ChartTypeIconType } from "@phoenix/components/chart";
 import type {
@@ -22,6 +23,7 @@ import type { ExperimentMetricViewProps } from "./types";
 
 export type ExperimentMetricChart = {
   key: ExperimentMetricChartKey;
+  annotationName?: string;
   /**
    * Shown as the chart panel title
    */
@@ -38,6 +40,7 @@ export type ExperimentMetricChart = {
 };
 
 type ExperimentMetricPanelProps = ExperimentMetricViewProps & {
+  annotationName?: string;
   fillHeight?: boolean;
 };
 
@@ -122,12 +125,21 @@ const CHARTS_BY_KEY = Object.fromEntries(
   })
 ) as Record<BuiltInExperimentMetricChartKey, ExperimentMetricChart>;
 
-// Cache generated descriptors so their Panel closures stay stable and a
-// table refresh does not remount a selected annotation chart.
-const ANNOTATION_CHARTS_BY_KEY = new Map<
-  ExperimentMetricChartKey,
-  ExperimentMetricChart
->();
+function ExperimentAnnotationChartPanel({
+  annotationName,
+  ...props
+}: ExperimentMetricPanelProps) {
+  invariant(
+    annotationName,
+    "annotationName is required for an annotation metric chart"
+  );
+  return (
+    <ExperimentAnnotationMetricPanel
+      {...props}
+      annotationName={annotationName}
+    />
+  );
+}
 
 export const getExperimentMetricChart = (
   key: ExperimentMetricChartKey
@@ -136,25 +148,14 @@ export const getExperimentMetricChart = (
   if (annotationName == null) {
     return CHARTS_BY_KEY[key as BuiltInExperimentMetricChartKey];
   }
-  const cachedChart = ANNOTATION_CHARTS_BY_KEY.get(key);
-  if (cachedChart != null) {
-    return cachedChart;
-  }
-  const chart: ExperimentMetricChart = {
+  return {
     key,
+    annotationName,
     name: annotationName,
     description: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
     chartType: "line",
-    Panel: ({ fillHeight = false, ...props }) => (
-      <ExperimentAnnotationMetricPanel
-        {...props}
-        annotationName={annotationName}
-        fillHeight={fillHeight}
-      />
-    ),
+    Panel: ExperimentAnnotationChartPanel,
   };
-  ANNOTATION_CHARTS_BY_KEY.set(key, chart);
-  return chart;
 };
 
 export const getExperimentMetricCharts = (
