@@ -50,7 +50,7 @@ from typing import Any, Iterator
 
 import pglast
 import psycopg
-import testing.postgresql
+import testing.postgresql  # type: ignore[import-untyped]
 from alembic import command
 from alembic.config import Config
 from psycopg import sql
@@ -91,6 +91,7 @@ class TableInfo:
     foreign_keys: list[dict[str, Any]]
     indexes: list[dict[str, Any]]
     triggers: list[dict[str, Any]]
+    sequences: list[dict[str, Any]] | None = None
 
 
 @dataclass
@@ -294,6 +295,7 @@ class PostgreSQLDDLExtractor:
         foreign_keys = self._get_foreign_keys(schema, table_name)
         indexes = self._get_indexes(schema, table_name)
         triggers = self._get_triggers(schema, table_name)
+        sequences = self._get_sequences(schema, table_name)
 
         return TableInfo(
             table_name=table_name,
@@ -303,6 +305,7 @@ class PostgreSQLDDLExtractor:
             foreign_keys=foreign_keys,
             indexes=indexes,
             triggers=triggers,
+            sequences=sequences,
         )
 
     def _get_columns(self, schema: str, table_name: str) -> list[dict[str, Any]]:
@@ -480,6 +483,30 @@ class PostgreSQLDDLExtractor:
             query, (schema, table_name), f"getting triggers for {schema}.{table_name}"
         )
 
+    def _get_sequences(self, schema: str, table_name: str) -> list[dict[str, Any]]:
+        """Get sequences with non-default attributes for a table's serial columns."""
+        query = sql.SQL("""
+            SELECT
+                s.sequencename,
+                s.min_value,
+                s.max_value,
+                s.cycle
+            FROM pg_sequences s
+            JOIN pg_depend d ON d.objid = (
+                quote_ident(s.schemaname) || '.' || quote_ident(s.sequencename)
+            )::regclass
+            JOIN pg_class c ON c.oid = d.refobjid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = %s
+              AND c.relname = %s
+              AND d.deptype = 'a'
+              AND (s.min_value != 1 OR s.cycle)
+            ORDER BY s.sequencename
+        """)
+        return self._execute_query(
+            query, (schema, table_name), f"getting sequences for {schema}.{table_name}"
+        )
+
     def generate_ddl(self, table_info: TableInfo) -> str:
         """Generate DDL string for a single table."""
         ddl_parts: list[str] = []
@@ -522,6 +549,18 @@ class PostgreSQLDDLExtractor:
                 "cannot render (use pg_get_triggerdef and extract the trigger function to "
                 "add support)."
             )
+
+        # === Sequence Overrides ===
+        if table_info.sequences:
+            sorted_sequences = sorted(table_info.sequences, key=lambda x: x["sequencename"])
+            ddl_parts.append("")
+            for seq in sorted_sequences:
+                parts = [f"ALTER SEQUENCE {schema}.{seq['sequencename']}"]
+                if seq["min_value"] != 1:
+                    parts.append(f"MINVALUE {seq['min_value']}")
+                if seq["cycle"]:
+                    parts.append("CYCLE")
+                ddl_parts.append(f"{' '.join(parts)};")
 
         return "\n".join(ddl_parts)
 
@@ -972,9 +1011,9 @@ class PostgreSQLDDLExtractor:
             constraint_def = f"CONSTRAINT {constraint_name} {constraint_type} ({column_list})"
             return self._wrap_line(constraint_def)
         elif constraint_type == "CHECK":
-            constraint_def = constraint.get("constraint_definition")
-            if constraint_def:
-                return self._wrap_line(constraint_def)
+            check_def: str | None = constraint.get("constraint_definition")
+            if check_def:
+                return self._wrap_line(check_def)
             return None
 
         return None

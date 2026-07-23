@@ -4252,10 +4252,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Trace GlobalID)",
+              "description": "Pagination cursor encoding the sort position of the next page",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Trace GlobalID)"
+            "description": "Pagination cursor encoding the sort position of the next page"
           },
           {
             "name": "include_spans",
@@ -4563,10 +4563,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Span Global ID)",
+              "description": "Pagination cursor encoding the sort position of the next page",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Span Global ID)"
+            "description": "Pagination cursor encoding the sort position of the next page"
           },
           {
             "name": "limit",
@@ -4800,10 +4800,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Span Global ID)",
+              "description": "Pagination cursor encoding the sort position of the next page",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Span Global ID)"
+            "description": "Pagination cursor encoding the sort position of the next page"
           },
           {
             "name": "limit",

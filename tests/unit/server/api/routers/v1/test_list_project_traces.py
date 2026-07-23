@@ -262,6 +262,62 @@ class TestListProjectTraces:
         assert len(data["data"]) == 1
         assert data["next_cursor"] is None
 
+    async def test_list_traces_pagination_across_sequence_wrap(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        trace_specs = [
+            (2, base_time + timedelta(hours=1)),
+            (1, base_time + timedelta(hours=2)),
+            (-2147483648, base_time + timedelta(hours=3)),
+            (-2147483647, base_time + timedelta(hours=4)),
+        ]
+
+        async with db() as session:
+            project_row_id = await session.scalar(
+                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+            )
+            assert project_row_id is not None
+            project = await session.get(models.Project, project_row_id)
+            assert project is not None
+
+            for trace_id, start_time in trace_specs:
+                await session.scalar(
+                    insert(models.Trace)
+                    .values(
+                        id=trace_id,
+                        trace_id=token_hex(16),
+                        project_rowid=project_row_id,
+                        start_time=start_time,
+                        end_time=start_time + timedelta(minutes=30),
+                    )
+                    .returning(models.Trace.id)
+                )
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"limit": 2},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["data"]) == 2
+        assert data["next_cursor"] is not None
+        page1_hours = {datetime.fromisoformat(item["start_time"]).hour for item in data["data"]}
+        assert page1_hours == {3, 4}
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"limit": 2, "cursor": data["next_cursor"]},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["data"]) == 2
+        assert data["next_cursor"] is None
+        page2_hours = {datetime.fromisoformat(item["start_time"]).hour for item in data["data"]}
+        assert page2_hours == {1, 2}
+
     async def test_list_traces_time_range_filter(
         self,
         httpx_client: httpx.AsyncClient,

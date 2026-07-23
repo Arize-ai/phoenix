@@ -9,7 +9,7 @@ import pandas as pd
 import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import desc, or_, select
+from sqlalchemy import desc, or_, select, tuple_
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
@@ -27,6 +27,8 @@ from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.pagination import (
     Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
     CursorString,
     connection_from_cursors_and_nodes,
 )
@@ -291,12 +293,12 @@ class Trace(Node):
 
         # Build base query for spans in this trace
         base_query = (
-            select(models.Span.id)
+            select(models.Span.id, models.Span.start_time)
             .join(models.Trace)
             .where(models.Trace.id == self.id)
             # Sort descending because the root span tends to show up later
             # in the ingestion process.
-            .order_by(desc(models.Span.id))
+            .order_by(desc(models.Span.start_time), desc(models.Span.id))
         )
         # Handle cursor pagination (forward pagination only)
         if after is not UNSET and after is not None:
@@ -306,9 +308,25 @@ class Trace(Node):
                 cursor = Cursor.from_string(after)
             except Exception as e:
                 raise ValueError(f"Invalid cursor format: {after}") from e
-            # For descending order, "after" means we want spans with smaller IDs
-            # (going forward in descending order)
-            base_query = base_query.where(models.Span.id < cursor.rowid)
+            if cursor.sort_column is None:
+                async with info.context.db.read() as session:
+                    span = await session.get(models.Span, cursor.rowid)
+                if span is not None:
+                    cursor = Cursor(
+                        rowid=cursor.rowid,
+                        sort_column=CursorSortColumn(
+                            type=CursorSortColumnDataType.DATETIME,
+                            value=span.start_time,
+                        ),
+                    )
+            if cursor.sort_column:
+                base_query = base_query.where(
+                    tuple_(models.Span.start_time, models.Span.id)
+                    < (cursor.sort_column.value, cursor.rowid)
+                )
+            else:
+                # For descending order, "after" means we want spans with smaller IDs
+                base_query = base_query.where(models.Span.id < cursor.rowid)
         # Narrow by SpanFilter DSL (e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`)
         # before any root-span CTE wrapping, so the filter applies to the candidate set.
         if filter_condition:
@@ -332,7 +350,7 @@ class Trace(Node):
                 )
                 # Filter candidates to only root spans (NULL parent_id or orphan spans)
                 stmt = (
-                    select(candidate_spans.c.id)
+                    select(candidate_spans.c.id, candidate_spans.c.start_time)
                     .where(
                         or_(
                             candidate_spans.c.parent_id.is_(None),
@@ -341,7 +359,10 @@ class Trace(Node):
                             .exists(),
                         )
                     )
-                    .order_by(desc(candidate_spans.c.id))
+                    .order_by(
+                        desc(candidate_spans.c.start_time),
+                        desc(candidate_spans.c.id),
+                    )
                 )
             else:
                 # Only include explicit root spans (spans with parent_id = NULL)
@@ -356,13 +377,20 @@ class Trace(Node):
 
         cursors_and_nodes = []
         async with info.context.db.read() as session:
-            span_rowids = await session.stream_scalars(stmt)
-            async for span_rowid in islice(span_rowids, limit):
-                cursor = Cursor(rowid=span_rowid)
+            span_records = await session.stream(stmt)
+            async for span_record in islice(span_records, limit):
+                span_rowid: int = span_record[0]
+                cursor = Cursor(
+                    rowid=span_rowid,
+                    sort_column=CursorSortColumn(
+                        type=CursorSortColumnDataType.DATETIME,
+                        value=span_record[1],
+                    ),
+                )
                 cursors_and_nodes.append((cursor, Span(id=span_rowid)))
             has_next_page = True
             try:
-                await span_rowids.__anext__()
+                await span_records.__anext__()
             except StopAsyncIteration:
                 has_next_page = False
         return connection_from_cursors_and_nodes(

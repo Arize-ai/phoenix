@@ -181,6 +181,17 @@ class ProjectSession(Node):
         stmt = select(models.Trace).filter_by(project_session_rowid=self.id)
         if after:
             cursor = Cursor.from_string(after)
+            if cursor.sort_column is None:
+                async with info.context.db.read() as session:
+                    trace = await session.get(models.Trace, cursor.rowid)
+                if trace is not None:
+                    cursor = Cursor(
+                        rowid=cursor.rowid,
+                        sort_column=CursorSortColumn(
+                            type=CursorSortColumnDataType.DATETIME,
+                            value=trace.start_time,
+                        ),
+                    )
             if cursor.sort_column:
                 stmt = stmt.where(
                     operator.gt(

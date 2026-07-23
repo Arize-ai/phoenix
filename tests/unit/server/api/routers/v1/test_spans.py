@@ -1057,6 +1057,131 @@ async def test_span_search_pagination(
             assert isinstance(span.status_code, str)
 
 
+async def test_span_search_pagination_across_sequence_wrap(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Spans with negative IDs after sequence wrap must paginate in start_time order."""
+    base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+    span_specs = [
+        (2, base_time + timedelta(hours=1)),
+        (1, base_time + timedelta(hours=2)),
+        (-2147483648, base_time + timedelta(hours=3)),
+        (-2147483647, base_time + timedelta(hours=4)),
+    ]
+
+    async with db() as session:
+        project = models.Project(name="wrap-pagination-test")
+        session.add(project)
+        await session.flush()
+
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="wraptrace1",
+            start_time=base_time,
+            end_time=base_time + timedelta(hours=5),
+        )
+        session.add(trace)
+        await session.flush()
+
+        for span_id, start_time in span_specs:
+            session.add(
+                models.Span(
+                    id=span_id,
+                    trace_rowid=trace.id,
+                    span_id=f"span-{span_id}",
+                    parent_id=None,
+                    name=f"span-{span_id}",
+                    span_kind="CHAIN",
+                    start_time=start_time,
+                    end_time=start_time + timedelta(seconds=30),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+        await session.flush()
+
+    resp1 = await httpx_client.get(
+        "v1/projects/wrap-pagination-test/spans",
+        params={"limit": 2},
+    )
+    assert resp1.is_success
+    body1 = resp1.json()
+    assert len(body1["data"]) == 2
+    assert body1["next_cursor"] is not None
+    page1_names = {Span.model_validate(s).name for s in body1["data"]}
+    assert page1_names == {"span--2147483647", "span--2147483648"}
+
+    resp2 = await httpx_client.get(
+        "v1/projects/wrap-pagination-test/spans",
+        params={"limit": 2, "cursor": body1["next_cursor"]},
+    )
+    assert resp2.is_success
+    body2 = resp2.json()
+    assert len(body2["data"]) == 2
+    assert body2["next_cursor"] is None
+    page2_names = {Span.model_validate(s).name for s in body2["data"]}
+    assert page2_names == {"span-1", "span-2"}
+
+
+async def test_span_search_pagination_legacy_global_id_cursor(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Legacy GlobalID cursors still work by resolving the row's start_time."""
+    base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+
+    async with db() as session:
+        project = models.Project(name="legacy-cursor-test")
+        session.add(project)
+        await session.flush()
+
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="legacytrace1",
+            start_time=base_time,
+            end_time=base_time + timedelta(hours=2),
+        )
+        session.add(trace)
+        await session.flush()
+
+        for span_id, minutes in [(30, 2), (20, 1), (10, 0)]:
+            session.add(
+                models.Span(
+                    id=span_id,
+                    trace_rowid=trace.id,
+                    span_id=f"legacy-span-{span_id}",
+                    parent_id=None,
+                    name=f"legacy-span-{span_id}",
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(minutes=minutes),
+                    end_time=base_time + timedelta(minutes=minutes, seconds=30),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+        await session.flush()
+
+    legacy_cursor = str(GlobalID("Span", "20"))
+    resp = await httpx_client.get(
+        "v1/projects/legacy-cursor-test/spans",
+        params={"cursor": legacy_cursor},
+    )
+    assert resp.is_success
+    names = [Span.model_validate(s).name for s in resp.json()["data"]]
+    assert names == ["legacy-span-20", "legacy-span-10"]
+
+
 async def test_span_attributes_conversion(
     httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
 ) -> None:

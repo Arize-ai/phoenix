@@ -108,6 +108,8 @@ CREATE TABLE public.projects (
 CREATE INDEX ix_projects_trace_retention_policy_id ON public.projects
     USING btree (trace_retention_policy_id);
 
+ALTER SEQUENCE public.projects_id_seq MINVALUE -2147483648 CYCLE;
+
 
 -- Table: project_annotation_configs
 -- ---------------------------------
@@ -265,6 +267,8 @@ CREATE INDEX ix_traces_project_rowid_start_time ON public.traces
 CREATE INDEX ix_traces_project_session_rowid ON public.traces
     USING btree (project_session_rowid);
 
+ALTER SEQUENCE public.traces_id_seq MINVALUE -2147483648 CYCLE;
+
 
 -- Table: spans
 -- ------------
@@ -314,6 +318,8 @@ CREATE INDEX ix_spans_trace_rowid ON public.spans
     USING btree (trace_rowid);
 CREATE INDEX ix_spans_user_id ON public.spans
     USING btree ((((attributes #>> '{user,id}'::text[]))::character varying)) WHERE (((attributes #>> '{user,id}'::text[]))::character varying IS NOT NULL);
+
+ALTER SEQUENCE public.spans_id_seq MINVALUE -2147483648 CYCLE;
 
 
 -- Table: span_costs

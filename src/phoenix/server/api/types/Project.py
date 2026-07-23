@@ -513,6 +513,9 @@ class Project(Node):
             stmt = sort_config.stmt
             if sort_config.dir is SortDir.desc:
                 cursor_rowid_column = desc(cursor_rowid_column)
+        else:
+            stmt = stmt.add_columns(models.Span.start_time)
+            cursor_rowid_column = (models.Span.start_time.asc(), models.Span.id.asc())
         if after:
             cursor = Cursor.from_string(after)
             if sort_config and cursor.sort_column:
@@ -528,9 +531,33 @@ class Project(Node):
                             (sort_column.value, cursor.rowid),
                         )
                     )
+            elif not sort_config:
+                if cursor.sort_column is None:
+                    async with info.context.db.read() as session:
+                        span = await session.get(models.Span, cursor.rowid)
+                    if span is not None:
+                        cursor = Cursor(
+                            rowid=cursor.rowid,
+                            sort_column=CursorSortColumn(
+                                type=CursorSortColumnDataType.DATETIME,
+                                value=span.start_time,
+                            ),
+                        )
+                if cursor.sort_column:
+                    stmt = stmt.where(
+                        operator.gt(
+                            tuple_(models.Span.start_time, models.Span.id),
+                            (cursor.sort_column.value, cursor.rowid),
+                        )
+                    )
+                else:
+                    stmt = stmt.where(models.Span.id > cursor.rowid)
             else:
                 stmt = stmt.where(models.Span.id > cursor.rowid)
-        stmt = stmt.order_by(cursor_rowid_column)
+        if isinstance(cursor_rowid_column, tuple):
+            stmt = stmt.order_by(*cursor_rowid_column)
+        else:
+            stmt = stmt.order_by(cursor_rowid_column)
         if root_spans_only:
             # A root span is either a span with no parent_id or an orphan span
             # (a span whose parent_id references a span that doesn't exist in the database)
@@ -563,6 +590,11 @@ class Project(Node):
                     assert len(span_record) > 1
                     cursor.sort_column = CursorSortColumn(
                         type=sort_config.column_data_type,
+                        value=span_record[1],
+                    )
+                elif len(span_record) > 1:
+                    cursor.sort_column = CursorSortColumn(
+                        type=CursorSortColumnDataType.DATETIME,
                         value=span_record[1],
                     )
                 cursors_and_nodes.append((cursor, Span(id=span_rowid)))
