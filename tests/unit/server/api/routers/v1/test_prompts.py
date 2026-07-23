@@ -225,6 +225,264 @@ class TestPrompts:
         response = await httpx_client.delete(url)
         assert response.status_code == 404
 
+    async def test_clone_prompt_success(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        clone_name = token_hex(16)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/clone"
+        payload = {"name": clone_name}
+        response = await httpx_client.post(url, json=payload)
+        assert response.status_code == 201
+        data = response.json()["data"]
+        assert data["name"] == clone_name
+        assert data["description"] == prompt.description
+        assert data["source_prompt_id"] is not None
+
+        async with db() as session:
+            cloned_prompt = await session.scalar(
+                select(models.Prompt).filter_by(name=Identifier.model_validate(clone_name))
+            )
+            assert cloned_prompt is not None
+            cloned_versions = (
+                await session.scalars(
+                    select(models.PromptVersion).filter_by(prompt_id=cloned_prompt.id)
+                )
+            ).all()
+            assert len(cloned_versions) == len(prompt_versions)
+
+    async def test_clone_prompt_by_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        clone_name = token_hex(16)
+        url = f"v1/prompts/{quote_plus(prompt_id)}/clone"
+        payload = {"name": clone_name}
+        response = await httpx_client.post(url, json=payload)
+        assert response.status_code == 201
+        data = response.json()["data"]
+        assert data["name"] == clone_name
+
+    async def test_clone_prompt_not_found(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        url = "v1/prompts/nonexistent-prompt-name/clone"
+        payload = {"name": token_hex(16)}
+        response = await httpx_client.post(url, json=payload)
+        assert response.status_code == 404
+
+    async def test_clone_prompt_duplicate_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/clone"
+        payload = {"name": prompt.name.root}
+        response = await httpx_client.post(url, json=payload)
+        assert response.status_code == 409
+
+    async def test_clone_prompt_inherits_description(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt_name = Identifier.model_validate(token_hex(16))
+        async with db() as session:
+            prompt = models.Prompt(
+                name=prompt_name,
+                description="Source description",
+                metadata_={"key": "value"},
+            )
+            session.add(prompt)
+            await session.flush()
+            version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.CHAT,
+                template_format=PromptTemplateFormat.MUSTACHE,
+                template=PromptChatTemplate(
+                    type="chat",
+                    messages=[PromptMessage(role="user", content="hi")],
+                ),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai",
+                    openai=PromptOpenAIInvocationParametersContent(),
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name=token_hex(16),
+            )
+            session.add(version)
+
+        clone_name = token_hex(16)
+        url = f"v1/prompts/{quote_plus(prompt_name.root)}/clone"
+        payload = {"name": clone_name}
+        response = await httpx_client.post(url, json=payload)
+        assert response.status_code == 201
+        data = response.json()["data"]
+        assert data["description"] == "Source description"
+
+    async def test_clone_prompt_inherits_metadata(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt_name = Identifier.model_validate(token_hex(16))
+        async with db() as session:
+            prompt = models.Prompt(
+                name=prompt_name,
+                description="Source description",
+                metadata_={"inherited": "yes"},
+            )
+            session.add(prompt)
+            await session.flush()
+            version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.CHAT,
+                template_format=PromptTemplateFormat.MUSTACHE,
+                template=PromptChatTemplate(
+                    type="chat",
+                    messages=[PromptMessage(role="user", content="hi")],
+                ),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai",
+                    openai=PromptOpenAIInvocationParametersContent(),
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name=token_hex(16),
+            )
+            session.add(version)
+
+        clone_name = token_hex(16)
+        url = f"v1/prompts/{quote_plus(prompt_name.root)}/clone"
+        payload = {"name": clone_name}
+        response = await httpx_client.post(url, json=payload)
+        assert response.status_code == 201
+        data = response.json()["data"]
+        assert data["metadata"] == {"inherited": "yes"}
+
+    async def test_clone_prompt_explicit_null_description(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt_name = Identifier.model_validate(token_hex(16))
+        async with db() as session:
+            prompt = models.Prompt(
+                name=prompt_name,
+                description="Source description",
+                metadata_={"key": "value"},
+            )
+            session.add(prompt)
+            await session.flush()
+            version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.CHAT,
+                template_format=PromptTemplateFormat.MUSTACHE,
+                template=PromptChatTemplate(
+                    type="chat",
+                    messages=[PromptMessage(role="user", content="hi")],
+                ),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai",
+                    openai=PromptOpenAIInvocationParametersContent(),
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name=token_hex(16),
+            )
+            session.add(version)
+
+        clone_name = token_hex(16)
+        url = f"v1/prompts/{quote_plus(prompt_name.root)}/clone"
+        payload = {"name": clone_name, "description": None}
+        response = await httpx_client.post(url, json=payload)
+        assert response.status_code == 201
+        data = response.json()["data"]
+        assert data["description"] is None
+        assert data["metadata"] == {"key": "value"}
+
+    async def test_clone_prompt_explicit_null_metadata(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt_name = Identifier.model_validate(token_hex(16))
+        async with db() as session:
+            prompt = models.Prompt(
+                name=prompt_name,
+                description="Source description",
+                metadata_={"key": "value"},
+            )
+            session.add(prompt)
+            await session.flush()
+            version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.CHAT,
+                template_format=PromptTemplateFormat.MUSTACHE,
+                template=PromptChatTemplate(
+                    type="chat",
+                    messages=[PromptMessage(role="user", content="hi")],
+                ),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai",
+                    openai=PromptOpenAIInvocationParametersContent(),
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name=token_hex(16),
+            )
+            session.add(version)
+
+        clone_name = token_hex(16)
+        url = f"v1/prompts/{quote_plus(prompt_name.root)}/clone"
+        payload = {"name": clone_name, "metadata": None}
+        response = await httpx_client.post(url, json=payload)
+        assert response.status_code == 201
+        data = response.json()["data"]
+        assert data["description"] == "Source description"
+        assert data["metadata"] == {}
+
+    async def test_clone_prompt_does_not_copy_tags(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        await self._tag_prompt_version(db, prompt_versions[0])
+
+        clone_name = token_hex(16)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/clone"
+        payload = {"name": clone_name}
+        response = await httpx_client.post(url, json=payload)
+        assert response.status_code == 201
+
+        async with db() as session:
+            cloned_prompt = await session.scalar(
+                select(models.Prompt).filter_by(name=Identifier.model_validate(clone_name))
+            )
+            assert cloned_prompt is not None
+            tags = (
+                await session.scalars(
+                    select(models.PromptVersionTag).filter_by(prompt_id=cloned_prompt.id)
+                )
+            ).all()
+            assert len(tags) == 0
+
+    async def test_clone_prompt_invalid_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/clone"
+        payload = {"name": "invalid name with spaces"}
+        response = await httpx_client.post(url, json=payload)
+        assert response.status_code == 422
+
     @pytest.mark.parametrize(
         "name",
         [
