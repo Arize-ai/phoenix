@@ -16,6 +16,7 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
+from phoenix.server.api.agent_session_access import get_agent_session_owner_filter
 from phoenix.server.api.auth import IsAgentAssistantEnabled, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -251,8 +252,8 @@ class AgentSessionMutationMixin:
         lookup_stmt = select(models.AgentSession.id).where(
             models.AgentSession.id == agent_session_rowid
         )
-        if (viewer_id := info.context.user_id) is not None:
-            lookup_stmt = lookup_stmt.where(models.AgentSession.user_id == viewer_id)
+        if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
+            lookup_stmt = lookup_stmt.where(owner_filter)
         async with info.context.db() as session:
             agent_session_id = await session.scalar(lookup_stmt)
             if agent_session_id is not None:

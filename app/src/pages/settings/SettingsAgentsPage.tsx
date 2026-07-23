@@ -1,4 +1,6 @@
 import { css } from "@emotion/react";
+import { useLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 
 import {
   Card,
@@ -23,7 +25,12 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 
+import type { settingsAgentsPageLoaderQuery } from "./__generated__/settingsAgentsPageLoaderQuery.graphql";
+import { SettingsAgentSessionsCard } from "./SettingsAgentSessionsCard";
+import type { SettingsAgentsPageLoaderType } from "./settingsAgentsPageLoader";
+import { settingsAgentsPageLoaderGql } from "./settingsAgentsPageLoader";
 import { SettingsAgentsAdminSettingsSection } from "./SettingsAgentsWorkspaceCard";
 
 /**
@@ -226,6 +233,12 @@ function PersonalSettingsSection() {
 }
 
 export function SettingsAgentsPage() {
+  const loaderData = useLoaderData<SettingsAgentsPageLoaderType>();
+  invariant(loaderData, "loaderData is required");
+  const query = useOwnedPreloadedQuery<settingsAgentsPageLoaderQuery>({
+    query: settingsAgentsPageLoaderGql,
+    queryRef: loaderData,
+  });
   const isAdmin = useIsAdminOrAuthDisabled();
   const isExperimentalSettingsEnabled = useFeatureFlag(
     "agent-experimental-settings"
@@ -280,6 +293,7 @@ export function SettingsAgentsPage() {
           ) : null}
         </DisclosureGroup>
       </Card>
+      <SettingsAgentSessionsCard query={query} />
     </Flex>
   );
 }

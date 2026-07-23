@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<396325a8f2acccfc68371a03b069b0b7>>
+ * @generated SignedSource<<a137513e2788419730b80485b1511f97>>
  * @lightSyntaxTransform
  */
 
@@ -9,15 +9,16 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type AgentSessionsResourceQuery$variables = {
-  first: number;
+export type SettingsAgentSessionsCardPaginationQuery$variables = {
+  after?: string | null;
+  first?: number | null;
 };
-export type AgentSessionsResourceQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"AgentSessionsResource_sessions" | "SettingsAgentSessionsCard_sessions">;
+export type SettingsAgentSessionsCardPaginationQuery$data = {
+  readonly " $fragmentSpreads": FragmentRefs<"SettingsAgentSessionsCard_sessions">;
 };
-export type AgentSessionsResourceQuery = {
-  response: AgentSessionsResourceQuery$data;
-  variables: AgentSessionsResourceQuery$variables;
+export type SettingsAgentSessionsCardPaginationQuery = {
+  response: SettingsAgentSessionsCardPaginationQuery$data;
+  variables: SettingsAgentSessionsCardPaginationQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -25,10 +26,20 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
+    "name": "after"
+  },
+  {
+    "defaultValue": 20,
+    "kind": "LocalArgument",
     "name": "first"
   }
 ],
 v1 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
   {
     "kind": "Variable",
     "name": "first",
@@ -47,13 +58,8 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "AgentSessionsResourceQuery",
+    "name": "SettingsAgentSessionsCardPaginationQuery",
     "selections": [
-      {
-        "args": (v1/*:: as any*/),
-        "kind": "FragmentSpread",
-        "name": "AgentSessionsResource_sessions"
-      },
       {
         "args": (v1/*:: as any*/),
         "kind": "FragmentSpread",
@@ -67,7 +73,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "AgentSessionsResourceQuery",
+    "name": "SettingsAgentSessionsCardPaginationQuery",
     "selections": [
       {
         "alias": null,
@@ -99,34 +105,6 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "title",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "isTemporary",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "createdAt",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "updatedAt",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
                     "storageKey": null
                   },
                   {
@@ -167,6 +145,27 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "latestOutput",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "createdAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
                     "storageKey": null
                   }
                 ],
@@ -215,15 +214,6 @@ return {
         "args": (v1/*:: as any*/),
         "filters": null,
         "handle": "connection",
-        "key": "AgentSessionsResource_agentSessions",
-        "kind": "LinkedHandle",
-        "name": "agentSessions"
-      },
-      {
-        "alias": null,
-        "args": (v1/*:: as any*/),
-        "filters": null,
-        "handle": "connection",
         "key": "SettingsAgentSessionsCard_agentSessions",
         "kind": "LinkedHandle",
         "name": "agentSessions"
@@ -231,16 +221,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "01d8d401e21bbbbe617468b190138ae0",
+    "cacheID": "b086f4a5b4b4f32dc6decb65b0c602e9",
     "id": null,
     "metadata": {},
-    "name": "AgentSessionsResourceQuery",
+    "name": "SettingsAgentSessionsCardPaginationQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SettingsAgentSessionsCardPaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...SettingsAgentSessionsCard_sessions_2HEEH6\n}\n\nfragment SettingsAgentSessionsCard_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5eab824b5f213c3560d23fd28eacc731";
+(node as any).hash = "f4a4f7d266ad46e0a3043682b5fd92d7";
 
 export default node;

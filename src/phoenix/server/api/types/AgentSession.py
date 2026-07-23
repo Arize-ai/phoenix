@@ -1,6 +1,6 @@
 from asyncio import gather
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
 from sqlalchemy import select
@@ -9,8 +9,12 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.server.api.agent_session_access import can_access_agent_session
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
+
+if TYPE_CHECKING:
+    from .User import User
 
 
 @strawberry.type
@@ -40,8 +44,7 @@ class AgentSession(Node):
                 fields.load((self.id, models.AgentSession.user_id)),
                 fields.load((self.id, models.AgentSession.expires_at)),
             )
-        viewer_id = info.context.user_id
-        if agent_session_id is None or (viewer_id is not None and owner_id != viewer_id):
+        if agent_session_id is None or not can_access_agent_session(info.context, owner_id):
             raise self._not_found()
         if expires_at is not None and expires_at <= datetime.now(timezone.utc):
             raise self._not_found()
@@ -80,6 +83,34 @@ class AgentSession(Node):
         )
         assert isinstance(updated_at, datetime)
         return updated_at
+
+    @strawberry.field(description="The user that owns the session.")  # type: ignore
+    async def user(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        await self._ensure_access(info)
+        if self.db_record:
+            user_id = self.db_record.user_id
+        else:
+            user_id = await info.context.data_loaders.agent_session_fields.load(
+                (self.id, models.AgentSession.user_id),
+            )
+        if user_id is None:
+            return None
+        from .User import User
+
+        return User(id=user_id)
+
+    @strawberry.field(description="The text of the first user message in the session.")  # type: ignore
+    async def first_input(self, info: Info[Context, None]) -> Optional[str]:
+        await self._ensure_access(info)
+        return await info.context.data_loaders.agent_session_first_inputs.load(self.id)
+
+    @strawberry.field(description="The text of the latest assistant message in the session.")  # type: ignore
+    async def latest_output(self, info: Info[Context, None]) -> Optional[str]:
+        await self._ensure_access(info)
+        return await info.context.data_loaders.agent_session_latest_outputs.load(self.id)
 
     @strawberry.field(
         description="Whether the session expires after a period of inactivity.",
