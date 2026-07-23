@@ -67,12 +67,44 @@ ERROR_ARM: dict[str, Any] = {
     "required": ["status", "code", "message"],
 }
 
+#: One coherent per-field notes mechanism, shared by live responses
+#: (``field_notes``) and validation (``warnings``): ``not_observed`` — the
+#: path was not seen in the discovery sample (open admission stands, so
+#: this is a disclosure with nearest-spelling suggestions, not an error);
+#: ``all_null`` — the path was observed in the project but carries no
+#: value anywhere in this result.
+FIELD_NOTES_SCHEMA: dict[str, Any] = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "field": {"type": "string", "description": "The path, in canonical query spelling."},
+            "code": {"type": "string", "enum": ["not_observed", "all_null"]},
+            "note": {"type": "string"},
+            "suggestions": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Nearest observed spellings, directly usable.",
+            },
+        },
+        "required": ["field", "code", "note"],
+    },
+    "description": (
+        "Per-field admission and completeness notes: not_observed — the path was "
+        "not seen in the discovery sample (sampled evidence, not proof of "
+        "absence; suggestions name the nearest observed spellings); all_null — "
+        "the path was observed in the project's sample but was NULL on every "
+        "returned row or produced only a null group."
+    ),
+}
+
 VALIDATE_ARM: dict[str, Any] = {
     "type": "object",
     "properties": {
         "status": {"const": "ok"},
         "valid": {"const": True},
         "applied": {"type": "object"},
+        "warnings": FIELD_NOTES_SCHEMA,
     },
     "required": ["status", "valid"],
 }

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import random
 from collections import Counter
+from difflib import get_close_matches
 from typing import Any, Mapping, Optional
 
 from sqlalchemy import func
@@ -160,6 +161,78 @@ async def sample_observed_paths(
         if isinstance(attributes, dict):
             _flatten_scalars(attributes, (), stats)
     return sample_count, stats
+
+
+#: How many observed dimensions augment a field_not_groupable rejection.
+TOP_GROUPABLES_LIMIT = 5
+
+#: How many nearest observed spellings a not_observed note suggests.
+NEAREST_PATHS_LIMIT = 3
+
+
+async def not_observed_field_notes(
+    session: AsyncSession,
+    project_rowid: int,
+    paths: Mapping[tuple[str, ...], str],
+) -> list[dict[str, Any]]:
+    """Check observed attribute paths a query uses against the discovery
+    sample, returning one structured note per path the sample never saw.
+
+    ``paths`` maps each path's key sequence to the identifier the caller
+    wrote, so a note anchors to the request's own spelling. Open admission
+    stands: a path can be real but unsampled, so an unobserved path is
+    never an error. The note teaches instead — it names the sample size,
+    points at describeSpans, and suggests the nearest spellings among the
+    paths that *were* observed (full multi-segment similarity, so
+    ``metadata.releas`` finds ``metadata.release``).
+    """
+    sample_count, stats = await sample_observed_paths(session, project_rowid)
+    observed_spellings = [registry.canonical_attribute_spelling(keys) for keys in stats]
+    notes: list[dict[str, Any]] = []
+    for keys, anchor in sorted(paths.items(), key=lambda item: item[1]):
+        if keys in stats:
+            continue
+        notes.append(
+            {
+                "field": anchor,
+                "code": "not_observed",
+                "note": (
+                    f"{anchor!r} was not seen in a sample of {sample_count} spans "
+                    "drawn across the project's history — sampled evidence, not "
+                    "proof of absence; verify the spelling via describeSpans."
+                ),
+                "suggestions": get_close_matches(
+                    registry.canonical_attribute_spelling(keys),
+                    observed_spellings,
+                    n=NEAREST_PATHS_LIMIT,
+                ),
+            }
+        )
+    return notes
+
+
+async def top_observed_groupables(
+    session: AsyncSession,
+    project_rowid: int,
+    limit: int = TOP_GROUPABLES_LIMIT,
+) -> list[str]:
+    """The project's most-observed attribute dimensions, in canonical
+    spelling, for augmenting groupability rejections.
+
+    Authored ids are excluded — the rejection already lists them — so what
+    comes back is the discovered, project-specific dimensions a caller
+    actually groups by, bounded and ordered by observation count.
+    """
+    _, stats = await sample_observed_paths(session, project_rowid)
+    spellings = {
+        registry.canonical_attribute_spelling(keys): path_stats.count
+        for keys, path_stats in stats.items()
+    }
+    ranked = sorted(
+        (s for s in spellings if s not in registry.AUTHORED_BY_ID),
+        key=lambda s: (-spellings[s], s),
+    )
+    return ranked[:limit]
 
 
 async def zero_result_guidance(

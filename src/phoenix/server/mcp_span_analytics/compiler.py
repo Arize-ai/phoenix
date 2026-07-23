@@ -199,7 +199,9 @@ class Calculation(BaseModel):
         default=None,
         description=(
             "Field to aggregate. Required for every function except count; "
-            "count with a field counts rows where the field is non-NULL."
+            "count with a field counts rows where the field is non-NULL. "
+            "count and count_distinct accept any field, authored or observed; "
+            "sum/avg/min/max/percentiles require a value-aggregatable field."
         ),
     )
 
@@ -347,6 +349,22 @@ def project_not_found(identifier: str) -> QueryError:
         path="project",
         message=f"Project {identifier!r} not found.",
     )
+
+
+async def project_not_found_error(session: AsyncSession, identifier: str) -> QueryError:
+    """The not-found error with nearest-name suggestions from existing projects.
+
+    Suggestions are computed over the full project-name list, which is safe
+    today because every project is listable by every caller (getProjects
+    discloses the same names). If per-project authorization is ever
+    introduced, the candidate list here must be filtered to the caller's
+    visible set first — otherwise nearest-name suggestions become a
+    project-enumeration channel that leaks names the caller may not list.
+    """
+    names = list((await session.execute(select(models.Project.name))).scalars())
+    error = project_not_found(identifier)
+    error.suggestions = get_close_matches(identifier, names, n=3)
+    return error
 
 
 def resolve_field(identifier: str) -> registry.ResolvedField:
@@ -802,6 +820,12 @@ class RowPlan:
             chosen.append(sorted_ids[index])
         return sorted(chosen)
 
+    @property
+    def observed_fields(self) -> list[registry.ObservedField]:
+        """The selected observed attribute fields, for admission checks
+        against the discovery sample."""
+        return [f for f in self._selected if isinstance(f, registry.ObservedField)]
+
     def rows_stmt_for_ids(self, ids: Sequence[int]) -> Select[Any]:
         """The one IN-list fetch of the sampled rows."""
         stmt = scoped_base(
@@ -964,6 +988,9 @@ class AggregatePlan:
     #: Whether the filter used annotation existence predicates; the tools
     #: disclose the any-annotator semantics structurally when it did.
     uses_annotation_filter: bool
+    #: Observed attribute fields the query references in breakdowns or
+    #: calculations, for admission checks against the discovery sample.
+    observed_fields: list[registry.ObservedField] = dataclass_field(default_factory=list)
 
 
 def compile_aggregate(
@@ -972,6 +999,7 @@ def compile_aggregate(
     dialect: SupportedSQLDialect,
 ) -> AggregatePlan:
     """Compile an aggregation into its three statements."""
+    observed_fields: dict[str, registry.ObservedField] = {}
     calculations: list[ResolvedCalculation] = []
     for index, calc in enumerate(query.calculations):
         spec = registry.AGGREGATIONS.get(calc.fn)
@@ -989,24 +1017,31 @@ def compile_aggregate(
             except QueryError as error:
                 error.path = error.path or f"calculations[{index}].field"
                 raise
-            if not resolved.aggregatable:
+            if not spec.presence and not resolved.aggregatable:
+                # Presence aggregations (count, count_distinct) never compute
+                # on the value, so they pass for any field; only value
+                # aggregations are gated on declared numeric semantics.
                 aggregatable = sorted(f.id for f in registry.AUTHORED_FIELDS if f.aggregatable)
+                reason = (
+                    " Cast semantics for arbitrary observed JSON paths are "
+                    "undefined, so value aggregation is limited to authored fields."
+                    if isinstance(resolved, registry.ObservedField)
+                    else ""
+                )
                 raise QueryError(
                     code="field_not_aggregatable",
                     path=f"calculations[{index}].field",
                     message=(
-                        f"{calc.field!r} is not aggregatable"
-                        + (
-                            " (observed attribute fields have undefined cast semantics "
-                            "for aggregation; typed aggregation is limited to authored "
-                            "fields)"
-                            if isinstance(resolved, registry.ObservedField)
-                            else ""
-                        )
-                        + f". Aggregatable fields: {', '.join(aggregatable)}."
+                        f"{calc.field!r} supports only presence aggregations (count, "
+                        "count_distinct), which count rows and distinct values without "
+                        "computing on them; value aggregations (sum, avg, min, max, "
+                        f"percentiles) require a value-aggregatable field.{reason} "
+                        f"Value-aggregatable fields: {', '.join(aggregatable)}."
                     ),
                     suggestions=aggregatable,
                 )
+            if isinstance(resolved, registry.ObservedField):
+                observed_fields[resolved.id] = resolved
             field_expr = resolved.expr(dialect)
         elif spec.requires_field:
             raise QueryError(
@@ -1053,6 +1088,8 @@ def compile_aggregate(
                 ),
                 suggestions=alternatives,
             )
+        if isinstance(resolved, registry.ObservedField):
+            observed_fields[resolved.id] = resolved
         breakdowns.append(
             ResolvedBreakdown(
                 id=resolved.id,
@@ -1151,4 +1188,5 @@ def compile_aggregate(
         share_basis=share_basis,
         project_gid=str(GlobalID("Project", str(project_rowid))),
         uses_annotation_filter=filter_.uses_annotations if filter_ else False,
+        observed_fields=list(observed_fields.values()),
     )

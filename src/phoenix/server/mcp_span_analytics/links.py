@@ -78,16 +78,20 @@ def cohort_url(
     breakdowns: Sequence[Any],
     raw_values: Sequence[Any],
     time_range: TimeRange,
+    filter_condition: Optional[str] = None,
 ) -> str:
     """Deep link to the group's cohort in the Phoenix UI span view.
 
-    The link carries the group's condition as a ``filter`` in the filter
-    grammar (breakdown-key equalities ANDed) plus ``start``/``end``. A
-    time bucket contributes nothing to ``filter``; it narrows the time
-    params to its hour instead. A **null group key is skipped**: the UI
-    filter grammar cannot express "attribute is absent" today, so the
-    null bucket links to the window without that conjunct — a wider
-    cohort than the row, by declared necessity.
+    The link carries the group's *whole* condition as a ``filter`` in the
+    filter grammar — the query's own filter (parenthesized) conjoined with
+    the breakdown-key equalities — plus ``start``/``end``: the linked
+    cohort is the same population the row's numbers were computed over,
+    not just the breakdown slice. A time bucket contributes nothing to
+    ``filter``; it narrows the time params to its hour instead. A **null
+    group key is skipped**: the UI filter grammar cannot express
+    "attribute is absent" today, so the null bucket links to the window
+    without that conjunct — a wider cohort than the row, by declared
+    necessity.
     """
     conjuncts: list[str] = []
     window_start, window_end = time_range.start, time_range.end
@@ -98,6 +102,8 @@ def cohort_url(
                 window_start, window_end = bucket, bucket + timedelta(hours=1)
         elif value is not None:
             conjuncts.append(f"{breakdown.id} == {filter_literal(value)}")
+    if filter_condition:
+        conjuncts.insert(0, f"({filter_condition})" if conjuncts else filter_condition)
     params: dict[str, str] = {}
     if conjuncts:
         params["filter"] = " and ".join(conjuncts)
