@@ -1,5 +1,13 @@
 # @arizeai/phoenix-cli
 
+## 1.10.4
+
+### Patch Changes
+
+- 4867e34: Update the `ai` dependency to v7 to match `@arizeai/phoenix-client`'s `ai@^7.0.0` peer requirement, so installing the CLI no longer produces an unresolvable peer conflict. The CLI only uses the AI SDK's UI-message transport APIs, which are unchanged in v7.
+- Updated dependencies [4867e34]
+  - @arizeai/phoenix-client@7.0.0
+
 ## 1.10.3
 
 ### Patch Changes
