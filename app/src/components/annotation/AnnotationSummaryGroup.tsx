@@ -81,7 +81,7 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
   // newest first
   const annotationsByName = useMemo(
     () =>
-      spanAnnotations.reduce<Record<string, typeof spanAnnotations>>(
+      spanAnnotations.reduce< Record<string, typeof spanAnnotations>>(
         (acc, annotation) => {
           if (annotation.label == null && annotation.score == null) {
             return acc;
@@ -105,15 +105,16 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
     [spanAnnotations]
   );
   const categoricalAnnotationConfigsByName = useMemo(() => {
-    return data.project.annotationConfigs.edges.reduce<
-      Record<string, AnnotationConfigCategorical>
-    >((acc, edge) => {
-      const name = edge.node.name;
-      if (name && edge.node.annotationType === "CATEGORICAL") {
-        acc[name] = edge.node as AnnotationConfigCategorical;
-      }
-      return acc;
-    }, {});
+    return data.project.annotationConfigs.edges.reduce< Record<string, AnnotationConfigCategorical>>(
+      (acc, edge) => {
+        const name = edge.node.name;
+        if (name && edge.node.annotationType === "CATEGORICAL") {
+          acc[name] = edge.node as AnnotationConfigCategorical;
+        }
+        return acc;
+      },
+      {}
+    );
   }, [data.project.annotationConfigs]);
   return {
     sortedSummariesByName,

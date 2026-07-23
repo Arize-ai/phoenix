@@ -309,12 +309,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       data.compareExperiments.edges.map((edge) => {
         const comparison = edge.comparison;
         const repeatedRunGroupsByExperimentId =
-          comparison.repeatedRunGroups.reduce<
-            Record<string, ExperimentRepeatedRunGroup>
-          >((acc, group) => {
-            acc[group.experimentId] = group;
-            return acc;
-          }, {});
+          comparison.repeatedRunGroups.reduce< Record<string, ExperimentRepeatedRunGroup>>(
+            (acc, group) => {
+              acc[group.experimentId] = group;
+              return acc;
+            },
+            {}
+          );
         return {
           ...comparison,
           id: comparison.example.id,
@@ -921,12 +922,13 @@ function ExperimentRunOutputCell({
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
   const runsByRepetitionNumber = useMemo(() => {
-    const runsByRepetitionNumber = repeatedRunGroup.runs.reduce<
-      Record<number, ExperimentRun>
-    >((acc, run) => {
-      acc[run.repetitionNumber] = run;
-      return acc;
-    }, {});
+    const runsByRepetitionNumber = repeatedRunGroup.runs.reduce< Record<number, ExperimentRun>>(
+      (acc, run) => {
+        acc[run.repetitionNumber] = run;
+        return acc;
+      },
+      {}
+    );
     return runsByRepetitionNumber;
   }, [repeatedRunGroup.runs]);
 

@@ -189,6 +189,15 @@ export type ColorValue =
   | "chartreuse-1200"
   | "chartreuse-1300"
   | "chartreuse-1400"
+   
+   
+   
+   
+   
+   
+   
+   
+   
   | "orange-1000"
   | "orange-1100"
   | "orange-1200"

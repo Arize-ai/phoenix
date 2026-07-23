@@ -1281,12 +1281,13 @@ export const getVariablesMapFromInstances = ({
 
   const variableValueCache = input.variablesValueCache ?? {};
 
-  const variablesMap = variableKeys.reduce<
-    NonNullable<PlaygroundInput["variablesValueCache"]>
-  >((acc, key) => {
-    acc[key] = variableValueCache[key] || "";
-    return acc;
-  }, {});
+  const variablesMap = variableKeys.reduce< NonNullable<PlaygroundInput["variablesValueCache"]>>(
+    (acc, key) => {
+      acc[key] = variableValueCache[key] || "";
+      return acc;
+    },
+    {}
+  );
   return { variablesMap, variableKeys };
 };
 

@@ -83,7 +83,7 @@ const useTraceAnnotationSummaryGroup = (
   // newest first
   const annotationsByName = useMemo(
     () =>
-      traceAnnotations.reduce<Record<string, typeof traceAnnotations>>(
+      traceAnnotations.reduce< Record<string, typeof traceAnnotations>>(
         (acc, annotation) => {
           if (annotation.label == null && annotation.score == null) {
             return acc;
@@ -107,15 +107,16 @@ const useTraceAnnotationSummaryGroup = (
     [traceAnnotations]
   );
   const categoricalAnnotationConfigsByName = useMemo(() => {
-    return data.project.annotationConfigs.edges.reduce<
-      Record<string, AnnotationConfigCategorical>
-    >((acc, edge) => {
-      const name = edge.node.name;
-      if (name && edge.node.annotationType === "CATEGORICAL") {
-        acc[name] = edge.node as AnnotationConfigCategorical;
-      }
-      return acc;
-    }, {});
+    return data.project.annotationConfigs.edges.reduce< Record<string, AnnotationConfigCategorical>>(
+      (acc, edge) => {
+        const name = edge.node.name;
+        if (name && edge.node.annotationType === "CATEGORICAL") {
+          acc[name] = edge.node as AnnotationConfigCategorical;
+        }
+        return acc;
+      },
+      {}
+    );
   }, [data.project.annotationConfigs]);
   return {
     sortedSummariesByName,

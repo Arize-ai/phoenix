@@ -9,6 +9,7 @@ export const LAST_N_TIME_RANGES: LastNTimeRange[] = [
   { key: "30d", label: "Last Month" },
 ];
 
-export const LAST_N_TIME_RANGES_MAP = LAST_N_TIME_RANGES.reduce<
-  Record<LastNTimeRangeKey, LastNTimeRange | undefined>
->((acc, range) => ({ ...acc, [range.key]: range }), {});
+export const LAST_N_TIME_RANGES_MAP = LAST_N_TIME_RANGES.reduce< Record<LastNTimeRangeKey, LastNTimeRange | undefined>>(
+  (acc, range) => ({ ...acc, [range.key]: range }),
+  {}
+);
