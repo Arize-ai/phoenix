@@ -46,6 +46,7 @@ import { useAgentChatPanelState } from "./useAgentChatPanelState";
 const sessionsQuery = graphql`
   query AgentSessionsResourceQuery($first: Int!) {
     ...AgentSessionsResource_sessions @arguments(first: $first)
+    ...SettingsAgentSessionsCard_sessions @arguments(first: $first)
   }
 `;
 

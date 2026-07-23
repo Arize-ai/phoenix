@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8649550a6d865d682ad46f03e187bc83>>
+ * @generated SignedSource<<66668c10a1ed98c8755ce3dd7e2e1b28>>
  * @lightSyntaxTransform
  */
 
@@ -20,11 +20,17 @@ export type useAgentChatBranchAgentSessionMutation$data = {
   readonly branchAgentSession: {
     readonly agentSession: {
       readonly createdAt: string;
+      readonly firstInput: string | null;
       readonly id: string;
       readonly isTemporary: boolean;
+      readonly latestOutput: string | null;
       readonly messages: any;
       readonly title: string;
       readonly updatedAt: string;
+      readonly user: {
+        readonly profilePictureUrl: string | null;
+        readonly username: string;
+      } | null;
     };
   };
 };
@@ -54,54 +60,71 @@ v2 = [
 v3 = {
   "alias": null,
   "args": null,
-  "concreteType": "AgentSession",
-  "kind": "LinkedField",
-  "name": "agentSession",
-  "plural": false,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "title",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "isTemporary",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "createdAt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "updatedAt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "messages",
-      "storageKey": null
-    }
-  ],
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "title",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isTemporary",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "firstInput",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "latestOutput",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "username",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "profilePictureUrl",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "messages",
   "storageKey": null
 };
 return {
@@ -122,7 +145,38 @@ return {
         "name": "branchAgentSession",
         "plural": false,
         "selections": [
-          (v3/*:: as any*/)
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "AgentSession",
+            "kind": "LinkedField",
+            "name": "agentSession",
+            "plural": false,
+            "selections": [
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "User",
+                "kind": "LinkedField",
+                "name": "user",
+                "plural": false,
+                "selections": [
+                  (v10/*:: as any*/),
+                  (v11/*:: as any*/)
+                ],
+                "storageKey": null
+              },
+              (v12/*:: as any*/)
+            ],
+            "storageKey": null
+          }
         ],
         "storageKey": null
       }
@@ -147,7 +201,39 @@ return {
         "name": "branchAgentSession",
         "plural": false,
         "selections": [
-          (v3/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "AgentSession",
+            "kind": "LinkedField",
+            "name": "agentSession",
+            "plural": false,
+            "selections": [
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "User",
+                "kind": "LinkedField",
+                "name": "user",
+                "plural": false,
+                "selections": [
+                  (v10/*:: as any*/),
+                  (v11/*:: as any*/),
+                  (v3/*:: as any*/)
+                ],
+                "storageKey": null
+              },
+              (v12/*:: as any*/)
+            ],
+            "storageKey": null
+          },
           {
             "alias": null,
             "args": null,
@@ -175,16 +261,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9811c7cc58807b60e41478749d2a669f",
+    "cacheID": "4c07c771e79bf94a275a8af33b5620f3",
     "id": null,
     "metadata": {},
     "name": "useAgentChatBranchAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      isTemporary\n      createdAt\n      updatedAt\n      messages\n    }\n  }\n}\n"
+    "text": "mutation useAgentChatBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      isTemporary\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "44cc64b49a8281576213c7eb73a58c2c";
+(node as any).hash = "328bad4b95eabe5ea39747b98b98eed3";
 
 export default node;

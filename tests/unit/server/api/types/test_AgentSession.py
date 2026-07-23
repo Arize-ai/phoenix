@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -17,11 +18,12 @@ async def _seed_agent_session(
     updated_at: datetime,
     messages: list[dict[str, Any]] | None = None,
     expires_at: datetime | None = None,
+    user_id: int | None = None,
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
             project_session_id=str(uuid4()),
-            user_id=None,
+            user_id=user_id,
             title=title,
             project_name="assistant_agent",
             created_at=updated_at,
@@ -59,6 +61,9 @@ _DETAIL_QUERY = """
       ... on AgentSession {
         id
         title
+        user { username profilePictureUrl }
+        firstInput
+        latestOutput
         messages
       }
     }
@@ -136,9 +141,34 @@ async def test_agent_session_loads_transcript_by_id(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
+    async with db() as session:
+        user_role_id = await session.scalar(
+            select(models.UserRole.id).where(models.UserRole.name == "MEMBER")
+        )
+        assert user_role_id is not None
+        user = models.User(
+            user_role_id=user_role_id,
+            username="session-author",
+            email="session-author@example.com",
+            password_hash=b"hash",
+            password_salt=b"salt",
+            reset_password=False,
+            auth_method="LOCAL",
+        )
+        session.add(user)
+        await session.flush()
+        user_id = user.id
     messages: list[dict[str, Any]] = [
-        {"id": "message-1", "role": "user", "parts": []},
-        {"id": "message-2", "role": "assistant", "parts": []},
+        {
+            "id": "message-1",
+            "role": "user",
+            "parts": [{"type": "text", "text": "First question"}],
+        },
+        {
+            "id": "message-2",
+            "role": "assistant",
+            "parts": [{"type": "text", "text": "Earlier answer"}],
+        },
         {
             "id": "compaction-1",
             "role": "user",
@@ -150,12 +180,21 @@ async def test_agent_session_loads_transcript_by_id(
             },
             "parts": [{"type": "text", "text": '{"objectives":["test"]}'}],
         },
+        {
+            "id": "message-3",
+            "role": "assistant",
+            "parts": [
+                {"type": "text", "text": "Latest"},
+                {"type": "text", "text": "answer"},
+            ],
+        },
     ]
     agent_session_id = await _seed_agent_session(
         db,
         title="Session one",
         updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         messages=messages,
+        user_id=user_id,
     )
 
     response = await gql_client.execute(
@@ -168,6 +207,12 @@ async def test_agent_session_loads_transcript_by_id(
         "agentSession": {
             "id": agent_session_id,
             "title": "Session one",
+            "user": {
+                "username": "session-author",
+                "profilePictureUrl": None,
+            },
+            "firstInput": "First question",
+            "latestOutput": "Latest\nanswer",
             "messages": messages,
         }
     }

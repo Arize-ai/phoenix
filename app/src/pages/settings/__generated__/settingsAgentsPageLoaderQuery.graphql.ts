@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<396325a8f2acccfc68371a03b069b0b7>>
+ * @generated SignedSource<<a9b333cb8b8ec2eb6cea87b1640e1370>>
  * @lightSyntaxTransform
  */
 
@@ -9,15 +9,15 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type AgentSessionsResourceQuery$variables = {
+export type settingsAgentsPageLoaderQuery$variables = {
   first: number;
 };
-export type AgentSessionsResourceQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"AgentSessionsResource_sessions" | "SettingsAgentSessionsCard_sessions">;
+export type settingsAgentsPageLoaderQuery$data = {
+  readonly " $fragmentSpreads": FragmentRefs<"SettingsAgentSessionsCard_sessions">;
 };
-export type AgentSessionsResourceQuery = {
-  response: AgentSessionsResourceQuery$data;
-  variables: AgentSessionsResourceQuery$variables;
+export type settingsAgentsPageLoaderQuery = {
+  response: settingsAgentsPageLoaderQuery$data;
+  variables: settingsAgentsPageLoaderQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -47,13 +47,8 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "AgentSessionsResourceQuery",
+    "name": "settingsAgentsPageLoaderQuery",
     "selections": [
-      {
-        "args": (v1/*:: as any*/),
-        "kind": "FragmentSpread",
-        "name": "AgentSessionsResource_sessions"
-      },
       {
         "args": (v1/*:: as any*/),
         "kind": "FragmentSpread",
@@ -67,7 +62,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "AgentSessionsResourceQuery",
+    "name": "settingsAgentsPageLoaderQuery",
     "selections": [
       {
         "alias": null,
@@ -99,34 +94,6 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "title",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "isTemporary",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "createdAt",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "updatedAt",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
                     "storageKey": null
                   },
                   {
@@ -167,6 +134,27 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "latestOutput",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "createdAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
                     "storageKey": null
                   }
                 ],
@@ -215,15 +203,6 @@ return {
         "args": (v1/*:: as any*/),
         "filters": null,
         "handle": "connection",
-        "key": "AgentSessionsResource_agentSessions",
-        "kind": "LinkedHandle",
-        "name": "agentSessions"
-      },
-      {
-        "alias": null,
-        "args": (v1/*:: as any*/),
-        "filters": null,
-        "handle": "connection",
         "key": "SettingsAgentSessionsCard_agentSessions",
         "kind": "LinkedHandle",
         "name": "agentSessions"
@@ -231,16 +210,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "01d8d401e21bbbbe617468b190138ae0",
+    "cacheID": "4d141a1982a33f445ca5dfe80c3060a5",
     "id": null,
     "metadata": {},
-    "name": "AgentSessionsResourceQuery",
+    "name": "settingsAgentsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsAgentsPageLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5eab824b5f213c3560d23fd28eacc731";
+(node as any).hash = "500b5164cdfa6605ae1ff01fcfd0b1c4";
 
 export default node;

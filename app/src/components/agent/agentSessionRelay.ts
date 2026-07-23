@@ -4,6 +4,8 @@ import type { agentSessionRelaySessionQuery } from "./__generated__/agentSession
 
 export const AGENT_SESSIONS_CONNECTION_KEY =
   "AgentSessionsResource_agentSessions";
+export const SETTINGS_AGENT_SESSIONS_CONNECTION_KEY =
+  "SettingsAgentSessionsCard_agentSessions";
 
 export const SESSION_PAGE_SIZE = 20;
 
@@ -25,6 +27,12 @@ export const agentSessionQuery = graphql`
         isTemporary
         createdAt
         updatedAt
+        firstInput
+        latestOutput
+        user {
+          username
+          profilePictureUrl
+        }
         messages
       }
     }

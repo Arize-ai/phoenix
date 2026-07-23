@@ -66,6 +66,7 @@ import type { useAgentChatCreateAgentSessionMutation } from "./__generated__/use
 import type { useAgentChatTruncateAgentSessionMutation } from "./__generated__/useAgentChatTruncateAgentSessionMutation.graphql";
 import {
   AGENT_SESSIONS_CONNECTION_KEY,
+  SETTINGS_AGENT_SESSIONS_CONNECTION_KEY,
   refetchAgentSession,
 } from "./agentSessionRelay";
 import { selectAgentModel } from "./useAgentChatPanelState";
@@ -125,6 +126,12 @@ const createAgentSessionMutation = graphql`
         isTemporary
         createdAt
         updatedAt
+        firstInput
+        latestOutput
+        user {
+          username
+          profilePictureUrl
+        }
       }
     }
   }
@@ -139,6 +146,12 @@ const truncateAgentSessionMutation = graphql`
         id
         title
         updatedAt
+        firstInput
+        latestOutput
+        user {
+          username
+          profilePictureUrl
+        }
         messages
       }
     }
@@ -161,6 +174,12 @@ const branchAgentSessionMutation = graphql`
         isTemporary
         createdAt
         updatedAt
+        firstInput
+        latestOutput
+        user {
+          username
+          profilePictureUrl
+        }
         messages
       }
     }
@@ -230,6 +249,10 @@ export function useAgentChat({
   const sessionsConnectionId = ConnectionHandler.getConnectionID(
     "client:root",
     AGENT_SESSIONS_CONNECTION_KEY
+  );
+  const settingsSessionsConnectionId = ConnectionHandler.getConnectionID(
+    "client:root",
+    SETTINGS_AGENT_SESSIONS_CONNECTION_KEY
   );
   // Guards the draft surface against double-submits while the create-session
   // mutation is in flight.
@@ -501,10 +524,13 @@ export function useAgentChat({
     }
     setOperationError(null);
     isCreatingSessionRef.current = true;
+    const isTemporary = store.getState().isDraftSessionTemporary;
     commitCreateAgentSession({
       variables: {
-        input: { temporary: store.getState().isDraftSessionTemporary },
-        connections: [sessionsConnectionId],
+        input: { temporary: isTemporary },
+        connections: isTemporary
+          ? [sessionsConnectionId]
+          : [sessionsConnectionId, settingsSessionsConnectionId],
       },
       onCompleted: (response) => {
         isCreatingSessionRef.current = false;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7b712c66e3b3be174186ae42e44d0fec>>
+ * @generated SignedSource<<65523203c2391ca43e3bd900a7fdab7a>>
  * @lightSyntaxTransform
  */
 
@@ -15,11 +15,17 @@ export type agentSessionRelaySessionQuery$data = {
   readonly agentSession: {
     readonly __typename: "AgentSession";
     readonly createdAt: string;
+    readonly firstInput: string | null;
     readonly id: string;
     readonly isTemporary: boolean;
+    readonly latestOutput: string | null;
     readonly messages: any;
     readonly title: string;
     readonly updatedAt: string;
+    readonly user: {
+      readonly profilePictureUrl: string | null;
+      readonly username: string;
+    } | null;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -92,6 +98,34 @@ v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "firstInput",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "latestOutput",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "username",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "profilePictureUrl",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "messages",
   "storageKey": null
 };
@@ -119,7 +153,22 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/)
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "User",
+                "kind": "LinkedField",
+                "name": "user",
+                "plural": false,
+                "selections": [
+                  (v10/*:: as any*/),
+                  (v11/*:: as any*/)
+                ],
+                "storageKey": null
+              },
+              (v12/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -154,7 +203,23 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/)
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "User",
+                "kind": "LinkedField",
+                "name": "user",
+                "plural": false,
+                "selections": [
+                  (v10/*:: as any*/),
+                  (v11/*:: as any*/),
+                  (v3/*:: as any*/)
+                ],
+                "storageKey": null
+              },
+              (v12/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -165,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9747bb4080b9a1fe64d31cc9520c7997",
+    "cacheID": "8b41876a0317c4c224fe910e472b986f",
     "id": null,
     "metadata": {},
     "name": "agentSessionRelaySessionQuery",
     "operationKind": "query",
-    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary\n      createdAt\n      updatedAt\n      messages\n    }\n    id\n  }\n}\n"
+    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4bab7009552efc05e5c12fd93a6119a2";
+(node as any).hash = "51e803379d7880f54759833e4a68e71b";
 
 export default node;
