@@ -53,7 +53,7 @@ const main = async () => {
       prompt: example.input.question,
       telemetry: { integrations: [new OpenTelemetry()] },
     }).then((response) => {
-      if (response.text) {
+      if (typeof response.text === "string") {
         return response.text;
       }
       throw new Error("Invalid response: text is required");

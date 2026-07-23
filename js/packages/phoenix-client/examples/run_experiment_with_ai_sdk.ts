@@ -47,4 +47,4 @@ const main = async () => {
   console.table(experiment.runs);
 };
 
-main();
+main().catch(console.error);

@@ -2,12 +2,10 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    // Examples run via tsx, which loads ESM-only packages (ai, @ai-sdk/*)
-    // transparently — typecheck them the same way instead of as CJS.
+    "composite": false,
+    "incremental": false,
     "module": "esnext",
     "moduleResolution": "bundler"
   },
-  "include": ["./**/*.ts", "../src/**/*.ts"],
-  // The vitest examples run through vitest's own transform pipeline.
-  "exclude": ["./vitest/**"]
+  "include": ["./**/*.ts"]
 }
