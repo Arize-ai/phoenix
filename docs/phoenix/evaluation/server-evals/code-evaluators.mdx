@@ -57,7 +57,7 @@ flowchart LR
 
 From authoring to results, you'll work through five steps:
 
-1. **Create the evaluator** — From a dataset's **Evaluators** tab, choose **Add evaluator → Create new code evaluator**. Pick a language (Python or TypeScript) and a sandbox configuration.
+1. **Create the evaluator** — From a dataset's **Evaluators** tab, choose **Add evaluator → Create new code evaluator**. Pick a language (Python or TypeScript) and a sandbox configuration. *(No sandbox configuration yet? Create one under [Settings → Sandboxes](/docs/phoenix/settings/sandboxes) — for local TypeScript, use the [Deno](/docs/phoenix/settings/sandboxes/deno) sandbox; for local Python, [WebAssembly](/docs/phoenix/settings/sandboxes/wasm).)*
 2. **Write `evaluate(...)`** — The editor opens pre-populated with an `evaluate(...)` function. Its parameters become the evaluator's inputs.
 3. **Configure the annotation** — Pick an optimization direction (maximize vs. minimize) and, optionally, a threshold for pass/fail coloring.
 4. **Map inputs** — Bind each parameter to a path on the [evaluation parameters](/docs/phoenix/evaluation/server-evals/input-mapping#evaluation-parameters) (`input`, `output`, `reference`, `metadata`) or to a literal value.
