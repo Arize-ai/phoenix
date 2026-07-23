@@ -15,7 +15,7 @@ build_timeout_sec = 1200.0
 env = { ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}", HARBOR_PHOENIX_COLLECTOR_ENDPOINT = "${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}", HARBOR_PHOENIX_API_KEY = "${HARBOR_PHOENIX_API_KEY:-}", HARBOR_PHOENIX_PROJECT_NAME = "${HARBOR_PHOENIX_PROJECT_NAME:-harbor-server-agent-evals}" }
 
 [[steps]]
-name = "01-aggregate"
+name = "step_01_aggregate"
 min_reward = 1.0
 [steps.agent]
 timeout_sec = 900.0
@@ -23,16 +23,16 @@ timeout_sec = 900.0
 timeout_sec = 120.0
 
 [[steps]]
-name = "02-diagnose"
+name = "step_02_diagnose"
 [steps.agent]
 timeout_sec = 900.0
 
 [[steps]]
-name = "03-trace-drilldown"
+name = "step_03_trace_drilldown"
 [steps.agent]
 timeout_sec = 900.0
 
 [[steps]]
-name = "04-create-split"
+name = "step_04_create_split"
 [steps.agent]
 timeout_sec = 900.0
