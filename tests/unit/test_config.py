@@ -55,6 +55,12 @@ class TestGetEnvOnlineEval:
                 "0.001",
                 0.001,
             ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS,
+                phoenix_config.get_env_online_eval_consumer_tick_interval_seconds,
+                "0.001",
+                0.001,
+            ),
         ],
     )
     def test_float_boundaries(
@@ -159,6 +165,12 @@ class TestGetEnvOnlineEval:
             (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
                 phoenix_config.get_env_online_eval_max_outstanding,
+                "1",
+                1,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE,
+                phoenix_config.get_env_online_eval_claim_batch_size,
                 "1",
                 1,
             ),
