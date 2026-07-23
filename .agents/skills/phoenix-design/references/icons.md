@@ -33,6 +33,24 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Model | `Icons.Cube` | Lucide box glyph (cube). Used for the Models settings tab and anything representing a model as an entity. Prefer this over `LLMOutput` for the model noun. |
 | User preferences | `Icons.Options` | User-selectable theme, timezone, and code presentation preferences. |
 | Custom AI provider | `Icons.Sparkle` | Used for custom provider configuration and its empty state. |
+| PXI ask tool | `Icons.MessagesSquare` | Tool calls that pause for an answer from the user. |
+| PXI command tool | `Icons.Console` | Shell or command execution. |
+| PXI configuration tool | `Icons.Options` | Tools that configure an existing playground or evaluator workflow. |
+| PXI dataset tool | `Icons.Database` | Dataset discovery and mutation tools. |
+| PXI delegation tool | `Icons.Subagent` | Work delegated to a subagent; the split-branch shape points down toward the delegated work. |
+| PXI documentation tool | `Icons.Search` | Direct documentation-file queries. |
+| PXI edit tool | `Icons.Edit2` | Tools that author, edit, submit, or persist user artifacts. |
+| PXI filter tool | `Icons.ListFilter` | Tools that change the visible span filter. |
+| PXI navigation tool | `Icons.ArrowUpRightCorner` | Route lookup and tools that open an editing surface. |
+| PXI read tool | `Icons.ScanText` | Read-only inspection of an existing user artifact. |
+| PXI run tool | `Icons.Play` | Playground and evaluator run actions, including cancellation. |
+| PXI search tool | `Icons.Search` | Searching Phoenix documentation. |
+| PXI skill tool | `Icons.GraduationCap` | Loading a skill or reading one of its resources. |
+| PXI built-in skill | Semantic noun icon | Built-in skills use a noun icon such as `Database` for datasets or `Scale` for evaluators; unknown skills fall back to `GraduationCap`. |
+| PXI time tool | `Icons.Clock` | Reading or changing time context. |
+| PXI visualization tool | `Icons.BarChart` | Rendering generative charts or other data UI. |
+| PXI web tool | `Icons.Globe` | Searching the web or fetching a known web page. |
+| PXI tool (generic) | `Icons.Wrench` | Fallback for unknown tools or tools without a strong semantic category. |
 
 ## When you need an icon
 
