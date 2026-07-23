@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a9b333cb8b8ec2eb6cea87b1640e1370>>
+ * @generated SignedSource<<4f0c6f867127a8cb9b5303f32bc99e19>>
  * @lightSyntaxTransform
  */
 
@@ -210,12 +210,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4d141a1982a33f445ca5dfe80c3060a5",
+    "cacheID": "23dd914519d79690d374eacc3be47431",
     "id": null,
     "metadata": {},
     "name": "settingsAgentsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsAgentsPageLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsAgentsPageLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

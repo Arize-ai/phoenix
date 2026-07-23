@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a137513e2788419730b80485b1511f97>>
+ * @generated SignedSource<<da7258e7b7b734abfd7f0d3fd5ffa0a4>>
  * @lightSyntaxTransform
  */
 
@@ -221,16 +221,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b086f4a5b4b4f32dc6decb65b0c602e9",
+    "cacheID": "93a52c39d6e4516cbeae6a714ef577d3",
     "id": null,
     "metadata": {},
     "name": "SettingsAgentSessionsCardPaginationQuery",
     "operationKind": "query",
-    "text": "query SettingsAgentSessionsCardPaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...SettingsAgentSessionsCard_sessions_2HEEH6\n}\n\nfragment SettingsAgentSessionsCard_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SettingsAgentSessionsCardPaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...SettingsAgentSessionsCard_sessions_2HEEH6\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        latestOutput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f4a4f7d266ad46e0a3043682b5fd92d7";
+(node as any).hash = "a285c81f274d06d9c3c67baf650a2034";
 
 export default node;

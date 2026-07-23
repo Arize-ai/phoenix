@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a0017fc8fbfc0da62ed80546da8aa1c6>>
+ * @generated SignedSource<<b8c1db212920224fad54fc0799735c28>>
  * @lightSyntaxTransform
  */
 
@@ -23,6 +23,7 @@ export type SettingsAgentSessionsCard_sessions$data = {
           readonly profilePictureUrl: string | null;
           readonly username: string;
         } | null;
+        readonly " $fragmentSpreads": FragmentRefs<"EditAgentSessionTitleDialog_session">;
       };
     }>;
   };
@@ -114,6 +115,11 @@ return {
                   "kind": "ScalarField",
                   "name": "title",
                   "storageKey": null
+                },
+                {
+                  "args": null,
+                  "kind": "FragmentSpread",
+                  "name": "EditAgentSessionTitleDialog_session"
                 },
                 {
                   "alias": null,
@@ -222,6 +228,6 @@ return {
 };
 })();
 
-(node as any).hash = "f4a4f7d266ad46e0a3043682b5fd92d7";
+(node as any).hash = "a285c81f274d06d9c3c67baf650a2034";
 
 export default node;

@@ -24,10 +24,12 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import type { EditAgentSessionTitleDialog_session$key } from "@phoenix/components/agent/__generated__/EditAgentSessionTitleDialog_session.graphql";
 import {
   AGENT_SESSIONS_CONNECTION_KEY,
   SETTINGS_AGENT_SESSIONS_CONNECTION_KEY,
 } from "@phoenix/components/agent/agentSessionRelay";
+import { EditAgentSessionTitleDialog } from "@phoenix/components/agent/EditAgentSessionTitleDialog";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
@@ -35,13 +37,21 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import type { SettingsAgentSessionActionMenuDeleteMutation } from "./__generated__/SettingsAgentSessionActionMenuDeleteMutation.graphql";
 
+enum AgentSessionAction {
+  EditTitle = "edit-title",
+  Delete = "delete",
+}
+
 export function SettingsAgentSessionActionMenu({
   sessionId,
   sessionTitle,
+  session,
 }: {
   sessionId: string;
   sessionTitle: string;
+  session: EditAgentSessionTitleDialog_session$key;
 }) {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const store = useAgentStore();
@@ -118,10 +128,29 @@ export function SettingsAgentSessionActionMenu({
         />
         <Popover>
           <Menu
-            disabledKeys={isDeleteDisabled ? ["delete"] : []}
-            onAction={() => setIsDeleteDialogOpen(true)}
+            disabledKeys={
+              isDeleteDisabled
+                ? [AgentSessionAction.EditTitle, AgentSessionAction.Delete]
+                : []
+            }
+            onAction={(action) => {
+              if (action === AgentSessionAction.EditTitle) {
+                setIsEditDialogOpen(true);
+              } else if (action === AgentSessionAction.Delete) {
+                setIsDeleteDialogOpen(true);
+              }
+            }}
           >
-            <MenuItem id="delete" textValue="Delete session">
+            <MenuItem
+              id={AgentSessionAction.EditTitle}
+              textValue="Edit session title"
+            >
+              <Flex gap="size-75" alignItems="center">
+                <Icon svg={<Icons.Edit />} />
+                <Text>Edit title</Text>
+              </Flex>
+            </MenuItem>
+            <MenuItem id={AgentSessionAction.Delete} textValue="Delete session">
               <Flex gap="size-75" alignItems="center">
                 <Icon svg={<Icons.Trash />} />
                 <Text>Delete</Text>
@@ -130,6 +159,19 @@ export function SettingsAgentSessionActionMenu({
           </Menu>
         </Popover>
       </MenuTrigger>
+      <DialogTrigger
+        isOpen={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+      >
+        <ModalOverlay>
+          <Modal size="S">
+            <EditAgentSessionTitleDialog
+              session={session}
+              onClose={() => setIsEditDialogOpen(false)}
+            />
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
       <DialogTrigger
         isOpen={isDeleteDialogOpen}
         onOpenChange={(isOpen) => {
