@@ -2,9 +2,9 @@ import type { UIMessageChunk } from "ai";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildAgentSessionChatUrl,
   buildPxiChatRequest,
   buildPxiHeaders,
-  buildServerAgentChatUrl,
   createPxiChatClient,
 } from "../src/pxi/client";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
@@ -84,6 +84,27 @@ describe("PXI client", () => {
     );
   });
 
+  it("sends only the trailing message on the agent-session contract", () => {
+    const options = createRuntimeOptions();
+    const trailingMessage = userMessage("second question");
+
+    const request = buildPxiChatRequest({
+      messages: [userMessage("first question"), trailingMessage],
+      options,
+    });
+
+    expect(request.message).toEqual(trailingMessage);
+    expect(request).not.toHaveProperty("messages");
+  });
+
+  it("rejects an agent-session request without a message", () => {
+    const options = createRuntimeOptions();
+
+    expect(() => buildPxiChatRequest({ messages: [], options })).toThrow(
+      "A chat submit request requires a message to send"
+    );
+  });
+
   it("builds a custom provider model request", () => {
     const options = createRuntimeOptions({
       customProviderId: "provider-1",
@@ -133,14 +154,14 @@ describe("PXI client", () => {
     expect(headers.Authorization).toBe("Bearer oauth-access");
   });
 
-  it("builds the server-agent chat URL", () => {
+  it("builds the agent-session chat URL", () => {
     expect(
-      buildServerAgentChatUrl({
+      buildAgentSessionChatUrl({
         endpoint: "http://localhost:6006/",
-        sessionId: "session with spaces",
+        agentSessionId: "QWdlbnRTZXNzaW9uOjE=",
       })
     ).toBe(
-      "http://localhost:6006/agents/server/sessions/session%20with%20spaces/chat"
+      "http://localhost:6006/agents/server/sessions/QWdlbnRTZXNzaW9uOjE%3D/chat"
     );
   });
 

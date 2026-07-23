@@ -8,6 +8,10 @@ from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 from typing_extensions import NotRequired
 
 
+class AgentSession(TypedDict):
+    id: str
+
+
 class AgentSpanContext(TypedDict):
     type: Literal["span"]
     projectNodeId: NotRequired[str]
@@ -75,6 +79,15 @@ class CategoricalAnnotationValue(TypedDict):
 class CodeEvaluatorContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
+
+
+class CreateAgentSessionRequestBody(TypedDict):
+    title: NotRequired[str]
+    temporary: NotRequired[bool]
+
+
+class CreateAgentSessionResponseBody(TypedDict):
+    data: AgentSession
 
 
 class CreateApiKeyRequestBody(TypedDict):
