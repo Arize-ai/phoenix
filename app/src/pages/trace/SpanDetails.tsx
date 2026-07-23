@@ -8,7 +8,12 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
-import type { PropsWithChildren, ReactNode } from "react";
+import { animate, useReducedMotion } from "motion/react";
+import type {
+  MouseEvent as ReactMouseEvent,
+  PropsWithChildren,
+  ReactNode,
+} from "react";
 import { Fragment, Suspense, useEffect, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -143,6 +148,8 @@ const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
 const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 400;
 const ASIDE_PANEL_MIN_SIZE_PIXELS = 300;
 const ASIDE_PANEL_MAX_SIZE_PIXELS = 500;
+const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
+const FINAL_SCROLL_ANIMATION_DURATION_SECONDS = 0.18;
 
 const spanDetailsAnchorNavCSS = css`
   flex: none;
@@ -196,11 +203,6 @@ const spanDetailsSectionsCSS = css`
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  scroll-behavior: smooth;
-
-  @media (prefers-reduced-motion: reduce) {
-    scroll-behavior: auto;
-  }
 
   section:last-of-type:after {
     content: "";
@@ -223,8 +225,12 @@ export function SpanDetails({
   const setIsAnnotatingSpans = usePreferencesContext(
     (state) => state.setIsAnnotatingSpans
   );
+  const shouldReduceMotion = useReducedMotion();
 
   const asidePanelRef = useRef<PanelImperativeHandle>(null);
+  const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
+  const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
+  const scrollAnimationRef = useRef<ReturnType<typeof animate> | null>(null);
   // Sync the aside panel collapsed state with the isAnnotatingSpans preference.
   // This handles initial mount (panel starts expanded by default, collapse if not annotating)
   // and external changes to isAnnotatingSpans (e.g. from the hotkey).
@@ -237,6 +243,15 @@ export function SpanDetails({
       panel.collapse();
     }
   }, [isAnnotatingSpans]);
+  useEffect(() => {
+    const scrollContent = spanDetailsSectionsContentRef.current;
+    return () => {
+      scrollAnimationRef.current?.stop();
+      if (scrollContent) {
+        scrollContent.style.transform = "";
+      }
+    };
+  }, []);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
   const isCondensedView = spanDetailsContainerDimensions?.width
@@ -344,6 +359,87 @@ export function SpanDetails({
     events: `span-details-${span.spanId}-events`,
   } as const;
 
+  const handleSectionLinkClick = ({
+    event,
+    sectionId,
+  }: {
+    event: ReactMouseEvent<HTMLAnchorElement>;
+    sectionId: string;
+  }) => {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    const scrollContainer = spanDetailsSectionsRef.current;
+    const scrollContent = spanDetailsSectionsContentRef.current;
+    const targetSection = document.getElementById(sectionId);
+    if (
+      !scrollContainer ||
+      !scrollContent ||
+      !targetSection ||
+      !scrollContainer.contains(targetSection)
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      event.currentTarget.hash
+    );
+
+    scrollAnimationRef.current?.stop();
+    scrollAnimationRef.current = null;
+    scrollContent.style.transform = "";
+
+    const currentScrollTop = scrollContainer.scrollTop;
+    const maximumScrollTop =
+      scrollContainer.scrollHeight - scrollContainer.clientHeight;
+    const targetScrollTop = Math.min(
+      Math.max(
+        currentScrollTop +
+          targetSection.getBoundingClientRect().top -
+          scrollContainer.getBoundingClientRect().top,
+        0
+      ),
+      maximumScrollTop
+    );
+    const scrollDistance = targetScrollTop - currentScrollTop;
+    const shouldAnimateFinalDistance =
+      !shouldReduceMotion &&
+      Math.abs(scrollDistance) > FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS;
+
+    if (!shouldAnimateFinalDistance) {
+      scrollContainer.scrollTop = targetScrollTop;
+      return;
+    }
+
+    const scrollDirection = Math.sign(scrollDistance);
+    const initialContentTransform = `translateY(${scrollDirection * FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS}px)`;
+    scrollContent.style.transform = initialContentTransform;
+    scrollContainer.scrollTop = targetScrollTop;
+    scrollAnimationRef.current = animate(
+      scrollContent,
+      { transform: [initialContentTransform, "translateY(0px)"] },
+      {
+        type: "tween",
+        duration: FINAL_SCROLL_ANIMATION_DURATION_SECONDS,
+        ease: "easeOut",
+        onComplete: () => {
+          scrollContent.style.transform = "";
+          scrollAnimationRef.current = null;
+        },
+      }
+    );
+  };
+
   return (
     <Group orientation="horizontal" id="span-details-layout">
       <Panel>
@@ -411,18 +507,54 @@ export function SpanDetails({
           <nav css={spanDetailsAnchorNavCSS} aria-label="Span detail sections">
             <ul>
               <li>
-                <a href={`#${spanDetailsSectionIds.info}`}>Info</a>
+                <a
+                  href={`#${spanDetailsSectionIds.info}`}
+                  onClick={(event) =>
+                    handleSectionLinkClick({
+                      event,
+                      sectionId: spanDetailsSectionIds.info,
+                    })
+                  }
+                >
+                  Info
+                </a>
               </li>
               <li>
-                <a href={`#${spanDetailsSectionIds.annotations}`}>
+                <a
+                  href={`#${spanDetailsSectionIds.annotations}`}
+                  onClick={(event) =>
+                    handleSectionLinkClick({
+                      event,
+                      sectionId: spanDetailsSectionIds.annotations,
+                    })
+                  }
+                >
                   Annotations <Counter>{span.spanAnnotations.length}</Counter>
                 </a>
               </li>
               <li>
-                <a href={`#${spanDetailsSectionIds.attributes}`}>Attributes</a>
+                <a
+                  href={`#${spanDetailsSectionIds.attributes}`}
+                  onClick={(event) =>
+                    handleSectionLinkClick({
+                      event,
+                      sectionId: spanDetailsSectionIds.attributes,
+                    })
+                  }
+                >
+                  Attributes
+                </a>
               </li>
               <li>
-                <a href={`#${spanDetailsSectionIds.events}`}>
+                <a
+                  href={`#${spanDetailsSectionIds.events}`}
+                  onClick={(event) =>
+                    handleSectionLinkClick({
+                      event,
+                      sectionId: spanDetailsSectionIds.events,
+                    })
+                  }
+                >
                   Events
                   <Counter variant={hasExceptions ? "danger" : "default"}>
                     {span.events.length}
@@ -431,64 +563,66 @@ export function SpanDetails({
               </li>
             </ul>
           </nav>
-          <div css={spanDetailsSectionsCSS}>
-            <section id={spanDetailsSectionIds.info} aria-label="Info">
-              <SectionHeading bordered={false}>Info</SectionHeading>
-              <ErrorBoundary>
-                <SpanInfo span={span} />
-              </ErrorBoundary>
-            </section>
-            <section
-              id={spanDetailsSectionIds.annotations}
-              aria-label="Annotations"
-            >
-              <SectionHeading>
-                <Flex
-                  elementType="span"
-                  direction="row"
-                  gap="size-100"
-                  alignItems="center"
-                >
-                  Annotations <Counter>{span.spanAnnotations.length}</Counter>
-                </Flex>
-              </SectionHeading>
-              <SpanFeedback span={span} />
-            </section>
-            <section
-              id={spanDetailsSectionIds.attributes}
-              aria-label="Attributes"
-            >
-              <SectionHeading>Attributes</SectionHeading>
-              <View padding="size-200">
-                <Card
-                  title="All Attributes"
-                  {...defaultCardProps}
-                  titleExtra={attributesContextualHelp}
-                >
-                  <AttributesJSONBlock attributes={span.attributes} />
-                </Card>
-              </View>
-            </section>
-            <section id={spanDetailsSectionIds.events} aria-label="Events">
-              <SectionHeading>
-                <Flex
-                  elementType="span"
-                  direction="row"
-                  gap="size-100"
-                  alignItems="center"
-                >
-                  Events
-                  <Counter variant={hasExceptions ? "danger" : "default"}>
-                    {span.events.length}
-                  </Counter>
-                </Flex>
-              </SectionHeading>
-              <View>
-                <Suspense fallback={<Loading />}>
-                  <SpanEventsList spanId={span.id} />
-                </Suspense>
-              </View>
-            </section>
+          <div ref={spanDetailsSectionsRef} css={spanDetailsSectionsCSS}>
+            <div ref={spanDetailsSectionsContentRef}>
+              <section id={spanDetailsSectionIds.info} aria-label="Info">
+                <SectionHeading bordered={false}>Info</SectionHeading>
+                <ErrorBoundary>
+                  <SpanInfo span={span} />
+                </ErrorBoundary>
+              </section>
+              <section
+                id={spanDetailsSectionIds.annotations}
+                aria-label="Annotations"
+              >
+                <SectionHeading>
+                  <Flex
+                    elementType="span"
+                    direction="row"
+                    gap="size-100"
+                    alignItems="center"
+                  >
+                    Annotations <Counter>{span.spanAnnotations.length}</Counter>
+                  </Flex>
+                </SectionHeading>
+                <SpanFeedback span={span} />
+              </section>
+              <section
+                id={spanDetailsSectionIds.attributes}
+                aria-label="Attributes"
+              >
+                <SectionHeading>Attributes</SectionHeading>
+                <View padding="size-200">
+                  <Card
+                    title="All Attributes"
+                    {...defaultCardProps}
+                    titleExtra={attributesContextualHelp}
+                  >
+                    <AttributesJSONBlock attributes={span.attributes} />
+                  </Card>
+                </View>
+              </section>
+              <section id={spanDetailsSectionIds.events} aria-label="Events">
+                <SectionHeading>
+                  <Flex
+                    elementType="span"
+                    direction="row"
+                    gap="size-100"
+                    alignItems="center"
+                  >
+                    Events
+                    <Counter variant={hasExceptions ? "danger" : "default"}>
+                      {span.events.length}
+                    </Counter>
+                  </Flex>
+                </SectionHeading>
+                <View>
+                  <Suspense fallback={<Loading />}>
+                    <SpanEventsList spanId={span.id} />
+                  </Suspense>
+                </View>
+              </section>
+            </div>
           </div>
         </Flex>
       </Panel>
