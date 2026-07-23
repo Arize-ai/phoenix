@@ -8,6 +8,7 @@ export const SETTINGS_AGENT_SESSIONS_CONNECTION_KEY =
   "SettingsAgentSessionsCard_agentSessions";
 
 export const SESSION_PAGE_SIZE = 20;
+export const MAX_AGENT_SESSION_TITLE_LENGTH = 100;
 
 type RelayEnvironment = Parameters<typeof fetchQuery>[0];
 

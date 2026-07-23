@@ -119,6 +119,11 @@ from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
+from phoenix.server.agents.session_titles import (
+    MAX_AGENT_SESSION_TITLE_LENGTH,
+    truncate_agent_session_title,
+    validate_agent_session_title,
+)
 from phoenix.server.agents.skill_requests import (
     inject_requested_skills,
     iter_requested_skill_response_chunks,
@@ -314,7 +319,11 @@ class ChatRequest(ChatSubmitMessage):
 class CreateAgentSessionRequestBody(V1RoutesBaseModel):
     """Request body for creating a persisted agent session."""
 
-    title: str = Field(default="", description="Optional initial title.")
+    title: str = Field(
+        default="",
+        max_length=MAX_AGENT_SESSION_TITLE_LENGTH,
+        description="Optional initial title.",
+    )
     temporary: bool = Field(
         default=False,
         description="Whether the session should expire after a period of inactivity.",
@@ -1346,7 +1355,7 @@ async def _persist_agent_session_title(
                 session,
                 agent_session_rowid=agent_session_rowid,
                 user_id=user_id,
-                title=title,
+                title=truncate_agent_session_title(title),
             )
     except Exception:
         logger.exception(
@@ -1571,13 +1580,17 @@ def create_agents_router(
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
+        try:
+            title = validate_agent_session_title(request_body.title, allow_empty=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         async with request.app.state.db() as session:
             agent_session = models.AgentSession(
                 project_session_id=str(uuid4()),
                 user_id=int(phoenix_user.identity) if phoenix_user is not None else None,
-                title=request_body.title.strip(),
+                title=title,
                 project_name=get_env_phoenix_agents_assistant_project_name(),
                 expires_at=(
                     datetime.now(timezone.utc)

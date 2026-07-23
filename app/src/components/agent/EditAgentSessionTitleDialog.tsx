@@ -26,6 +26,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import type { EditAgentSessionTitleDialog_session$key } from "./__generated__/EditAgentSessionTitleDialog_session.graphql";
 import type { EditAgentSessionTitleDialogMutation } from "./__generated__/EditAgentSessionTitleDialogMutation.graphql";
+import { MAX_AGENT_SESSION_TITLE_LENGTH } from "./agentSessionRelay";
 
 const inlineDialogCSS = css`
   border: var(--global-border-size-thin) solid
@@ -104,7 +105,10 @@ function EditAgentSessionTitleForm({
     `);
   const trimmedTitle = title.trim();
   const isSaveDisabled =
-    isUpdating || !trimmedTitle || trimmedTitle === data.title;
+    isUpdating ||
+    !trimmedTitle ||
+    trimmedTitle.length > MAX_AGENT_SESSION_TITLE_LENGTH ||
+    trimmedTitle === data.title;
 
   const updateTitle = () => {
     if (isSaveDisabled) {
@@ -196,12 +200,18 @@ function EditAgentSessionTitleForm({
             value={title}
             onChange={setTitle}
             isDisabled={isUpdating}
-            isInvalid={!trimmedTitle}
+            isInvalid={
+              !trimmedTitle ||
+              trimmedTitle.length > MAX_AGENT_SESSION_TITLE_LENGTH
+            }
             autoFocus
           >
             <Label>Title</Label>
-            <Input />
-            <Text slot="description">The title cannot be empty.</Text>
+            <Input maxLength={MAX_AGENT_SESSION_TITLE_LENGTH} />
+            <Text slot="description">
+              The title cannot be empty and must be at most{" "}
+              {MAX_AGENT_SESSION_TITLE_LENGTH} characters.
+            </Text>
           </TextField>
         </View>
         {presentation === "dialog" ? (

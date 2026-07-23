@@ -53,6 +53,7 @@ from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
+from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
 from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
     _emit_turn_root_span,
@@ -1413,6 +1414,33 @@ async def test_chat_endpoint_rejects_regenerate_requests(
     assert response.status_code == 422
 
 
+async def test_generated_session_title_is_limited(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = "33333333-3333-4333-8333-333333333333"
+    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    generated_title = "x" * (MAX_AGENT_SESSION_TITLE_LENGTH + 20)
+    _mock_turn_models(monkeypatch, _scripted_model(summary=generated_title))
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("first question")),
+    )
+
+    assert response.status_code == 200
+    expected_title = "x" * MAX_AGENT_SESSION_TITLE_LENGTH
+    summary_chunks = [
+        chunk
+        for chunk in _stream_chunks(response.text)
+        if chunk.get("type") == "data-session-summary"
+    ]
+    assert [chunk["data"] for chunk in summary_chunks] == [expected_title]
+    async with db() as session:
+        assert await session.scalar(select(models.AgentSession.title)) == expected_title
+
+
 async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
@@ -1718,6 +1746,17 @@ async def test_create_session_route_defaults_to_a_persistent_untitled_session(
         assert agent_session is not None
         assert agent_session.title == ""
         assert agent_session.expires_at is None
+
+
+async def test_create_session_route_rejects_long_title(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "/agents/assistant/sessions",
+        json={"title": "x" * (MAX_AGENT_SESSION_TITLE_LENGTH + 1)},
+    )
+
+    assert response.status_code == 422
 
 
 async def test_create_session_route_yields_a_chattable_session(

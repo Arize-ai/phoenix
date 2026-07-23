@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_ai.messages import (
     InstructionPart,
     ModelMessage,
@@ -17,13 +17,22 @@ from phoenix.server.agents.prompts import (
     COMPACTION_MESSAGE_TEMPLATE,
     SUMMARIZATION_INSTRUCTIONS_TEMPLATE,
 )
+from phoenix.server.agents.session_titles import (
+    MAX_AGENT_SESSION_TITLE_LENGTH,
+    truncate_agent_session_title,
+)
 
 SUMMARY_TOOL_NAME = "summary"
 COMPACTION_TOOL_NAME = "conversation_checkpoint"
 
 
 class _Summary(BaseModel):
-    summary: str
+    summary: str = Field(max_length=MAX_AGENT_SESSION_TITLE_LENGTH)
+
+    @field_validator("summary", mode="before")
+    @classmethod
+    def truncate_summary(cls, value: object) -> object:
+        return truncate_agent_session_title(value) if isinstance(value, str) else value
 
 
 SUMMARY_TOOL_DEFINITION = ToolDefinition(
@@ -66,7 +75,12 @@ async def summarize_messages(
         output_mode="tool",
         allow_text_output=False,
         instruction_parts=[
-            InstructionPart(content=SUMMARIZATION_INSTRUCTIONS_TEMPLATE.render(), dynamic=False),
+            InstructionPart(
+                content=SUMMARIZATION_INSTRUCTIONS_TEMPLATE.render(
+                    max_title_length=MAX_AGENT_SESSION_TITLE_LENGTH
+                ),
+                dynamic=False,
+            ),
         ],
     )
     try:

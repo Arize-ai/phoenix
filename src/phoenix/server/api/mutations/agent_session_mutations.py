@@ -16,6 +16,10 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
+from phoenix.server.agents.session_titles import (
+    truncate_agent_session_title,
+    validate_agent_session_title,
+)
 from phoenix.server.api.agent_session_access import get_agent_session_owner_filter
 from phoenix.server.api.auth import IsAgentAssistantEnabled, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -114,11 +118,15 @@ class AgentSessionMutationMixin:
         input: CreateAgentSessionInput,
     ) -> CreateAgentSessionMutationPayload:
         """Create an empty persisted session owned by the viewer."""
+        try:
+            title = validate_agent_session_title(input.title, allow_empty=True)
+        except ValueError as exc:
+            raise BadRequest(str(exc)) from exc
         async with info.context.db() as session:
             agent_session = models.AgentSession(
                 project_session_id=str(uuid4()),
                 user_id=info.context.user_id,
-                title=input.title.strip(),
+                title=title,
                 project_name=get_env_phoenix_agents_assistant_project_name(),
                 expires_at=(
                     datetime.now(timezone.utc)
@@ -222,7 +230,7 @@ class AgentSessionMutationMixin:
             branch_session = models.AgentSession(
                 project_session_id=str(uuid4()),
                 user_id=info.context.user_id,
-                title=source_session.title,
+                title=truncate_agent_session_title(source_session.title),
                 project_name=get_env_phoenix_agents_assistant_project_name(),
                 expires_at=(
                     datetime.now(timezone.utc)
@@ -254,9 +262,10 @@ class AgentSessionMutationMixin:
         input: UpdateAgentSessionTitleInput,
     ) -> UpdateAgentSessionTitleMutationPayload:
         """Update a persisted session's title."""
-        title = input.title.strip()
-        if not title:
-            raise BadRequest("Agent session title cannot be empty")
+        try:
+            title = validate_agent_session_title(input.title, allow_empty=False)
+        except ValueError as exc:
+            raise BadRequest(str(exc)) from exc
         try:
             agent_session_rowid = from_global_id_with_expected_type(
                 input.id,
