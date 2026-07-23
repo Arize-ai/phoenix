@@ -10,7 +10,6 @@ import {
   Button,
   Flex,
   Icon,
-  IconButton,
   Icons,
   LinkButton,
   RichTooltip,
@@ -76,6 +75,8 @@ const panelHeaderActionsCSS = css`
 `;
 
 const sessionHeadingCSS = css`
+  display: block;
+  width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -85,14 +86,10 @@ const sessionHeadingCSS = css`
 
 const sessionHeadingWrapCSS = css`
   position: relative;
+  display: flex;
+  align-items: center;
   min-width: 0;
-  overflow: hidden;
   flex-shrink: 1;
-
-  &[data-can-edit="true"] {
-    box-sizing: border-box;
-    padding-right: var(--global-button-height-s);
-  }
 
   .agent-chat-panel__edit-title-button {
     position: absolute;
@@ -190,7 +187,7 @@ export function AgentChatHeader({
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
         <PxiAnimatedGlyph isIconSized />
         <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
-          <div css={sessionHeadingWrapCSS} data-can-edit={canEditTitle}>
+          <div css={sessionHeadingWrapCSS}>
             <Text
               weight="heavy"
               css={sessionHeadingCSS}
@@ -199,14 +196,13 @@ export function AgentChatHeader({
               {sessionDisplayName}
             </Text>
             {canEditTitle ? (
-              <IconButton
+              <Button
                 className="agent-chat-panel__edit-title-button"
                 size="S"
                 aria-label="Edit session title"
                 onPress={() => setEditingSessionId(activeSessionId)}
-              >
-                <Icon svg={<Icons.Edit />} />
-              </IconButton>
+                leadingVisual={<Icon svg={<Icons.Edit />} />}
+              />
             ) : null}
           </div>
           {isActiveSessionTemporary ? <TemporarySessionIcon /> : null}
