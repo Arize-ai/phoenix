@@ -67,7 +67,7 @@ Phoenix runs practically anywhere, including your local machine, a containerized
 - [Deploy](#deploy)
 - [Packages](#packages)
 - [Tracing Integrations](#tracing-integrations)
-- [Coding Agent Skills](#coding-agent-skills)
+- [For Humans and Coding Agents](#for-humans-and-coding-agents)
 - [Security & Privacy](#security--privacy)
 - [Community](#community)
 
@@ -224,9 +224,15 @@ Normalize and convert data across other instrumentation libraries by adding span
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/nvidia-color.png" height="14"> | [NVIDIA NeMo](https://arize.com/docs/phoenix/integrations/python/nvidia)                                 | NVIDIA NeMo Agent Toolkit for enterprise agents                | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/nvidia)                                    |
 |                                                                                                  | [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite)                                  | Multi-agent LLM workflow framework with visual builder         | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/graphite)                                  |
 
-## Coding Agent Skills
+## For Humans and Coding Agents
 
-This repository includes [skills](https://docs.anthropic.com/en/docs/claude-code/skills) that teach coding agents how to work with Phoenix. They are located in [`.agents/skills/`](.agents/skills/) and can be used with Claude Code, Cursor, and other compatible tools. See the [coding agents documentation](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) for setup and usage.
+Phoenix is built to be driven by people and by AI coding agents alike. Three surfaces let agents (Claude Code, Codex, Cursor, and others) work with your traces, datasets, and experiments:
+
+- **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` fetches traces, datasets, and experiments and instruments your app (`setup`), so an agent can pull context and act on it from the terminal.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](.agents/skills/) ships prompts that teach agents how to debug, evaluate, and trace with Phoenix.
+- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/remote-mcp)** — connect any MCP client to your instance's `/mcp` endpoint to query Phoenix directly.
+
+See the [coding agents documentation](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) for setup and usage.
 
 | Skill                                              | Description                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
