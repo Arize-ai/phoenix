@@ -1,19 +1,19 @@
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components/core";
 
-import type { EvaluationMetricsView } from "./evaluationMetricsUtils";
+import type { AnnotationMetricsView } from "./annotationMetricsUtils";
 
-function isEvaluationMetricsView(
+function isAnnotationMetricsView(
   value: unknown
-): value is EvaluationMetricsView {
+): value is AnnotationMetricsView {
   return value === "labels" || value === "scores";
 }
 
-export function EvaluationMetricsViewToggle({
+export function AnnotationScoreLabelToggle({
   view,
   onChange,
 }: {
-  view: EvaluationMetricsView;
-  onChange: (view: EvaluationMetricsView) => void;
+  view: AnnotationMetricsView;
+  onChange: (view: AnnotationMetricsView) => void;
 }) {
   return (
     <ToggleButtonGroup
@@ -22,7 +22,7 @@ export function EvaluationMetricsViewToggle({
       selectedKeys={[view]}
       onSelectionChange={(selection) => {
         const selectedView = selection.keys().next().value;
-        if (isEvaluationMetricsView(selectedView)) {
+        if (isAnnotationMetricsView(selectedView)) {
           onChange(selectedView);
         }
       }}

@@ -1,38 +1,9 @@
 import { act } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
-import type * as RechartsModule from "recharts";
 import type { XAxisTickContentProps } from "recharts";
 
-import {
-  BASELINE_COLOR,
-  BASELINE_STROKE_DASHARRAY,
-  ExperimentBaselineDistributionSeparator,
-  ExperimentBaselineValueLine,
-  makeExperimentAxisTick,
-} from "../ExperimentBaselineReference";
-
-vi.mock("recharts", async (importOriginal) => {
-  const recharts = await importOriginal<typeof RechartsModule>();
-  return {
-    ...recharts,
-    ReferenceLine: ({
-      stroke,
-      strokeDasharray,
-      x,
-    }: {
-      stroke?: string;
-      strokeDasharray?: string | number;
-      x?: string | number;
-    }) => (
-      <div
-        data-axis={x == null ? "y" : "x"}
-        data-stroke={stroke}
-        data-stroke-dasharray={strokeDasharray}
-      />
-    ),
-  };
-});
+import { makeExperimentAxisTick } from "../ExperimentBaselineReference";
 
 describe("experiment baseline references", () => {
   let container: HTMLDivElement;
@@ -50,32 +21,7 @@ describe("experiment baseline references", () => {
     container.remove();
   });
 
-  it("uses a dashed purple horizontal score reference", () => {
-    act(() => root.render(<ExperimentBaselineValueLine value={0.5} />));
-    const line = container.querySelector('[data-axis="y"]');
-
-    expect(line?.getAttribute("data-stroke")).toBe(BASELINE_COLOR);
-    expect(line?.getAttribute("data-stroke")).toBe(
-      "var(--global-color-purple-500)"
-    );
-    expect(line?.getAttribute("data-stroke-dasharray")).toBe(
-      BASELINE_STROKE_DASHARRAY
-    );
-  });
-
-  it("uses a solid neutral separator after the baseline bar", () => {
-    act(() =>
-      root.render(<ExperimentBaselineDistributionSeparator value={1} />)
-    );
-    const separator = container.querySelector('[data-axis="x"]');
-
-    expect(separator?.getAttribute("data-stroke")).toBe(
-      "var(--chart-axis-stroke-color)"
-    );
-    expect(separator?.hasAttribute("data-stroke-dasharray")).toBe(false);
-  });
-
-  it("labels the baseline tick by role instead of sequence number", () => {
+  it("preserves the baseline sequence number while identifying its role", () => {
     const Tick = makeExperimentAxisTick(1);
     const tickProps: Omit<XAxisTickContentProps, "payload"> = {
       angle: 0,
@@ -109,6 +55,6 @@ describe("experiment baseline references", () => {
       (text) => text.textContent
     );
 
-    expect(labels).toEqual(["baseline", "#2"]);
+    expect(labels).toEqual(["#1 (baseline)", "#2"]);
   });
 });

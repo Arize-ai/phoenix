@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8c6999c345e6cc826d8271e95fa0e54e>>
+ * @generated SignedSource<<8aa1dc394cc14cfefa2d29f331e6bdec>>
  * @lightSyntaxTransform
  */
 
@@ -9,28 +9,28 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ExperimentEvaluationMetricQuery$variables = {
+export type ExperimentAnnotationMetricQuery$variables = {
   annotationName: string;
   count: number;
   id: string;
 };
-export type ExperimentEvaluationMetricQuery$data = {
+export type ExperimentAnnotationMetricQuery$data = {
   readonly dataset: {
     readonly baselineExperiment?: {
-      readonly " $fragmentSpreads": FragmentRefs<"ExperimentEvaluationMetric_experiment">;
+      readonly " $fragmentSpreads": FragmentRefs<"ExperimentAnnotationMetric_experiment">;
     } | null;
     readonly metricsExperiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
-          readonly " $fragmentSpreads": FragmentRefs<"ExperimentEvaluationMetric_experiment">;
+          readonly " $fragmentSpreads": FragmentRefs<"ExperimentAnnotationMetric_experiment">;
         };
       }>;
     };
   };
 };
-export type ExperimentEvaluationMetricQuery = {
-  response: ExperimentEvaluationMetricQuery$data;
-  variables: ExperimentEvaluationMetricQuery$variables;
+export type ExperimentAnnotationMetricQuery = {
+  response: ExperimentAnnotationMetricQuery$data;
+  variables: ExperimentAnnotationMetricQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -88,6 +88,13 @@ v6 = [
   },
   {
     "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "isBaseline",
+    "storageKey": null
+  },
+  {
+    "alias": null,
     "args": (v5/*:: as any*/),
     "concreteType": "ExperimentAnnotationSummary",
     "kind": "LinkedField",
@@ -140,7 +147,7 @@ v6 = [
 v7 = [
   {
     "kind": "InlineDataFragmentSpread",
-    "name": "ExperimentEvaluationMetric_experiment",
+    "name": "ExperimentAnnotationMetric_experiment",
     "selections": (v6/*:: as any*/),
     "args": (v5/*:: as any*/),
     "argumentDefinitions": [
@@ -164,7 +171,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExperimentEvaluationMetricQuery",
+    "name": "ExperimentAnnotationMetricQuery",
     "selections": [
       {
         "alias": "dataset",
@@ -238,7 +245,7 @@ return {
       (v0/*:: as any*/)
     ],
     "kind": "Operation",
-    "name": "ExperimentEvaluationMetricQuery",
+    "name": "ExperimentAnnotationMetricQuery",
     "selections": [
       {
         "alias": "dataset",
@@ -311,16 +318,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d011be24cc1ad99e682eec9592371896",
+    "cacheID": "6ca9b47740b8f27d36c13fa35c6d6988",
     "id": null,
     "metadata": {},
-    "name": "ExperimentEvaluationMetricQuery",
+    "name": "ExperimentAnnotationMetricQuery",
     "operationKind": "query",
-    "text": "query ExperimentEvaluationMetricQuery(\n  $id: ID!\n  $count: Int!\n  $annotationName: String!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...ExperimentEvaluationMetric_experiment_3VbSQz\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...ExperimentEvaluationMetric_experiment_3VbSQz\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentEvaluationMetric_experiment_3VbSQz on Experiment {\n  id\n  name\n  sequenceNumber\n  annotationSummaries(annotationName: $annotationName) {\n    annotationName\n    meanScore\n    labelFractions {\n      label\n      fraction\n    }\n  }\n}\n"
+    "text": "query ExperimentAnnotationMetricQuery(\n  $id: ID!\n  $count: Int!\n  $annotationName: String!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...ExperimentAnnotationMetric_experiment_3VbSQz\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...ExperimentAnnotationMetric_experiment_3VbSQz\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentAnnotationMetric_experiment_3VbSQz on Experiment {\n  id\n  name\n  sequenceNumber\n  isBaseline\n  annotationSummaries(annotationName: $annotationName) {\n    annotationName\n    meanScore\n    labelFractions {\n      label\n      fraction\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4da8c0734c31bf10ba3616a8b29f42ee";
+(node as any).hash = "cc31b1e985c0254baf282dece19bd852";
 
 export default node;

@@ -2,7 +2,7 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ExperimentEvaluationMetricsGrid } from "../ExperimentEvaluationMetricsGrid";
+import { ExperimentAnnotationMetricsGrid } from "../ExperimentAnnotationMetricsGrid";
 
 vi.mock("@phoenix/components", () => ({
   Flex: ({ children }: { children: ReactNode }) => children,
@@ -20,25 +20,25 @@ vi.mock("@phoenix/components/experiment/SequenceNumberToken", () => ({
 
 vi.mock("@phoenix/components/chart", () => ({
   ChartPanel: ({ children }: { children: ReactNode }) => children,
-  EvaluationMetricsChart: () => null,
-  EvaluationMetricsViewToggle: () => null,
+  AnnotationMetricsChart: () => null,
+  AnnotationScoreLabelToggle: () => null,
   compactCategoryXAxisProps: {},
   compactYAxisProps: {},
-  getDefaultEvaluationMetricsView: () => "labels",
-  normalizeEvaluationMetrics: () => [],
+  getDefaultAnnotationMetricsView: () => "labels",
+  normalizeAnnotationMetrics: () => [],
 }));
 
 vi.mock("@phoenix/components/exception", () => ({
   ErrorBoundary: ({ children }: { children: ReactNode }) => children,
 }));
 
-vi.mock("../useExperimentMetricsData", () => ({
+vi.mock("../useExperimentAnnotationMetricsData", () => ({
   useExperimentAnnotationMetricNames: () => {
     throw new Promise(() => undefined);
   },
 }));
 
-describe("ExperimentEvaluationMetricsGrid", () => {
+describe("ExperimentAnnotationMetricsGrid", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -56,9 +56,9 @@ describe("ExperimentEvaluationMetricsGrid", () => {
   it("renders non-annotation grid children while annotations are pending", () => {
     act(() => {
       root.render(
-        <ExperimentEvaluationMetricsGrid datasetId="dataset-1">
+        <ExperimentAnnotationMetricsGrid datasetId="dataset-1">
           <div>token and error charts</div>
-        </ExperimentEvaluationMetricsGrid>
+        </ExperimentAnnotationMetricsGrid>
       );
     });
 

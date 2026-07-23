@@ -12,13 +12,14 @@ import {
 import { MetricsChartSelector } from "@phoenix/components/chart";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import {
+  EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
   type ExperimentMetricChartKey,
-  getExperimentEvaluationMetricChartKey,
-  getExperimentEvaluationName,
+  getExperimentAnnotationMetricChartKey,
+  getExperimentAnnotationName,
   MAX_SELECTED_EXPERIMENT_METRIC_CHARTS,
 } from "@phoenix/pages/dataset/constants";
 import { EXPERIMENT_METRIC_CHARTS } from "@phoenix/pages/dataset/metrics/chartCatalog";
-import { useExperimentAnnotationMetricNames } from "@phoenix/pages/dataset/metrics/useExperimentMetricsData";
+import { useExperimentAnnotationMetricNames } from "@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricsData";
 
 /**
  * The store-connected chart selector shown above the experiments table. Reads
@@ -70,29 +71,29 @@ function ExperimentChartSelectorMenu({
   selectedChartKeys: ExperimentMetricChartKey[];
   onSelectionChange: (keys: ExperimentMetricChartKey[]) => void;
 }) {
-  const evaluationNames = useExperimentAnnotationMetricNames(datasetId);
-  const availableEvaluationKeys = new Set<ExperimentMetricChartKey>(
-    evaluationNames.map(getExperimentEvaluationMetricChartKey)
+  const annotationNames = useExperimentAnnotationMetricNames(datasetId);
+  const availableAnnotationKeys = new Set<ExperimentMetricChartKey>(
+    annotationNames.map(getExperimentAnnotationMetricChartKey)
   );
-  // Keep a persisted evaluation visible if its annotation was deleted so the
+  // Keep a persisted annotation visible if it was deleted so the
   // user can still deselect the empty chart.
-  const unavailableSelectedEvaluations = selectedChartKeys.flatMap((key) => {
-    const evaluationName = getExperimentEvaluationName(key);
-    return evaluationName == null || availableEvaluationKeys.has(key)
+  const unavailableSelectedAnnotations = selectedChartKeys.flatMap((key) => {
+    const annotationName = getExperimentAnnotationName(key);
+    return annotationName == null || availableAnnotationKeys.has(key)
       ? []
       : [
           {
             key,
-            name: evaluationName,
-            description: "Evaluation results by experiment",
+            name: annotationName,
+            description: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
             chartType: "line" as const,
           },
         ];
   });
-  const evaluationOptions = evaluationNames.map((evaluationName) => ({
-    key: getExperimentEvaluationMetricChartKey(evaluationName),
-    name: evaluationName,
-    description: "Evaluation results by experiment",
+  const annotationOptions = annotationNames.map((annotationName) => ({
+    key: getExperimentAnnotationMetricChartKey(annotationName),
+    name: annotationName,
+    description: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
     // The lightweight catalog query intentionally omits full series data, so
     // use a neutral chart glyph until the selected chart reveals its view.
     chartType: "line" as const,
@@ -101,8 +102,8 @@ function ExperimentChartSelectorMenu({
     <MetricsChartSelector
       options={[
         ...EXPERIMENT_METRIC_CHARTS,
-        ...evaluationOptions,
-        ...unavailableSelectedEvaluations,
+        ...annotationOptions,
+        ...unavailableSelectedAnnotations,
       ]}
       selectedKeys={selectedChartKeys}
       maxSelected={MAX_SELECTED_EXPERIMENT_METRIC_CHARTS}

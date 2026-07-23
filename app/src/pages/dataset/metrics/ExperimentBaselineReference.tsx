@@ -52,7 +52,7 @@ export function ExperimentBaselineDistributionSeparator({
   if (typeof value !== "number") {
     return null;
   }
-  // Evaluation baselines are prepended as bars, so separate the first
+  // Out-of-window annotation baselines are prepended as bars, so separate the
   // category from the seven-experiment comparison window.
   return (
     <ReferenceLine
@@ -81,7 +81,7 @@ export function makeExperimentAxisTick(baselineSequenceNumber?: number) {
           fontWeight={isBaseline ? 600 : undefined}
           fill={isBaseline ? BASELINE_COLOR : "var(--chart-axis-text-color)"}
         >
-          {isBaseline ? "baseline" : `#${payload.value}`}
+          {`#${payload.value}${isBaseline ? " (baseline)" : ""}`}
         </text>
       </g>
     );

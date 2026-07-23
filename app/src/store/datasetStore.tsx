@@ -40,6 +40,10 @@ export interface DatasetStoreProps {
    * The metric charts to show above the experiments table
    */
   experimentsMetricChartKeys: ExperimentMetricChartKey[];
+  /**
+   * Causes mounted per-annotation metric queries to refresh after a baseline edit.
+   */
+  experimentAnnotationMetricsFetchKey: number;
 }
 
 export type InitialDatasetStoreProps = Pick<
@@ -56,6 +60,10 @@ export interface DatasetStoreState extends DatasetStoreProps {
    * Set the metric charts to show above the experiments table
    */
   setExperimentsMetricChartKeys: (keys: ExperimentMetricChartKey[]) => void;
+  /**
+   * Refresh the mounted per-annotation metric queries.
+   */
+  refreshExperimentAnnotationMetrics: () => void;
 }
 
 const makeDatasetStoreKey = (datasetId: string) =>
@@ -83,10 +91,21 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
             );
           },
           experimentsMetricChartKeys: DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
+          experimentAnnotationMetricsFetchKey: 0,
           setExperimentsMetricChartKeys: (keys: ExperimentMetricChartKey[]) => {
             set({ experimentsMetricChartKeys: keys }, false, {
               type: "setExperimentsMetricChartKeys",
             });
+          },
+          refreshExperimentAnnotationMetrics: () => {
+            set(
+              (state) => ({
+                experimentAnnotationMetricsFetchKey:
+                  state.experimentAnnotationMetricsFetchKey + 1,
+              }),
+              false,
+              { type: "refreshExperimentAnnotationMetrics" }
+            );
           },
         }),
         {

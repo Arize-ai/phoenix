@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { useNotifySuccess } from "@phoenix/contexts";
+import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { useSetExperimentBaselineMutation } from "./__generated__/useSetExperimentBaselineMutation.graphql";
@@ -15,6 +16,9 @@ type SetExperimentBaselineParams = {
 
 export function useSetExperimentBaseline() {
   const notifySuccess = useNotifySuccess();
+  const refreshExperimentAnnotationMetrics = useDatasetContext(
+    (state) => state.refreshExperimentAnnotationMetrics
+  );
   const [commitSetExperimentBaseline, isSettingExperimentBaseline] =
     useMutation<useSetExperimentBaselineMutation>(graphql`
       mutation useSetExperimentBaselineMutation(
@@ -57,6 +61,9 @@ export function useSetExperimentBaseline() {
           baseline: nextBaseline,
         },
         onCompleted: () => {
+          // The mutation updates the baseline link, but filtered annotation
+          // summaries for an out-of-window experiment still need to be fetched.
+          refreshExperimentAnnotationMetrics();
           notifySuccess({
             title: nextBaseline ? "Baseline set" : "Baseline removed",
             message: nextBaseline
@@ -71,7 +78,11 @@ export function useSetExperimentBaseline() {
         },
       });
     },
-    [commitSetExperimentBaseline, notifySuccess]
+    [
+      commitSetExperimentBaseline,
+      notifySuccess,
+      refreshExperimentAnnotationMetrics,
+    ]
   );
 
   return {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<49d489eb21a2e9ab0bc1d74d1374f553>>
+ * @generated SignedSource<<3c27875a3b02007b5d97c487c8477116>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ExperimentEvaluationMetric_experiment$data = {
+export type ExperimentAnnotationMetric_experiment$data = {
   readonly annotationSummaries: ReadonlyArray<{
     readonly annotationName: string;
     readonly labelFractions: ReadonlyArray<{
@@ -19,20 +19,21 @@ export type ExperimentEvaluationMetric_experiment$data = {
     readonly meanScore: number | null;
   }>;
   readonly id: string;
+  readonly isBaseline: boolean;
   readonly name: string;
   readonly sequenceNumber: number;
-  readonly " $fragmentType": "ExperimentEvaluationMetric_experiment";
+  readonly " $fragmentType": "ExperimentAnnotationMetric_experiment";
 };
-export type ExperimentEvaluationMetric_experiment$key = {
-  readonly " $data"?: ExperimentEvaluationMetric_experiment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ExperimentEvaluationMetric_experiment">;
+export type ExperimentAnnotationMetric_experiment$key = {
+  readonly " $data"?: ExperimentAnnotationMetric_experiment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ExperimentAnnotationMetric_experiment">;
 };
 
 const node: ReaderInlineDataFragment = {
   "kind": "InlineDataFragment",
-  "name": "ExperimentEvaluationMetric_experiment"
+  "name": "ExperimentAnnotationMetric_experiment"
 };
 
-(node as any).hash = "40b71b5340c85eb462420af178f81653";
+(node as any).hash = "4dd9463277a80e9f021d4c91b0125e34";
 
 export default node;

@@ -10,6 +10,7 @@ import {
 } from "relay-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as ExperimentAnnotationMetricsDataModule from "@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricsData";
 import type * as ExperimentMetricsDataModule from "@phoenix/pages/dataset/metrics/useExperimentMetricsData";
 
 import { ExperimentsMetricsCharts } from "../ExperimentsMetricsCharts";
@@ -41,31 +42,35 @@ vi.mock("@phoenix/components/resize", () => ({
 }));
 
 vi.mock("@phoenix/pages/dataset/metrics/chartCatalog", async () => {
-  const { useExperimentEvaluationMetricData } = await vi.importActual<
+  const { useExperimentMetricsData } = await vi.importActual<
     typeof ExperimentMetricsDataModule
   >("@phoenix/pages/dataset/metrics/useExperimentMetricsData");
+  const { useExperimentAnnotationMetricData } = await vi.importActual<
+    typeof ExperimentAnnotationMetricsDataModule
+  >("@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricsData");
 
-  function CoreMetricChart() {
+  function CoreMetricChart({ datasetId }: { datasetId: string }) {
+    useExperimentMetricsData(datasetId);
     return <div>core metric</div>;
   }
 
-  function EvaluationMetricChart({ datasetId }: { datasetId: string }) {
-    useExperimentEvaluationMetricData({
+  function AnnotationMetricChart({ datasetId }: { datasetId: string }) {
+    useExperimentAnnotationMetricData({
       datasetId,
-      evaluationName: "quality",
+      annotationName: "quality",
     });
-    return <div>evaluation metric</div>;
+    return <div>annotation metric</div>;
   }
 
   return {
     getExperimentMetricCharts: (keys: string[]) =>
       keys.map((key) => {
-        const isEvaluationChart = key.startsWith("evaluation:");
+        const isAnnotationChart = key.startsWith("annotation:");
         return {
           key,
           name: key,
           description: key,
-          Panel: isEvaluationChart ? EvaluationMetricChart : CoreMetricChart,
+          Panel: isAnnotationChart ? AnnotationMetricChart : CoreMetricChart,
         };
       }),
   };
@@ -87,8 +92,8 @@ describe("ExperimentsMetricsCharts", () => {
     container.remove();
   });
 
-  it("provides the shared experiment metrics query", async () => {
-    const requestedOperations: string[] = [];
+  it("requests only core metrics for a built-in chart", async () => {
+    const requestedOperations: RequestedOperation[] = [];
     const environment = createPendingEnvironment(requestedOperations);
 
     await act(async () => {
@@ -99,13 +104,15 @@ describe("ExperimentsMetricsCharts", () => {
       );
     });
 
-    expect(requestedOperations).toEqual(["useExperimentMetricsDataQuery"]);
+    expect(requestedOperations.map(({ name }) => name)).toEqual([
+      "useExperimentMetricsDataQuery",
+    ]);
     expect(container.textContent).not.toContain("Something went wrong");
   });
 
-  it("uses the shared query for the aggregate annotation chart", async () => {
-    datasetContextState.experimentsMetricChartKeys = ["annotation_scores"];
-    const requestedOperations: string[] = [];
+  it("requests only the selected annotation's metrics", async () => {
+    datasetContextState.experimentsMetricChartKeys = ["annotation:quality"];
+    const requestedOperations: RequestedOperation[] = [];
     const environment = createPendingEnvironment(requestedOperations);
 
     await act(async () => {
@@ -116,36 +123,31 @@ describe("ExperimentsMetricsCharts", () => {
       );
     });
 
-    expect(requestedOperations).toEqual(["useExperimentMetricsDataQuery"]);
-    expect(container.textContent).not.toContain("Something went wrong");
-  });
-
-  it("requests annotation aggregation for a selected evaluation chart", async () => {
-    datasetContextState.experimentsMetricChartKeys = ["evaluation:quality"];
-    const requestedOperations: string[] = [];
-    const environment = createPendingEnvironment(requestedOperations);
-
-    await act(async () => {
-      root.render(
-        <RelayEnvironmentProvider environment={environment}>
-          <ExperimentsMetricsCharts />
-        </RelayEnvironmentProvider>
-      );
-    });
-
-    expect(new Set(requestedOperations)).toEqual(
-      new Set([
-        "useExperimentMetricsDataQuery",
-        "ExperimentEvaluationMetricQuery",
-      ])
-    );
+    expect(requestedOperations).toEqual([
+      {
+        name: "ExperimentAnnotationMetricQuery",
+        variables: {
+          annotationName: "quality",
+          count: 7,
+          id: "dataset-1",
+        },
+      },
+    ]);
   });
 });
 
-function createPendingEnvironment(requestedOperations: string[]) {
+type RequestedOperation = {
+  name: string;
+  variables: Record<string, unknown>;
+};
+
+function createPendingEnvironment(requestedOperations: RequestedOperation[]) {
   return new Environment({
-    network: Network.create((operation) => {
-      requestedOperations.push(operation.name);
+    network: Network.create((operation, variables) => {
+      requestedOperations.push({
+        name: operation.name,
+        variables,
+      });
       return Observable.create(() => undefined);
     }),
     store: new Store(new RecordSource()),
