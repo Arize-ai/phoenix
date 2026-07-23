@@ -86,8 +86,6 @@ Or spin up an ephemeral instance with a single command using [`uvx`](https://doc
 uvx arize-phoenix serve
 ```
 
-Phoenix runs at [http://localhost:6006](http://localhost:6006).
-
 ## Trace Your Application
 
 Once Phoenix is running, send it traces from your app. The fastest way is to point your [coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) (Claude Code, Cursor, and others) at Phoenix and let it add tracing for you. From your project directory, run either:
