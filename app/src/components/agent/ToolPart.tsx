@@ -51,6 +51,7 @@ import {
 } from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
 import { Icon, Icons } from "@phoenix/components";
+import { hoverRevealCSS } from "@phoenix/components/core/styles";
 import type { Variant } from "@phoenix/components/core/types";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 
@@ -253,15 +254,11 @@ export const toolPartCSS = css`
     padding-right: calc(var(--global-dimension-size-250) + 28px);
 
     .copy-to-clipboard-button {
+      ${hoverRevealCSS}
       position: absolute;
       top: 0;
       right: var(--global-dimension-size-250);
-      opacity: 0;
       transition: opacity 150ms ease;
-
-      &:focus-within {
-        opacity: 1;
-      }
     }
 
     &:hover .copy-to-clipboard-button {

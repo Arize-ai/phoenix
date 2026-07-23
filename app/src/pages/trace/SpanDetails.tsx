@@ -53,6 +53,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AttributesJSONBlock } from "@phoenix/components/code";
+import { hoverRevealCSS } from "@phoenix/components/core/styles";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
@@ -1706,8 +1707,8 @@ function CopyToClipboard({
       css={css`
         position: relative;
         .copy-to-clipboard-button {
+          ${hoverRevealCSS}
           transition: opacity 0.2s ease-in-out;
-          opacity: 0;
           position: absolute;
           right: ${paddingValue};
           top: ${paddingValue};

@@ -1,5 +1,7 @@
 import { css } from "@emotion/react";
 
+import { hoverRevealCSS } from "@phoenix/components/core/styles";
+
 // ---------------------------------------------------------------------------
 // Message (root container)
 // ---------------------------------------------------------------------------
@@ -122,7 +124,7 @@ export const messageToolbarCSS = css`
      when the message is hovered or contains keyboard focus. A message can opt
      out (always show) via [data-pin-toolbar="true"] on the Message root — used
      for the most recent assistant turn. */
-  opacity: 0;
+  ${hoverRevealCSS}
   transition: opacity 0.12s ease;
 
   [data-from]:hover > &,
@@ -137,12 +139,6 @@ export const messageToolbarCSS = css`
      keeps aria-expanded set, so the toolbar anchoring the open menu stays put
      instead of fading out from under it. */
   &:has([aria-expanded="true"]) {
-    opacity: 1;
-  }
-
-  @media (hover: none) {
-    /* Touch devices have no hover; keep toolbars visible so the actions remain
-       reachable. */
     opacity: 1;
   }
 
