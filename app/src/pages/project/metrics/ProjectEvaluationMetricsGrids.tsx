@@ -5,16 +5,16 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Loading, Text } from "@phoenix/components";
 import {
+  AnnotationMetricsChart,
+  type AnnotationMetricsSeries,
+  AnnotationScoreLabelToggle,
   ChartPanel,
-  EvaluationMetricsChart,
-  type EvaluationMetricsSeries,
-  EvaluationMetricsViewToggle,
   TimeRangeChartBrush,
   compactTimeXAxisProps,
   compactYAxisProps,
-  getDefaultEvaluationMetricsView,
-  getEmptyEvaluationMetricsSeries,
-  normalizeEvaluationMetrics,
+  getDefaultAnnotationMetricsView,
+  getEmptyAnnotationMetricsSeries,
+  normalizeAnnotationMetrics,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -48,8 +48,8 @@ type AnnotationMetricsData = ReadonlyArray<{
 
 function getProjectEvaluationMetricsSeries(
   data: AnnotationMetricsData
-): EvaluationMetricsSeries[] {
-  return normalizeEvaluationMetrics({
+): AnnotationMetricsSeries[] {
+  return normalizeAnnotationMetrics({
     points: data.map((point) => ({
       x: new Date(point.timestamp).getTime(),
       summaries: point.annotationSummaries,
@@ -75,7 +75,7 @@ function ProjectEvaluationMetricsGrid({
   timeRange,
   onTimeRangeSelected,
 }: {
-  evaluationSeries: EvaluationMetricsSeries[];
+  evaluationSeries: AnnotationMetricsSeries[];
   timeRange: TimeRange;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
 }) {
@@ -110,7 +110,7 @@ export function ProjectEvaluationMetricsPanel({
   onTimeRangeSelected,
   fillHeight = false,
 }: {
-  series: EvaluationMetricsSeries;
+  series: AnnotationMetricsSeries;
   timeRange: TimeRange;
   timeTickFormatter: (date: Date) => string;
   fullTimeFormatter: (date: Date) => string;
@@ -118,11 +118,11 @@ export function ProjectEvaluationMetricsPanel({
   fillHeight?: boolean;
 }) {
   const [view, setView] = useState(() =>
-    getDefaultEvaluationMetricsView(series)
+    getDefaultAnnotationMetricsView(series)
   );
   const activeView = series.views.includes(view)
     ? view
-    : getDefaultEvaluationMetricsView(series);
+    : getDefaultAnnotationMetricsView(series);
   const showViewToggle = series.views.length > 1;
 
   return (
@@ -130,15 +130,15 @@ export function ProjectEvaluationMetricsPanel({
       title={series.name}
       subtitle="Evaluation results over time"
       fillHeight={fillHeight}
-      headerActions={
+      actions={
         showViewToggle ? (
-          <EvaluationMetricsViewToggle view={activeView} onChange={setView} />
+          <AnnotationScoreLabelToggle view={activeView} onChange={setView} />
         ) : undefined
       }
     >
       <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
         {({ chartProps }) => (
-          <EvaluationMetricsChart
+          <AnnotationMetricsChart
             series={series}
             view={activeView}
             xAxisProps={{
@@ -197,7 +197,7 @@ function ProjectEvaluationMetricPanelContent({
   fillHeight,
   ...props
 }: ProjectMetricViewProps & {
-  evaluationSeries: EvaluationMetricsSeries[];
+  evaluationSeries: AnnotationMetricsSeries[];
   evaluationName: string;
   fillHeight: boolean;
 }) {
@@ -206,7 +206,7 @@ function ProjectEvaluationMetricPanelContent({
   const { fullTimeFormatter } = useTimeFormatters();
   const series =
     evaluationSeries.find(({ name }) => name === evaluationName) ??
-    getEmptyEvaluationMetricsSeries(evaluationName);
+    getEmptyAnnotationMetricsSeries(evaluationName);
   return (
     <ProjectEvaluationMetricsPanel
       {...props}
