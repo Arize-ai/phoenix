@@ -90,6 +90,11 @@ export interface PromptInputProps
    */
   isDisabled?: boolean;
   /**
+   * When true, prevents submission without disabling or clearing the textarea.
+   * @default false
+   */
+  isSubmitDisabled?: boolean;
+  /**
    * Controls whether focus-within styling is applied to the container border.
    * @default "prompt"
    */

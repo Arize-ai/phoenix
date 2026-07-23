@@ -58,6 +58,7 @@ class UserMessageMetadata(CamelBaseModel):
     type: Literal["user"] = "user"
     current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
     time_zone: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
+    is_compaction_message: bool = False
 
 
 MessageMetadata = Annotated[

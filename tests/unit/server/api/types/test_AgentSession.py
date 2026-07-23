@@ -136,7 +136,21 @@ async def test_agent_session_loads_transcript_by_id(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    messages = [{"id": "message-1", "role": "user", "parts": []}]
+    messages: list[dict[str, Any]] = [
+        {"id": "message-1", "role": "user", "parts": []},
+        {"id": "message-2", "role": "assistant", "parts": []},
+        {
+            "id": "compaction-1",
+            "role": "user",
+            "metadata": {
+                "type": "user",
+                "currentDateTime": "2026-01-01T00:00:00Z",
+                "timeZone": "UTC",
+                "isCompactionMessage": True,
+            },
+            "parts": [{"type": "text", "text": '{"objectives":["test"]}'}],
+        },
+    ]
     agent_session_id = await _seed_agent_session(
         db,
         title="Session one",

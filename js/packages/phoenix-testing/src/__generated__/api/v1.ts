@@ -1585,6 +1585,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/{agent_id}/sessions/{session_id}/compact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compact Agent Session */
+        post: operations["compact_agent_session_agents__agent_id__sessions__session_id__compact_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agents/{agent_id}/sessions/{session_id}/chat": {
         parameters: {
             query?: never;
@@ -1997,6 +2014,26 @@ export interface components {
             type: "code_evaluator";
             /** Evaluatornodeid */
             evaluatorNodeId?: string | null;
+        };
+        /**
+         * CompactAgentSessionRequest
+         * @description Request a model-generated checkpoint for a persisted conversation.
+         */
+        CompactAgentSessionRequest: {
+            model: components["schemas"]["AgentModelSelection"];
+        };
+        /** CompactAgentSessionResponse */
+        CompactAgentSessionResponse: {
+            data: components["schemas"]["CompactAgentSessionResponseData"];
+        };
+        /**
+         * CompactAgentSessionResponseData
+         * @description Result of compacting the older complete turns in a conversation.
+         */
+        CompactAgentSessionResponseData: {
+            /** Compacted */
+            compacted: boolean;
+            compaction_message?: components["schemas"]["PhoenixUIMessage"] | null;
         };
         /** ContinuousAnnotationConfig */
         ContinuousAnnotationConfig: {
@@ -5952,6 +5989,11 @@ export interface components {
             currentDateTime: string;
             /** Timezone */
             timeZone: string;
+            /**
+             * Iscompactionmessage
+             * @default false
+             */
+            isCompactionMessage?: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -11041,6 +11083,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateAgentSessionResponseBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compact_agent_session_agents__agent_id__sessions__session_id__compact_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompactAgentSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompactAgentSessionResponse"];
                 };
             };
             /** @description Validation Error */

@@ -1077,6 +1077,7 @@ class UserMessageMetadata(TypedDict):
     type: Literal["user"]
     currentDateTime: str
     timeZone: str
+    isCompactionMessage: NotRequired[bool]
 
 
 class ValidationError(TypedDict):
@@ -1658,6 +1659,10 @@ class AssistantMessageMetadata(TypedDict):
     usage: NotRequired[AssistantMessageMetadataUsage]
 
 
+class CompactAgentSessionRequest(TypedDict):
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+
+
 class CreateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -1861,6 +1866,11 @@ class ChatRequest(TypedDict):
     trigger: NotRequired[str]
 
 
+class CompactAgentSessionResponseData(TypedDict):
+    compacted: bool
+    compaction_message: NotRequired[PhoenixUIMessage]
+
+
 class PromptChatTemplate(TypedDict):
     type: Literal["chat"]
     messages: Sequence[PromptMessage]
@@ -1910,6 +1920,10 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
+
+
+class CompactAgentSessionResponse(TypedDict):
+    data: CompactAgentSessionResponseData
 
 
 class CreatePromptRequestBody(TypedDict):

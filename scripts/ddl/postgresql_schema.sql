@@ -484,6 +484,22 @@ CREATE TABLE public.agent_session_messages (
 );
 
 
+-- Table: agent_session_compaction_points
+-- --------------------------------------
+CREATE TABLE public.agent_session_compaction_points (
+    id bigserial NOT NULL,
+    agent_session_message_id BIGINT NOT NULL,
+    CONSTRAINT pk_agent_session_compaction_points PRIMARY KEY (id),
+    CONSTRAINT uq_agent_session_compaction_points_agent_session_message_id
+        UNIQUE (agent_session_message_id),
+    CONSTRAINT fk_agent_session_compaction_points_agent_session_messag_59bb
+        FOREIGN KEY
+        (agent_session_message_id)
+        REFERENCES public.agent_session_messages (id)
+        ON DELETE CASCADE
+);
+
+
 -- Table: agent_session_snapshots
 -- ------------------------------
 CREATE TABLE public.agent_session_snapshots (

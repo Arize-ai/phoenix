@@ -8066,6 +8066,67 @@
         }
       }
     },
+    "/agents/{agent_id}/sessions/{session_id}/compact": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Compact Agent Session",
+        "operationId": "compact_agent_session_agents__agent_id__sessions__session_id__compact_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompactAgentSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompactAgentSessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agents/{agent_id}/sessions/{session_id}/chat": {
       "post": {
         "tags": [
@@ -9077,6 +9138,55 @@
         ],
         "title": "CodeEvaluatorContext",
         "description": "Code-evaluator create/edit form mounted in the current browser route."
+      },
+      "CompactAgentSessionRequest": {
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/AgentModelSelection"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "title": "CompactAgentSessionRequest",
+        "description": "Request a model-generated checkpoint for a persisted conversation."
+      },
+      "CompactAgentSessionResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CompactAgentSessionResponseData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CompactAgentSessionResponse"
+      },
+      "CompactAgentSessionResponseData": {
+        "properties": {
+          "compacted": {
+            "type": "boolean",
+            "title": "Compacted"
+          },
+          "compaction_message": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhoenixUIMessage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "compacted"
+        ],
+        "title": "CompactAgentSessionResponseData",
+        "description": "Result of compacting the older complete turns in a conversation."
       },
       "ContinuousAnnotationConfig": {
         "properties": {
@@ -18562,6 +18672,11 @@
             "type": "string",
             "maxLength": 128,
             "title": "Timezone"
+          },
+          "isCompactionMessage": {
+            "type": "boolean",
+            "title": "Iscompactionmessage",
+            "default": false
           }
         },
         "additionalProperties": false,

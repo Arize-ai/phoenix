@@ -198,6 +198,10 @@ _CALL_SUBAGENT_TOOL_INSTRUCTIONS = get_template("tools/CALL_SUBAGENT_TOOL_INSTRU
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
 )
+COMPACTION_INSTRUCTIONS_TEMPLATE = get_template(
+    "summarization/COMPACTION_PROMPT_INSTRUCTIONS.xml.j2"
+)
+COMPACTION_MESSAGE_TEMPLATE = get_template("summarization/COMPACTION_MESSAGE.xml.j2")
 
 
 @dataclass(frozen=True)
@@ -314,6 +318,8 @@ class ServerAgentPrompts:
 
 __all__ = [
     "AgentPrompts",
+    "COMPACTION_INSTRUCTIONS_TEMPLATE",
+    "COMPACTION_MESSAGE_TEMPLATE",
     "ServerAgentPrompts",
     "SUMMARIZATION_INSTRUCTIONS_TEMPLATE",
 ]

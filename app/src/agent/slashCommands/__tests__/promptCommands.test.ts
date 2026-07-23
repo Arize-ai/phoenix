@@ -4,7 +4,7 @@ import {
 } from "@phoenix/agent/slashCommands/promptCommands";
 
 describe("findPromptCommandTokens", () => {
-  const available = new Set(["clear"]);
+  const available = new Set(["clear", "compact"]);
 
   it("finds an executable command at the start of the prompt", () => {
     expect(findPromptCommandTokens("/clear fix this", available)).toEqual([
@@ -25,7 +25,14 @@ describe("findPromptCommandTokens", () => {
 });
 
 describe("parsePromptCommands", () => {
-  const available = new Set(["clear"]);
+  const available = new Set(["clear", "compact"]);
+
+  it("recognizes the compact command", () => {
+    expect(parsePromptCommands("/compact", available)).toEqual({
+      commandNames: ["compact"],
+      text: "",
+    });
+  });
 
   it("recognizes a lone command and strips it", () => {
     expect(parsePromptCommands("/clear", available)).toEqual({

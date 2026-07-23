@@ -45,8 +45,14 @@ from pydantic import (
 )
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
+from pydantic_ai.messages import ModelMessage
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
-from pydantic_ai.ui.vercel_ai.request_types import RequestData as PydanticAIRequestData
+from pydantic_ai.ui.vercel_ai.request_types import (
+    RequestData as PydanticAIRequestData,
+)
+from pydantic_ai.ui.vercel_ai.request_types import (
+    UIMessage as PydanticAIUIMessage,
+)
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     DataChunk,
@@ -108,7 +114,7 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
-from phoenix.server.agents.exceptions import AgentError
+from phoenix.server.agents.exceptions import AgentError, CompactionError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
@@ -119,7 +125,10 @@ from phoenix.server.agents.skill_requests import (
     resolve_requested_skills,
 )
 from phoenix.server.agents.skills import get_skills_for_contexts
-from phoenix.server.agents.summarization import summarize_messages
+from phoenix.server.agents.summarization import (
+    summarize_messages,
+    summarize_messages_for_compaction,
+)
 from phoenix.server.agents.types import (
     AgentDependencies,
     AgentOutput,
@@ -139,6 +148,8 @@ from phoenix.server.api.types.SandboxConfig import (
     get_sandbox_backend_info,
 )
 from phoenix.server.authorization import (
+    is_agent_assistant_enabled,
+    is_not_locked,
     prevent_access_in_read_only_mode,
     restrict_access_by_viewers,
 )
@@ -320,8 +331,28 @@ class CreateAgentSessionResponseBody(ResponseBody[AgentSession]):
     pass
 
 
+class CompactAgentSessionRequest(V1RoutesBaseModel):
+    """Request a model-generated checkpoint for a persisted conversation."""
+
+    model: AgentModelSelection
+
+
+class CompactAgentSessionResponseData(V1RoutesBaseModel):
+    """Result of compacting the older complete turns in a conversation."""
+
+    compacted: bool
+    compaction_message: PhoenixUIMessage | None = None
+
+
+class CompactAgentSessionResponse(ResponseBody[CompactAgentSessionResponseData]):
+    pass
+
+
 _PydanticAIRequestDataAdapter: TypeAdapter[PydanticAIRequestData] = TypeAdapter(
     PydanticAIRequestData
+)
+_PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAdapter(
+    list[PydanticAIUIMessage]
 )
 
 
@@ -344,6 +375,13 @@ def _to_pydantic_ai_request_data(
             for message in messages
         ]
     return _PydanticAIRequestDataAdapter.validate_python(payload)
+
+
+def _to_pydantic_ai_messages(messages: Sequence[PhoenixUIMessage]) -> list[ModelMessage]:
+    ui_messages = _PydanticAIUIMessageListAdapter.validate_python(
+        [message.model_dump(mode="json", by_alias=True, exclude_none=True) for message in messages]
+    )
+    return VercelAIAdapter.load_messages(ui_messages)
 
 
 logger = logging.getLogger(__name__)
@@ -1206,27 +1244,14 @@ def _merge_messages(
     raise HTTPException(status_code=400, detail="Only user or assistant messages can be submitted")
 
 
-async def _load_persisted_messages(
-    session: AsyncSession,
-    *,
-    agent_session_rowid: int,
-) -> list[PhoenixUIMessage]:
-    return list(
-        await session.scalars(
-            select(models.AgentSessionMessage.message)
-            .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
-            .order_by(models.AgentSessionMessage.position)
-        )
-    )
-
-
 async def _refresh_and_load_agent_session(
     session: AsyncSession,
     *,
     agent_session_id: str,
     user_id: int | None,
+    for_update: bool = False,
 ) -> models.AgentSession:
-    """Load an owner-qualified session for a chat turn, marking it active."""
+    """Load and optionally lock an owner-qualified session, refreshing its activity."""
     try:
         agent_session_rowid = from_global_id_with_expected_type(
             GlobalID.from_id(agent_session_id),
@@ -1240,16 +1265,17 @@ async def _refresh_and_load_agent_session(
         if user_id is None
         else models.AgentSession.user_id == user_id
     )
-    loaded_agent_session = await session.scalar(
-        select(models.AgentSession).where(
-            models.AgentSession.id == agent_session_rowid,
-            session_owner_filter,
-            or_(
-                models.AgentSession.expires_at.is_(None),
-                models.AgentSession.expires_at > now,
-            ),
-        )
+    statement = select(models.AgentSession).where(
+        models.AgentSession.id == agent_session_rowid,
+        session_owner_filter,
+        or_(
+            models.AgentSession.expires_at.is_(None),
+            models.AgentSession.expires_at > now,
+        ),
     )
+    if for_update:
+        statement = statement.with_for_update()
+    loaded_agent_session = await session.scalar(statement)
     if loaded_agent_session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     if loaded_agent_session.expires_at is None:
@@ -1479,13 +1505,61 @@ async def _build_generated_assistant_message(
         return None
 
 
+async def _load_agent_session_history(
+    session: AsyncSession,
+    *,
+    agent_session_rowid: int,
+) -> list[models.AgentSessionMessage]:
+    """Load messages from the latest surviving compaction point onward."""
+    compaction_message = models.AgentSessionMessage.__table__.alias("compaction_message")
+    latest_compaction_position = (
+        select(compaction_message.c.position)
+        .join(
+            models.AgentSessionCompactionPoint,
+            models.AgentSessionCompactionPoint.agent_session_message_id == compaction_message.c.id,
+        )
+        .where(compaction_message.c.agent_session_id == agent_session_rowid)
+        .order_by(compaction_message.c.position.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    return list(
+        await session.scalars(
+            select(models.AgentSessionMessage)
+            .where(
+                models.AgentSessionMessage.agent_session_id == agent_session_rowid,
+                models.AgentSessionMessage.position >= func.coalesce(latest_compaction_position, 0),
+            )
+            .order_by(models.AgentSessionMessage.position)
+        )
+    )
+
+
+def _build_compaction_message(*, message_id: str, summary: str) -> PhoenixUIMessage:
+    """Build the durable user-role message used as a compaction checkpoint."""
+    return PhoenixUIMessage(
+        id=message_id,
+        role="user",
+        metadata=UserMessageMetadata(
+            current_date_time=datetime.now(timezone.utc).isoformat(),
+            time_zone="UTC",
+            is_compaction_message=True,
+        ),
+        parts=[TextUIPart(type="text", text=summary)],
+    )
+
+
 def create_agents_router(
     authentication_enabled: bool,
 ) -> tuple[APIRouter, Callable[[str, str, Request, ChatRequest], Awaitable[Response]]]:
-    dependencies = [Depends(prevent_access_in_read_only_mode)]
+    dependencies = [
+        Depends(is_agent_assistant_enabled),
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ]
     if authentication_enabled:
         dependencies.append(Depends(is_authenticated))
-        dependencies.append(Depends(restrict_access_by_viewers))
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
     @router.post("/agents/{agent_id}/sessions", status_code=201)
@@ -1497,8 +1571,6 @@ def create_agents_router(
         """Create a persisted agent session owned by the requesting user."""
         if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
-            raise HTTPException(status_code=403, detail="Agents are disabled")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
         user = request.user if "user" in request.scope else None
@@ -1525,6 +1597,129 @@ def create_agents_router(
             )
         )
 
+    @router.post(
+        "/agents/{agent_id}/sessions/{session_id}/compact",
+        response_model=CompactAgentSessionResponse,
+        response_model_exclude_none=True,
+    )
+    async def compact_agent_session(
+        agent_id: str,
+        session_id: str,
+        request: Request,
+        request_body: CompactAgentSessionRequest,
+    ) -> CompactAgentSessionResponse:
+        if agent_id != _ASSISTANT_AGENT_ID:
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
+        request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
+
+        try:
+            async with request.app.state.db() as session:
+                agent_session = await _refresh_and_load_agent_session(
+                    session,
+                    agent_session_id=session_id,
+                    user_id=request_user_id,
+                )
+                message_rows = await _load_agent_session_history(
+                    session,
+                    agent_session_rowid=agent_session.id,
+                )
+                first_row = message_rows[0] if message_rows else None
+                latest_compaction = (
+                    first_row if first_row is not None and first_row.is_compaction_point else None
+                )
+                latest_row = message_rows[-1] if message_rows else None
+                if latest_row is None or latest_row.message.role != "assistant":
+                    return CompactAgentSessionResponse(
+                        data=CompactAgentSessionResponseData(
+                            compacted=False,
+                            compaction_message=(
+                                latest_compaction.message if latest_compaction is not None else None
+                            ),
+                        ),
+                    )
+                boundary_row = latest_row
+                messages_to_summarize = [row.message for row in message_rows]
+                model = await build_model(
+                    request_body.model,
+                    session=session,
+                    decrypt=request.app.state.decrypt,
+                )
+                agent_session_rowid = agent_session.id
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+        summary_messages = _to_pydantic_ai_messages(messages_to_summarize)
+        try:
+            summary = await summarize_messages_for_compaction(
+                messages=summary_messages,
+                model=model,
+            )
+        except CompactionError as exc:
+            raise HTTPException(
+                status_code=502, detail=f"Conversation compaction failed: {exc}"
+            ) from exc
+
+        async with request.app.state.db() as session:
+            await _refresh_and_load_agent_session(
+                session,
+                agent_session_id=session_id,
+                user_id=request_user_id,
+                for_update=True,
+            )
+            current_history = await _load_agent_session_history(
+                session,
+                agent_session_rowid=agent_session_rowid,
+            )
+            current_first_row = current_history[0] if current_history else None
+            current_compaction = (
+                current_first_row
+                if current_first_row is not None and current_first_row.is_compaction_point
+                else None
+            )
+            if current_compaction is not None and (
+                latest_compaction is None or current_compaction.id != latest_compaction.id
+            ):
+                return CompactAgentSessionResponse(
+                    data=CompactAgentSessionResponseData(
+                        compacted=False,
+                        compaction_message=current_compaction.message,
+                    ),
+                )
+            current_latest_row = current_history[-1] if current_history else None
+            if (
+                current_latest_row is None
+                or current_latest_row.id != boundary_row.id
+                or current_latest_row.message != boundary_row.message
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="The conversation changed while it was being compacted; try again",
+                )
+            compaction_message = _build_compaction_message(
+                message_id=str(uuid4()),
+                summary=summary,
+            )
+            compaction_message_row = models.AgentSessionMessage(
+                agent_session_id=agent_session_rowid,
+                position=boundary_row.position + 1,
+                message=compaction_message,
+            )
+            session.add(compaction_message_row)
+            await session.flush()
+            session.add(
+                models.AgentSessionCompactionPoint(
+                    agent_session_message_id=compaction_message_row.id,
+                )
+            )
+        return CompactAgentSessionResponse(
+            data=CompactAgentSessionResponseData(
+                compacted=True,
+                compaction_message=compaction_message,
+            ),
+        )
+
     @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
     async def chat(
         agent_id: str,
@@ -1534,8 +1729,6 @@ def create_agents_router(
     ) -> Response:
         if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
-        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
-            raise HTTPException(status_code=403, detail="Agents are disabled")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
         body = request_body
@@ -1566,12 +1759,12 @@ def create_agents_router(
                     agent_session_id=session_id,
                     user_id=request_user_id,
                 )
-                persisted_messages = await _load_persisted_messages(
+                session_history = await _load_agent_session_history(
                     session,
                     agent_session_rowid=agent_session.id,
                 )
                 transcript_messages = _merge_messages(
-                    old_messages=persisted_messages,
+                    old_messages=[row.message for row in session_history],
                     new_message=body.message,
                 )
                 project_name = agent_session.project_name
@@ -1654,6 +1847,8 @@ def create_agents_router(
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
         server_message_id = body.message.id if body.message.role == "assistant" else str(uuid4())
+        model_transcript_messages = transcript_messages
+        compaction_history: list[ModelMessage] = []
 
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] | VercelAIAdapter[None, str]
         run_agent_stream: Callable[
@@ -1682,7 +1877,7 @@ def create_agents_router(
             )
             server_agent_adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
                 agent=server_agent,
-                run_input=_to_pydantic_ai_request_data(body, messages=transcript_messages),
+                run_input=_to_pydantic_ai_request_data(body, messages=model_transcript_messages),
                 accept=request.headers.get("accept"),
                 server_message_id=server_message_id,
             )
@@ -1690,7 +1885,11 @@ def create_agents_router(
             def _run_server_agent_stream(
                 on_complete: Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]],
             ) -> AsyncIterator[BaseChunk]:
-                return server_agent_adapter.run_stream(deps=None, on_complete=on_complete)
+                return server_agent_adapter.run_stream(
+                    deps=None,
+                    message_history=compaction_history,
+                    on_complete=on_complete,
+                )
 
             adapter = server_agent_adapter
             run_agent_stream = _run_server_agent_stream
@@ -1766,13 +1965,13 @@ def create_agents_router(
             if body.requested_skills:
                 available_skills = get_skills_for_contexts(resolved_contexts)
                 forced_skills = resolve_requested_skills(
-                    messages=transcript_messages,
+                    messages=model_transcript_messages,
                     requested_skill_names=body.requested_skills,
                     available_skills=available_skills,
                 )
                 if forced_skills:
-                    transcript_messages = inject_requested_skills(
-                        messages=transcript_messages,
+                    model_transcript_messages = inject_requested_skills(
+                        messages=model_transcript_messages,
                         requested_skill_names=body.requested_skills,
                         available_skills=available_skills,
                         load_skill_template=agent_prompts.load_skill,
@@ -1780,7 +1979,7 @@ def create_agents_router(
                     )
             assistant_adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
                 agent=agent,
-                run_input=_to_pydantic_ai_request_data(body, messages=transcript_messages),
+                run_input=_to_pydantic_ai_request_data(body, messages=model_transcript_messages),
                 accept=request.headers.get("accept"),
                 server_message_id=server_message_id,
             )
@@ -1795,7 +1994,11 @@ def create_agents_router(
             def _run_assistant_agent_stream(
                 on_complete: Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]],
             ) -> AsyncIterator[BaseChunk]:
-                return assistant_adapter.run_stream(deps=deps, on_complete=on_complete)
+                return assistant_adapter.run_stream(
+                    deps=deps,
+                    message_history=compaction_history,
+                    on_complete=on_complete,
+                )
 
             adapter = assistant_adapter
             run_agent_stream = _run_assistant_agent_stream

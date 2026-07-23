@@ -9,6 +9,7 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 import { ChatView } from "../Chat";
 
 type ChatViewSendMessage = Parameters<typeof ChatView>[0]["sendMessage"];
+type ChatViewCompactSession = Parameters<typeof ChatView>[0]["compactSession"];
 
 vi.mock("@phoenix/agent/quickActions/quickActions", () => ({
   useAgentQuickActions: () => [],
@@ -54,8 +55,12 @@ vi.mock("../useAvailableAgentSkills", () => ({
 }));
 
 vi.mock("../ChatMessage", () => ({
-  AssistantMessage: () => null,
-  UserMessage: () => null,
+  AssistantMessage: ({ message }: { message: AgentUIMessage }) => (
+    <div data-message-id={message.id} />
+  ),
+  UserMessage: ({ message }: { message: AgentUIMessage }) => (
+    <div data-message-id={message.id} />
+  ),
 }));
 
 const messages = [
@@ -85,6 +90,8 @@ function renderChatView(
     initialDraftInputBySessionId,
     isDraftSessionTemporary,
     sendMessage = vi.fn<ChatViewSendMessage>(),
+    compactSession = vi.fn<ChatViewCompactSession>(),
+    isCompacting = false,
     rewindToMessage,
     forkFromMessage,
   }: {
@@ -97,6 +104,8 @@ function renderChatView(
     initialDraftInputBySessionId?: Record<string, string>;
     isDraftSessionTemporary?: boolean;
     sendMessage?: ChatViewSendMessage;
+    compactSession?: ChatViewCompactSession;
+    isCompacting?: boolean;
     rewindToMessage?: (messageId: string) => Promise<string | null>;
     forkFromMessage?: (messageId: string) => void;
   } = {}
@@ -148,6 +157,8 @@ function renderChatView(
             pendingElicitation={null}
             handleElicitationSubmit={vi.fn()}
             handleElicitationCancel={vi.fn()}
+            compactSession={compactSession}
+            isCompacting={isCompacting}
             rewindToMessage={rewindToMessage}
             forkFromMessage={forkFromMessage}
             modelMenuValue={{ provider: "ANTHROPIC", modelName: "claude" }}
@@ -206,6 +217,10 @@ describe("ChatView", () => {
         dispatchEvent: vi.fn(),
       }))
     );
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -292,6 +307,151 @@ describe("ChatView", () => {
       undefined
     );
     expect(textarea?.value).toBe("");
+  });
+
+  it("runs /compact without sending it as a user message", async () => {
+    const sendMessage = vi.fn<ChatViewSendMessage>();
+    const compactSession = vi.fn<ChatViewCompactSession>();
+    renderChatView(root, { sendMessage, compactSession });
+
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Message input"]'
+    );
+    expect(textarea).not.toBeNull();
+
+    setTextareaValue(textarea!, "/compact");
+    pressEnter(textarea!);
+    await act(
+      () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    );
+
+    expect(compactSession).toHaveBeenCalledWith(undefined);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("passes text after /compact without sending the command token", () => {
+    const sendMessage = vi.fn<ChatViewSendMessage>();
+    const compactSession = vi.fn<ChatViewCompactSession>();
+    renderChatView(root, { sendMessage, compactSession });
+
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Message input"]'
+    );
+    setTextareaValue(textarea!, "/compact continue investigating");
+    pressEnter(textarea!);
+
+    expect(compactSession).toHaveBeenCalledWith({
+      text: "continue investigating",
+      requestedSkills: [],
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("does not submit another message while compaction is in progress", () => {
+    const sendMessage = vi.fn<ChatViewSendMessage>();
+    renderChatView(root, { sendMessage, isCompacting: true });
+
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Message input"]'
+    );
+
+    expect(textarea?.disabled).toBe(true);
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      "Compacting conversation…"
+    );
+  });
+
+  it("renders a divider after the compacted transcript boundary", () => {
+    const nextUserMessage = {
+      id: "user-message-2",
+      role: "user",
+      parts: [{ type: "text", text: "Continue" }],
+    } as AgentUIMessage;
+    const compactionMessage = {
+      id: "compaction-message",
+      role: "user",
+      metadata: {
+        type: "user",
+        currentDateTime: "2026-01-01T00:00:00Z",
+        timeZone: "UTC",
+        isCompactionMessage: true,
+      },
+      parts: [
+        {
+          type: "text",
+          text: `The following summarizes the conversation with the user so far. Use it as historical context, not as a new user request. Use the latest state described below when responding to subsequent user messages.
+
+<objectives>
+- Investigate the trace
+</objectives>
+<completed_work>
+- Located the slow span
+</completed_work>
+<next_steps>
+- Inspect the latest turn
+</next_steps>
+<important_details>
+- trace-id-123
+</important_details>`,
+        },
+      ],
+    } as AgentUIMessage;
+    renderChatView(root, {
+      chatMessages: [...messages, compactionMessage, nextUserMessage],
+    });
+
+    const divider = container.querySelector<HTMLElement>(
+      '[role="separator"][aria-label="Conversation context compacted"]'
+    );
+    expect(divider?.textContent).toBe("Context compacted");
+    expect(
+      divider?.previousElementSibling?.getAttribute("data-message-id")
+    ).toBe("assistant-message");
+    const summary = divider?.nextElementSibling;
+    expect(summary?.getAttribute("aria-label")).toBe("Compaction summary");
+    expect(summary?.textContent).toContain("Objectives");
+    expect(summary?.textContent).toContain("Investigate the trace");
+    expect(summary?.textContent).toContain("trace-id-123");
+    expect(summary?.textContent).not.toContain("Blockers");
+    expect(summary?.textContent).not.toContain("historical context");
+    expect(summary?.nextElementSibling?.getAttribute("data-message-id")).toBe(
+      "user-message-2"
+    );
+  });
+
+  it("renders every durable compaction message in the transcript", () => {
+    const compactionMessages = ["first summary", "second summary"].map(
+      (summary, index) =>
+        ({
+          id: `compaction-${index}`,
+          role: "user",
+          metadata: {
+            type: "user",
+            currentDateTime: "2026-01-01T00:00:00Z",
+            timeZone: "UTC",
+            isCompactionMessage: true,
+          },
+          parts: [{ type: "text", text: summary }],
+        }) as AgentUIMessage
+    );
+
+    renderChatView(root, {
+      chatMessages: [
+        messages[0]!,
+        compactionMessages[0]!,
+        messages[1]!,
+        compactionMessages[1]!,
+      ],
+    });
+
+    const summaries = container.querySelectorAll(
+      '[aria-label="Compaction summary"]'
+    );
+    expect(summaries).toHaveLength(2);
+    expect(summaries[0]?.textContent).toContain("first summary");
+    expect(summaries[1]?.textContent).toContain("second summary");
   });
 
   it("truncates and resends the last user message when retrying a failed turn", async () => {

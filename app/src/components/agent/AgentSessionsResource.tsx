@@ -362,7 +362,6 @@ function AgentSessionTranscript({
         : [],
     [agentSession?.messages]
   );
-
   useEffect(() => {
     if (!agentSession) {
       onMissing(sessionId);
@@ -395,6 +394,8 @@ function AgentChatController({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    compactSession,
+    isCompacting,
     rewindToMessage,
     forkFromMessage,
   } = useAgentChat({
@@ -415,6 +416,8 @@ function AgentChatController({
       pendingElicitation={pendingElicitation}
       handleElicitationSubmit={handleElicitationSubmit}
       handleElicitationCancel={handleElicitationCancel}
+      compactSession={compactSession}
+      isCompacting={isCompacting}
       rewindToMessage={rewindToMessage}
       forkFromMessage={forkFromMessage}
       modelMenuValue={menuValue}
