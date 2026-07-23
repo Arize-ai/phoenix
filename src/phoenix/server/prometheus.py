@@ -155,6 +155,13 @@ ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
     name="online_eval_exhausted_error_work_units",
     documentation="Current number of exhausted online-eval work units in ERROR status",
 )
+ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_expired_work_units",
+    documentation="Current number of online-eval work units in EXPIRED status: work shed "
+    "unevaluated by the pending TTL and still within the retention window. A nonzero value "
+    "means evaluations were dropped.",
+)
 ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
     namespace="phoenix",
     name="online_eval_frontier_gap_span_ids",

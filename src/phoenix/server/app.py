@@ -73,7 +73,11 @@ from phoenix.config import (
     get_env_grpc_port,
     get_env_host,
     get_env_max_spans_queue_size,
+    get_env_online_eval_claim_batch_size,
+    get_env_online_eval_consumer_tick_interval_seconds,
     get_env_online_eval_enabled,
+    get_env_online_eval_max_outstanding,
+    get_env_online_eval_pending_ttl_seconds,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -967,12 +971,35 @@ def create_app(
     online_eval_producer: Optional[OnlineEvalProducer] = None
     online_eval_consumer: Optional[OnlineEvalConsumer] = None
     if get_env_online_eval_enabled() and not read_only:
+        claim_batch_size = get_env_online_eval_claim_batch_size()
+        tick_interval_seconds = get_env_online_eval_consumer_tick_interval_seconds()
+        pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
+        # Worst case, a full admission-gate backlog drains at claim_batch_size /
+        # tick_interval per replica; a smaller TTL sheds work during routine
+        # backpressure rather than only when consumers are down.
+        min_safe_ttl_seconds = (
+            get_env_online_eval_max_outstanding() * tick_interval_seconds / claim_batch_size
+        )
+        if 0 < pending_ttl_seconds < min_safe_ttl_seconds:
+            logger.warning(
+                "PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS (%s) is below the time a full "
+                "online-eval backlog needs to drain on one replica (%s seconds at %s claims "
+                "per %s-second tick). Pending evaluations can expire unevaluated during "
+                "normal backpressure; raise the TTL, the claim batch size, or the replica "
+                "count, or set the TTL to 0 to disable shedding.",
+                pending_ttl_seconds,
+                round(min_safe_ttl_seconds),
+                claim_batch_size,
+                tick_interval_seconds,
+            )
         online_eval_producer = OnlineEvalProducer(db)
         online_eval_consumer = OnlineEvalConsumer(
             db,
             decrypt=encryption_service.decrypt,
             sandbox_session_manager=sandbox_session_manager,
             event_queue=dml_event_handler,
+            tick_interval_seconds=tick_interval_seconds,
+            claim_batch_size=claim_batch_size,
         )
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
