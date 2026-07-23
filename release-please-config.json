@@ -32,6 +32,11 @@
         "packages/phoenix-otel": {
             "package-name": "arize-phoenix-otel",
             "release-type": "python"
+        },
+        "packages/phoenix-sqlean": {
+            "package-name": "arize-phoenix-sqlean",
+            "release-type": "python",
+            "extra-files": ["setup.py"]
         }
     }
 }
