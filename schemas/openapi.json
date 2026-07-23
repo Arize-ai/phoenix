@@ -10070,6 +10070,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetExampleSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -10082,6 +10092,24 @@
           "updated_at"
         ],
         "title": "DatasetExample"
+      },
+      "DatasetExampleSource": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id"
+          },
+          "span_node_id": {
+            "type": "string",
+            "title": "Span Node Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "span_node_id"
+        ],
+        "title": "DatasetExampleSource"
       },
       "DatasetLabel": {
         "properties": {
