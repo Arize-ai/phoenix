@@ -64,6 +64,17 @@ _DELETE_MUTATION = """
   }
 """
 
+_UPDATE_TITLE_MUTATION = """
+  mutation ($id: ID!, $title: String!) {
+    updateAgentSessionTitle(input: { id: $id, title: $title }) {
+      agentSession {
+        id
+        title
+      }
+    }
+  }
+"""
+
 
 @pytest.mark.parametrize(
     ("mutation", "variables"),
@@ -621,6 +632,60 @@ async def test_create_agent_session_mints_distinct_sessions(
             await session.scalars(select(models.AgentSession.project_session_id))
         ).all()
         assert len(set(project_session_ids)) == 2
+
+
+async def test_update_agent_session_title(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        agent_session = models.AgentSession(
+            project_session_id="11111111-1111-4111-8111-111111111111",
+            user_id=None,
+            title="Old title",
+            project_name="assistant_agent",
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+    response = await gql_client.execute(
+        query=_UPDATE_TITLE_MUTATION,
+        variables={"id": agent_session_id, "title": "  New title  "},
+    )
+
+    assert not response.errors
+    assert response.data == {
+        "updateAgentSessionTitle": {"agentSession": {"id": agent_session_id, "title": "New title"}}
+    }
+    async with db() as session:
+        assert await session.scalar(select(models.AgentSession.title)) == "New title"
+
+
+async def test_update_agent_session_title_rejects_empty_title(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        agent_session = models.AgentSession(
+            project_session_id="11111111-1111-4111-8111-111111111111",
+            user_id=None,
+            title="Old title",
+            project_name="assistant_agent",
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+
+    response = await gql_client.execute(
+        query=_UPDATE_TITLE_MUTATION,
+        variables={"id": agent_session_id, "title": "   "},
+    )
+
+    assert response.errors
+    assert response.errors[0].message == "Agent session title cannot be empty"
+    async with db() as session:
+        assert await session.scalar(select(models.AgentSession.title)) == "Old title"
 
 
 async def test_delete_agent_session_cascades_snapshot(

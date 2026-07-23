@@ -12,23 +12,30 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
+  Flex,
   Icon,
   Icons,
+  Menu,
+  MenuItem,
+  MenuTrigger,
   Modal,
   ModalOverlay,
+  Popover,
   Text,
   View,
 } from "@phoenix/components";
+import type { EditAgentSessionTitleDialog_session$key } from "@phoenix/components/agent/__generated__/EditAgentSessionTitleDialog_session.graphql";
 import {
   AGENT_SESSIONS_CONNECTION_KEY,
   SETTINGS_AGENT_SESSIONS_CONNECTION_KEY,
 } from "@phoenix/components/agent/agentSessionRelay";
+import { EditAgentSessionTitleDialog } from "@phoenix/components/agent/EditAgentSessionTitleDialog";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import type { SettingsAgentSessionDeleteButtonMutation } from "./__generated__/SettingsAgentSessionDeleteButtonMutation.graphql";
+import type { SettingsAgentSessionActionMenuDeleteMutation } from "./__generated__/SettingsAgentSessionActionMenuDeleteMutation.graphql";
 
 const deleteBusyIndicatorCSS = css`
   display: inline-flex;
@@ -48,13 +55,21 @@ function DeleteBusyIndicator({ label }: { label: string }) {
   );
 }
 
-export function SettingsAgentSessionConditionalDeleteButton({
+enum AgentSessionAction {
+  EditTitle = "edit-title",
+  Delete = "delete",
+}
+
+export function SettingsAgentSessionActionMenu({
   sessionId,
   sessionTitle,
+  session,
 }: {
   sessionId: string;
   sessionTitle: string;
+  session: EditAgentSessionTitleDialog_session$key;
 }) {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const store = useAgentStore();
@@ -80,8 +95,8 @@ export function SettingsAgentSessionConditionalDeleteButton({
     ),
   ];
   const [commitDelete, isDeleting] =
-    useMutation<SettingsAgentSessionDeleteButtonMutation>(graphql`
-      mutation SettingsAgentSessionDeleteButtonMutation(
+    useMutation<SettingsAgentSessionActionMenuDeleteMutation>(graphql`
+      mutation SettingsAgentSessionActionMenuDeleteMutation(
         $id: ID!
         $connectionIds: [ID!]!
       ) {
@@ -130,14 +145,52 @@ export function SettingsAgentSessionConditionalDeleteButton({
       {isDeleteBusy ? (
         <DeleteBusyIndicator label={deleteBusyLabel} />
       ) : (
-        <Button
-          size="S"
-          variant="danger"
-          aria-label={`Delete ${sessionTitle}`}
-          leadingVisual={<Icon svg={<Icons.Trash />} />}
-          onPress={() => setIsDeleteDialogOpen(true)}
-        />
+        <MenuTrigger>
+          <Button
+            size="S"
+            aria-label={`Actions for ${sessionTitle}`}
+            leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
+          />
+          <Popover>
+            <Menu
+              onAction={(action) => {
+                if (action === AgentSessionAction.EditTitle) {
+                  setIsEditDialogOpen(true);
+                } else if (action === AgentSessionAction.Delete) {
+                  setIsDeleteDialogOpen(true);
+                }
+              }}
+            >
+              <MenuItem
+                id={AgentSessionAction.EditTitle}
+                textValue="Edit session title"
+              >
+                <Flex gap="size-75" alignItems="center">
+                  <Icon svg={<Icons.Edit />} />
+                  <Text>Edit title</Text>
+                </Flex>
+              </MenuItem>
+              <MenuItem id={AgentSessionAction.Delete} textValue="Delete session">
+                <Flex gap="size-75" alignItems="center">
+                  <Icon svg={<Icons.Trash />} />
+                  <Text>Delete</Text>
+                </Flex>
+              </MenuItem>
+            </Menu>
+          </Popover>
+        </MenuTrigger>
       )}
+      <ModalOverlay
+        isOpen={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+      >
+        <Modal size="S">
+          <EditAgentSessionTitleDialog
+            session={session}
+            onClose={() => setIsEditDialogOpen(false)}
+          />
+        </Modal>
+      </ModalOverlay>
       <ModalOverlay
         isOpen={isDeleteDialogOpen}
         onOpenChange={(isOpen) => {

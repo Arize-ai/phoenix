@@ -87,6 +87,18 @@ class DeleteAgentSessionInput:
     id: GlobalID
 
 
+@strawberry.input
+class UpdateAgentSessionTitleInput:
+    id: GlobalID
+    title: str
+
+
+@strawberry.type
+class UpdateAgentSessionTitleMutationPayload:
+    agent_session: AgentSession
+    query: Query
+
+
 @strawberry.type
 class DeleteAgentSessionMutationPayload:
     deleted_agent_session_id: GlobalID
@@ -232,6 +244,39 @@ class AgentSessionMutationMixin:
             session.add_all(regenerated_message_rows)
         return BranchAgentSessionMutationPayload(
             agent_session=to_gql_agent_session(branch_session),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    async def update_agent_session_title(
+        self,
+        info: Info[Context, None],
+        input: UpdateAgentSessionTitleInput,
+    ) -> UpdateAgentSessionTitleMutationPayload:
+        """Update a persisted session's title."""
+        title = input.title.strip()
+        if not title:
+            raise BadRequest("Agent session title cannot be empty")
+        try:
+            agent_session_rowid = from_global_id_with_expected_type(
+                input.id,
+                models.AgentSession.__name__,
+            )
+        except ValueError as exc:
+            raise BadRequest(str(exc)) from exc
+        lookup_stmt = select(models.AgentSession).where(
+            models.AgentSession.id == agent_session_rowid
+        )
+        if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
+            lookup_stmt = lookup_stmt.where(owner_filter)
+        async with info.context.db() as session:
+            agent_session = await session.scalar(lookup_stmt)
+            if agent_session is None:
+                raise NotFound(f"No agent session found for ID '{input.id}'")
+            agent_session.title = title
+            await session.flush()
+        return UpdateAgentSessionTitleMutationPayload(
+            agent_session=to_gql_agent_session(agent_session),
             query=Query(),
         )
 

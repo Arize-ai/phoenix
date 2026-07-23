@@ -10,7 +10,7 @@ import { useTimeFormatters } from "@phoenix/hooks";
 
 import type { SettingsAgentSessionsCard_sessions$key } from "./__generated__/SettingsAgentSessionsCard_sessions.graphql";
 import type { SettingsAgentSessionsCardPaginationQuery } from "./__generated__/SettingsAgentSessionsCardPaginationQuery.graphql";
-import { SettingsAgentSessionConditionalDeleteButton } from "./SettingsAgentSessionConditionalDeleteButton";
+import { SettingsAgentSessionActionMenu } from "./SettingsAgentSessionActionMenu";
 import { SETTINGS_AGENT_SESSIONS_PAGE_SIZE } from "./settingsAgentSessionConstants";
 
 const sessionsTableWrapperCSS = css`
@@ -82,6 +82,7 @@ export function SettingsAgentSessionsCard({
             node {
               id
               title
+              ...EditAgentSessionTitleDialog_session
               user {
                 username
                 profilePictureUrl
@@ -152,9 +153,10 @@ export function SettingsAgentSessionsCard({
                   <td className="sessions-table__actions">
                     {canDeleteSessions ? (
                       <Flex justifyContent="end">
-                        <SettingsAgentSessionConditionalDeleteButton
+                        <SettingsAgentSessionActionMenu
                           sessionId={node.id}
                           sessionTitle={node.title}
+                          session={node}
                         />
                       </Flex>
                     ) : null}
