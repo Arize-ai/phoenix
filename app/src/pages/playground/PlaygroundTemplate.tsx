@@ -23,6 +23,7 @@ import { PlaygroundModelMenu } from "@phoenix/components/playground/model/Playgr
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
+import { PromptDiffButton } from "@phoenix/pages/playground/PromptDiffButton";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
@@ -137,7 +138,10 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
           ) : null}
           {!disablePromptSave ? (
-            <SaveButton instanceId={instanceId} dirty={dirty} />
+            <>
+              <SaveButton instanceId={instanceId} dirty={dirty} />
+              <PromptDiffButton instanceId={instanceId} />
+            </>
           ) : null}
         </Flex>
         <Flex direction="row" gap="size-100" flex="none">

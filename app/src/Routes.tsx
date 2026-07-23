@@ -797,7 +797,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Prompt Version Details",
                       description:
-                        "Inspect a specific prompt version, revision, and prompt history entry.",
+                        "Inspect a specific prompt version, revision, and prompt history entry. Compare and diff prompt versions side by side via the diffBase query param.",
                     },
                   }}
                 />
