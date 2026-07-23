@@ -1,5 +1,6 @@
 import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
 import { requireToolSession } from "@phoenix/agent/extensions/registry/requireToolSession";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import { applySpanAnnotations } from "./applySpanAnnotations";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "./constants";
@@ -18,7 +19,10 @@ import type {
 export const batchSpanAnnotateAgentTool = defineTool<BatchSpanAnnotateInput>({
   name: BATCH_SPAN_ANNOTATE_TOOL_NAME,
   parseInput: parseBatchSpanAnnotateInput,
-  invalidInputErrorText: `Invalid ${BATCH_SPAN_ANNOTATE_TOOL_NAME} input. Expected { annotations: { spanId?: string, spanNodeId?: string, name: string, annotatorKind?: "LLM" | "HUMAN" | "CODE", label?: string | null, score?: number | null, explanation?: string | null, identifier?: string | null, metadata?: object | null }[] }. Each annotation requires exactly one of spanId or spanNodeId, a non-reserved name, and at least one of label, score, or explanation.`,
+  invalidInputErrorText: (input) =>
+    isPlainObject(input) && Object.keys(input).length === 0
+      ? `${BATCH_SPAN_ANNOTATE_TOOL_NAME} needs an annotations array. Call it with { annotations: [{ spanId or spanNodeId, name, and at least one of label, score, or explanation }] }. Do not call this tool until you have a real span id and annotation value.`
+      : `Invalid ${BATCH_SPAN_ANNOTATE_TOOL_NAME} input. Expected { annotations: { spanId?: string, spanNodeId?: string, name: string, annotatorKind?: "LLM" | "HUMAN" | "CODE", label?: string | null, score?: number | null, explanation?: string | null, identifier?: string | null, metadata?: object | null }[] }. Each annotation requires exactly one of spanId or spanNodeId, a non-reserved name, and at least one of label, score, or explanation.`,
   uiBehavior: {
     autoOpen: true,
     scrollIntoViewOnMount: true,
