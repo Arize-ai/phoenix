@@ -102,9 +102,6 @@ export function useExperimentAnnotationMetricSeries({
       baselineExperiment == null
         ? undefined
         : toAnnotationMetricsInputPoint(baselineExperiment),
-    // Every panel uses the same experiment categories even when an annotation
-    // only ran on a subset of the seven-experiment window.
-    includeEmptyPoints: true,
   });
 
   return {
@@ -186,7 +183,7 @@ export function ExperimentAnnotationMetricsPanel({
   const activeView = series.views.includes(view)
     ? view
     : getDefaultAnnotationMetricsView(series);
-  const reference = series.referenceByView[activeView];
+  const { reference } = series;
   const showViewToggle = series.views.length > 1;
   return (
     <ChartPanel

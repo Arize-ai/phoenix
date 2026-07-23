@@ -30,12 +30,8 @@ export type AnnotationMetricsSeries = {
   readonly name: string;
   readonly views: ReadonlyArray<AnnotationMetricsView>;
   readonly labels: ReadonlyArray<string>;
-  readonly dataByView: Readonly<
-    Record<AnnotationMetricsView, ReadonlyArray<AnnotationMetricsChartPoint>>
-  >;
-  readonly referenceByView: Readonly<
-    Partial<Record<AnnotationMetricsView, AnnotationMetricsChartPoint>>
-  >;
+  readonly data: ReadonlyArray<AnnotationMetricsChartPoint>;
+  readonly reference?: AnnotationMetricsChartPoint;
 };
 
 export function getEmptyAnnotationMetricsSeries(
@@ -45,8 +41,7 @@ export function getEmptyAnnotationMetricsSeries(
     name,
     views: [],
     labels: [],
-    dataByView: { labels: [], scores: [] },
-    referenceByView: {},
+    data: [],
   };
 }
 
@@ -99,19 +94,16 @@ export function getAnnotationOtherFraction({
 }
 
 /**
- * Normalizes summary snapshots into one chart series per annotation. Separate
- * score and label datasets let mixed annotations switch views without putting
- * scores and percentages on the same axis.
+ * Normalizes summary snapshots into one aligned chart series per annotation.
+ * Mixed annotations select which values to render without changing the shared
+ * x-axis categories.
  */
 export function normalizeAnnotationMetrics({
   points,
   referencePoint,
-  includeEmptyPoints = false,
 }: {
   points: ReadonlyArray<AnnotationMetricsInputPoint>;
   referencePoint?: AnnotationMetricsInputPoint;
-  /** Retain input categories that have no value for a supported view. */
-  includeEmptyPoints?: boolean;
 }): AnnotationMetricsSeries[] {
   const pointsWithSummariesByName = points.map((point) => ({
     point,
@@ -151,20 +143,7 @@ export function normalizeAnnotationMetrics({
         )
       );
 
-      const makeScorePoint = ({
-        point,
-        summary,
-      }: {
-        point: AnnotationMetricsInputPoint;
-        summary?: AnnotationSummary;
-      }): AnnotationMetricsChartPoint => ({
-        x: point.x,
-        metadata: point.metadata ?? {},
-        hasAnnotationSummary: summary != null,
-        meanScore: summary?.meanScore ?? undefined,
-        fractions: [],
-      });
-      const makeLabelPoint = ({
+      const makeChartPoint = ({
         point,
         summary,
       }: {
@@ -181,6 +160,7 @@ export function normalizeAnnotationMetrics({
           x: point.x,
           metadata: point.metadata ?? {},
           hasAnnotationSummary: summary != null,
+          meanScore: summary?.meanScore ?? undefined,
           fractions: labels.map((label) => fractionsByLabel.get(label)),
         };
       };
@@ -191,20 +171,6 @@ export function normalizeAnnotationMetrics({
       const hasLabelValues = summaryByPoint.some(
         ({ summary }) => (summary?.labelFractions.length ?? 0) > 0
       );
-      // Category charts can opt into a shared domain. Missing values remain
-      // undefined, so they reserve axis space without drawing empty bars.
-      const scoreData = includeEmptyPoints
-        ? summaryByPoint.map(makeScorePoint)
-        : summaryByPoint.flatMap(({ point, summary }) =>
-            summary?.meanScore == null
-              ? []
-              : [makeScorePoint({ point, summary })]
-          );
-      const labelData = includeEmptyPoints
-        ? summaryByPoint.map(makeLabelPoint)
-        : summaryByPoint.flatMap(({ point, summary }) =>
-            summary == null ? [] : [makeLabelPoint({ point, summary })]
-          );
       const views: AnnotationMetricsView[] = [];
       if (hasLabelValues) {
         views.push("labels");
@@ -217,30 +183,14 @@ export function normalizeAnnotationMetrics({
         name,
         views,
         labels,
-        dataByView: {
-          labels: labelData,
-          scores: scoreData,
-        },
-        referenceByView: {
-          labels:
-            hasLabelValues &&
-            referencePoint != null &&
-            (includeEmptyPoints || referenceSummary != null)
-              ? makeLabelPoint({
-                  point: referencePoint,
-                  summary: referenceSummary,
-                })
-              : undefined,
-          scores:
-            hasScoreValues &&
-            referencePoint != null &&
-            (includeEmptyPoints || referenceSummary?.meanScore != null)
-              ? makeScorePoint({
-                  point: referencePoint,
-                  summary: referenceSummary,
-                })
-              : undefined,
-        },
+        data: summaryByPoint.map(makeChartPoint),
+        reference:
+          referencePoint == null
+            ? undefined
+            : makeChartPoint({
+                point: referencePoint,
+                summary: referenceSummary,
+              }),
       };
     })
     .filter(({ views }) => views.length > 0);
