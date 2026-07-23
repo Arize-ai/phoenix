@@ -111,11 +111,18 @@ This pattern is useful when:
 
 ## Model-Backed Example
 
-If you want a model-backed experiment with automatic tracing and an LLM-as-a-judge evaluator, this is the core pattern:
+If you want a model-backed experiment with automatic tracing and an LLM-as-a-judge evaluator, this is the core pattern.
+
+Install the AI SDK packages alongside the Phoenix packages — `@ai-sdk/otel` provides the telemetry integration that sends AI SDK traces to Phoenix:
+
+```bash
+npm install @arizeai/phoenix-client @arizeai/phoenix-evals ai @ai-sdk/openai @ai-sdk/otel
+```
 
 ```ts
 import { openai } from "@ai-sdk/openai";
-import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
+import { OpenTelemetry } from "@ai-sdk/otel";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
@@ -135,7 +142,7 @@ const main = async () => {
     },
   });
 
-  const dataset = await createOrGetDataset({
+  const dataset = await createDataset({
     name: "correctness-eval",
     description: "Evaluate the correctness of the model",
     examples: [
@@ -157,23 +164,15 @@ const main = async () => {
       throw new Error("Invalid input: context must be a string");
     }
 
+    // The per-call `@ai-sdk/otel` integration traces this call through the
+    // experiment's tracer provider that runExperiment mounts while tasks run.
     return generateText({
       model,
-      experimental_telemetry: {
-        isEnabled: true,
-      },
-      prompt: [
-        {
-          role: "system",
-          content: `You answer questions based on this context: ${example.input.context}`,
-        },
-        {
-          role: "user",
-          content: example.input.question,
-        },
-      ],
+      instructions: `You answer questions based on this context: ${example.input.context}`,
+      prompt: example.input.question,
+      telemetry: { integrations: [new OpenTelemetry()] },
     }).then((response) => {
-      if (response.text) {
+      if (typeof response.text === "string") {
         return response.text;
       }
       throw new Error("Invalid response: text is required");
@@ -200,9 +199,9 @@ main().catch(console.error);
 
 ## What This Example Shows
 
-- `createOrGetDataset()` creates or reuses the dataset the experiment will run against
+- `createDataset()` creates or reuses the dataset the experiment will run against (it upserts by name)
 - `task` receives the full dataset example object
-- `generateText()` emits traces that Phoenix can attach to the experiment when telemetry is enabled
+- `generateText()` emits traces that Phoenix attaches to the experiment because the call passes the `@ai-sdk/otel` integration via `telemetry.integrations` — without it, no AI SDK spans reach Phoenix
 - `createClassificationEvaluator()` from `@arizeai/phoenix-evals` can be passed directly to `runExperiment()`
 - `runExperiment()` records both task runs and evaluation runs in Phoenix
 

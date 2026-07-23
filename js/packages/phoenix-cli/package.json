@@ -46,7 +46,7 @@
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-config": "workspace:*",
     "@clack/prompts": "^1.7.0",
-    "ai": "^6.0.230",
+    "ai": "^7.0.0",
     "commander": "^15.0.0",
     "cross-spawn": "^7.0.6",
     "ignore": "^7.0.6",

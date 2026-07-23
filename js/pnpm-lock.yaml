@@ -468,8 +468,8 @@ importers:
         specifier: ^1.7.0
         version: 1.7.0
       ai:
-        specifier: ^6.0.230
-        version: 6.0.230(zod@4.4.3)
+        specifier: ^7.0.0
+        version: 7.0.31(zod@4.4.3)
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -528,9 +528,6 @@ importers:
       '@arizeai/openinference-semantic-conventions':
         specifier: ^2.5.0
         version: 2.5.0
-      '@arizeai/openinference-vercel':
-        specifier: ^2.8.1
-        version: 2.8.1(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)
       '@arizeai/phoenix-config':
         specifier: workspace:*
         version: link:../phoenix-config
@@ -551,8 +548,11 @@ importers:
         version: 4.4.3
     devDependencies:
       '@ai-sdk/openai':
-        specifier: ^3.0.86
-        version: 3.0.86(zod@4.4.3)
+        specifier: ^4.0.0
+        version: 4.0.16(zod@4.4.3)
+      '@ai-sdk/otel':
+        specifier: ^1.0.0
+        version: 1.0.31(zod@4.4.3)
       '@anthropic-ai/sdk':
         specifier: ^0.111.0
         version: 0.111.0(zod@4.4.3)
@@ -575,8 +575,8 @@ importers:
         specifier: ^26.1.1
         version: 26.1.1
       ai:
-        specifier: ^6.0.230
-        version: 6.0.230(zod@4.4.3)
+        specifier: ^7.0.0
+        version: 7.0.31(zod@4.4.3)
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -921,9 +921,6 @@ packages:
       zod:
         optional: true
 
-  '@arizeai/openinference-core@2.3.0':
-    resolution: {integrity: sha512-oDLMjWvUmfA4dAlxWzXb2zJ+oHdRoFoNRTWuIt1w+p9KYeOk5ssmDV/cylFnAeLVJDimXvqG3Wl9s93f/HEeAw==}
-
   '@arizeai/openinference-core@2.4.0':
     resolution: {integrity: sha512-F4FgdLj9dCp/f2C0GZ6w3qpd4rsNC8/Rr4ikOvQcIBsn0hjn1jyWA2/9x3TF4Xf8H53ckoGoQv4uhexgwbtCNw==}
 
@@ -949,11 +946,6 @@ packages:
 
   '@arizeai/openinference-semantic-conventions@2.5.0':
     resolution: {integrity: sha512-4ZeSwiFX3YxB0WSE6x568wM4PVHiYmz3yiOxic6WGKVrE/KIGggMFP/eqUNQhikBKP68IDV0qiILlZAIYnheAQ==}
-
-  '@arizeai/openinference-vercel@2.8.1':
-    resolution: {integrity: sha512-gTgUSJd9HHTfNyI2ZoorPGHt1ID5LFtZZCDFmosXzdPzYoAzwknEC9Ja3iKKs+c27uvNiS6N5P8iyxf8qC+sDg==}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.7.0 <2.0.0'
 
   '@arizeai/openinference-vercel@3.1.0':
     resolution: {integrity: sha512-DDOjfTJpKxb6JYkjhSrlzdIOKXX1zSlXFDjRqGJDgDjbVBEZpqsQeyV1OIRmf0YcftiFk9gCIL/2EpgSllsMeg==}
@@ -6769,12 +6761,6 @@ snapshots:
     optionalDependencies:
       zod: 4.4.3
 
-  '@arizeai/openinference-core@2.3.0':
-    dependencies:
-      '@arizeai/openinference-semantic-conventions': 2.5.0
-      '@opentelemetry/api': 1.9.1
-      '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.1)
-
   '@arizeai/openinference-core@2.4.0':
     dependencies:
       '@arizeai/openinference-semantic-conventions': 2.5.0
@@ -6816,16 +6802,6 @@ snapshots:
 
   '@arizeai/openinference-semantic-conventions@2.5.0': {}
 
-  '@arizeai/openinference-vercel@2.8.1(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)':
-    dependencies:
-      '@arizeai/openinference-core': 2.3.0
-      '@arizeai/openinference-genai': 0.2.0(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)
-      '@arizeai/openinference-semantic-conventions': 2.5.0
-      '@opentelemetry/api': 1.9.1
-      '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.1)
-    transitivePeerDependencies:
-      - '@opentelemetry/semantic-conventions'
-
   '@arizeai/openinference-vercel@3.1.0(@ai-sdk/otel@1.0.31(zod@4.4.3))(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)(ai@7.0.31(zod@4.4.3))':
     dependencies:
       '@ai-sdk/otel': 1.0.31(zod@4.4.3)
@@ -6845,7 +6821,7 @@ snapshots:
 
   '@babel/compat-data@7.29.7': {}
 
-  '@babel/core@7.29.7(supports-color@10.2.2)':
+  '@babel/core@7.29.7':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/generator': 7.29.7
@@ -6887,7 +6863,7 @@ snapshots:
 
   '@babel/helper-create-class-features-plugin@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-annotate-as-pure': 7.29.7
       '@babel/helper-member-expression-to-functions': 7.29.7
       '@babel/helper-optimise-call-expression': 7.29.7
@@ -6916,7 +6892,7 @@ snapshots:
 
   '@babel/helper-module-transforms@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-module-imports': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
       '@babel/traverse': 7.29.7
@@ -6931,7 +6907,7 @@ snapshots:
 
   '@babel/helper-replace-supers@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-member-expression-to-functions': 7.29.7
       '@babel/helper-optimise-call-expression': 7.29.7
       '@babel/traverse': 7.29.7
@@ -6962,92 +6938,92 @@ snapshots:
 
   '@babel/plugin-syntax-async-generators@7.8.4(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-bigint@7.8.3(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-class-properties@7.12.13(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-class-static-block@7.14.5(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-import-attributes@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-import-meta@7.10.4(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-json-strings@7.8.3(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-logical-assignment-operators@7.10.4(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-nullish-coalescing-operator@7.8.3(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-numeric-separator@7.10.4(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-object-rest-spread@7.8.3(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-optional-catch-binding@7.8.3(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-optional-chaining@7.8.3(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-private-property-in-object@7.14.5(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-top-level-await@7.14.5(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-transform-modules-commonjs@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-module-transforms': 7.29.7(@babel/core@7.29.7)
       '@babel/helper-plugin-utils': 7.29.7
     transitivePeerDependencies:
@@ -7055,7 +7031,7 @@ snapshots:
 
   '@babel/plugin-transform-typescript@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-annotate-as-pure': 7.29.7
       '@babel/helper-create-class-features-plugin': 7.29.7(@babel/core@7.29.7)
       '@babel/helper-plugin-utils': 7.29.7
@@ -7066,7 +7042,7 @@ snapshots:
 
   '@babel/preset-typescript@7.29.7(@babel/core@7.29.7)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
       '@babel/helper-validator-option': 7.29.7
       '@babel/plugin-syntax-jsx': 7.29.7(@babel/core@7.29.7)
@@ -7628,7 +7604,7 @@ snapshots:
 
   '@jest/transform@30.4.1':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@jest/types': 30.4.1
       '@jridgewell/trace-mapping': 0.3.31
       babel-plugin-istanbul: 7.0.1
@@ -7907,7 +7883,7 @@ snapshots:
 
   '@mastra/deployer@1.51.0(@hono/node-server@2.0.1(hono@4.12.31))(@mastra/core@1.51.0(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.31(zod@4.4.3))(express@5.2.1)(zod@4.4.3))(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3)':
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/preset-typescript': 7.29.7(@babel/core@7.29.7)
       '@babel/traverse': 7.29.7
       '@hono/node-ws': 1.3.1(@hono/node-server@2.0.1(hono@4.12.31))(hono@4.12.31)
@@ -9236,7 +9212,7 @@ snapshots:
 
   babel-jest@30.4.1(@babel/core@7.29.7):
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@jest/transform': 30.4.1
       '@types/babel__core': 7.20.5
       babel-plugin-istanbul: 7.0.1
@@ -9263,7 +9239,7 @@ snapshots:
 
   babel-preset-current-node-syntax@1.2.0(@babel/core@7.29.7):
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/plugin-syntax-async-generators': 7.8.4(@babel/core@7.29.7)
       '@babel/plugin-syntax-bigint': 7.8.3(@babel/core@7.29.7)
       '@babel/plugin-syntax-class-properties': 7.12.13(@babel/core@7.29.7)
@@ -9282,7 +9258,7 @@ snapshots:
 
   babel-preset-jest@30.4.0(@babel/core@7.29.7):
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       babel-plugin-jest-hoist: 30.4.0
       babel-preset-current-node-syntax: 1.2.0(@babel/core@7.29.7)
 
@@ -10402,7 +10378,7 @@ snapshots:
 
   istanbul-lib-instrument@6.0.3:
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/parser': 7.29.7
       '@istanbuljs/schema': 0.1.6
       istanbul-lib-coverage: 3.2.2
@@ -10488,7 +10464,7 @@ snapshots:
 
   jest-config@30.4.2(@types/node@26.1.1):
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@jest/get-type': 30.1.0
       '@jest/pattern': 30.4.0
       '@jest/test-sequencer': 30.4.1
@@ -10672,7 +10648,7 @@ snapshots:
 
   jest-snapshot@30.4.1:
     dependencies:
-      '@babel/core': 7.29.7(supports-color@10.2.2)
+      '@babel/core': 7.29.7
       '@babel/generator': 7.29.7
       '@babel/plugin-syntax-jsx': 7.29.7(@babel/core@7.29.7)
       '@babel/plugin-syntax-typescript': 7.29.7(@babel/core@7.29.7)
