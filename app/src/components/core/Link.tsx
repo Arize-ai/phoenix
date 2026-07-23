@@ -10,16 +10,23 @@ export function Link(props: LinkProps) {
       css={css`
         display: inline-block;
         max-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        min-width: 0;
         color: var(--global-link-color);
       `}
     >
       <RouterLink
         css={css`
+          display: inline-block;
+          max-width: 100%;
+          min-width: 0;
+          border-radius: var(--global-rounding-small);
           color: var(--global-link-color);
           &:not(:hover) {
             text-decoration: none;
+          }
+          &:focus-visible {
+            outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+            outline-offset: var(--focus-ring-offset);
           }
         `}
         {...props}

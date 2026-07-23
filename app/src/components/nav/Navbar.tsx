@@ -10,6 +10,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { hoverRevealCSS } from "@phoenix/components/core/styles";
 import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
 
 import { Logo, LogoText } from "./Logo";
@@ -48,7 +49,7 @@ const topNavCSS = css`
   }
 
   .copy-action-menu__button {
-    opacity: 0;
+    ${hoverRevealCSS}
     transition: none;
   }
   &:hover .copy-action-menu__button,
@@ -250,13 +251,11 @@ export function NavLink(props: {
   return (
     <TooltipTrigger delay={0} isDisabled={props.isExpanded}>
       <Pressable>
-        <div role="button">
-          <RRNavLink to={props.to} css={navLinkCSS}>
-            {props.leadingVisual}
-            <Text>{props.text}</Text>
-            {props.trailingVisual}
-          </RRNavLink>
-        </div>
+        <RRNavLink to={props.to} css={navLinkCSS}>
+          {props.leadingVisual}
+          <Text>{props.text}</Text>
+          {props.trailingVisual}
+        </RRNavLink>
       </Pressable>
       <Tooltip placement="right" offset={10}>
         {props.text}

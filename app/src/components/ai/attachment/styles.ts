@@ -1,5 +1,7 @@
 import { css } from "@emotion/react";
 
+import { hoverRevealCSS } from "@phoenix/components/core/styles";
+
 // ---------------------------------------------------------------------------
 // Attachments (root container)
 // Layout switches by data-variant on the container.
@@ -283,6 +285,7 @@ export const attachmentRemoveCSS = css`
   transition: opacity 0.2s ease;
 
   &[data-variant="grid"] {
+    ${hoverRevealCSS}
     position: absolute;
     top: var(--global-dimension-size-75);
     right: var(--global-dimension-size-75);
@@ -290,13 +293,12 @@ export const attachmentRemoveCSS = css`
     height: var(--global-dimension-size-300);
     border-radius: 50%;
     background-color: var(--global-color-gray-50);
-    opacity: 0;
   }
 
   &[data-variant="inline"] {
+    ${hoverRevealCSS}
     width: var(--global-dimension-size-200);
     height: var(--global-dimension-size-200);
-    opacity: 0;
   }
 
   &[data-variant="list"] {
@@ -312,7 +314,6 @@ export const attachmentRemoveCSS = css`
   }
 
   &[data-focus-visible] {
-    opacity: 1;
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }

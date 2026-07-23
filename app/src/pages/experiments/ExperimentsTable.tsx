@@ -366,7 +366,7 @@ export function ExperimentsTable({
             <Link
               to={`/datasets/${data.id}/compare?experimentId=${experimentId}`}
             >
-              {getValue() as string}
+              <Truncate maxWidth="100%">{getValue() as string}</Truncate>
             </Link>
             <ExperimentJobStatusIcon
               status={jobStatus}

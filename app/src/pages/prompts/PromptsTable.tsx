@@ -254,7 +254,9 @@ export function PromptsTable(props: PromptsTableProps) {
             <CellWithControlsWrap
               controls={<CopyToClipboardButton text={row.original.name} />}
             >
-              <Link to={`${row.original.id}`}>{row.original.name}</Link>
+              <Link to={`${row.original.id}`}>
+                <Truncate maxWidth="100%">{row.original.name}</Truncate>
+              </Link>
             </CellWithControlsWrap>
           );
         },

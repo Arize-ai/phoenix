@@ -1359,6 +1359,15 @@ const appGlobalStylesCSS = css`
     initial-value: 45deg;
   }
 
+  :where(:focus-visible),
+  button:-moz-focusring,
+  [type="button"]:-moz-focusring,
+  [type="reset"]:-moz-focusring,
+  [type="submit"]:-moz-focusring {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+
   body,
   input,
   button,
