@@ -23,13 +23,20 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_LOOKBACK = timedelta(hours=48)
 DEFAULT_SETTLE_DELAY = timedelta(minutes=5)
-DEFAULT_PROJECT = "pxi_dev"
 DEFAULT_TIMEOUT_SECONDS = 120
 MAX_CANDIDATE_ROOTS = 5_000
 MAX_SPANS_PER_BATCH = 10_000
 TRACE_ID_BATCH_SIZE = 100
 ANNOTATION_WRITE_BATCH_SIZE = 100
 MAX_CONCURRENT_EVALUATIONS = 8
+
+
+class OversizedTraceError(RuntimeError):
+    def __init__(self, trace_id: str) -> None:
+        self.trace_id = trace_id
+        super().__init__(
+            f"trace {trace_id} alone reached the span safety limit ({MAX_SPANS_PER_BATCH})"
+        )
 
 
 def _sampled(spec: EvaluatorSpec, artifact_id: str) -> bool:
@@ -112,9 +119,7 @@ def _fetch_batch_spans(client: Client, *, project: str, batch: Sequence[str]) ->
     if len(spans) < MAX_SPANS_PER_BATCH:
         return list(spans)
     if len(batch) == 1:
-        raise RuntimeError(
-            f"trace {batch[0]} alone reached the span safety limit ({MAX_SPANS_PER_BATCH})"
-        )
+        raise OversizedTraceError(batch[0])
     middle = len(batch) // 2
     return _fetch_batch_spans(client, project=project, batch=batch[:middle]) + _fetch_batch_spans(
         client, project=project, batch=batch[middle:]
@@ -123,16 +128,26 @@ def _fetch_batch_spans(client: Client, *, project: str, batch: Sequence[str]) ->
 
 def _load_trace_spans(
     client: Client, *, project: str, trace_ids: Iterable[str]
-) -> dict[str, list[v1.Span]]:
+) -> tuple[dict[str, list[v1.Span]], set[str]]:
     ids = sorted(set(trace_ids))
     grouped: dict[str, list[v1.Span]] = defaultdict(list)
+    oversized: set[str] = set()
     for offset in range(0, len(ids), TRACE_ID_BATCH_SIZE):
-        batch = ids[offset : offset + TRACE_ID_BATCH_SIZE]
-        for span in _fetch_batch_spans(client, project=project, batch=batch):
-            grouped[trace_id(span)].append(span)
+        remaining = ids[offset : offset + TRACE_ID_BATCH_SIZE]
+        while remaining:
+            try:
+                spans = _fetch_batch_spans(client, project=project, batch=remaining)
+            except OversizedTraceError as error:
+                logger.error("%s; skipping that trace", error)
+                oversized.add(error.trace_id)
+                remaining = [trace for trace in remaining if trace != error.trace_id]
+                continue
+            for span in spans:
+                grouped[trace_id(span)].append(span)
+            break
     for spans in grouped.values():
         spans.sort(key=lambda span: span["start_time"])
-    return dict(grouped)
+    return dict(grouped), oversized
 
 
 def _flush_annotations(
@@ -197,9 +212,15 @@ async def run_evaluators(
             else:
                 pending.append((spec, root))
 
-    traces = _load_trace_spans(
+    traces, oversized_trace_ids = _load_trace_spans(
         client, project=project, trace_ids=(trace_id(root) for _, root in pending)
     )
+    evaluable: list[tuple[EvaluatorSpec, v1.Span]] = []
+    for spec, root in pending:
+        if trace_id(root) in oversized_trace_ids:
+            summaries[spec.name].errors += 1
+        else:
+            evaluable.append((spec, root))
 
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_EVALUATIONS)
 
@@ -207,7 +228,7 @@ async def run_evaluators(
         async with semaphore:
             return await spec.evaluate(root, traces.get(trace_id(root), []))
 
-    tasks = [(spec, root, asyncio.create_task(_evaluate(spec, root))) for spec, root in pending]
+    tasks = [(spec, root, asyncio.create_task(_evaluate(spec, root))) for spec, root in evaluable]
     annotations: list[v1.SpanAnnotationData] = []
     for spec, root, task in tasks:
         try:
@@ -244,8 +265,8 @@ async def run_evaluators(
     return summaries
 
 
-def _default_project() -> str:
-    return os.getenv("PHOENIX_PROJECT") or os.getenv("PHOENIX_PROJECT_NAME") or DEFAULT_PROJECT
+def _default_project() -> str | None:
+    return os.getenv("PHOENIX_PROJECT") or os.getenv("PHOENIX_PROJECT_NAME")
 
 
 def _positive_float(value: str) -> float:
@@ -266,7 +287,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
         choices=sorted(EVALUATORS),
         help="Evaluator to run; repeat for multiple evaluators (default: all).",
     )
-    parser.add_argument("--project", default=_default_project())
+    default_project = _default_project()
+    parser.add_argument(
+        "--project",
+        default=default_project,
+        required=default_project is None,
+        help=(
+            "Phoenix project to evaluate (required unless PHOENIX_PROJECT or "
+            "PHOENIX_PROJECT_NAME is set)."
+        ),
+    )
     parser.add_argument(
         "--lookback-hours",
         type=_positive_float,

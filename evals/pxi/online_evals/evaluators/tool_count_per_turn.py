@@ -33,6 +33,7 @@ TOOL_COUNT_PER_TURN = EvaluatorSpec(
     name="tool_count_per_turn",
     root_span_name=PXI_TURN_ROOT_NAME,
     evaluate=evaluate_tool_count_per_turn,
+    annotator_kind="CODE",
     sample_rate=1.0,
     identifier="pxi-online-evals:tool-count-per-turn:v1",
 )

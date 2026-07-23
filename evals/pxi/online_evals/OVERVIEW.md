@@ -163,7 +163,9 @@ rate 0.25  █████                 subset of the 0.50 selection
 ## Operations
 
 - **Schedule**: GitHub Actions, 00:17 / 12:17 UTC; manual dispatch defaults
-  to `--dry-run`; local CLI: `uv run python -m evals.pxi.online_evals.run --dry-run`.
+  to `--dry-run`; local CLI requires `--project` unless `PHOENIX_PROJECT` or
+  `PHOENIX_PROJECT_NAME` is set. Writes remain the default unless `--dry-run`
+  is passed.
 - **Judge config** (shared by all LLM evaluators):
   `PHOENIX_AGENTS_EVALS_PROVIDER` / `PHOENIX_AGENTS_EVALS_MODEL`
   (default `openai` / `gpt-5.5`, validated on the gold dev split).

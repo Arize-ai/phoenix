@@ -30,7 +30,7 @@ class EvaluatorSpec:
     name: str
     root_span_name: str
     evaluate: EvaluateArtifact
-    annotator_kind: Literal["CODE", "LLM"] = "CODE"
+    annotator_kind: Literal["CODE", "LLM"]
     sample_rate: float = 1.0
     identifier: str = "pxi-online-evals"
     """Versioned checkpoint identity; bump ``vN`` when scoring semantics change."""

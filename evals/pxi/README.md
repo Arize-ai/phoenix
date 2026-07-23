@@ -109,6 +109,9 @@ async def evaluate(root: v1.Span, spans: Sequence[v1.Span]) -> Score | None:
 
 Declare an `EvaluatorSpec` with a name, the expected root span name, the
 evaluate function, annotator kind, sampling rate, and a versioned identifier.
+The annotator kind is required rather than defaulted: declare every evaluator
+explicitly as `"CODE"` or `"LLM"` because it also controls judge credential
+validation and model-specific checkpointing.
 LLM evaluators (`annotator_kind="LLM"`) automatically share the judge
 configuration from `evals/pxi/online_evals/judge.py`: the runner validates
 the judge credentials at startup and appends `provider:model` to their

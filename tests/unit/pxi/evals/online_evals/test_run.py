@@ -12,7 +12,7 @@ from phoenix.evals.evaluators import Score
 
 from evals.pxi.online_evals import run as run_module
 from evals.pxi.online_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
-from evals.pxi.online_evals.models import RunSummary
+from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary
 from evals.pxi.online_evals.run import _fetch_batch_spans, _sampled, run_evaluators
 
 
@@ -161,6 +161,62 @@ def test_fetch_batch_spans_rejects_one_trace_at_the_safety_limit() -> None:
         )
 
     assert spans.requests == [["oversized"]]
+
+
+def test_oversized_trace_does_not_prevent_other_traces_from_being_evaluated() -> None:
+    oversized_root = _span(
+        "oversized-root",
+        trace_id="oversized",
+        name="pxi.turn",
+        kind="AGENT",
+        parent_id=None,
+    )
+    oversized_trace = [
+        oversized_root,
+        *[
+            _span(
+                f"oversized-{index}",
+                trace_id="oversized",
+                name="bash",
+                kind="TOOL",
+                parent_id="oversized-root",
+            )
+            for index in range(3)
+        ],
+    ]
+    healthy_root = _span(
+        "healthy-root", trace_id="healthy", name="pxi.turn", kind="AGENT", parent_id=None
+    )
+    healthy_tool = _span(
+        "healthy-tool", trace_id="healthy", name="bash", kind="TOOL", parent_id="healthy-root"
+    )
+    spans = _FakeSpans(
+        [oversized_root, healthy_root],
+        {"oversized": oversized_trace, "healthy": [healthy_root, healthy_tool]},
+        [],
+    )
+
+    with mock.patch.object(run_module, "MAX_SPANS_PER_BATCH", 4):
+        summary = _run(
+            _FakeClient(spans),
+            project="pxi_dev",
+            specs=[TOOL_COUNT_PER_TURN],
+            now=datetime(2026, 7, 9, 2, tzinfo=timezone.utc),
+        )["tool_count_per_turn"]
+
+    assert summary.errors == 1
+    assert summary.evaluated == 1
+    assert summary.annotations == 1
+    assert [annotation["span_id"] for annotation in spans.writes] == ["healthy-root"]
+
+
+def test_evaluator_spec_requires_explicit_annotator_kind() -> None:
+    with pytest.raises(TypeError, match="annotator_kind"):
+        EvaluatorSpec(  # type: ignore[call-arg]
+            name="ambiguous",
+            root_span_name="pxi.turn",
+            evaluate=TOOL_COUNT_PER_TURN.evaluate,
+        )
 
 
 def test_filters_existing_annotations_before_hydrating_traces() -> None:
@@ -530,7 +586,7 @@ def test_main_returns_nonzero_when_an_evaluator_errors() -> None:
             new=mock.AsyncMock(return_value={"tool_count_per_turn": RunSummary(errors=1)}),
         ),
     ):
-        assert run_module.main(["--eval", "tool_count_per_turn"]) == 1
+        assert run_module.main(["--project", "pxi_dev", "--eval", "tool_count_per_turn"]) == 1
 
 
 @pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "not-a-number"])
@@ -541,6 +597,26 @@ def test_time_window_flags_require_positive_finite_values(value: str) -> None:
 
 def test_lookback_must_exceed_settle_delay(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit, match="2"):
-        run_module.main(["--lookback-hours", "1", "--settle-minutes", "60"])
+        run_module.main(["--project", "pxi_dev", "--lookback-hours", "1", "--settle-minutes", "60"])
 
     assert "--lookback-hours must cover more time than --settle-minutes" in capsys.readouterr().err
+
+
+def test_project_is_required_without_project_environment(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with (
+        mock.patch.dict("os.environ", {}, clear=True),
+        pytest.raises(SystemExit, match="2"),
+    ):
+        run_module.build_arg_parser().parse_args([])
+
+    assert "--project" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("variable", ["PHOENIX_PROJECT", "PHOENIX_PROJECT_NAME"])
+def test_project_defaults_from_environment(variable: str) -> None:
+    with mock.patch.dict("os.environ", {variable: "configured-project"}, clear=True):
+        args = run_module.build_arg_parser().parse_args([])
+
+    assert args.project == "configured-project"
