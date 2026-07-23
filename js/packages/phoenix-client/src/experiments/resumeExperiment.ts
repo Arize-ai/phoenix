@@ -27,7 +27,6 @@ import { ensureString } from "../utils/ensureString";
 import { isHttpErrorWithStatus } from "../utils/isHttpError";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
-import { registerAiSdkTelemetry } from "./aiSdkTelemetry";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
 import {
@@ -204,9 +203,6 @@ async function setupTracer({
     return null;
   }
 
-  if (setGlobalTracerProvider) {
-    await registerAiSdkTelemetry();
-  }
   const provider = register({
     projectName,
     url: baseUrl,

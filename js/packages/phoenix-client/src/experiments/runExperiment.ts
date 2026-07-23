@@ -45,7 +45,6 @@ import {
   getDatasetUrl,
   getExperimentUrl,
 } from "../utils/urlUtils";
-import { registerAiSdkTelemetry } from "./aiSdkTelemetry";
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentEvaluators } from "./helpers";
 import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
@@ -276,9 +275,6 @@ export async function runExperiment({
       "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
     );
 
-    if (setGlobalTracerProvider) {
-      await registerAiSdkTelemetry();
-    }
     taskProvider = register({
       projectName,
       url: baseUrl,
@@ -637,9 +633,6 @@ export async function evaluateExperiment({
   if (paramsTracerProvider) {
     provider = paramsTracerProvider;
   } else if (!isDryRun) {
-    if (setGlobalTracerProvider) {
-      await registerAiSdkTelemetry();
-    }
     provider = register({
       projectName: "evaluators",
       url: baseUrl,

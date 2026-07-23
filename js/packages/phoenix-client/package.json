@@ -134,7 +134,6 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@ai-sdk/otel": "^1.0.0",
     "@anthropic-ai/sdk": "^0.35.0",
     "ai": "^7.0.0",
     "jest": ">=27",
@@ -142,9 +141,6 @@
     "vitest": ">=1"
   },
   "peerDependenciesMeta": {
-    "@ai-sdk/otel": {
-      "optional": true
-    },
     "@anthropic-ai/sdk": {
       "optional": true
     },

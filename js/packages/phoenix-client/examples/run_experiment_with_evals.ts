@@ -1,4 +1,5 @@
 import { openai } from "@ai-sdk/openai";
+import { OpenTelemetry } from "@ai-sdk/otel";
 import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
@@ -44,12 +45,13 @@ const main = async () => {
       throw new Error("Invalid input: context must be a string");
     }
     // Your AI system's response to the question.
-    // Telemetry is enabled automatically — runExperiment registers an AI SDK
-    // telemetry integration for the task's tracer provider.
+    // The per-call `@ai-sdk/otel` integration traces this call through the
+    // experiment's tracer provider — see run_experiment_with_ai_sdk.ts.
     return generateText({
       model,
       instructions: `You answer questions based on this context: ${example.input.context}`,
       prompt: example.input.question,
+      telemetry: { integrations: [new OpenTelemetry()] },
     }).then((response) => {
       if (response.text) {
         return response.text;

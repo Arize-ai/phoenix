@@ -2,4 +2,4 @@
 "@arizeai/phoenix-client": major
 ---
 
-Require AI SDK v7 for `@arizeai/phoenix-client`. `ai` v7 and `@ai-sdk/otel` are now optional peer dependencies, and experiment and eval-test internals register safe AI SDK task tracing without capturing request headers. Core client APIs retain Node.js 18 compatibility; AI SDK v7-backed features require the Node.js version supported by AI SDK v7.
+Require AI SDK v7 for `@arizeai/phoenix-client`. `ai` v7 is now an optional peer dependency. AI SDK v7 no longer emits OpenTelemetry spans through the global tracer provider on its own — to trace AI SDK calls made inside experiment tasks, pass the `@ai-sdk/otel` integration per call, constructed inside the task: `generateText({ ..., telemetry: { integrations: [new OpenTelemetry()] } })` (see `examples/run_experiment_with_ai_sdk.ts`). Phoenix evaluators from `@arizeai/phoenix-evals` are traced automatically and need no setup. Core client APIs retain Node.js 18 compatibility; AI SDK v7-backed features require the Node.js version supported by AI SDK v7.

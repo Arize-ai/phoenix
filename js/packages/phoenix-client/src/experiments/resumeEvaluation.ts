@@ -27,7 +27,6 @@ import type {
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
-import { registerAiSdkTelemetry } from "./aiSdkTelemetry";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
 import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
@@ -221,9 +220,6 @@ async function setupEvaluationTracer({
     return null;
   }
 
-  if (setGlobalTracerProvider) {
-    await registerAiSdkTelemetry();
-  }
   const provider = register({
     projectName,
     url: baseUrl,
