@@ -51,6 +51,7 @@ class QueueLag:
     running_count: int
     retryable_error_count: int
     exhausted_error_count: int
+    expired_count: int
     frontier_gap: int
     oldest_pending_age_seconds: Optional[float]
 

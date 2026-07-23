@@ -261,7 +261,11 @@ class DbEvalWorkCoordinator:
                 for status, exhausted, count in (
                     await session.execute(
                         select(models.EvalWorkUnit.status, error_exhausted, func.count())
-                        .where(models.EvalWorkUnit.status.in_(["PENDING", "RUNNING", "ERROR"]))
+                        .where(
+                            models.EvalWorkUnit.status.in_(
+                                ["PENDING", "RUNNING", "ERROR", "EXPIRED"]
+                            )
+                        )
                         .group_by(models.EvalWorkUnit.status, error_exhausted)
                     )
                 ).all()
@@ -304,6 +308,7 @@ class DbEvalWorkCoordinator:
             running_count=counts.get(("RUNNING", False), 0),
             retryable_error_count=counts.get(("ERROR", False), 0),
             exhausted_error_count=counts.get(("ERROR", True), 0),
+            expired_count=counts.get(("EXPIRED", False), 0),
             frontier_gap=frontier_gap,
             oldest_pending_age_seconds=oldest_pending_age_seconds,
         )
