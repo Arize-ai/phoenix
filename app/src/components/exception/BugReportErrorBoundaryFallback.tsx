@@ -7,6 +7,31 @@ import { View } from "../core/view";
 import { isConnectionTimeoutError } from "./isConnectionTimeoutError";
 import type { ErrorBoundaryFallbackProps } from "./types";
 
+const containedFallbackCSS = css`
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 100%;
+  max-height: 100%;
+  padding: var(--global-dimension-size-200);
+  overflow: auto;
+  overflow-wrap: anywhere;
+
+  > .flex,
+  details,
+  pre {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  h1 {
+    max-width: 100%;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+`;
+
 export function BugReportErrorBoundaryFallback({
   error,
 }: ErrorBoundaryFallbackProps) {
@@ -58,7 +83,7 @@ function ConnectionTimeoutFallback({
   error: string | null | undefined;
 }) {
   return (
-    <View padding="size-200">
+    <div css={containedFallbackCSS} data-testid="connection-timeout-fallback">
       <Flex direction="column">
         <Flex direction="column" width="100%" alignItems="center">
           <h1>Connection timed out</h1>
@@ -107,6 +132,6 @@ function ConnectionTimeoutFallback({
           </details>
         )}
       </Flex>
-    </View>
+    </div>
   );
 }
