@@ -186,7 +186,7 @@ export function useAgentChat({
   const notifyError = useNotifyError();
   const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
   const pendingElicitation = useAgentContext((state) =>
-    sessionId ? state.pendingElicitationBySessionId[sessionId] ?? null : null
+    sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
 
   const [commitCreateAgentSession] =
