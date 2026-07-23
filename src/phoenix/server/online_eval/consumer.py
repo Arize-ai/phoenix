@@ -31,6 +31,7 @@ from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.executor import HydratedWorkUnit, OnlineEvalExecutor
 from phoenix.server.prometheus import (
     ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
+    ONLINE_EVAL_EXPIRED_WORK_UNITS,
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
     ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS,
@@ -157,6 +158,7 @@ class OnlineEvalConsumer(DaemonTask):
         ONLINE_EVAL_RUNNING_WORK_UNITS.set(lag.running_count)
         ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.set(lag.retryable_error_count)
         ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.set(lag.exhausted_error_count)
+        ONLINE_EVAL_EXPIRED_WORK_UNITS.set(lag.expired_count)
         ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS.set(lag.frontier_gap)
         ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS.set(lag.oldest_pending_age_seconds or 0.0)
         async with self._db.read() as session:
