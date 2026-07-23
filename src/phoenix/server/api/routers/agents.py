@@ -65,7 +65,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolInputAvailableChunk,
     ToolOutputAvailableChunk,
 )
-from pydantic_ai.usage import RunUsage
+from pydantic_ai.usage import RequestUsage
 from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
@@ -471,7 +471,7 @@ def _build_message_metadata_chunk(
     span_context: SpanContext | None,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
-    usage: RunUsage,
+    usage: RequestUsage,
 ) -> MessageMetadataChunk:
     """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     trace_ids = (
@@ -499,9 +499,8 @@ def _build_message_metadata_chunk(
     )
 
 
-def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
-    """Convert a run's token usage into the metadata payload, including cache
-    read/write details only when the run actually used the prompt cache."""
+def _build_usage_payload(usage: RequestUsage) -> AssistantMessageMetadataUsage:
+    """Convert the final model request's usage into the current context size."""
     usage_payload = AssistantMessageMetadataUsage(
         tokens=AssistantMessageMetadataUsageTokens(
             prompt=usage.input_tokens,
@@ -515,6 +514,11 @@ def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
             cache_write=usage.cache_write_tokens,
         )
     return usage_payload
+
+
+def _get_current_context_usage(result: AgentRunResult[Any]) -> RequestUsage:
+    """Return the tokens retained after the run's final model response."""
+    return result.response.usage
 
 
 def _get_span_context(context: Context | None) -> SpanContext | None:
@@ -1249,7 +1253,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 span_context=agent_span_recorder.span_context if agent_span_recorder else None,
                 turn_trace_context=None,
                 session_id=session_id,
-                usage=result.usage,
+                usage=_get_current_context_usage(result),
             )
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
@@ -1498,7 +1502,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     else None
                 ),
                 session_id=session_id,
-                usage=result.usage,
+                usage=_get_current_context_usage(result),
             )
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:

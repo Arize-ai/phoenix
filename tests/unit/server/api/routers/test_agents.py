@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from jinja2 import Template
 from opentelemetry.trace import (
@@ -14,7 +14,7 @@ from opentelemetry.trace import (
     format_trace_id,
 )
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
-from pydantic_ai.usage import RunUsage
+from pydantic_ai.usage import RequestUsage
 from sqlalchemy import func, select
 
 from phoenix.db import models
@@ -27,6 +27,7 @@ from phoenix.server.agents.types import (
 from phoenix.server.api.routers.agents import (
     TurnTraceContext,
     _build_message_metadata_chunk,
+    _get_current_context_usage,
     _interleave_agent_and_subagent_message_chunks,
     _load_phoenix_user_email,
     _load_sandbox_availability,
@@ -158,7 +159,7 @@ class TestBuildMessageMetadataChunk:
             span_context=None,
             turn_trace_context=None,
             session_id="session-1",
-            usage=RunUsage(),
+            usage=RequestUsage(),
         )
         assert chunk.message_metadata.trace is None
 
@@ -172,7 +173,7 @@ class TestBuildMessageMetadataChunk:
             span_context=self._span_context(),
             turn_trace_context=turn_trace_context,
             session_id="session-1",
-            usage=RunUsage(),
+            usage=RequestUsage(),
         )
         assert chunk.message_metadata.trace is not None
         assert chunk.message_metadata.trace.trace_id == turn_trace_context.trace_id
@@ -184,11 +185,42 @@ class TestBuildMessageMetadataChunk:
             span_context=span_context,
             turn_trace_context=None,
             session_id="session-1",
-            usage=RunUsage(),
+            usage=RequestUsage(),
         )
         assert chunk.message_metadata.trace is not None
         assert chunk.message_metadata.trace.trace_id == format_trace_id(span_context.trace_id)
         assert chunk.message_metadata.trace.root_span_id == format_span_id(span_context.span_id)
+
+    def test_reports_the_final_request_as_the_current_context_size(self) -> None:
+        chunk = _build_message_metadata_chunk(
+            span_context=None,
+            turn_trace_context=None,
+            session_id="session-1",
+            usage=RequestUsage(
+                input_tokens=100,
+                output_tokens=20,
+                cache_read_tokens=60,
+                cache_write_tokens=10,
+            ),
+        )
+
+        usage = chunk.message_metadata.usage
+        assert usage is not None
+        assert usage.tokens.prompt == 100
+        assert usage.tokens.completion == 20
+        assert usage.tokens.total == 120
+        assert usage.prompt_details is not None
+        assert usage.prompt_details.cache_read == 60
+        assert usage.prompt_details.cache_write == 10
+
+    def test_uses_final_request_usage_instead_of_cumulative_run_usage(self) -> None:
+        final_request_usage = RequestUsage(input_tokens=100, output_tokens=20)
+        result = MagicMock()
+        result.response.usage = final_request_usage
+        result.usage.input_tokens = 250
+        result.usage.output_tokens = 40
+
+        assert _get_current_context_usage(result) is final_request_usage
 
 
 class TestLoadSandboxAvailability:
