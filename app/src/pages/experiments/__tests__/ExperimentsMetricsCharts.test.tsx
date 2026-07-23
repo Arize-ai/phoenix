@@ -88,8 +88,8 @@ describe("ExperimentsMetricsCharts", () => {
     expect(useExperimentAnnotationMetricDataMock).not.toHaveBeenCalled();
   });
 
-  it("loads a selected annotation even when its valid name is empty", () => {
-    datasetContextState.experimentsMetricChartKeys = ["annotation:"];
+  it("loads only the selected annotation metric", () => {
+    datasetContextState.experimentsMetricChartKeys = ["annotation:quality"];
 
     act(() => root.render(<ExperimentsMetricsCharts />));
 
@@ -97,7 +97,7 @@ describe("ExperimentsMetricsCharts", () => {
       useExperimentAnnotationMetricDataMock
     ).toHaveBeenCalledExactlyOnceWith({
       datasetId: "dataset-1",
-      annotationName: "",
+      annotationName: "quality",
     });
     expect(useExperimentMetricsDataMock).not.toHaveBeenCalled();
   });

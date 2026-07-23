@@ -2,7 +2,6 @@ import { css } from "@emotion/react";
 import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex } from "@phoenix/components";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import { ExperimentsEmpty } from "@phoenix/pages/experiments/ExperimentsEmpty";
 
@@ -10,14 +9,10 @@ import { getExperimentMetricChart } from "./chartCatalog";
 import { ExperimentAnnotationMetricsGrid } from "./ExperimentAnnotationMetricsGrid";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
-/**
- * The overview charts shown above the per-annotation grid. Each row is full
- * width so the existing aggregate metrics remain grouped together.
- */
-const METRIC_PAGE_ROWS: ExperimentMetricChartKey[][] = [
-  ["annotation_scores"],
-  ["latency"],
-  ["cost"],
+const OVERVIEW_METRIC_CHARTS: ExperimentMetricChartKey[] = [
+  "annotation_scores",
+  "latency",
+  "cost",
 ];
 
 const TRAILING_METRIC_CHARTS: ExperimentMetricChartKey[] = [
@@ -58,8 +53,12 @@ function DatasetMetricsPageContent({ datasetId }: { datasetId: string }) {
           padding: var(--global-dimension-size-200);
         `}
       >
-        {METRIC_PAGE_ROWS.map((row) => (
-          <MetricRow datasetId={datasetId} row={row} key={row.join("+")} />
+        {OVERVIEW_METRIC_CHARTS.map((chartKey) => (
+          <MetricPanel
+            key={chartKey}
+            datasetId={datasetId}
+            chartKey={chartKey}
+          />
         ))}
         <ExperimentAnnotationMetricsGrid datasetId={datasetId}>
           {TRAILING_METRIC_CHARTS.map((chartKey) => (
@@ -72,28 +71,6 @@ function DatasetMetricsPageContent({ datasetId }: { datasetId: string }) {
         </ExperimentAnnotationMetricsGrid>
       </div>
     </section>
-  );
-}
-
-function MetricRow({
-  datasetId,
-  row,
-}: {
-  datasetId: string;
-  row: ExperimentMetricChartKey[];
-}) {
-  return (
-    <Flex direction="row" gap="size-200">
-      {row.map((chartKey) => {
-        return (
-          <MetricPanel
-            key={chartKey}
-            datasetId={datasetId}
-            chartKey={chartKey}
-          />
-        );
-      })}
-    </Flex>
   );
 }
 

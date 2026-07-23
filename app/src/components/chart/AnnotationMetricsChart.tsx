@@ -147,8 +147,7 @@ function AnnotationMetricsChartContent({
   const categoryColors = useCategoryChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
-  const data = series.dataByView[view];
-  const reference = series.referenceByView[view];
+  const { data, reference } = series;
   const isScoreView = view === "scores";
   const scoreValues = [...data, reference].flatMap((point) =>
     point?.meanScore == null ? [] : [point.meanScore]

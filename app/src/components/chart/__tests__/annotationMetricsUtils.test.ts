@@ -54,7 +54,7 @@ describe("normalizeAnnotationMetrics", () => {
     ]);
   });
 
-  it("builds independent datasets for a mixed annotation", () => {
+  it("builds one aligned dataset for a mixed annotation", () => {
     const [series] = normalizeAnnotationMetrics({
       points: [
         {
@@ -93,25 +93,21 @@ describe("normalizeAnnotationMetrics", () => {
       views: ["labels", "scores"],
       labels: ["pass", "fail"],
     });
-    expect(
-      series.dataByView.scores.map(({ x, meanScore }) => ({ x, meanScore }))
-    ).toEqual([
+    expect(series.data.map(({ x, meanScore }) => ({ x, meanScore }))).toEqual([
       { x: 1, meanScore: 0.4 },
+      { x: 2, meanScore: undefined },
       { x: 3, meanScore: 0.8 },
     ]);
-    expect(series.dataByView.labels.map(({ x }) => x)).toEqual([1, 2, 3]);
-    expect(series.dataByView.labels[0]?.fractions).toEqual([
-      undefined,
-      undefined,
-    ]);
-    expect(series.dataByView.labels[0]?.hasAnnotationSummary).toBe(true);
+    expect(series.data.map(({ x }) => x)).toEqual([1, 2, 3]);
+    expect(series.data[0]?.fractions).toEqual([undefined, undefined]);
+    expect(series.data[0]?.hasAnnotationSummary).toBe(true);
     expect(
       getAnnotationOtherFraction({
-        point: series.dataByView.labels[0]!,
+        point: series.data[0]!,
       })
     ).toBe(1);
-    expect(series.dataByView.labels[1]?.fractions).toEqual([1, undefined]);
-    expect(series.dataByView.labels[2]?.fractions).toEqual([0.75, 0.25]);
+    expect(series.data[1]?.fractions).toEqual([1, undefined]);
+    expect(series.data[2]?.fractions).toEqual([0.75, 0.25]);
     expect(getDefaultAnnotationMetricsView(series)).toBe("labels");
   });
 
@@ -142,15 +138,10 @@ describe("normalizeAnnotationMetrics", () => {
     }));
     const [labelSeries, scoreSeries] = normalizeAnnotationMetrics({
       points,
-      includeEmptyPoints: true,
     });
 
-    expect(scoreSeries.dataByView.scores.map(({ x }) => x)).toEqual([
-      4, 5, 6, 7, 8, 9, 10,
-    ]);
-    expect(
-      scoreSeries.dataByView.scores.map(({ meanScore }) => meanScore)
-    ).toEqual([
+    expect(scoreSeries.data.map(({ x }) => x)).toEqual([4, 5, 6, 7, 8, 9, 10]);
+    expect(scoreSeries.data.map(({ meanScore }) => meanScore)).toEqual([
       undefined,
       undefined,
       undefined,
@@ -159,13 +150,11 @@ describe("normalizeAnnotationMetrics", () => {
       undefined,
       undefined,
     ]);
-    expect(labelSeries.dataByView.labels.map(({ x }) => x)).toEqual([
-      4, 5, 6, 7, 8, 9, 10,
-    ]);
-    expect(labelSeries.dataByView.labels[3]?.fractions).toEqual([undefined]);
-    expect(labelSeries.dataByView.labels[3]?.hasAnnotationSummary).toBe(false);
-    expect(labelSeries.dataByView.labels[4]?.fractions).toEqual([1]);
-    expect(labelSeries.dataByView.labels[4]?.hasAnnotationSummary).toBe(true);
+    expect(labelSeries.data.map(({ x }) => x)).toEqual([4, 5, 6, 7, 8, 9, 10]);
+    expect(labelSeries.data[3]?.fractions).toEqual([undefined]);
+    expect(labelSeries.data[3]?.hasAnnotationSummary).toBe(false);
+    expect(labelSeries.data[4]?.fractions).toEqual([1]);
+    expect(labelSeries.data[4]?.hasAnnotationSummary).toBe(true);
   });
 
   it("prepends only an out-of-window baseline", () => {
@@ -237,15 +226,13 @@ describe("normalizeAnnotationMetrics", () => {
 
     expect(series.views).toEqual(["labels"]);
     expect(series.labels).toEqual(["fail", "pass"]);
-    expect(series.dataByView.labels[0]?.fractions).toEqual([undefined, 1]);
-    expect(series.referenceByView).toEqual({
-      labels: {
-        x: 1,
-        metadata: { isBaseline: true },
-        hasAnnotationSummary: true,
-        fractions: [1, undefined],
-      },
-      scores: undefined,
+    expect(series.data[0]?.fractions).toEqual([undefined, 1]);
+    expect(series.reference).toEqual({
+      x: 1,
+      metadata: { isBaseline: true },
+      hasAnnotationSummary: true,
+      meanScore: 0.4,
+      fractions: [1, undefined],
     });
   });
 
