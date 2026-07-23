@@ -48,7 +48,6 @@ class ExperimentAnnotationLabelFractionsDataLoader(DataLoader[Key, Result]):
                     models.ExperimentRunAnnotation.name,
                 ).in_(set(keys))
             )
-            .where(models.ExperimentRunAnnotation.error.is_(None))
             .where(
                 or_(
                     models.ExperimentRunAnnotation.score.is_not(None),
@@ -72,7 +71,7 @@ class ExperimentAnnotationLabelFractionsDataLoader(DataLoader[Key, Result]):
             label_count_rows = await session.stream(label_counts_query)
             # Match `annotation_summaries.py`: normalize repeated labels within
             # each dataset example, then average across every result-bearing
-            # example, including examples whose successful result has no label.
+            # example, including examples whose result has no label.
             async for entity_key, entity_rows in groupby(
                 label_count_rows,
                 lambda row: (

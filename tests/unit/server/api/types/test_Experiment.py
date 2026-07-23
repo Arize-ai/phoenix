@@ -960,6 +960,57 @@ class TestExperimentAnnotationSummaries:
             }
         }
 
+    async def test_label_fractions_include_result_bearing_errors(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        experiments_with_runs_and_annotations: Any,
+    ) -> None:
+        async with db() as session:
+            annotation = await session.scalar(
+                select(models.ExperimentRunAnnotation)
+                .join(models.ExperimentRun)
+                .where(models.ExperimentRun.experiment_id == 1)
+                .where(models.ExperimentRunAnnotation.name == "annotation-name-2")
+                .where(models.ExperimentRunAnnotation.error.is_not(None))
+            )
+            assert annotation is not None
+            annotation.score = 0
+            annotation.label = "label-error"
+
+        query = """
+          query ($experimentId: ID!) {
+            experiment: node(id: $experimentId) {
+              ... on Experiment {
+                annotationSummaries(annotationName: "annotation-name-2") {
+                  labelFractions { label fraction }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id="1")),
+            },
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "experiment": {
+                "annotationSummaries": [
+                    {
+                        "labelFractions": [
+                            {"label": "label-0", "fraction": 1 / 4},
+                            {"label": "label-1", "fraction": 1 / 4},
+                            {"label": "label-error", "fraction": 1 / 2},
+                        ]
+                    }
+                ]
+            }
+        }
+
     async def test_dataset_resolver_returns_expected_values(
         self,
         gql_client: AsyncGraphQLClient,
