@@ -1,6 +1,13 @@
 import type { EvaluatorMappingSource } from "@phoenix/types";
 
 /**
+ * Narrows an unknown value to a plain string-keyed object (excluding arrays).
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
  * Infers a TypeScript type string from a JavaScript value.
  */
 function inferTypeFromValue(value: unknown, indent = 0): string {
@@ -35,8 +42,8 @@ function inferTypeFromValue(value: unknown, indent = 0): string {
     return `${elementType}[]`;
   }
 
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>);
+  if (isRecord(value)) {
+    const entries = Object.entries(value);
     if (entries.length === 0) {
       return "Record<string, unknown>";
     }
@@ -131,8 +138,8 @@ function inferPythonTypeFromValue(value: unknown): string {
     return `list[${elementType}]`;
   }
 
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>);
+  if (isRecord(value)) {
+    const entries = Object.entries(value);
     if (entries.length === 0) {
       return "dict";
     }
@@ -154,28 +161,14 @@ function formatPythonDictStructure(
   const spaces = "    ".repeat(indent);
 
   for (const [key, value] of Object.entries(data)) {
-    if (value && typeof value === "object" && !Array.isArray(value)) {
+    if (isRecord(value)) {
       lines.push(`${spaces}"${key}": {`);
-      lines.push(
-        ...formatPythonDictStructure(
-          value as Record<string, unknown>,
-          indent + 1
-        )
-      );
+      lines.push(...formatPythonDictStructure(value, indent + 1));
       lines.push(`${spaces}}`);
-    } else if (
-      Array.isArray(value) &&
-      value.length > 0 &&
-      typeof value[0] === "object"
-    ) {
+    } else if (Array.isArray(value) && value.length > 0 && isRecord(value[0])) {
       lines.push(`${spaces}"${key}": [`);
       lines.push(`${spaces}    {`);
-      lines.push(
-        ...formatPythonDictStructure(
-          value[0] as Record<string, unknown>,
-          indent + 2
-        )
-      );
+      lines.push(...formatPythonDictStructure(value[0], indent + 2));
       lines.push(`${spaces}    }`);
       lines.push(`${spaces}]`);
     } else {
@@ -208,12 +201,9 @@ export function generatePythonTypes(
   ];
 
   for (const { name, data } of fields) {
-    if (data && typeof data === "object" && Object.keys(data).length > 0) {
+    if (isRecord(data) && Object.keys(data).length > 0) {
       lines.push(`${name}: dict`);
-      const structureLines = formatPythonDictStructure(
-        data as Record<string, unknown>,
-        1
-      );
+      const structureLines = formatPythonDictStructure(data, 1);
       if (structureLines.length > 0) {
         lines.push("    {");
         lines.push(...structureLines);

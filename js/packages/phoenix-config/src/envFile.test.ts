@@ -200,7 +200,7 @@ describe("envFile", () => {
       expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBe("secret-value");
       expect(readEnvFileValue(ENV_PHOENIX_API_KEY)).toBe("secret-value");
       expect(warnSpy).toHaveBeenCalledTimes(1);
-      const warningMessage = warnSpy.mock.calls[0]?.[0] as string;
+      const warningMessage: string = warnSpy.mock.calls[0]?.[0];
       expect(warningMessage).toContain("accessible by other users");
       expect(warningMessage).not.toContain("secret-value");
     });

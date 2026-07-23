@@ -147,6 +147,11 @@ export const editPromptActionContextSchema = z
   })
   .transform((context) => context);
 
+/** Local guard: a non-null, non-array object whose properties can be read by key. */
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /**
  * Copies aliased keys (e.g. snake_case) to their canonical names (camelCase)
  * before Zod parsing. Canonical keys take precedence if both are present.
@@ -155,10 +160,10 @@ export function normalizeAliases(
   input: unknown,
   aliasesByKey: Record<string, string[]>
 ): unknown {
-  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+  if (!isPlainRecord(input)) {
     return input;
   }
-  const candidate = input as Record<string, unknown>;
+  const candidate = input;
   const normalized = { ...candidate };
   for (const [key, aliases] of Object.entries(aliasesByKey)) {
     if (normalized[key] !== undefined) continue;

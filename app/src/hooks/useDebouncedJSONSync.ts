@@ -31,7 +31,7 @@ export function useDebouncedJSONSync<T>(
   const debouncedSync = useMemo(() => {
     return debounce((jsonString: string) => {
       try {
-        const parsed = JSON.parse(jsonString) as T;
+        const parsed: T = JSON.parse(jsonString);
         onSync(parsed);
       } catch {
         // Invalid JSON is silently ignored - previous value is maintained

@@ -396,5 +396,6 @@ export function formValuesToConfigPatch(
   }
   // The variant key is computed from the backend type, which TypeScript
   // cannot correlate with the ``@oneOf`` union members, so assert the shape.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- computed @oneOf variant key cannot be correlated with the union by TS
   return { [variantKey]: capabilities } as unknown as SandboxConfigVariantInput;
 }

@@ -100,10 +100,13 @@ export function ChatMessageToolCallsEditor({
       case "MOONSHOT":
       case "PERPLEXITY":
       case "TOGETHER":
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- zod JSONSchema output to json-schema's JSONSchema7
         return openAIToolCallsJSONSchema as JSONSchema7;
       case "ANTHROPIC":
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- zod JSONSchema output to json-schema's JSONSchema7
         return anthropicToolCallsJSONSchema as JSONSchema7;
       case "AWS":
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- zod JSONSchema output to json-schema's JSONSchema7
         return awsToolCallsJSONSchema as JSONSchema7;
       // TODO(apowell): #5348 Add Google tool calls schema
       case "GOOGLE":

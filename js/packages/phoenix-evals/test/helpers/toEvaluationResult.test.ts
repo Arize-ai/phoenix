@@ -48,8 +48,7 @@ describe("toEvaluationResult", () => {
       label: "good",
       extraField: "should be ignored",
       anotherField: 123,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    });
 
     expect(result).toEqual({ score: 0.8, label: "good" });
     expect(result).not.toHaveProperty("extraField");
@@ -57,14 +56,8 @@ describe("toEvaluationResult", () => {
   });
 
   it("should handle invalid property types", () => {
-    expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      toEvaluationResult({ score: "not a number" as any })
-    ).toEqual({});
-    expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      toEvaluationResult({ label: 123 as any })
-    ).toEqual({});
+    expect(toEvaluationResult({ score: "not a number" })).toEqual({});
+    expect(toEvaluationResult({ label: 123 })).toEqual({});
   });
 
   it("should return empty object for null, undefined, and other types", () => {

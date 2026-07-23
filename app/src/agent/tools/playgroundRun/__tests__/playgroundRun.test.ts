@@ -29,10 +29,10 @@ describe("playground run agent tool", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const output = JSON.parse(result.output ?? "") as {
+    const output: {
       status: string;
       instances: { instanceId: number; label: string }[];
-    };
+    } = JSON.parse(result.output ?? "");
     expect(output).toEqual(
       expect.objectContaining({
         status: "started",
@@ -93,10 +93,10 @@ describe("playground run agent tool", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const output = JSON.parse(result.output ?? "") as {
+    const output: {
       status: string;
       instances: { instanceId: number; label: string }[];
-    };
+    } = JSON.parse(result.output ?? "");
     expect(output).toEqual(
       expect.objectContaining({
         status: "cancelled",

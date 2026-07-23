@@ -92,6 +92,7 @@ const EMPTY_STATE_GRAPHICS = {
 export type EmptyStateGraphicVariant = keyof typeof EMPTY_STATE_GRAPHICS;
 
 /** All variant names, for iteration (stories, tests, Storybook controls). */
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens to string[]; keys are exactly the variant names
 export const EMPTY_STATE_GRAPHIC_VARIANTS = Object.keys(
   EMPTY_STATE_GRAPHICS
 ) as EmptyStateGraphicVariant[];
@@ -100,6 +101,7 @@ export const EMPTY_STATE_GRAPHIC_VARIANTS = Object.keys(
  * The render size each variant maps to, derived from the canonical table.
  * Exposed for iteration (e.g. grouping variants by size in stories/docs).
  */
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.fromEntries widens keys/values; entries come from the canonical table
 export const EMPTY_STATE_GRAPHIC_SIZES = Object.fromEntries(
   Object.entries(EMPTY_STATE_GRAPHICS).map(([variant, spec]) => [
     variant,

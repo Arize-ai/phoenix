@@ -18,7 +18,6 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import type { AwsBedrockModelPrefix } from "@phoenix/store/preferencesStore";
 import { awsBedrockModelPrefixes } from "@phoenix/store/preferencesStore";
 
 import {
@@ -101,8 +100,11 @@ export function PlaygroundConfigButton() {
                   description="Cross-region inference prefix for AWS Bedrock models"
                   selectedKey={awsBedrockModelPrefix}
                   onSelectionChange={(value) => {
-                    if (value != null) {
-                      setAwsBedrockModelPrefix(value as AwsBedrockModelPrefix);
+                    const prefix = awsBedrockModelPrefixes.find(
+                      (p) => p === value
+                    );
+                    if (prefix != null) {
+                      setAwsBedrockModelPrefix(prefix);
                     }
                   }}
                 >

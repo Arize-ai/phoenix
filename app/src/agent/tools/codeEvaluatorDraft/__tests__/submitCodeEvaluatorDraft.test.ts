@@ -10,8 +10,6 @@ vi.mock("react-relay", () => ({
 
 vi.mock("@phoenix/RelayEnvironment", () => ({ default: {} }));
 
-import { commitMutation } from "react-relay";
-
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { handleRegisteredAgentToolCall } from "@phoenix/agent/extensions/toolRegistry";
 import {
@@ -47,10 +45,9 @@ type CommitConfig = {
   onError: (error: Error) => void;
 };
 
-const commit = commitMutation as unknown as (
-  environment: unknown,
-  config: CommitConfig
-) => void;
+const commit = (environment: unknown, config: CommitConfig): void => {
+  relayMocks.commitMutation(environment, config);
+};
 
 function makeHost({
   validationError,
@@ -151,7 +148,7 @@ describe("submit_code_evaluator_draft agent tool", () => {
       tool: SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
       toolCallId: "tc-submit",
     });
-    const output = JSON.parse(payload.output) as EvaluatorSubmitToolOutput;
+    const output: EvaluatorSubmitToolOutput = JSON.parse(payload.output);
     expect(output).toEqual({
       status: "saved",
       persisted: true,
@@ -172,7 +169,7 @@ describe("submit_code_evaluator_draft agent tool", () => {
       state: "output-available",
       tool: SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
     });
-    const output = JSON.parse(payload.output) as EvaluatorSubmitToolOutput;
+    const output: EvaluatorSubmitToolOutput = JSON.parse(payload.output);
     expect(output).toMatchObject({
       status: "awaiting_user",
       persisted: false,

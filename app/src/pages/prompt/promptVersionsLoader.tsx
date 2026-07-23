@@ -5,6 +5,7 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { fetchQuery, graphql } from "relay-runtime";
+import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -20,6 +21,7 @@ export async function promptVersionsLoader({ params }: LoaderFunctionArgs) {
     return null;
   }
   const promptId = params.promptId;
+  invariant(promptId, "promptId is required");
   // we don't have a versionId, so we need to fetch the 1 promptVersion from the prompt and redirect
   // to its page
   const response = await fetchQuery<promptVersionsLoaderQuery>(
@@ -40,7 +42,7 @@ export async function promptVersionsLoader({ params }: LoaderFunctionArgs) {
       }
     `,
     {
-      id: promptId as string,
+      id: promptId,
     }
   ).toPromise();
 

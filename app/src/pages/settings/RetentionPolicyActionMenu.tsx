@@ -95,7 +95,7 @@ export const RetentionPolicyActionMenu = ({
           <Menu
             disabledKeys={canDelete ? [] : [RetentionPolicyAction.DELETE]}
             onAction={(action) => {
-              switch (action as RetentionPolicyAction) {
+              switch (action) {
                 case RetentionPolicyAction.EDIT: {
                   return setShowEditDialog(true);
                 }

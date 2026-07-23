@@ -297,9 +297,13 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     // Get preview rows as objects (parse JSON for CSV if needed)
     let objectRows: Record<string, unknown>[];
     if (fileType === "jsonl") {
-      objectRows = previewRows as Record<string, unknown>[];
+      objectRows = previewRows.filter(
+        (row): row is Record<string, unknown> => !Array.isArray(row)
+      );
     } else if (fileType === "csv") {
-      const csvRows = previewRows as string[][];
+      const csvRows = previewRows.filter((row): row is string[] =>
+        Array.isArray(row)
+      );
       objectRows = csvRows.map((row) => {
         const obj: Record<string, unknown> = {};
         columns.forEach((col, idx) => {
@@ -528,7 +532,9 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   }, [setValue, resetField]);
 
   const handlePreviewTabChange = useCallback((key: React.Key) => {
-    setPreviewTab(key as "file" | "dataset");
+    if (key === "file" || key === "dataset") {
+      setPreviewTab(key);
+    }
   }, []);
 
   const handleColumnAssignerClear = useCallback(() => {
@@ -622,6 +628,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           {
             params: { query: { sync: true } },
             // FormData doesn't match the typed body shape; bodySerializer is what actually gets sent.
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- openapi-fetch typed body is bypassed by bodySerializer
             body: formData as never,
             bodySerializer: () => formData,
           }

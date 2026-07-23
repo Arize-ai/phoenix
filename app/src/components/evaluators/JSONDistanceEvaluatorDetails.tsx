@@ -9,13 +9,9 @@ export function JSONDistanceEvaluatorDetails({
   const expectedPath = inputMapping?.pathMapping?.expected as
     | string
     | undefined;
-  const expectedLiteral = inputMapping?.literalMapping?.expected as
-    | string
-    | undefined;
+  const expectedLiteral = inputMapping?.literalMapping?.expected;
   const actualPath = inputMapping?.pathMapping?.actual as string | undefined;
-  const actualLiteral = inputMapping?.literalMapping?.actual as
-    | string
-    | undefined;
+  const actualLiteral = inputMapping?.literalMapping?.actual;
   const parseStrings = inputMapping?.literalMapping?.parse_strings;
 
   return (

@@ -628,6 +628,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   // context value still carries the internal raw-input emitter this app
   // relies on for backspace/forward-delete/paste-marker handling that
   // useInput does not surface.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ink v7's public useStdin() type hides the internal_eventEmitter the runtime value still carries
   const { internal_eventEmitter: inputEventEmitter } = useStdin() as ReturnType<
     typeof useStdin
   > & { internal_eventEmitter: EventEmitter };

@@ -18,10 +18,10 @@ describe("createAuthFetch", () => {
 
     const request = fetchImpl.mock.calls[0]?.[0];
     expect(request).toBeInstanceOf(Request);
-    expect((request as Request).headers.get("Authorization")).toBe(
-      "Bearer access-token"
-    );
-    expect((request as Request).headers.get("X-Tenant")).toBe("tenant");
+    if (request instanceof Request) {
+      expect(request.headers.get("Authorization")).toBe("Bearer access-token");
+      expect(request.headers.get("X-Tenant")).toBe("tenant");
+    }
   });
 
   it("refreshes and retries once after a 401", async () => {
@@ -46,11 +46,14 @@ describe("createAuthFetch", () => {
     expect(response.status).toBe(200);
     expect(getAccessToken).toHaveBeenCalledTimes(3);
     expect(getAccessToken).toHaveBeenCalledWith({ forceRefresh: true });
-    const retryRequest = fetchImpl.mock.calls[1]?.[0] as Request;
-    expect(retryRequest.headers.get("Authorization")).toBe(
-      "Bearer refreshed-token"
-    );
-    await expect(retryRequest.text()).resolves.toBe("replayable body");
+    const retryRequest = fetchImpl.mock.calls[1]?.[0];
+    expect(retryRequest).toBeInstanceOf(Request);
+    if (retryRequest instanceof Request) {
+      expect(retryRequest.headers.get("Authorization")).toBe(
+        "Bearer refreshed-token"
+      );
+      await expect(retryRequest.text()).resolves.toBe("replayable body");
+    }
   });
 
   it("coalesces refreshes for concurrent unauthorized requests", async () => {
@@ -113,10 +116,13 @@ describe("createAuthFetch", () => {
       authFetch("http://example.test/v1/projects")
     ).resolves.toMatchObject({ status: 200 });
     expect(getAccessToken).not.toHaveBeenCalledWith({ forceRefresh: true });
-    const retryRequest = fetchImpl.mock.calls[1]?.[0] as Request;
-    expect(retryRequest.headers.get("Authorization")).toBe(
-      "Bearer already-refreshed-token"
-    );
+    const retryRequest = fetchImpl.mock.calls[1]?.[0];
+    expect(retryRequest).toBeInstanceOf(Request);
+    if (retryRequest instanceof Request) {
+      expect(retryRequest.headers.get("Authorization")).toBe(
+        "Bearer already-refreshed-token"
+      );
+    }
   });
 
   it("calls onUnauthorized after the retry is also rejected", async () => {

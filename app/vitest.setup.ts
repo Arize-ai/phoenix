@@ -1,8 +1,6 @@
 import "vitest-canvas-mock";
 
-(
-  globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 class ResizeObserverMock {
   observe() {}
@@ -14,6 +12,7 @@ globalThis.ResizeObserver = ResizeObserverMock;
 // jsdom does not expose CSS.escape, which react-aria uses to build selectors
 // for virtually focused collection items
 if (typeof globalThis.CSS === "undefined") {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial jsdom polyfill; only CSS.escape is used by react-aria
   globalThis.CSS = {
     escape: (value: string) =>
       String(value).replace(/[^a-zA-Z0-9_-]/g, (char) => `\\${char}`),

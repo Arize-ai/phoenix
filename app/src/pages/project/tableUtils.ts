@@ -40,11 +40,13 @@ export function getGqlSort(
   }
   if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
     const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- annotation column ids are constructed via makeAnnotationColumnId so attr/name are present by construction
     evalResultKey = {
       attr,
       name,
     } as SpanSort["evalResultKey"];
   } else {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- sortable column ids are limited to SpanColumn values by column definitions
     col = sort.id as SpanSort["col"];
   }
 
@@ -70,11 +72,13 @@ export function getGqlSessionSort(
   }
   if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
     const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- annotation column ids are constructed via makeAnnotationColumnId so attr/name are present by construction
     annoResultKey = {
       attr,
       name,
     } as ProjectSessionSort["annoResultKey"];
   } else {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- sortable column ids are limited to ProjectSessionColumn values by column definitions
     col = sort.id as ProjectSessionSort["col"];
   }
 

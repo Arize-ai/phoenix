@@ -71,6 +71,7 @@ export function SessionPage() {
               </Flex>
             </DialogHeader>
             <ErrorBoundary>
+              {/* oxlint-disable-next-line typescript/no-unsafe-type-assertion -- sessionId is a required route param */}
               <SessionDetails sessionId={sessionId as string} />
             </ErrorBoundary>
           </DialogContent>

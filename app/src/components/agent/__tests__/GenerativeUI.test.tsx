@@ -40,12 +40,12 @@ afterEach(() => {
 });
 
 function renderGenerativeUI(parts: unknown[]) {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- test fixtures are loose object literals coerced to the GenerativeUI parts union
+  const typedParts = parts as Parameters<typeof GenerativeUI>[0]["parts"];
   act(() => {
     root.render(
       <ThemeProvider themeMode="light" disableBodyTheme>
-        <GenerativeUI
-          parts={parts as Parameters<typeof GenerativeUI>[0]["parts"]}
-        />
+        <GenerativeUI parts={typedParts} />
       </ThemeProvider>
     );
   });
@@ -175,9 +175,9 @@ describe("GenerativeUI", () => {
       (span) => span.textContent === "Revenue"
     );
     expect(revenueLabel).toBeTruthy();
+    const swatch = revenueLabel?.previousElementSibling;
     expect(
-      (revenueLabel?.previousElementSibling as HTMLDivElement | null)?.style
-        .background
+      swatch instanceof HTMLElement ? swatch.style.background : undefined
     ).toBe("var(--global-color-gray-600)");
   });
 
@@ -302,6 +302,7 @@ describe("GenerativeUI", () => {
         },
       },
     };
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- test fixture is a loose object literal coerced to the getSpecAndState parts union
     const parts = [
       {
         type: "tool-render_generative_ui",

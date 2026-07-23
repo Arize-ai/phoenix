@@ -321,7 +321,7 @@ export function ProjectsPageContent({
         flex-direction: column;
         overflow: auto;
       `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
       ref={projectsContainerRef}
     >
       <View
@@ -842,8 +842,8 @@ function ProjectsTable({
         if (first == null) {
           return;
         }
-        const column = first.id as (typeof SORT_COLUMNS)[number];
-        if (!SORT_COLUMNS.includes(column)) {
+        const column = SORT_COLUMNS.find((col) => col === first.id);
+        if (column == null) {
           return;
         }
         onSort({

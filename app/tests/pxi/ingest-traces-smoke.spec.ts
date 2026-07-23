@@ -89,7 +89,7 @@ test.describe("PXI ingest traces smoke", () => {
       () => {
         const stored = localStorage.getItem("arize-phoenix-assistant");
         if (!stored) return null;
-        const parsed = JSON.parse(stored) as {
+        const parsed: {
           state?: {
             activeSessionId?: string | null;
             sessionMap?: Record<
@@ -97,7 +97,7 @@ test.describe("PXI ingest traces smoke", () => {
               { messages?: Array<{ role?: string; parts?: unknown[] }> }
             >;
           };
-        };
+        } = JSON.parse(stored);
         const sid = parsed.state?.activeSessionId;
         if (!sid) return null;
         const msgs = parsed.state?.sessionMap?.[sid]?.messages ?? [];
@@ -119,7 +119,10 @@ test.describe("PXI ingest traces smoke", () => {
       undefined,
       { timeout: 60_000 }
     );
-    const assistantText = (await assistantTextHandle.jsonValue()) as string;
+    const assistantText = await assistantTextHandle.jsonValue();
+    if (assistantText === null) {
+      throw new Error("Expected assistant text to be available");
+    }
     const durationMs = Date.now() - startedAt;
     // Bracket the trace lookup by the wall-clock window of this test run so
     // we don't pick up traces from prior runs accumulated in the project.

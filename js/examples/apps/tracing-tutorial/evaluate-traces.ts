@@ -134,6 +134,34 @@ interface SpanData {
   attributes: Record<string, unknown>;
 }
 
+/**
+ * Normalize spans returned by the API into the local SpanData shape.
+ */
+function toSpanData(
+  spans: {
+    context: { span_id: string; trace_id: string };
+    name: string;
+    attributes?: Record<string, unknown>;
+  }[]
+): SpanData[] {
+  return spans.map((span) => ({
+    context: span.context,
+    name: span.name,
+    attributes: span.attributes ?? {},
+  }));
+}
+
+/**
+ * Read a string attribute off a span, falling back to an empty string.
+ */
+function getStringAttribute(
+  attributes: Record<string, unknown>,
+  key: string
+): string {
+  const value = attributes[key];
+  return typeof value === "string" ? value : "";
+}
+
 async function evaluateTraces() {
   console.log("=".repeat(60));
   console.log("Phoenix Tracing Tutorial - Child Span Evaluation");
@@ -149,7 +177,7 @@ async function evaluateTraces() {
       project: { projectName: PROJECT_NAME },
       limit: 100,
     });
-    spans = result.spans as unknown as SpanData[];
+    spans = toSpanData(result.spans);
     console.log(`   Found ${spans.length} spans`);
   } catch (error) {
     console.error("❌ Failed to fetch spans:", error);
@@ -231,7 +259,7 @@ async function evaluateTraces() {
     const spanId = span.context.span_id;
 
     // Extract the system prompt (which contains the retrieved context)
-    const input = (span.attributes["input.value"] as string) || "";
+    const input = getStringAttribute(span.attributes, "input.value");
 
     try {
       const result = await retrievalRelevanceEvaluator.evaluate({
@@ -344,7 +372,7 @@ async function evaluateSessions() {
       project: { projectName: PROJECT_NAME },
       limit: 200,
     });
-    spans = result.spans as unknown as SpanData[];
+    spans = toSpanData(result.spans);
     console.log(`   Found ${spans.length} spans`);
   } catch (error) {
     console.error("❌ Failed to fetch spans:", error);
@@ -363,7 +391,10 @@ async function evaluateSessions() {
   const sessionGroups: Map<string, SpanData[]> = new Map();
 
   for (const span of agentSpans) {
-    const sessionId = span.attributes[SemanticConventions.SESSION_ID] as string;
+    const sessionId = getStringAttribute(
+      span.attributes,
+      SemanticConventions.SESSION_ID
+    );
     if (sessionId) {
       if (!sessionGroups.has(sessionId)) {
         sessionGroups.set(sessionId, []);
@@ -402,16 +433,18 @@ async function evaluateSessions() {
 
     // Sort by turn number if available, otherwise by span order
     sessionSpans.sort((a, b) => {
-      const turnA = (a.attributes["conversation.turn"] as number) || 0;
-      const turnB = (b.attributes["conversation.turn"] as number) || 0;
+      const rawTurnA = a.attributes["conversation.turn"];
+      const rawTurnB = b.attributes["conversation.turn"];
+      const turnA = typeof rawTurnA === "number" ? rawTurnA : 0;
+      const turnB = typeof rawTurnB === "number" ? rawTurnB : 0;
       return turnA - turnB;
     });
 
     // Build conversation transcript
     const transcript = sessionSpans
       .map((span, i) => {
-        const input = (span.attributes["input.value"] as string) || "";
-        const output = (span.attributes["output.value"] as string) || "";
+        const input = getStringAttribute(span.attributes, "input.value");
+        const output = getStringAttribute(span.attributes, "output.value");
         return `Turn ${i + 1}:\nUser: ${input}\nAgent: ${output}`;
       })
       .join("\n\n");

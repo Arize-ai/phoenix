@@ -128,7 +128,7 @@ describe("annotation-config update", () => {
     expect(captured.putCount).toBe(1);
     expect(captured.putConfigId).toBe("cat-id-001");
 
-    const body = captured.putBody as Record<string, unknown>;
+    const body = captured.putBody!;
     // Changed field
     expect(body.name).toBe("renamed");
     // Preserved fields
@@ -155,7 +155,7 @@ describe("annotation-config update", () => {
       { from: "user" }
     );
 
-    const body = captured.putBody as Record<string, unknown>;
+    const body = captured.putBody!;
     expect(body.values).toEqual([
       { label: "excellent", score: 2 },
       { label: "poor" },
@@ -179,7 +179,7 @@ describe("annotation-config update", () => {
       { from: "user" }
     );
 
-    const body = captured.putBody as Record<string, unknown>;
+    const body = captured.putBody!;
     expect(body.values).toEqual([
       { label: "excellent", score: 2 },
       { label: "poor" },
@@ -243,7 +243,7 @@ describe("annotation-config update", () => {
       { from: "user" }
     );
 
-    const body = captured.putBody as Record<string, unknown>;
+    const body = captured.putBody!;
     expect(body.optimization_direction).toBe("MINIMIZE");
   });
 
@@ -264,7 +264,7 @@ describe("annotation-config update", () => {
       { from: "user" }
     );
 
-    const body = captured.putBody as Record<string, unknown>;
+    const body = captured.putBody!;
     expect(body.type).toBe("CONTINUOUS");
     expect(body.lower_bound).toBe(-1);
     expect(body.upper_bound).toBe(10);

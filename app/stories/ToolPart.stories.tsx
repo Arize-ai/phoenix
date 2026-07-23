@@ -105,6 +105,7 @@ function ToolPartStoryNote({
  * constructs these, but for stories we just need valid shapes.
  */
 function makePart(overrides: Record<string, unknown>): ToolPartType {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the ToolPartType union is only constructed by the AI SDK; stories fabricate valid shapes through unknown
   return {
     type: "dynamic-tool",
     toolCallId: crypto.randomUUID(),

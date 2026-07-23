@@ -10,21 +10,23 @@ function truncateString(value: string): string {
     : value;
 }
 
-/** Evaluator bodies bypass the server `| sanitize` filter, so the cap is applied client-side. */
-export function truncateStringLeaves<T>(value: T): T {
+function truncateLeaves(value: unknown): unknown {
   if (typeof value === "string") {
-    return truncateString(value) as T;
+    return truncateString(value);
   }
   if (Array.isArray(value)) {
-    return value.map((item) => truncateStringLeaves(item)) as T;
+    return value.map((item) => truncateLeaves(item));
   }
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [
-        key,
-        truncateStringLeaves(item),
-      ])
-    ) as T;
+      Object.entries(value).map(([key, item]) => [key, truncateLeaves(item)])
+    );
   }
   return value;
+}
+
+/** Evaluator bodies bypass the server `| sanitize` filter, so the cap is applied client-side. */
+export function truncateStringLeaves<T>(value: T): T {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- structure-preserving deep map: only string leaves are rewritten, so the shape still matches T
+  return truncateLeaves(value) as T;
 }

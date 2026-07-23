@@ -60,9 +60,10 @@ function writeTempSettings(tmpDir: string, data: SettingsFile): void {
 }
 
 function readTempSettings(tmpDir: string): SettingsFile {
-  return JSON.parse(
+  const settings: SettingsFile = JSON.parse(
     fs.readFileSync(path.join(tmpDir, "px", "settings.json"), "utf-8")
-  ) as SettingsFile;
+  );
+  return settings;
 }
 
 function captured(spy: ReturnType<typeof vi.spyOn>): string {
@@ -418,17 +419,18 @@ describe("Auth Commands", () => {
         status: "success",
         user: { auth_method: "ANONYMOUS" },
       };
-      const parsed = JSON.parse(
-        formatAuthStatus(
-          endpoint,
-          result,
-          undefined,
-          "prod",
-          "none",
-          undefined,
-          "raw"
-        )
-      ) as { endpoint: string; profile: string; status: string };
+      const parsed: { endpoint: string; profile: string; status: string } =
+        JSON.parse(
+          formatAuthStatus(
+            endpoint,
+            result,
+            undefined,
+            "prod",
+            "none",
+            undefined,
+            "raw"
+          )
+        );
       expect(parsed).toEqual({
         endpoint,
         profile: "prod",
@@ -550,10 +552,10 @@ describe("px auth login/logout", () => {
         "raw",
       ]);
 
-      const output = JSON.parse(captured(stdoutSpy)) as {
+      const output: {
         status: string;
         user: { username: string };
-      };
+      } = JSON.parse(captured(stdoutSpy));
       expect(output.status).toBe("authenticated");
       expect(output.user.username).toBe("roger");
       expect(captured(stderrSpy)).toContain("/oauth2/authorize");

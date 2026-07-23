@@ -20,8 +20,7 @@ const markdownDisplayModes: MarkdownDisplayMode[] = ["text", "markdown"];
  */
 function isMarkdownDisplayMode(m: unknown): m is MarkdownDisplayMode {
   return (
-    typeof m === "string" &&
-    markdownDisplayModes.includes(m as MarkdownDisplayMode)
+    typeof m === "string" && markdownDisplayModes.some((mode) => mode === m)
   );
 }
 

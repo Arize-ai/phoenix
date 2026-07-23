@@ -25,6 +25,24 @@ export type AnnotationConfig =
   | ContinuousEvaluatorAnnotationConfig
   | FreeformEvaluatorAnnotationConfig;
 
+/**
+ * Drops entries whose value is `undefined` so a `Partial` record can be used
+ * where a fully-defined record is required. The type system cannot distinguish
+ * between a partial object where some keys are actually missing and one where
+ * some keys have undefined values, so we re-narrow explicitly.
+ */
+function omitUndefinedEntries<V>(record: {
+  [key: string]: V | undefined;
+}): Record<string, V> {
+  const result: Record<string, V> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 export type EvaluatorStoreProps = {
   datasetEvaluator?: {
     id: string;
@@ -319,12 +337,7 @@ export const createEvaluatorStore = (
                   ...get().evaluator,
                   inputMapping: {
                     ...get().evaluator.inputMapping,
-                    // We have to perform this cast because the type system cannot distinguish between
-                    // a partial object where some keys are actually missing, and a partial object where some keys have undefined values.
-                    pathMapping: newPathMapping as unknown as Record<
-                      string,
-                      string
-                    >,
+                    pathMapping: omitUndefinedEntries(newPathMapping),
                   },
                 },
               },
@@ -342,10 +355,7 @@ export const createEvaluatorStore = (
                   ...get().evaluator,
                   inputMapping: {
                     ...get().evaluator.inputMapping,
-                    literalMapping: newLiteralMapping as unknown as Record<
-                      string,
-                      boolean | string | number
-                    >,
+                    literalMapping: omitUndefinedEntries(newLiteralMapping),
                   },
                 },
               },
@@ -366,12 +376,7 @@ export const createEvaluatorStore = (
                   ...get().evaluator,
                   inputMapping: {
                     ...get().evaluator.inputMapping,
-                    // We have to perform this cast because the type system cannot distinguish between
-                    // a partial object where some keys are actually missing, and a partial object where some keys have undefined values.
-                    pathMapping: newPathMapping as unknown as Record<
-                      string,
-                      string
-                    >,
+                    pathMapping: omitUndefinedEntries(newPathMapping),
                   },
                 },
               },
@@ -392,10 +397,7 @@ export const createEvaluatorStore = (
                   ...get().evaluator,
                   inputMapping: {
                     ...get().evaluator.inputMapping,
-                    literalMapping: newLiteralMapping as unknown as Record<
-                      string,
-                      boolean | string | number
-                    >,
+                    literalMapping: omitUndefinedEntries(newLiteralMapping),
                   },
                 },
               },

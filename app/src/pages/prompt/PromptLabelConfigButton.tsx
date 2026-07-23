@@ -195,7 +195,9 @@ function PromptLabelList({
     if (selection === "all") {
       return;
     }
-    const newLabelIds = [...selection] as string[];
+    const newLabelIds = [...selection].filter(
+      (key): key is string => typeof key === "string"
+    );
     const labelIdsToAdd = newLabelIds.filter(
       (id) => !selectedLabelIds.includes(id)
     );

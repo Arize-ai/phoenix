@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { useMemo } from "react";
 
-import { isObject } from "@phoenix/typeUtils";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 const preCSS = css`
   margin: 0;
@@ -48,7 +48,7 @@ export function JSONText({
     [json]
   );
   const title = disableTitle ? undefined : fullValueFormatted;
-  if (!isObject(json)) {
+  if (!isStringKeyedObject(json)) {
     // Just show text and log a warning
     // eslint-disable-next-line no-console
     console.warn("JSONText component received a non-object value", json);
@@ -58,7 +58,7 @@ export function JSONText({
       </span>
     );
   }
-  const obj = json as Record<string, unknown>;
+  const obj = json;
   if (Object.keys(obj).length === 0) {
     return <span title={title}>--</span>;
   }

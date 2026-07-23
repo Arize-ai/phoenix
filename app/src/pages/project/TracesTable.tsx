@@ -190,6 +190,7 @@ const TableBody = <
 };
 
 // special memoized wrapper for our table body that we will use during column resizing
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- React.memo drops the generic component signature; restore it to keep TableBody's type
 export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
@@ -441,6 +442,10 @@ export function TracesTable(props: TracesTableProps) {
     });
   }, [data]);
   type TableRow = (typeof tableData)[number];
+  type RootSpan =
+    TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"];
+  type RootSpanSummaries = RootSpan["spanAnnotationSummaries"];
+  type RootSpanTrace = RootSpan["trace"];
   const { selectRow } = useShiftClickRowSelection<TableRow>({
     resetKey: tableData,
   });
@@ -455,10 +460,12 @@ export function TracesTable(props: TracesTableProps) {
               header: `labels`,
               accessorKey: makeAnnotationColumnId(name, "label"),
               cell: ({ row }) => {
-                const annotation = (
-                  row.original
-                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
-                )?.find((annotation) => annotation.name === name);
+                const { spanAnnotationSummaries } = row.original;
+                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TableRow widens this field across the additional-row union; narrow to the concrete rootSpan shape
+                const summaries = spanAnnotationSummaries as RootSpanSummaries;
+                const annotation = summaries?.find(
+                  (annotation) => annotation.name === name
+                );
                 if (!annotation) {
                   return null;
                 }
@@ -474,10 +481,12 @@ export function TracesTable(props: TracesTableProps) {
               header: `mean score`,
               accessorKey: makeAnnotationColumnId(name, "score"),
               cell: ({ row }) => {
-                const annotation = (
-                  row.original
-                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
-                )?.find((annotation) => annotation.name === name);
+                const { spanAnnotationSummaries } = row.original;
+                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TableRow widens this field across the additional-row union; narrow to the concrete rootSpan shape
+                const summaries = spanAnnotationSummaries as RootSpanSummaries;
+                const annotation = summaries?.find(
+                  (annotation) => annotation.name === name
+                );
                 if (!annotation) {
                   return null;
                 }
@@ -506,10 +515,9 @@ export function TracesTable(props: TracesTableProps) {
                 if (row.depth !== 0 || row.original.__additionalRow) {
                   return null;
                 }
-                const annotation = (
-                  row.original
-                    .trace as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["trace"]
-                )?.traceAnnotationSummaries?.find(
+                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TableRow widens this field across the additional-row union; narrow to the concrete rootSpan shape
+                const trace = row.original.trace as RootSpanTrace;
+                const annotation = trace?.traceAnnotationSummaries?.find(
                   (annotation) => annotation.name === name
                 );
                 if (!annotation) {
@@ -531,10 +539,9 @@ export function TracesTable(props: TracesTableProps) {
                 if (row.depth !== 0 || row.original.__additionalRow) {
                   return null;
                 }
-                const annotation = (
-                  row.original
-                    .trace as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["trace"]
-                )?.traceAnnotationSummaries?.find(
+                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TableRow widens this field across the additional-row union; narrow to the concrete rootSpan shape
+                const trace = row.original.trace as RootSpanTrace;
+                const annotation = trace?.traceAnnotationSummaries?.find(
                   (annotation) => annotation.name === name
                 );
                 if (!annotation) {
@@ -637,6 +644,7 @@ export function TracesTable(props: TracesTableProps) {
             <Flex direction="row" gap="size-50" wrap="wrap">
               <TraceAnnotationSummaryGroupTokens
                 trace={
+                  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TableRow widens trace across the additional-row union; narrow to the component's expected trace prop
                   row.original.trace as Parameters<
                     typeof TraceAnnotationSummaryGroupTokens
                   >[0]["trace"]
@@ -671,7 +679,7 @@ export function TracesTable(props: TracesTableProps) {
           if (row.original.__additionalRow) {
             return null;
           }
-          const statusCode = getValue() as SpanStatusCode;
+          const statusCode = getValue<SpanStatusCode>();
           return <SpanStatusCodeIcon statusCode={statusCode} />;
         },
       },
@@ -726,7 +734,7 @@ export function TracesTable(props: TracesTableProps) {
                     aria-label="Expand row"
                   />
                 ) : null}
-                <SpanKindToken spanKind={props.getValue() as string} />
+                <SpanKindToken spanKind={props.getValue<string>()} />
               </Flex>
             </div>
           );
@@ -747,7 +755,7 @@ export function TracesTable(props: TracesTableProps) {
                 searchParams,
               })}
             >
-              {getValue() as string}
+              {getValue<string>()}
             </Link>
           );
         },
@@ -758,7 +766,7 @@ export function TracesTable(props: TracesTableProps) {
         enableSorting: false,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) return null;
-          return <CopyableTextCell value={getValue() as string | null} />;
+          return <CopyableTextCell value={getValue<string | null>()} />;
         },
       },
       {
@@ -768,7 +776,7 @@ export function TracesTable(props: TracesTableProps) {
         enableSorting: false,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) return null;
-          return <CopyableTextCell value={getValue() as string | null} />;
+          return <CopyableTextCell value={getValue<string | null>()} />;
         },
       },
       {
@@ -815,7 +823,7 @@ export function TracesTable(props: TracesTableProps) {
           if (row.original.__additionalRow) {
             return null;
           }
-          const value = getValue() as string;
+          const value = getValue<string>();
           if (!value) {
             return "--";
           }
@@ -835,7 +843,7 @@ export function TracesTable(props: TracesTableProps) {
         enableSorting: false,
         cell: ({ getValue, row }) => {
           if (row.depth !== 0 || row.original.__additionalRow) return null;
-          return <CopyableTextCell value={getValue() as string | null} />;
+          return <CopyableTextCell value={getValue<string | null>()} />;
         },
       },
       ...annotationColumns, // TODO: consider hiding this column is there is no evals. For now show it
@@ -872,13 +880,13 @@ export function TracesTable(props: TracesTableProps) {
           if (row.original.__additionalRow) {
             return null;
           }
-          const value = getValue();
+          const value = getValue<number | null>();
           if (value === null) {
             return "--";
           }
           return (
             <TraceTokenCount
-              tokenCountTotal={value as number}
+              tokenCountTotal={value}
               nodeId={row.original.trace.id}
             />
           );
@@ -1078,7 +1086,7 @@ export function TracesTable(props: TracesTableProps) {
             flex: 1 1 auto;
             overflow: auto;
           `}
-          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+          onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
           ref={tableContainerRef}
         >
           <ColumnOrderingProvider
@@ -1180,6 +1188,7 @@ export function TracesTable(props: TracesTableProps) {
                   table={
                     // We can't access the internal TableRowType in the TableBody component
                     // so we cast to unknown and then to the correct type
+                    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- bridging the erased internal TableRow type through unknown
                     table as unknown as ComponentProps<
                       typeof TableBody
                     >["table"]
@@ -1190,6 +1199,7 @@ export function TracesTable(props: TracesTableProps) {
                   table={
                     // We can't access the internal TableRowType in the TableBody component
                     // so we cast to unknown and then to the correct type
+                    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- bridging the erased internal TableRow type through unknown
                     table as unknown as ComponentProps<
                       typeof TableBody
                     >["table"]

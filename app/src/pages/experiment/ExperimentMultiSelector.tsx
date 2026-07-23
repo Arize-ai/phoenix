@@ -231,7 +231,7 @@ export function ExperimentMultiSelector(props: {
                   onSelectionChange={(keys) => {
                     onChange(
                       selectedBaseExperimentId,
-                      Array.from(keys) as string[]
+                      Array.from(keys, String)
                     );
                   }}
                 >

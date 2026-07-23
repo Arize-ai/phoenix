@@ -4,11 +4,16 @@
  * @returns true if it is a Promise
  */
 export function isPromise<T = unknown>(value: unknown): value is Promise<T> {
+  if (
+    value === null ||
+    (typeof value !== "object" && typeof value !== "function")
+  ) {
+    return false;
+  }
   return (
-    !!value &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    typeof (value as any)?.then === "function" &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    typeof (value as any)?.catch === "function"
+    "then" in value &&
+    typeof value.then === "function" &&
+    "catch" in value &&
+    typeof value.catch === "function"
   );
 }

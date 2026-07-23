@@ -57,8 +57,10 @@ import {
   generateToolId,
 } from "@phoenix/store/playground";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import {
   formatContentAsString,
+  isPlainObject,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
 
@@ -130,8 +132,8 @@ export function getChatRole(_role: string): ChatMessageRole {
   }
 
   for (const [chatRole, acceptedValues] of Object.entries(ChatRoleMap)) {
-    if (acceptedValues.includes(role)) {
-      return chatRole as ChatMessageRole;
+    if (isChatMessageRole(chatRole) && acceptedValues.includes(role)) {
+      return chatRole;
     }
   }
   return DEFAULT_CHAT_ROLE;
@@ -202,6 +204,7 @@ export function processAttributeToolCalls({
         }
         // TODO(apowell): #5348 Add Google tool call
         case "GOOGLE":
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- tool call args are parsed JSON so the object is a JSON literal by construction
           return {
             id: tool_call.id ?? "",
             function: {
@@ -389,9 +392,12 @@ export function getModelProviderFromModelName(
   modelName: string
 ): ModelProvider {
   for (const provider of Object.keys(modelProviderToModelPrefixMap)) {
-    const prefixes = modelProviderToModelPrefixMap[provider as ModelProvider];
+    if (!isModelProvider(provider)) {
+      continue;
+    }
+    const prefixes = modelProviderToModelPrefixMap[provider];
     if (prefixes.some((prefix) => modelName.includes(prefix))) {
-      return provider as ModelProvider;
+      return provider;
     }
   }
   return DEFAULT_MODEL_PROVIDER;
@@ -808,11 +814,12 @@ function rawSpanToolChoiceToCanonical(
 export function getToolChoiceFromAttributes(
   parsedAttributes: unknown
 ): CanonicalToolChoice | undefined {
-  const llm = (parsedAttributes as Record<string, unknown> | null)?.llm;
-  const rawInvParams =
-    llm != null && typeof llm === "object"
-      ? (llm as Record<string, unknown>).invocation_parameters
-      : undefined;
+  const llm = isStringKeyedObject(parsedAttributes)
+    ? parsedAttributes.llm
+    : undefined;
+  const rawInvParams = isStringKeyedObject(llm)
+    ? llm.invocation_parameters
+    : undefined;
   if (rawInvParams == null) {
     return undefined;
   }
@@ -1496,6 +1503,7 @@ export const denormalizePlaygroundInstance = (
     } satisfies PlaygroundInstance;
   }
   // it cannot be a normalized instance if it is not a chat template
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- normalized and denormalized instances only differ on chat templates, which are handled above
   return instance as PlaygroundInstance;
 };
 
@@ -1512,7 +1520,9 @@ export function toGqlCredentials(
   for (const [provider, config] of Object.entries(
     ProviderToCredentialsConfigMap
   )) {
-    const providerCredentials = credentials[provider as ModelProvider];
+    const providerCredentials = isModelProvider(provider)
+      ? credentials[provider]
+      : undefined;
     if (!providerCredentials) {
       continue;
     }
@@ -1542,17 +1552,9 @@ function chatRoleToPromptRole(role: ChatMessageRole): PromptMessageRole {
 }
 
 /** Convert a PlaygroundMessage to a PromptMessageInput for the hub-and-spoke GraphQL wire format */
-function chatMessageToPromptMessageInput(message: ChatMessage): {
-  role: PromptMessageRole;
-  content: {
-    text?: { text: string } | null;
-    toolCall?: {
-      toolCallId: string;
-      toolCall: { name: string; arguments: string; type?: string | null };
-    } | null;
-    toolResult?: { toolCallId: string; result: unknown } | null;
-  }[];
-} {
+function chatMessageToPromptMessageInput(
+  message: ChatMessage
+): ChatPromptVersionInput["template"]["messages"][number] {
   const toolCalls = message.toolCalls ?? [];
   const hasToolCalls = toolCalls.length > 0;
   const isToolResult = !!message.toolCallId;
@@ -1657,8 +1659,8 @@ export function displayToCanonicalResponseFormat(
   display: unknown,
   provider: ModelProvider
 ): CanonicalResponseFormat | null {
-  if (!display || typeof display !== "object") return null;
-  const d = display as Record<string, unknown>;
+  if (!display || !isStringKeyedObject(display)) return null;
+  const d = display;
   if (provider === "GOOGLE" || provider === "AWS") {
     // Display is the raw schema object directly
     return {
@@ -1672,8 +1674,9 @@ export function displayToCanonicalResponseFormat(
       jsonSchema: { name: "response", schema: d.schema },
     };
   }
-  const js = d.json_schema as Record<string, unknown> | undefined;
-  if (!js) return null;
+  const rawJs = d.json_schema;
+  if (!rawJs) return null;
+  const js: Record<string, unknown> = isStringKeyedObject(rawJs) ? rawJs : {};
   return {
     type: "json_schema",
     jsonSchema: {
@@ -1695,16 +1698,11 @@ export function buildPromptResponseFormatInput(
 
 /** When normalizing to canonical, store {} instead of { type: "object" } when it's the only key. */
 function canonicalParameters(parameters: unknown): unknown {
-  if (
-    parameters == null ||
-    typeof parameters !== "object" ||
-    Array.isArray(parameters)
-  ) {
+  if (!isPlainObject(parameters)) {
     return parameters;
   }
-  const o = parameters as Record<string, unknown>;
-  const keys = Object.keys(o);
-  if (keys.length === 1 && keys[0] === "type" && o.type === "object") {
+  const keys = Object.keys(parameters);
+  if (keys.length === 1 && keys[0] === "type" && parameters.type === "object") {
     return {};
   }
   return parameters;
@@ -1795,12 +1793,9 @@ export function toCanonicalToolDefinition(
 function parametersSchemaWithObjectType(
   parameters: unknown
 ): Record<string, unknown> {
-  const obj =
-    parameters != null &&
-    typeof parameters === "object" &&
-    !Array.isArray(parameters)
-      ? (parameters as Record<string, unknown>)
-      : {};
+  const obj: Record<string, unknown> = isPlainObject(parameters)
+    ? parameters
+    : {};
   if (obj.type === undefined) {
     return { ...obj, type: "object" };
   }
@@ -2159,8 +2154,7 @@ export const getChatCompletionInput = ({
     instance,
     modelName: instance.model.modelName ?? "",
     templateFormat: "NONE",
-    promptMessages:
-      promptMessages as ChatPromptVersionInput["template"]["messages"],
+    promptMessages,
     invocationParameters:
       baseChatCompletionVariables.invocationParameters ?? [],
   });
@@ -2177,7 +2171,7 @@ export const getChatCompletionInput = ({
     promptName: instance.prompt?.name,
     repetitions,
     streamModelOutput: streaming,
-  } as unknown as ChatCompletionInput;
+  };
 };
 
 /**
@@ -2250,8 +2244,7 @@ export const getChatCompletionOverDatasetInput = ({
     instance,
     modelName: instance.model.modelName ?? "",
     templateFormat: templateFormat as ChatPromptVersionInput["templateFormat"],
-    promptMessages:
-      promptMessages as ChatPromptVersionInput["template"]["messages"],
+    promptMessages,
     invocationParameters:
       baseChatCompletionVariables.invocationParameters ?? [],
   });

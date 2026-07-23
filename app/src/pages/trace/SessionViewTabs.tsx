@@ -16,7 +16,7 @@ export type SessionView = "turns" | "traces" | "annotations";
 const SESSION_VIEWS: SessionView[] = ["turns", "traces", "annotations"];
 
 export function isSessionView(value: unknown): value is SessionView {
-  return SESSION_VIEWS.includes(value as SessionView);
+  return SESSION_VIEWS.some((view) => view === value);
 }
 
 const tabLabelCSS = css`

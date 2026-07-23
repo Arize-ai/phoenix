@@ -27,9 +27,9 @@ describe("createMockServer", () => {
     const response = await fetch(`${BASE_URL}/v1/projects`);
     expect(response.status).toBe(200);
 
-    const body = (await response.json()) as {
+    const body: {
       data: Array<{ id: string; name: string }>;
-    };
+    } = await response.json();
     expect(Array.isArray(body.data)).toBe(true);
     for (const project of body.data) {
       expect(typeof project.id).toBe("string");
@@ -41,9 +41,9 @@ describe("createMockServer", () => {
     const response = await fetch(`${BASE_URL}/v1/datasets/RGF0YXNldDox`);
     expect(response.status).toBe(200);
 
-    const body = (await response.json()) as {
+    const body: {
       data: { id: string; name: string; example_count: number };
-    };
+    } = await response.json();
     expect(typeof body.data.id).toBe("string");
     expect(typeof body.data.name).toBe("string");
     expect(typeof body.data.example_count).toBe("number");
@@ -55,9 +55,9 @@ describe("createMockServer", () => {
     const response = await fetch(`${BASE_URL}/v1/projects/test-project/spans`);
     expect(response.status).toBe(200);
 
-    const body = (await response.json()) as {
+    const body: {
       data: Array<{ context: { trace_id: string; span_id: string } }>;
-    };
+    } = await response.json();
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
     for (const span of body.data) {
@@ -85,9 +85,9 @@ describe("createMockServer", () => {
     );
 
     const response = await fetch(`${BASE_URL}/v1/datasets/RGF0YXNldDox`);
-    const body = (await response.json()) as {
+    const body: {
       data: { id: string; name: string; example_count: number };
-    };
+    } = await response.json();
     expect(body.data).toMatchObject({
       id: "RGF0YXNldDox",
       name: "my dataset",

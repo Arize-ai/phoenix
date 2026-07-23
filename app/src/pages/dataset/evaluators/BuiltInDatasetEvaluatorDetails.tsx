@@ -35,9 +35,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 type OutputConfig = {
-  name: string;
+  name?: string;
   optimizationDirection?: string | null;
-  values?: Array<{ label?: string | null; score?: number | null }> | null;
+  values?: ReadonlyArray<{
+    label?: string | null;
+    score?: number | null;
+  }> | null;
   lowerBound?: number | null;
   upperBound?: number | null;
 };
@@ -176,11 +179,10 @@ export function BuiltInDatasetEvaluatorDetails({
 
   // Prefer overridden values from datasetEvaluator, fall back to evaluator defaults
   // Merge the configs: if datasetEvaluator has configs, use those; otherwise use evaluator defaults
-  const outputConfigs = (
+  const outputConfigs: readonly OutputConfig[] =
     datasetEvaluator.outputConfigs && datasetEvaluator.outputConfigs.length > 0
       ? datasetEvaluator.outputConfigs
-      : (evaluator.outputConfigs ?? [])
-  ) as readonly OutputConfig[];
+      : (evaluator.outputConfigs ?? []);
   const inputMapping = datasetEvaluator.inputMapping;
   const name = evaluator.name.toLowerCase();
 
@@ -214,11 +216,13 @@ export function BuiltInDatasetEvaluatorDetails({
       throw new Error(`Unknown built-in evaluator: ${evaluator.name}`);
   }
 
-  const literalMapping = inputMapping.literalMapping as Record<
-    string,
-    unknown
-  > | null;
-  const parseStrings = literalMapping?.parse_strings !== false;
+  const literalMapping: unknown = inputMapping.literalMapping;
+  const parseStrings = !(
+    typeof literalMapping === "object" &&
+    literalMapping !== null &&
+    "parse_strings" in literalMapping &&
+    literalMapping.parse_strings === false
+  );
 
   return (
     <Flex direction="column" gap="size-200">

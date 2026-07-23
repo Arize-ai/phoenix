@@ -137,6 +137,7 @@ const TableBody = <T extends { id: string }>({
 };
 
 // special memoized wrapper for our table body that we will use during column resizing
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- React.memo drops the generic component signature; restore it to keep TableBody's type
 export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
@@ -355,7 +356,7 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "sessionId",
       enableSorting: false,
       cell: ({ getValue }) => (
-        <CopyableTextCell value={getValue() as string | null} />
+        <CopyableTextCell value={getValue<string | null>()} />
       ),
     },
     {
@@ -385,7 +386,7 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "userId",
       enableSorting: false,
       cell: ({ getValue }) => (
-        <CopyableTextCell value={getValue() as string | null} />
+        <CopyableTextCell value={getValue<string | null>()} />
       ),
     },
     ...annotationColumns,
@@ -609,9 +610,7 @@ export function SessionsTable(props: SessionsTableProps) {
                 height: 100%;
                 overflow: auto;
               `}
-              onScroll={(e) =>
-                fetchMoreOnBottomReached(e.target as HTMLDivElement)
-              }
+              onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
               ref={tableContainerRef}
             >
               <ColumnOrderingProvider

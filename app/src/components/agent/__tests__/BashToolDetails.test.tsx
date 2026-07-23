@@ -6,6 +6,7 @@ import type { ToolInvocationPart } from "../toolPartTypes";
 function createBashPart(
   overrides: Partial<ToolInvocationPart> = {}
 ): ToolInvocationPart {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fixture for the tool-bash member of the SDK's discriminated ToolInvocationPart union with Partial overrides
   return {
     type: "tool-bash",
     toolCallId: "tool-call-1",

@@ -319,7 +319,7 @@ export function AnnotationConfigList(props: {
       if (keys === "all") {
         return;
       }
-      const newSelectedIds = new Set(Array.from(keys) as string[]);
+      const newSelectedIds = new Set(Array.from(keys, String));
       for (const configId of newSelectedIds) {
         if (!annotationConfigIdsInProject.has(configId)) {
           addAnnotationConfigToProject(configId);

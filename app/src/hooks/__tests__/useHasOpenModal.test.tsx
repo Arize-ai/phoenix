@@ -103,7 +103,13 @@ describe("useHasOpenModal", () => {
     ).toBe("420");
 
     drawerWidth = 320;
-    act(() => resizeCallback?.([], {} as ResizeObserver));
+    act(() =>
+      resizeCallback?.([], {
+        observe() {},
+        unobserve() {},
+        disconnect() {},
+      })
+    );
     expect(
       container.querySelector('[data-testid="drawer-width"]')?.textContent
     ).toBe("320");

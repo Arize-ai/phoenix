@@ -185,6 +185,7 @@ export function convertStyleProps(
     }
 
     const prop = getResponsiveProp(
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- for-in key is string; narrowing to index ViewStyleProps
       props[key as keyof ViewStyleProps],
       matchedBreakpoints
     );
@@ -200,10 +201,13 @@ export function convertStyleProps(
     }
   }
 
-  for (const prop in borderStyleProps) {
-    if (style[prop as keyof typeof borderStyleProps]) {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens to string[]; keys are exactly keyof borderStyleProps
+  for (const prop of Object.keys(
+    borderStyleProps
+  ) as (keyof typeof borderStyleProps)[]) {
+    if (style[prop]) {
       // @ts-expect-error - allow key access view style props
-      style[borderStyleProps[prop as keyof typeof borderStyleProps]] = "solid";
+      style[borderStyleProps[prop]] = "solid";
       style.boxSizing = "border-box";
     }
   }
@@ -283,6 +287,7 @@ export function getResponsiveProp<T>(
         return prop[breakpoint];
       }
     }
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- object, non-array branch: prop is the ResponsiveProp form; base may be undefined
     return (prop as ResponsiveProp<T>).base as T;
   }
   return prop as T;
@@ -298,6 +303,7 @@ export function filterStyleProps<T extends StyleProps>(
 ) {
   const filtered = { ...props };
   for (const key in handlers) {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- for-in key is string; narrowing to index T
     delete filtered[key as keyof T];
   }
   return filtered;

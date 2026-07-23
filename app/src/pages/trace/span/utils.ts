@@ -10,7 +10,6 @@ import {
 import type {
   AttributeDocument,
   AttributeEmbeddingEmbedding,
-  AttributeLLMToolDefinition,
   AttributeMessage,
   AttributePromptTemplate,
 } from "@phoenix/openInference/tracing/types";
@@ -64,9 +63,9 @@ function getMessages(messagesValue: unknown): AttributeMessage[] {
   if (!isAttributeMessages(messagesValue)) {
     return [];
   }
-  return (messagesValue
+  return messagesValue
     .map((obj) => obj[SemanticAttributePrefixes.message])
-    .filter(Boolean) || []) as AttributeMessage[];
+    .filter((message) => message != null);
 }
 
 /**
@@ -97,9 +96,9 @@ export function getLLMAttributes(
 
   const tools = llmAttributes[LLMAttributePostfixes.tools];
   const toolDefinitions = Array.isArray(tools)
-    ? (tools
+    ? tools
         .map((obj) => obj[SemanticAttributePrefixes.tool])
-        .filter(Boolean) as AttributeLLMToolDefinition[])
+        .filter((tool) => tool != null)
     : [];
   const toolSchemas = toolDefinitions.reduce<string[]>((acc, tool) => {
     if (tool?.json_schema) {
@@ -143,9 +142,10 @@ export function getRetrieverAttributes(spanAttributes: AttributeObject): {
     return { documents: [] };
   }
   return {
-    documents: (retrieverAttributes[RetrievalAttributePostfixes.documents]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[],
+    documents:
+      retrieverAttributes[RetrievalAttributePostfixes.documents]
+        ?.map((obj) => obj[SemanticAttributePrefixes.document])
+        .filter((document) => document != null) || [],
   };
 }
 
@@ -165,16 +165,14 @@ export function getRerankerAttributes(spanAttributes: AttributeObject): {
   }
   return {
     query: rerankerAttributes[RerankerAttributePostfixes.query] || null,
-    inputDocuments: (rerankerAttributes[
-      RerankerAttributePostfixes.input_documents
-    ]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[],
-    outputDocuments: (rerankerAttributes[
-      RerankerAttributePostfixes.output_documents
-    ]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[],
+    inputDocuments:
+      rerankerAttributes[RerankerAttributePostfixes.input_documents]
+        ?.map((obj) => obj[SemanticAttributePrefixes.document])
+        .filter((document) => document != null) || [],
+    outputDocuments:
+      rerankerAttributes[RerankerAttributePostfixes.output_documents]
+        ?.map((obj) => obj[SemanticAttributePrefixes.document])
+        .filter((document) => document != null) || [],
   };
 }
 
@@ -190,9 +188,10 @@ export function getEmbeddingAttributes(spanAttributes: AttributeObject): {
     return { embeddings: [] };
   }
   return {
-    embeddings: (embeddingAttributes[EmbeddingAttributePostfixes.embeddings]
-      ?.map((obj) => obj[SemanticAttributePrefixes.embedding])
-      .filter(Boolean) || []) as AttributeEmbeddingEmbedding[],
+    embeddings:
+      embeddingAttributes[EmbeddingAttributePostfixes.embeddings]
+        ?.map((obj) => obj[SemanticAttributePrefixes.embedding])
+        .filter((embedding) => embedding != null) || [],
   };
 }
 

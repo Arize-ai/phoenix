@@ -16,6 +16,7 @@ const getIconButtonColor = (color: TextColorValue): string => {
     const [, num] = color.split("-");
     return `var(--global-text-color-${num})`;
   }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by the "inherit"/"text-" checks above, leaving only ColorValue
   return colorValue(color as ColorValue);
 };
 

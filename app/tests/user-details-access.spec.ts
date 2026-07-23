@@ -25,7 +25,10 @@ async function getMemberDetailsPath(browser: Browser) {
       .getByRole("link", { name: "member", exact: true })
       .getAttribute("href");
     expect(href).toMatch(/^\/settings\/users\//);
-    return href as string;
+    if (href === null) {
+      throw new Error("Expected member details link to have an href");
+    }
+    return href;
   } finally {
     await context.close();
   }

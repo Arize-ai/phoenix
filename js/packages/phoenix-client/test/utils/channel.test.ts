@@ -705,15 +705,15 @@ describe("Channel", () => {
 
       // Block multiple receivers in order
       const recv1 = ch.receive().then((v) => {
-        results.push(v as number);
+        if (!isClosed(v)) results.push(v);
         return v;
       });
       const recv2 = ch.receive().then((v) => {
-        results.push(v as number);
+        if (!isClosed(v)) results.push(v);
         return v;
       });
       const recv3 = ch.receive().then((v) => {
-        results.push(v as number);
+        if (!isClosed(v)) results.push(v);
         return v;
       });
 

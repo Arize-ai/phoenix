@@ -17,9 +17,9 @@ function setup(applyResult: DatasetWriteApplyResult) {
       applyCalls += 1;
       return applyResult;
     },
-    addToolOutput: (async (out: ToolOutputCall) => {
+    addToolOutput: async (out: ToolOutputCall) => {
       outputs.push(out);
-    }) as never,
+    },
     setPendingDatasetWrite: (_toolCallId, value) => {
       pendingSets.push(value);
     },

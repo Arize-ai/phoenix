@@ -123,7 +123,7 @@ export function ProjectActionMenu({
           <Menu
             aria-label="Project Actions Menu"
             onAction={(action) => {
-              switch (action as ProjectAction) {
+              switch (action) {
                 case ProjectAction.COPY_NAME: {
                   navigator.clipboard.writeText(projectName);
                   notifySuccess({

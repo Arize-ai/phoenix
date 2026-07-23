@@ -124,10 +124,10 @@ describe("project list", () => {
     const generatedResponse = await fetch(
       "http://localhost:6006/v1/projects?limit=100"
     );
-    const generatedPage = (await generatedResponse.json()) as {
+    const generatedPage: {
       data: unknown[];
       next_cursor: string | null;
-    };
+    } = await generatedResponse.json();
     expect(generatedPage.data.length).toBeGreaterThan(0);
     mock.server.use(
       http.get("/v1/projects", ({ response }) =>

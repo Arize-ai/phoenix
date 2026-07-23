@@ -38,7 +38,7 @@ if (!isBuilt && isCi) {
 describe.skipIf(!isBuilt)("built CommonJS entry points", () => {
   for (const [name, relativePath] of Object.entries(cjsEntries)) {
     test(`the ${name} entry loads via require()`, () => {
-      const loaded = requireCjs(relativePath) as Record<string, unknown>;
+      const loaded: object = requireCjs(relativePath);
       expect(Object.keys(loaded).length).toBeGreaterThan(0);
     });
   }
@@ -53,9 +53,9 @@ const esmEntries = {
 describe.skipIf(!isBuilt)("built ESM entry points", () => {
   for (const [name, relativePath] of Object.entries(esmEntries)) {
     test(`the ${name} entry loads via import()`, async () => {
-      const loaded = (await import(
+      const loaded: object = await import(
         new URL(relativePath, import.meta.url).href
-      )) as Record<string, unknown>;
+      );
       expect(Object.keys(loaded).length).toBeGreaterThan(0);
     });
   }

@@ -35,6 +35,7 @@ async function searchApi(query: string): Promise<string | null> {
     );
   }
 
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- external API JSON with known shape; a runtime guard adds no real safety here
   const data = (await response.json()) as {
     answer?: string;
     results?: Array<{ content?: string }>;

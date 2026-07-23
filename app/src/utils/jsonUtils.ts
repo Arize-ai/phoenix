@@ -382,8 +382,8 @@ export function clearJSONValues(obj: unknown): unknown {
   }
   if (typeof obj === "object") {
     const cleared: Record<string, unknown> = {};
-    for (const key in obj) {
-      cleared[key] = clearJSONValues((obj as Record<string, unknown>)[key]);
+    for (const [key, value] of Object.entries(obj)) {
+      cleared[key] = clearJSONValues(value);
     }
     return cleared;
   }

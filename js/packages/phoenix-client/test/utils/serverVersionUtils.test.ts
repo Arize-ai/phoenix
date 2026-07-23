@@ -60,6 +60,7 @@ describe("ensureServerCapability", () => {
     };
     await expect(
       ensureServerCapability({
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock; ensureServerCapability only calls getServerVersion
         client: mockClient as never,
         requirement: GET_SESSION,
       })
@@ -72,6 +73,7 @@ describe("ensureServerCapability", () => {
     };
     await expect(
       ensureServerCapability({
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock; ensureServerCapability only calls getServerVersion
         client: mockClient as never,
         requirement: GET_SESSION,
       })
@@ -84,6 +86,7 @@ describe("ensureServerCapability", () => {
     };
     await expect(
       ensureServerCapability({
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock; ensureServerCapability only calls getServerVersion
         client: mockClient as never,
         requirement: DELETE_SESSION,
       })
@@ -96,6 +99,7 @@ describe("ensureServerCapability", () => {
     };
     await expect(
       ensureServerCapability({
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock; ensureServerCapability only calls getServerVersion
         client: mockClient as never,
         requirement: GET_SPANS_TRACE_IDS,
       })
@@ -113,6 +117,7 @@ describe("ensureServerCapability", () => {
     };
     await expect(
       ensureServerCapability({
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock; ensureServerCapability only calls getServerVersion
         client: mockClient as never,
         requirement: GET_SESSION,
       })

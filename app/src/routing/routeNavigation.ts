@@ -44,17 +44,16 @@ export type RouteNavigationEntry = {
   metadata: RouteNavigationMetadata;
 };
 
-type RouteNavigationHandle = {
-  navigation?: unknown;
-};
-
 /**
  * Safely reads navigation metadata from React Router's open-ended route handle.
  */
 export function getRouteNavigationMetadata(
   handle: unknown
 ): RouteNavigationMetadata | null {
-  const metadata = (handle as RouteNavigationHandle | undefined)?.navigation;
+  const metadata =
+    typeof handle === "object" && handle !== null && "navigation" in handle
+      ? handle.navigation
+      : undefined;
   const result = routeNavigationMetadataSchema.safeParse(metadata);
   return result.success ? result.data : null;
 }

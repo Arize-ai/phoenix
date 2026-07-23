@@ -31,7 +31,9 @@ export const EvaluatorExampleSelect = (props: EvaluatorExampleSelectProps) => {
     <Select
       selectionMode="single"
       value={selectedExampleId}
-      onChange={(value) => onSelectExampleId(value as string | null)}
+      onChange={(value) =>
+        onSelectExampleId(value === null ? null : String(value))
+      }
       aria-label="Select an example"
       placeholder="Select an example"
     >

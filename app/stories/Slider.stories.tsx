@@ -117,7 +117,15 @@ const ControlledTemplate: StoryFn<typeof Slider> = (args) => {
   return (
     <Card title="Controlled Slider">
       <View width="600px" padding="size-200">
-        <Slider {...args} value={value} onChange={(v) => setValue(v as number)}>
+        <Slider
+          {...args}
+          value={value}
+          onChange={(v) => {
+            if (typeof v === "number") {
+              setValue(v);
+            }
+          }}
+        >
           <SliderNumberField />
         </Slider>
       </View>

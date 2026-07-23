@@ -10,6 +10,17 @@ import {
 import type { Example } from "../../src/types/datasets";
 import type { EvaluatorParams } from "../../src/types/experiments";
 
+/**
+ * Reads a `text` field from a loosely-typed task output or expected value,
+ * returning an empty string when absent.
+ */
+function textOf(value: unknown): string {
+  if (typeof value === "object" && value !== null && "text" in value) {
+    return String(value.text);
+  }
+  return "";
+}
+
 const mockDataset = {
   id: "dataset-1",
   name: "mock-dataset",
@@ -70,7 +81,7 @@ describe("runExperiment (dryRun)", () => {
       name: "matches",
       kind: "CODE",
       evaluate: async ({ output, expected }: EvaluatorParams) => {
-        const expectedText = (expected as { text?: string })?.text ?? "";
+        const expectedText = textOf(expected);
         const outputStr = typeof output === "string" ? output : String(output);
         return {
           label: outputStr === expectedText ? "match" : "no match",

@@ -33,7 +33,6 @@ import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { AssignExamplesToSplitMenu } from "@phoenix/pages/examples/AssignExamplesToSplitMenu";
-import type { Mutable } from "@phoenix/typeUtils";
 
 import type { ExampleDetailsDialogQuery } from "./__generated__/ExampleDetailsDialogQuery.graphql";
 import { EditExampleButton } from "./EditExampleButton";
@@ -49,9 +48,9 @@ type ViewMode = "json" | "pretty";
  */
 function extractPrettyValue(value: unknown): unknown {
   if (value && typeof value === "object" && !Array.isArray(value)) {
-    const keys = Object.keys(value);
-    if (keys.length === 1) {
-      const innerValue = (value as Record<string, unknown>)[keys[0]];
+    const entries = Object.entries(value);
+    if (entries.length === 1) {
+      const [, innerValue] = entries[0];
       // If the inner value is a string, return it directly for markdown rendering
       if (typeof innerValue === "string") {
         return innerValue;
@@ -75,7 +74,11 @@ function ViewModeSelect({
     <Select
       size="S"
       selectedKey={value}
-      onSelectionChange={(key) => onChange(key as ViewMode)}
+      onSelectionChange={(key) => {
+        if (key === "json" || key === "pretty") {
+          onChange(key);
+        }
+      }}
       aria-label="View mode"
     >
       <Button>
@@ -231,9 +234,7 @@ function ExampleDetailsDialogContent({
       return {
         [example.id]: {
           id: example.id,
-          datasetSplits: (example.datasetSplits ?? []) as Mutable<
-            NonNullable<typeof example.datasetSplits>
-          >,
+          datasetSplits: [...(example.datasetSplits ?? [])],
         },
       };
     }

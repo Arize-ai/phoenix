@@ -181,7 +181,11 @@ export function ColumnBucket({
 
   const handleBlur = useCallback((e: React.FocusEvent) => {
     // If focus is leaving the bucket entirely, reset focused index
-    if (!ref.current?.contains(e.relatedTarget as Node)) {
+    const relatedTarget: unknown = e.relatedTarget;
+    if (
+      !(relatedTarget instanceof Node) ||
+      !ref.current?.contains(relatedTarget)
+    ) {
       setFocusedIndex(-1);
     }
   }, []);

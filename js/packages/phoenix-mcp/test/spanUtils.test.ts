@@ -44,6 +44,7 @@ describe("buildProjectSpansRequest", () => {
 
 describe("fetchProjectSpans", () => {
   it("delegates span fetching to phoenix-client getSpans", async () => {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- unused PhoenixClient mock; getSpans is mocked
     const client = {} as never;
 
     mockGetSpans.mockResolvedValueOnce({

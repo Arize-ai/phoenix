@@ -110,13 +110,13 @@ type ExperimentRecord = {
 
 async function expectOK(
   response: Awaited<ReturnType<APIRequestContext["post"]>>
-) {
+): Promise<{ data: Record<string, unknown> }> {
   if (!response.ok()) {
     throw new Error(
       `Phoenix API request failed: ${response.status()} ${await response.text()}`
     );
   }
-  return response.json() as Promise<{ data: Record<string, unknown> }>;
+  return response.json();
 }
 
 function getExperimentUrl(path: string) {
@@ -180,13 +180,15 @@ export async function persistPxiExperiment({
   if (!Array.isArray(examples) || examples.length === 0) {
     throw new Error("Dataset examples response did not include examples.");
   }
-  const datasetExample = examples.find((example) => {
-    return (
-      typeof example === "object" &&
-      example !== null &&
-      (example as { id?: unknown }).id === record.example.id
-    );
-  }) as { node_id?: unknown } | undefined;
+  const datasetExample: { node_id?: unknown } | undefined = examples.find(
+    (example) => {
+      if (typeof example !== "object" || example === null) {
+        return false;
+      }
+      const candidate: { id?: unknown } = example;
+      return candidate.id === record.example.id;
+    }
+  );
   if (typeof datasetExample?.node_id !== "string") {
     throw new Error("Dataset example did not include node_id.");
   }

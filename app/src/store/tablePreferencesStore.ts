@@ -1,8 +1,9 @@
-import type {
-  ColumnOrderState,
-  ColumnSizingState,
-  Updater,
-  VisibilityState,
+import {
+  functionalUpdate,
+  type ColumnOrderState,
+  type ColumnSizingState,
+  type Updater,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -17,13 +18,6 @@ export interface TablePreferencesState {
 }
 
 const TABLE_PREFERENCES_VERSION = 1;
-
-/** Applies a tanstack `Updater`, which is either the next value or a function producing it. */
-function applyUpdater<T>(updater: Updater<T>, previous: T): T {
-  return typeof updater === "function"
-    ? (updater as (previous: T) => T)(previous)
-    : updater;
-}
 
 /**
  * Creates a store holding a single table's column preferences, persisted to
@@ -49,7 +43,7 @@ export function createTablePreferencesStore({
           setColumnVisibility: (visibility) => {
             set(
               (state) => ({
-                columnVisibility: applyUpdater(
+                columnVisibility: functionalUpdate(
                   visibility,
                   state.columnVisibility
                 ),
@@ -61,7 +55,7 @@ export function createTablePreferencesStore({
           setColumnSizing: (sizing) => {
             set(
               (state) => ({
-                columnSizing: applyUpdater(sizing, state.columnSizing),
+                columnSizing: functionalUpdate(sizing, state.columnSizing),
               }),
               false,
               { type: "setColumnSizing" }
@@ -70,7 +64,7 @@ export function createTablePreferencesStore({
           setColumnOrder: (order) => {
             set(
               (state) => ({
-                columnOrder: applyUpdater(order, state.columnOrder),
+                columnOrder: functionalUpdate(order, state.columnOrder),
               }),
               false,
               { type: "setColumnOrder" }

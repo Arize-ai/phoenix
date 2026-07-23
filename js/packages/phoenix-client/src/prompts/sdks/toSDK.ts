@@ -95,6 +95,7 @@ export const toSDK = <
 }: ToSDKParams<SDK, PromptVariables> & SDKParams<SDK>) => {
   const sdk = getTargetSDK(_sdk);
   invariant(sdk, `No SDK found for provider ${_sdk}`);
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic SDK key cannot be narrowed through the dynamic getTargetSDK lookup
   return sdk<PromptVariables>(rest) as ReturnType<
     (typeof PROVIDER_TO_SDK)[SDK]
   >;

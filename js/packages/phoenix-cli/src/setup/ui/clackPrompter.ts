@@ -42,6 +42,7 @@ export function createClackPrompter(): Prompter {
         const answer = await select<T>({
           ...TO_STDERR,
           message: args.message,
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Clack's Option<T> only resolves for primitive T; the built shape is valid for both branches
           options: args.options.map((option) => ({
             value: option.value,
             label: option.disabled ? `✗ ${option.label}` : option.label,

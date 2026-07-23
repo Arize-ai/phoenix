@@ -17,6 +17,7 @@ afterEach(() => {
 });
 
 function mockClassificationResult() {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock of generateObject's large result type; only `object` is read
   vi.mocked(generateObject).mockResolvedValue({
     object: { label: "correct", explanation: "The answer matches." },
   } as Awaited<ReturnType<typeof generateObject>>);
@@ -33,9 +34,9 @@ function classify(
   });
 }
 
-function calledIntegrations(): Telemetry[] {
+function calledIntegrations(): readonly Telemetry[] {
   const telemetry = vi.mocked(generateObject).mock.calls[0]?.[0].telemetry;
-  return (telemetry?.integrations ?? []) as Telemetry[];
+  return telemetry?.integrations ?? [];
 }
 
 describe("generateClassification", () => {

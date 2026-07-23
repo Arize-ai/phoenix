@@ -12,7 +12,11 @@ export function usePersistedState<T>(
   const [state, setStateInternal] = useState<T>(() => {
     try {
       const stored = localStorage.getItem(key);
-      return stored ? (JSON.parse(stored) as T) : defaultValue;
+      if (!stored) {
+        return defaultValue;
+      }
+      const parsed: T = JSON.parse(stored);
+      return parsed;
     } catch {
       return defaultValue;
     }
@@ -23,7 +27,8 @@ export function usePersistedState<T>(
       setStateInternal((prev) => {
         const next =
           typeof valueOrUpdater === "function"
-            ? (valueOrUpdater as (prev: T) => T)(prev)
+            ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SetStateAction updater branch; typeof cannot narrow when T is itself callable
+              (valueOrUpdater as (prev: T) => T)(prev)
             : valueOrUpdater;
         try {
           localStorage.setItem(key, JSON.stringify(next));

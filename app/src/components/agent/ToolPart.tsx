@@ -54,6 +54,7 @@ import { Icon, Icons } from "@phoenix/components";
 import type { Variant } from "@phoenix/components/core/types";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import {
   AddDatasetExamplesToolDetails,
@@ -806,10 +807,10 @@ function getNativeWebToolPreview(
   if (typeof input === "string") {
     return input;
   }
-  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+  if (!isPlainObject(input)) {
     return "";
   }
-  const inputRecord = input as Record<string, unknown>;
+  const inputRecord = input;
   if (toolName === NATIVE_WEB_SEARCH_TOOL_NAME) {
     const type = getStringField(inputRecord, "type");
     if (type && type !== "search") {
@@ -958,19 +959,15 @@ function CallSubagentMessagePart({ part }: { part: MessagePart }) {
 }
 
 function parseCallSubagentOutput(output: unknown): CallSubagentOutput | null {
-  if (typeof output !== "object" || output === null || Array.isArray(output)) {
+  if (!isPlainObject(output)) {
     return null;
   }
-  const outputRecord = output as Record<string, unknown>;
+  const outputRecord = output;
   const message = outputRecord.message;
-  if (
-    typeof message !== "object" ||
-    message === null ||
-    Array.isArray(message)
-  ) {
+  if (!isPlainObject(message)) {
     return null;
   }
-  const messageRecord = message as Record<string, unknown>;
+  const messageRecord = message;
   const parts = messageRecord.parts;
   if (!isMessagePartArray(parts)) {
     return null;
@@ -987,10 +984,7 @@ function isMessagePartArray(value: unknown): value is MessagePart[] {
     Array.isArray(value) &&
     value.every(
       (part): part is MessagePart =>
-        typeof part === "object" &&
-        part !== null &&
-        "type" in part &&
-        typeof (part as { type?: unknown }).type === "string"
+        isPlainObject(part) && typeof part.type === "string"
     )
   );
 }

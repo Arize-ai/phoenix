@@ -33,6 +33,7 @@ afterEach(() => {
 function createAskUserPart(
   overrides: Partial<ToolInvocationPart> = {}
 ): ToolInvocationPart {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fixture for the tool-ask_user member of the SDK's discriminated ToolInvocationPart union with Partial overrides
   return {
     type: "tool-ask_user",
     toolCallId: "tool-call-1",

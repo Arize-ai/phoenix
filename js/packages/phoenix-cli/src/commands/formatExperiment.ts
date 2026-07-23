@@ -209,18 +209,19 @@ function formatExperimentJsonPretty(jsonData: string): string {
         // Handle evaluations
         if (run.evaluations && Object.keys(run.evaluations).length > 0) {
           lines.push(`│  Evaluations:`);
-          for (const [name, result] of Object.entries(run.evaluations)) {
-            const evalResult = result as {
-              score?: number;
-              label?: string;
-              explanation?: string;
-            };
+          for (const [name, result] of Object.entries<unknown>(
+            run.evaluations
+          )) {
             const parts: string[] = [];
-            if (evalResult.score !== undefined && evalResult.score !== null) {
-              parts.push(`score=${evalResult.score}`);
-            }
-            if (evalResult.label !== undefined && evalResult.label !== null) {
-              parts.push(`label="${evalResult.label}"`);
+            if (typeof result === "object" && result !== null) {
+              const score = "score" in result ? result.score : undefined;
+              if (typeof score === "number" || typeof score === "string") {
+                parts.push(`score=${score}`);
+              }
+              const label = "label" in result ? result.label : undefined;
+              if (typeof label === "string" || typeof label === "number") {
+                parts.push(`label="${label}"`);
+              }
             }
             lines.push(`│    - ${name}: ${parts.join(", ")}`);
           }

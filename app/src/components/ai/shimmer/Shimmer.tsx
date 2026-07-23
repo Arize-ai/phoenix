@@ -58,7 +58,7 @@ export function Shimmer({
 
   return (
     <MotionComponent
-      ref={ref as React.Ref<never>}
+      ref={ref}
       className={classNames("shimmer", className)}
       data-size={size}
       data-weight={weight}

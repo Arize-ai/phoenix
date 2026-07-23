@@ -116,7 +116,8 @@ export const toOpenAI = <PromptVariables extends Variables = Variables>({
     const tools =
       toolsList.length === 0
         ? undefined
-        : (toolsList.map((tool) => {
+        : // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- raw tools are trusted to match OpenAI's SDK shape; no validation here
+          (toolsList.map((tool) => {
             if (isPromptToolRaw(tool)) {
               return tool.raw;
             }

@@ -113,7 +113,9 @@ const LabelMenuFilterContent = ({
       onSelectionChange(labels.map((l) => l.id));
       return;
     }
-    onSelectionChange([...selection] as string[]);
+    onSelectionChange(
+      [...selection].filter((key): key is string => typeof key === "string")
+    );
   };
 
   const handleClear = () => {

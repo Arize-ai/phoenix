@@ -30,7 +30,7 @@ export function TypeScriptBlock(props: TypeScriptBlockProps) {
       syntaxHighlighting: true,
       highlightActiveLine: false,
       highlightActiveLineGutter: false,
-      ...(propsBasicSetup as object),
+      ...(typeof propsBasicSetup === "object" ? propsBasicSetup : {}),
     };
   }, [propsBasicSetup]);
   return (

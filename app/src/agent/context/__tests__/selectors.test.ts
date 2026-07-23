@@ -7,6 +7,7 @@ function stateWith(
   routeContexts: AgentContext[],
   mountedContexts: Record<string, AgentContext> = {}
 ): AgentState {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- selectActiveContexts only reads routeContexts/mountedContexts; a full AgentState store mock adds no safety
   return { routeContexts, mountedContexts } as AgentState;
 }
 

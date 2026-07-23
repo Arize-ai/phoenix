@@ -42,7 +42,9 @@ describe("non-2xx responses", () => {
 
     expect(error).toBeInstanceOf(HttpError);
     expect(error).toMatchObject({ status: 401, statusText: "Unauthorized" });
-    expect((error as HttpError).response.status).toBe(401);
-    expect((error as HttpError).message).toContain("401 Unauthorized");
+    if (error instanceof HttpError) {
+      expect(error.response.status).toBe(401);
+      expect(error.message).toContain("401 Unauthorized");
+    }
   });
 });

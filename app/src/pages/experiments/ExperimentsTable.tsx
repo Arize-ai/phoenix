@@ -169,6 +169,7 @@ const TableBody = <T extends { id: string }>({
 };
 
 // Memoized wrapper for table body to use during column resizing
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- preserve the generic component signature through React.memo
 export const MemoizedTableBody = memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
@@ -338,7 +339,7 @@ export function ExperimentsTable({
       accessorKey: "id",
       enableSorting: false,
       cell: ({ getValue }) => {
-        const value = getValue() as string;
+        const value = getValue<string>();
         return (
           <CellWithControlsWrap
             controls={<CopyToClipboardButton text={value} />}
@@ -365,7 +366,7 @@ export function ExperimentsTable({
             <Link
               to={`/datasets/${data.id}/compare?experimentId=${experimentId}`}
             >
-              {getValue() as string}
+              {getValue<string>()}
             </Link>
             <ExperimentJobStatusIcon
               status={jobStatus}
@@ -534,7 +535,7 @@ export function ExperimentsTable({
       header: "total cost",
       accessorKey: "costSummary.total.cost",
       cell: ({ getValue, row }) => {
-        const value = getValue() as number | null;
+        const value = getValue<number | null>();
         const experimentId = row.original.id;
         if (value == null) {
           return "--";
@@ -548,7 +549,7 @@ export function ExperimentsTable({
       header: "total tokens",
       accessorKey: "costSummary.total.tokens",
       cell: ({ getValue, row }) => {
-        const value = getValue() as number | null;
+        const value = getValue<number | null>();
         const experimentId = row.original.id;
         return (
           <ExperimentTokenCount
@@ -738,7 +739,7 @@ export function ExperimentsTable({
           overflow: auto;
         `}
         ref={tableContainerRef}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+        onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
       >
         <ColumnOrderingProvider
           columnOrder={visibleColumnOrder}

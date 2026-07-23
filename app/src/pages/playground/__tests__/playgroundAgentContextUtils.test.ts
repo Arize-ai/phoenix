@@ -9,6 +9,7 @@ import {
   getExperimentScaffoldForAgent,
   getPlaygroundInstanceForAgent,
 } from "../playgroundAgentContextUtils";
+import { getDefaultOpenAIConfig } from "../providerAdapters/openaiAdapter";
 
 type AgentInstanceInput = Pick<
   PlaygroundInstance,
@@ -23,7 +24,8 @@ function makeInstance(
     model: {
       provider: "OPENAI",
       modelName: "gpt-4o",
-    } as PlaygroundInstance["model"],
+      invocationParameters: getDefaultOpenAIConfig(),
+    },
     experiment: null,
     ...overrides,
   };
@@ -63,7 +65,8 @@ describe("getPlaygroundInstanceForAgent", () => {
         model: {
           provider: "OPENAI",
           modelName: null,
-        } as PlaygroundInstance["model"],
+          invocationParameters: getDefaultOpenAIConfig(),
+        },
         experiment: { id: "RXhwZXJpbWVudDoz", isEphemeral: false },
       })
     );

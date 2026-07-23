@@ -295,6 +295,7 @@ function useRegisterSetTimeRangeClientAction({
     const { registerClientAction, unregisterClientAction } =
       agentStore.getState();
     registerClientAction(SET_TIME_RANGE_TOOL_NAME, (input) =>
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- client-action boundary: input is contractually SetTimeRangeInput for this tool
       handleSetTimeRange(input as SetTimeRangeInput)
     );
     return () => {

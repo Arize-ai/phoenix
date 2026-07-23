@@ -19,6 +19,7 @@ function createToolPart(
   type: string,
   toolCallId: string
 ): UIMessage["parts"][number] {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fixture factory coerces a loose literal into the message part union
   return {
     type,
     toolCallId,

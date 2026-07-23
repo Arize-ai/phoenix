@@ -9,7 +9,7 @@ import "dotenv/config";
 
 // Step 1: define the task to run (we call the agent with the question)
 export async function task(example: Example): Promise<string> {
-  const question = example.input.question as string;
+  const question = String(example.input.question);
 
   // Call the movie agent with the question
   const result = await movieAgent.generate(question);

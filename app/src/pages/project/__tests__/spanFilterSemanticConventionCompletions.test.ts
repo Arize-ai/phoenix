@@ -11,6 +11,7 @@ import {
 } from "../spanFilterSemanticConventionCompletions";
 
 function createCompletionContext(text: string): CompletionContext {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial test mock of a complex codemirror type; only the used subset is implemented
   return {
     pos: text.length,
     state: {
@@ -28,6 +29,7 @@ function createCompletionContextAt({
   text: string;
   pos?: number;
 }): CompletionContext {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial test mock of a complex codemirror type; only the used subset is implemented
   return {
     pos,
     state: {
@@ -50,6 +52,7 @@ function applyCompletion({
   to: number;
 }): string {
   let result = text;
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial test mock of a complex codemirror type; only the used subset is implemented
   const view = {
     state: {
       doc: {

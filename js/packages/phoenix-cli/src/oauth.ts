@@ -729,7 +729,8 @@ export async function withSettingsLock<T>(
       if (
         typeof error !== "object" ||
         error === null ||
-        (error as NodeJS.ErrnoException).code !== "EEXIST"
+        !("code" in error) ||
+        error.code !== "EEXIST"
       ) {
         throw error;
       }

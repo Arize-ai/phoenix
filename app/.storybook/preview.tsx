@@ -416,8 +416,10 @@ function useResolvedThemes(themeMode: string) {
   if (themeMode === "auto") {
     return { resolvedThemes: [systemTheme], systemTheme };
   }
+  // Any toolbar value other than "both"/"auto" is a concrete theme.
+  const resolvedTheme: ProviderTheme = themeMode === "dark" ? "dark" : "light";
   return {
-    resolvedThemes: [themeMode as ProviderTheme],
+    resolvedThemes: [resolvedTheme],
     systemTheme,
   };
 }

@@ -167,6 +167,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
       // Map all output configs from the evaluator to the store format
       const outputConfigs = (evaluator.outputConfigs ?? []).map(
         (config) =>
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Relay data is deeply readonly; Mutable strips readonly for the store's expected shape
           config as Mutable<
             | ContinuousEvaluatorAnnotationConfig
             | ClassificationEvaluatorAnnotationConfig

@@ -168,6 +168,7 @@ export function defineClientActionTool<TInput, TContext = undefined>(config: {
             config.buildContext({
               toolCall,
               // Narrowed: requireSession guarantees a non-null session above.
+              // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- buildContext tools set requireSession, whose guard already bailed on a null session
               sessionId: sessionId as string,
               addToolOutput,
               agentStore,

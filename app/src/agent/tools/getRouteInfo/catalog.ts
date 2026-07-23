@@ -4,7 +4,7 @@ import { flattenRouteObjects } from "@phoenix/routing/routeObjects";
 
 import { agentRouteMetadataSchema } from "./schemas";
 import type { AgentRouteMetadata } from "./schemas";
-import type { RouteCatalogEntry, RouteInfoHandle } from "./types";
+import type { RouteCatalogEntry } from "./types";
 
 export { normalizePath } from "@phoenix/routing/routeObjects";
 
@@ -23,10 +23,13 @@ function isAgentRouteMetadata(value: unknown): value is AgentRouteMetadata {
  * @param route - React Router route object from `appRouteObjects`.
  */
 function getAgentRouteMetadata(route: RouteObject): AgentRouteMetadata | null {
-  // React Router leaves `handle` intentionally open-ended, so the local handle
-  // type keeps `agentRoute` as unknown until the Zod guard validates it.
-  const handle = route.handle as RouteInfoHandle | undefined;
-  const metadata = handle?.agentRoute;
+  // React Router leaves `handle` intentionally open-ended, so treat it as
+  // unknown until the Zod guard validates the `agentRoute` value.
+  const handle: unknown = route.handle;
+  const metadata =
+    typeof handle === "object" && handle !== null && "agentRoute" in handle
+      ? handle.agentRoute
+      : undefined;
   return isAgentRouteMetadata(metadata) ? metadata : null;
 }
 

@@ -52,6 +52,16 @@ const ANNOTATION_CONFIG_TYPES: readonly AnnotationConfigType[] = [
 ];
 
 /**
+ * Narrow an arbitrary string to an {@link OptimizationDirection}, returning
+ * `undefined` when it is not one of the known directions.
+ */
+function toOptimizationDirection(
+  value: string | undefined
+): OptimizationDirection | undefined {
+  return OPTIMIZATION_DIRECTIONS.find((direction) => direction === value);
+}
+
+/**
  * Options for `px annotation-config list`.
  */
 interface AnnotationConfigListOptions extends CommonOptions<OutputFormat> {
@@ -285,11 +295,10 @@ function buildCreateConfigData(
 ): CreateAnnotationConfigData {
   assertFlagsValidForConfigType(options, type);
 
-  const name = options.name as string;
+  const name = options.name ?? "";
   const description = options.description;
   const optimizationDirection =
-    (options.optimizationDirection as OptimizationDirection | undefined) ??
-    "NONE";
+    toOptimizationDirection(options.optimizationDirection) ?? "NONE";
 
   if (type === "CATEGORICAL") {
     const values = resolveCategoricalValues(options);
@@ -350,7 +359,7 @@ function buildUpdatedConfigData(
       ? options.description
       : existing.description;
   const optimizationDirection =
-    (options.optimizationDirection as OptimizationDirection | undefined) ??
+    toOptimizationDirection(options.optimizationDirection) ??
     existing.optimization_direction;
 
   if (existing.type === "CATEGORICAL") {
@@ -434,11 +443,7 @@ function exitOnInvalidSharedWriteFlags(options: {
   if (options.optimizationDirection !== undefined) {
     const rawDirection = options.optimizationDirection;
     options.optimizationDirection = rawDirection.toUpperCase();
-    if (
-      !OPTIMIZATION_DIRECTIONS.includes(
-        options.optimizationDirection as OptimizationDirection
-      )
-    ) {
+    if (toOptimizationDirection(options.optimizationDirection) === undefined) {
       writeStructuredError({
         format: options.format,
         message: `Invalid --optimization-direction '${rawDirection}'. Must be one of: ${OPTIMIZATION_DIRECTIONS.join(", ")}`,
@@ -617,8 +622,11 @@ async function annotationConfigCreateHandler(
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
-  const type = options.type.toUpperCase() as AnnotationConfigType;
-  if (!ANNOTATION_CONFIG_TYPES.includes(type)) {
+  const normalizedType = options.type.toUpperCase();
+  const type = ANNOTATION_CONFIG_TYPES.find(
+    (configType) => configType === normalizedType
+  );
+  if (!type) {
     writeStructuredError({
       format: options.format,
       message: `Invalid --type '${options.type}'. Must be one of: ${ANNOTATION_CONFIG_TYPES.join(", ")}`,

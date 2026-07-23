@@ -19,7 +19,7 @@ export type ExperimentMetricChartKey =
 export const isExperimentMetricChartKey = (
   key: string
 ): key is ExperimentMetricChartKey =>
-  EXPERIMENT_METRIC_CHART_KEYS.includes(key as ExperimentMetricChartKey);
+  (EXPERIMENT_METRIC_CHART_KEYS as readonly string[]).includes(key);
 
 /**
  * The maximum number of metric charts that can be shown above the experiments

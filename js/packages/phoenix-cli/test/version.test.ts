@@ -12,9 +12,9 @@ import {
 
 describe("version", () => {
   it("returns the package.json CLI version", () => {
-    const packageJson = JSON.parse(
+    const packageJson: { version?: string } = JSON.parse(
       readFileSync(new URL("../package.json", import.meta.url), "utf-8")
-    ) as { version?: string };
+    );
 
     expect(getCliVersion()).toBe(CLI_VERSION);
     expect(getCliVersion()).toBe(packageJson.version);

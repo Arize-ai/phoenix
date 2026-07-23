@@ -29,7 +29,7 @@ async function waitForLatestAssistantTurnWithText(page: Page) {
     if (!stored) {
       return null;
     }
-    const parsed = JSON.parse(stored) as {
+    const parsed: {
       state?: {
         activeSessionId?: string | null;
         sessionMap?: Record<
@@ -37,7 +37,7 @@ async function waitForLatestAssistantTurnWithText(page: Page) {
           { messages?: Array<{ role?: string; parts?: unknown[] }> }
         >;
       };
-    };
+    } = JSON.parse(stored);
     const activeSessionId = parsed.state?.activeSessionId;
     if (!activeSessionId) {
       return null;
@@ -66,10 +66,11 @@ async function waitForLatestAssistantTurnWithText(page: Page) {
     }
     return { assistantText, parts: latestAssistant.parts ?? [] };
   });
-  return (await turnHandle.jsonValue()) as {
-    assistantText: string;
-    parts: unknown[];
-  };
+  const turn = await turnHandle.jsonValue();
+  if (turn === null) {
+    throw new Error("Expected an assistant turn payload to be available");
+  }
+  return turn;
 }
 
 test.describe("PXI route link smoke", () => {

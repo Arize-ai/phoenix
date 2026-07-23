@@ -77,7 +77,7 @@ export function JSONEditor(props: JSONEditorProps) {
       editable
       theme={codeMirrorTheme}
       basicSetup={{
-        ...(basicSetup as object),
+        ...(typeof basicSetup === "object" ? basicSetup : {}),
         defaultKeymap: false,
       }}
       {...restProps}

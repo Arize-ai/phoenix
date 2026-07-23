@@ -147,6 +147,7 @@ const columns = [
       }
     },
     cell: ({ getValue }: CellContext<PersistedAnnotationConfig, unknown>) => {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the accessorFn above returns a ReactNode but react-table types accessor values as unknown
       const value = getValue() as React.ReactNode;
       return <Flex gap="size-100">{value}</Flex>;
     },
@@ -217,10 +218,11 @@ export const AnnotationConfigTable = ({
     `,
     annotationConfigs
   );
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fields are guaranteed by the concrete config fragments; Relay types inline-fragment fields as optional
   const configs = useMemo(
     () => data.annotationConfigs.edges.map((edge) => edge.annotationConfig),
     [data.annotationConfigs.edges]
-  ) as PersistedAnnotationConfig[]; // fields are guaranteed by the concrete config fragments
+  ) as PersistedAnnotationConfig[];
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     data: configs,

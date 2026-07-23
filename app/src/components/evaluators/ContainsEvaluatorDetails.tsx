@@ -7,11 +7,9 @@ export function ContainsEvaluatorDetails({
   inputMapping: EvaluatorInputMapping | null;
 }) {
   const textPath = inputMapping?.pathMapping?.text as string | undefined;
-  const textLiteral = inputMapping?.literalMapping?.text as string | undefined;
+  const textLiteral = inputMapping?.literalMapping?.text;
   const wordsPath = inputMapping?.pathMapping?.words as string | undefined;
-  const wordsLiteral = inputMapping?.literalMapping?.words as
-    | string
-    | undefined;
+  const wordsLiteral = inputMapping?.literalMapping?.words;
   const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
   const requireAll = inputMapping?.literalMapping?.require_all;
 

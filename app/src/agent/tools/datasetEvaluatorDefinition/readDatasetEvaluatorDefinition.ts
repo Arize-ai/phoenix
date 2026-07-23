@@ -175,6 +175,7 @@ function buildLlmBody({
   evaluator: DatasetEvaluatorNode["evaluator"];
 }): unknown {
   const promptVersionRef =
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the query spreads fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on promptVersion, so the node carries the fragment key
     evaluator.promptVersion as fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key | null;
   if (promptVersionRef == null) {
     return { inputMapping, outputConfigs };

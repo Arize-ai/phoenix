@@ -50,7 +50,7 @@ async function classifyTicket(ticketText: string) {
     });
 
     const label = result.text.trim().toLowerCase();
-    const category = CATEGORIES.includes(label as (typeof CATEGORIES)[number])
+    const category = (CATEGORIES as readonly string[]).includes(label)
       ? label
       : "other";
 
@@ -280,7 +280,7 @@ async function createSupportTicketDataset() {
  * Task function for evaluating tool call accuracy.
  */
 async function classifyTicketTask(example: Example) {
-  return classifyTicket(example.input.query as string);
+  return classifyTicket(String(example.input.query));
 }
 
 /**
@@ -298,9 +298,7 @@ const toolCallAccuracyEvaluator = asExperimentEvaluator({
       return { score: 0, label: "missing_expected" };
     }
 
-    const expectedCategory = (
-      expected as { expected_category: string }
-    ).expected_category
+    const expectedCategory = String(expected.expected_category)
       .trim()
       .toLowerCase();
     const actualOutput = String(output).trim().toLowerCase();
@@ -317,14 +315,14 @@ const toolCallAccuracyEvaluator = asExperimentEvaluator({
  * Task function that runs the full support agent.
  */
 async function supportAgentTask(example: Example) {
-  return supportAgent(example.input.query as string);
+  return supportAgent(String(example.input.query));
 }
 
 /**
  * Task function that runs the improved support agent.
  */
 async function improvedSupportAgentTask(example: Example) {
-  return improvedSupportAgent(example.input.query as string);
+  return improvedSupportAgent(String(example.input.query));
 }
 
 /**

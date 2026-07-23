@@ -131,25 +131,26 @@ export function ChatEmptyStateQuickActions({
   }
   return (
     <div css={actionsCSS} className="chat__empty-actions">
-      {quickActions.map((action, index) => (
-        <button
-          key={action.label}
-          type="button"
-          css={actionCSS}
-          className="chat__empty-action"
-          style={
-            {
-              "--chat-empty-action-delay": `${400 + index * 80}ms`,
-            } as CSSProperties
-          }
-          onClick={() => onQuickAction(action.prompt)}
-        >
-          <span css={actionIconCSS} className="chat__empty-action-icon">
-            <Icon svg={action.icon} />
-          </span>
-          <span>{action.label}</span>
-        </button>
-      ))}
+      {quickActions.map((action, index) => {
+        const actionStyle: CSSProperties & Record<`--${string}`, string> = {
+          "--chat-empty-action-delay": `${400 + index * 80}ms`,
+        };
+        return (
+          <button
+            key={action.label}
+            type="button"
+            css={actionCSS}
+            className="chat__empty-action"
+            style={actionStyle}
+            onClick={() => onQuickAction(action.prompt)}
+          >
+            <span css={actionIconCSS} className="chat__empty-action-icon">
+              <Icon svg={action.icon} />
+            </span>
+            <span>{action.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

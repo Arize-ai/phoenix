@@ -459,6 +459,7 @@ describe("createDataset", () => {
           error: null,
           response: new Response(null, { status: 200 }),
         });
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial POST-only stub standing in for a full PhoenixClient
       const stubClient = { POST: postMock } as unknown as PhoenixClient;
 
       const result = await createDataset({
@@ -485,6 +486,7 @@ describe("createDataset", () => {
         error: "inputs must be non-empty",
         response: new Response(null, { status: 422 }),
       });
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial POST-only stub standing in for a full PhoenixClient
       const stubClient = { POST: postMock } as unknown as PhoenixClient;
 
       await expect(

@@ -156,10 +156,10 @@ async function apiGraphqlHandler(
     }
 
     // 5. Parse and output response
-    const json = (await response.json()) as {
+    const json: {
       data?: unknown;
       errors?: Array<{ message: string }>;
-    };
+    } = await response.json();
 
     if (json.errors && json.errors.length > 0) {
       const msgs = json.errors.map((e) => `  • ${e.message}`).join("\n");

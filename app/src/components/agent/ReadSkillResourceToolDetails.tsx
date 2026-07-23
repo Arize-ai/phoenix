@@ -1,3 +1,5 @@
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
+
 import {
   ToolPartCodeBlock,
   ToolPartExpandableSection,
@@ -17,13 +19,12 @@ interface ReadSkillResourceInput {
 function getReadSkillResourceInput(
   input: unknown
 ): ReadSkillResourceInput | null {
-  if (typeof input === "object" && input !== null && !Array.isArray(input)) {
-    const record = input as Record<string, unknown>;
+  if (isPlainObject(input)) {
     return {
-      skillName: typeof record.skill_name === "string" ? record.skill_name : "",
+      skillName: typeof input.skill_name === "string" ? input.skill_name : "",
       resourceName:
-        typeof record.resource_name === "string" ? record.resource_name : "",
-      args: record.args,
+        typeof input.resource_name === "string" ? input.resource_name : "",
+      args: input.args,
     };
   }
   return null;

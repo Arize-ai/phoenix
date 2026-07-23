@@ -58,8 +58,11 @@ export function SettingsModelsPage() {
           aria-label="Model kind filter"
           value={kindFilter}
           onChange={(value) => {
+            if (value !== "ALL" && value !== "BUILT_IN" && value !== "CUSTOM") {
+              return;
+            }
             startTransition(() => {
-              setKindFilter(value as typeof kindFilter);
+              setKindFilter(value);
             });
           }}
           selectionMode="single"

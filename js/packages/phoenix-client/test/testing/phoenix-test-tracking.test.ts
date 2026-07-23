@@ -79,6 +79,7 @@ describe("isTrackingEnabled", () => {
 
   it("is disabled per-suite via dryRun while the flag stays truthy", () => {
     setFlag("true");
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial SuiteState fixture; isTrackingEnabled only reads config.dryRun
     const suite = { config: { dryRun: true } } as SuiteState;
     const result = isTrackingEnabled(suite);
     expect(result.enabled).toBe(false);
@@ -127,6 +128,7 @@ describe("upload guards honor the flag", () => {
       results: [],
       links: [],
       experimentId: "exp-1",
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial client stub; only POST is exercised
       client: { POST: post } as unknown as SuiteState["client"],
     } as SuiteState;
     return { suite, post };

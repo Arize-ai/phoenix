@@ -388,7 +388,7 @@ export const FilterMenu = () => {
                 if (keys === "all") {
                   setSelectedIds(FILTER_OPTIONS.map((item) => item.id));
                 } else {
-                  setSelectedIds(Array.from(keys as Set<string>));
+                  setSelectedIds(Array.from(keys, (key) => String(key)));
                 }
               }}
             >
@@ -492,7 +492,7 @@ export const MenuHeaderTitleWithSearch = () => {
                 if (keys === "all") {
                   setSelectedIds(FILTER_OPTIONS.map((item) => item.id));
                 } else {
-                  setSelectedIds(Array.from(keys as Set<string>));
+                  setSelectedIds(Array.from(keys, (key) => String(key)));
                 }
               }}
             >

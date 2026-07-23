@@ -15,7 +15,7 @@ import {
 import type { PhoenixClient } from "../../src/client";
 import * as getExperimentInfoModule from "../../src/experiments/getExperimentInfo";
 import { resumeExperiment } from "../../src/experiments/resumeExperiment";
-import type { Example, ExampleWithId } from "../../src/types/datasets";
+import type { Example } from "../../src/types/datasets";
 import { createTestClient } from "../testUtils";
 
 vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
@@ -533,7 +533,9 @@ describe("resumeExperiment", () => {
 
       const taskFn = vi.fn(async (example: Example) => {
         // resumeExperiment always passes examples that carry an id
-        taskOrder.push((example as ExampleWithId).id);
+        if (example.id != null) {
+          taskOrder.push(example.id);
+        }
 
         // Add slight delay to ensure concurrency
         await new Promise((resolve) => setTimeout(resolve, 5));

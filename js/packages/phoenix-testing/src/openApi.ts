@@ -6,12 +6,12 @@ import { DEFAULT_MOCK_BASE_URL } from "./constants.js";
 
 // This is an internal workspace package, so the repository schema is available
 // both when Vitest loads src/ and when Node loads dist/ after `pnpm -r build`.
-const openApiDocument = JSON.parse(
+const openApiDocument: Record<string, unknown> = JSON.parse(
   readFileSync(
     new URL("../../../../schemas/openapi.json", import.meta.url),
     "utf8"
   )
-) as Record<string, unknown>;
+);
 
 /**
  * Get a copy of the Phoenix OpenAPI document with its `servers` entry pointed
@@ -82,11 +82,13 @@ export async function createOpenApiHandlers({
 }: {
   baseUrl?: string;
 } = {}): Promise<RequestHandler[]> {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- normalizeSchemaExamples preserves the document's object shape
   const document = normalizeSchemaExamples(
     getOpenApiDocument({ baseUrl })
   ) as Record<string, unknown>;
   // The document is a runtime-validated JSON value; fromOpenApi's parameter
   // type is the openapi-types Document union, which structural typing of a
   // Record<string, unknown> cannot satisfy without a cast.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see comment above
   return fromOpenApi(document as Parameters<typeof fromOpenApi>[0]);
 }

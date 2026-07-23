@@ -65,7 +65,10 @@ export const CodeEvaluatorLanguageField = ({
       value={language}
       isDisabled={isDisabled}
       isRequired={isRequired}
-      onChange={(value) => onChange(value as CodeEvaluatorLanguage)}
+      onChange={(value) =>
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Select item ids are exactly CodeEvaluatorLanguage ("PYTHON" | "TYPESCRIPT")
+        onChange(value as CodeEvaluatorLanguage)
+      }
     >
       <Label>Language</Label>
       <Button>

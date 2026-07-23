@@ -97,6 +97,7 @@ function fetchJsonObservable<T>(
         if (error) {
           throw error;
         }
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic JSON fetch: the caller declares the response type T and a guard cannot know it
         sink.next(data as T);
         sink.complete();
       })

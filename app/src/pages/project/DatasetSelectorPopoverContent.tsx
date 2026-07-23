@@ -127,6 +127,7 @@ function DatasetsList(props: {
         onSelectionChange={(selection) => {
           if (typeof selection === "object") {
             const selectedDatasetIds = Array.from(selection);
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- react-aria selection Key is string | number; dataset ids are strings
             onDatasetSelected(selectedDatasetIds[0] as string);
           }
         }}

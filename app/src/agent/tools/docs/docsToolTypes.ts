@@ -42,9 +42,9 @@ export function parseDocsSearchInput(input: unknown): DocsSearchInput | null {
     typeof input === "object" &&
     input !== null &&
     "query" in input &&
-    typeof (input as Record<string, unknown>).query === "string"
+    typeof input.query === "string"
   ) {
-    return input as DocsSearchInput;
+    return { query: input.query };
   }
   return null;
 }
@@ -59,9 +59,9 @@ export function parseDocsFileSystemQueryInput(
     typeof input === "object" &&
     input !== null &&
     "command" in input &&
-    typeof (input as Record<string, unknown>).command === "string"
+    typeof input.command === "string"
   ) {
-    return input as DocsFileSystemQueryInput;
+    return { command: input.command };
   }
   return null;
 }

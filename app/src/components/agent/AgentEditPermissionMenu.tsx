@@ -46,6 +46,11 @@ const EDIT_PERMISSION_MODE_BY_KEY = new Map(
   EDIT_PERMISSION_MODES.map((meta) => [meta.mode, meta])
 );
 
+const isAgentEditPermissionMode = (
+  value: unknown
+): value is AgentEditPermissionMode =>
+  EDIT_PERMISSION_MODES.some((meta) => meta.mode === value);
+
 export function getEditPermissionLabel(mode: AgentEditPermissionMode): string {
   return EDIT_PERMISSION_MODE_BY_KEY.get(mode)?.label ?? mode;
 }
@@ -140,8 +145,8 @@ export function AgentEditPermissionMenu({
               return;
             }
             const [next] = keys;
-            if (typeof next === "string") {
-              setPermissions({ edits: next as AgentEditPermissionMode });
+            if (isAgentEditPermissionMode(next)) {
+              setPermissions({ edits: next });
             }
           }}
         >

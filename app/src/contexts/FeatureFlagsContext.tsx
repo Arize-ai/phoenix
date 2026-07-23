@@ -33,14 +33,14 @@ function getFeatureFlags(): Record<FeatureFlag, boolean> {
   }
 
   try {
-    const parsedFeatureFlags = JSON.parse(
+    const parsedFeatureFlags: Record<string, unknown> = JSON.parse(
       featureFlagsFromLocalStorage
-    ) as Record<string, unknown>;
+    );
     const next = { ...DEFAULT_FEATURE_FLAGS };
     const hasUnknownFeatureFlags = Object.keys(parsedFeatureFlags).some(
       (key) => !(key in DEFAULT_FEATURE_FLAGS)
     );
-    for (const key of Object.keys(DEFAULT_FEATURE_FLAGS) as FeatureFlag[]) {
+    for (const key of Object.keys(DEFAULT_FEATURE_FLAGS)) {
       const v = parsedFeatureFlags[key];
       if (typeof v === "boolean") {
         (next as Record<string, boolean>)[key] = v;
@@ -114,20 +114,25 @@ function FeatureFlagsControls(props: PropsWithChildren) {
                 </DialogTitleExtra>
               </DialogHeader>
               <View padding="size-100">
-                {Object.keys(featureFlags).map((featureFlag) => (
-                  <Switch
-                    key={featureFlag}
-                    isSelected={featureFlags[featureFlag as FeatureFlag]}
-                    onChange={(isSelected) =>
-                      setFeatureFlags({
-                        ...featureFlags,
-                        [featureFlag]: isSelected,
-                      })
-                    }
-                  >
-                    {featureFlag}
-                  </Switch>
-                ))}
+                {
+                  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens FeatureFlag record keys to string
+                  (Object.keys(featureFlags) as FeatureFlag[]).map(
+                    (featureFlag) => (
+                      <Switch
+                        key={featureFlag}
+                        isSelected={featureFlags[featureFlag]}
+                        onChange={(isSelected) =>
+                          setFeatureFlags({
+                            ...featureFlags,
+                            [featureFlag]: isSelected,
+                          })
+                        }
+                      >
+                        {featureFlag}
+                      </Switch>
+                    )
+                  )
+                }
               </View>
             </DialogContent>
           </Dialog>

@@ -103,6 +103,7 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
         merge: (persistedState, currentState) => {
           const merged = {
             ...currentState,
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- zustand persist stores JSON with a known shape; stale keys are sanitized below
             ...(persistedState as Partial<DatasetStoreState>),
           };
           // Persisted chart keys may reference charts that no longer exist in

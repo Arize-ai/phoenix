@@ -151,6 +151,7 @@ function useRegisterSetSpansFilterClientAction({
     const { registerClientAction, unregisterClientAction } =
       agentStore.getState();
     registerClientAction(SET_SPANS_FILTER_TOOL_NAME, (input) =>
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- input already validated by the tool's parseInput; AgentClientAction types it as unknown
       handleSetSpansFilter(input as SetSpansFilterInput)
     );
     return () => {

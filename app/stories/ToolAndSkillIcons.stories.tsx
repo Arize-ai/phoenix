@@ -34,6 +34,7 @@ function AgentStoreStoryProvider({ children }: { children: React.ReactNode }) {
  * these, but stories only need valid display shapes.
  */
 function makePart(overrides: Record<string, unknown>): ToolPartType {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- story mock: only valid display shapes are needed, per the function doc above
   return {
     type: "dynamic-tool",
     toolCallId: crypto.randomUUID(),

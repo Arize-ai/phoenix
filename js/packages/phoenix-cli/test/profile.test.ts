@@ -71,6 +71,7 @@ interface ProfileTestContext {
 }
 
 function setupProfileTestContext(prefix: string) {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- context fields are populated in beforeEach
   const ctx = {} as ProfileTestContext;
   let originalEnv: NodeJS.ProcessEnv;
 
@@ -413,7 +414,7 @@ describe("ProfileEntrySchema endpoint URL validation", () => {
     writeTempSettings(ctx.tmpDir, {
       activeProfile: null,
       profiles: { bad: { endpoint: "not-a-url" } },
-    } as never);
+    });
 
     // Trigger a forgiving load via `list` and assert the warning fires.
     await runProfileCommand(["list", "--format", "json"], ctx);
@@ -432,7 +433,7 @@ describe("ProfileEntrySchema endpoint URL validation", () => {
     writeTempSettings(ctx.tmpDir, {
       activeProfile: null,
       profiles: { bad: { endpoint: "not-a-url" } },
-    } as never);
+    });
 
     // `profile use` is a mutation command and uses strict mode.
     await runProfileCommand(["use", "bad"], ctx);

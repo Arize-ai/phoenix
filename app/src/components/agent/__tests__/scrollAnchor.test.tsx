@@ -26,6 +26,22 @@ afterEach(() => {
 
 type Anchor = ReturnType<typeof useScrollAnchor>;
 
+/** Builds a full DOMRect for getBoundingClientRect mocks. */
+function makeRect(overrides: Partial<DOMRect>): DOMRect {
+  return {
+    x: 0,
+    y: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: 0,
+    height: 0,
+    toJSON: () => ({}),
+    ...overrides,
+  };
+}
+
 /**
  * Renders the hook inside a chat scroll context and returns its (stable)
  * `capture`/`restore` callbacks for direct invocation.
@@ -85,23 +101,22 @@ describe("useScrollAnchor", () => {
     scrollParent.appendChild(el);
     document.body.appendChild(scrollParent);
 
-    vi.spyOn(window, "getComputedStyle").mockImplementation(
-      (node: Element) =>
-        ({
-          overflowY: node === scrollParent ? "auto" : "visible",
-        }) as unknown as CSSStyleDeclaration
+    vi.spyOn(window, "getComputedStyle").mockImplementation((node: Element) => {
+      const style = document.createElement("div").style;
+      style.overflowY = node === scrollParent ? "auto" : "visible";
+      return style;
+    });
+    vi.spyOn(scrollParent, "getBoundingClientRect").mockReturnValue(
+      makeRect({ top: 0 })
     );
-    vi.spyOn(scrollParent, "getBoundingClientRect").mockReturnValue({
-      top: 0,
-    } as unknown as DOMRect);
     const elementRect = vi.spyOn(el, "getBoundingClientRect");
-    elementRect.mockReturnValue({ top: 200 } as unknown as DOMRect);
+    elementRect.mockReturnValue(makeRect({ top: 200 }));
 
     anchor.capture(el);
     expect(stopScroll).toHaveBeenCalledTimes(1);
 
     // Simulate content above the element growing by 60px after expansion.
-    elementRect.mockReturnValue({ top: 260 } as unknown as DOMRect);
+    elementRect.mockReturnValue(makeRect({ top: 260 }));
     anchor.restore(el);
 
     // scrollTop advances by the 60px delta so the element stays visually put.

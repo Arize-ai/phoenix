@@ -280,6 +280,7 @@ describe("toOpenAI type compatibility", () => {
   ])(
     "forwards OpenAI-family invocation parameters from legacy %s discriminator",
     (type, contentKey) => {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- legacy discriminator shape built from runtime keys can't be statically narrowed
       const mockPrompt = {
         ...BASE_MOCK_PROMPT_VERSION,
         invocation_parameters: {

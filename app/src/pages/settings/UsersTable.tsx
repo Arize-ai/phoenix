@@ -29,7 +29,6 @@ import {
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import type { UserRole } from "@phoenix/constants";
 import { isUserRole, normalizeUserRole } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
@@ -224,14 +223,14 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
               includeLabel={false}
               size="S"
               onChange={(key) => {
-                if (key === row.original.role) {
+                if (!isUserRole(key) || key === row.original.role) {
                   return;
                 }
                 setDialog(
                   <UserRoleChangeDialog
                     onClose={() => setDialog(null)}
                     currentRole={row.original.role}
-                    newRole={key as UserRole}
+                    newRole={key}
                     username={row.original.username}
                     userId={row.original.id}
                   />
@@ -299,7 +298,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
     <div
       css={usersTableContainerCSS}
       ref={tableContainerRef}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
     >
       <table
         css={selectableTableCSS}

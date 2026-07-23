@@ -42,11 +42,29 @@ async function main() {
     },
   });
 
+  type UserMessage = { role: "user"; content: string };
+
+  const isUserMessage = (value: unknown): value is UserMessage =>
+    typeof value === "object" &&
+    value !== null &&
+    "role" in value &&
+    value.role === "user" &&
+    "content" in value &&
+    typeof value.content === "string";
+
   const task = async (example: Example): Promise<string> => {
-    const raw = example.input as unknown as
-      | { role: "user"; content: string }[]
-      | { input: { role: "user"; content: string }[] };
-    const messages = Array.isArray(raw) ? raw : raw.input;
+    // The dataset stores either a message array or { input: messages }
+    const raw: unknown = example.input;
+    const candidate =
+      !Array.isArray(raw) &&
+      typeof raw === "object" &&
+      raw !== null &&
+      "input" in raw
+        ? raw.input
+        : raw;
+    const messages = Array.isArray(candidate)
+      ? candidate.filter(isUserMessage)
+      : [];
     const response = await mastra
       .getAgent("financialOrchestratorAgent")
       .generate(messages);

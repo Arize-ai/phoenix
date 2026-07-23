@@ -65,10 +65,11 @@ export function OpenAIApiTypeConfigFormField({
       key="openai-api-type"
       value={value}
       onChange={(key) => {
-        if (key != null) {
+        const apiType = API_TYPE_OPTIONS.find((opt) => opt.id === key)?.id;
+        if (apiType != null) {
           updateModel({
             instanceId: playgroundInstanceId,
-            patch: { openaiApiType: key as OpenAIApiType },
+            patch: { openaiApiType: apiType },
           });
         }
       }}

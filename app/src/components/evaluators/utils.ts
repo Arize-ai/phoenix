@@ -16,7 +16,7 @@ import type {
   EvaluatorMappingSource,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
-import { isObject } from "@phoenix/typeUtils";
+import { isObject, isStringKeyedObject } from "@phoenix/typeUtils";
 
 // Single source of judge tools, shared by Save and preview so the two can't diverge.
 export const buildJudgeToolFunctions = ({
@@ -292,14 +292,11 @@ export const inferIncludeExplanationFromPrompt = (
 
   try {
     const parameters = tool.function.parameters;
-    if (!isObject(parameters)) {
+    if (!isStringKeyedObject(parameters)) {
       return false;
     }
-    const params = parameters as Record<string, unknown>;
-    return (
-      isObject(params.properties) &&
-      "explanation" in (params.properties as Record<string, unknown>)
-    );
+    const params = parameters;
+    return isObject(params.properties) && "explanation" in params.properties;
   } catch {
     return false;
   }

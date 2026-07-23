@@ -521,7 +521,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         flex: 1 1 auto;
         overflow: auto;
       `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
       ref={tableContainerRef}
     >
       <ColumnOrderingProvider

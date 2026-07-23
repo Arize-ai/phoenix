@@ -2,7 +2,8 @@ const isErrorWithMessage = (error: unknown): error is { message: string } => {
   return (
     typeof error === "object" &&
     error !== null &&
-    typeof (error as { message: unknown }).message === "string"
+    "message" in error &&
+    typeof error.message === "string"
   );
 };
 
@@ -56,19 +57,14 @@ interface ErrorWithSource extends Error {
  * @returns true if the error has a source property with an errors array, false otherwise
  */
 const isErrorWithSource = (error: unknown): error is ErrorWithSource => {
-  const errorWithSource = error as ErrorWithSource;
   return (
-    typeof errorWithSource === "object" &&
-    errorWithSource !== null &&
-    typeof errorWithSource.source === "object" &&
-    errorWithSource.source !== null &&
-    Array.isArray(errorWithSource.source.errors) &&
-    errorWithSource.source.errors.every(
-      (error) =>
-        typeof error === "object" &&
-        error !== null &&
-        typeof error.message === "string"
-    )
+    typeof error === "object" &&
+    error !== null &&
+    "source" in error &&
+    typeof error.source === "object" &&
+    error.source !== null &&
+    "errors" in error.source &&
+    isErrorsArray(error.source.errors)
   );
 };
 

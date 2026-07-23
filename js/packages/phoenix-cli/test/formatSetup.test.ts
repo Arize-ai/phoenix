@@ -35,7 +35,8 @@ const REPORT: SetupReport = {
 };
 
 function parse(format: "json" | "raw", report: SetupReport = REPORT) {
-  return JSON.parse(formatSetupOutput({ report, format })) as SetupOutput;
+  const output: SetupOutput = JSON.parse(formatSetupOutput({ report, format }));
+  return output;
 }
 
 describe("formatSetupOutput", () => {

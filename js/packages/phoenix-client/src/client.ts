@@ -140,7 +140,8 @@ export const createClient = (
       try {
         const baseUrl = mergedOptions.baseUrl ?? "";
         const headers = mergedOptions.headers
-          ? { ...(mergedOptions.headers as Record<string, string>) }
+          ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- headers option is a plain string record at runtime
+            { ...(mergedOptions.headers as Record<string, string>) }
           : {};
         const resp = await fetch(`${baseUrl}/arize_phoenix_version`, {
           headers,

@@ -284,8 +284,7 @@ export async function fetchPxiModelPreflight({
       `Could not validate PXI model selection: HTTP ${response.status} ${response.statusText} from ${request.url}${detailText}. Use --skip-model-preflight to bypass this startup check.`
     );
   }
-  const payload =
-    (await response.json()) as GraphqlResponse<PxiModelPreflightData>;
+  const payload: GraphqlResponse<PxiModelPreflightData> = await response.json();
   return assertPreflightData({ payload });
 }
 

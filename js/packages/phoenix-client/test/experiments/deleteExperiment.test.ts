@@ -62,6 +62,7 @@ function createStubClient(deleteResult: {
   data: null;
   error: unknown;
 }): PhoenixClient {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- deliberate partial stub of PhoenixClient; only DELETE is exercised
   return {
     DELETE: async () => deleteResult,
   } as unknown as PhoenixClient;

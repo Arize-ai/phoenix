@@ -1,12 +1,14 @@
 import type { APIResponse } from "@playwright/test";
 
-export async function expectOK(response: APIResponse) {
+export async function expectOK(
+  response: APIResponse
+): Promise<{ data: unknown }> {
   if (!response.ok()) {
     throw new Error(
       `Phoenix API request failed: ${response.status()} ${await response.text()}`
     );
   }
-  return response.json() as Promise<{ data: unknown }>;
+  return response.json();
 }
 
 export function getSpanToolName(span: unknown): string | null {

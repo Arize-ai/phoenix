@@ -99,7 +99,7 @@ describe("OAuth PKCE and callback helpers", () => {
     );
     expect(authorizationUrl.pathname).toBe("/phoenix/oauth2/authorize");
 
-    const fetchImpl = vi.fn(
+    const fetchImpl = vi.fn<typeof fetch>(
       async () =>
         new Response(
           JSON.stringify({
@@ -111,7 +111,7 @@ describe("OAuth PKCE and callback helpers", () => {
           }),
           { status: 200 }
         )
-    ) as unknown as typeof fetch & { mock: { calls: [URL][] } };
+    );
 
     await exchangeAuthorizationCode({
       endpoint,
@@ -339,9 +339,9 @@ describe("OAuth token parsing and refresh", () => {
         settingsPath,
       });
       expect(tokens.accessToken).toBe("new-access");
-      const saved = JSON.parse(
+      const saved: SettingsFile = JSON.parse(
         fs.readFileSync(settingsPath, "utf-8")
-      ) as SettingsFile;
+      );
       expect(saved.profiles.prod.oauthTokens?.refreshToken).toBe("new-refresh");
     } finally {
       await server?.close();

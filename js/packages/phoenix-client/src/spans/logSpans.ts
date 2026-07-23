@@ -126,11 +126,15 @@ function formatLogSpansErrorMessage({
   return parts.join("\n");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return isObject(value);
+}
+
 function toSpanIdAndTraceId(item: unknown): {
   spanId: string;
   traceId: string;
 } {
-  const record = isObject(item) ? (item as Record<string, unknown>) : {};
+  const record: Record<string, unknown> = isRecord(item) ? item : {};
   return {
     spanId: typeof record.span_id === "string" ? record.span_id : "unknown",
     traceId: typeof record.trace_id === "string" ? record.trace_id : "unknown",
@@ -140,7 +144,7 @@ function toSpanIdAndTraceId(item: unknown): {
 function toInvalidSpanInfoList(value: unknown): InvalidSpanInfo[] {
   if (!Array.isArray(value)) return [];
   return value.map((item) => {
-    const record = isObject(item) ? (item as Record<string, unknown>) : {};
+    const record: Record<string, unknown> = isRecord(item) ? item : {};
     return {
       ...toSpanIdAndTraceId(item),
       error:

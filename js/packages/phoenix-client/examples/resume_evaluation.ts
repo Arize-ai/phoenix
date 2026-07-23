@@ -68,6 +68,7 @@ async function main() {
     input: Record<string, unknown>;
   }) => {
     // Simulate a text generation task with varied outputs
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- example input is untyped JSON; treat prompt as a string
     const prompt = example.input.prompt as string;
     const randomId = Math.floor(Math.random() * 1000);
     return {
@@ -102,6 +103,7 @@ async function main() {
         name: "contains-response",
         kind: "CODE",
         evaluate: async ({ output }) => {
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- task output is untyped JSON; read the optional text field
           const text = (output as { text?: string })?.text || "";
           const hasResponse = text.toLowerCase().includes("response");
           // Generate varied scores to make them visible in UI
@@ -120,6 +122,7 @@ async function main() {
         name: "length-score",
         kind: "CODE",
         evaluate: async ({ output }) => {
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- task output is untyped JSON; read the optional text field
           const text = (output as { text?: string })?.text || "";
           const score = 0.5 + Math.random() * 0.5; // 0.5 to 1.0
           return {
@@ -134,6 +137,7 @@ async function main() {
         name: "punctuation-score",
         kind: "CODE",
         evaluate: async ({ output }) => {
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- task output is untyped JSON; read the optional text field
           const text = (output as { text?: string })?.text || "";
           const score = 0.3 + Math.random() * 0.7; // 0.3 to 1.0
           return {
@@ -148,6 +152,7 @@ async function main() {
         name: "politeness-check",
         kind: "CODE",
         evaluate: async ({ output }) => {
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- task output is untyped JSON; read the optional text field
           const text = (output as { text?: string })?.text?.toLowerCase() || "";
           const politeWords = ["please", "thank", "hello", "goodbye", "help"];
           const hasPoliteWord = politeWords.some((word) => text.includes(word));

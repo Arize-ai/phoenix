@@ -422,7 +422,7 @@ const personColumns: ColumnDef<Person>[] = [
     header: "Name",
     accessorKey: "name",
     size: 200,
-    cell: ({ getValue }) => <strong>{getValue() as string}</strong>,
+    cell: ({ getValue }) => <strong>{getValue<string>()}</strong>,
   },
   {
     header: "Age",
@@ -440,14 +440,14 @@ const personColumns: ColumnDef<Person>[] = [
     header: "Salary",
     accessorKey: "salary",
     size: 120,
-    cell: ({ getValue }) => `$${(getValue() as number).toLocaleString()}`,
+    cell: ({ getValue }) => `$${getValue<number>().toLocaleString()}`,
   },
   {
     header: "Status",
     accessorKey: "status",
     size: 100,
     cell: ({ getValue }) => {
-      const status = getValue() as string;
+      const status = getValue<string>();
       return (
         <span
           css={css`
@@ -481,7 +481,7 @@ const productColumns: ColumnDef<Product>[] = [
     header: "Product",
     accessorKey: "name",
     size: 200,
-    cell: ({ getValue }) => <strong>{getValue() as string}</strong>,
+    cell: ({ getValue }) => <strong>{getValue<string>()}</strong>,
   },
   {
     header: "Price",

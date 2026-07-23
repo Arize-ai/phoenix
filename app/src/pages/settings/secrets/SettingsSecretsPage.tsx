@@ -148,8 +148,11 @@ function SettingsSecretsPageContent({
             aria-label="Secret owner filter"
             value={ownerFilter}
             onChange={(value) => {
+              if (value !== "ALL" && value !== "MINE") {
+                return;
+              }
               startTransition(() => {
-                setOwnerFilter(value as SecretOwnerFilter);
+                setOwnerFilter(value);
               });
             }}
             selectionMode="single"

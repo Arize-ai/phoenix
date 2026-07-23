@@ -155,9 +155,13 @@ describe("ResizableFloatingPanel", () => {
       root.render(<ResizablePanelHarness />);
     });
 
-    const panel = container.querySelector(".resizable-floating-panel");
+    const panel = container.querySelector<HTMLElement>(
+      ".resizable-floating-panel"
+    );
     const resizeHandles = Array.from(
-      container.querySelectorAll(".resizable-floating-panel__resize-handle")
+      container.querySelectorAll<HTMLElement>(
+        ".resizable-floating-panel__resize-handle"
+      )
     );
     const getResizeHandle = (edge: string) =>
       resizeHandles.find((handle) => handle.getAttribute("data-edge") === edge);
@@ -211,16 +215,12 @@ describe("ResizableFloatingPanel", () => {
       placement: "top-start",
     });
 
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("152px");
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-y"
-      )
-    ).toBe("88px");
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+      "152px"
+    );
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-y")).toBe(
+      "88px"
+    );
   });
 
   it("uses viewport geometry in the modal layer", () => {
@@ -235,16 +235,12 @@ describe("ResizableFloatingPanel", () => {
       placement: "top-start",
     });
 
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("24px");
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-y"
-      )
-    ).toBe("24px");
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+      "24px"
+    );
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-y")).toBe(
+      "24px"
+    );
   });
 
   it("can anchor content-layer geometry to the viewport when requested", () => {
@@ -261,16 +257,12 @@ describe("ResizableFloatingPanel", () => {
       placement: "top-start",
     });
 
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("24px");
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-y"
-      )
-    ).toBe("24px");
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+      "24px"
+    );
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-y")).toBe(
+      "24px"
+    );
   });
 
   it("re-clamps the panel when the viewport changes", () => {
@@ -291,16 +283,12 @@ describe("ResizableFloatingPanel", () => {
       window.dispatchEvent(new Event("resize"));
     });
 
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("356px");
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-y"
-      )
-    ).toBe("56px");
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+      "356px"
+    );
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-y")).toBe(
+      "56px"
+    );
   });
 
   it("re-pins a pristine panel to the corner when the boundary grows", () => {
@@ -317,11 +305,9 @@ describe("ResizableFloatingPanel", () => {
     const { panel } = renderResizablePanel({ boundaryRef });
 
     // Mounted against the narrow boundary: 760 - 520 - 24 = 216.
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("216px");
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+      "216px"
+    );
 
     setBounds({ height: 1000, left: 0, top: 0, width: 1200 });
     act(() => {
@@ -329,11 +315,9 @@ describe("ResizableFloatingPanel", () => {
     });
 
     // Re-pinned to the widened boundary corner: 1200 - 520 - 24 = 656.
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("656px");
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+      "656px"
+    );
   });
 
   it("keeps a user-positioned panel put when the boundary grows", () => {
@@ -364,9 +348,7 @@ describe("ResizableFloatingPanel", () => {
       });
       dispatchPointerEvent(panel, "pointerup", { clientX: 160, clientY: 270 });
     });
-    const movedX = (panel as HTMLElement).style.getPropertyValue(
-      "--resizable-floating-panel-x"
-    );
+    const movedX = panel.style.getPropertyValue("--resizable-floating-panel-x");
 
     setBounds({ height: 1000, left: 0, top: 0, width: 1200 });
     act(() => {
@@ -374,11 +356,9 @@ describe("ResizableFloatingPanel", () => {
     });
 
     // The widened boundary must not yank the panel back to the corner.
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe(movedX);
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+      movedX
+    );
   });
 
   it("resizes from the panel's top-left corner", () => {
@@ -465,16 +445,12 @@ describe("ResizableFloatingPanel", () => {
         height: 760,
         width: 570,
       });
-      expect(
-        (panel as HTMLElement).style.getPropertyValue(
-          "--resizable-floating-panel-x"
-        )
-      ).toBe(expectedPosition.x);
-      expect(
-        (panel as HTMLElement).style.getPropertyValue(
-          "--resizable-floating-panel-y"
-        )
-      ).toBe(expectedPosition.y);
+      expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+        expectedPosition.x
+      );
+      expect(panel.style.getPropertyValue("--resizable-floating-panel-y")).toBe(
+        expectedPosition.y
+      );
     }
   );
 
@@ -548,16 +524,12 @@ describe("ResizableFloatingPanel", () => {
       });
 
       expect(onSizeChange).toHaveBeenLastCalledWith(expectedSize);
-      expect(
-        (panel as HTMLElement).style.getPropertyValue(
-          "--resizable-floating-panel-x"
-        )
-      ).toBe(expectedPosition.x);
-      expect(
-        (panel as HTMLElement).style.getPropertyValue(
-          "--resizable-floating-panel-y"
-        )
-      ).toBe(expectedPosition.y);
+      expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+        expectedPosition.x
+      );
+      expect(panel.style.getPropertyValue("--resizable-floating-panel-y")).toBe(
+        expectedPosition.y
+      );
     }
   );
 
@@ -566,7 +538,7 @@ describe("ResizableFloatingPanel", () => {
     const { resizeHandle } = renderResizablePanel({ onSizeChange });
 
     act(() => {
-      (resizeHandle as HTMLElement).focus();
+      resizeHandle.focus();
     });
 
     expect(document.activeElement).toBe(resizeHandle);
@@ -610,11 +582,9 @@ describe("ResizableFloatingPanel", () => {
     });
 
     expect(onSizeChange).not.toHaveBeenCalled();
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("616px");
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+      "616px"
+    );
   });
 
   it("keeps the panel location after resizing a moved panel", () => {
@@ -669,11 +639,9 @@ describe("ResizableFloatingPanel", () => {
       height: 760,
       width: 570,
     });
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("566px");
+    expect(panel.style.getPropertyValue("--resizable-floating-panel-x")).toBe(
+      "566px"
+    );
   });
 
   it("commits movement when pointer capture is lost", () => {

@@ -117,7 +117,7 @@ function OAuth2Consent() {
           }),
         }
       );
-      const payload = (await response.json()) as AuthorizationDecisionResponse;
+      const payload: AuthorizationDecisionResponse = await response.json();
       if (!response.ok || !payload.redirect_to) {
         setError("Phoenix could not complete this authorization request.");
         return;

@@ -607,8 +607,9 @@ function ExperimentRunOutputsSidebar() {
                       if (keys === "all") {
                         return;
                       }
+                      const key = keys.values().next().value;
                       setSelectedAnnotation(
-                        keys.values().next().value as string
+                        typeof key === "string" ? key : null
                       );
                     }}
                     css={css`

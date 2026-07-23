@@ -4,12 +4,14 @@ import { makeSessionUrls } from "../SessionPaginationContext";
 
 describe("makeSessionUrls", () => {
   it("preserves recreatable URL state while clearing session-specific selections", () => {
-    const location = {
+    const location: Parameters<typeof makeSessionUrls>[0] = {
       pathname: "/projects/project-1/sessions/current-session",
       search:
         "?sessionView=traces&timeRangeKey=7d&timeRangeStart=2026-06-02T10%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A30.000Z&selectedTraceId=trace-1&selectedSpanNodeId=span-1",
       hash: "#details",
-    } as Parameters<typeof makeSessionUrls>[0];
+      state: null,
+      key: "default",
+    };
 
     const sessionSequence = [
       { sessionId: "current-session" },
@@ -25,11 +27,13 @@ describe("makeSessionUrls", () => {
   });
 
   it("returns plain session paths when there is no search state to preserve", () => {
-    const location = {
+    const location: Parameters<typeof makeSessionUrls>[0] = {
       pathname: "/projects/project-1/sessions/current-session",
       search: "",
       hash: "",
-    } as Parameters<typeof makeSessionUrls>[0];
+      state: null,
+      key: "default",
+    };
 
     const sessionSequence = [
       { sessionId: "previous-session" },

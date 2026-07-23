@@ -216,8 +216,9 @@ export const terminalFormatDataset = {
     "Golden dataset for benchmarking terminal-safe-format evaluator accuracy",
   examples: terminalFormatExamples.map((example) => ({
     ...example,
-    splits: example.metadata?.category
-      ? [example.metadata.category as string]
-      : [],
+    splits:
+      typeof example.metadata?.category === "string"
+        ? [example.metadata.category]
+        : [],
   })),
 };

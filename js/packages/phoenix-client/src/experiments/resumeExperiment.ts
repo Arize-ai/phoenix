@@ -654,7 +654,7 @@ async function recordTaskResult({
       body: {
         dataset_example_id: getExampleGlobalId(example),
         repetition_number: repetitionNumber,
-        output: output as Record<string, unknown>,
+        output,
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
         error: error ? ensureString(error) : undefined,
@@ -753,6 +753,7 @@ async function runSingleTask({
           code: SpanStatusCode.ERROR,
           message: error,
         });
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- recordException tolerates any value; caught err is unknown
         span.recordException(err as Error);
 
         throw err;

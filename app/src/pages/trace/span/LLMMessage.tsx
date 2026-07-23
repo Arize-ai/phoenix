@@ -143,7 +143,7 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
                   }
                   const id = toolCall.id;
                   const parsedArguments = safelyParseJSON(
-                    toolCall?.function?.arguments as string
+                    toolCall?.function?.arguments ?? ""
                   );
 
                   return (
@@ -175,7 +175,7 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
                             padding: var(--global-dimension-size-200);
                           `}
                         >
-                          {toolCall?.function?.name as string}(
+                          {toolCall?.function?.name}(
                           {parsedArguments.json
                             ? JSON.stringify(parsedArguments.json, null, 2)
                             : `${toolCall?.function?.arguments}`}
@@ -199,17 +199,15 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
                       margin: var(--global-dimension-size-100) 0;
                     `}
                   >
-                    {
-                      message[
-                        MessageAttributePostfixes.function_call_name
-                      ] as string
-                    }
-                    (
+                    {message[MessageAttributePostfixes.function_call_name]}(
                     {JSON.stringify(
                       JSON.parse(
-                        message[
-                          MessageAttributePostfixes.function_call_arguments_json
-                        ] as string
+                        String(
+                          message[
+                            MessageAttributePostfixes
+                              .function_call_arguments_json
+                          ]
+                        )
                       ),
                       null,
                       2

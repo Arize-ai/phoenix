@@ -103,6 +103,7 @@ function createToolCallEvaluator(projectName: string) {
         spanKind: "TOOL",
       });
 
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- expected is untyped JSON; read the optional expectedTool field
       const expectedTool = (expected as { expectedTool?: string })
         ?.expectedTool;
       const toolNames = toolSpans.map((s) => s.name);
@@ -160,6 +161,7 @@ async function main() {
     dataset: { datasetId },
     setGlobalTracerProvider: true,
     task: async (example) => {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- example input is untyped JSON; treat question as a string
       return runAgent(example.input.question as string);
     },
   });

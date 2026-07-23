@@ -96,7 +96,7 @@ function DatasetLabelFilterContent({
       onSelectionChange(labels.map((l) => l.id));
       return;
     }
-    onSelectionChange([...selection] as string[]);
+    onSelectionChange([...selection].map(String));
   };
 
   const handleClear = () => {

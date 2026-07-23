@@ -650,6 +650,7 @@ function TableBody<T>({
   );
 }
 // special memoized wrapper for our table body that we will use during column resizing
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- preserve the generic component signature through React.memo
 export const MemoizedTableBody = memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
@@ -1441,7 +1442,11 @@ export function PlaygroundDatasetExamplesTable({
           scrollbar-gutter: stable;
         `}
         ref={tableContainerCallbackRef}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+        onScroll={(e) => {
+          if (e.target instanceof HTMLDivElement) {
+            fetchMoreOnBottomReached(e.target);
+          }
+        }}
       >
         <table
           css={css(tableCSS, borderedTableCSS)}

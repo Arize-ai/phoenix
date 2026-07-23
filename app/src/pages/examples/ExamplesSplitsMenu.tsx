@@ -132,7 +132,7 @@ const SplitMenuFilterContent = ({
         if (keys === "all") {
           onSelectionChange(splits.map((s) => s.id));
         } else {
-          onSelectionChange(Array.from(keys as Set<string>));
+          onSelectionChange(Array.from(keys, String));
         }
       }}
     >

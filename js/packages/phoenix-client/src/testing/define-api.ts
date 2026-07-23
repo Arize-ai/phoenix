@@ -190,6 +190,7 @@ export interface PhoenixTestApi {
  * destructuring in each adapter.
  */
 export function createTestApi(getHooks: () => RunnerHooks): PhoenixTestApi {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- callable base is augmented with .only/.skip below to satisfy PhoenixDescribe
   const describe = ((
     name: string,
     fn: () => void,
@@ -204,6 +205,7 @@ export function createTestApi(getHooks: () => RunnerHooks): PhoenixTestApi {
     declareDescribe(getHooks(), name, fn, config ?? {}, "skip");
   };
 
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- callable base is augmented with .only/.skip below to satisfy PhoenixTest
   const test = (<Input extends KVMap = KVMap, Expected extends KVMap = KVMap>(
     name: string,
     params: TestParams<Input, Expected>,

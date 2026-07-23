@@ -38,7 +38,7 @@ describe("playground output agent tool", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const output = JSON.parse(result.output ?? "") as {
+    const output: {
       status: string;
       instances: {
         instanceId: number;
@@ -49,7 +49,7 @@ describe("playground output agent tool", () => {
           spanNodeId: string;
         }[];
       }[];
-    };
+    } = JSON.parse(result.output ?? "");
     expect(output).toEqual(
       expect.objectContaining({
         status: "finished",

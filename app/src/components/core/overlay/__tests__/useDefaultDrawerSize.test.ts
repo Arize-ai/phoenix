@@ -65,15 +65,14 @@ describe("useDefaultDrawerSize", () => {
   it("debounces rapid onSizeChange calls into a single storage write", async () => {
     const storage = window.localStorage;
     storage.clear();
-    const onRender = vi.fn();
+    const onRender =
+      vi.fn<(result: ReturnType<typeof useDefaultDrawerSize>) => void>();
 
     act(() => {
       root.render(createElement(TestComponent, { storage, onRender }));
     });
 
-    const { onSizeChange } = onRender.mock.calls.at(-1)![0] as ReturnType<
-      typeof useDefaultDrawerSize
-    >;
+    const { onSizeChange } = onRender.mock.calls.at(-1)![0];
 
     onSizeChange(40);
     onSizeChange(50);

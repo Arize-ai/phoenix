@@ -111,7 +111,9 @@ describe("SavePromptForm", () => {
     expect(promptInput).not.toBeNull();
 
     await act(async () => {
-      setInputValue(promptInput as HTMLInputElement, "new-prompt");
+      if (promptInput != null) {
+        setInputValue(promptInput, "new-prompt");
+      }
     });
 
     const form = container.querySelector("form");

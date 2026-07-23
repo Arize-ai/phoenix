@@ -10,6 +10,7 @@ const meta: Meta = {
 export default meta;
 
 const providers = Object.entries(ModelProviders)
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries of a Record<ModelProvider, string> widens keys to string
   .map(([key, name]) => ({ key: key as ModelProvider, name }))
   .sort((a, b) => a.name.localeCompare(b.name));
 

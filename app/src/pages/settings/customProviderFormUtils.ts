@@ -34,6 +34,15 @@ import type {
 
 export type ProviderNode = EditCustomProviderButtonQuery$data["node"];
 
+/**
+ * Narrows a server-provided API type to the form's supported values.
+ */
+function toOpenAIApiTypeForm(
+  value: string | null | undefined
+): OpenAIFormData["openai_api_type"] | null {
+  return value === "CHAT_COMPLETIONS" || value === "RESPONSES" ? value : null;
+}
+
 // =============================================================================
 // Form Default Values
 // =============================================================================
@@ -159,8 +168,7 @@ export function transformConfigToFormValues(
         ...baseValues,
         sdk: "OPENAI",
         openai_api_type:
-          (config?.openaiApiType as OpenAIFormData["openai_api_type"]) ??
-          "RESPONSES",
+          toOpenAIApiTypeForm(config?.openaiApiType) ?? "RESPONSES",
         openai_api_key: config?.openaiAuthenticationMethod?.apiKey || "",
         openai_base_url: config?.openaiClientKwargs?.baseUrl ?? undefined,
         openai_organization:
@@ -187,8 +195,7 @@ export function transformConfigToFormValues(
         ...baseValues,
         sdk: "AZURE_OPENAI",
         openai_api_type:
-          (config?.openaiApiType as AzureOpenAIFormData["openai_api_type"]) ??
-          "RESPONSES",
+          toOpenAIApiTypeForm(config?.openaiApiType) ?? "RESPONSES",
         azure_endpoint: kwargs?.azureEndpoint ?? "",
         azure_auth_method: authMethodType,
         azure_api_key: authMethod?.apiKey ?? undefined,

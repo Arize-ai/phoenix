@@ -1101,14 +1101,14 @@ export function ResizableFloatingPanel({
     }
   };
 
-  const floatingPanelStyle = {
+  const floatingPanelStyle: CSSProperties & Record<`--${string}`, string> = {
     "--resizable-floating-panel-height": `${displayedGeometry.height}px`,
     "--resizable-floating-panel-min-height": `${minSize.height}px`,
     "--resizable-floating-panel-min-width": `${minSize.width}px`,
     "--resizable-floating-panel-width": `${displayedGeometry.width}px`,
     "--resizable-floating-panel-x": `${displayedGeometry.x}px`,
     "--resizable-floating-panel-y": `${displayedGeometry.y}px`,
-  } as CSSProperties;
+  };
 
   return (
     <>

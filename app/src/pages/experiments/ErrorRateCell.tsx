@@ -10,7 +10,7 @@ import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
 export function ErrorRateCell<TData extends object, TValue>({
   getValue,
 }: CellContext<TData, TValue>) {
-  const value = getValue() as number;
+  const value = getValue<number | null>();
   const percent = value !== null ? value * 100 : null;
   const color = useMemo(() => {
     if (percent === null) {

@@ -27,7 +27,9 @@ export const DatasetExampleSelect = (props: DatasetExampleSelectProps) => {
     <Select
       selectionMode="single"
       value={selectedExampleId}
-      onChange={(value) => onSelectExampleId(value as string | null)}
+      onChange={(value) =>
+        onSelectExampleId(typeof value === "string" ? value : null)
+      }
       aria-label="Select an example"
       placeholder="Select an example"
     >

@@ -16,7 +16,7 @@ export function fromPhoenixLLMEvaluator<
     kind: "LLM",
     evaluate: (example) => {
       // For now blindly coerce the types
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any, typescript/no-unsafe-type-assertion -- bridging phoenix-evals evaluator params to the experiment evaluator shape
       return phoenixLLMEvaluator.evaluate(example as any);
     },
   });

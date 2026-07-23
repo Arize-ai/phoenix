@@ -57,7 +57,7 @@ describe("playground prompt tools agent tools", () => {
 
       expect(result.ok).toBe(true);
       if (!result.ok) return;
-      const snapshot = JSON.parse(result.output ?? "") as PromptToolsSnapshot;
+      const snapshot: PromptToolsSnapshot = JSON.parse(result.output ?? "");
       expect(snapshot.instanceId).toBe(0);
       expect(snapshot.label).toBe("A");
       expect(snapshot.tools).toEqual([]);

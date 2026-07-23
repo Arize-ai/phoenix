@@ -73,6 +73,7 @@ export async function evaluate<
 ): Promise<Result> {
   const run = currentRun();
   if (!run) {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- caller-supplied params default; generic Params cannot be constructed here
     return await evaluator.evaluate((params ?? {}) as Params);
   }
 
@@ -80,6 +81,7 @@ export async function evaluate<
     warnEvaluateBeforeOutput(run.suite, evaluator.name, run.testName);
   }
 
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- assembled default params; generic Params cannot be constructed here
   const evaluatorParams = {
     input: run.params.input,
     // `run.output` is only ever set together with `outputSet`, so it is already

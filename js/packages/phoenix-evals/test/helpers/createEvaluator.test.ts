@@ -587,10 +587,8 @@ describe("CreateEvaluator", () => {
       const fn = () => 1;
       const evaluator = createEvaluator(fn, { name: "test" });
 
-      // FunctionEvaluator should have evaluateFn property
-      expect(evaluator).toHaveProperty("evaluateFn");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(typeof (evaluator as any).evaluateFn).toBe("function");
+      // FunctionEvaluator should have an evaluateFn function property
+      expect(evaluator).toHaveProperty("evaluateFn", expect.any(Function));
     });
 
     it("should work with bindInputMapping", () => {

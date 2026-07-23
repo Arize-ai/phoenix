@@ -48,6 +48,7 @@ function getJestGlobals(): {
   beforeAll: (fn: () => unknown | Promise<unknown>) => void;
   afterAll: (fn: () => unknown | Promise<unknown>) => void;
 } {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- jest injects these globals onto globalThis at runtime
   const g = globalThis as unknown as {
     describe?: JestDescribe;
     test?: JestTest;

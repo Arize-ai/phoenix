@@ -1,8 +1,6 @@
 import type { Environment, Store } from "relay-runtime";
 
-import { isObject } from "./typeUtils";
-
-type RelayObject = Record<string, unknown>;
+import { isObject, isStringKeyedObject } from "./typeUtils";
 
 type InstrumentedRelayStore = Store & {
   __gc?: () => void;
@@ -30,16 +28,16 @@ function getOperationDetails(operation: unknown) {
   if (!isObject(operation) || !("request" in operation)) {
     return null;
   }
-  const request = operation.request as unknown;
-  if (!isObject(request)) {
+  const request: unknown = operation.request;
+  if (!isStringKeyedObject(request)) {
     return null;
   }
 
-  const requestObject = request as RelayObject;
+  const requestObject = request;
   const node = requestObject.node;
   const params =
-    isObject(node) && "params" in node && isObject(node.params)
-      ? (node.params as RelayObject)
+    isStringKeyedObject(node) && isStringKeyedObject(node.params)
+      ? node.params
       : null;
 
   return {

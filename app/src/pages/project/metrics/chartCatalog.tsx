@@ -154,6 +154,7 @@ const CHART_DEFINITIONS: Record<
  * The canonical chart objects, built once so repeated lookups return stable
  * references.
  */
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.fromEntries widens keys; entries are built exhaustively from PROJECT_METRIC_CHART_KEYS
 const CHARTS_BY_KEY = Object.fromEntries(
   PROJECT_METRIC_CHART_KEYS.map((key) => [
     key,

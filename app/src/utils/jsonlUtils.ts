@@ -21,6 +21,13 @@ function getTypeDescription(value: unknown): string {
 }
 
 /**
+ * Extracts a message from a caught value without unsafe assertions.
+ */
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
  * Formats a JSONL parse error into a user-friendly error message.
  */
 export function formatJSONLError(error: JSONLParseError): string {
@@ -49,14 +56,14 @@ function parseJSONLLine(
   try {
     json = JSON.parse(trimmed);
   } catch (error) {
-    throw new Error(`Invalid JSON - ${(error as Error).message}`);
+    throw new Error(`Invalid JSON - ${getErrorMessage(error)}`);
   }
 
-  if (typeof json !== "object" || json === null || Array.isArray(json)) {
+  if (!isPlainObject(json)) {
     throw new Error(`Expected a JSON object, got ${getTypeDescription(json)}`);
   }
 
-  return { keys: Object.keys(json), data: json as Record<string, unknown> };
+  return { keys: Object.keys(json), data: json };
 }
 
 /**
@@ -159,7 +166,7 @@ export async function parseJSONLFile(
               success: false,
               error: {
                 line: lineNumber,
-                message: (error as Error).message,
+                message: getErrorMessage(error),
               },
             };
           }
@@ -189,7 +196,7 @@ export async function parseJSONLFile(
                 success: false,
                 error: {
                   line: lineNumber,
-                  message: (error as Error).message,
+                  message: getErrorMessage(error),
                 },
               };
             }

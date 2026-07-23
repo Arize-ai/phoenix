@@ -167,10 +167,12 @@ export function DatasetPreviewTable({
       let current = obj;
       for (let i = 0; i < parts.length - 1; i++) {
         const part = parts[i];
-        if (!isPollutionSafeRecord(current[part])) {
-          current[part] = toPollutionSafeRecord(current[part]);
-        }
-        current = current[part] as Record<string, unknown>;
+        const existing = current[part];
+        const next = isPollutionSafeRecord(existing)
+          ? existing
+          : toPollutionSafeRecord(existing);
+        current[part] = next;
+        current = next;
       }
       current[parts[parts.length - 1]] = value;
     };

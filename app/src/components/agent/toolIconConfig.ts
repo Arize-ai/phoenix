@@ -181,6 +181,9 @@ function getSkillName(input: unknown): string | null {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
     return null;
   }
-  const skillName = (input as Record<string, unknown>).skill_name;
+  if (!("skill_name" in input)) {
+    return null;
+  }
+  const skillName = input.skill_name;
   return typeof skillName === "string" ? skillName : null;
 }

@@ -14,6 +14,7 @@ import type {
 function toLowercaseValues<const TValues extends readonly string[]>(
   values: TValues
 ): { readonly [TIndex in keyof TValues]: Lowercase<TValues[TIndex]> } {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- map cannot preserve the mapped-tuple type
   return values.map((value) => value.toLowerCase()) as {
     readonly [TIndex in keyof TValues]: Lowercase<TValues[TIndex]>;
   };
@@ -34,6 +35,7 @@ export const OPENAI_REASONING_EFFORT_FORM_VALUES = toLowercaseValues(
 const OPENAI_REASONING_EFFORT_FORM_VALUE_BY_ENUM: Record<
   OpenAIReasoningEffort,
   string
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- record is exhaustive by construction over all enum values
 > = Object.fromEntries(
   OPENAI_REASONING_EFFORT_VALUES.map((value) => [value, value.toLowerCase()])
 ) as Record<OpenAIReasoningEffort, string>;

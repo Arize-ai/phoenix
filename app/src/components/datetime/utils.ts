@@ -46,6 +46,7 @@ function parseLastNTimeRangeKey(key: unknown): ParsedLastNTimeRange | null {
   if (quantity < 1) {
     return null;
   }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- regex capture group constrains the unit to LastNTimeRangeUnit
   return { quantity, unit: match[2] as LastNTimeRangeUnit };
 }
 
@@ -262,6 +263,7 @@ export function parseTimeRangeSearchText(
   if (quantity < 1) {
     return null;
   }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- regex capture group constrains the unit to LastNTimeRangeUnit
   const unit = match[2][0] as LastNTimeRangeUnit;
   return `${quantity}${unit}` as LastNTimeRangeKey;
 }

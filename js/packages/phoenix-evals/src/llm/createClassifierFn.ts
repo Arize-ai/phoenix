@@ -14,11 +14,11 @@ import { generateClassification } from "./generateClassification";
 function choicesToLabels(
   choices: ClassificationChoicesMap
 ): [string, ...string[]] {
-  const labels = Object.keys(choices);
-  if (labels.length < 1) {
+  const [firstLabel, ...restLabels] = Object.keys(choices);
+  if (firstLabel === undefined) {
     throw new Error("No choices provided");
   }
-  return labels as [string, ...string[]];
+  return [firstLabel, ...restLabels];
 }
 
 /**

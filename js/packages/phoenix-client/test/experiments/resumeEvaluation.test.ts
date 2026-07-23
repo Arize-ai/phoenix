@@ -19,6 +19,17 @@ import { resumeEvaluation } from "../../src/experiments/resumeEvaluation";
 import type { EvaluatorParams } from "../../src/types/experiments";
 import { createTestClient } from "../testUtils";
 
+/**
+ * Reads a `text` field from a loosely-typed task output or expected value,
+ * returning an empty string when absent.
+ */
+function textOf(value: unknown): string {
+  if (typeof value === "object" && value !== null && "text" in value) {
+    return String(value.text);
+  }
+  return "";
+}
+
 vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
   ...(await importOriginal<typeof PhoenixOtel>()),
   attachGlobalTracerProvider: vi.fn(() => ({
@@ -237,8 +248,8 @@ describe("resumeEvaluation", () => {
   it("should resume incomplete evaluations with single-output evaluators", async () => {
     const correctnessFn = vi.fn(
       async ({ output, expected }: EvaluatorParams) => {
-        const expectedText = (expected as { text?: string })?.text ?? "";
-        const outputText = (output as { text?: string })?.text ?? "";
+        const expectedText = textOf(expected);
+        const outputText = textOf(output);
         return {
           score: outputText === expectedText ? 1 : 0,
           label: outputText === expectedText ? "correct" : "incorrect",
@@ -358,7 +369,7 @@ describe("resumeEvaluation", () => {
 
   it("should handle evaluator failures gracefully", async () => {
     const failingFn = vi.fn(async ({ output }: EvaluatorParams) => {
-      const outputText = (output as { text?: string })?.text ?? "";
+      const outputText = textOf(output);
       if (outputText.includes("Alice")) {
         throw new Error("Evaluator failed for Alice");
       }
@@ -425,7 +436,7 @@ describe("resumeEvaluation", () => {
     // Test helper: creates an evaluator that fails for Alice
     const createFailingEvaluator = (name = "correctness") => {
       const evaluateFn = vi.fn(async ({ output }: EvaluatorParams) => {
-        const outputText = (output as { text?: string })?.text ?? "";
+        const outputText = textOf(output);
         if (outputText.includes("Alice")) {
           throw new Error("Evaluator failed for Alice");
         }
@@ -561,7 +572,7 @@ describe("resumeEvaluation", () => {
       const evaluationOrder: string[] = [];
 
       const failingFn = vi.fn(async ({ output }: EvaluatorParams) => {
-        const outputText = (output as { text?: string })?.text ?? "";
+        const outputText = textOf(output);
         const runId = outputText.includes("Alice") ? "run-1" : "run-2";
         evaluationOrder.push(runId);
 
