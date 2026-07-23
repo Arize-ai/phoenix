@@ -33,13 +33,15 @@ export const fieldBaseCSS = css`
     vertical-align: middle;
 
     &[data-focused] {
-      // State-specific selectors below provide the visible focus treatment.
+      // Pointer and programmatic focus emphasize the field boundary without
+      // showing the keyboard focus ring.
       outline: none;
     }
     &[data-focused]:not([data-invalid]) {
       border-color: var(--field-border-color-active);
-      outline: var(--focus-ring-thickness) solid
-        var(--field-border-color-active);
+    }
+    &[data-focus-visible] {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
       outline-offset: calc(-1 * var(--focus-ring-thickness));
     }
     &[data-hovered]:not([data-disabled]):not([data-invalid]) {
@@ -166,8 +168,9 @@ export const textFieldCSS = css`
   }
 
   // Colors, background, border-radius, and the readonly background/border are
-  // inherited from fieldBaseCSS (always composed before this). textFieldCSS only
-  // layers on sizing and swaps the focus ring from a border to an outline.
+  // inherited from fieldBaseCSS (always composed before this). textFieldCSS
+  // layers on sizing and preserves the field focus treatment at its higher
+  // selector specificity.
   .react-aria-Input,
   .react-aria-TextArea,
   input {
@@ -181,13 +184,12 @@ export const textFieldCSS = css`
     outline: var(--focus-ring-thickness) solid transparent;
     &[data-focused]:not([data-invalid]) {
       border-width: var(--global-border-size-thin);
-      outline: var(--focus-ring-thickness) solid
-        var(--field-border-color-active);
     }
     &[data-focused][data-invalid] {
       border-width: var(--global-border-size-thin);
-      outline: var(--focus-ring-thickness) solid
-        var(--field-invalid-border-color);
+    }
+    &[data-focus-visible] {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     }
     // Suppress the focus outline while readonly (fieldBaseCSS handles the
     // readonly background/border), then restore it only for keyboard focus.
