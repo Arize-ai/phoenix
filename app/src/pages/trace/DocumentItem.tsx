@@ -23,16 +23,16 @@ export function DocumentItem({
   document,
   documentAnnotations,
   backgroundColor,
-  borderColor,
+  borderColor = "default",
   tokenColor,
   spanNodeId,
   documentPosition,
 }: {
   document: AttributeDocument;
   documentAnnotations?: DocumentAnnotation[] | null;
-  backgroundColor: ViewProps["backgroundColor"];
-  borderColor: ViewProps["borderColor"];
-  tokenColor: TokenProps["color"];
+  backgroundColor?: ViewProps["backgroundColor"];
+  borderColor?: ViewProps["borderColor"];
+  tokenColor?: TokenProps["color"];
   spanNodeId?: string;
   documentPosition?: number;
 }) {

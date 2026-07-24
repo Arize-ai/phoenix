@@ -69,6 +69,27 @@ export type SessionAnnotationsEditorProps = {
   projectId: string;
 };
 
+/**
+ * The editor's header bar. Its height is derived from the same tokens as a
+ * session view tab (line height + vertical padding) so the bottom border lines
+ * up with the tab bar in the sibling panel, regardless of the taller button it
+ * contains.
+ */
+const annotateSessionHeaderCSS = css`
+  box-sizing: border-box;
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: calc(
+    var(--global-line-height-s) + 2 * var(--global-dimension-size-100)
+  );
+  padding: 0 var(--global-dimension-size-100);
+  border-bottom: 1px solid var(--global-border-color-default);
+`;
+
 export function SessionAnnotationsEditor(props: SessionAnnotationsEditorProps) {
   const { projectId, sessionNodeId } = props;
   const [refetchKey, setRefetchKey] = useState(0);
@@ -76,30 +97,16 @@ export function SessionAnnotationsEditor(props: SessionAnnotationsEditorProps) {
   return (
     <View height="100%" maxHeight="100%" overflow="auto">
       <Flex direction="column" height="100%">
-        <View
-          paddingY="size-100"
-          paddingX="size-100"
-          borderBottomWidth="thin"
-          borderColor="default"
-          width="100%"
-          flex="none"
-        >
-          <Flex
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            width="100%"
-          >
-            <Text elementType="h3" size="S" weight="heavy">
-              Annotate Session
-            </Text>
-            <NewAnnotationButton
-              projectId={projectId}
-              refetchKey={refetchKey}
-              onRefetchKeyChange={setRefetchKey}
-            />
-          </Flex>
-        </View>
+        <div css={annotateSessionHeaderCSS}>
+          <Text elementType="h3" size="S" weight="heavy">
+            Annotate Session
+          </Text>
+          <NewAnnotationButton
+            projectId={projectId}
+            refetchKey={refetchKey}
+            onRefetchKeyChange={setRefetchKey}
+          />
+        </div>
         <Suspense>
           <SessionAnnotationsList
             sessionId={sessionNodeId}

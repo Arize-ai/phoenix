@@ -182,18 +182,14 @@ export function getRerankerAttributes(spanAttributes: AttributeObject): {
  * Extract the embeddings from the parsed span attributes of an embedding span.
  */
 export function getEmbeddingAttributes(spanAttributes: AttributeObject): {
-  modelName: string | null;
   embeddings: AttributeEmbeddingEmbedding[];
 } {
   const embeddingAttributes =
     spanAttributes[SemanticAttributePrefixes.embedding] || null;
   if (embeddingAttributes == null) {
-    return { modelName: null, embeddings: [] };
+    return { embeddings: [] };
   }
-  const maybeModelName =
-    embeddingAttributes[EmbeddingAttributePostfixes.model_name];
   return {
-    modelName: typeof maybeModelName === "string" ? maybeModelName : null,
     embeddings: (embeddingAttributes[EmbeddingAttributePostfixes.embeddings]
       ?.map((obj) => obj[SemanticAttributePrefixes.embedding])
       .filter(Boolean) || []) as AttributeEmbeddingEmbedding[],

@@ -16,13 +16,13 @@ export function EmbeddingSpanInfo({
   span: SpanInfoData;
   spanAttributes: AttributeObject;
 }) {
-  const { modelName, embeddings } = getEmbeddingAttributes(spanAttributes);
+  const { embeddings } = getEmbeddingAttributes(spanAttributes);
 
   const hasEmbeddings = embeddings.length > 0;
   return (
     <Flex direction="column" gap="size-200">
       {hasEmbeddings ? (
-        <EmbeddingInput modelName={modelName} embeddings={embeddings} />
+        <EmbeddingInput embeddings={embeddings} />
       ) : (
         <SpanIO
           input={span.input}
