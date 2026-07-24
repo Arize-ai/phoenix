@@ -4,19 +4,6 @@ import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/cons
 
 import type { ExperimentAnnotationMetric_experiment$key } from "./__generated__/ExperimentAnnotationMetric_experiment.graphql";
 import type { ExperimentAnnotationMetricQuery } from "./__generated__/ExperimentAnnotationMetricQuery.graphql";
-import type { useExperimentAnnotationMetricNamesQuery } from "./__generated__/useExperimentAnnotationMetricNamesQuery.graphql";
-
-const experimentAnnotationMetricNamesQuery = graphql`
-  query useExperimentAnnotationMetricNamesQuery($id: ID!) {
-    dataset: node(id: $id) {
-      ... on Dataset {
-        experimentAnnotationSummaries {
-          annotationName
-        }
-      }
-    }
-  }
-`;
 
 const experimentAnnotationMetricFragment = graphql`
   fragment ExperimentAnnotationMetric_experiment on Experiment
@@ -78,21 +65,6 @@ export type ExperimentAnnotationMetricDatum = {
     }>;
   }[];
 };
-
-export function useExperimentAnnotationMetricNames(
-  datasetId: string
-): ReadonlyArray<string> {
-  // Annotation discovery intentionally omits per-experiment aggregates so
-  // opening the chart selector does not fetch every chart's metrics.
-  const data = useLazyLoadQuery<useExperimentAnnotationMetricNamesQuery>(
-    experimentAnnotationMetricNamesQuery,
-    { id: datasetId },
-    { fetchPolicy: "store-or-network" }
-  );
-  return (data.dataset.experimentAnnotationSummaries ?? []).map(
-    ({ annotationName }) => annotationName
-  );
-}
 
 export function useExperimentAnnotationMetricData({
   datasetId,

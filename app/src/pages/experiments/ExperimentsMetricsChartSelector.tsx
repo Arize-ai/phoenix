@@ -19,7 +19,7 @@ import {
   MAX_SELECTED_EXPERIMENT_METRIC_CHARTS,
 } from "@phoenix/pages/dataset/constants";
 import { EXPERIMENT_METRIC_CHARTS } from "@phoenix/pages/dataset/metrics/chartCatalog";
-import { useExperimentAnnotationMetricNames } from "@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricsData";
+import { useExperimentAnnotationMetricNames } from "@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricNames";
 
 /**
  * The store-connected chart selector shown above the experiments table. Reads

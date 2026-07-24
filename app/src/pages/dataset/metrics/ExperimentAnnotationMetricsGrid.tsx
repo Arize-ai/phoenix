@@ -29,10 +29,10 @@ import {
 } from "./experimentXAxisProps";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import {
-  useExperimentAnnotationMetricNames,
   useExperimentAnnotationMetricData,
   type ExperimentAnnotationMetricDatum,
-} from "./useExperimentAnnotationMetricsData";
+} from "./useExperimentAnnotationMetricData";
+import { useExperimentAnnotationMetricNames } from "./useExperimentAnnotationMetricNames";
 
 const annotationGridCSS = css`
   display: grid;
