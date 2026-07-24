@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { Fragment } from "react";
 
-import { Card, Flex, Heading, Text, View } from "@phoenix/components";
+import { Card, Flex, Heading, View } from "@phoenix/components";
 import {
   ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
@@ -35,16 +35,7 @@ export function RetrieverOutput({
     <MarkdownDisplayProvider>
       <Card
         title="Output"
-        titleExtra={
-          <Flex
-            direction="row"
-            gap="size-100"
-            alignItems="center"
-            marginStart="size-100"
-          >
-            <Text>Documents</Text>
-          </Flex>
-        }
+        subTitle="Documents"
         {...defaultCardProps}
         extra={<ConnectedMarkdownModeSelect />}
       >

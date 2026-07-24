@@ -8,7 +8,6 @@ import {
   Tab,
   TabList,
   Tabs,
-  Text,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
@@ -72,14 +71,9 @@ export function LLMInput({
         <GenerativeProviderIcon provider={normalizedProvider} height={16} />
       ) : null;
     modelNameEl = (
-      <Flex
-        direction="row"
-        gap="size-100"
-        alignItems="center"
-        marginStart="size-100"
-      >
+      <Flex direction="row" gap="size-100" alignItems="center">
         {providerIcon}
-        <Text>{modelName}</Text>
+        {modelName}
       </Flex>
     );
   }
@@ -97,7 +91,7 @@ export function LLMInput({
       collapsible
       titleSeparator={false}
       title="Input"
-      titleExtra={modelNameEl}
+      subTitle={modelNameEl}
     >
       <Tabs>
         <TabList>
