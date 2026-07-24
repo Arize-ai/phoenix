@@ -16,7 +16,6 @@ import {
   ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
-import { SpanKindIcon } from "@phoenix/components/trace";
 import type {
   AttributeMessage,
   AttributePromptTemplate,
@@ -63,20 +62,18 @@ export function LLMInput({
   /** The invocation parameters as a JSON string */
   invocationParameters: string;
 }) {
-  let modelNameTitleEl: ReactNode = null;
+  let modelNameEl: ReactNode = null;
   if (modelName != null) {
-    let icon = <SpanKindIcon spanKind="llm" />;
     const normalizedProvider = provider?.toUpperCase();
-    // Show the provider if it exists
-    if (
+    // Only show a provider icon when the provider is known
+    const providerIcon =
       typeof normalizedProvider === "string" &&
-      isModelProvider(normalizedProvider)
-    ) {
-      icon = <GenerativeProviderIcon provider={normalizedProvider} />;
-    }
-    modelNameTitleEl = (
+      isModelProvider(normalizedProvider) ? (
+        <GenerativeProviderIcon provider={normalizedProvider} />
+      ) : null;
+    modelNameEl = (
       <Flex direction="row" gap="size-100" alignItems="center">
-        {icon}
+        {providerIcon}
         <Text size="M" weight="heavy">
           {modelName}
         </Text>
@@ -93,7 +90,7 @@ export function LLMInput({
   const hasPromptTemplateObject = promptTemplate != null;
 
   return (
-    <Card collapsible titleSeparator={false} title={modelNameTitleEl}>
+    <Card collapsible titleSeparator={false} title="Input" extra={modelNameEl}>
       <Tabs>
         <TabList>
           {hasInputMessages && <Tab id="input-messages">Input Messages</Tab>}
