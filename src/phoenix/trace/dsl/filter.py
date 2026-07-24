@@ -142,6 +142,15 @@ _BACKWARD_COMPATIBILITY_REPLACEMENTS: typing.Mapping[str, str] = MappingProxyTyp
     }
 )
 
+# The reserved `parent_span` keyword refers to a span's parent span (the span whose
+# `span_id` equals this span's `parent_id`). Only `parent_span is None` /
+# `parent_span is not None` are supported (root-ness by parent existence); the
+# translator rewrites those into references to the names below, which are bound
+# to correlated `EXISTS` predicates in `SpanFilter.__call__`.
+_PARENT_KEYWORD = "parent_span"
+_PARENT_IS_NULL = "__parent_is_null__"
+_PARENT_IS_NOT_NULL = "__parent_is_not_null__"
+
 
 @dataclass(frozen=True)
 class SpanFilter:
@@ -184,6 +193,16 @@ class SpanFilter:
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
             return select
+        # `parent_span is None` / `parent_span is not None` select spans whose parent span does
+        # not / does exist. A correlated `NOT EXISTS` is used deliberately: it is true
+        # both when `parent_id` is NULL and when it points to a span absent from the
+        # table (an orphan), and it is the shape the existing root query uses to avoid
+        # a measured PostgreSQL regression (see `query.py`). An `OR ... parent_id IS
+        # NULL` form is intentionally NOT used here.
+        parent_span = aliased(models.Span)
+        parent_exists = (
+            sqlalchemy.select(1).where(parent_span.span_id == models.Span.parent_id).exists()
+        )
         return self._join_aliased_relations(select).where(
             eval(
                 self.compiled,
@@ -198,6 +217,8 @@ class SpanFilter:
                     "Float": sqlalchemy.Float,
                     "String": sqlalchemy.String,
                     "TextContains": models.TextContains,
+                    _PARENT_IS_NULL: ~parent_exists,
+                    _PARENT_IS_NOT_NULL: parent_exists,
                 },
             )
         )
@@ -303,6 +324,33 @@ def _is_string_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
 
 def _is_uppercase_enum(node: typing.Any) -> TypeGuard[ast.Name]:
     return isinstance(node, ast.Name) and node.id in ("span_kind", "status_code")
+
+
+def _is_parent_name(node: typing.Any) -> TypeGuard[ast.Name]:
+    # the bare reserved keyword `parent_span`
+    return isinstance(node, ast.Name) and node.id == _PARENT_KEYWORD
+
+
+def _is_parent_rooted(node: typing.Any) -> bool:
+    # an attribute/subscript chain rooted at the bare `parent_span` keyword, e.g.
+    # `parent_span.span_kind`, `parent_span.a.b`, `parent_span.attributes['x']`.
+    # (Not `attributes['parent_span']`, whose root is `attributes`.)
+    while isinstance(node, (ast.Attribute, ast.Subscript)):
+        node = node.value
+    return _is_parent_name(node)
+
+
+def _parent_traversal_error(node: ast.expr) -> SyntaxError:
+    # `parent_span.<field>` traversal is not supported yet (a follow-up).
+    return SyntaxError(
+        f"`{ast.unparse(node)}` is not supported: `parent_span` traversal "
+        "(`parent_span.<field>`) is not yet available; only `parent_span is None` "
+        "and `parent_span is not None` are supported"
+    )
+
+
+def _is_none_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
+    return isinstance(node, ast.Constant) and node.value is None
 
 
 def _convert_to_uppercase(node: ast.expr) -> ast.expr:
@@ -512,7 +560,61 @@ class _ProjectionTranslator(ast.NodeTransformer):
 
 
 class _FilterTranslator(_ProjectionTranslator):
+    def visit_Name(self, node: ast.Name) -> typing.Any:
+        if _is_parent_name(node):
+            # A bare `parent_span` that reaches this point is not part of a supported
+            # `parent_span is None` / `parent_span is not None` comparison (those are
+            # intercepted in visit_Compare before their operands are visited).
+            raise SyntaxError(
+                "`parent_span` can only be used as `parent_span is None` "
+                "or `parent_span is not None`"
+            )
+        return super().visit_Name(node)
+
+    def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
+        self._reject_parent_traversal(node)
+        return super().visit_Attribute(node)
+
+    def visit_Subscript(self, node: ast.Subscript) -> typing.Any:
+        self._reject_parent_traversal(node)
+        return super().visit_Subscript(node)
+
+    @staticmethod
+    def _reject_parent_traversal(node: ast.expr) -> None:
+        # The `parent_span` keyword is fully reserved: `parent_span.<field>` traversal is
+        # not supported yet (a follow-up), so reject it clearly here rather than
+        # letting it fall through to the pre-existing `attributes['parent_span'][...]`
+        # attribute-path behavior, which would silently mean something else.
+        if _is_parent_rooted(node):
+            raise _parent_traversal_error(node)
+
+    def _parent_root_predicate(self, node: ast.Compare) -> typing.Optional[ast.expr]:
+        """
+        Rewrites `parent_span is None` / `parent_span == None` into a root-existence
+        predicate (and the negations into non-root). Returns ``None`` when the
+        comparison does not involve the bare `parent_span` keyword.
+        """
+        op = node.ops[0]
+        left, right = node.left, node.comparators[0]
+        if _is_parent_name(left):
+            other = right
+        elif _is_parent_name(right):
+            other = left
+        else:
+            return None
+        if not _is_none_constant(other):
+            raise SyntaxError(
+                "`parent_span` can only be compared to None (e.g. `parent_span is None`)"
+            )
+        if isinstance(op, (ast.Is, ast.Eq)):
+            return ast.Name(id=_PARENT_IS_NULL, ctx=ast.Load())
+        if isinstance(op, (ast.IsNot, ast.NotEq)):
+            return ast.Name(id=_PARENT_IS_NOT_NULL, ctx=ast.Load())
+        raise SyntaxError("`parent_span` supports only `is` / `is not` (or `==` / `!=`) with None")
+
     def visit_Compare(self, node: ast.Compare) -> typing.Any:
+        if len(node.ops) == 1 and (predicate := self._parent_root_predicate(node)) is not None:
+            return predicate
         if len(node.comparators) > 1:
             args: list[typing.Any] = []
             left = node.left
@@ -645,6 +747,12 @@ def _validate_expression(
                 or _is_annotation(node)
             ):
                 continue
+        elif isinstance(node, (ast.Attribute, ast.Subscript)) and _is_parent_rooted(node):
+            # `parent_span.<field>` traversal is not supported yet (the `parent_span`
+            # keyword is fully reserved); reject with a clear message rather than
+            # the generic "invalid expression" below. Bare `parent_span` (valid in
+            # `parent_span is None`) is a Name, not matched here.
+            raise _parent_traversal_error(node)
         elif (
             _is_subscript(node, "metadata") or _is_subscript(node, "attributes")
         ) and _get_attribute_keys_list(node) is not None:

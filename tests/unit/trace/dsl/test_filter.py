@@ -1,12 +1,13 @@
 import ast
 import sys
 from ast import unparse
+from datetime import datetime
 from typing import Any, Optional
 from unittest.mock import patch
 from uuid import UUID
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
 import phoenix.trace.dsl.filter
 from phoenix.db import models
@@ -212,6 +213,28 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
             "'err' in status_code",
             "TextContains(status_code, 'ERR')",
         ),
+        # `parent_span` root predicate: `parent_span is None` / `parent_span is not None` become
+        # references to correlated EXISTS predicates bound in SpanFilter.__call__.
+        (
+            "parent_span is None",
+            "__parent_is_null__",
+        ),
+        (
+            "parent_span is not None",
+            "__parent_is_not_null__",
+        ),
+        (
+            "parent_span == None",
+            "__parent_is_null__",
+        ),
+        (
+            "parent_span != None",
+            "__parent_is_not_null__",
+        ),
+        (
+            "not (parent_span is None)",
+            "not_(__parent_is_null__)",
+        ),
     ],
 )
 async def test_filter_translated(
@@ -388,3 +411,128 @@ class TestProjectorValidationGap:
             "code-injection vectors; instead it exposes "
             f"{len(builtins_obj) if builtins_obj else 0} builtins."
         )
+
+
+_PARENT_PREDICATE_TS = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
+
+
+@pytest.fixture
+async def parent_predicate_project(db: DbSessionFactory) -> None:
+    """
+    A project whose single trace exercises every parent case:
+
+    - ``A`` root span (``parent_id`` is NULL)
+    - ``B`` child of ``A``
+    - ``C`` orphan (``parent_id`` ``"GHOST"`` references a span absent from the table)
+    - ``D`` child of the orphan ``C``
+    """
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name="parent-predicate").returning(models.Project.id)
+        )
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="trace-parent-predicate",
+                project_rowid=project_rowid,
+                start_time=_PARENT_PREDICATE_TS,
+                end_time=_PARENT_PREDICATE_TS,
+            )
+            .returning(models.Trace.id)
+        )
+        for span_id, parent_id, span_kind in (
+            ("A", None, "CHAIN"),
+            ("B", "A", "LLM"),
+            ("C", "GHOST", "LLM"),
+            ("D", "C", "LLM"),
+        ):
+            await session.execute(
+                insert(models.Span).values(
+                    trace_rowid=trace_rowid,
+                    span_id=span_id,
+                    parent_id=parent_id,
+                    name=span_id,
+                    span_kind=span_kind,
+                    start_time=_PARENT_PREDICATE_TS,
+                    end_time=_PARENT_PREDICATE_TS,
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        # `parent_span is None` is orphan-aware: both the NULL-parent root and the orphan.
+        ("parent_span is None", ["A", "C"]),
+        ("parent_span is not None", ["B", "D"]),
+        # `parent_id is None` stays strict (NULL pointer only), unchanged by this work.
+        ("parent_id is None", ["A"]),
+        ("parent_span is None and span_kind == 'LLM'", ["C"]),
+        ("parent_span is not None or parent_id is None", ["A", "B", "D"]),
+    ],
+)
+async def test_parent_root_predicate_selects_expected_spans(
+    db: DbSessionFactory,
+    parent_predicate_project: None,
+    condition: str,
+    expected: list[str],
+) -> None:
+    f = SpanFilter(condition)
+    async with db() as session:
+        span_ids = list(
+            await session.scalars(f(select(models.Span.span_id)).order_by(models.Span.span_id))
+        )
+    assert span_ids == expected
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "parent_span",  # bare keyword, not a comparison
+        "parent_span == 'LLM'",  # compared to a non-None value
+        "parent_span and span_kind == 'LLM'",  # used outside a None comparison
+        "parent_span < None",  # unsupported operator with None
+        # `parent.<field>` traversal is not supported yet; the reserved keyword is
+        # fully locked down, so these must raise rather than silently resolve to
+        # the pre-existing `attributes['parent_span'][...]` attribute path.
+        "parent_span.span_kind == 'AGENT'",
+        "parent_span.name == 'x'",
+        "parent_span.a.b.c == 'z'",
+        "parent_span.attributes['x'] == 'y'",
+        "'x' in parent_span.name",
+    ],
+)
+def test_parent_keyword_rejects_unsupported_usage(condition: str) -> None:
+    with pytest.raises(SyntaxError):
+        SpanFilter(condition)
+
+
+def test_attribute_named_parent_span_still_reachable_explicitly() -> None:
+    # Reserving `parent_span` does not remove access to a span attribute literally
+    # named `parent_span`: it is still reachable via the explicit subscript form,
+    # whose root is `attributes`, not the `parent_span` keyword.
+    SpanFilter("attributes['parent_span'] == 'x'")  # does not raise
+
+
+@pytest.mark.parametrize(
+    "sentinel",
+    ["__parent_is_null__", "__parent_is_not_null__"],
+)
+def test_parent_predicate_sentinels_unreachable_from_user_input(sentinel: str) -> None:
+    """The names bound to the root-existence predicates in the eval namespace must
+    not be reachable from user input. Because the translator rewrites every
+    non-reserved bare identifier into an ``attributes[[...]]`` subscript before
+    compilation, a user who types a sentinel name gets an ordinary attribute
+    lookup, never the injected predicate. This locks that invariant so later
+    translator changes (e.g. parent-column traversal) cannot regress it.
+    """
+    translated = unparse(SpanFilter(f"{sentinel} == 'x'").translated).strip()
+    # resolves to an attribute path, not the bare injected name
+    assert translated.startswith(f"attributes[['{sentinel}']]")
