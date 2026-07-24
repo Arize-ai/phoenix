@@ -212,6 +212,7 @@
                       "docs/phoenix/evaluation/pre-built-metrics/faithfulness",
                       "docs/phoenix/evaluation/pre-built-metrics/conciseness",
                       "docs/phoenix/evaluation/pre-built-metrics/correctness",
+                      "docs/phoenix/evaluation/pre-built-metrics/qa-correctness",
                       "docs/phoenix/evaluation/pre-built-metrics/document-relevance",
                       "docs/phoenix/evaluation/pre-built-metrics/tool-selection",
                       "docs/phoenix/evaluation/pre-built-metrics/tool-invocation",

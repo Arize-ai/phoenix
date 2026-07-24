@@ -18,6 +18,7 @@ from phoenix.evals.metrics.correctness import CorrectnessEvaluator
 from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
 from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
 from phoenix.evals.metrics.hallucination import HallucinationEvaluator
+from phoenix.evals.metrics.qa_correctness import QACorrectnessEvaluator
 from phoenix.evals.metrics.refusal import RefusalEvaluator
 from phoenix.evals.metrics.tool_invocation import ToolInvocationEvaluator
 from phoenix.evals.metrics.tool_response_handling import ToolResponseHandlingEvaluator
@@ -54,6 +55,11 @@ ALL_EVALUATORS = [
         CorrectnessEvaluator,
         {"input": "What is 2+2?", "output": "4"},
         id="CorrectnessEvaluator",
+    ),
+    pytest.param(
+        QACorrectnessEvaluator,
+        {"input": "Q", "output": "A", "reference": "R"},
+        id="QACorrectnessEvaluator",
     ),
     pytest.param(
         FaithfulnessEvaluator,
