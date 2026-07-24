@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 7.1.1
+
+### Patch Changes
+
+- e35712a: Re-release to recover from a failed publish (versions were already on npm)
+
 ## 7.1.0
 
 ### Minor Changes
