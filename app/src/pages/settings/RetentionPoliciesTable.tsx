@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import {
   type ColumnDef,
   flexRender,
@@ -8,18 +7,30 @@ import {
 } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
+import { useNavigate, useParams } from "react-router";
 
-import { Link } from "@phoenix/components";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { Flex, Text } from "@phoenix/components";
+import { ProjectToken } from "@phoenix/components/project";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { useViewerCanManageRetentionPolicy } from "@phoenix/contexts/ViewerContext";
-import { assertUnreachable } from "@phoenix/typeUtils";
-import { createPolicyScheduleSummaryText } from "@phoenix/utils/retentionPolicyUtils";
+import {
+  createPolicyRuleSummaryText,
+  createPolicyScheduleSummaryText,
+} from "@phoenix/utils/retentionPolicyUtils";
 
 import type { RetentionPoliciesTable_policies$key } from "./__generated__/RetentionPoliciesTable_policies.graphql";
 import type { RetentionPoliciesTable_retentionPolicy$key } from "./__generated__/RetentionPoliciesTable_retentionPolicy.graphql";
 import type { RetentionPoliciesTablePoliciesQuery } from "./__generated__/RetentionPoliciesTablePoliciesQuery.graphql";
 import { RetentionPolicyActionMenu } from "./RetentionPolicyActionMenu";
+
+/**
+ * The maximum number of project tokens to show in a row before collapsing
+ * the remainder into an "and N more" affordance. The full list is visible
+ * in the policy's details drawer.
+ */
+const MAX_VISIBLE_PROJECTS = 5;
 
 const RETENTION_POLICY_FRAGMENT = graphql`
   fragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy
@@ -45,6 +56,8 @@ const RETENTION_POLICY_FRAGMENT = graphql`
         node {
           name
           id
+          gradientStartColor
+          gradientEndColor
         }
       }
     }
@@ -56,6 +69,8 @@ export const RetentionPoliciesTable = ({
   query: RetentionPoliciesTable_policies$key;
 }) => {
   "use no memo";
+  const navigate = useNavigate();
+  const { policyId: selectedPolicyId } = useParams();
   const notifySuccess = useNotifySuccess();
   const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
   const { data } = usePaginationFragment<
@@ -116,48 +131,41 @@ export const RetentionPoliciesTable = ({
         header: "Rule",
         accessorKey: "rule",
         cell: ({ row }) => {
-          const rule = row.original.rule;
-          if (rule.__typename === "TraceRetentionRuleMaxCount") {
-            return `${rule.maxCount} traces`;
-          }
-          if (rule.__typename === "TraceRetentionRuleMaxDays") {
-            if (rule.maxDays === 0) {
-              return "Infinite";
-            }
-            return `${rule.maxDays} days`;
-          }
-          if (rule.__typename === "TraceRetentionRuleMaxDaysOrCount") {
-            return `${rule.maxDays} days or ${rule.maxCount} traces`;
-          }
-          if (rule.__typename === "%other") {
-            return "Unknown";
-          }
-          assertUnreachable(rule);
+          return createPolicyRuleSummaryText(row.original.rule);
         },
       },
       {
         header: "Projects",
         accessorKey: "projects",
         cell: ({ row }) => {
+          const projects = row.original.projects.edges.map((edge) => edge.node);
+          const visibleProjects = projects.slice(0, MAX_VISIBLE_PROJECTS);
+          const hiddenProjectsCount = projects.length - visibleProjects.length;
+          if (projects.length === 0) {
+            return (
+              <Text size="S" color="text-700">
+                No projects
+              </Text>
+            );
+          }
           return (
-            <ul
-              css={css`
-                li {
-                  display: inline;
-                }
-                li:not(:first-child):before {
-                  content: ", ";
-                }
-              `}
-            >
-              {row.original.projects.edges.map((edge) => (
-                <li key={edge.node.id}>
-                  <Link to={`/projects/${edge.node.id}/config`}>
-                    {edge.node.name}
-                  </Link>
-                </li>
+            <Flex direction="row" gap="size-50" wrap alignItems="center">
+              {visibleProjects.map((project) => (
+                <StopPropagation key={project.id}>
+                  <ProjectToken
+                    projectId={project.id}
+                    name={project.name}
+                    gradientStartColor={project.gradientStartColor}
+                    gradientEndColor={project.gradientEndColor}
+                  />
+                </StopPropagation>
               ))}
-            </ul>
+              {hiddenProjectsCount > 0 && (
+                <Text size="S" color="text-700">
+                  and {hiddenProjectsCount} more
+                </Text>
+              )}
+            </Flex>
           );
         },
       },
@@ -167,25 +175,27 @@ export const RetentionPoliciesTable = ({
         id: "actions",
         cell: ({ row }) => {
           return (
-            <RetentionPolicyActionMenu
-              policyId={row.original.id}
-              policyName={row.original.name}
-              projectNames={row.original.projects.edges.map(
-                (edge) => edge.node.name
-              )}
-              onPolicyEdit={() => {
-                notifySuccess({
-                  title: "Policy Updated",
-                  message: `Policy "${row.original.name}" was updated and will take effect shortly.`,
-                });
-              }}
-              onPolicyDelete={() => {
-                notifySuccess({
-                  title: "Policy deleted",
-                  message: `Policy "${row.original.name}" was deleted`,
-                });
-              }}
-            />
+            <StopPropagation>
+              <RetentionPolicyActionMenu
+                policyId={row.original.id}
+                policyName={row.original.name}
+                projectNames={row.original.projects.edges.map(
+                  (edge) => edge.node.name
+                )}
+                onPolicyEdit={() => {
+                  notifySuccess({
+                    title: "Policy Updated",
+                    message: `Policy "${row.original.name}" was updated and will take effect shortly.`,
+                  });
+                }}
+                onPolicyDelete={() => {
+                  notifySuccess({
+                    title: "Policy deleted",
+                    message: `Policy "${row.original.name}" was deleted`,
+                  });
+                }}
+              />
+            </StopPropagation>
           );
         },
       });
@@ -204,7 +214,7 @@ export const RetentionPoliciesTable = ({
   const rows = table.getRowModel().rows;
 
   return (
-    <table css={tableCSS}>
+    <table css={selectableTableCSS}>
       <thead>
         {table.getHeaderGroups().map((headerGroup) => (
           <tr key={headerGroup.id}>
@@ -226,7 +236,11 @@ export const RetentionPoliciesTable = ({
       <tbody>
         {rows.map((row) => {
           return (
-            <tr key={row.id}>
+            <tr
+              key={row.id}
+              data-selected={row.original.id === selectedPolicyId}
+              onClick={() => navigate(`/settings/data/${row.original.id}`)}
+            >
               {row.getVisibleCells().map((cell) => {
                 return (
                   <td key={cell.id}>

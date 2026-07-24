@@ -7,6 +7,9 @@ export type { GradientCircleRadioProps } from "./GradientCircleRadio";
 export { GradientCircleRadioGroup } from "./GradientCircleRadioGroup";
 export type { GradientCircleRadioGroupProps } from "./GradientCircleRadioGroup";
 
+export { ProjectToken } from "./ProjectToken";
+export type { ProjectTokenProps } from "./ProjectToken";
+
 export * from "./IntegrationIcons";
 export { ProjectMenu } from "./ProjectMenu";
 export type { ProjectMenuProps } from "./ProjectMenu";

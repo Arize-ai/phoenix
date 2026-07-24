@@ -36,6 +36,7 @@ import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoad
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 import { SettingsSandboxesPage } from "@phoenix/pages/settings/SettingsSandboxesPage";
 import { settingsSandboxesPageLoader } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
+import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsUsersPage } from "@phoenix/pages/settings/SettingsUsersPage";
 import { UserDetailsDrawer } from "@phoenix/pages/settings/UserDetailsDrawer";
 import {
@@ -1023,7 +1024,12 @@ export const appRouteObjects = createRoutesFromElements(
               },
             }}
             loader={settingsDataPageLoader}
-          />
+          >
+            <Route
+              path=":policyId"
+              element={<RetentionPolicyDetailsDrawer />}
+            />
+          </Route>
           <Route
             path="prompts"
             element={<SettingsPromptsPage />}
