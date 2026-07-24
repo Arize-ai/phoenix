@@ -107,12 +107,13 @@ def _create_code_evaluator_input(
     sandbox_config_id: int,
     name: str | None = None,
     language: str = "PYTHON",
+    source_code: str = "def evaluate(output):\n    return {'score': 1.0}",
 ) -> dict[str, object]:
     return {
         "name": name or f"test_code_evaluator_{token_hex(4)}",
         "description": "uses relay id",
         "language": language,
-        "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
+        "sourceCode": source_code,
         "sandboxConfigId": _config_global_id(sandbox_config_id),
         "inputMapping": {"literalMapping": {}, "pathMapping": {}},
         "outputConfigs": [
@@ -135,6 +136,7 @@ _KIND_TO_VARIANT: dict[str, str] = {
     "VERCEL": "vercel",
     "WASM": "wasm",
     "MODAL": "modal",
+    "MONTY": "monty",
 }
 
 
@@ -500,6 +502,23 @@ async def _create_code_evaluator_with_config(
         return code_eval.id
 
 
+async def _create_monty_config(db: DbSessionFactory) -> models.SandboxConfig:
+    async with db() as session:
+        provider = await session.get(models.SandboxProvider, "MONTY")
+        assert provider is not None
+        config = models.SandboxConfig(
+            backend_type="MONTY",
+            language="PYTHON",
+            name=Identifier(f"monty-{token_hex(4)}"),
+            description=None,
+            config={"backend_type": "MONTY", "language": "PYTHON"},
+            timeout=45,
+        )
+        session.add(config)
+        await session.flush()
+        return config
+
+
 async def _create_code_evaluator_with_two_versions(
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
@@ -578,6 +597,113 @@ class TestDisabledProviderAndConfigGuards:
 
 
 class TestCodeEvaluatorSandboxMutationIds:
+    async def test_create_rejects_code_unsupported_by_selected_sandbox_before_write(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        config = await _create_monty_config(db)
+        evaluator_name = f"invalid-monty-{token_hex(4)}"
+
+        result = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": _create_code_evaluator_input(
+                    sandbox_config_id=config.id,
+                    name=evaluator_name,
+                    source_code=(
+                        "import definitely_missing\n"
+                        "def evaluate(output):\n"
+                        "    return {'score': 1.0}"
+                    ),
+                )
+            },
+        )
+
+        assert result.errors
+        assert "not supported by the Monty runtime" in str(result.errors)
+        async with db() as session:
+            assert (
+                await session.scalar(
+                    select(models.CodeEvaluator).where(
+                        models.CodeEvaluator.name == Identifier(evaluator_name)
+                    )
+                )
+                is None
+            )
+
+    async def test_version_rejects_code_unsupported_by_bound_sandbox_before_write(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        config = await _create_monty_config(db)
+        evaluator_id = await _create_code_evaluator_with_config(db, config)
+        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_id)))
+
+        result = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR_VERSION,
+            variables={
+                "input": {
+                    "codeEvaluatorId": evaluator_gid,
+                    "sourceCode": (
+                        "import definitely_missing\n"
+                        "def evaluate(output):\n"
+                        "    return {'score': 1.0}"
+                    ),
+                }
+            },
+        )
+
+        assert result.errors
+        assert "not supported by the Monty runtime" in str(result.errors)
+        async with db() as session:
+            version_count = await session.scalar(
+                select(sa.func.count(models.CodeEvaluatorVersion.id)).where(
+                    models.CodeEvaluatorVersion.code_evaluator_id == evaluator_id
+                )
+            )
+        assert version_count == 1
+
+    async def test_rebinding_rejects_existing_code_unsupported_by_target_sandbox(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+        seed_sandbox_providers: None,
+    ) -> None:
+        monty_config = await _create_monty_config(db)
+        evaluator_id = await _create_code_evaluator_with_config(db, sandbox_config)
+        async with db() as session:
+            version = await session.scalar(
+                select(models.CodeEvaluatorVersion)
+                .where(models.CodeEvaluatorVersion.code_evaluator_id == evaluator_id)
+                .order_by(models.CodeEvaluatorVersion.id.desc())
+            )
+            assert version is not None
+            version.source_code = (
+                "import definitely_missing\ndef evaluate(input):\n    return {'score': 1.0}"
+            )
+
+        result = await gql_client.execute(
+            _PATCH_CODE_EVALUATOR,
+            variables={
+                "input": {
+                    "id": str(GlobalID("CodeEvaluator", str(evaluator_id))),
+                    "sandboxConfigId": _config_global_id(monty_config.id),
+                }
+            },
+        )
+
+        assert result.errors
+        assert "not supported by the Monty runtime" in str(result.errors)
+        async with db() as session:
+            evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        assert evaluator is not None
+        assert evaluator.sandbox_config_id == sandbox_config.id
+
     async def test_create_code_evaluator_accepts_sandbox_global_id(
         self,
         gql_client: AsyncGraphQLClient,

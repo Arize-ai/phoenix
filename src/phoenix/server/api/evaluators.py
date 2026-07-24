@@ -2639,6 +2639,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
             f"print('{_PHOENIX_RESULT_END}')\n"
         )
 
+    def _build_monty_harness(self, mapped_inputs: dict[str, Any]) -> str:
+        return f"{self._source_code}\n\n_inputs = {mapped_inputs!r}\nevaluate(**_inputs)\n"
+
     def _build_typescript_harness(self, mapped_inputs: dict[str, Any]) -> str:
         inputs_json = json.dumps(mapped_inputs)
         return (
@@ -2755,7 +2758,11 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     ]
 
             if self._language == "PYTHON":
-                code = self._build_python_harness(mapped_inputs)
+                code = (
+                    self._build_monty_harness(mapped_inputs)
+                    if self._sandbox_backend.provider == "MONTY"
+                    else self._build_python_harness(mapped_inputs)
+                )
             else:
                 code = self._build_typescript_harness(mapped_inputs)
 

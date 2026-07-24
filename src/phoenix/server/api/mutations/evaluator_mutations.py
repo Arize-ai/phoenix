@@ -59,6 +59,7 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxConfig,
 )
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.sandbox import SANDBOX_ADAPTERS
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
@@ -128,6 +129,7 @@ async def _validate_code_evaluator_sandbox_config(
     sandbox_config_global_id: GlobalID,
     language: str,
     action: str,
+    source_code: str,
 ) -> int:
     sandbox_config_id = from_global_id_with_expected_type(
         sandbox_config_global_id, SandboxConfig.__name__
@@ -150,6 +152,21 @@ async def _validate_code_evaluator_sandbox_config(
 
     if target_cfg.language != language:
         raise BadRequest("Evaluator language does not match sandbox config language")
+
+    adapter = SANDBOX_ADAPTERS.get(target_cfg.backend_type)
+    if adapter is not None:
+        validated_config = adapter.config_model.model_validate(
+            {
+                "backend_type": target_cfg.backend_type,
+                "language": target_cfg.language,
+                **(target_cfg.config or {}),
+            }
+        )
+        validation_error = adapter.validate_code(validated_config, source_code)
+        if validation_error is not None:
+            raise BadRequest(
+                f"Code is not supported by the {adapter.display_name} runtime: {validation_error}"
+            )
 
     # Backend runtime availability (installed dependencies, downloaded binaries)
     # is enforced at execution time, not authoring time.
@@ -1312,6 +1329,7 @@ class EvaluatorMutationMixin:
                     sandbox_config_global_id=input.sandbox_config_id,
                     language=input.language.value,
                     action="creating this evaluator",
+                    source_code=input.source_code,
                 )
 
                 row = models.CodeEvaluator(
@@ -1379,6 +1397,15 @@ class EvaluatorMutationMixin:
                             sandbox_config_global_id=input.sandbox_config_id,
                             language=row.language,
                             action="patching this evaluator",
+                            source_code=(
+                                await session.scalar(
+                                    select(models.CodeEvaluatorVersion.source_code)
+                                    .where(models.CodeEvaluatorVersion.code_evaluator_id == row.id)
+                                    .order_by(models.CodeEvaluatorVersion.id.desc())
+                                    .limit(1)
+                                )
+                                or ""
+                            ),
                         )
                         row.sandbox_config_id = sandbox_config_id
 
@@ -1434,6 +1461,17 @@ class EvaluatorMutationMixin:
                     raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
                 row, current_version = code_evaluator_with_version
                 _raise_on_uninferable_evaluate_signature(input.source_code, Language(row.language))
+
+                if row.sandbox_config_id is not None:
+                    await _validate_code_evaluator_sandbox_config(
+                        session,
+                        sandbox_config_global_id=GlobalID(
+                            SandboxConfig.__name__, str(row.sandbox_config_id)
+                        ),
+                        language=row.language,
+                        action="creating this evaluator version",
+                        source_code=input.source_code,
+                    )
 
                 candidate = models.CodeEvaluatorVersion(
                     code_evaluator_id=row.id,

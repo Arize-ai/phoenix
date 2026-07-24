@@ -61,6 +61,8 @@ function SettingsSandboxesPageContent({
           supportsEnvVars
           internetAccess
           supportsDependencies
+          languageDialect
+          runtimeNotes
           credentialSpecs {
             key
             displayName

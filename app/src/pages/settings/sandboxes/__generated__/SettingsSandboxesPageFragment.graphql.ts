@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9d23927b52cd14b188cfbe8ab92638ea>>
+ * @generated SignedSource<<2ab82b3796825c4c0be9ec1f2c18b1a8>>
  * @lightSyntaxTransform
  */
 
@@ -12,8 +12,9 @@ export type InternetAccessChoice = "ALLOW" | "DENY";
 export type InternetAccessMode = "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 export type SandboxHostingType = "HOSTED" | "LOCAL";
+export type SandboxLanguageDialect = "FULL" | "RESTRICTED";
 import { FragmentRefs } from "relay-runtime";
 export type SettingsSandboxesPageFragment$data = {
   readonly sandboxBackends: ReadonlyArray<{
@@ -28,6 +29,8 @@ export type SettingsSandboxesPageFragment$data = {
     readonly displayName: string;
     readonly hostingType: SandboxHostingType;
     readonly internetAccess: InternetAccessMode;
+    readonly languageDialect: SandboxLanguageDialect;
+    readonly runtimeNotes: string;
     readonly status: SandboxBackendStatus;
     readonly statusDetail: string | null;
     readonly supportedLanguages: ReadonlyArray<Language>;
@@ -195,6 +198,20 @@ return {
         {
           "alias": null,
           "args": null,
+          "kind": "ScalarField",
+          "name": "languageDialect",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "runtimeNotes",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
           "concreteType": "SandboxProviderCredentialSpec",
           "kind": "LinkedField",
           "name": "credentialSpecs",
@@ -345,6 +362,6 @@ return {
 };
 })();
 
-(node as any).hash = "3d2272767b923b1414b367e3c3cba621";
+(node as any).hash = "6b60bb29bd41b3b70a9cf4caae0724ba";
 
 export default node;
