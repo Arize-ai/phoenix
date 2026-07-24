@@ -2,7 +2,13 @@ import type { PropsWithChildren } from "react";
 import React, { createContext, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { Dialog, Modal, ModalOverlay, Switch, View } from "@phoenix/components";
+import {
+  Dialog,
+  Switch,
+  View,
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -103,8 +109,11 @@ function FeatureFlagsControls(props: PropsWithChildren) {
     <>
       {children}
 
-      <ModalOverlay isOpen={showControls} onOpenChange={setShowControls}>
-        <Modal size="S">
+      <ViewportModalOverlay
+        isOpen={showControls}
+        onOpenChange={setShowControls}
+      >
+        <ViewportModal size="S">
           <Dialog>
             <DialogContent>
               <DialogHeader>
@@ -131,8 +140,8 @@ function FeatureFlagsControls(props: PropsWithChildren) {
               </View>
             </DialogContent>
           </Dialog>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </>
   );
 }

@@ -13,12 +13,12 @@ import {
   DialogTrigger,
   Icon,
   Icons,
-  Modal,
-  ModalOverlay,
   Tab,
   TabList,
   TabPanel,
   Tabs,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -119,8 +119,8 @@ export function CreateDatasetButton({
       >
         New Dataset
       </Button>
-      <ModalOverlay isOpen={isOpen} onOpenChange={setIsOpen}>
-        <Modal variant="slideover" size="fullscreen">
+      <ViewportModalOverlay isOpen={isOpen} onOpenChange={setIsOpen}>
+        <ViewportModal size="fullscreen">
           <Dialog css={dialogCSS}>
             <DialogHeader>
               <DialogTitle>Create Dataset</DialogTitle>
@@ -162,8 +162,8 @@ export function CreateDatasetButton({
               </Tabs>
             </DialogContent>
           </Dialog>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

@@ -14,8 +14,8 @@ import {
   DialogTrigger,
   Icon,
   Icons,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -80,8 +80,8 @@ export function NewModelButton({
       >
         {isCommitting ? "Adding Model..." : "Add Model"}
       </Button>
-      <ModalOverlay>
-        <Modal>
+      <ViewportModalOverlay>
+        <ViewportModal>
           <Dialog>
             <DialogContent>
               <DialogHeader>
@@ -139,8 +139,8 @@ export function NewModelButton({
               />
             </DialogContent>
           </Dialog>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

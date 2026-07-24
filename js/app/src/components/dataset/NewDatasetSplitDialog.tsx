@@ -1,6 +1,11 @@
 import { useState } from "react";
 
-import { Alert, Dialog, Modal } from "@phoenix/components";
+import {
+  Alert,
+  Dialog,
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -26,22 +31,24 @@ export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
   });
 
   return (
-    <Modal size="S">
-      <Dialog aria-label="Create dataset split">
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Dataset Split</DialogTitle>
-            <DialogTitleExtra>
-              <DialogCloseButton />
-            </DialogTitleExtra>
-          </DialogHeader>
-          {error && <Alert variant="danger">{error}</Alert>}
-          <NewDatasetSplitForm
-            onSubmit={onSubmit}
-            isSubmitting={isCreatingDatasetSplit}
-          />
-        </DialogContent>
-      </Dialog>
-    </Modal>
+    <ViewportModalOverlay defaultOpen>
+      <ViewportModal size="S">
+        <Dialog aria-label="Create dataset split">
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Dataset Split</DialogTitle>
+              <DialogTitleExtra>
+                <DialogCloseButton />
+              </DialogTitleExtra>
+            </DialogHeader>
+            {error && <Alert variant="danger">{error}</Alert>}
+            <NewDatasetSplitForm
+              onSubmit={onSubmit}
+              isSubmitting={isCreatingDatasetSplit}
+            />
+          </DialogContent>
+        </Dialog>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 }

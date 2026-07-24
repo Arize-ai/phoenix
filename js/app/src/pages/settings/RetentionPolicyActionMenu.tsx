@@ -19,6 +19,8 @@ import {
   MenuTrigger,
   Modal,
   ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Popover,
   Text,
   View,
@@ -135,8 +137,8 @@ export const RetentionPolicyActionMenu = ({
       </MenuTrigger>
       {/* Edit Dialog */}
       <DialogTrigger isOpen={showEditDialog} onOpenChange={setShowEditDialog}>
-        <ModalOverlay>
-          <Modal size="M">
+        <ViewportModalOverlay>
+          <ViewportModal size="M">
             <Dialog>
               <DialogContent>
                 <DialogHeader>
@@ -166,8 +168,8 @@ export const RetentionPolicyActionMenu = ({
                 </Suspense>
               </DialogContent>
             </Dialog>
-          </Modal>
-        </ModalOverlay>
+          </ViewportModal>
+        </ViewportModalOverlay>
       </DialogTrigger>
 
       {/* Delete Dialog */}

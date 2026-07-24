@@ -4,16 +4,12 @@ import type {
   PointerEvent as ReactPointerEvent,
   ReactNode,
   RefObject,
-  SyntheticEvent as ReactSyntheticEvent,
   TransitionEvent as ReactTransitionEvent,
 } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import invariant from "tiny-invariant";
 
-import {
-  MODAL_FLOATING_UI_Z_INDEX,
-  NON_MODAL_FLOATING_Z_INDEX,
-} from "@phoenix/components/core/zIndex";
+import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
 import type { Bounds, Point, Size } from "@phoenix/types/geometry";
 
@@ -23,7 +19,6 @@ import {
   getFabPinnedPosition,
   getNearestFabPlacement,
 } from "./agentFabPositioning";
-import { useModalFloatingLayerInteractivity } from "./useModalFloatingLayerInteractivity";
 
 // Number of pixels the pointer must travel after pointerdown before we treat
 // the gesture as a drag instead of a click. Compared as squared distance to
@@ -63,10 +58,6 @@ const positionerCSS = css`
   &[data-dragging="true"] * {
     cursor: grabbing;
   }
-
-  &[data-layer="modal"] {
-    z-index: ${MODAL_FLOATING_UI_Z_INDEX};
-  }
 `;
 
 type DragSession = {
@@ -88,7 +79,6 @@ export type AgentFabPositionerProps = {
   boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
   isHidden?: boolean;
-  layer?: "content" | "modal";
   placement: AgentFabPlacement;
   size?: Size;
   onActivate?: () => void;
@@ -213,7 +203,6 @@ export function AgentFabPositioner({
   boundaryRef,
   children,
   isHidden = false,
-  layer = "content",
   placement,
   size,
   onActivate,
@@ -235,7 +224,6 @@ export function AgentFabPositioner({
   const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
     () => boundaryRef?.current ?? null
   );
-  useModalFloatingLayerInteractivity(positionerRef, layer === "modal");
 
   // After a drag, an unwanted `click` event can still fire on pointerup. We
   // swallow exactly one click immediately following a drag. A zero-delay
@@ -474,14 +462,6 @@ export function AgentFabPositioner({
     event.stopPropagation();
   };
 
-  const stopModalLayerPropagation = (
-    event: ReactSyntheticEvent<HTMLDivElement>
-  ) => {
-    if (layer === "modal") {
-      event.stopPropagation();
-    }
-  };
-
   const handleTransitionEnd = (event: ReactTransitionEvent<HTMLDivElement>) => {
     // Once the snap-to-corner animation finishes, clear the inline transition
     // so the next drag starts without an animated transform.
@@ -578,19 +558,13 @@ export function AgentFabPositioner({
       aria-hidden={isHidden ? true : undefined}
       data-dragging={isDragging ? "true" : undefined}
       data-hidden={isHidden ? "true" : undefined}
-      data-layer={layer}
       data-placement={placement}
       ref={positionerRef}
-      onClick={stopModalLayerPropagation}
       onClickCapture={handleClickCapture}
       onLostPointerCaptureCapture={handleLostPointerCapture}
-      onPointerCancel={stopModalLayerPropagation}
       onPointerCancelCapture={finishDrag}
-      onPointerDown={stopModalLayerPropagation}
       onPointerDownCapture={handlePointerDown}
-      onPointerMove={stopModalLayerPropagation}
       onPointerMoveCapture={handlePointerMove}
-      onPointerUp={stopModalLayerPropagation}
       onPointerUpCapture={finishDrag}
       onTransitionEnd={handleTransitionEnd}
     >

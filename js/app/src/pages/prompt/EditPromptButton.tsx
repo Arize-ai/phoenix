@@ -16,7 +16,8 @@ import {
   Icon,
   Icons,
   Label,
-  Modal,
+  ViewportModal,
+  ViewportModalOverlay,
   Text,
   TextArea,
   TextField,
@@ -125,92 +126,98 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
         variant="quiet"
         aria-label="configure prompt"
       />
-      <Modal size="M" isDismissable>
-        <Dialog>
-          <DialogHeader>
-            <DialogTitle>Edit Prompt Details</DialogTitle>
-            <DialogTitleExtra>
-              <DialogCloseButton />
-            </DialogTitleExtra>
-          </DialogHeader>
-          <Form>
-            {error && (
-              <View paddingX="size-200" paddingTop="size-100">
-                <Alert variant="danger">{error}</Alert>
-              </View>
-            )}
-            <View padding="size-200">
-              <Flex direction="column" gap="size-100">
-                <Controller
-                  name="description"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField value={field.value} onChange={field.onChange}>
-                      <Label>Prompt Description</Label>
-                      <TextArea placeholder="Enter a description for the prompt" />
-                      <Text slot="description">
-                        A description of the prompt
-                      </Text>
-                    </TextField>
-                  )}
-                />
-                <Controller
-                  name="metadata"
-                  control={control}
-                  rules={{
-                    validate: (value) => {
-                      // Allow empty values (will be treated as null)
-                      if (!value || value.trim() === "") {
+      <ViewportModalOverlay
+        isDismissable
+        isOpen={isOpen}
+        onOpenChange={handleOpenChange}
+      >
+        <ViewportModal size="M">
+          <Dialog>
+            <DialogHeader>
+              <DialogTitle>Edit Prompt Details</DialogTitle>
+              <DialogTitleExtra>
+                <DialogCloseButton />
+              </DialogTitleExtra>
+            </DialogHeader>
+            <Form>
+              {error && (
+                <View paddingX="size-200" paddingTop="size-100">
+                  <Alert variant="danger">{error}</Alert>
+                </View>
+              )}
+              <View padding="size-200">
+                <Flex direction="column" gap="size-100">
+                  <Controller
+                    name="description"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField value={field.value} onChange={field.onChange}>
+                        <Label>Prompt Description</Label>
+                        <TextArea placeholder="Enter a description for the prompt" />
+                        <Text slot="description">
+                          A description of the prompt
+                        </Text>
+                      </TextField>
+                    )}
+                  />
+                  <Controller
+                    name="metadata"
+                    control={control}
+                    rules={{
+                      validate: (value) => {
+                        // Allow empty values (will be treated as null)
+                        if (!value || value.trim() === "") {
+                          return true;
+                        }
+                        if (!isJSONObjectString(value)) {
+                          return "metadata must be a valid JSON object";
+                        }
                         return true;
-                      }
-                      if (!isJSONObjectString(value)) {
-                        return "metadata must be a valid JSON object";
-                      }
-                      return true;
-                    },
-                  }}
-                  render={({
-                    field: { onChange, onBlur, value },
-                    fieldState: { error },
-                  }) => (
-                    <CodeEditorFieldWrapper
-                      label={"Metadata"}
-                      errorMessage={error?.message}
-                      description="A JSON object containing metadata for the prompt"
-                    >
-                      <JSONEditor
-                        value={value}
-                        onChange={onChange}
-                        onBlur={onBlur}
-                      />
-                    </CodeEditorFieldWrapper>
-                  )}
-                />
-              </Flex>
-            </View>
-            <View
-              paddingX="size-200"
-              paddingY="size-100"
-              borderTopColor="default"
-              borderTopWidth="thin"
-            >
-              <Flex direction="row" gap="size-100" justifyContent="end">
-                <Button slot="close" size="S">
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="S"
-                  isDisabled={isMutating}
-                  onPress={() => handleSubmit(onSubmit)()}
-                >
-                  {isMutating ? "Saving..." : "Save"}
-                </Button>
-              </Flex>
-            </View>
-          </Form>
-        </Dialog>
-      </Modal>
+                      },
+                    }}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { error },
+                    }) => (
+                      <CodeEditorFieldWrapper
+                        label={"Metadata"}
+                        errorMessage={error?.message}
+                        description="A JSON object containing metadata for the prompt"
+                      >
+                        <JSONEditor
+                          value={value}
+                          onChange={onChange}
+                          onBlur={onBlur}
+                        />
+                      </CodeEditorFieldWrapper>
+                    )}
+                  />
+                </Flex>
+              </View>
+              <View
+                paddingX="size-200"
+                paddingY="size-100"
+                borderTopColor="default"
+                borderTopWidth="thin"
+              >
+                <Flex direction="row" gap="size-100" justifyContent="end">
+                  <Button slot="close" size="S">
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="S"
+                    isDisabled={isMutating}
+                    onPress={() => handleSubmit(onSubmit)()}
+                  >
+                    {isMutating ? "Saving..." : "Save"}
+                  </Button>
+                </Flex>
+              </View>
+            </Form>
+          </Dialog>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

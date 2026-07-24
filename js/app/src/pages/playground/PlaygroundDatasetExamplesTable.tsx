@@ -36,12 +36,12 @@ import {
   Icon,
   IconButton,
   Icons,
-  Modal,
-  ModalOverlay,
   ParagraphSkeleton,
   ProgressCircle,
   Text,
   View,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import {
@@ -1495,7 +1495,7 @@ export function PlaygroundDatasetExamplesTable({
             />
           )}
         </table>
-        <ModalOverlay
+        <ViewportModalOverlay
           isOpen={selectedExampleIndex !== null}
           onOpenChange={(isOpen) => {
             if (!isOpen) {
@@ -1503,7 +1503,7 @@ export function PlaygroundDatasetExamplesTable({
             }
           }}
         >
-          <Modal variant="slideover" size="fullscreen">
+          <ViewportModal size="fullscreen">
             {selectedExampleIndex !== null &&
               exampleIds[selectedExampleIndex] &&
               baseExperimentId != null &&
@@ -1533,9 +1533,9 @@ export function PlaygroundDatasetExamplesTable({
                   }}
                 />
               )}
-          </Modal>
-        </ModalOverlay>
-        <ModalOverlay
+          </ViewportModal>
+        </ViewportModalOverlay>
+        <ViewportModalOverlay
           isOpen={selectedTraceInfo !== null}
           onOpenChange={(isOpen) => {
             if (!isOpen) {
@@ -1551,7 +1551,7 @@ export function PlaygroundDatasetExamplesTable({
             }
           }}
         >
-          <Modal variant="slideover" size="fullscreen">
+          <ViewportModal size="fullscreen">
             {selectedTraceInfo && (
               <PlaygroundRunTraceDetailsDialog
                 traceId={selectedTraceInfo.traceId}
@@ -1563,8 +1563,8 @@ export function PlaygroundDatasetExamplesTable({
                 }
               />
             )}
-          </Modal>
-        </ModalOverlay>
+          </ViewportModal>
+        </ViewportModalOverlay>
       </div>
     </InstanceVariablesProvider>
   );

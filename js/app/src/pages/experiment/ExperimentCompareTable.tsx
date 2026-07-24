@@ -27,12 +27,12 @@ import {
   Icon,
   IconButton,
   Icons,
-  Modal,
-  ModalOverlay,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
   View,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -687,7 +687,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           </table>
         </div>
       </Flex>
-      <ModalOverlay
+      <ViewportModalOverlay
         isOpen={selectedExampleIndex !== null}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
@@ -695,7 +695,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           }
         }}
       >
-        <Modal variant="slideover" size="fullscreen">
+        <ViewportModal size="fullscreen">
           {selectedExampleIndex !== null &&
             exampleIds[selectedExampleIndex] &&
             baseExperiment && (
@@ -730,9 +730,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 }}
               />
             )}
-        </Modal>
-      </ModalOverlay>
-      <ModalOverlay
+        </ViewportModal>
+      </ViewportModalOverlay>
+      <ViewportModalOverlay
         isOpen={!!dialog}
         onOpenChange={() => {
           // Clear the URL search params for the span selection
@@ -747,10 +747,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           setDialog(null);
         }}
       >
-        <Modal variant="slideover" size="fullscreen">
-          {dialog}
-        </Modal>
-      </ModalOverlay>
+        <ViewportModal size="fullscreen">{dialog}</ViewportModal>
+      </ViewportModalOverlay>
     </View>
   );
 }

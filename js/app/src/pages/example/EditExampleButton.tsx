@@ -3,8 +3,8 @@ import {
   DialogTrigger,
   Icon,
   Icons,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 
 import type { EditExampleDialogProps } from "./EditExampleDialog";
@@ -19,16 +19,16 @@ export function EditExampleButton(props: EditExampleButtonProps) {
       <Button size="S" leadingVisual={<Icon svg={<Icons.Edit />} />}>
         Edit Example
       </Button>
-      <ModalOverlay>
-        <Modal variant="slideover" size="L">
+      <ViewportModalOverlay>
+        <ViewportModal size="L">
           <EditExampleDialog
             {...dialogProps}
             onCompleted={() => {
               onCompleted();
             }}
           />
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }
