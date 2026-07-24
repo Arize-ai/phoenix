@@ -11,6 +11,8 @@ import {
   Icons,
   Modal,
   ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import type { APIKeyFormParams } from "@phoenix/components/auth";
 import {
@@ -85,14 +87,14 @@ export function ViewerAPIKeys({
             >
               New Key
             </Button>
-            <ModalOverlay>
-              <Modal size="M">
+            <ViewportModalOverlay>
+              <ViewportModal size="M">
                 <CreateAPIKeyDialog
                   onSubmit={onSubmit}
                   isCommitting={isCommitting}
                 />
-              </Modal>
-            </ModalOverlay>
+              </ViewportModal>
+            </ViewportModalOverlay>
           </DialogTrigger>
         }
       >

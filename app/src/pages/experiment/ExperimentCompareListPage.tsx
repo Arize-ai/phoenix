@@ -38,11 +38,11 @@ import {
   Icon,
   IconButton,
   Icons,
-  Modal,
-  ModalOverlay,
   ProgressBar,
   Text,
   View,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import {
   AnnotationColorSwatch,
@@ -1283,7 +1283,7 @@ export function ExperimentCompareListPage({
           </table>
         </div>
       </Flex>
-      <ModalOverlay
+      <ViewportModalOverlay
         isOpen={selectedExampleIndex !== null}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
@@ -1291,7 +1291,7 @@ export function ExperimentCompareListPage({
           }
         }}
       >
-        <Modal variant="slideover" size="fullscreen">
+        <ViewportModal size="fullscreen">
           {selectedExampleIndex !== null &&
             datasetId &&
             rows[selectedExampleIndex] && (
@@ -1329,9 +1329,9 @@ export function ExperimentCompareListPage({
                 }}
               />
             )}
-        </Modal>
-      </ModalOverlay>
-      <ModalOverlay
+        </ViewportModal>
+      </ViewportModalOverlay>
+      <ViewportModalOverlay
         isOpen={selectedTraceDetails !== null}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
@@ -1348,7 +1348,7 @@ export function ExperimentCompareListPage({
           }
         }}
       >
-        <Modal variant="slideover" size="fullscreen">
+        <ViewportModal size="fullscreen">
           {selectedTraceDetails !== null && (
             <TraceDetailsDialog
               traceId={selectedTraceDetails.traceId}
@@ -1356,8 +1356,8 @@ export function ExperimentCompareListPage({
               title={selectedTraceDetails.dialogTitle}
             />
           )}
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </View>
   );
 }
