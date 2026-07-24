@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 from phoenix.client.helpers.spans.hallucination import _row_to_eval_input
 
 INPUT_MESSAGES = [

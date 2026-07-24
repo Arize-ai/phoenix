@@ -1,3 +1,4 @@
+# pyright: reportUnknownLambdaType=false, reportUnknownArgumentType=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownParameterType=false
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 

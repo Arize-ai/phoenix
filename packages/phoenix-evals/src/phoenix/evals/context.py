@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 CHARS_PER_TOKEN = 4
 
@@ -35,8 +35,8 @@ def _content_from_contents(contents: Any) -> Optional[str]:
     return "\n\n".join(parts) if parts else None
 
 
-def _reconstruct_tool_calls(message: Mapping[str, Any]) -> List[dict]:
-    calls: List[dict] = []
+def _reconstruct_tool_calls(message: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    calls: List[Dict[str, Any]] = []
     raw = message.get("tool_calls")
     if isinstance(raw, Sequence) and not isinstance(raw, str):
         for element in raw:
@@ -68,7 +68,7 @@ def _reconstruct_tool_calls(message: Mapping[str, Any]) -> List[dict]:
     return calls
 
 
-def reconstruct_messages(oi_messages: Any) -> List[dict]:
+def reconstruct_messages(oi_messages: Any) -> List[Dict[str, Any]]:
     """Convert OpenInference message attributes into plain message dicts.
 
     Accepts the ``llm.input_messages`` / ``llm.output_messages`` value as
@@ -87,7 +87,7 @@ def reconstruct_messages(oi_messages: Any) -> List[dict]:
     """
     if not isinstance(oi_messages, Sequence) or isinstance(oi_messages, str):
         return []
-    result: List[dict] = []
+    result: List[Dict[str, Any]] = []
     for element in oi_messages:
         message = _unwrap(element, "message")
         if not isinstance(message, Mapping):
@@ -95,7 +95,7 @@ def reconstruct_messages(oi_messages: Any) -> List[dict]:
         content = message.get("content")
         if content is None:
             content = _content_from_contents(message.get("contents"))
-        reconstructed: dict = {"role": message.get("role") or "assistant"}
+        reconstructed: Dict[str, Any] = {"role": message.get("role") or "assistant"}
         if content is not None:
             reconstructed["content"] = content
         name = message.get("name")
