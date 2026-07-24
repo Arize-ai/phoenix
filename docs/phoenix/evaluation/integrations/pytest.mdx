@@ -113,6 +113,12 @@ The marker is what tells the plugin which tests to record. Tests without it run 
 ```python
 @pytest.mark.phoenix(
     dataset="my-eval-suite",
+    dataset_description="Customer support regression cases",
+    experiment_description="GPT-4.1 with a lower temperature",
+    experiment_metadata={
+        "model": "gpt-4.1",
+        "parameters": {"temperature": 0.2},
+    },
     evaluators=[correctness_evaluator],
     repetitions=3,
 )
@@ -122,8 +128,13 @@ def test_my_feature(input, expected): ...
 | Argument | Description |
 |---|---|
 | `dataset` | Name of the Phoenix dataset and experiment. Defaults to the test file's relative path when omitted. |
+| `dataset_description` | Description stored on the Phoenix dataset. |
+| `experiment_description` | Description stored on the Phoenix experiment. |
+| `experiment_metadata` | Metadata stored on the experiment, such as the model and invocation parameters. |
 | `evaluators` | List of evaluators that run automatically against every case. |
 | `repetitions` | Run each case this many times to measure non-determinism. |
+
+Tests that resolve to the same dataset must use matching non-empty descriptions and experiment metadata. The plugin also adds the current Git commit as `git_sha` when it runs inside a Git checkout. Set `git_sha` in `experiment_metadata` to record a different revision, such as the commit supplied by your CI environment.
 
 ### Dataset naming
 
