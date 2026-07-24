@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<130d98227fbb64643dd69eb73b585aeb>>
+ * @generated SignedSource<<4e1f39850a800e88400b8cb1c2e6d5ff>>
  * @lightSyntaxTransform
  */
 
@@ -155,7 +155,13 @@ v7 = [
   },
   {
     "alias": null,
-    "args": null,
+    "args": [
+      {
+        "kind": "Literal",
+        "name": "first",
+        "value": 1000
+      }
+    ],
     "concreteType": "ProjectConnection",
     "kind": "LinkedField",
     "name": "projects",
@@ -200,7 +206,7 @@ v7 = [
         "storageKey": null
       }
     ],
-    "storageKey": null
+    "storageKey": "projects(first:1000)"
   }
 ];
 return {
@@ -306,12 +312,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7efe380b4f7d8c6353cf284dcfa1c0de",
+    "cacheID": "057f8f2d5c57ff5aeea921d2397667a5",
     "id": null,
     "metadata": {},
     "name": "CreateRetentionPolicyMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateRetentionPolicyMutation(\n  $input: CreateProjectTraceRetentionPolicyInput!\n) {\n  createProjectTraceRetentionPolicy(input: $input) {\n    node {\n      ...RetentionPoliciesTable_retentionPolicy\n      id\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects {\n    edges {\n      node {\n        name\n        id\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateRetentionPolicyMutation(\n  $input: CreateProjectTraceRetentionPolicyInput!\n) {\n  createProjectTraceRetentionPolicy(input: $input) {\n    node {\n      ...RetentionPoliciesTable_retentionPolicy\n      id\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects(first: 1000) {\n    edges {\n      node {\n        name\n        id\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n}\n"
   }
 };
 })();

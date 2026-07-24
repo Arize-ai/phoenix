@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<817745613e7774afa917d373a59c3438>>
+ * @generated SignedSource<<906f51f2ec28ff3402e7bbd3f9d804a2>>
  * @lightSyntaxTransform
  */
 
@@ -175,7 +175,13 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": null,
+                    "args": [
+                      {
+                        "kind": "Literal",
+                        "name": "first",
+                        "value": 1000
+                      }
+                    ],
                     "concreteType": "ProjectConnection",
                     "kind": "LinkedField",
                     "name": "projects",
@@ -220,7 +226,7 @@ return {
                         "storageKey": null
                       }
                     ],
-                    "storageKey": null
+                    "storageKey": "projects(first:1000)"
                   },
                   (v4/*:: as any*/)
                 ],
@@ -276,12 +282,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "24a17c6ca0ab62ea9fcdd06ca23a6f12",
+    "cacheID": "e397184045d51c06d649cbfc4254b600",
     "id": null,
     "metadata": {},
     "name": "RetentionPoliciesTablePoliciesQuery",
     "operationKind": "query",
-    "text": "query RetentionPoliciesTablePoliciesQuery(\n  $after: String = null\n  $first: Int = 1000\n) {\n  ...RetentionPoliciesTable_policies_2HEEH6\n}\n\nfragment RetentionPoliciesTable_policies_2HEEH6 on Query {\n  projectTraceRetentionPolicies(first: $first, after: $after) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects {\n    edges {\n      node {\n        name\n        id\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n}\n"
+    "text": "query RetentionPoliciesTablePoliciesQuery(\n  $after: String = null\n  $first: Int = 1000\n) {\n  ...RetentionPoliciesTable_policies_2HEEH6\n}\n\nfragment RetentionPoliciesTable_policies_2HEEH6 on Query {\n  projectTraceRetentionPolicies(first: $first, after: $after) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects(first: 1000) {\n    edges {\n      node {\n        name\n        id\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n}\n"
   }
 };
 })();

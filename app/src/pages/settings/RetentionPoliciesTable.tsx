@@ -13,7 +13,6 @@ import { Flex, Text } from "@phoenix/components";
 import { ProjectToken } from "@phoenix/components/project";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
-import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { useViewerCanManageRetentionPolicy } from "@phoenix/contexts/ViewerContext";
 import {
   createPolicyRuleSummaryText,
@@ -51,7 +50,7 @@ const RETENTION_POLICY_FRAGMENT = graphql`
         maxCount
       }
     }
-    projects {
+    projects(first: 1000) {
       edges {
         node {
           name
@@ -71,7 +70,6 @@ export const RetentionPoliciesTable = ({
   "use no memo";
   const navigate = useNavigate();
   const { policyId: selectedPolicyId } = useParams();
-  const notifySuccess = useNotifySuccess();
   const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
   const { data } = usePaginationFragment<
     RetentionPoliciesTablePoliciesQuery,
@@ -182,18 +180,6 @@ export const RetentionPoliciesTable = ({
                 projectNames={row.original.projects.edges.map(
                   (edge) => edge.node.name
                 )}
-                onPolicyEdit={() => {
-                  notifySuccess({
-                    title: "Policy Updated",
-                    message: `Policy "${row.original.name}" was updated and will take effect shortly.`,
-                  });
-                }}
-                onPolicyDelete={() => {
-                  notifySuccess({
-                    title: "Policy deleted",
-                    message: `Policy "${row.original.name}" was deleted`,
-                  });
-                }}
               />
             </StopPropagation>
           );
@@ -201,7 +187,7 @@ export const RetentionPoliciesTable = ({
       });
     }
     return columns;
-  }, [canManageRetentionPolicy, notifySuccess]);
+  }, [canManageRetentionPolicy]);
 
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
@@ -239,7 +225,9 @@ export const RetentionPoliciesTable = ({
             <tr
               key={row.id}
               data-selected={row.original.id === selectedPolicyId}
-              onClick={() => navigate(`/settings/data/${row.original.id}`)}
+              onClick={() =>
+                navigate(`/settings/data/policies/${row.original.id}`)
+              }
             >
               {row.getVisibleCells().map((cell) => {
                 return (

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<030b1009e10c02889427d2b6ac43a6aa>>
+ * @generated SignedSource<<69c723037eabdc92be4bbf078e9028b5>>
  * @lightSyntaxTransform
  */
 
@@ -50,6 +50,6 @@ const node: ReaderInlineDataFragment = {
   "name": "RetentionPoliciesTable_retentionPolicy"
 };
 
-(node as any).hash = "225cd8c5b7fa4e33336b3ebe392b3988";
+(node as any).hash = "da2a0ca9f6bfed6895ca04372b118ce7";
 
 export default node;

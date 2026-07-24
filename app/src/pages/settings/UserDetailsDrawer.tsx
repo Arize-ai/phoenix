@@ -78,8 +78,10 @@ function UserDetailsContent({ userId }: { userId: string }) {
     <Dialog aria-label={`User details for ${user.username}`}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>User details</DialogTitle>
-          <DialogCloseButton slot="close" />
+          <Flex direction="row" gap="size-200" alignItems="center">
+            <DialogCloseButton slot="close" />
+            <DialogTitle>User details</DialogTitle>
+          </Flex>
         </DialogHeader>
         <div css={userDetailsBodyCSS}>
           <View padding="size-200">

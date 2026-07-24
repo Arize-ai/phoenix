@@ -1026,7 +1026,7 @@ export const appRouteObjects = createRoutesFromElements(
             loader={settingsDataPageLoader}
           >
             <Route
-              path=":policyId"
+              path="policies/:policyId"
               element={<RetentionPolicyDetailsDrawer />}
             />
           </Route>

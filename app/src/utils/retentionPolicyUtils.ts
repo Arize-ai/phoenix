@@ -1,5 +1,7 @@
 import CronExpressionParser from "cron-parser";
 import cronstrue from "cronstrue";
+
+import { assertUnreachable } from "@phoenix/typeUtils";
 /**
  * Creates a summary text for a retention policy's deletion rule.
  * @param numberOfDays - The number of days after which traces will be deleted.
@@ -36,15 +38,33 @@ export const createPolicyDeletionSummaryText = ({
   return `This policy will delete traces ${policyString}`;
 };
 /**
+ * A retention policy rule as selected by Relay queries: the concrete rule
+ * variants plus the "%other" fallback Relay generates for unions.
+ */
+type RetentionPolicyRule =
+  | {
+      readonly __typename: "TraceRetentionRuleMaxCount";
+      readonly maxCount: number;
+    }
+  | {
+      readonly __typename: "TraceRetentionRuleMaxDays";
+      readonly maxDays: number;
+    }
+  | {
+      readonly __typename: "TraceRetentionRuleMaxDaysOrCount";
+      readonly maxCount: number;
+      readonly maxDays: number;
+    }
+  | { readonly __typename: "%other" };
+
+/**
  * Creates a summary text for a retention policy's rule.
  * @param rule - The retention rule with a GraphQL __typename discriminator.
  * @returns A string describing the rule.
  */
-export const createPolicyRuleSummaryText = (rule: {
-  readonly __typename: string;
-  readonly maxDays?: number;
-  readonly maxCount?: number;
-}): string => {
+export const createPolicyRuleSummaryText = (
+  rule: RetentionPolicyRule
+): string => {
   switch (rule.__typename) {
     case "TraceRetentionRuleMaxCount":
       return `${rule.maxCount} traces`;
@@ -52,8 +72,10 @@ export const createPolicyRuleSummaryText = (rule: {
       return rule.maxDays === 0 ? "Infinite" : `${rule.maxDays} days`;
     case "TraceRetentionRuleMaxDaysOrCount":
       return `${rule.maxDays} days or ${rule.maxCount} traces`;
-    default:
+    case "%other":
       return "Unknown";
+    default:
+      return assertUnreachable(rule);
   }
 };
 /**

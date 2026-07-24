@@ -7,7 +7,7 @@ import { GradientCircle } from "./GradientCircle";
 
 export interface ProjectTokenProps extends Pick<
   TokenProps,
-  "size" | "maxWidth"
+  "size" | "maxWidth" | "onRemove" | "isDisabled"
 > {
   projectId: string;
   name: string;
@@ -18,7 +18,8 @@ export interface ProjectTokenProps extends Pick<
 /**
  * A token representing a project, with the project's color gradient as a
  * leading visual so projects can be identified at a glance. Pressing the
- * token navigates to the project's configuration page.
+ * token navigates to the project's configuration page. When `onRemove` is
+ * provided, a remove button is displayed on the token.
  */
 export function ProjectToken({
   projectId,
@@ -27,6 +28,8 @@ export function ProjectToken({
   gradientEndColor,
   size = "M",
   maxWidth,
+  onRemove,
+  isDisabled,
 }: ProjectTokenProps) {
   const navigate = useNavigate();
   return (
@@ -38,11 +41,13 @@ export function ProjectToken({
         <GradientCircle
           gradientStartColor={gradientStartColor}
           gradientEndColor={gradientEndColor}
-          size={12}
+          size={size === "L" ? 14 : 12}
         />
       }
       title={name}
       onPress={() => navigate(`/projects/${projectId}/config`)}
+      onRemove={onRemove}
+      isDisabled={isDisabled}
     >
       {name}
     </Token>

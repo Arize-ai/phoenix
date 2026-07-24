@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<40c980da37014d1d4adc39669306ef6d>>
+ * @generated SignedSource<<5120b92541d5311fdd606a4be64e8541>>
  * @lightSyntaxTransform
  */
 
@@ -179,7 +179,13 @@ return {
                     },
                     {
                       "alias": null,
-                      "args": null,
+                      "args": [
+                        {
+                          "kind": "Literal",
+                          "name": "first",
+                          "value": 1000
+                        }
+                      ],
                       "concreteType": "ProjectConnection",
                       "kind": "LinkedField",
                       "name": "projects",
@@ -224,7 +230,7 @@ return {
                           "storageKey": null
                         }
                       ],
-                      "storageKey": null
+                      "storageKey": "projects(first:1000)"
                     }
                   ],
                   "args": null,

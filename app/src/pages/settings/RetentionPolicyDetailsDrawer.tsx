@@ -4,30 +4,26 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import {
-  Dialog,
-  Drawer,
-  Flex,
-  Heading,
-  Loading,
-  Text,
-  View,
-} from "@phoenix/components";
-import { Counter } from "@phoenix/components/core/counter";
+import { Dialog, Drawer, Flex, Loading, Text, View } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
-import { ProjectToken } from "@phoenix/components/project";
+import { DEFAULT_RETENTION_POLICY_NAME } from "@phoenix/constants";
+import { useViewerCanManageRetentionPolicy } from "@phoenix/contexts/ViewerContext";
 import type { RetentionPolicyDetailsDrawerQuery } from "@phoenix/pages/settings/__generated__/RetentionPolicyDetailsDrawerQuery.graphql";
 import {
   createPolicyRuleSummaryText,
   createPolicyScheduleSummaryText,
 } from "@phoenix/utils/retentionPolicyUtils";
+
+import { RetentionPolicyActionMenu } from "./RetentionPolicyActionMenu";
+import { RetentionPolicyProjects } from "./RetentionPolicyProjects";
 
 const policyDetailsBodyCSS = css`
   overflow-y: auto;
@@ -36,7 +32,7 @@ const policyDetailsBodyCSS = css`
 
 const policyDetailsGridCSS = css`
   list-style: none;
-  margin: var(--global-dimension-size-200) 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -47,16 +43,9 @@ const policyDetailsValueCSS = css`
   margin-top: var(--global-dimension-size-50);
 `;
 
-const projectTokenListCSS = css`
-  list-style: none;
-  margin: var(--global-dimension-size-100) 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--global-dimension-size-50);
-`;
-
 function RetentionPolicyDetailsContent({ policyId }: { policyId: string }) {
+  const navigate = useNavigate();
+  const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
   const data = useLazyLoadQuery<RetentionPolicyDetailsDrawerQuery>(
     graphql`
       query RetentionPolicyDetailsDrawerQuery($policyId: ID!) {
@@ -102,68 +91,66 @@ function RetentionPolicyDetailsContent({ policyId }: { policyId: string }) {
     "Retention policy is required"
   );
   const projects = policy.projects.edges.map((edge) => edge.node);
+  const isDefaultPolicy = policy.name === DEFAULT_RETENTION_POLICY_NAME;
 
   return (
     <Dialog aria-label={`Retention policy details for ${policy.name}`}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Retention policy details</DialogTitle>
-          <DialogCloseButton slot="close" />
+          <Flex direction="row" gap="size-200" alignItems="center">
+            <DialogCloseButton slot="close" />
+            <DialogTitle>{`Policy: ${policy.name}`}</DialogTitle>
+          </Flex>
+          <DialogTitleExtra>
+            {canManageRetentionPolicy && (
+              <RetentionPolicyActionMenu
+                policyId={policy.id}
+                policyName={policy.name}
+                projectNames={projects.map((project) => project.name)}
+                onPolicyDelete={() => navigate("/settings/data")}
+              />
+            )}
+          </DialogTitleExtra>
         </DialogHeader>
         <div css={policyDetailsBodyCSS}>
           <View padding="size-200">
-            <Heading level={2}>{policy.name}</Heading>
-            <ul css={policyDetailsGridCSS}>
-              <li>
-                <Text size="XS" color="text-700">
-                  Schedule
+            <Flex direction="column" gap="size-200">
+              {isDefaultPolicy && (
+                <Text size="S" color="text-700">
+                  Projects without an explicitly assigned policy automatically
+                  use this default policy.
                 </Text>
-                <div css={policyDetailsValueCSS}>
-                  <Text>
-                    {createPolicyScheduleSummaryText({
-                      schedule: policy.cronExpression,
-                    })}
+              )}
+              <ul css={policyDetailsGridCSS}>
+                <li>
+                  <Text size="XS" color="text-700">
+                    Schedule
                   </Text>
-                </div>
-              </li>
-              <li>
-                <Text size="XS" color="text-700">
-                  Rule
-                </Text>
-                <div css={policyDetailsValueCSS}>
-                  <Text>{createPolicyRuleSummaryText(policy.rule)}</Text>
-                </div>
-              </li>
-            </ul>
+                  <div css={policyDetailsValueCSS}>
+                    <Text>
+                      {createPolicyScheduleSummaryText({
+                        schedule: policy.cronExpression,
+                      })}
+                    </Text>
+                  </div>
+                </li>
+                <li>
+                  <Text size="XS" color="text-700">
+                    Rule
+                  </Text>
+                  <div css={policyDetailsValueCSS}>
+                    <Text>{createPolicyRuleSummaryText(policy.rule)}</Text>
+                  </div>
+                </li>
+              </ul>
+            </Flex>
           </View>
           <View paddingX="size-200" paddingBottom="size-200">
-            <Flex direction="column" gap="size-50">
-              <Flex direction="row" gap="size-50" alignItems="center">
-                <Text size="XS" color="text-700">
-                  Projects
-                </Text>
-                <Counter>{projects.length}</Counter>
-              </Flex>
-              {projects.length === 0 ? (
-                <Text size="S" color="text-700">
-                  This policy is not applied to any projects.
-                </Text>
-              ) : (
-                <ul css={projectTokenListCSS}>
-                  {projects.map((project) => (
-                    <li key={project.id}>
-                      <ProjectToken
-                        projectId={project.id}
-                        name={project.name}
-                        gradientStartColor={project.gradientStartColor}
-                        gradientEndColor={project.gradientEndColor}
-                        maxWidth="100%"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Flex>
+            <RetentionPolicyProjects
+              policyId={policy.id}
+              projects={projects}
+              canManage={canManageRetentionPolicy && !isDefaultPolicy}
+            />
           </View>
         </div>
       </DialogContent>
