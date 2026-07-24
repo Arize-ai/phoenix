@@ -55,14 +55,18 @@ export function SpanEventsList({ spanId }: SpanEventsListProps) {
   return <SpanEventsListContent events={events} />;
 }
 
-type SpanEvent = {
+export type SpanEvent = {
   name: string;
   message: string;
   timestamp: string;
   attributes: unknown;
 };
 
-function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
+export function SpanEventsListContent({
+  events,
+}: {
+  events: readonly SpanEvent[];
+}) {
   const { fullTimeFormatter } = useTimeFormatters();
 
   if (events.length === 0) {
