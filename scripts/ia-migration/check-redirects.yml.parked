@@ -1,0 +1,54 @@
+name: Check Redirects
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - docs.json
+      - docs/**
+      - .github/.scripts/check-redirects.js
+      - .github/workflows/check-redirects.yml
+  workflow_dispatch:
+
+jobs:
+  redirect-check:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: '24'
+
+      - name: Run redirect checker
+        id: run-check
+        run: |
+          set -e
+          SUMMARY_PATH="redirects-summary.md"
+          node .github/.scripts/check-redirects.js --root . --github-annotations --summary-file "$SUMMARY_PATH" || echo "exit_code=$?" >> $GITHUB_OUTPUT
+          echo "summary_path=$SUMMARY_PATH" >> $GITHUB_OUTPUT
+
+      - name: Upload summary artifact (always)
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: redirects-summary
+          path: ${{ steps.run-check.outputs.summary_path }}
+
+      - name: Write to Job Summary
+        if: always()
+        env:
+          SUMMARY_PATH: ${{ steps.run-check.outputs.summary_path }}
+        run: cat "$SUMMARY_PATH" >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+
+      - name: Fail if errors detected
+        if: ${{ steps.run-check.outputs.exit_code != '' }}
+        run: exit 1

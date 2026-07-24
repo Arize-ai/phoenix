@@ -207,7 +207,7 @@ Production trace review is all about discipline. If you can handle a daily check
 
 ### Daily smoke check (minutes)
 
-Glance at the [metrics dashboard](/docs/phoenix/tracing/llm-traces/metrics) [in your Phoenix server](http://localhost:6006/dashboards/). Select your "high-signal-demo" project from the dropdown at the top of the page and look for anything alarming. Pay attention to spikes and climbing numbers in the following tiles:
+Glance at the [metrics dashboard](/docs/phoenix/observe/metrics) [in your Phoenix server](http://localhost:6006/dashboards/). Select your "high-signal-demo" project from the dropdown at the top of the page and look for anything alarming. Pay attention to spikes and climbing numbers in the following tiles:
 
   * Trace Latency
   * Cost (not included in the sample traces)
@@ -226,7 +226,7 @@ Once a week, pull a deliberately mixed sample of traces and read them with open-
 
 ## How to perform the Daily Check: Finding Hard Failures
 
-Hard failures are queryable with zero setup. Phoenix records span status, exception events, and error messages on every trace. Triage them visually in the [Phoenix UI](http://localhost:6006) or straight from the terminal with the [`px` CLI](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli). (Prefer code, e.g. for monitoring scripts? The same queries run through the [Python](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans) and [TypeScript](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) clients.)
+Hard failures are queryable with zero setup. Phoenix records span status, exception events, and error messages on every trace. Triage them visually in the [Phoenix UI](http://localhost:6006) or straight from the terminal with the [`px` CLI](/docs/phoenix/observe/retrieve-traces-via-cli). (Prefer code, e.g. for monitoring scripts? The same queries run through the [Python](/docs/phoenix/observe/extract-data-from-spans) and [TypeScript](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) clients.)
 
 <Tabs>
 <Tab title="UI" icon="window-maximize">
@@ -382,7 +382,7 @@ main().catch((err) => {
 });
 ```
 
-> **Note:** TypeScript requires client-side aggregation. For large volumes, [export to a DataFrame using the CLI](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#downloading-all-spans-as-a-dataframe) or use Python's SpanQuery as in the corresponding Python example above.
+> **Note:** TypeScript requires client-side aggregation. For large volumes, [export to a DataFrame using the CLI](/docs/phoenix/observe/extract-data-from-spans#downloading-all-spans-as-a-dataframe) or use Python's SpanQuery as in the corresponding Python example above.
 </Tab>
 </Tabs>
 
@@ -669,7 +669,7 @@ Individual bad traces can be anecdotal, edge cases. Clusters help you see what t
 
 Random sampling gets inefficient once the obvious failures are fixed. Most random traces are fine. Bias your sample toward signal:
 
-**Stratified sampling.** Group traces by the dimensions you care about, for example: user segment, model, feature, query category, which tools were called, session turn count. Sample from each group, so a high-volume happy path doesn't drown out a broken niche. For agent applications, "tools-called" is often the most failure-correlated dimension you have, and it's already an attribute on your spans. In Phoenix, the [attributes you attach at instrumentation time](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans) (user IDs, session IDs, custom metadata) are exactly what makes this possible: stratification is an instrumentation decision before it's a query.
+**Stratified sampling.** Group traces by the dimensions you care about, for example: user segment, model, feature, query category, which tools were called, session turn count. Sample from each group, so a high-volume happy path doesn't drown out a broken niche. For agent applications, "tools-called" is often the most failure-correlated dimension you have, and it's already an attribute on your spans. In Phoenix, the [attributes you attach at instrumentation time](/docs/phoenix/instrument/customize-spans) (user IDs, session IDs, custom metadata) are exactly what makes this possible: stratification is an instrumentation decision before it's a query.
 
 For a quick assessment, pull a fixed number of spans per group straight from the CLI:
 

@@ -72,7 +72,7 @@ To follow along, you’ll need to have completed [Get Started with Tracing](http
 
     An evaluation makes that decision explicit. Instead of manually inspecting outputs or relying on intuition, we define a rule that Phoenix can apply consistently across many runs.
 
-    In Phoenix, evaluations can be written in different ways. In this guide, we’ll use an LLM-as-a-judge evaluation as a simple starting point. This works well for questions like correctness or relevance, and lets us get metrics quickly. (If you’d rather use code-based evaluations, you can follow [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
+    In Phoenix, evaluations can be written in different ways. In this guide, we’ll use an LLM-as-a-judge evaluation as a simple starting point. This works well for questions like correctness or relevance, and lets us get metrics quickly. (If you’d rather use code-based evaluations, you can follow [the guide](https://arize.com/docs/phoenix/evaluate/code-evaluators#using-create-evaluator) on setting those up.)
 
     For LLM-as-a-judge evaluations, that means defining three things:
 
@@ -250,6 +250,6 @@ Now that you have evaluation results in Phoenix, you can start using them to gui
 
 You can group traces with an incorrect label into a dataset, make changes to prompts or logic, and then run experiments on the same inputs to compare how outputs differ. The easiest and fastest way to iterate on your application without writing code is through prompt playground. The [Iterate on Your Prompts guide](/docs/phoenix/get-started/ts-get-started-prompt-playground) walks through this workflow in more detail.
 
-To go deeper on evaluations, the [Evaluations Tutorial](https://arize.com/docs/phoenix/evaluation/typescript-quickstart) covers writing more nuanced evaluators, using different scoring strategies, and comparing quality across runs as your application evolves.
+To go deeper on evaluations, the [Evaluations Tutorial](https://arize.com/docs/phoenix/evaluate/typescript-quickstart) covers writing more nuanced evaluators, using different scoring strategies, and comparing quality across runs as your application evolves.
 
 This was a simple example, but evaluations in Phoenix support much more advanced workflows over time.

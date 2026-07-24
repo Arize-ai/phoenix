@@ -62,7 +62,7 @@ The OpenAI SDK reads `OPENAI_API_KEY` automatically. Phoenix is running locally,
 
 Every runnable code block in this guide includes the same tracing setup at the top. It uses the `phoenix.otel.register()` convenience function to register a tracer provider that sends spans to your local Phoenix instance at `http://localhost:6006`, then enables the OpenAI auto-instrumentor so calls to the OpenAI SDK are traced automatically.
 
-See [The phoenix.otel helpers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers) for the full set of `phoenix.otel` functions, including routing traces to multiple projects from a single app.
+See [The phoenix.otel helpers](/docs/phoenix/concepts/otel-openinference/phoenix-otel-helpers) for the full set of `phoenix.otel` functions, including routing traces to multiple projects from a single app.
 
 Save this code as a `.py` file and run it to verify your setup before proceeding — you should see the OpenTelemetry tracing details printed to your terminal:
 
@@ -91,7 +91,7 @@ Because OpenInference is built on OpenTelemetry, any tool that speaks OTel can c
 
 **Read more:**
 
-- [OpenTelemetry and OpenInference concepts](/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview) — the full reference companion to this guide.
+- [OpenTelemetry and OpenInference concepts](/docs/phoenix/concepts/otel-openinference/overview) — the full reference companion to this guide.
 - [OpenInference semantic conventions spec](https://github.com/Arize-ai/openinference/tree/main/spec) — the formal definitions for span kinds, attributes, and message structure.
 - [OpenInference repository](https://github.com/Arize-ai/openinference) — auto-instrumentors, examples, and source for every supported language and framework.
 - [OpenTelemetry documentation](https://opentelemetry.io/docs/) — the underlying observability framework that OpenInference builds on.
@@ -188,7 +188,7 @@ Session: support-chat-7a3f
 
 Three traces, one session. In Phoenix you can open a single trace to debug what happened in one turn, or use the session view to see all the turns together.
 
-For the full breakdown of how signals, spans, traces, and sessions fit together, see [Signals, spans, traces, and sessions](/docs/phoenix/tracing/concepts-tracing/otel-openinference/signals).
+For the full breakdown of how signals, spans, traces, and sessions fit together, see [Signals, spans, traces, and sessions](/docs/phoenix/concepts/otel-openinference/signals).
 
 #### Sessions
 
@@ -250,7 +250,7 @@ OpenInference defines a fixed set of span kinds:
 | `PROMPT` | A prompt definition or templating step |
 | `UNKNOWN` | Used when no other kind applies |
 
-In this guide, we will be looking at LLM, chain, agent, and tool spans. For the complete reference covering every kind and the attributes each is expected to carry, see [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds).
+In this guide, we will be looking at LLM, chain, agent, and tool spans. For the complete reference covering every kind and the attributes each is expected to carry, see [OpenInference span kinds](/docs/phoenix/concepts/otel-openinference/span-kinds).
 
 ## Configuring sessions
 
@@ -258,7 +258,7 @@ In this guide, we will be looking at LLM, chain, agent, and tool spans. For the 
 
 Sessions are explicitly managed by the engineer building the agent; they are not created automatically when sending traces.
 
-Sessions are set with the `using_session` function. This sets the session id for any spans created in any code run in this block. `using_session` is one of a small family of OpenInference context managers — see [OpenInference context managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers) for the full list (`using_user`, `using_metadata`, `using_tags`, `using_prompt_template`, `using_attributes`).
+Sessions are set with the `using_session` function. This sets the session id for any spans created in any code run in this block. `using_session` is one of a small family of OpenInference context managers — see [OpenInference context managers](/docs/phoenix/concepts/otel-openinference/context-managers) for the full list (`using_user`, `using_metadata`, `using_tags`, `using_prompt_template`, `using_attributes`).
 
 The following code contains a call to OpenAI inside a session. The session id is hardcoded here, so if you run this code multiple times, each run will be a new trace inside the same session.
 
@@ -327,7 +327,7 @@ In the examples so far you have already seen both ways that OpenInference create
 
 Most real-world applications use both. The auto-instrumentor handles the standard SDK calls; manual instrumentation captures your application's own logic that wraps around those calls.
 
-See [Instrumentation approaches](/docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches) for a deeper comparison of auto-instrumentation, manual instrumentation, and the hybrid pattern.
+See [Instrumentation approaches](/docs/phoenix/concepts/otel-openinference/instrumentation-approaches) for a deeper comparison of auto-instrumentation, manual instrumentation, and the hybrid pattern.
 
 ### Auto-instrumentors
 
@@ -515,11 +515,11 @@ The common attributes available on any span kind are:
 
 Phoenix uses several of these directly in the UI: `openinference.span.kind` drives the span icon and the kind-specific detail view; `input.value` and `output.value` on the root span feed the trace-level input and output preview in the Traces and Sessions tabs; `session.id` groups traces into sessions; `metadata` and `tag.tags` are filterable across spans.
 
-The full attribute catalogue is described in [OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions) (the overall standard) and [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) (per-kind reference).
+The full attribute catalogue is described in [OpenInference semantic conventions](/docs/phoenix/concepts/otel-openinference/semantic-conventions) (the overall standard) and [OpenInference span kinds](/docs/phoenix/concepts/otel-openinference/span-kinds) (per-kind reference).
 
 ## The core span types
 
-OpenInference defines 11 span kinds, but most AI applications use just four: **LLM**, **chain**, **agent**, and **tool**. These show up in almost every real-world trace — an agent makes LLM calls, LLM calls trigger tool calls, and chain spans group the related work together. For the canonical reference of every span kind and the attributes each carries, see [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds).
+OpenInference defines 11 span kinds, but most AI applications use just four: **LLM**, **chain**, **agent**, and **tool**. These show up in almost every real-world trace — an agent makes LLM calls, LLM calls trigger tool calls, and chain spans group the related work together. For the canonical reference of every span kind and the attributes each carries, see [OpenInference span kinds](/docs/phoenix/concepts/otel-openinference/span-kinds).
 
 The following example uses the [OpenAI Agents SDK](https://github.com/openai/openai-agents-python) to produce a single trace containing all four kinds. The SDK has its own auto-instrumentor — `openinference-instrumentation-openai-agents` — which emits the full set of span kinds for every agent run.
 
@@ -827,7 +827,7 @@ The available context managers are:
 | `using_prompt_template(template=, variables=, version=)` | The `llm.prompt_template.*` attributes. Most useful on LLM spans. |
 | `using_attributes(...)` | A convenience wrapper that combines all of the above into a single call |
 
-See [OpenInference context managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers) for the full reference, including detailed usage patterns and gotchas.
+See [OpenInference context managers](/docs/phoenix/concepts/otel-openinference/context-managers) for the full reference, including detailed usage patterns and gotchas.
 
 The following code uses `using_metadata` to attach a domain-specific metadata dictionary. The example here wraps an OpenAI call so the metadata ends up on an LLM span, but the same pattern works for any span — auto-instrumented or manual — created inside the block. Save and run it:
 
@@ -970,10 +970,10 @@ You have now seen the building blocks for tracing AI applications with OpenInfer
 
 ### Where to go next
 
-- Read the [OpenTelemetry and OpenInference concepts](/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview) section of the Arize docs for the full reference companion to this guide
-- Dive into the [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) reference for every span kind and the attributes each carries
-- Read [Instrumentation approaches](/docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches) for a deeper comparison of auto, manual, and hybrid instrumentation
-- Learn how to [propagate context across services or async boundaries](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation) when your app spans multiple processes
-- Reduce trace volume in production with [sampling](/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling)
+- Read the [OpenTelemetry and OpenInference concepts](/docs/phoenix/concepts/otel-openinference/overview) section of the Arize docs for the full reference companion to this guide
+- Dive into the [OpenInference span kinds](/docs/phoenix/concepts/otel-openinference/span-kinds) reference for every span kind and the attributes each carries
+- Read [Instrumentation approaches](/docs/phoenix/concepts/otel-openinference/instrumentation-approaches) for a deeper comparison of auto, manual, and hybrid instrumentation
+- Learn how to [propagate context across services or async boundaries](/docs/phoenix/concepts/otel-openinference/context-propagation) when your app spans multiple processes
+- Reduce trace volume in production with [sampling](/docs/phoenix/concepts/otel-openinference/sampling)
 - Browse the [OpenInference repository](https://github.com/Arize-ai/openinference) for auto-instrumentors covering Anthropic, Bedrock, LangChain, LlamaIndex, CrewAI, AutoGen, and many others
 - Read the [OpenInference semantic conventions spec](https://github.com/Arize-ai/openinference/tree/main/spec) for the source-of-truth attribute definitions

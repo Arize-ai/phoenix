@@ -17,7 +17,7 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
       <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
     </Frame>
 
-    [Tracing](/docs/phoenix/tracing/llm-traces) lets you see what happened during a single run of your AI application, step by step. A trace captures model calls, retrieval, tool use, and custom logic so you can debug behavior and understand where time is spent.
+    [Tracing](/docs/phoenix/observe/view-and-manage-traces) lets you see what happened during a single run of your AI application, step by step. A trace captures model calls, retrieval, tool use, and custom logic so you can debug behavior and understand where time is spent.
 
     Phoenix accepts traces over OpenTelemetry (OTLP) and provides [auto-instrumentation](/docs/phoenix/integrations) for popular frameworks (LlamaIndex, LangChain, DSPy, Mastra, Vercel AI SDK), providers (OpenAI, Bedrock, Anthropic), and languages (Python, TypeScript, Java).
   </Tab>
@@ -28,12 +28,12 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
       <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
     </Frame>
 
-    [Evaluations](/docs/phoenix/evaluation/llm-evals) help you measure the output quality of your application. You can score traces & spans with LLM-based evaluators, code-based checks, or human labels so you can track performance and identify failures consistently.
+    [Evaluations](/docs/phoenix/evaluate/llm-evals) help you measure the output quality of your application. You can score traces & spans with LLM-based evaluators, code-based checks, or human labels so you can track performance and identify failures consistently.
 
     * [LLM-based evaluations](/docs/phoenix/evaluation/running-pre-tested-evals) — Run pre-built or custom evaluators on your data
-    * [Dataset evaluators](/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators) — Attach evaluators to datasets so they run automatically during experiments
-    * [Evaluator integrations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces) — Use Phoenix evals, or bring your own from [Ragas](https://docs.ragas.io/), [Deepeval](https://github.com/confident-ai/deepeval), or [Cleanlab](https://cleanlab.ai/)
-    * [Human annotations](/docs/phoenix/tracing/llm-traces/how-to-annotate-traces) — Attach ground truth labels directly in the UI
+    * [Dataset evaluators](/docs/phoenix/improve/experiments/how-to-dataset-evaluators) — Attach evaluators to datasets so they run automatically during experiments
+    * [Evaluator integrations](/docs/phoenix/evaluate/evaluating-phoenix-traces) — Use Phoenix evals, or bring your own from [Ragas](https://docs.ragas.io/), [Deepeval](https://github.com/confident-ai/deepeval), or [Cleanlab](https://cleanlab.ai/)
+    * [Human annotations](/docs/phoenix/observe/how-to-annotate-traces) — Attach ground truth labels directly in the UI
 
   </Tab>
 
@@ -43,12 +43,12 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
       <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/prompt_playground.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
     </Frame>
 
-    Phoenix helps you [iterate on prompts](/docs/phoenix/prompt-engineering/overview-prompts) using real examples from your application. You can version prompts, test prompt variants across datasets, and replay calls to see how changes affect outputs before rolling them out.
+    Phoenix helps you [iterate on prompts](/docs/phoenix/improve/prompts) using real examples from your application. You can version prompts, test prompt variants across datasets, and replay calls to see how changes affect outputs before rolling them out.
 
-      * [Prompt Management](/docs/phoenix/prompt-engineering/overview-prompts/prompt-management) — Version, store, and deploy prompts
-      * [Prompt Playground](/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground) — Experiment with prompts and models side-by-side
-      * [Span Replay](/docs/phoenix/prompt-engineering/overview-prompts/span-replay) — Debug by replaying LLM calls with different inputs
-      * [Prompts in Code](/docs/phoenix/prompt-engineering/overview-prompts/prompts-in-code) — Sync prompts across environments via SDK
+      * [Prompt Management](/docs/phoenix/improve/prompts/prompt-management) — Version, store, and deploy prompts
+      * [Prompt Playground](/docs/phoenix/improve/prompts/prompt-playground) — Experiment with prompts and models side-by-side
+      * [Span Replay](/docs/phoenix/improve/prompts/span-replay) — Debug by replaying LLM calls with different inputs
+      * [Prompts in Code](/docs/phoenix/improve/prompts/prompts-in-code) — Sync prompts across environments via SDK
 
   </Tab>
 
@@ -58,12 +58,12 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
       <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
     </Frame>
 
-    [Datasets & Experiments](/docs/phoenix/datasets-and-experiments/overview-datasets) help you test changes systematically using the same inputs. You can group traces into datasets, rerun them through different versions of your application, and compare evaluation results to confirm whether a change actually improved performance.
+    [Datasets & Experiments](/docs/phoenix/improve/datasets/overview) help you test changes systematically using the same inputs. You can group traces into datasets, rerun them through different versions of your application, and compare evaluation results to confirm whether a change actually improved performance.
 
-      * [Run Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments) — Compare different versions of your application
-      * [Create Datasets](/docs/phoenix/datasets-and-experiments/how-to-datasets) — Collect traces or upload from code/CSV
-      * [Dataset Evaluators](/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators) — Attach reusable evaluators to datasets as automated test cases
-      * [Test at Scale](/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground) — Run datasets through Playground or export for fine-tuning
+      * [Run Experiments](/docs/phoenix/improve/experiments/run-experiments) — Compare different versions of your application
+      * [Create Datasets](/docs/phoenix/improve/datasets) — Collect traces or upload from code/CSV
+      * [Dataset Evaluators](/docs/phoenix/improve/experiments/how-to-dataset-evaluators) — Attach reusable evaluators to datasets as automated test cases
+      * [Test at Scale](/docs/phoenix/improve/prompts/prompt-playground) — Run datasets through Playground or export for fine-tuning
 
   </Tab>
 
@@ -119,7 +119,7 @@ The best next step is to start using Phoenix. Start with a quickstart to send da
   <Card title="Integrations" icon="puzzle-piece" href="/docs/phoenix/integrations">
     Add instrumentation for OpenAI, LangChain, LlamaIndex, and more
   </Card>
-  <Card title="Self-Host" icon="server" href="/docs/phoenix/environments">
+  <Card title="Self-Host" icon="server" href="/docs/phoenix/concepts/platform/environments">
     Deploy Phoenix on Docker, Kubernetes, or your cloud of choice
   </Card>
   <Card title="Cookbooks" icon="book-open" href="/docs/phoenix/cookbook">

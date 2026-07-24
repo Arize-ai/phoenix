@@ -3,7 +3,7 @@ title: "Gemini Go SDK"
 description: Instrument Gemini calls in Go using OpenTelemetry GenAI conventions
 ---
 
-The [Google GenAI Go SDK (`google.golang.org/genai`)](https://github.com/googleapis/go-genai) does not emit OpenTelemetry spans natively, and there is no OpenInference Go instrumentor for it today. The pattern below wraps each Gemini call in a manual span and sets [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) attributes. Phoenix ingests these spans directly — see [Translating Semantic Conventions](/docs/phoenix/tracing/concepts-tracing/translating-conventions) for context.
+The [Google GenAI Go SDK (`google.golang.org/genai`)](https://github.com/googleapis/go-genai) does not emit OpenTelemetry spans natively, and there is no OpenInference Go instrumentor for it today. The pattern below wraps each Gemini call in a manual span and sets [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) attributes. Phoenix ingests these spans directly — see [Translating Semantic Conventions](/docs/phoenix/concepts/tracing/translating-conventions) for context.
 
 ## Install
 
@@ -148,4 +148,4 @@ After running your application, Gemini calls will appear in the Phoenix UI for v
 
 * [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
 
-* [Translating Semantic Conventions](/docs/phoenix/tracing/concepts-tracing/translating-conventions)
+* [Translating Semantic Conventions](/docs/phoenix/concepts/tracing/translating-conventions)

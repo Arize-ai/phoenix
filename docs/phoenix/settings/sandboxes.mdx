@@ -5,7 +5,7 @@ description: "Configure the sandbox backends that execute code evaluators and ot
 
 ![Sandboxes](https://storage.googleapis.com/arize-phoenix-assets/assets/images/sandboxes_banner.png)
 
-A **sandbox** is an isolated runtime that executes a snippet of code on demand. It's fast enough to run on every evaluation, but locked down enough that the code can't read the host filesystem, exfiltrate secrets, or make arbitrary network calls. Phoenix uses sandboxes to run [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) — short Python or TypeScript functions that you write to score or judge your LLM outputs server-side, without exposing the rest of your deployment.
+A **sandbox** is an isolated runtime that executes a snippet of code on demand. It's fast enough to run on every evaluation, but locked down enough that the code can't read the host filesystem, exfiltrate secrets, or make arbitrary network calls. Phoenix uses sandboxes to run [code evaluators](/docs/phoenix/evaluate/server-evals/code-evaluators) — short Python or TypeScript functions that you write to score or judge your LLM outputs server-side, without exposing the rest of your deployment.
 
 The **Settings → Sandboxes** page is where administrators pick which sandbox providers are available and bundle them into named, reusable configurations that anyone writing a code evaluator can pick from. The page has two cards:
 
@@ -158,7 +158,7 @@ The dialog exposes the following fields. The last three are **hosted-sandbox-onl
 Once a configuration is in place, point an evaluator at it.
 
 <CardGroup cols={1}>
-  <Card title="Code Evaluators" icon="code" href="/docs/phoenix/evaluation/server-evals/code-evaluators">
+  <Card title="Code Evaluators" icon="code" href="/docs/phoenix/evaluate/server-evals/code-evaluators">
     Configure a server-side code evaluator that runs against a sandbox configuration.
   </Card>
 </CardGroup>

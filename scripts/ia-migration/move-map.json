@@ -1,0 +1,674 @@
+[
+  {
+    "old": "datasets-and-experiments/concepts-datasets",
+    "new": "concepts/datasets-and-experiments"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-datasets/creating-datasets",
+    "new": "improve/datasets/creating-datasets"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-datasets/exporting-datasets",
+    "new": "improve/datasets/exporting-datasets"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-datasets/updating-datasets",
+    "new": "improve/datasets/updating-datasets"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-datasets",
+    "new": "improve/datasets"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-experiments/eval-ci-with-pytest",
+    "new": "improve/experiments/eval-ci-with-pytest"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators",
+    "new": "improve/experiments/how-to-dataset-evaluators"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-experiments/repetitions",
+    "new": "improve/experiments/repetitions"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-experiments/run-experiments-in-background",
+    "new": "improve/experiments/run-experiments-in-background"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-experiments/run-experiments",
+    "new": "improve/experiments/run-experiments"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-experiments/splits",
+    "new": "improve/experiments/splits"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-experiments/using-evaluators",
+    "new": "improve/experiments/using-evaluators"
+  },
+  {
+    "old": "datasets-and-experiments/how-to-experiments",
+    "new": "improve/experiments"
+  },
+  {
+    "old": "datasets-and-experiments/overview-datasets",
+    "new": "improve/datasets/overview"
+  },
+  {
+    "old": "datasets-and-experiments/quickstart-datasets",
+    "new": "improve/datasets/quickstart"
+  },
+  {
+    "old": "datasets-and-experiments/tutorial/defining-the-dataset",
+    "new": "guides/datasets-and-experiments/defining-the-dataset"
+  },
+  {
+    "old": "datasets-and-experiments/tutorial/iteration-workflow-experiments",
+    "new": "guides/datasets-and-experiments/iteration-workflow-experiments"
+  },
+  {
+    "old": "datasets-and-experiments/tutorial/run-experiments-with-code-evals",
+    "new": "guides/datasets-and-experiments/run-experiments-with-code-evals"
+  },
+  {
+    "old": "datasets-and-experiments/tutorial/run-experiments-with-llm-judge",
+    "new": "guides/datasets-and-experiments/run-experiments-with-llm-judge"
+  },
+  {
+    "old": "environments",
+    "new": "concepts/platform/environments"
+  },
+  {
+    "old": "evaluation/concepts-evals/building-your-own-evals",
+    "new": "concepts/evaluators/building-your-own-evals"
+  },
+  {
+    "old": "evaluation/concepts-evals/evaluating-multi-agent-systems",
+    "new": "concepts/evaluators/evaluating-multi-agent-systems"
+  },
+  {
+    "old": "evaluation/concepts-evals/evaluation-types",
+    "new": "concepts/evaluators/evaluation-types"
+  },
+  {
+    "old": "evaluation/concepts-evals/evaluators",
+    "new": "concepts/evaluators/evaluators"
+  },
+  {
+    "old": "evaluation/concepts-evals/input-mapping",
+    "new": "concepts/evaluators/input-mapping"
+  },
+  {
+    "old": "evaluation/concepts-evals/llm-as-a-judge",
+    "new": "concepts/evaluators/llm-as-a-judge"
+  },
+  {
+    "old": "evaluation/concepts-evals",
+    "new": "concepts/evaluators"
+  },
+  {
+    "old": "evaluation/evals",
+    "new": "evaluate"
+  },
+  {
+    "old": "evaluation/how-to-evals/batch-evaluations",
+    "new": "evaluate/batch-evaluations"
+  },
+  {
+    "old": "evaluation/how-to-evals/code-evaluator-output-shapes",
+    "new": "evaluate/code-evaluator-output-shapes"
+  },
+  {
+    "old": "evaluation/how-to-evals/code-evaluators",
+    "new": "evaluate/code-evaluators"
+  },
+  {
+    "old": "evaluation/how-to-evals/configuring-the-llm/prompt-formats",
+    "new": "evaluate/configuring-the-llm/prompt-formats"
+  },
+  {
+    "old": "evaluation/how-to-evals/configuring-the-llm",
+    "new": "evaluate/configuring-the-llm"
+  },
+  {
+    "old": "evaluation/how-to-evals/custom-llm-evaluators",
+    "new": "evaluate/custom-llm-evaluators"
+  },
+  {
+    "old": "evaluation/how-to-evals/prompt-formats",
+    "new": "evaluate/prompt-formats"
+  },
+  {
+    "old": "evaluation/how-to-evals/using-evals-with-phoenix",
+    "new": "evaluate/using-evals-with-phoenix"
+  },
+  {
+    "old": "evaluation/how-to-evals",
+    "new": "evaluate/client-side-evals"
+  },
+  {
+    "old": "evaluation/integrations/pytest",
+    "new": "evaluate/integrations/pytest"
+  },
+  {
+    "old": "evaluation/integrations/vitest-jest",
+    "new": "evaluate/integrations/vitest-jest"
+  },
+  {
+    "old": "evaluation/llm-evals/evaluator-traces",
+    "new": "evaluate/llm-evals/evaluator-traces"
+  },
+  {
+    "old": "evaluation/llm-evals/executors",
+    "new": "evaluate/llm-evals/executors"
+  },
+  {
+    "old": "evaluation/llm-evals/use-any-llm",
+    "new": "evaluate/llm-evals/use-any-llm"
+  },
+  {
+    "old": "evaluation/llm-evals",
+    "new": "evaluate/llm-evals"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/conciseness",
+    "new": "evaluate/pre-built-metrics/conciseness"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/correctness",
+    "new": "evaluate/pre-built-metrics/correctness"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/document-relevance",
+    "new": "evaluate/pre-built-metrics/document-relevance"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/exact-match",
+    "new": "evaluate/pre-built-metrics/exact-match"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/faithfulness",
+    "new": "evaluate/pre-built-metrics/faithfulness"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/matches-regex",
+    "new": "evaluate/pre-built-metrics/matches-regex"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/precision-recall-fscore",
+    "new": "evaluate/pre-built-metrics/precision-recall-fscore"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/q-and-a-on-retrieved-data",
+    "new": "evaluate/pre-built-metrics/q-and-a-on-retrieved-data"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/refusal",
+    "new": "evaluate/pre-built-metrics/refusal"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/retrieval-rag-relevance",
+    "new": "evaluate/pre-built-metrics/retrieval-rag-relevance"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/sql-generation-eval",
+    "new": "evaluate/pre-built-metrics/sql-generation-eval"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/summarization-eval",
+    "new": "evaluate/pre-built-metrics/summarization-eval"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/tool-calling-eval",
+    "new": "evaluate/pre-built-metrics/tool-calling-eval"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/tool-invocation",
+    "new": "evaluate/pre-built-metrics/tool-invocation"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/tool-response-handling",
+    "new": "evaluate/pre-built-metrics/tool-response-handling"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/tool-selection",
+    "new": "evaluate/pre-built-metrics/tool-selection"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/toxicity",
+    "new": "evaluate/pre-built-metrics/toxicity"
+  },
+  {
+    "old": "evaluation/pre-built-metrics/user-friction",
+    "new": "evaluate/pre-built-metrics/user-friction"
+  },
+  {
+    "old": "evaluation/pre-built-metrics",
+    "new": "evaluate/pre-built-metrics"
+  },
+  {
+    "old": "evaluation/python-quickstart",
+    "new": "evaluate/python-quickstart"
+  },
+  {
+    "old": "evaluation/server-evals/builtin-evaluators",
+    "new": "evaluate/server-evals/builtin-evaluators"
+  },
+  {
+    "old": "evaluation/server-evals/code-evaluators/composite",
+    "new": "evaluate/server-evals/code-evaluators/composite"
+  },
+  {
+    "old": "evaluation/server-evals/code-evaluators/embedding-distance",
+    "new": "evaluate/server-evals/code-evaluators/embedding-distance"
+  },
+  {
+    "old": "evaluation/server-evals/code-evaluators/json-distance",
+    "new": "evaluate/server-evals/code-evaluators/json-distance"
+  },
+  {
+    "old": "evaluation/server-evals/code-evaluators/llm-jury",
+    "new": "evaluate/server-evals/code-evaluators/llm-jury"
+  },
+  {
+    "old": "evaluation/server-evals/code-evaluators/pairwise",
+    "new": "evaluate/server-evals/code-evaluators/pairwise"
+  },
+  {
+    "old": "evaluation/server-evals/code-evaluators/regex-match",
+    "new": "evaluate/server-evals/code-evaluators/regex-match"
+  },
+  {
+    "old": "evaluation/server-evals/code-evaluators/scikit-learn",
+    "new": "evaluate/server-evals/code-evaluators/scikit-learn"
+  },
+  {
+    "old": "evaluation/server-evals/code-evaluators",
+    "new": "evaluate/server-evals/code-evaluators"
+  },
+  {
+    "old": "evaluation/server-evals/input-mapping",
+    "new": "evaluate/server-evals/input-mapping"
+  },
+  {
+    "old": "evaluation/server-evals/llm-evaluators",
+    "new": "evaluate/server-evals/llm-evaluators"
+  },
+  {
+    "old": "evaluation/server-evals/overview",
+    "new": "evaluate/server-evals/overview"
+  },
+  {
+    "old": "evaluation/server-evals/pre-built-metrics/contains",
+    "new": "evaluate/server-evals/pre-built-metrics/contains"
+  },
+  {
+    "old": "evaluation/server-evals/pre-built-metrics/correctness",
+    "new": "evaluate/server-evals/pre-built-metrics/correctness"
+  },
+  {
+    "old": "evaluation/server-evals/pre-built-metrics/exact-match",
+    "new": "evaluate/server-evals/pre-built-metrics/exact-match"
+  },
+  {
+    "old": "evaluation/server-evals/pre-built-metrics/json-distance",
+    "new": "evaluate/server-evals/pre-built-metrics/json-distance"
+  },
+  {
+    "old": "evaluation/server-evals/pre-built-metrics/levenshtein-distance",
+    "new": "evaluate/server-evals/pre-built-metrics/levenshtein-distance"
+  },
+  {
+    "old": "evaluation/server-evals/pre-built-metrics/regex",
+    "new": "evaluate/server-evals/pre-built-metrics/regex"
+  },
+  {
+    "old": "evaluation/server-evals/pre-built-metrics/tool-invocation",
+    "new": "evaluate/server-evals/pre-built-metrics/tool-invocation"
+  },
+  {
+    "old": "evaluation/server-evals/pre-built-metrics/tool-selection",
+    "new": "evaluate/server-evals/pre-built-metrics/tool-selection"
+  },
+  {
+    "old": "evaluation/server-evals/pre-built-metrics",
+    "new": "evaluate/server-evals/pre-built-metrics"
+  },
+  {
+    "old": "evaluation/tutorials/customize-eval-template",
+    "new": "guides/evaluation/customize-eval-template"
+  },
+  {
+    "old": "evaluation/tutorials/customize-your-llm-endpoint",
+    "new": "guides/evaluation/customize-your-llm-endpoint"
+  },
+  {
+    "old": "evaluation/tutorials/run-evals-with-built-in-evals",
+    "new": "guides/evaluation/run-evals-with-built-in-evals"
+  },
+  {
+    "old": "evaluation/typescript-quickstart",
+    "new": "evaluate/typescript-quickstart"
+  },
+  {
+    "old": "production-guide",
+    "new": "concepts/platform/production-guide"
+  },
+  {
+    "old": "prompt-engineering/concepts-prompts/context-engineering-basics",
+    "new": "concepts/prompts/context-engineering-basics"
+  },
+  {
+    "old": "prompt-engineering/concepts-prompts/prompts-concepts",
+    "new": "concepts/prompts/prompts-concepts"
+  },
+  {
+    "old": "prompt-engineering/concepts-prompts",
+    "new": "concepts/prompts"
+  },
+  {
+    "old": "prompt-engineering/how-to-prompts/configure-ai-providers",
+    "new": "improve/prompts/configure-ai-providers"
+  },
+  {
+    "old": "prompt-engineering/how-to-prompts/create-a-prompt",
+    "new": "improve/prompts/create-a-prompt"
+  },
+  {
+    "old": "prompt-engineering/how-to-prompts/tag-a-prompt",
+    "new": "improve/prompts/tag-a-prompt"
+  },
+  {
+    "old": "prompt-engineering/how-to-prompts/test-a-prompt",
+    "new": "improve/prompts/test-a-prompt"
+  },
+  {
+    "old": "prompt-engineering/how-to-prompts/use-provider-tools",
+    "new": "improve/prompts/use-provider-tools"
+  },
+  {
+    "old": "prompt-engineering/how-to-prompts/using-a-prompt",
+    "new": "improve/prompts/using-a-prompt"
+  },
+  {
+    "old": "prompt-engineering/how-to-prompts/using-the-playground",
+    "new": "improve/prompts/using-the-playground"
+  },
+  {
+    "old": "prompt-engineering/how-to-prompts",
+    "new": "improve/prompts/how-to"
+  },
+  {
+    "old": "prompt-engineering/overview-prompts/prompt-management",
+    "new": "improve/prompts/prompt-management"
+  },
+  {
+    "old": "prompt-engineering/overview-prompts/prompt-playground",
+    "new": "improve/prompts/prompt-playground"
+  },
+  {
+    "old": "prompt-engineering/overview-prompts/prompts-in-code",
+    "new": "improve/prompts/prompts-in-code"
+  },
+  {
+    "old": "prompt-engineering/overview-prompts/span-replay",
+    "new": "improve/prompts/span-replay"
+  },
+  {
+    "old": "prompt-engineering/overview-prompts",
+    "new": "improve/prompts"
+  },
+  {
+    "old": "prompt-engineering/tutorial/compare-prompt-versions",
+    "new": "guides/prompts/compare-prompt-versions"
+  },
+  {
+    "old": "prompt-engineering/tutorial/identify-and-edit-prompts",
+    "new": "guides/prompts/identify-and-edit-prompts"
+  },
+  {
+    "old": "prompt-engineering/tutorial/optimize-prompts-automatically",
+    "new": "guides/prompts/optimize-prompts-automatically"
+  },
+  {
+    "old": "prompt-engineering/tutorial/test-prompts-at-scale",
+    "new": "guides/prompts/test-prompts-at-scale"
+  },
+  {
+    "old": "prompt-engineering/tutorial",
+    "new": "guides/prompts"
+  },
+  {
+    "old": "tracing/concepts-tracing/annotations-concepts",
+    "new": "concepts/tracing/annotations-concepts"
+  },
+  {
+    "old": "tracing/concepts-tracing/faqs-tracing",
+    "new": "concepts/tracing/faqs-tracing"
+  },
+  {
+    "old": "tracing/concepts-tracing/how-tracing-works",
+    "new": "concepts/tracing/how-tracing-works"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/context-managers",
+    "new": "concepts/otel-openinference/context-managers"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/context-propagation",
+    "new": "concepts/otel-openinference/context-propagation"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/exporter",
+    "new": "concepts/otel-openinference/exporter"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/instrumentation-approaches",
+    "new": "concepts/otel-openinference/instrumentation-approaches"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/otel-collector",
+    "new": "concepts/otel-openinference/otel-collector"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/overview",
+    "new": "concepts/otel-openinference/overview"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers",
+    "new": "concepts/otel-openinference/phoenix-otel-helpers"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/resource",
+    "new": "concepts/otel-openinference/resource"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/sampling",
+    "new": "concepts/otel-openinference/sampling"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/semantic-conventions",
+    "new": "concepts/otel-openinference/semantic-conventions"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/signals",
+    "new": "concepts/otel-openinference/signals"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/span-kinds",
+    "new": "concepts/otel-openinference/span-kinds"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/span-processor",
+    "new": "concepts/otel-openinference/span-processor"
+  },
+  {
+    "old": "tracing/concepts-tracing/otel-openinference/tracer-provider",
+    "new": "concepts/otel-openinference/tracer-provider"
+  },
+  {
+    "old": "tracing/concepts-tracing/translating-conventions",
+    "new": "concepts/tracing/translating-conventions"
+  },
+  {
+    "old": "tracing/concepts-tracing/what-are-traces",
+    "new": "concepts/tracing/what-are-traces"
+  },
+  {
+    "old": "tracing/features-tracing",
+    "new": "instrument/features"
+  },
+  {
+    "old": "tracing/how-to-tracing/add-metadata/customize-spans",
+    "new": "instrument/customize-spans"
+  },
+  {
+    "old": "tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables",
+    "new": "instrument/instrumenting-prompt-templates-and-prompt-variables"
+  },
+  {
+    "old": "tracing/how-to-tracing/add-metadata",
+    "new": "instrument/add-metadata"
+  },
+  {
+    "old": "tracing/how-to-tracing/advanced/constructing-urls",
+    "new": "instrument/advanced/constructing-urls"
+  },
+  {
+    "old": "tracing/how-to-tracing/advanced/masking-span-attributes",
+    "new": "instrument/advanced/masking-span-attributes"
+  },
+  {
+    "old": "tracing/how-to-tracing/advanced/modifying-spans",
+    "new": "instrument/advanced/modifying-spans"
+  },
+  {
+    "old": "tracing/how-to-tracing/advanced/multimodal-tracing",
+    "new": "instrument/advanced/multimodal-tracing"
+  },
+  {
+    "old": "tracing/how-to-tracing/advanced/suppress-tracing",
+    "new": "instrument/advanced/suppress-tracing"
+  },
+  {
+    "old": "tracing/how-to-tracing/advanced",
+    "new": "instrument/advanced"
+  },
+  {
+    "old": "tracing/how-to-tracing/cost-tracking",
+    "new": "instrument/track-costs"
+  },
+  {
+    "old": "tracing/how-to-tracing/feedback-and-annotations/annotating-auto-instrumented-spans",
+    "new": "observe/annotating-auto-instrumented-spans"
+  },
+  {
+    "old": "tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui",
+    "new": "observe/annotating-in-the-ui"
+  },
+  {
+    "old": "tracing/how-to-tracing/feedback-and-annotations/capture-feedback",
+    "new": "observe/capture-feedback"
+  },
+  {
+    "old": "tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces",
+    "new": "evaluate/evaluating-phoenix-traces"
+  },
+  {
+    "old": "tracing/how-to-tracing/feedback-and-annotations/llm-evaluations",
+    "new": "evaluate/llm-evaluations"
+  },
+  {
+    "old": "tracing/how-to-tracing/feedback-and-annotations",
+    "new": "observe/annotations"
+  },
+  {
+    "old": "tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans",
+    "new": "observe/exporting-annotated-spans"
+  },
+  {
+    "old": "tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans",
+    "new": "observe/extract-data-from-spans"
+  },
+  {
+    "old": "tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories",
+    "new": "observe/importing-atif-trajectories"
+  },
+  {
+    "old": "tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
+    "new": "observe/importing-existing-traces"
+  },
+  {
+    "old": "tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli",
+    "new": "observe/retrieve-traces-via-cli"
+  },
+  {
+    "old": "tracing/how-to-tracing/importing-and-exporting-traces",
+    "new": "observe/import-and-export-traces"
+  },
+  {
+    "old": "tracing/how-to-tracing/setup-tracing/instrument",
+    "new": "instrument/auto-instrumentation"
+  },
+  {
+    "old": "tracing/how-to-tracing/setup-tracing/setup-projects",
+    "new": "instrument/setup-projects"
+  },
+  {
+    "old": "tracing/how-to-tracing/setup-tracing/setup-sessions",
+    "new": "instrument/setup-sessions"
+  },
+  {
+    "old": "tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel",
+    "new": "instrument/setup-using-phoenix-otel"
+  },
+  {
+    "old": "tracing/how-to-tracing/setup-tracing",
+    "new": "instrument/set-up-tracing"
+  },
+  {
+    "old": "tracing/how-to-tracing",
+    "new": "instrument"
+  },
+  {
+    "old": "tracing/llm-traces/how-to-annotate-traces",
+    "new": "observe/how-to-annotate-traces"
+  },
+  {
+    "old": "tracing/llm-traces/metrics",
+    "new": "observe/metrics"
+  },
+  {
+    "old": "tracing/llm-traces/projects",
+    "new": "observe/projects"
+  },
+  {
+    "old": "tracing/llm-traces/sessions",
+    "new": "observe/sessions"
+  },
+  {
+    "old": "tracing/llm-traces",
+    "new": "observe/view-and-manage-traces"
+  },
+  {
+    "old": "tracing/tutorial/annotations-and-evaluations",
+    "new": "guides/tracing/annotations-and-evaluations"
+  },
+  {
+    "old": "tracing/tutorial/sessions",
+    "new": "guides/tracing/sessions"
+  },
+  {
+    "old": "tracing/tutorial/your-first-traces",
+    "new": "guides/tracing/your-first-traces"
+  },
+  {
+    "old": "tracing/tutorial",
+    "new": "guides/tracing"
+  },
+  {
+    "old": "user-guide",
+    "new": "concepts/platform/user-guide"
+  }
+]

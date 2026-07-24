@@ -45,7 +45,7 @@ There are five key stages within RAG, which will in turn be a part of any larger
 
 ### Build a RAG system
 
-Now that we have understood the stages of RAG, let's build a pipeline. We will use [LlamaIndex](https://www.llamaindex.ai/) for RAG and [Phoenix Evals](/docs/phoenix/evaluation/llm-evals) for evaluation.
+Now that we have understood the stages of RAG, let's build a pipeline. We will use [LlamaIndex](https://www.llamaindex.ai/) for RAG and [Phoenix Evals](/docs/phoenix/evaluate/llm-evals) for evaluation.
 
 ```sh
 !pip install -qq "arize-phoenix[experimental,llama-index]>=2.0"
@@ -364,7 +364,7 @@ for _, row in questions_with_document_chunk_df.iterrows():
     print(f"Question: {question}\nAnswer: {response_vector.response}\n")
 ```
 
-Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to phoenix. (For an in-depth explanation of how to export trace data from the phoenix runtime, consult the [docs](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)).
+Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to phoenix. (For an in-depth explanation of how to export trace data from the phoenix runtime, consult the [docs](/docs/phoenix/observe/extract-data-from-spans)).
 
 ```py
 from phoenix.client import Client
@@ -690,5 +690,5 @@ phoenix URL http://localhost:6006/
 
 We have explored how to build and evaluate a RAG pipeline using LlamaIndex and Phoenix, with a specific focus on evaluating the retrieval system and generated responses within the pipelines.
 
-Phoenix offers a variety of other evaluations that can be used to assess the performance of your LLM Application. For more details, see the [LLM Evals](/docs/phoenix/evaluation/llm-evals) documentation.
+Phoenix offers a variety of other evaluations that can be used to assess the performance of your LLM Application. For more details, see the [LLM Evals](/docs/phoenix/evaluate/llm-evals) documentation.
 

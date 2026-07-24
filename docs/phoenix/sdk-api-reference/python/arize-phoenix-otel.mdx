@@ -43,7 +43,7 @@ The SDK automatically reads these environment variables:
 | `PHOENIX_GRPC_PORT` | Override default gRPC port |
 
 <Note>
-`register()` also auto-loads `PHOENIX_`-prefixed settings from a `.env.phoenix` file discovered by walking up from the current directory (process environment variables take precedence). Set `PHOENIX_DISCOVER_CONFIG=false` to opt out. See [Environments](/docs/phoenix/environments).
+`register()` also auto-loads `PHOENIX_`-prefixed settings from a `.env.phoenix` file discovered by walking up from the current directory (process environment variables take precedence). Set `PHOENIX_DISCOVER_CONFIG=false` to opt out. See [Environments](/docs/phoenix/concepts/platform/environments).
 </Note>
 
 ```python
@@ -136,7 +136,7 @@ with using_session(session_id="abc-123"):
 Requires `arize-phoenix-otel>=0.16.0`. Lower-level helpers (`get_llm_attributes`, `TraceConfig`, `Message`, `Image`, …) continue to live in the `openinference-instrumentation` package.
 </Info>
 
-See [Using Tracing Helpers](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for a full walkthrough of manual instrumentation.
+See [Using Tracing Helpers](/docs/phoenix/instrument/auto-instrumentation) for a full walkthrough of manual instrumentation.
 
 ---
 
