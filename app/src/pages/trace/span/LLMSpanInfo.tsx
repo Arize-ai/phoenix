@@ -1,6 +1,8 @@
 import { Flex } from "@phoenix/components";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { LLMInput } from "./LLMInput";
+import { LLMInvocationParams } from "./LLMInvocationParams";
 import { LLMOutput } from "./LLMOutput";
 import type { AttributeObject, SpanInfoData } from "./types";
 import { getLLMAttributes } from "./utils";
@@ -27,6 +29,8 @@ export function LLMSpanInfo({
     promptTemplate,
     invocationParameters,
   } = getLLMAttributes(spanAttributes);
+  const hasInvocationParameters =
+    Object.keys(safelyParseJSON(invocationParameters).json || {}).length > 0;
 
   return (
     <Flex direction="column" gap="size-200">
@@ -38,8 +42,10 @@ export function LLMSpanInfo({
         toolSchemas={toolSchemas}
         promptTemplate={promptTemplate}
         prompts={prompts}
-        invocationParameters={invocationParameters}
       />
+      {hasInvocationParameters ? (
+        <LLMInvocationParams invocationParameters={invocationParameters} />
+      ) : null}
       <LLMOutput output={output} outputMessages={outputMessages} />
     </Flex>
   );

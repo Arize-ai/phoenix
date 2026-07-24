@@ -1,13 +1,16 @@
-import { Card } from "@phoenix/components";
+import {
+  Card,
+  CopyToClipboardButton,
+  ExpandableContent,
+} from "@phoenix/components";
 
 import { ReadonlyJSONBlock } from "../ReadonlyJSONBlock";
 import { defaultCardProps } from "./constants";
-import { CopyToClipboardWrap } from "./CopyToClipboardWrap";
+
+const INVOCATION_PARAMETERS_COLLAPSED_HEIGHT_PIXELS = 320;
 
 /**
- * A collapsed card displaying the invocation parameters of an LLM span as a
- * read-only JSON block. Rendered at the top of the input messages so it does
- * not need its own tab.
+ * Displays an LLM span's invocation parameters inline in an expandable card.
  */
 export function LLMInvocationParams({
   invocationParameters,
@@ -16,10 +19,17 @@ export function LLMInvocationParams({
   invocationParameters: string;
 }) {
   return (
-    <Card {...defaultCardProps} defaultOpen={false} title="Invocation Params">
-      <CopyToClipboardWrap text={invocationParameters} padding="size-100">
+    <Card
+      {...defaultCardProps}
+      title="Invocation Parameters"
+      extra={<CopyToClipboardButton text={invocationParameters} />}
+    >
+      <ExpandableContent
+        height={INVOCATION_PARAMETERS_COLLAPSED_HEIGHT_PIXELS}
+        expandedBehavior="grow"
+      >
         <ReadonlyJSONBlock>{invocationParameters}</ReadonlyJSONBlock>
-      </CopyToClipboardWrap>
+      </ExpandableContent>
     </Card>
   );
 }

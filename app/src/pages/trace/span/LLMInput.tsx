@@ -11,10 +11,8 @@ import type {
   AttributePromptTemplate,
 } from "@phoenix/openInference/tracing/types";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { defaultCardProps } from "./constants";
-import { LLMInvocationParams } from "./LLMInvocationParams";
 import type { LLMIOView } from "./LLMIOViewSelect";
 import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
 import { LLMMessagesList } from "./LLMMessagesList";
@@ -26,8 +24,8 @@ import type { SpanIOValue } from "./types";
 
 /**
  * The input side of an LLM span — the model card with a view select for
- * messages, tools, raw input, and prompts. The prompt template and invocation
- * parameters render as collapsed cards at the top of the input messages.
+ * messages, tools, raw input, and prompts. The prompt template renders as a
+ * collapsed card at the top of the input messages.
  */
 export function LLMInput({
   modelName,
@@ -37,7 +35,6 @@ export function LLMInput({
   toolSchemas,
   promptTemplate,
   prompts,
-  invocationParameters,
 }: {
   /** The name of the model that was invoked */
   modelName: string | null;
@@ -50,8 +47,6 @@ export function LLMInput({
   toolSchemas: string[];
   promptTemplate: AttributePromptTemplate | null;
   prompts: string[];
-  /** The invocation parameters as a JSON string */
-  invocationParameters: string;
 }) {
   let modelNameEl: ReactNode = null;
   if (modelName != null) {
@@ -74,8 +69,6 @@ export function LLMInput({
   const hasInputMessages = inputMessages.length > 0;
   const hasLLMToolSchemas = toolSchemas.length > 0;
   const hasPrompts = prompts.length > 0;
-  const hasInvocationParams =
-    Object.keys(safelyParseJSON(invocationParameters).json || {}).length > 0;
 
   const views: LLMIOView[] = [];
   if (hasInputMessages) views.push({ id: "input-messages", label: "Messages" });
@@ -84,7 +77,7 @@ export function LLMInput({
   if (hasPrompts) views.push({ id: "prompts", label: "Prompts" });
   const { view, setView } = useLLMIOView(views);
 
-  // Collapsed cards shown above the input messages (input-only context)
+  // Collapsed content shown above the input messages (input-only context)
   const messageLeadingItems = [
     promptTemplate != null && (
       <Card
@@ -95,12 +88,6 @@ export function LLMInput({
       >
         <LLMPromptTemplate promptTemplate={promptTemplate} />
       </Card>
-    ),
-    hasInvocationParams && (
-      <LLMInvocationParams
-        key="invocation-params"
-        invocationParameters={invocationParameters}
-      />
     ),
   ].filter(Boolean);
 
