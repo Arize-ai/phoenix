@@ -3,8 +3,6 @@ title: "Phoenix to Arize AX Migration"
 description: Seamlessly migrate your data from Phoenix to Arize AX
 ---
 
-
-
 If you are looking to migrate to Arize AX but want to preserve your data, this tool will help migrate your traces, evaluations, annotations, datasets, and experiments from Phoenix.
 
 <Card 
@@ -15,40 +13,42 @@ If you are looking to migrate to Arize AX but want to preserve your data, this t
 
 ## Setup
 
-### Step 1: Download the Migration Tool
+<Steps>
+  <Step title={<span className="step-title">Download the Migration Tool</span>}>
+    ```bash
+    git clone https://github.com/Arize-ai/phoenix-to-ax-migration
+    cd phoenix-to-ax-migration
+    ```
+  </Step>
 
-```bash
-git clone https://github.com/Arize-ai/phoenix-to-ax-migration
-cd phoenix-to-ax-migration
-```
+  <Step title={<span className="step-title">Install Dependencies</span>}>
+    ```bash
+    pip install -r requirements.txt
+    ```
+  </Step>
 
-### Step 2: Install Dependencies
+  <Step title={<span className="step-title">Configure Environment</span>}>
+    Create a `.env` file with your configuration:
 
-```bash
-pip install -r requirements.txt
-```
+    ```bash
+    # Phoenix (include PHOENIX_API_KEY if authentication is enabled)
+    PHOENIX_ENDPOINT="http://localhost:6006"
+    PHOENIX_API_KEY=your-phoenix-api-key 
 
-### Step 3: Configure Environment
+    # Arize
+    ARIZE_API_KEY=your-arize-api-key
+    ARIZE_SPACE_ID=your-arize-space-id
 
-Create a `.env` file with your configuration:
+    # Export directory where Phoenix data will be saved locally
+    PHOENIX_EXPORT_DIR="phoenix_export"
+    ```
 
-```bash
-# Phoenix (include PHOENIX_API_KEY if using Phoenix Cloud)
-PHOENIX_ENDPOINT="https://app.phoenix.arize.com/s/your-space-name"
-PHOENIX_API_KEY=your-phoenix-api-key 
+    <Info>
+    You can find your Arize API key and Space ID in your Arize AX account settings.
 
-# Arize
-ARIZE_API_KEY=your-arize-api-key
-ARIZE_SPACE_ID=your-arize-space-id
-
-# Export directory where Phoenix data will be saved locally
-PHOENIX_EXPORT_DIR="phoenix_export"
-```
-
-<Info>
-You can find your Arize API key and Space ID in your Arize AX account settings.
-
-</Info>
+    </Info>
+  </Step>
+</Steps>
 
 ## Supported Data Types
 
@@ -62,7 +62,6 @@ You can find your Arize API key and Space ID in your Arize AX account settings.
 * **Wait for traces to be indexed**: After importing traces, you must wait a few minutes for them to be loaded and indexed in Arize AX before sending annotation data. The import process will prompt you to verify traces are available before proceeding with annotations.
 
 * **31-day window**: Only annotations for traces from the past 31 days can be logged to Arize. If your traces are older than 31 days, their annotations will be skipped with a warning message.
-
 
 ## Usage
 

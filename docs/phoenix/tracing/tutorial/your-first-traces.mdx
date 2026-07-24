@@ -3,6 +3,9 @@ title: "Your First Traces"
 description: "Build a support agent and trace every LLM call, tool execution, and RAG retrieval"
 ---
 
+import StartPhoenix from "../../../snippets/start-phoenix.mdx";
+import PhoenixAuthNote from "../../../snippets/phoenix-auth-note.mdx";
+
 When building agents and LLM applications, it's hard to see what's actually going on under the hood. Even if you set up a comprehensive agent architecture with multiple prompts, descriptive tools, and data retrievals, you're left answering questions like:
 
 - Why did the agent choose that tool instead of this one?
@@ -67,19 +70,20 @@ First, install the dependencies and configure OpenTelemetry to send traces to Ph
   </Tab>
 </Tabs>
 
-## Set up Phoenix Cloud
+## Start Phoenix
 
-In order to send traces to Phoenix, you must sign up for a free space and account. Follow these [instructions](https://arize.com/docs/phoenix/get-started#setup-and-run-phoenix-cloud) to configure Phoenix Cloud, if you haven't already.
+In order to send traces to Phoenix, you need a Phoenix instance running.
 
-Once you have Phoenix Cloud configured, set your keys:
+<StartPhoenix />
+
+Now point your application at it:
 
 <Tabs>
   <Tab title="TypeScript" icon="js">
     Create a `.env` file in your project root:
 
     ```bash
-    PHOENIX_API_KEY=<ENTER YOUR PHOENIX API KEY>
-    PHOENIX_COLLECTOR_ENDPOINT=<ENTER YOUR PHOENIX ENDPOINT>
+    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
     OPENAI_API_KEY=<ENTER YOUR OPENAI API KEY>
     ```
   </Tab>
@@ -88,14 +92,13 @@ Once you have Phoenix Cloud configured, set your keys:
     ```python
     import os
 
-    os.environ["PHOENIX_API_KEY"] = "<ENTER YOUR PHOENIX API KEY>"
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<ENTER YOUR PHOENIX ENDPOINT>"
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
     os.environ["OPENAI_API_KEY"] = "<ENTER YOUR OPENAI API KEY>"
     ```
   </Tab>
 </Tabs>
 
-
+<PhoenixAuthNote />
 
 ## Configure Tracing
 
@@ -154,7 +157,6 @@ Without tracing, you're forced to build your own logging or debugging, and there
 For SupportBot, tracing LLM calls will give us observability into the classification stage. We'll see exactly what class all our support queries are, and what lead to that classification.
 
 It will also give us observability into the final generation stage. How was the final output delivered to the user, and what context went into that final LLM call that generated the final output?
-
 
 <Tabs>
   <Tab title="TypeScript" icon="js">
@@ -465,7 +467,7 @@ The code may prompt for feedback on each response - you can skip this for now (p
 
 # Viewing Your Traces
 
-Open your Phoenix Cloud space. You'll see 7 `support-agent` traces - one for each query.
+Open Phoenix at [http://localhost:6006](http://localhost:6006). You'll see 7 `support-agent` traces - one for each query.
 
 <video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/final-first.mp4" />
 

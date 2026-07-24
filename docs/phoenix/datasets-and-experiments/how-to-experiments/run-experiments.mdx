@@ -56,7 +56,7 @@ We'll start by initializing the Phoenix client to connect to your deployed Phoen
 from phoenix.client import Client
 
 # Initialize client - automatically reads from environment variables:
-# PHOENIX_BASE_URL and PHOENIX_API_KEY (if using Phoenix Cloud)
+# PHOENIX_BASE_URL, and PHOENIX_API_KEY if authentication is enabled
 client = Client()
 
 # Or explicitly configure for your Phoenix instance:

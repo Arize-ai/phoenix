@@ -68,7 +68,7 @@ View on PyPI
     tracer_provider.add_span_processor(
         BatchSpanProcessor(
             OTLPSpanExporter(
-                endpoint="http://localhost:4317",  # Phoenix OTLP gRPC endpoint (if using phoenix cloud, change to phoenix cloud endpoint from settings)
+                endpoint="http://localhost:4317",  # Phoenix OTLP gRPC endpoint (change this if Phoenix runs elsewhere)
                 headers={},
                 compression=grpc.Compression.Gzip,
             )
@@ -164,7 +164,7 @@ View on PyPI
     tracer_provider.add_span_processor(
         BatchSpanProcessor(
             OTLPSpanExporter(
-                endpoint="http://localhost:4317",  # Phoenix OTLP gRPC endpoint (if using phoenix cloud, change to phoenix cloud endpoint from settings)
+                endpoint="http://localhost:4317",  # Phoenix OTLP gRPC endpoint (change this if Phoenix runs elsewhere)
                 headers={},
                 compression=grpc.Compression.Gzip,
             )
@@ -329,7 +329,7 @@ Spans emitted this way do not carry `openinference.span.kind` or structured `llm
     ```
   </Step>
   <Step title={<span className="step-title">Configure the Tracer Provider</span>}>
-    Point an OTLP/HTTP exporter at Phoenix. For Phoenix Cloud, set `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY`.
+    Point an OTLP/HTTP exporter at Phoenix. For a remote deployment, set `PHOENIX_COLLECTOR_ENDPOINT` and, if it has authentication enabled, `PHOENIX_API_KEY`.
 
     ```go
     import (

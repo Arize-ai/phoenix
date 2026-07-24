@@ -45,7 +45,7 @@ func phoenixTraceEndpoint(endpoint string) string {
 
 func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
 	// Default: self-hosted Phoenix on localhost.
-	// For Phoenix Cloud, set PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY.
+	// For a remote deployment, set PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY.
 	opts := []otlptracehttp.Option{
 		otlptracehttp.WithEndpoint("localhost:6006"),
 		otlptracehttp.WithURLPath("/v1/traces"),

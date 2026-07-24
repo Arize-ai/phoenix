@@ -32,10 +32,10 @@ npx @arizeai/phoenix-cli
 export PHOENIX_HOST=http://localhost:6006
 ```
 
-For Phoenix Cloud:
+For a remote deployment:
 
 ```bash
-export PHOENIX_HOST=https://app.phoenix.arize.com
+export PHOENIX_HOST=https://your-phoenix.example.com
 ```
 
 ### 2. Set your project name
@@ -53,7 +53,7 @@ export PHOENIX_API_KEY=your-api-key
 ```
 
 <Note>
-If you're using Phoenix Cloud or a Phoenix instance with authentication enabled, you'll need to set the `PHOENIX_API_KEY` environment variable or use the `--api-key` flag.
+If your Phoenix instance has authentication enabled, you'll need to set the `PHOENIX_API_KEY` environment variable or use the `--api-key` flag.
 </Note>
 
 ## Use with AI Coding Assistants

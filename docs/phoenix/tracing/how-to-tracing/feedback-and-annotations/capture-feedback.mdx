@@ -128,7 +128,7 @@ If you're self-hosting Phoenix, be sure to change the endpoint in the code below
     const px = createClient({
       options: {
         // change to self-hosted base url if applicable
-        baseUrl: 'https://app.phoenix.arize.com',
+        baseUrl: 'http://localhost:6006',
         headers: {
           api_key: PHOENIX_API_KEY,
           Authorization: `Bearer ${PHOENIX_API_KEY}`,
@@ -177,7 +177,7 @@ If you're self-hosting Phoenix, be sure to change the endpoint in the code below
 
     ```powershell
     curl -X 'POST' \
-      'https://app.phoenix.arize.com/v1/span_annotations?sync=false' \
+      'http://localhost:6006/v1/span_annotations?sync=false' \
       -H 'accept: application/json' \
       -H 'Content-Type: application/json' \
       -H 'api_key: <your phoenix api key>' \

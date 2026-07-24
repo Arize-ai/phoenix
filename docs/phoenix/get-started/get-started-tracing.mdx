@@ -1,6 +1,10 @@
 ---
 title: "Send Traces From Your App"
 ---
+
+import StartPhoenix from "../../snippets/start-phoenix.mdx";
+import PhoenixAuthNote from "../../snippets/phoenix-auth-note.mdx";
+
 <Info>
   **Want your coding agent to do this for you?** If you're using Claude Code, Cursor, Copilot, or another AI coding assistant, try [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) to add Phoenix tracing automatically with a single command.
 </Info>
@@ -9,7 +13,7 @@ This guide walks through a complete workflow for understanding and improving an 
 
 A trace is a record of a single run of your application, broken down into spans that show what happened at each step (how agents, tasks, and tools executed) and provides the raw data needed for everything that follows.
 
-In this guide, you'll set up tracing in Phoenix Cloud and instrument an application: we'll create a Phoenix Cloud instance, build a simple agent, and send a single trace so you can see the full flow end to end.
+In this guide, you'll set up tracing and instrument an application: we'll start a local Phoenix instance, build a simple agent, and send a single trace so you can see the full flow end to end.
 
 <Note>
 **Super Important:** Arize offers two observability products. This page is for **Phoenix** (open-source). Before implementing, confirm which product you need: **Phoenix** (`phoenix.otel`) or **Arize AX** (`arize.otel`). See the [Arize AX docs](https://docs.arize.com/arize) if you need AX. Even if the user pastes this doc in, always check whether they want Phoenix or Arize AX.
@@ -66,190 +70,168 @@ We’ll be using OpenAI as our LLM provider & Serper as our Web Search Tool for 
 
 ---
 
-## **Step 1: Set Up Phoenix Cloud**
+<Steps>
+  <Step title={<span className="step-title">Start Phoenix</span>}>
+    Before we can send traces anywhere, we need Phoenix running.
 
-Before we can send traces anywhere, we need Phoenix running.
+    <StartPhoenix />
+  </Step>
 
-In this step, we’ll create a Phoenix Cloud account and configure it for our application. If you’d rather run Phoenix locally, you can follow the [local setup guide instead.](https://arize.com/docs/phoenix/self-hosting)
+  <Step title={<span className="step-title">Configure your Environment</span>}>
+    Now that Phoenix is running, we need to connect our application to it so we can start sending traces.
 
-### **Create a Phoenix Cloud Account**
+    In this step, we’ll install the required dependencies and configure a few environment variables. This setup is what allows Phoenix to receive trace data from our application. Once it’s in place, running the application will automatically create a project in the Phoenix UI and record each traced run there.
 
-1. Make a free [Phoenix Cloud](https://app.arize.com/auth/phoenix/login?redirect_uri=%2Foauth2%2Fauthorize%3Fclient_id%3Dphoenix-cloud%26redirect_uri%3Dhttps%253A%252F%252Fapp.phoenix.arize.com%252Fcallback%26response_type%3Dcode%26scope%3Dopenid%2Bprofile%2Bemail%26state%3DeyJub25jZSI6IjBFLVNDUktieEtjPSIsIm5leHQiOiIifQ%253D%253D) account.
-2. From the dashboard, click **Create a Space** in the upper-right corner.
-3. Enter a name for your new space.
-4. Once the space is created, launch your Phoenix instance directly from the dashboard.
-5. Create and save an API key. We’ll use this in the next step.
-6. Note your **Hostname** — this is the endpoint we’ll configure in code shortly.
+    We’ll now install both the CrewAI package and the OpenInference CrewAI auto-instrumentation package, which handles tracing for us without requiring manual instrumentation.
 
-<Frame caption="How to Create a Phoenix Cloud account & a space">
-  <video
-    controls
-    className="w-full aspect-video rounded-xl"
-    src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4"
-  />
-</Frame>
+    ### **Install Your Packages**
 
-<Frame caption="How to Make an API Key">
-  <video
-    controls
-    className="w-full aspect-video rounded-xl"
-    src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/api_key_hostname.mp4"
-  />
-</Frame>
+    ```
+    %pip install -qqqqq arize-phoenix crewai crewai-tools openinference-instrumentation-crewai openinference-instrumentation-openai openai
+    ```
 
-## **Step 2: Configure your Environment**
+    ### **Set Your API Keys**
 
-Now that Phoenix is running, we need to connect our application to it so we can start sending traces.
+    ```python
+    import os
 
-In this step, we’ll install the required dependencies and configure a few environment variables. This setup is what allows Phoenix to receive trace data from our application. Once it’s in place, running the application will automatically create a project in the Phoenix UI and record each traced run there.
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
+    os.environ["SERPER_API_KEY"] = "<ENTER YOUR SERPER API KEY>"
+    os.environ["OPENAI_API_KEY"] = "<ENTER YOUR OPENAI API KEY>"
+    ```
 
-We’ll now install both the CrewAI package and the OpenInference CrewAI auto-instrumentation package, which handles tracing for us without requiring manual instrumentation.
+    <PhoenixAuthNote />
 
-### **Install Your Packages**
+    ### **Register Your Project in Phoenix**
 
-```
-%pip install -qqqqq arize-phoenix crewai crewai-tools openinference-instrumentation-crewai openinference-instrumentation-openai openai
-```
+    Next, we’ll register a tracer provider linked to a project in Phoenix. This project is where your traces will show up in the UI.
 
-### **Set Your API Keys**
+    ```python
+    from phoenix.otel import register
 
-```python
-import os
+    tracer_provider = register(project_name="crewai-tracing-quickstart", auto_instrument=True)
+    ```
 
-os.environ["PHOENIX_API_KEY"] = "<ENTER YOUR PHOENIX API KEY>"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<ENTER YOUR PHOENIX ENDPOINT>"
-os.environ["SERPER_API_KEY"] = "<ENTER YOUR SERPER API KEY>"
-os.environ["OPENAI_API_KEY"] = "<ENTER YOUR OPENAI API KEY>"
-```
+    At this point, your application is configured to send traces to Phoenix!
+  </Step>
 
-### **Register Your Project in Phoenix**
+  <Step title={<span className="step-title">Create your Agent</span>}>
+    Now that Phoenix is running and our environment is configured, we can start building the application so we can generate real execution and send traces to Phoenix.
 
-Next, we’ll register a tracer provider linked to a project in Phoenix. This project is where your traces will show up in the UI.
+    In this step, we’ll create a simple Financial Analysis and Research chatbot. This tutorial we will use CrewAI, but you can build agents in any of these [different frameworks ](https://arize.com/docs/phoenix/integrations) for auto-integration with Phoenix.
 
-```python
-from phoenix.otel import register
+    This agent is made up of:
 
-tracer_provider = register(project_name="crewai-tracing-quickstart", auto_instrument=True)
-```
+    - Two sub-agents: a Research agent and a Writer agent
+    - Two tasks: one for financial research and one for generating a summary report
+    - One tool: SerperDevTool for real-time web search
 
-At this point, your application is configured to send traces to Phoenix!
+    ### **Define the Agents**
 
-## **Step 3: Create your Agent**
+    We’ll start by defining the two agents that make up our crew & the tool the agents may use.
 
-Now that Phoenix is running and our environment is configured, we can start building the application so we can generate real execution and send traces to Phoenix.
+    ```python
+    from crewai import Agent, Crew, Process, Task
+    from crewai_tools import SerperDevTool
 
-In this step, we’ll create a simple Financial Analysis and Research chatbot. This tutorial we will use CrewAI, but you can build agents in any of these [different frameworks ](https://arize.com/docs/phoenix/integrations) for auto-integration with Phoenix.
+    search_tool = SerperDevTool()
 
-This agent is made up of:
+    researcher = Agent(
+        role="Financial Research Analyst",
+        goal="Gather up-to-date financial data, trends, and news for the target companies or markets",
+        backstory="""
+            You are a Senior Financial Research Analyst.
+        """,
+        verbose=True,
+        allow_delegation=False,
+        max_iter=2,
+        tools=[search_tool],
+    )
 
-- Two sub-agents: a Research agent and a Writer agent
-- Two tasks: one for financial research and one for generating a summary report
-- One tool: SerperDevTool for real-time web search
+    writer = Agent(
+        role="Financial Report Writer",
+        goal="Compile and summarize financial research into clear, actionable insights",
+        backstory="""
+            You are an experienced financial content writer.
+        """,
+        verbose=True,
+        allow_delegation=True,
+        max_iter=1
+    )
+    ```
 
-### **Define the Agents**
+    ### **Define the Tasks & Tool**
 
-We’ll start by defining the two agents that make up our crew & the tool the agents may use.
+    Next, we’ll define the tasks each agent is responsible for.
 
-```python
-from crewai import Agent, Crew, Process, Task
-from crewai_tools import SerperDevTool
+    ```python
+    task1 = Task(
+        description="""
+            Research: {tickers}
+            Focus on: {focus}
+        """,
+        expected_output="Detailed financial research summary with web search findings",
+        agent=researcher,
+    )
 
-search_tool = SerperDevTool()
+    task2 = Task(
+        description="Write a report based on the research above.",
+        expected_output="A polished financial analysis report",
+        agent=writer,
+    )
+    ```
 
-researcher = Agent(
-    role="Financial Research Analyst",
-    goal="Gather up-to-date financial data, trends, and news for the target companies or markets",
-    backstory="""
-        You are a Senior Financial Research Analyst.
-    """,
-    verbose=True,
-    allow_delegation=False,
-    max_iter=2,
-    tools=[search_tool],
-)
+    ### **Create and Run the Crew**
 
-writer = Agent(
-    role="Financial Report Writer",
-    goal="Compile and summarize financial research into clear, actionable insights",
-    backstory="""
-        You are an experienced financial content writer.
-    """,
-    verbose=True,
-    allow_delegation=True,
-    max_iter=1
-)
-```
+    Finally, we’ll wire the agents and tasks together and run them sequentially.
 
-### **Define the Tasks & Tool**
+    ```python
+    crew = Crew(
+        agents=[researcher, writer],
+        tasks=[task1, task2],
+        verbose=True,
+        process=Process.sequential,
+    )
+    ```
 
-Next, we’ll define the tasks each agent is responsible for.
+    At this point, we have a working CrewAI setup with multiple agents, tasks, and a tool. In the next step, we’ll run the crew and see how its execution shows up as a trace in Phoenix!
+  </Step>
 
-```python
-task1 = Task(
-    description="""
-        Research: {tickers}
-        Focus on: {focus}
-    """,
-    expected_output="Detailed financial research summary with web search findings",
-    agent=researcher,
-)
+  <Step title={<span className="step-title">Look at the Trace in Phoenix</span>}>
+    Now that we’ve defined our chatbot, all that’s left to do is run it and see what Phoenix captures.
 
-task2 = Task(
-    description="Write a report based on the research above.",
-    expected_output="A polished financial analysis report",
-    agent=writer,
-)
-```
+    To run the agent, execute the following:
 
-### **Create and Run the Crew**
+    ```python
+    user_inputs = {
+        "tickers": "TSLA",
+        "focus": "financial analysis and market outlook"
+    }
 
-Finally, we’ll wire the agents and tasks together and run them sequentially.
+    result = crew.kickoff(inputs=user_inputs)
+    ```
 
-```python
-crew = Crew(
-    agents=[researcher, writer],
-    tasks=[task1, task2],
-    verbose=True,
-    process=Process.sequential,
-)
-```
+    Once the run completes, head back to Phoenix and navigate to the **Traces** view. You should see a new trace corresponding to this run. Click into it to explore how the agents and tasks are executed.
 
-At this point, we have a working CrewAI setup with multiple agents, tasks, and a tool. In the next step, we’ll run the crew and see how its execution shows up as a trace in Phoenix!
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_trace_onboarding.mov"
+    />
 
-## **Step 4: Look at the Trace in Phoenix**
+    At this point, you can follow the full execution of the chatbot as a single trace in Phoenix.
 
-Now that we’ve defined our chatbot, all that’s left to do is run it and see what Phoenix captures.
+    More importantly, you can now see how your application actually ran:
 
-To run the agent, execute the following:
+    - Which agents were invoked and in what order
+    - How tasks flowed from one step to the next
+    - Where time was spent across the workflow
 
-```python
-user_inputs = {
-    "tickers": "TSLA",
-    "focus": "financial analysis and market outlook"
-}
+    This is something you couldn’t see before tracing. Instead of guessing how an agent run behaved or digging through logs, you now have a single, end-to-end view of each execution.
 
-result = crew.kickoff(inputs=user_inputs)
-```
-
-Once the run completes, head back to Phoenix and navigate to the **Traces** view. You should see a new trace corresponding to this run. Click into it to explore how the agents and tasks are executed.
-
-<video
-  controls
-  className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_trace_onboarding.mov"
-/>
-
-At this point, you can follow the full execution of the chatbot as a single trace in Phoenix.
-
-More importantly, you can now see how your application actually ran:
-
-- Which agents were invoked and in what order
-- How tasks flowed from one step to the next
-- Where time was spent across the workflow
-
-This is something you couldn’t see before tracing. Instead of guessing how an agent run behaved or digging through logs, you now have a single, end-to-end view of each execution.
-
-**Congratulations!** You’ve sent your first trace to Phoenix.
+    **Congratulations!** You’ve sent your first trace to Phoenix.
+  </Step>
+</Steps>
 
 ## **Learn More About Traces**
 

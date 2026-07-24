@@ -27,196 +27,198 @@ To follow along, you’ll need to have completed [Get Started with Tracing](http
 
 ---
 
-## **Step 1: Make Sure You Have Data in Phoenix**
+<Steps>
+  <Step title={<span className="step-title">Make Sure You Have Data in Phoenix</span>}>
+    Before we can run evaluations, we need something to evaluate.
 
-Before we can run evaluations, we need something to evaluate.
+    Evaluations in Phoenix run over existing trace data. If you followed the tracing guide, you should already have:
 
-Evaluations in Phoenix run over existing trace data. If you followed the tracing guide, you should already have:
+    - A project in Phoenix
+    - Traces containing LLM inputs and outputs
 
-- A project in Phoenix
-- Traces containing LLM inputs and outputs
+    It’s best to have multiple traces so we can see how evaluation results vary from run to run. If needed, run your agent a few times with different inputs to generate more data.
 
-It’s best to have multiple traces so we can see how evaluation results vary from run to run. If needed, run your agent a few times with different inputs to generate more data.
+    ```python
+    test_queries = [
+        {"tickers": "AAPL", "focus": "financial analysis and market outlook"},
+        {"tickers": "NVDA", "focus": "valuation metrics and growth prospects"},
+        {"tickers": "AMZN", "focus": "profitability and market share"},
+        {"tickers": "AAPL, MSFT", "focus": "comparative financial analysis"},
+        {"tickers": "META, SNAP, PINS", "focus": "social media sector trends"},
+        {"tickers": "RIVN", "focus": "financial health and viability"},
+        {"tickers": "SNOW", "focus": "revenue growth trajectory"},
+        {"tickers": "KO", "focus": "dividend yield and stability"},
+        {"tickers": "META", "focus": "latest developments and stock performance"},
+        {"tickers": "AAPL, MSFT, GOOGL, AMZN, META", "focus": "big tech comparison and market outlook"},
+        {"tickers": "AMC", "focus": "financial analysis and market sentiment"},
+    ]
 
-```python
-test_queries = [
-    {"tickers": "AAPL", "focus": "financial analysis and market outlook"},
-    {"tickers": "NVDA", "focus": "valuation metrics and growth prospects"},
-    {"tickers": "AMZN", "focus": "profitability and market share"},
-    {"tickers": "AAPL, MSFT", "focus": "comparative financial analysis"},
-    {"tickers": "META, SNAP, PINS", "focus": "social media sector trends"},
-    {"tickers": "RIVN", "focus": "financial health and viability"},
-    {"tickers": "SNOW", "focus": "revenue growth trajectory"},
-    {"tickers": "KO", "focus": "dividend yield and stability"},
-    {"tickers": "META", "focus": "latest developments and stock performance"},
-    {"tickers": "AAPL, MSFT, GOOGL, AMZN, META", "focus": "big tech comparison and market outlook"},
-    {"tickers": "AMC", "focus": "financial analysis and market sentiment"},
-]
+    for query in test_queries:
+        crew.kickoff(inputs=query)
+    ```
+  </Step>
 
-for query in test_queries:
-    crew.kickoff(inputs=query)
-```
+  <Step title={<span className="step-title">Define an Evaluation</span>}>
+    Now that we have trace data, the next question is how we decide whether an output is actually good.
 
-## **Step 2: Define an Evaluation**
+    An evaluation makes that decision explicit. Instead of manually inspecting outputs or relying on intuition, we define a rule that Phoenix can apply consistently across many runs.
 
-Now that we have trace data, the next question is how we decide whether an output is actually good.
+    In Phoenix, evaluations can be written in different ways. In this guide, we’ll use an LLM-as-a-judge evaluation as a simple starting point. This works well for questions like correctness or relevance, and lets us get metrics quickly. (If you’d rather use code-based evaluations, you can follow [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
 
-An evaluation makes that decision explicit. Instead of manually inspecting outputs or relying on intuition, we define a rule that Phoenix can apply consistently across many runs.
+    For LLM-as-a-judge evaluations, that means defining three things:
 
-In Phoenix, evaluations can be written in different ways. In this guide, we’ll use an LLM-as-a-judge evaluation as a simple starting point. This works well for questions like correctness or relevance, and lets us get metrics quickly. (If you’d rather use code-based evaluations, you can follow [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
+    - A prompt that describes the judgment criteria
+    - An LLM that performs the evaluation
+    - The data we want to score
 
-For LLM-as-a-judge evaluations, that means defining three things:
+    In this step, we'll define a basic completeness evaluation that checks whether the agent's output completely answers the input. Phoenix also provides [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals) you can use or adapt for other metrics like relevance or faithfulness.
 
-- A prompt that describes the judgment criteria
-- An LLM that performs the evaluation
-- The data we want to score
+    ### **Define the Evaluation Prompt**
 
-In this step, we'll define a basic completeness evaluation that checks whether the agent's output completely answers the input. Phoenix also provides [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals) you can use or adapt for other metrics like relevance or faithfulness.
+    We’ll start by defining the prompt that tells the evaluator how to judge an answer. We're using `attributes.input.value` & `attributes.output.value` as that is how our span data saves input & output.
 
-### **Define the Evaluation Prompt**
+    ```python
+    financial_completeness_template = """
+    You are evaluating whether a financial research report correctly completes ALL parts of the user's task with COMPREHENSIVE coverage.
 
-We’ll start by defining the prompt that tells the evaluator how to judge an answer. We're using `attributes.input.value` & `attributes.output.value` as that is how our span data saves input & output.
+    User input: {attributes.input.value}
 
-```python
-financial_completeness_template = """
-You are evaluating whether a financial research report correctly completes ALL parts of the user's task with COMPREHENSIVE coverage.
+    Generated report: {attributes.output.value}
 
-User input: {attributes.input.value}
+    To be marked as "complete", the report MUST meet ALL of these strict requirements:
 
-Generated report: {attributes.output.value}
+    1. TICKER COVERAGE (MANDATORY):
+       - Cover ALL companies/tickers mentioned in the input
+       - If multiple tickers are listed, EACH must have dedicated analysis (not just mentioned in passing)
+       - For multiple tickers, the report must provide COMPARATIVE analysis when relevant
 
-To be marked as "complete", the report MUST meet ALL of these strict requirements:
+    2. FOCUS AREA COVERAGE (MANDATORY):
+       - Address ALL focus areas mentioned in the input
+       - If the focus mentions multiple topics (e.g., "earnings and outlook"), BOTH must be thoroughly addressed
+       - Each focus area must have substantial content, not just a brief mention
 
-1. TICKER COVERAGE (MANDATORY):
-   - Cover ALL companies/tickers mentioned in the input
-   - If multiple tickers are listed, EACH must have dedicated analysis (not just mentioned in passing)
-   - For multiple tickers, the report must provide COMPARATIVE analysis when relevant
+    3. FINANCIAL DATA REQUIREMENTS (MANDATORY):
+       - For EACH ticker, the report must include:
+         * Current/recent stock price or performance data
+         * At least 2 key financial ratios (P/E, P/B, debt-to-equity, ROE, etc.)
+         * Revenue or earnings information
+         * Recent news or developments (within last 6 months)
+       - If focus mentions specific metrics (e.g., "P/E ratio"), those MUST be explicitly provided
 
-2. FOCUS AREA COVERAGE (MANDATORY):
-   - Address ALL focus areas mentioned in the input
-   - If the focus mentions multiple topics (e.g., "earnings and outlook"), BOTH must be thoroughly addressed
-   - Each focus area must have substantial content, not just a brief mention
+    4. DEPTH REQUIREMENT (MANDATORY):
+       - Each ticker must have at least 3-4 sentences of dedicated analysis
+       - Generic statements without specific data do NOT count
+       - The report must demonstrate thorough research, not superficial coverage
 
-3. FINANCIAL DATA REQUIREMENTS (MANDATORY):
-   - For EACH ticker, the report must include:
-     * Current/recent stock price or performance data
-     * At least 2 key financial ratios (P/E, P/B, debt-to-equity, ROE, etc.)
-     * Revenue or earnings information
-     * Recent news or developments (within last 6 months)
-   - If focus mentions specific metrics (e.g., "P/E ratio"), those MUST be explicitly provided
+    5. COMPARISON REQUIREMENT (if multiple tickers):
+       - If 2+ tickers are requested, the report MUST include direct comparisons
+       - Comparisons should cover multiple key metrics side-by-side
+       - Generic statements like "both companies are good" do NOT satisfy this requirement
+       - Must explicitly state which company performs better/worse on specific metrics
 
-4. DEPTH REQUIREMENT (MANDATORY):
-   - Each ticker must have at least 3-4 sentences of dedicated analysis
-   - Generic statements without specific data do NOT count
-   - The report must demonstrate thorough research, not superficial coverage
+    The report is "incomplete" if it fails ANY of the above requirements, including:
+    - Missing any ticker or only mentioning it briefly
+    - Failing to address any focus area or only addressing it superficially
+    - Missing required financial data for any ticker
+    - Providing generic analysis without specific metrics or data
+    - Failing to provide comparisons when multiple tickers are requested
+    - Not meeting the depth requirement for any ticker
 
-5. COMPARISON REQUIREMENT (if multiple tickers):
-   - If 2+ tickers are requested, the report MUST include direct comparisons
-   - Comparisons should cover multiple key metrics side-by-side
-   - Generic statements like "both companies are good" do NOT satisfy this requirement
-   - Must explicitly state which company performs better/worse on specific metrics
+    Respond with ONLY one word: "complete" or "incomplete"
+    Then provide a detailed explanation of which specific requirements were met or failed.
+    """
+    ```
 
-The report is "incomplete" if it fails ANY of the above requirements, including:
-- Missing any ticker or only mentioning it briefly
-- Failing to address any focus area or only addressing it superficially
-- Missing required financial data for any ticker
-- Providing generic analysis without specific metrics or data
-- Failing to provide comparisons when multiple tickers are requested
-- Not meeting the depth requirement for any ticker
+    This prompt defines what correctness means for our application.
 
-Respond with ONLY one word: "complete" or "incomplete"
-Then provide a detailed explanation of which specific requirements were met or failed.
-"""
-```
+    ### **Define the LLM Judge**
 
-This prompt defines what correctness means for our application.
+    Next, we’ll define the model that will act as the judge.
 
-### **Define the LLM Judge**
+    ```python
+    from phoenix.evals import LLM
 
-Next, we’ll define the model that will act as the judge.
+    llm = LLM(model="gpt-4o", provider="openai")
+    ```
 
-```python
-from phoenix.evals import LLM
+    ### **Create the Evaluator**
 
-llm = LLM(model="gpt-4o", provider="openai")
-```
+    Now we can combine the prompt and model into an evaluator.
 
-### **Create the Evaluator**
+    ```python
+    from phoenix.evals import ClassificationEvaluator
 
-Now we can combine the prompt and model into an evaluator.
-
-```python
-from phoenix.evals import ClassificationEvaluator
-
-completeness_evaluator = ClassificationEvaluator(
-    name="completeness",
-    prompt_template=financial_completeness_template,
-    llm=llm,
-    choices={"complete": 1.0, "incomplete": 0.0},
-)
-```
-
-At this point, we’ve defined how Phoenix should evaluate correctness, but we haven’t run it yet.
-
-## **Step 3: Run the Evaluation**
-
-Next, we’ll pull our trace data from Phoenix and run the evaluator on it.
-
-First, fetch the spans we want to evaluate:
-
-```python
-from phoenix.client import Client
-
-px_client = Client()
-df = px_client.spans.get_spans_dataframe(project_name="crewai-tracing-quickstart")
-parent_spans = df[df["span_kind"] == "CHAIN"]
-```
-
-Then run the evaluator over that data. We are adding in `suppress_tracing()` since auto-instrumentation enabled and we do not want to trace each of these OpenAI evaluation calls in our project.
-
-```python
-from phoenix.evals import async_evaluate_dataframe
-from phoenix.trace import suppress_tracing
-
-with suppress_tracing():
-    results_df = await async_evaluate_dataframe(
-        dataframe=parent_spans,
-        evaluators=[completeness_evaluator],
-        concurrency=10,
+    completeness_evaluator = ClassificationEvaluator(
+        name="completeness",
+        prompt_template=financial_completeness_template,
+        llm=llm,
+        choices={"complete": 1.0, "incomplete": 0.0},
     )
-```
+    ```
 
-This produces evaluation results for each span in the dataset.
+    At this point, we’ve defined how Phoenix should evaluate correctness, but we haven’t run it yet.
+  </Step>
 
-## **Step 4: Log Evaluation Results to Phoenix**
+  <Step title={<span className="step-title">Run the Evaluation</span>}>
+    Next, we’ll pull our trace data from Phoenix and run the evaluator on it.
 
-Finally, we’ll log the evaluation results back to Phoenix so they show up alongside our traces in the UI. This is what makes evaluations useful beyond a single run. Instead of living only in code, results become part of the same view you already use to understand behavior.
+    First, fetch the spans we want to evaluate:
 
-```python
-from phoenix.evals.utils import to_annotation_dataframe
+    ```python
+    from phoenix.client import Client
 
-evaluations = to_annotation_dataframe(
-    dataframe=results_df
-)
+    px_client = Client()
+    df = px_client.spans.get_spans_dataframe(project_name="crewai-tracing-quickstart")
+    parent_spans = df[df["span_kind"] == "CHAIN"]
+    ```
 
-Client().spans.log_span_annotations_dataframe(
-    dataframe=evaluations
-)
-```
+    Then run the evaluator over that data. We are adding in `suppress_tracing()` since auto-instrumentation enabled and we do not want to trace each of these OpenAI evaluation calls in our project.
 
-Once this completes, head back to Phoenix.
+    ```python
+    from phoenix.evals import async_evaluate_dataframe
+    from phoenix.trace import suppress_tracing
 
-You’ll now see evaluation results attached to your trace data in the annotations column, making it easy to understand which runs passed, which failed, and how quality varies across executions.
+    with suppress_tracing():
+        results_df = await async_evaluate_dataframe(
+            dataframe=parent_spans,
+            evaluators=[completeness_evaluator],
+            concurrency=10,
+        )
+    ```
 
-<Frame caption="Tracing Project with Evaluation Annotations">
-  <video
-    controls
-    className="w-full aspect-video rounded-xl"
-    src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/completeness%20evals%20quickstart.mp4"
-  />
-</Frame>
+    This produces evaluation results for each span in the dataset.
+  </Step>
 
-**Congratulations**! You’ve run your first evaluation in Phoenix.
+  <Step title={<span className="step-title">Log Evaluation Results to Phoenix</span>}>
+    Finally, we’ll log the evaluation results back to Phoenix so they show up alongside our traces in the UI. This is what makes evaluations useful beyond a single run. Instead of living only in code, results become part of the same view you already use to understand behavior.
+
+    ```python
+    from phoenix.evals.utils import to_annotation_dataframe
+
+    evaluations = to_annotation_dataframe(
+        dataframe=results_df
+    )
+
+    Client().spans.log_span_annotations_dataframe(
+        dataframe=evaluations
+    )
+    ```
+
+    Once this completes, head back to Phoenix.
+
+    You’ll now see evaluation results attached to your trace data in the annotations column, making it easy to understand which runs passed, which failed, and how quality varies across executions.
+
+    <Frame caption="Tracing Project with Evaluation Annotations">
+      <video
+        controls
+        className="w-full aspect-video rounded-xl"
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/completeness%20evals%20quickstart.mp4"
+      />
+    </Frame>
+
+    **Congratulations**! You’ve run your first evaluation in Phoenix.
+  </Step>
+</Steps>
 
 ## **Learn More About Evals**
 

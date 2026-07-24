@@ -3,6 +3,9 @@ title: "Export Data & Query Spans"
 description: Various options for to help you get data out of Phoenix
 ---
 
+import ConnectToPhoenixPython from "../../../../snippets/connect-to-phoenix-python.mdx";
+
+
 ## Options for Exporting Data from Phoenix
 
 | Method                                                                                                                                                                | Description                                       | Helpful for                                                                                                                                    |
@@ -12,16 +15,7 @@ description: Various options for to help you get data out of Phoenix
 
 ## Connect to Phoenix
 
-Before using any of the methods below, instantiate a `Client`. You'll need to set the following environment variables:
-
-```python
-import os
-
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-```
-
-If you're self-hosting Phoenix, ignore the client headers and change the collector endpoint to your endpoint.
+<ConnectToPhoenixPython />
 
 ```python
 from phoenix.client import Client

@@ -3,13 +3,16 @@ title: "Dify Tracing"
 description: Configure your Dify application to view traces in Phoenix
 ---
 
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+import PhoenixAuthNote from "../../../../snippets/phoenix-auth-note.mdx";
+
 ## Launch Phoenix
 
-The fastest way to get started with Phoenix is by signing up for a [free Phoenix Cloud account](https://app.arize.com/auth/phoenix/signup). If you prefer, you can also run Phoenix in a [notebook](/docs/phoenix/environments#notebooks), [self-host it](/docs/phoenix/environments#container), or use it directly from your [terminal](/docs/phoenix/environments#terminal).
+<StartPhoenix />
 
-#### Get your API Key and Endpoint
+Dify connects to Phoenix over the network, so it needs the endpoint you just started — and an API key if the instance requires one.
 
-Go to the settings page in your Phoenix instance to find your endpoint and API key.
+<PhoenixAuthNote />
 
 ## Connect Dify and Phoenix
 

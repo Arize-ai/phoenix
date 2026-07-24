@@ -25,8 +25,8 @@ import { BedrockAgentRuntimeInstrumentation } from "@arizeai/openinference-instr
 // Initialize Phoenix tracing
 const tracerProvider = register({
   projectName: "bedrock-agent-app",
-  // If using Phoenix Cloud:
-  // url: "https://app.phoenix.arize.com/s/your-space-name",
+  // If Phoenix is running elsewhere:
+  // url: "https://your-phoenix.example.com",
   // apiKey: process.env.PHOENIX_API_KEY,
   // If using self-hosted Phoenix:
   // url: "http://localhost:6006",

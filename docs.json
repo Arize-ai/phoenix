@@ -458,9 +458,6 @@
                   "docs/phoenix/resources/frequently-asked-questions",
                   "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
                   "docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint",
-                  "docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud",
-                  "docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version",
-                  "docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-use-azure-openai",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance",
@@ -1216,16 +1213,6 @@
         ]
       },
       {
-        "tab": "Phoenix Cloud",
-        "icon": "cloud",
-        "groups": [
-          {
-            "group": "Phoenix Cloud",
-            "pages": ["docs/phoenix/phoenix-cloud"]
-          }
-        ]
-      },
-      {
         "tab": "Cookbooks",
         "icon": "user-chef",
         "groups": [
@@ -1522,7 +1509,6 @@
                 "group": "06.2025",
                 "pages": [
                   "docs/phoenix/release-notes/06-2025/06-25-2025-cost-tracking",
-                  "docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
                   "docs/phoenix/release-notes/06-2025/06-25-2025-amazon-bedrock-support-in-playground",
                   "docs/phoenix/release-notes/06-2025/06-13-2025-session-filtering",
                   "docs/phoenix/release-notes/06-2025/06-13-2025-enhanced-span-creation-and-logging",
@@ -1594,7 +1580,6 @@
                   "docs/phoenix/release-notes/2024/11-18-2024-prompt-playground",
                   "docs/phoenix/release-notes/2024/09-26-2024-authentication-and-rbac",
                   "docs/phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations",
-                  "docs/phoenix/release-notes/2024/07-11-2024-hosted-phoenix-and-llamatrace",
                   "docs/phoenix/release-notes/2024/07-03-2024-datasets-and-experiments",
                   "docs/phoenix/release-notes/2024/07-02-2024-function-call-evaluations"
                 ]
@@ -1650,12 +1635,7 @@
         "title": "GitHub",
         "icon": "github"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Phoenix Cloud",
-      "href": "https://app.phoenix.arize.com/login"
-    }
+    ]
   },
   "footer": {
     "links": [
@@ -1679,6 +1659,30 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
+      "destination": "/docs/phoenix/release-notes"
+    },
+    {
+      "source": "/docs/phoenix/release-notes/2024/07-11-2024-hosted-phoenix-and-llamatrace",
+      "destination": "/docs/phoenix/release-notes"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/docs/phoenix/phoenix-cloud",
+      "destination": "/docs/phoenix/self-hosting"
+    },
     {
       "source": "/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
       "destination": "/docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
@@ -2029,15 +2033,15 @@
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/what-is-llamatrace-vs-phoenix-cloud",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud"
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix"
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/phoenix-cloud-migration-guide-legacy-to-new-version",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version"
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/can-i-add-other-users-to-my-phoenix-instance",
