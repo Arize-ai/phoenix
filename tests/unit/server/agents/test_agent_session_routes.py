@@ -154,6 +154,8 @@ class TestGetAgentSession:
             "user-message",
             "assistant-message",
         ]
+        assert data["messages"][0]["parts"] == [{"type": "text", "text": "Hello"}]
+        assert data["messages"][1]["parts"] == [{"type": "text", "text": "Hi"}]
 
     async def test_gets_unexpired_temporary_session(
         self,
