@@ -989,6 +989,19 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("completes the suggested slash command with Tab", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "/cl" });
+    await writeInput({ stdin, input: "\t" });
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain("❯ /clear█");
+    unmount();
+  });
+
   it("hides completions once the user types a space after the command name", async () => {
     const client: PxiChatClient = { sendMessage: async () => null };
     const { lastFrame, stdin, unmount } = render(

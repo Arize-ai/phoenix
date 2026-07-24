@@ -1117,6 +1117,23 @@ export function PxiApp({
     if (isKeyboardProtocolResponseInput({ input })) {
       return;
     }
+    if (key.tab) {
+      const commandName = getSlashCommandName(draft.value);
+      const suggestion =
+        commandName !== null &&
+        draft.value.length > 1 &&
+        !draft.value.includes(" ")
+          ? matchingCommands(commandName)[0]
+          : undefined;
+      if (suggestion) {
+        const completedCommand = `/${suggestion.name}`;
+        setDraft({
+          value: completedCommand,
+          cursorIndex: completedCommand.length,
+        });
+      }
+      return;
+    }
     if (key.ctrl && input === "a") {
       setDraft((value) => moveDraftCursorToStart({ draft: value }));
       return;
