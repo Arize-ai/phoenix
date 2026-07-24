@@ -141,8 +141,10 @@ function formatPromptPretty(promptVersion: PromptVersion): string {
     lines.push(`│`);
     lines.push(`│  Invocation Parameters:`);
     const params = promptVersion.invocation_parameters;
+    // The union is discriminated by `type`, whose value names the key that
+    // holds the provider-specific parameters.
     const providerParams = Object.entries(params).find(
-      ([key]) => key !== "type"
+      ([key]) => key === params.type
     )?.[1];
     if (providerParams && typeof providerParams === "object") {
       for (const [key, value] of Object.entries(providerParams)) {

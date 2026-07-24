@@ -24,7 +24,10 @@ import { useTheme } from "@phoenix/contexts";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+import {
+  ExperimentMetricsTooltipHeader,
+  parseExperimentDatum,
+} from "./ExperimentMetricsTooltipHeader";
 import {
   experimentMetricsYAxisProps,
   getExperimentXAxisProps,
@@ -41,26 +44,6 @@ import { useExperimentMetricsData } from "./useExperimentMetricsData";
  * settles quickly.
  */
 const CHART_ANIMATION_DURATION_MS = 400;
-
-/**
- * Safely extracts the experiment fields from a recharts tooltip payload datum.
- */
-function parseExperimentDatum(value: unknown): {
-  experimentName?: string;
-  isBaseline?: boolean;
-} {
-  if (typeof value !== "object" || value === null) {
-    return {};
-  }
-  const datum: { experimentName?: string; isBaseline?: boolean } = {};
-  if ("experimentName" in value && typeof value.experimentName === "string") {
-    datum.experimentName = value.experimentName;
-  }
-  if ("isBaseline" in value && typeof value.isBaseline === "boolean") {
-    datum.isBaseline = value.isBaseline;
-  }
-  return datum;
-}
 
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { theme } = useTheme();

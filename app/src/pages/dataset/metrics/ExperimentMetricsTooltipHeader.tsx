@@ -27,3 +27,23 @@ export function ExperimentMetricsTooltipHeader({
     </Flex>
   );
 }
+
+/**
+ * Safely extracts the experiment fields from a recharts tooltip payload datum.
+ */
+export function parseExperimentDatum(value: unknown): {
+  experimentName?: string;
+  isBaseline?: boolean;
+} {
+  if (typeof value !== "object" || value === null) {
+    return {};
+  }
+  const datum: { experimentName?: string; isBaseline?: boolean } = {};
+  if ("experimentName" in value && typeof value.experimentName === "string") {
+    datum.experimentName = value.experimentName;
+  }
+  if ("isBaseline" in value && typeof value.isBaseline === "boolean") {
+    datum.isBaseline = value.isBaseline;
+  }
+  return datum;
+}

@@ -2,29 +2,12 @@ import type { TooltipContentProps } from "recharts";
 
 import { ChartTooltip, ChartTooltipItem } from "@phoenix/components/chart";
 
-import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+import {
+  ExperimentMetricsTooltipHeader,
+  parseExperimentDatum,
+} from "./ExperimentMetricsTooltipHeader";
 
 type ValueFormatter = (value: number | null | undefined) => string;
-
-/**
- * Safely extracts the experiment fields from a recharts tooltip payload datum.
- */
-function parseExperimentDatum(value: unknown): {
-  experimentName?: string;
-  isBaseline?: boolean;
-} {
-  if (typeof value !== "object" || value === null) {
-    return {};
-  }
-  const datum: { experimentName?: string; isBaseline?: boolean } = {};
-  if ("experimentName" in value && typeof value.experimentName === "string") {
-    datum.experimentName = value.experimentName;
-  }
-  if ("isBaseline" in value && typeof value.isBaseline === "boolean") {
-    datum.isBaseline = value.isBaseline;
-  }
-  return datum;
-}
 
 /**
  * Builds the tooltip content for an experiment metric chart: the shared

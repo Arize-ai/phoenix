@@ -78,7 +78,7 @@ export function LDAPLoginForm(props: LDAPLoginFormProps) {
         assignAppRelativeLocation(returnUrl);
         return;
       }
-      navigate(returnUrl);
+      await navigate(returnUrl);
     },
     [navigate, propsOnSubmit, setError]
   );
