@@ -1397,11 +1397,13 @@ const appGlobalStylesCSS = css`
     initial-value: 45deg;
   }
 
-  /* Keep the .theme ancestor for enough specificity to override
-     normalize.css's Firefox button focus ring without using !important. */
-  .theme :focus-visible {
-    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-    outline-offset: var(--focus-ring-offset);
+  /* Keep global focus defaults above Normalize but below unlayered component
+     styles so components can move or suppress their own focus indicators. */
+  @layer phoenix-focus-defaults {
+    .theme :where(:focus-visible) {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
   }
 
   body,

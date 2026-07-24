@@ -1,0 +1,6 @@
+/* Normalize is imported into phoenix-normalize; GlobalStyles.tsx declares focus
+   defaults in phoenix-focus-defaults. Keep this order (and these names) so focus
+   defaults beat Normalize while unlayered component styles can override them. */
+@layer phoenix-normalize, phoenix-focus-defaults;
+
+@import "normalize.css" layer(phoenix-normalize);
