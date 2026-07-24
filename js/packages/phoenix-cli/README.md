@@ -316,6 +316,7 @@ px span list --limit 50                                    # stdout (pretty)
 px span list --span-kind LLM --limit 20                    # only LLM spans
 px span list --status-code ERROR --format raw --no-progress # pipe-friendly error spans
 px span list --name chat_completion --trace-id abc123       # filter by name and trace
+px span list --span-id abc123 def456                        # fetch specific spans by ID
 px span list --parent-id null                               # root spans only
 px span list spans.json --limit 100 --include-annotations   # save to file with annotations
 px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
@@ -331,6 +332,7 @@ px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kind
 | `--status-code <codes...>`  | Filter by status code (`OK`, `ERROR`, `UNSET`)                                                                                   | —        |
 | `--name <names...>`         | Filter by span name(s)                                                                                                           | —        |
 | `--trace-id <ids...>`       | Filter by trace ID(s)                                                                                                            | —        |
+| `--span-id <ids...>`        | Filter by OpenTelemetry span ID(s). Requires Phoenix server >= 19.6.0.                                                           | —        |
 | `--parent-id <id>`          | Filter by parent span ID (use `"null"` for root spans only)                                                                      | —        |
 | `--include-annotations`     | Include span annotations in the output                                                                                           | —        |
 | `--include-notes`           | Include span notes in the output                                                                                                 | —        |

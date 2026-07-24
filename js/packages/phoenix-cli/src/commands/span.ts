@@ -105,6 +105,13 @@ interface SpanListOptions
    */
   traceId?: string[];
   /**
+   * `--span-id <ids...>`: Filter to spans with these OpenTelemetry span IDs.
+   * Requires a Phoenix server >= 19.6.0.
+   *
+   * @example ["4bf92f3577b34da6"]
+   */
+  spanId?: string[];
+  /**
    * `--parent-id <id>`: Filter by parent span ID. The literal string `"null"`
    * selects root spans only.
    *
@@ -131,6 +138,7 @@ async function fetchSpansForProject(
     startTime?: string;
     endTime?: string;
     traceIds?: string[];
+    spanIds?: string[];
     parentId?: string;
     names?: string[];
     spanKinds?: string[];
@@ -157,6 +165,7 @@ async function fetchSpansForProject(
             start_time: options.startTime,
             end_time: options.endTime,
             trace_id: options.traceIds,
+            span_id: options.spanIds,
             parent_id: options.parentId,
             name: options.names,
             span_kind: options.spanKinds,
@@ -257,6 +266,7 @@ async function spanListHandler(
         startTime,
         limit,
         traceIds: options.traceId,
+        spanIds: options.spanId,
         parentId: options.parentId,
         names: options.name,
         spanKinds: options.spanKind,
@@ -420,6 +430,10 @@ export function createSpanListCommand(): Command {
     )
     .option("--name <names...>", "Filter by span name(s)")
     .option("--trace-id <ids...>", "Filter by trace ID(s)")
+    .option(
+      "--span-id <ids...>",
+      "Filter by OpenTelemetry span ID(s). Requires Phoenix server >= 19.6.0."
+    )
     .option(
       "--parent-id <id>",
       'Filter by parent span ID (use "null" for root spans only)'

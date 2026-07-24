@@ -80,6 +80,8 @@ describe("span list", () => {
         "ERROR",
         "--trace-id",
         TRACE_ID,
+        "--span-id",
+        "aaaa000000000001",
         "--parent-id",
         "null",
         ...PROJECT_ARGS,
@@ -93,6 +95,7 @@ describe("span list", () => {
     expect(capturedQuery?.get("limit")).toBe("50");
     expect(capturedQuery?.getAll("status_code")).toEqual(["ERROR"]);
     expect(capturedQuery?.getAll("trace_id")).toEqual([TRACE_ID]);
+    expect(capturedQuery?.getAll("span_id")).toEqual(["aaaa000000000001"]);
     expect(capturedQuery?.get("parent_id")).toBe("null");
 
     const output = io.stdout.mock.calls[0]?.[0];

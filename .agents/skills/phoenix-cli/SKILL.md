@@ -264,6 +264,7 @@ px span list --span-kind LLM --limit 10                    # only LLM spans
 px span list --status-code ERROR --limit 20                # only errored spans
 px span list --name chat_completion --limit 10             # filter by span name
 px span list --trace-id <id> --format raw --no-progress | jq .   # all spans for a trace
+px span list --span-id <id> <id> --format raw --no-progress | jq .  # fetch specific spans by ID (server >= 19.6.0)
 px span list --parent-id null --limit 10                   # only root spans
 px span list --parent-id <span-id> --limit 10              # only children of a span
 px span list --include-annotations --limit 10              # include annotation scores
