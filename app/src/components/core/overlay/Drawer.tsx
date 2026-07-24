@@ -31,6 +31,7 @@ function resolveToPixels(value: SizeValue): number {
 
 const RESIZE_HANDLE_WIDTH_PX = 4;
 const KEYBOARD_RESIZE_STEP_PERCENT = 5;
+const normalizeSize = (value: number) => Number(value.toFixed(3));
 
 const drawerSlideIn = keyframes`
   from {
@@ -107,10 +108,10 @@ export type DrawerProps = {
   maxSize?: SizeValue;
   /**
    * Fires on every rAF-throttled drag update and on drag end with the
-   * current width as a viewport percentage (e.g. 50 for 50%). Pair with
-   * the `useDefaultDrawerSize` hook to persist size between visits.
+   * current width as a viewport percentage and in pixels. Pair with the
+   * `useDefaultDrawerSize` hook to persist size between visits.
    */
-  onResize?: (sizePercent: number) => void;
+  onResize?: (sizePercent: number, sizePixels: number) => void;
   children?: ReactNode;
   ref?: Ref<HTMLDivElement>;
 };
@@ -153,6 +154,8 @@ export function Drawer({
   const drawerId = useId();
   const resolvedMinSize = minSize ?? DRAWER_DEFAULT_MIN_SIZE;
   const resolvedMaxSize = maxSize ?? DRAWER_DEFAULT_MAX_SIZE;
+  const initialSize = defaultSize ?? DRAWER_DEFAULT_SIZE;
+  const isPixelBased = typeof initialSize === "number";
 
   /** Resolve min to pixels, enforcing the hard pixel floor. */
   const resolveMin = () =>
@@ -170,11 +173,15 @@ export function Drawer({
     const vw = window.innerWidth;
     const minPct = (resolveMin() / vw) * 100;
     const maxPct = (resolveMax() / vw) * 100;
-    return Math.min(Math.max(pct, minPct), maxPct);
+    return normalizeSize(Math.min(Math.max(pct, minPct), maxPct));
   };
 
-  const [sizePercent, setSizePercent] = useState<number>(() => {
-    const initialPx = resolveToPixels(defaultSize ?? DRAWER_DEFAULT_SIZE);
+  const clampPixels = (pixels: number) =>
+    normalizeSize(Math.min(Math.max(pixels, resolveMin()), resolveMax()));
+
+  const [size, setSize] = useState<number>(() => {
+    if (isPixelBased) return initialSize;
+    const initialPx = resolveToPixels(initialSize);
     return clampPercent((initialPx / window.innerWidth) * 100);
   });
   const [isDragging, setIsDragging] = useState(false);
@@ -186,23 +193,34 @@ export function Drawer({
   // its drag path off the render loop.
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
-  const startPercentRef = useRef(0);
-  const pendingPercentRef = useRef<number | null>(null);
+  const startSizeRef = useRef(0);
+  const pendingSizeRef = useRef<number | null>(null);
   const rafIdRef = useRef<number | null>(null);
+
+  const getSizePixels = (value: number) =>
+    isPixelBased
+      ? clampPixels(value)
+      : normalizeSize((clampPercent(value) / 100) * window.innerWidth);
+  const getSizePercent = (value: number) =>
+    normalizeSize((getSizePixels(value) / window.innerWidth) * 100);
+
+  const commitResize = (nextSize: number) => {
+    setSize(nextSize);
+    onResize?.(getSizePercent(nextSize), getSizePixels(nextSize));
+  };
 
   const flushPendingSize = () => {
     rafIdRef.current = null;
-    if (pendingPercentRef.current == null) return;
-    const next = pendingPercentRef.current;
-    pendingPercentRef.current = null;
-    setSizePercent(next);
-    onResize?.(next);
+    if (pendingSizeRef.current == null) return;
+    const nextSize = pendingSizeRef.current;
+    pendingSizeRef.current = null;
+    commitResize(nextSize);
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
     startXRef.current = event.clientX;
-    startPercentRef.current = sizePercent;
+    startSizeRef.current = isPixelBased ? getSizePixels(size) : size;
     isDraggingRef.current = true;
     setIsDragging(true);
     event.preventDefault();
@@ -211,13 +229,14 @@ export function Drawer({
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current) return;
     // Drawer is pinned to the right edge — dragging left (negative delta)
-    // increases width; dragging right decreases it. Work entirely in
-    // viewport percentages to avoid unnecessary pixel round-tripping.
-    const deltaPct =
-      ((event.clientX - startXRef.current) / window.innerWidth) * 100;
-    pendingPercentRef.current = clampPercent(
-      startPercentRef.current - deltaPct
-    );
+    // increases width; dragging right decreases it. Preserve the unit of the
+    // initial size so factory pixel widths do not become viewport-relative.
+    const deltaPixels = event.clientX - startXRef.current;
+    pendingSizeRef.current = isPixelBased
+      ? clampPixels(startSizeRef.current - deltaPixels)
+      : clampPercent(
+          startSizeRef.current - (deltaPixels / window.innerWidth) * 100
+        );
     if (rafIdRef.current == null) {
       rafIdRef.current = requestAnimationFrame(flushPendingSize);
     }
@@ -234,12 +253,10 @@ export function Drawer({
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
     }
-    let finalPercent = sizePercent;
-    if (pendingPercentRef.current != null) {
-      finalPercent = pendingPercentRef.current;
-      pendingPercentRef.current = null;
-      setSizePercent(finalPercent);
-      onResize?.(finalPercent);
+    if (pendingSizeRef.current != null) {
+      const finalSize = pendingSizeRef.current;
+      pendingSizeRef.current = null;
+      commitResize(finalSize);
     }
 
     setIsDragging(false);
@@ -248,29 +265,37 @@ export function Drawer({
     }
   };
 
-  const commitSize = (nextPercent: number) => {
-    const next = clampPercent(nextPercent);
-    setSizePercent(next);
-    onResize?.(next);
+  const commitSize = (nextPixels: number) => {
+    const clampedPixels = clampPixels(nextPixels);
+    const nextSize = isPixelBased
+      ? clampedPixels
+      : normalizeSize((clampedPixels / window.innerWidth) * 100);
+    commitResize(nextSize);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     switch (event.key) {
       case "ArrowLeft":
         event.preventDefault();
-        commitSize(sizePercent + KEYBOARD_RESIZE_STEP_PERCENT);
+        commitSize(
+          getSizePixels(size) +
+            (KEYBOARD_RESIZE_STEP_PERCENT / 100) * window.innerWidth
+        );
         break;
       case "ArrowRight":
         event.preventDefault();
-        commitSize(sizePercent - KEYBOARD_RESIZE_STEP_PERCENT);
+        commitSize(
+          getSizePixels(size) -
+            (KEYBOARD_RESIZE_STEP_PERCENT / 100) * window.innerWidth
+        );
         break;
       case "Home":
         event.preventDefault();
-        commitSize((resolveMin() / window.innerWidth) * 100);
+        commitSize(resolveMin());
         break;
       case "End":
         event.preventDefault();
-        commitSize((resolveMax() / window.innerWidth) * 100);
+        commitSize(resolveMax());
         break;
     }
   };
@@ -283,10 +308,15 @@ export function Drawer({
 
   const minPx = resolveMin();
   const maxPx = resolveMax();
+  const sizePercent = getSizePercent(size);
 
   const style = {
-    width: `${sizePercent}vw`,
+    width: isPixelBased ? `${size}px` : `${size}vw`,
     minWidth: `${minPx}px`,
+    maxWidth:
+      typeof resolvedMaxSize === "number"
+        ? `${resolvedMaxSize}px`
+        : `${parseFloat(resolvedMaxSize)}vw`,
   } as CSSProperties;
 
   // Provide OverlayTriggerStateContext so react-aria's Dialog render prop

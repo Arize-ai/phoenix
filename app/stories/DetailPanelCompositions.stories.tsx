@@ -35,6 +35,10 @@ import {
 } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { ISpanItem } from "@phoenix/components/trace/types";
+import {
+  SPAN_DETAILS_MIN_WIDTH_PIXELS,
+  TRACE_TREE_DEFAULT_WIDTH_PIXELS,
+} from "@phoenix/constants";
 import type { SpanHeaderData } from "@phoenix/pages/SpanHeader";
 import { SpanHeaderContent } from "@phoenix/pages/SpanHeader";
 import { AnnotationsEmpty } from "@phoenix/pages/trace/AnnotationsEmpty";
@@ -668,14 +672,21 @@ function TracePanelComposition({
         costSummary={TRACE_COST_SUMMARY}
       />
       <Group orientation="horizontal" css={compositionBodyCSS}>
-        <Panel id={`trace-tree-${selectedSpan}`} defaultSize="30%" minSize="5%">
+        <Panel
+          id={`trace-tree-${selectedSpan}`}
+          defaultSize={TRACE_TREE_DEFAULT_WIDTH_PIXELS}
+          groupResizeBehavior="preserve-pixel-size"
+        >
           <TraceTreeFixture
             selectedSpanNodeId={selectedSpanNodeId}
             onSpanClick={(span) => setActiveSpan(getSelectedSpan(span.id))}
           />
         </Panel>
         <Separator css={compactResizeHandleCSS} />
-        <Panel id={`span-details-${selectedSpan}`}>
+        <Panel
+          id={`span-details-${selectedSpan}`}
+          minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
+        >
           <SpanDetailsFixture header={header} details={details} />
         </Panel>
       </Group>

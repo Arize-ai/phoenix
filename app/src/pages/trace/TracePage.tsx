@@ -23,6 +23,11 @@ import {
 import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
+import {
+  SPAN_DETAILS_FACTORY_WIDTH_PIXELS,
+  TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS,
+  TRACE_TREE_DEFAULT_WIDTH_PIXELS,
+} from "@phoenix/constants";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
@@ -44,7 +49,12 @@ export function TracePage() {
     params.delete(SELECTED_SPAN_NODE_ID_PARAM);
   });
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
-    id: "trace-details",
+    id: "trace-details-pixel-width",
+    defaultSize:
+      TRACE_TREE_DEFAULT_WIDTH_PIXELS +
+      TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS +
+      SPAN_DETAILS_FACTORY_WIDTH_PIXELS,
+    persistenceUnit: "pixels",
   });
 
   // if we are focused on a particular span, use that as the subjectId

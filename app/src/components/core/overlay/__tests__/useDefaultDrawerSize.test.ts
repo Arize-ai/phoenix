@@ -14,13 +14,19 @@ const PERSIST_DEBOUNCE_MS = 250;
 function TestComponent({
   storage,
   onRender,
+  defaultSize,
+  persistenceUnit,
 }: {
   storage: Storage;
   onRender: (result: ReturnType<typeof useDefaultDrawerSize>) => void;
+  defaultSize?: number;
+  persistenceUnit?: "percentage" | "pixels";
 }) {
   const result = useDefaultDrawerSize({
     id: "trace-details",
     storage,
+    defaultSize,
+    persistenceUnit,
   });
   onRender(result);
   return null;
@@ -89,5 +95,56 @@ describe("useDefaultDrawerSize", () => {
     );
 
     expect(storage.getItem(DRAWER_STORAGE_KEY)).toBe("60");
+  });
+
+  it("uses and persists pixel widths for content-derived drawers", async () => {
+    const storage = window.localStorage;
+    storage.clear();
+    const onRender = vi.fn();
+
+    act(() => {
+      root.render(
+        createElement(TestComponent, {
+          storage,
+          onRender,
+          defaultSize: 1329,
+          persistenceUnit: "pixels",
+        })
+      );
+    });
+
+    const result = onRender.mock.calls.at(-1)![0] as ReturnType<
+      typeof useDefaultDrawerSize
+    >;
+    expect(result.defaultSize).toBe(1329);
+
+    result.onSizeChange(75, 1500);
+    await new Promise((resolve) =>
+      setTimeout(resolve, PERSIST_DEBOUNCE_MS + 50)
+    );
+    expect(storage.getItem(DRAWER_STORAGE_KEY)).toBe("1500");
+  });
+
+  it("restores a persisted pixel width", () => {
+    const storage = window.localStorage;
+    storage.clear();
+    storage.setItem(DRAWER_STORAGE_KEY, "1500");
+    const onRender = vi.fn();
+
+    act(() => {
+      root.render(
+        createElement(TestComponent, {
+          storage,
+          onRender,
+          defaultSize: 1329,
+          persistenceUnit: "pixels",
+        })
+      );
+    });
+
+    expect(onRender.mock.calls.at(-1)![0]).toEqual({
+      defaultSize: 1500,
+      onSizeChange: expect.any(Function),
+    });
   });
 });

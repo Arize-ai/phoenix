@@ -14,6 +14,14 @@ export interface UseDefaultDrawerSizeOptions {
    */
   id: string;
   /**
+   * Factory size used when no user preference has been stored. Numeric values
+   * remain pixel based so the drawer can grow toward a content-derived target
+   * as viewport space becomes available without growing beyond it.
+   */
+  defaultSize?: SizeValue;
+  /** Unit used to store explicit user resize preferences. */
+  persistenceUnit?: "percentage" | "pixels";
+  /**
    * Storage backend. Defaults to `localStorage`. Pass `sessionStorage` for
    * per-tab persistence, or any object implementing the Web Storage interface
    * (e.g. a test fake) to redirect writes.
@@ -23,16 +31,16 @@ export interface UseDefaultDrawerSizeOptions {
 
 export interface UseDefaultDrawerSizeResult {
   /**
-   * The previously persisted size as a viewport percentage string (e.g.
-   * `"50%"`), or `undefined` if nothing has been stored yet under this `id`.
-   * Pass into `<Drawer defaultSize={...} />`.
+   * The previously persisted size in the configured unit, the factory
+   * default, or `undefined` if neither exists. Pass into
+   * `<Drawer defaultSize={...} />`.
    */
   defaultSize: SizeValue | undefined;
   /**
    * Call to persist a new size. Wire into `<Drawer onResize={...} />` so
    * every drag commit gets saved.
    */
-  onSizeChange: (sizePercent: number) => void;
+  onSizeChange: (sizePercent: number, sizePixels?: number) => void;
 }
 
 const resolveStorage = (override?: Storage): Storage | null => {
@@ -46,9 +54,9 @@ const resolveStorage = (override?: Storage): Storage | null => {
 };
 
 /**
- * Persist a `<Drawer>`'s size between visits. The value is stored as a
- * viewport percentage (e.g. `50` for 50%) and returned as a
- * {@link SizeValue} string (e.g. `"50%"`).
+ * Persist a `<Drawer>`'s size between visits. Percentage persistence remains
+ * the default; pixel persistence is available for drawers whose factory size
+ * is derived from the preferred widths of their inner columns.
  *
  * ```tsx
  * const { defaultSize, onSizeChange } = useDefaultDrawerSize({
@@ -67,6 +75,8 @@ const resolveStorage = (override?: Storage): Storage | null => {
  */
 export function useDefaultDrawerSize({
   id,
+  defaultSize: factoryDefaultSize,
+  persistenceUnit = "percentage",
   storage,
 }: UseDefaultDrawerSizeOptions): UseDefaultDrawerSizeResult {
   const key = `${STORAGE_KEY_PREFIX}-${id}-size`;
@@ -76,24 +86,30 @@ export function useDefaultDrawerSize({
   // treat it as the `defaultSize` for the drawer. Subsequent storage reads
   // are not needed because Drawer drives size from its own state once mounted.
   const [defaultSize] = useState<SizeValue | undefined>(() => {
-    if (!resolvedStorage) return undefined;
+    if (!resolvedStorage) return factoryDefaultSize;
     try {
       const raw = resolvedStorage.getItem(key);
-      if (!raw) return undefined;
+      if (!raw) return factoryDefaultSize;
       const parsed = Number(raw);
-      // Valid percentages are in (0, 100]. Values outside this range are
-      // invalid — return undefined so the drawer falls back to its default.
-      if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 100)
-        return undefined;
-      return `${parsed}%`;
+      const isValidPercentage = parsed > 0 && parsed <= 100;
+      const isValidPixelSize = parsed > 0;
+      if (
+        !Number.isFinite(parsed) ||
+        (persistenceUnit === "percentage"
+          ? !isValidPercentage
+          : !isValidPixelSize)
+      ) {
+        return factoryDefaultSize;
+      }
+      return persistenceUnit === "percentage" ? `${parsed}%` : parsed;
     } catch {
-      return undefined;
+      return factoryDefaultSize;
     }
   });
 
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const onSizeChange = (sizePercent: number) => {
+  const onSizeChange = (sizePercent: number, sizePixels?: number) => {
     if (!resolvedStorage) return;
     if (pendingTimerRef.current != null) {
       clearTimeout(pendingTimerRef.current);
@@ -101,7 +117,11 @@ export function useDefaultDrawerSize({
     pendingTimerRef.current = setTimeout(() => {
       pendingTimerRef.current = null;
       try {
-        resolvedStorage.setItem(key, String(sizePercent));
+        const size =
+          persistenceUnit === "percentage"
+            ? sizePercent
+            : (sizePixels ?? (sizePercent / 100) * window.innerWidth);
+        resolvedStorage.setItem(key, String(size));
       } catch {
         // Quota exceeded, private mode, etc. — degrade silently.
       }

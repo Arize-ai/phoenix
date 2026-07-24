@@ -1,14 +1,14 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useRef } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import {
-  Group,
-  Panel,
-  Separator,
-  useDefaultLayout,
+import type {
+  Layout,
+  LayoutChangedMeta,
+  PanelImperativeHandle,
 } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -30,7 +30,12 @@ import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
+import {
+  SPAN_DETAILS_MIN_WIDTH_PIXELS,
+  TRACE_TREE_DEFAULT_WIDTH_PIXELS,
+} from "@phoenix/constants";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { usePersistedState } from "@phoenix/hooks";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
@@ -43,6 +48,8 @@ import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
 import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
 import { TraceHeaderTraceAnnotations } from "./TraceHeaderTraceAnnotations";
+
+const TRACE_TREE_WIDTH_STORAGE_KEY = "arize-phoenix-trace-tree-width";
 
 type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -121,10 +128,31 @@ export function TraceDetails(props: TraceDetailsProps) {
   const rootSpan = rootSpans[0];
   const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
 
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "trace-details-layout",
-    storage: localStorage,
-  });
+  const treePanelRef = useRef<PanelImperativeHandle>(null);
+  const [storedTreeWidth, setStoredTreeWidth] = usePersistedState(
+    TRACE_TREE_WIDTH_STORAGE_KEY,
+    TRACE_TREE_DEFAULT_WIDTH_PIXELS
+  );
+  const preferredTreeWidth =
+    Number.isFinite(storedTreeWidth) && storedTreeWidth >= 0
+      ? storedTreeWidth
+      : TRACE_TREE_DEFAULT_WIDTH_PIXELS;
+  const handleLayoutChanged = (
+    _layout: Layout,
+    { isUserInteraction }: LayoutChangedMeta
+  ) => {
+    const treePanel = treePanelRef.current;
+    if (!treePanel) return;
+
+    if (isUserInteraction) {
+      setStoredTreeWidth(treePanel.getSize().inPixels);
+    } else {
+      // Outer drawer and viewport resizes may temporarily force the tree below
+      // its preferred width to preserve the span detail panel's minimum. Ask
+      // for the preference again whenever space changes so it is reclaimed.
+      treePanel.resize(preferredTreeWidth);
+    }
+  };
 
   return (
     <main
@@ -145,14 +173,18 @@ export function TraceDetails(props: TraceDetailsProps) {
       />
       <Group
         orientation="horizontal"
-        defaultLayout={defaultLayout}
-        onLayoutChanged={onLayoutChanged}
+        onLayoutChanged={handleLayoutChanged}
         css={css`
           flex: 1 1 auto;
           overflow: hidden;
         `}
       >
-        <Panel id="trace-tree" defaultSize="30%" minSize="5%">
+        <Panel
+          id="trace-tree"
+          panelRef={treePanelRef}
+          defaultSize={preferredTreeWidth}
+          groupResizeBehavior="preserve-pixel-size"
+        >
           <TraceTreeProvider>
             <ScrollingPanelContent>
               <TraceTreeToolbar />
@@ -173,7 +205,7 @@ export function TraceDetails(props: TraceDetailsProps) {
           </TraceTreeProvider>
         </Panel>
         <Separator css={compactResizeHandleCSS} />
-        <Panel id="span-details">
+        <Panel id="span-details" minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}>
           <SpanDetailsWrapper>
             {selectedSpanNodeId ? (
               <Suspense fallback={<Loading />}>
