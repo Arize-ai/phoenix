@@ -67,7 +67,6 @@ Phoenix runs practically anywhere, including your local machine, a containerized
 - [Deploy](#deploy)
 - [Packages](#packages)
 - [Tracing Integrations](#tracing-integrations)
-- [Eval Library Integrations](#eval-library-integrations)
 - [Sandboxes](#sandboxes)
 - [For Humans and Coding Agents](#for-humans-and-coding-agents)
 - [Security & Privacy](#security--privacy)
@@ -101,7 +100,7 @@ Setup detects your framework and LLM provider, installs the right [OpenInference
 
 ## Deploy
 
-Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
+Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes via the [Helm chart](https://github.com/Arize-ai/phoenix/tree/main/helm).
 
 For Docker Compose, Kubernetes/Helm, and other deployment options, see the [self-hosting documentation](https://arize.com/docs/phoenix/self-hosting).
 
@@ -232,18 +231,6 @@ Normalize and convert data across other instrumentation libraries by adding span
 |                                                                                                  | [Prompt Flow](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow)                         | Microsoft's prompt flow orchestration tool                     | [Integration Guide](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow)                            |
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/nvidia-color.png" height="14"> | [NVIDIA NeMo](https://arize.com/docs/phoenix/integrations/python/nvidia)                                 | NVIDIA NeMo Agent Toolkit for enterprise agents                | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/nvidia)                                    |
 |                                                                                                  | [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite)                                  | Multi-agent LLM workflow framework with visual builder         | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/graphite)                                  |
-
-## Eval Library Integrations
-
-Use external evaluation libraries alongside Phoenix's evaluation results (`arize-phoenix-evals`).
-
-| Integration                                                                        | Description                                                                        | Docs                                                                                |
-| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas)   | RAG evaluation library with metrics like goal accuracy and tool call accuracy       | [Integration Guide](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas)   |
-| [Cleanlab](https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab) | Model quality diagnostics for LLM-generated responses                          | [Integration Guide](https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab) |
-| [MLflow](https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow) | Run Phoenix evaluators as MLflow scorers in `mlflow.genai.evaluate()` pipelines     | [Integration Guide](https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow)   |
-| [UQLM](https://arize.com/docs/phoenix/integrations/evaluation-integrations/uqlm)     | Model-agnostic confidence scoring and hallucination risk detection                 | [Integration Guide](https://arize.com/docs/phoenix/integrations/evaluation-integrations/uqlm)     |
-| [Pydantic Evals](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-evals) | Structured evaluation framework built on Pydantic                          | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-evals) |
 
 ## Sandboxes
 
