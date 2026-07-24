@@ -70,10 +70,8 @@ export type SessionAnnotationsEditorProps = {
 };
 
 /**
- * The editor's header bar. Its height is derived from the same tokens as a
- * session view tab (line height + vertical padding) so the bottom border lines
- * up with the tab bar in the sibling panel, regardless of the taller button it
- * contains.
+ * The editor's header bar, pinned to the top of the full-height annotations
+ * panel.
  */
 const annotateSessionHeaderCSS = css`
   box-sizing: border-box;
@@ -83,10 +81,7 @@ const annotateSessionHeaderCSS = css`
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: calc(
-    var(--global-line-height-s) + 2 * var(--global-dimension-size-100)
-  );
-  padding: 0 var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100);
   border-bottom: 1px solid var(--global-border-color-default);
 `;
 
