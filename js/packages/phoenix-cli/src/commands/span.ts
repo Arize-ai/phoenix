@@ -77,6 +77,13 @@ interface SpanListOptions
    */
   since?: string;
   /**
+   * `--until <timestamp>`: Only fetch spans started before this ISO 8601
+   * timestamp (exclusive). Combine with `since` to select a time range.
+   *
+   * @example "2026-07-14T00:00:00Z"
+   */
+  until?: string;
+  /**
    * `--span-kind <kinds...>`: Filter by OpenInference span kind — `LLM`,
    * `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`,
    * `GUARDRAIL`, `EVALUATOR`, or `UNKNOWN`.
@@ -264,6 +271,7 @@ async function spanListHandler(
       projectId,
       {
         startTime,
+        endTime: options.until,
         limit,
         traceIds: options.traceId,
         spanIds: options.spanId,
@@ -420,6 +428,10 @@ export function createSpanListCommand(): Command {
       parseInt
     )
     .option("--since <timestamp>", "Fetch spans since this ISO timestamp")
+    .option(
+      "--until <timestamp>",
+      "Fetch spans started before this ISO timestamp (exclusive)"
+    )
     .option(
       "--span-kind <kinds...>",
       "Filter by span kind (LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN)"

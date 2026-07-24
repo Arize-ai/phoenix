@@ -260,6 +260,7 @@ Trace
 px span list --limit 20                                    # recent spans (table view)
 px span list --last-n-minutes 60 --limit 50                # spans from last hour
 px span list --since 2025-01-15T00:00:00Z --limit 50       # spans since a timestamp
+px span list --since 2025-01-15T00:00:00Z --until 2025-01-16T00:00:00Z --limit 50  # time range (until is exclusive)
 px span list --span-kind LLM --limit 10                    # only LLM spans
 px span list --status-code ERROR --limit 20                # only errored spans
 px span list --name chat_completion --limit 10             # filter by span name

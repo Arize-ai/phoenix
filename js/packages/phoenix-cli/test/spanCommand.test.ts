@@ -78,6 +78,8 @@ describe("span list", () => {
         "50",
         "--status-code",
         "ERROR",
+        "--until",
+        "2026-07-02T00:00:00Z",
         "--trace-id",
         TRACE_ID,
         "--span-id",
@@ -94,6 +96,7 @@ describe("span list", () => {
     // span list pages at min(limit, 1000), so --limit 50 is sent verbatim
     expect(capturedQuery?.get("limit")).toBe("50");
     expect(capturedQuery?.getAll("status_code")).toEqual(["ERROR"]);
+    expect(capturedQuery?.get("end_time")).toBe("2026-07-02T00:00:00Z");
     expect(capturedQuery?.getAll("trace_id")).toEqual([TRACE_ID]);
     expect(capturedQuery?.getAll("span_id")).toEqual(["aaaa000000000001"]);
     expect(capturedQuery?.get("parent_id")).toBe("null");

@@ -320,6 +320,7 @@ px span list --span-id abc123 def456                        # fetch specific spa
 px span list --parent-id null                               # root spans only
 px span list spans.json --limit 100 --include-annotations   # save to file with annotations
 px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
+px span list --since 2026-07-01T00:00:00Z --until 2026-07-02T00:00:00Z # time range
 ```
 
 | Option                      | Description                                                                                                                      | Default  |
@@ -328,6 +329,7 @@ px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kind
 | `-n, --limit <number>`      | Maximum number of spans (newest first)                                                                                           | `100`    |
 | `--last-n-minutes <number>` | Only spans from the last N minutes                                                                                               | —        |
 | `--since <timestamp>`       | Spans since ISO timestamp                                                                                                        | —        |
+| `--until <timestamp>`       | Spans started before ISO timestamp (exclusive)                                                                                   | —        |
 | `--span-kind <kinds...>`    | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | —        |
 | `--status-code <codes...>`  | Filter by status code (`OK`, `ERROR`, `UNSET`)                                                                                   | —        |
 | `--name <names...>`         | Filter by span name(s)                                                                                                           | —        |
