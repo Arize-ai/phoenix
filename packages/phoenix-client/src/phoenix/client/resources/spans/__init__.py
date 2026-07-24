@@ -30,6 +30,7 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
     GET_SPANS_BY_ATTRIBUTE,
     GET_SPANS_FILTERS,
+    GET_SPANS_SPAN_IDS,
     GET_SPANS_TRACE_IDS,
 )
 from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
@@ -480,6 +481,7 @@ class Spans:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         trace_ids: Optional[Sequence[str]] = None,
+        span_ids: Optional[Sequence[str]] = None,
         parent_id: Optional[str] = None,
         name: Optional[Union[str, Sequence[str]]] = None,
         span_kind: Optional[Union[str, Sequence[str]]] = None,
@@ -499,6 +501,8 @@ class Spans:
                 (exclusive upper bound).
             trace_ids (Optional[Sequence[str]]): Optional list of trace IDs to filter by.
                 Requires Phoenix server >= 13.9.0.
+            span_ids (Optional[Sequence[str]]): Optional list of span IDs to filter by.
+                Requires Phoenix server >= 19.6.0.
             parent_id (Optional[str]): Optional parent span ID to filter by.
                 Use "null" to get root spans only.
             name (Optional[Union[str, Sequence[str]]]): Optional span name(s) to filter by.
@@ -527,6 +531,8 @@ class Spans:
         """
         if trace_ids:
             self._guard.require(GET_SPANS_TRACE_IDS)
+        if span_ids:
+            self._guard.require(GET_SPANS_SPAN_IDS)
         if name or span_kind or status_code:
             self._guard.require(GET_SPANS_FILTERS)
         if attributes:
@@ -549,6 +555,8 @@ class Spans:
                 params["end_time"] = end_time.isoformat()
             if trace_ids:
                 params["trace_id"] = list(trace_ids)
+            if span_ids:
+                params["span_id"] = list(span_ids)
             if parent_id is not None:
                 params["parent_id"] = parent_id
             if name:
@@ -1758,6 +1766,7 @@ class AsyncSpans:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         trace_ids: Optional[Sequence[str]] = None,
+        span_ids: Optional[Sequence[str]] = None,
         parent_id: Optional[str] = None,
         name: Optional[Union[str, Sequence[str]]] = None,
         span_kind: Optional[Union[str, Sequence[str]]] = None,
@@ -1777,6 +1786,8 @@ class AsyncSpans:
                 (exclusive upper bound).
             trace_ids (Optional[Sequence[str]]): Optional list of trace IDs to filter by.
                 Requires Phoenix server >= 13.9.0.
+            span_ids (Optional[Sequence[str]]): Optional list of span IDs to filter by.
+                Requires Phoenix server >= 19.6.0.
             parent_id (Optional[str]): Optional parent span ID to filter by.
                 Use "null" to get root spans only.
             name (Optional[Union[str, Sequence[str]]]): Optional span name(s) to filter by.
@@ -1827,6 +1838,8 @@ class AsyncSpans:
                 params["end_time"] = end_time.isoformat()
             if trace_ids:
                 params["trace_id"] = list(trace_ids)
+            if span_ids:
+                params["span_id"] = list(span_ids)
             if parent_id is not None:
                 params["parent_id"] = parent_id
             if name:

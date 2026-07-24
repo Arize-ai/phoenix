@@ -104,6 +104,8 @@ class TestGetSpansFilters:
             assert "name" not in query_string
             assert "span_kind" not in query_string
             assert "status_code" not in query_string
+            assert "trace_id" not in query_string
+            assert "span_id" not in query_string
             return httpx.Response(
                 200,
                 json={"data": [_make_span()], "next_cursor": None},
@@ -111,6 +113,45 @@ class TestGetSpansFilters:
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1
+
+
+class TestGetSpansIdFilters:
+    def test_single_span_id_filter(self) -> None:
+        transport = _make_handler(expected_params={"span_id": ["span-1"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            span_ids=["span-1"],
+        )
+        assert len(spans) == 1
+
+    def test_multiple_span_id_filter(self) -> None:
+        transport = _make_handler(expected_params={"span_id": ["span-1", "span-2"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            span_ids=["span-1", "span-2"],
+        )
+        assert len(spans) == 1
+
+    def test_trace_id_and_span_id_filters_combined(self) -> None:
+        transport = _make_handler(expected_params={"trace_id": ["trace-1"], "span_id": ["span-1"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            trace_ids=["trace-1"],
+            span_ids=["span-1"],
+        )
+        assert len(spans) == 1
+
+    async def test_span_ids_wired_through_async_client(self) -> None:
+        transport = _make_handler(expected_params={"span_id": ["span-1", "span-2"]})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            span_ids=["span-1", "span-2"],
+        )
         assert len(spans) == 1
 
 

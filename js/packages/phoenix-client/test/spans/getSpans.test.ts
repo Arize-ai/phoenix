@@ -227,6 +227,61 @@ describe("getSpans", () => {
     });
   });
 
+  describe("id filter parameters (traceIds, spanIds)", () => {
+    it("should send trace_id for each trace ID", async () => {
+      const captured = captureGetSpansRequest();
+
+      await getSpans({
+        client: createTestClient(),
+        project: { projectName: "test-project" },
+        traceIds: ["trace-a", "trace-b"],
+      });
+
+      expect(captured.query?.getAll("trace_id")).toEqual([
+        "trace-a",
+        "trace-b",
+      ]);
+    });
+
+    it("should send span_id for each span ID", async () => {
+      const captured = captureGetSpansRequest();
+
+      await getSpans({
+        client: createTestClient(),
+        project: { projectName: "test-project" },
+        spanIds: ["span-a", "span-b"],
+      });
+
+      expect(captured.query?.getAll("span_id")).toEqual(["span-a", "span-b"]);
+    });
+
+    it("should send trace_id and span_id together", async () => {
+      const captured = captureGetSpansRequest();
+
+      await getSpans({
+        client: createTestClient(),
+        project: { projectName: "test-project" },
+        traceIds: ["trace-a"],
+        spanIds: ["span-a"],
+      });
+
+      expect(captured.query?.getAll("trace_id")).toEqual(["trace-a"]);
+      expect(captured.query?.getAll("span_id")).toEqual(["span-a"]);
+    });
+
+    it("should not send trace_id or span_id when undefined", async () => {
+      const captured = captureGetSpansRequest();
+
+      await getSpans({
+        client: createTestClient(),
+        project: { projectName: "test-project" },
+      });
+
+      expect(captured.query?.has("trace_id")).toBe(false);
+      expect(captured.query?.has("span_id")).toBe(false);
+    });
+  });
+
   describe("attributes parameter", () => {
     it("should serialize a single attribute filter", async () => {
       const captured = captureGetSpansRequest();

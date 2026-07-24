@@ -3,6 +3,7 @@ import { createClient } from "../client";
 import {
   GET_SPANS_BY_ATTRIBUTE,
   GET_SPANS_FILTERS,
+  GET_SPANS_SPAN_IDS,
   GET_SPANS_TRACE_IDS,
 } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
@@ -59,6 +60,8 @@ export interface GetSpansParams extends ClientFn {
   limit?: number;
   /** Filter spans by one or more trace IDs */
   traceIds?: string[] | null;
+  /** Filter spans by one or more span IDs */
+  spanIds?: string[] | null;
   /** Filter by parent span ID. Use `null` or the string `"null"` to get root spans only. */
   parentId?: string | null;
   /** Filter by span name(s) */
@@ -96,6 +99,7 @@ export type GetSpansResult = {
  * @returns A paginated response containing spans and optional next cursor
  *
  * @requires Phoenix server >= 13.9.0 when filtering by `traceIds`
+ * @requires Phoenix server >= 19.6.0 when filtering by `spanIds`
  * @requires Phoenix server >= 14.9.0 when filtering by `attributes`
  *
  * @example
@@ -125,6 +129,13 @@ export type GetSpansResult = {
  *   traceIds: ["trace-abc-123", "trace-def-456"],
  * });
  *
+ * // Get specific spans by span ID (requires Phoenix server >= 19.6.0)
+ * const result = await getSpans({
+ *   client,
+ *   project: { projectName: "my-project" },
+ *   spanIds: ["span-abc-123", "span-def-456"],
+ * });
+ *
  * // Paginate through results
  * let cursor: string | undefined;
  * do {
@@ -152,6 +163,7 @@ export async function getSpans({
   startTime,
   endTime,
   traceIds,
+  spanIds,
   parentId,
   name,
   spanKind,
@@ -167,6 +179,9 @@ export async function getSpans({
       : undefined;
   if (traceIds) {
     await ensureServerCapability({ client, requirement: GET_SPANS_TRACE_IDS });
+  }
+  if (spanIds) {
+    await ensureServerCapability({ client, requirement: GET_SPANS_SPAN_IDS });
   }
   if (name != null || spanKind != null || statusCode != null) {
     await ensureServerCapability({ client, requirement: GET_SPANS_FILTERS });
@@ -198,6 +213,10 @@ export async function getSpans({
 
   if (traceIds) {
     params.trace_id = traceIds;
+  }
+
+  if (spanIds) {
+    params.span_id = spanIds;
   }
 
   if (parentId !== undefined) {
