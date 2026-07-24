@@ -15,7 +15,24 @@ const SHOW_COPIED_TIMEOUT_MS = 2000;
 const idBadgeCSS = css`
   all: unset;
   display: inline-flex;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: var(--global-dimension-size-5000);
   cursor: pointer;
+
+  & > .badge {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .icon-wrap {
+    flex: none;
+  }
+  .id-badge__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   &:focus-visible {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
@@ -100,14 +117,24 @@ export const IDBadge = ({
         {variant === "badge" ? (
           <Badge size={size}>
             <Icon svgKey="ID" />
-            <Text fontFamily="mono" size="S" color="text-700">
+            <Text
+              className="id-badge__text"
+              fontFamily="mono"
+              size="S"
+              color="text-700"
+            >
               {id}
             </Text>
             {copyIcon}
           </Badge>
         ) : (
           <>
-            <Text fontFamily="mono" size="S" color="text-500">
+            <Text
+              className="id-badge__text"
+              fontFamily="mono"
+              size="S"
+              color="text-500"
+            >
               {id}
             </Text>
             {copyIcon}
