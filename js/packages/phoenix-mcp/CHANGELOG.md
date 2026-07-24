@@ -1,5 +1,13 @@
 # @arizeai/phoenix-mcp
 
+## 4.2.7
+
+### Patch Changes
+
+- e35712a: Re-release to recover from a failed publish (versions were already on npm)
+- Updated dependencies [e35712a]
+  - @arizeai/phoenix-client@7.1.1
+
 ## 4.2.6
 
 ### Patch Changes
