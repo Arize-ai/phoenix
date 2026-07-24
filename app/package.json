@@ -98,7 +98,7 @@
     "react-relay": "^21.0.1",
     "react-resizable": "^4.0.2",
     "react-resizable-panels": "^4.12.2",
-    "react-router": "^8.2.0",
+    "react-router": "^8.3.0",
     "recharts": "^3.9.2",
     "relay-runtime": "^21.0.1",
     "shade": "^0.1.1",
