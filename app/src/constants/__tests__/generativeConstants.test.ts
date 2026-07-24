@@ -1,3 +1,5 @@
+import { objectKeys } from "@phoenix/typeUtils";
+
 import {
   ModelProviders,
   ProviderToCredentialsConfigMap,
@@ -5,14 +7,10 @@ import {
 
 describe("generativeConstants", () => {
   describe("ProviderToCredentialsMap", () => {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens the ModelProviders record keys to string
-    const providers = Object.keys(ModelProviders) as ModelProvider[];
+    const providers = objectKeys(ModelProviders);
 
     it("should have credentials defined for every provider", () => {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens the record keys to string
-      const credentialProviders = Object.keys(
-        ProviderToCredentialsConfigMap
-      ) as ModelProvider[];
+      const credentialProviders = objectKeys(ProviderToCredentialsConfigMap);
 
       // Check that every provider has credentials defined
       providers.forEach((provider) => {

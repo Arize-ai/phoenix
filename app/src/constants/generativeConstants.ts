@@ -1,3 +1,5 @@
+import { objectEntries } from "@phoenix/typeUtils";
+
 /**
  * A mapping of ModelProvider to a human-readable string
  */
@@ -170,11 +172,7 @@ export const SDK_LABELS: Readonly<Record<GenerativeModelSDK, string>> = {
 export const SDK_OPTIONS: ReadonlyArray<{
   id: GenerativeModelSDK;
   label: string;
-}> =
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries widens Record keys to string
-  (Object.entries(SDK_LABELS) as Array<[GenerativeModelSDK, string]>).map(
-    ([id, label]) => ({ id, label })
-  );
+}> = objectEntries(SDK_LABELS).map(([id, label]) => ({ id, label }));
 
 /**
  * Default provider string values for each SDK type.

@@ -1,6 +1,8 @@
 import type { CSSProperties, HTMLAttributes } from "react";
 import { useLocale } from "react-aria-components";
 
+import { objectKeys } from "@phoenix/typeUtils";
+
 import type {
   BackgroundColorValue,
   BorderColorValue,
@@ -201,10 +203,7 @@ export function convertStyleProps(
     }
   }
 
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens to string[]; keys are exactly keyof borderStyleProps
-  for (const prop of Object.keys(
-    borderStyleProps
-  ) as (keyof typeof borderStyleProps)[]) {
+  for (const prop of objectKeys(borderStyleProps)) {
     if (style[prop]) {
       // @ts-expect-error - allow key access view style props
       style[borderStyleProps[prop]] = "solid";

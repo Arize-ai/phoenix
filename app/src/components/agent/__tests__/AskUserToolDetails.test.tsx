@@ -30,20 +30,17 @@ afterEach(() => {
   container.remove();
 });
 
-function createAskUserPart(
-  overrides: Partial<ToolInvocationPart> = {}
-): ToolInvocationPart {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fixture for the tool-ask_user member of the SDK's discriminated ToolInvocationPart union with Partial overrides
-  return {
-    type: "tool-ask_user",
-    toolCallId: "tool-call-1",
-    state: "input-streaming",
-    input: {},
-    output: undefined,
-    errorText: undefined,
-    ...overrides,
-  } as ToolInvocationPart;
-}
+/**
+ * Base fixture for an ask-user tool part. Spread it into a literal annotated as
+ * `ToolInvocationPart` so overrides are still checked against the
+ * state-discriminated union.
+ */
+const ASK_USER_PART = {
+  type: "tool-ask_user",
+  toolCallId: "tool-call-1",
+  state: "input-streaming",
+  input: {},
+} satisfies ToolInvocationPart;
 
 function renderAskUserToolDetails({
   part,
@@ -72,17 +69,19 @@ function getAnswerRows() {
 
 describe("AskUserToolDetails", () => {
   it("keeps missing questions in a pending state while the tool is streaming", () => {
-    const part = createAskUserPart({
+    const part: ToolInvocationPart = {
+      ...ASK_USER_PART,
       state: "input-streaming",
       input: {},
-    });
+    };
 
     expect(getAskUserToolPreview(part)).toBe("Question pending");
     expect(formatAskUserState(part.state, part)).toBe("Preparing questions");
   });
 
   it("treats a completed ask_user call without output as awaiting a response", () => {
-    const part = createAskUserPart({
+    const part: ToolInvocationPart = {
+      ...ASK_USER_PART,
       state: "output-available",
       input: {
         questions: [
@@ -93,25 +92,30 @@ describe("AskUserToolDetails", () => {
           },
         ],
       },
-    });
+      // The case under test: the part reached output-available but the answers
+      // never arrived, so the output slot is present but empty.
+      output: undefined,
+    };
 
     expect(getAskUserToolPreview(part)).toBe("1 question");
     expect(formatAskUserState(part.state, part)).toBe("Awaiting response");
   });
 
   it("only reports an error for missing questions on the error path", () => {
-    const part = createAskUserPart({
+    const part: ToolInvocationPart = {
+      ...ASK_USER_PART,
       state: "output-error",
       input: {},
       errorText: "Failed to parse questions",
-    });
+    };
 
     expect(getAskUserToolPreview(part)).toBe("");
     expect(formatAskUserState(part.state, part)).toBe("Error");
   });
 
   it("renders in-progress draft answers in the expanded view", () => {
-    const part = createAskUserPart({
+    const part: ToolInvocationPart = {
+      ...ASK_USER_PART,
       state: "input-available",
       input: {
         questions: [
@@ -135,7 +139,7 @@ describe("AskUserToolDetails", () => {
           },
         ],
       },
-    });
+    };
 
     renderAskUserToolDetails({
       part,
@@ -161,7 +165,8 @@ describe("AskUserToolDetails", () => {
   });
 
   it("renders blank custom selections as subdued left blank text", () => {
-    const part = createAskUserPart({
+    const part: ToolInvocationPart = {
+      ...ASK_USER_PART,
       state: "input-available",
       input: {
         questions: [
@@ -175,7 +180,7 @@ describe("AskUserToolDetails", () => {
           },
         ],
       },
-    });
+    };
 
     renderAskUserToolDetails({
       part,
@@ -201,7 +206,8 @@ describe("AskUserToolDetails", () => {
   });
 
   it("distinguishes current and pending unanswered questions in the rendered answers", () => {
-    const part = createAskUserPart({
+    const part: ToolInvocationPart = {
+      ...ASK_USER_PART,
       state: "input-available",
       input: {
         questions: [
@@ -222,7 +228,7 @@ describe("AskUserToolDetails", () => {
           },
         ],
       },
-    });
+    };
 
     renderAskUserToolDetails({
       part,
@@ -241,7 +247,8 @@ describe("AskUserToolDetails", () => {
   });
 
   it("marks unanswered final questions as skipped in the rendered answers", () => {
-    const part = createAskUserPart({
+    const part: ToolInvocationPart = {
+      ...ASK_USER_PART,
       state: "output-available",
       input: {
         questions: [
@@ -259,7 +266,7 @@ describe("AskUserToolDetails", () => {
         answers: {},
         freeformTexts: {},
       },
-    });
+    };
 
     renderAskUserToolDetails({ part });
 

@@ -3,6 +3,7 @@ import {
   createDefaultAgentCapabilities,
   type AgentCapabilities,
 } from "@phoenix/agent/extensions/capabilities";
+import { objectEntries, objectKeys } from "@phoenix/typeUtils";
 
 import {
   createAgentStore,
@@ -733,10 +734,7 @@ describe("agentStore", () => {
     it("updates one capability without clobbering the others", () => {
       const store = createAgentStore();
       const defaultCapabilities = createDefaultAgentCapabilities();
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys of a Record widens to string[]
-      const [capabilityToToggle] = Object.keys(defaultCapabilities) as Array<
-        keyof typeof defaultCapabilities
-      >;
+      const [capabilityToToggle] = objectKeys(defaultCapabilities);
 
       store.getState().setCapability({
         key: capabilityToToggle,
@@ -745,10 +743,9 @@ describe("agentStore", () => {
 
       expect(store.getState().capabilities[capabilityToToggle]).toBe(true);
 
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries of a Record widens keys to string
-      for (const [capabilityKey, enabled] of Object.entries(
+      for (const [capabilityKey, enabled] of objectEntries(
         defaultCapabilities
-      ) as Array<[keyof typeof defaultCapabilities, boolean]>) {
+      )) {
         if (capabilityKey === capabilityToToggle) {
           continue;
         }

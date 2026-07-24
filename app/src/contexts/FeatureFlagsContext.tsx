@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { objectKeys } from "@phoenix/typeUtils";
 
 type FeatureFlag = "agent-experimental-settings";
 
@@ -114,25 +115,20 @@ function FeatureFlagsControls(props: PropsWithChildren) {
                 </DialogTitleExtra>
               </DialogHeader>
               <View padding="size-100">
-                {
-                  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens FeatureFlag record keys to string
-                  (Object.keys(featureFlags) as FeatureFlag[]).map(
-                    (featureFlag) => (
-                      <Switch
-                        key={featureFlag}
-                        isSelected={featureFlags[featureFlag]}
-                        onChange={(isSelected) =>
-                          setFeatureFlags({
-                            ...featureFlags,
-                            [featureFlag]: isSelected,
-                          })
-                        }
-                      >
-                        {featureFlag}
-                      </Switch>
-                    )
-                  )
-                }
+                {objectKeys(featureFlags).map((featureFlag) => (
+                  <Switch
+                    key={featureFlag}
+                    isSelected={featureFlags[featureFlag]}
+                    onChange={(isSelected) =>
+                      setFeatureFlags({
+                        ...featureFlags,
+                        [featureFlag]: isSelected,
+                      })
+                    }
+                  >
+                    {featureFlag}
+                  </Switch>
+                ))}
               </View>
             </DialogContent>
           </Dialog>

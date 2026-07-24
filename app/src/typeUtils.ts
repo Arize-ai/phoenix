@@ -70,6 +70,42 @@ export type Mutable<T> = {
 };
 
 /**
+ * `Object.keys` typed to the object's own key type.
+ *
+ * The built-in signature returns `string[]` because a value may carry extra
+ * properties at runtime beyond those in its declared type. Use this only where
+ * the object is known to be exhaustive — a record literal or a `Record<K, V>`
+ * built over a closed key union — so the narrower type is actually true.
+ */
+export function objectKeys<T extends object>(obj: T): Array<keyof T> {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the single sanctioned home for this widening; see the exhaustiveness caveat above
+  return Object.keys(obj) as Array<keyof T>;
+}
+
+/**
+ * `Object.entries` typed to the object's own key type. Carries the same
+ * exhaustiveness caveat as {@link objectKeys}.
+ */
+export function objectEntries<T extends object>(
+  obj: T
+): Array<[keyof T, T[keyof T]]> {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the single sanctioned home for this widening; see the exhaustiveness caveat above
+  return Object.entries(obj) as Array<[keyof T, T[keyof T]]>;
+}
+
+/**
+ * `Object.fromEntries` that preserves the key and value types of the entries it
+ * is given, rather than widening to `Record<string, V>`. Carries the same
+ * exhaustiveness caveat as {@link objectKeys}.
+ */
+export function objectFromEntries<K extends PropertyKey, V>(
+  entries: Iterable<readonly [K, V]>
+): Record<K, V> {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the single sanctioned home for this widening; see the exhaustiveness caveat above
+  return Object.fromEntries(entries) as Record<K, V>;
+}
+
+/**
  * A zod type utility that ensures that the schema is written to correctly match (at least) what is included in the type.
  * Note it does not guard against extra fields in the schema not present in the type.
  * @example

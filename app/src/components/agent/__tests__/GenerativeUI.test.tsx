@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 function renderGenerativeUI(parts: unknown[]) {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- test fixtures are loose object literals coerced to the GenerativeUI parts union
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- @json-render's DataPart is `{type, text?, data?}`, so the `state`/`input` fields the renderer reads off tool parts cannot be expressed without a cast
   const typedParts = parts as Parameters<typeof GenerativeUI>[0]["parts"];
   act(() => {
     root.render(
@@ -302,7 +302,7 @@ describe("GenerativeUI", () => {
         },
       },
     };
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- test fixture is a loose object literal coerced to the getSpecAndState parts union
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- @json-render's DataPart is `{type, text?, data?}`, so the `state`/`input` fields getSpecAndState reads off tool parts cannot be expressed without a cast
     const parts = [
       {
         type: "tool-render_generative_ui",

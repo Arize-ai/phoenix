@@ -14,6 +14,7 @@ import { Icon } from "@phoenix/components/core/icon/Icon";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { objectKeys } from "@phoenix/typeUtils";
 
 import { hasSnippets, type OnboardingTab } from "./integrationDefinitions";
 import { ONBOARDING_INTEGRATIONS } from "./integrationRegistry";
@@ -63,8 +64,7 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
     preferredProgrammingLanguage
   );
 
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens to string[]; keys are the OnboardingTab config keys
-  const tabs = Object.keys(integration.configs) as OnboardingTab[];
+  const tabs = objectKeys(integration.configs);
   const effectiveTab: OnboardingTab = tabs.includes(selectedTab)
     ? selectedTab
     : tabs[0];
@@ -89,10 +89,7 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
             selectedIntegration={integration}
             onSelectionChange={(nextIntegration) => {
               setIntegration(nextIntegration);
-              // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys widens to string[]; keys are the OnboardingTab config keys
-              const nextTabs = Object.keys(
-                nextIntegration.configs
-              ) as OnboardingTab[];
+              const nextTabs = objectKeys(nextIntegration.configs);
               if (!nextTabs.includes(selectedTab)) {
                 setSelectedTab(nextTabs[0]);
               }

@@ -44,43 +44,38 @@ afterEach(() => {
   container.remove();
 });
 
-function createToolPart(
-  overrides: Partial<ToolInvocationPart> = {}
-): ToolInvocationPart {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fixture factory coerces a loose literal into the state-discriminated tool part union
-  return {
-    type: `tool-${READ_PROMPT_TOOL_NAME}`,
-    toolCallId: "tool-call-1",
-    state: "output-available",
-    input: {},
-    output: "done",
-    errorText: undefined,
-    ...overrides,
-  } as ToolInvocationPart;
-}
+/**
+ * Base fixtures for tool parts. Spread these into an object literal that is
+ * contextually typed as `ToolInvocationPart` (i.e. passed straight to
+ * `renderToolPart` / `getToolPartPreview`) so the resulting shape is still
+ * checked against the state-discriminated union — an override that produces an
+ * impossible combination, such as an `output` on an `input-streaming` part,
+ * fails to compile.
+ */
+const TOOL_PART = {
+  type: `tool-${READ_PROMPT_TOOL_NAME}`,
+  toolCallId: "tool-call-1",
+  state: "output-available",
+  input: {},
+  output: "done",
+} satisfies ToolInvocationPart;
 
-function createAutoOpenToolPart(
-  overrides: Partial<ToolInvocationPart> = {}
-): ToolInvocationPart {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fixture factory coerces a loose literal into the state-discriminated tool part union
-  return {
-    type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
-    toolCallId: "tool-call-edit",
-    state: "input-available",
-    input: {
-      instanceId: 0,
-      expectedRevision: "prompt-1",
-      operations: [
-        {
-          type: "update_message",
-          messageId: 1,
-          content: "Updated prompt",
-        },
-      ],
-    },
-    ...overrides,
-  } as ToolInvocationPart;
-}
+const AUTO_OPEN_TOOL_PART = {
+  type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+  toolCallId: "tool-call-edit",
+  state: "input-available",
+  input: {
+    instanceId: 0,
+    expectedRevision: "prompt-1",
+    operations: [
+      {
+        type: "update_message",
+        messageId: 1,
+        content: "Updated prompt",
+      },
+    ],
+  },
+} satisfies ToolInvocationPart;
 
 function renderToolPart(part: ToolInvocationPart) {
   act(() => {
@@ -101,7 +96,7 @@ function click(element: Element | null) {
 
 describe("tool disclosure controls", () => {
   it("expands and collapses a solo tool part", () => {
-    renderToolPart(createToolPart());
+    renderToolPart({ ...TOOL_PART });
     const details = container.querySelector("details.tool-part");
     const summary = container.querySelector("summary");
 
@@ -116,53 +111,50 @@ describe("tool disclosure controls", () => {
 
   it("previews native web search queries", () => {
     expect(
-      getToolPartPreview(
-        createToolPart({
-          type: "dynamic-tool",
-          toolName: "web_search",
-          input: { query: "phoenix pxi web search" },
-        } as Partial<ToolInvocationPart>)
-      )
+      getToolPartPreview({
+        ...TOOL_PART,
+        type: "dynamic-tool",
+        toolName: "web_search",
+        input: { query: "phoenix pxi web search" },
+      })
     ).toBe("phoenix pxi web search");
 
     expect(
-      getToolPartPreview(
-        createToolPart({
-          type: "dynamic-tool",
-          toolName: "web_search",
-          input: { queries: ["first query", "second query"] },
-        } as Partial<ToolInvocationPart>)
-      )
+      getToolPartPreview({
+        ...TOOL_PART,
+        type: "dynamic-tool",
+        toolName: "web_search",
+        input: { queries: ["first query", "second query"] },
+      })
     ).toBe("first query");
 
     expect(
-      getToolPartPreview(
-        createToolPart({
-          type: "dynamic-tool",
-          toolName: "web_search",
-          input: {
-            type: "open_page",
-            url: "https://ai.google.dev/gemini-api/docs/models",
-          },
-        } as Partial<ToolInvocationPart>)
-      )
+      getToolPartPreview({
+        ...TOOL_PART,
+        type: "dynamic-tool",
+        toolName: "web_search",
+        input: {
+          type: "open_page",
+          url: "https://ai.google.dev/gemini-api/docs/models",
+        },
+      })
     ).toBe("Open Page: https://ai.google.dev/gemini-api/docs/models");
   });
 
   it("previews native web fetch urls", () => {
     expect(
-      getToolPartPreview(
-        createToolPart({
-          type: "dynamic-tool",
-          toolName: "web_fetch",
-          input: { url: "https://example.com/docs" },
-        } as Partial<ToolInvocationPart>)
-      )
+      getToolPartPreview({
+        ...TOOL_PART,
+        type: "dynamic-tool",
+        toolName: "web_fetch",
+        input: { url: "https://example.com/docs" },
+      })
     ).toBe("https://example.com/docs");
   });
 
   it("renders read_skill_resource resource names", () => {
-    const part = createToolPart({
+    const part: ToolInvocationPart = {
+      ...TOOL_PART,
       type: "tool-read_skill_resource",
       input: {
         skill_name: "phoenix-graphql",
@@ -170,7 +162,7 @@ describe("tool disclosure controls", () => {
         args: { entity: "Span" },
       },
       output: "field reference content",
-    });
+    };
 
     expect(getToolPartPreview(part)).toBe("span-fields");
 
@@ -184,7 +176,7 @@ describe("tool disclosure controls", () => {
   });
 
   it("allows manually collapsing and expanding an auto-open solo tool part", () => {
-    renderToolPart(createAutoOpenToolPart());
+    renderToolPart({ ...AUTO_OPEN_TOOL_PART });
     const details = container.querySelector("details.tool-part");
     const summary = container.querySelector("summary");
 
@@ -198,7 +190,7 @@ describe("tool disclosure controls", () => {
   });
 
   it("keeps an auto-open solo tool collapsed after streaming updates", () => {
-    renderToolPart(createAutoOpenToolPart());
+    renderToolPart({ ...AUTO_OPEN_TOOL_PART });
     const summary = container.querySelector("summary");
 
     expect(
@@ -210,12 +202,11 @@ describe("tool disclosure controls", () => {
       container.querySelector("details.tool-part")?.hasAttribute("open")
     ).toBe(false);
 
-    renderToolPart(
-      createAutoOpenToolPart({
-        state: "output-available",
-        output: { ok: true },
-      })
-    );
+    renderToolPart({
+      ...AUTO_OPEN_TOOL_PART,
+      state: "output-available",
+      output: { ok: true },
+    });
 
     expect(
       container.querySelector("details.tool-part")?.hasAttribute("open")
@@ -226,14 +217,14 @@ describe("tool disclosure controls", () => {
     // The expanded body is built from a pending client-action that only exists
     // once the input is complete, so opening mid-stream would show an empty
     // shell. Auto-open should wait for the input to finish streaming.
-    renderToolPart(createAutoOpenToolPart({ state: "input-streaming" }));
+    renderToolPart({ ...AUTO_OPEN_TOOL_PART, state: "input-streaming" });
 
     expect(
       container.querySelector("details.tool-part")?.hasAttribute("open")
     ).toBe(false);
 
     // Once the input completes, the part auto-opens with real content.
-    renderToolPart(createAutoOpenToolPart({ state: "input-available" }));
+    renderToolPart({ ...AUTO_OPEN_TOOL_PART, state: "input-available" });
 
     expect(
       container.querySelector("details.tool-part")?.hasAttribute("open")
@@ -241,44 +232,43 @@ describe("tool disclosure controls", () => {
   });
 
   it("does not render empty subagent message parts under nested tools", () => {
-    renderToolPart(
-      createToolPart({
-        type: "tool-call_subagent",
-        toolCallId: "tool-call-subagent",
-        input: { name: "Phoenix data", task: "Summarize latency" },
-        output: {
-          summary: "Done",
-          message: {
-            id: "subagent-message",
-            role: "assistant",
-            parts: [
-              {
-                type: "tool-bash",
-                toolCallId: "tool-call-bash",
-                state: "output-available",
-                input: { command: "echo hi" },
-                output: "hi",
-              },
-              {
-                type: "reasoning",
-                text: "",
-                state: "done",
-              },
-              {
-                type: "text",
-                text: "   ",
-                state: "done",
-              },
-              {
-                type: "text",
-                text: "Visible answer",
-                state: "done",
-              },
-            ],
-          },
+    renderToolPart({
+      ...TOOL_PART,
+      type: "tool-call_subagent",
+      toolCallId: "tool-call-subagent",
+      input: { name: "Phoenix data", task: "Summarize latency" },
+      output: {
+        summary: "Done",
+        message: {
+          id: "subagent-message",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-bash",
+              toolCallId: "tool-call-bash",
+              state: "output-available",
+              input: { command: "echo hi" },
+              output: "hi",
+            },
+            {
+              type: "reasoning",
+              text: "",
+              state: "done",
+            },
+            {
+              type: "text",
+              text: "   ",
+              state: "done",
+            },
+            {
+              type: "text",
+              text: "Visible answer",
+              state: "done",
+            },
+          ],
         },
-      })
-    );
+      },
+    });
 
     click(container.querySelector("summary"));
 

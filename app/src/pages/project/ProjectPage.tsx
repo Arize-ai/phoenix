@@ -20,6 +20,7 @@ import { TopNavActions } from "@phoenix/components/nav";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { objectEntries, objectFromEntries } from "@phoenix/typeUtils";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
@@ -102,10 +103,9 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   config: 4,
 };
 
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.fromEntries widens keys/values; entries come from the exhaustive TAB_INDEX_MAP
-const TAB_PATH_BY_INDEX = Object.fromEntries(
-  Object.entries(TAB_INDEX_MAP).map(([tab, index]) => [index, tab])
-) as Record<number, (typeof TABS)[number]>;
+const TAB_PATH_BY_INDEX = objectFromEntries(
+  objectEntries(TAB_INDEX_MAP).map(([tab, index]) => [index, tab] as const)
+);
 
 export function ProjectPageContent({
   projectId,

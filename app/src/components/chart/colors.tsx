@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";
+import { objectKeys } from "@phoenix/typeUtils";
 
 export type SequentialChartColors = {
   readonly blue100: string;
@@ -105,10 +106,7 @@ const sequentialChartColors: SequentialChartColors = Object.freeze({
  * The list of sequential colors that are available for use in the charting components.
  * This is a list of the keys of the sequentialChartColors object.
  */
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys on an exhaustive record whose keys are exactly keyof SequentialChartColors
-export const SEQUENTIAL_CHART_COLORS = Object.keys(
-  sequentialChartColors
-) as (keyof SequentialChartColors)[];
+export const SEQUENTIAL_CHART_COLORS = objectKeys(sequentialChartColors);
 
 export const useSequentialChartColors = (): SequentialChartColors => {
   return sequentialChartColors;
@@ -171,10 +169,7 @@ const semanticChartColors: Record<SemanticChartColor, string> = {
   info: "var(--global-color-blue-700)",
 };
 
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys on an exhaustive record whose keys are exactly SemanticChartColor
-export const SEMANTIC_CHART_COLORS = Object.keys(
-  semanticChartColors
-) as SemanticChartColor[];
+export const SEMANTIC_CHART_COLORS = objectKeys(semanticChartColors);
 
 export const useSemanticChartColors = (): Record<
   SemanticChartColor,
@@ -239,10 +234,7 @@ export const useCategoryChartColors = (): Record<
   );
 };
 
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys on an exhaustive record whose keys are exactly CategoricalChartColor
-export const CATEGORICAL_CHART_COLORS = Object.keys(
-  CategoryChartLightColors
-) as CategoricalChartColor[];
+export const CATEGORICAL_CHART_COLORS = objectKeys(CategoryChartLightColors);
 
 /**
  * Returns a categorical color for an item index, cycling through the palette
@@ -295,7 +287,6 @@ export const useGrayscaleCategoricalColors = (): Record<
   );
 };
 
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys on an exhaustive record whose keys are exactly GrayscaleCategoricalColor
-export const GRAYSCALE_CATEGORICAL_COLORS = Object.keys(
+export const GRAYSCALE_CATEGORICAL_COLORS = objectKeys(
   GrayscaleCategoricalLightColors
-) as GrayscaleCategoricalColor[];
+);

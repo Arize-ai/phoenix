@@ -12,21 +12,20 @@ function createBashPart(toolCallId: string): UIMessage["parts"][number] {
     state: "output-available",
     input: { command: "echo hi" },
     output: "hi",
-  } as UIMessage["parts"][number];
+  };
 }
 
 function createToolPart(
-  type: string,
+  type: `tool-${string}`,
   toolCallId: string
 ): UIMessage["parts"][number] {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fixture factory coerces a loose literal into the message part union
   return {
     type,
     toolCallId,
     state: "output-available",
     input: {},
     output: "done",
-  } as UIMessage["parts"][number];
+  };
 }
 
 function createGenerativeUIPart({
@@ -56,7 +55,7 @@ function createGenerativeUIPart({
       },
       state: {},
     },
-  } as UIMessage["parts"][number];
+  };
 }
 
 describe("partitionMessageParts", () => {

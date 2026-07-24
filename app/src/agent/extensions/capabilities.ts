@@ -6,6 +6,8 @@
  * `defineClientActionTool` helpers in `./registry` and the registry aggregator
  * in `./toolRegistry`.
  */
+import { objectKeys } from "@phoenix/typeUtils";
+
 export type AgentCapabilityKey =
   | "bash.retainInactiveSessions"
   | "graphql.mutations"
@@ -92,10 +94,7 @@ const AGENT_CAPABILITY_DEFINITIONS_BY_KEY = Object.fromEntries(
 // the definitions array.  This catches the case where a developer adds a new key
 // to AgentCapabilityKey and DEFAULT_AGENT_CAPABILITIES but forgets to add its
 // definition to AGENT_CAPABILITY_DEFINITIONS.
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys of a Record<AgentCapabilityKey, boolean> literal
-for (const key of Object.keys(
-  DEFAULT_AGENT_CAPABILITIES
-) as AgentCapabilityKey[]) {
+for (const key of objectKeys(DEFAULT_AGENT_CAPABILITIES)) {
   if (!AGENT_CAPABILITY_DEFINITIONS_BY_KEY[key]) {
     throw new Error(
       `Missing AGENT_CAPABILITY_DEFINITIONS entry for capability key: "${key}"`
