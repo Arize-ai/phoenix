@@ -3,6 +3,10 @@
 
   "extends": ["../.oxlintrc.json"],
 
+  "options": {
+    "typeAware": true
+  },
+
   "plugins": ["react", "typescript"],
 
   "jsPlugins": [
