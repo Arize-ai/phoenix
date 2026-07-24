@@ -1,8 +1,31 @@
 #!/bin/bash
+# Build Phoenix and stage the generated build-context artifacts into every
+# task's environment/ directory: the wheel, the ServerAgent runner, and the
+# seed-download bootstrap script (with its task name templated in). These are
+# gitignored; the canonical copies live under evals/harbor/runner/.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-ENVIRONMENT="$ROOT/evals/harbor/tasks/regression-triage/environment"
-mkdir -p "$ENVIRONMENT/wheels"
+RUNNER="$ROOT/evals/harbor/runner"
+TASKS_DIR="$ROOT/evals/harbor/tasks"
+
 uv build --wheel
-cp "$ROOT"/dist/arize_phoenix-*.whl "$ENVIRONMENT/wheels/"
-cp "$ROOT/evals/harbor/runner/run_server_agent.py" "$ENVIRONMENT/run_server_agent.py"
+
+staged=0
+for environment in "$TASKS_DIR"/*/environment; do
+  [ -d "$environment" ] || continue
+  task=$(basename "$(dirname "$environment")")
+  mkdir -p "$environment/wheels"
+  cp "$ROOT"/dist/arize_phoenix-*.whl "$environment/wheels/"
+  cp "$RUNNER/run_server_agent.py" "$environment/run_server_agent.py"
+  sed "s/__HARBOR_TASK_NAME__/$task/g" \
+    "$RUNNER/bootstrap_data.sh" > "$environment/bootstrap_data.sh"
+  chmod +x "$environment/bootstrap_data.sh"
+  staged=$((staged + 1))
+done
+
+if [ "$staged" -eq 0 ]; then
+  echo "error: no tasks with an environment/ directory found under $TASKS_DIR" >&2
+  exit 1
+fi
+
+echo "Staged build-context artifacts for $staged task(s)."

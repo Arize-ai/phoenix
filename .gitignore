@@ -97,6 +97,7 @@ helm/charts/*.tgz
 # Build-context artifacts copied into each task's environment
 /evals/harbor/**/*.whl
 /evals/harbor/tasks/**/environment/run_server_agent.py
+/evals/harbor/tasks/**/environment/bootstrap_data.sh
 
 # WebAssembly binaries
 wasm/*.wasm
