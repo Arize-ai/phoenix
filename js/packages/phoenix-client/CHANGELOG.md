@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 7.1.0
+
+### Minor Changes
+
+- df7057a: Add `spanIds` filter to `getSpans`, allowing spans to be fetched by span ID (requires Phoenix server >= 19.6.0)
+
 ## 7.0.1
 
 ### Patch Changes

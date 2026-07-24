@@ -1,5 +1,16 @@
 # @arizeai/phoenix-cli
 
+## 1.11.0
+
+### Minor Changes
+
+- df7057a: Add `--span-id` filter to `px span list`, allowing spans to be fetched by OpenTelemetry span ID (requires Phoenix server >= 19.6.0). Add `--until` to bound `px span list` and `px trace list` by an exclusive end timestamp, pairing with `--since` for time ranges.
+
+### Patch Changes
+
+- Updated dependencies [df7057a]
+  - @arizeai/phoenix-client@7.1.0
+
 ## 1.10.5
 
 ### Patch Changes
