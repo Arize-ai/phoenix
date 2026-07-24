@@ -19,6 +19,7 @@ import {
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
+import { useViewerCanModify } from "@phoenix/contexts/ViewerContext";
 import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import type {
   AgentFabPlacement,
@@ -171,6 +172,7 @@ export function AgentChatHeader({
   onClose: () => void;
 }) {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const canModifySessions = useViewerCanModify();
   const nextPosition = position === "pinned" ? "detached" : "pinned";
   const positionToggleLabel =
     position === "pinned"
@@ -178,6 +180,7 @@ export function AgentChatHeader({
       : "Pin assistant to side";
   const showBetaBadge = sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME;
   const canEditTitle =
+    canModifySessions &&
     activeSessionId != null &&
     activeSessionId !== DRAFT_SESSION_ID &&
     activeSessionTitleFragment != null;

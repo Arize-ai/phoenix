@@ -12,6 +12,12 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 import { AgentChatHeader, FloatingAgentChatFrame } from "../AgentChatPanelView";
 import { EMPTY_SESSION_DISPLAY_NAME } from "../sessionTitleUtils";
 
+const viewerMocks = vi.hoisted(() => ({ canModify: true }));
+
+vi.mock("@phoenix/contexts/ViewerContext", () => ({
+  useViewerCanModify: () => viewerMocks.canModify,
+}));
+
 type TestBounds = {
   height: number;
   left: number;
@@ -46,6 +52,7 @@ describe("AgentChatHeader", () => {
   let root: Root;
 
   beforeEach(() => {
+    viewerMocks.canModify = true;
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     Object.defineProperty(window, "matchMedia", {
       writable: true,
@@ -165,6 +172,31 @@ describe("AgentChatHeader", () => {
     expect(
       container.querySelector('button[aria-label="Edit session title"]')
     ).not.toBeNull();
+  });
+
+  it("hides title editing from viewers", () => {
+    viewerMocks.canModify = false;
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="Ping pong test"
+            orderedSessions={[]}
+            activeSessionId="session-1"
+            activeSessionTitleFragment={{} as never}
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    expect(
+      container.querySelector('button[aria-label="Edit session title"]')
+    ).toBeNull();
   });
 
   it("switches from pinned to floating mode", () => {
