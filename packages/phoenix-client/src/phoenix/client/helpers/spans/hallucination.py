@@ -1,6 +1,6 @@
 # pyright: reportUnknownLambdaType=false, reportUnknownArgumentType=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownParameterType=false
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from openinference.semconv.trace import SpanAttributes
 
@@ -47,7 +47,7 @@ def _response_text(messages: "list[dict[str, Any]]") -> str:
     return "\n".join(parts)
 
 
-def _row_to_eval_input(
+def row_to_eval_input(
     input_messages: Any,
     output_messages: Any,
     input_value: Any,
@@ -62,9 +62,21 @@ def _row_to_eval_input(
     the assistant ``output_messages``, falling back to ``output_value``.
     """
     try:
-        from phoenix.evals.context import build_conversation_context, reconstruct_messages
+        from phoenix.evals.context import (
+            build_conversation_context as _build_conversation_context,
+            reconstruct_messages as _reconstruct_messages,  # pyright: ignore[reportUnknownVariableType]
+        )
     except ImportError as error:
         raise ImportError(_EVALS_IMPORT_ERROR) from error
+
+    build_conversation_context = cast(
+        "Callable[..., str]",
+        _build_conversation_context,
+    )
+    reconstruct_messages = cast(
+        "Callable[[Any], list[dict[str, Any]]]",
+        _reconstruct_messages,
+    )
 
     messages = reconstruct_messages(input_messages)
     if messages and messages[-1].get("role") == "user":
@@ -74,8 +86,12 @@ def _row_to_eval_input(
         input_text = _as_text(input_value)
 
     conversation = build_conversation_context(messages, **context_options)
-    output_text = _response_text(reconstruct_messages(output_messages)) or _as_text(output_value)
+    output_messages_list = reconstruct_messages(output_messages)
+    output_text = _response_text(output_messages_list) or _as_text(output_value)
     return {"conversation": conversation, "input": input_text, "output": output_text}
+
+
+_row_to_eval_input = row_to_eval_input
 
 
 def _build_query() -> SpanQuery:
@@ -92,7 +108,7 @@ def _assemble(df: "pd.DataFrame", context_options: "dict[str, Any]") -> "pd.Data
     import pandas as pd
 
     records = [
-        _row_to_eval_input(
+        row_to_eval_input(
             row.get("input_messages"),
             row.get("output_messages"),
             row.get("input_value"),
