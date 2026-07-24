@@ -1,4 +1,5 @@
 import { ComboBox, ComboBoxItem, Flex } from "@phoenix/components";
+import { useTransformingInput } from "@phoenix/hooks/useTransformingInput";
 
 export type ModelTokenKind = "PROMPT" | "COMPLETION";
 
@@ -69,26 +70,25 @@ export function ModelTokenTypeComboBox<
   isRequired?: boolean;
 }) {
   const selectedOption = options.find((option) => option.tokenType === value);
+  const transformingInput = useTransformingInput({
+    value: value ?? "",
+    onValueChange: (inputValue) => onChange(inputValue || null),
+    transformValue: (inputValue) => inputValue.toLowerCase(),
+  });
   return (
     <ComboBox
       aria-label="Token type"
       placeholder="Choose or enter a token type"
       selectedKey={selectedOption?.tokenType ?? ""}
-      inputValue={value ?? ""}
+      inputValue={transformingInput.displayValue}
       onSelectionChange={(tokenType) => {
         const option = options.find((option) => option.tokenType === tokenType);
         if (option) {
           onChange(option.tokenType);
         }
       }}
-      onInputChange={(_value) => {
-        const value = _value.toLowerCase();
-        if (value) {
-          onChange(value);
-        } else {
-          onChange(null);
-        }
-      }}
+      onInputChange={transformingInput.handleValueChange}
+      inputProps={transformingInput.inputProps}
       onBlur={onBlur}
       isInvalid={invalid}
       isRequired={isRequired}

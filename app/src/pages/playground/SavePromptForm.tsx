@@ -19,10 +19,20 @@ import {
   View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
-import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
+import {
+  DEFAULT_PROMPT_VERSION_TAGS,
+  IDENTIFIER_DESCRIPTION,
+} from "@phoenix/constants";
+import {
+  TransformingInputController,
+  useTransformingInput,
+} from "@phoenix/hooks/useTransformingInput";
 import type { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
-import { validateIdentifier } from "@phoenix/utils/identifierUtils";
+import {
+  transformIdentifierInput,
+  validateIdentifier,
+} from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export type SavePromptSubmitHandler = (
@@ -81,6 +91,7 @@ export function SavePromptForm({
   const [promptInputValue, setPromptInputValue] = useState<string>(
     selectedPrompt?.prompt?.name ?? ""
   );
+  const [isPromptInputFocused, setIsPromptInputFocused] = useState(false);
 
   const mode: "create" | "update" = selectedPrompt ? "update" : "create";
   const submitButtonText =
@@ -104,7 +115,7 @@ export function SavePromptForm({
     handleSubmit,
     setValue,
     getValues,
-    formState: { isDirty, isValid },
+    formState: { isDirty, isSubmitted },
   } = useForm<SavePromptFormValues>({
     values: {
       promptId: selectedPromptId ?? undefined,
@@ -149,29 +160,48 @@ export function SavePromptForm({
           rules={{
             validate: validateIdentifier,
           }}
-          render={({ field: { onBlur, onChange }, fieldState }) => (
-            <PromptComboBox
-              label="Prompt"
-              description="The prompt to update, or prompt name to create"
-              placeholder="Select or enter new prompt name"
-              isRequired
-              onBlur={onBlur}
-              defaultInputValue={promptInputValue}
-              onInputChange={(value) => {
-                setPromptInputValue(value);
-                onChange(value);
-              }}
-              errorMessage={fieldState.error?.message}
-              allowsCustomValue
-              onChange={(promptId) => {
-                onChange(promptId);
-                setSelectedPromptId(
-                  typeof promptId === "string" ? promptId : null
-                );
-              }}
-              promptId={selectedPromptId}
-            />
-          )}
+          render={({ field: { onBlur, onChange }, fieldState }) => {
+            const shouldShowError =
+              (fieldState.isTouched && !isPromptInputFocused) || isSubmitted;
+            return (
+              <TransformingInputController
+                value={promptInputValue}
+                onValueChange={(value) => {
+                  setPromptInputValue(value);
+                  onChange(value);
+                }}
+                transformValue={transformIdentifierInput}
+              >
+                {(transformingInput) => (
+                  <PromptComboBox
+                    label="Prompt"
+                    description={`Select a prompt, or enter a new name. ${IDENTIFIER_DESCRIPTION}`}
+                    placeholder="Select or enter new prompt name"
+                    isRequired
+                    onFocus={() => setIsPromptInputFocused(true)}
+                    onBlur={() => {
+                      setIsPromptInputFocused(false);
+                      onBlur();
+                    }}
+                    inputValue={transformingInput.displayValue}
+                    onInputChange={transformingInput.handleValueChange}
+                    inputProps={transformingInput.inputProps}
+                    errorMessage={
+                      shouldShowError ? fieldState.error?.message : undefined
+                    }
+                    allowsCustomValue
+                    onChange={(promptId) => {
+                      onChange(promptId);
+                      setSelectedPromptId(
+                        typeof promptId === "string" ? promptId : null
+                      );
+                    }}
+                    promptId={selectedPromptId}
+                  />
+                )}
+              </TransformingInputController>
+            );
+          }}
         />
       </View>
       <Form onSubmit={handleSubmit(onSubmit)}>
@@ -303,7 +333,7 @@ export function SavePromptForm({
             <Button
               variant={isDirty ? "primary" : "default"}
               size="S"
-              isDisabled={isSubmitting || !isValid}
+              isDisabled={isSubmitting}
               type="submit"
             >
               {submitButtonText}
@@ -323,6 +353,12 @@ function NewTagInlineForm({
   onAdd: (tagName: string) => void;
 }) {
   const [inputValue, setInputValue] = useState("");
+  const [hasStoppedEditing, setHasStoppedEditing] = useState(false);
+  const transformingInput = useTransformingInput({
+    value: inputValue,
+    onValueChange: setInputValue,
+    transformValue: transformIdentifierInput,
+  });
 
   const error = useMemo(() => {
     const trimmed = inputValue.trim();
@@ -335,19 +371,27 @@ function NewTagInlineForm({
 
   const handleAdd = useCallback(() => {
     const trimmed = inputValue.trim();
-    if (!trimmed || error) return;
+    if (!trimmed || error) {
+      setHasStoppedEditing(true);
+      return;
+    }
     onAdd(trimmed);
     setInputValue("");
+    setHasStoppedEditing(false);
   }, [inputValue, error, onAdd]);
+
+  const displayedError = hasStoppedEditing ? error : null;
 
   return (
     <Flex direction="row" gap="size-100" alignItems="start">
       <TextField
         size="S"
         aria-label="New tag name"
-        value={inputValue}
-        onChange={setInputValue}
-        isInvalid={!!error}
+        value={transformingInput.displayValue}
+        onChange={transformingInput.handleValueChange}
+        onFocus={() => setHasStoppedEditing(false)}
+        onBlur={() => setHasStoppedEditing(true)}
+        isInvalid={!!displayedError}
         css={css`
           flex: 1 1 auto;
         `}
@@ -358,14 +402,18 @@ function NewTagInlineForm({
           }
         }}
       >
-        <Input placeholder="New tag name" />
-        {error ? <FieldError>{error}</FieldError> : null}
+        <Input {...transformingInput.inputProps} placeholder="New tag name" />
+        {displayedError ? (
+          <FieldError>{displayedError}</FieldError>
+        ) : (
+          <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
+        )}
       </TextField>
       <Button
         size="S"
         leadingVisual={<Icon svg={<Icons.Plus />} />}
         onPress={handleAdd}
-        isDisabled={!inputValue.trim() || !!error}
+        isDisabled={!inputValue.trim()}
       >
         Add
       </Button>

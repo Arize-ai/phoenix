@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
@@ -24,10 +24,15 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import type { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { validateIdentifier } from "@phoenix/utils/identifierUtils";
+import {
+  transformIdentifierInput,
+  validateIdentifier,
+} from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export const ClonePromptDialog = ({
@@ -43,6 +48,7 @@ export const ClonePromptDialog = ({
 }) => {
   const notifySuccess = useNotifySuccess();
   const navigate = useNavigate();
+  const [isNameFocused, setIsNameFocused] = useState(false);
   const [clonePrompt, isClonePending] = useMutation<ClonePromptDialogMutation>(
     graphql`
       mutation ClonePromptDialogMutation($input: ClonePromptInput!) {
@@ -64,7 +70,7 @@ export const ClonePromptDialog = ({
   const {
     control,
     handleSubmit,
-    formState: { isValid, errors },
+    formState: { errors, isSubmitted },
     setError,
   } = form;
   const onSubmit = (close: () => void) =>
@@ -146,26 +152,47 @@ export const ClonePromptDialog = ({
                     }}
                     render={({
                       field: { onChange, onBlur, value, disabled },
-                      fieldState: { error },
-                    }) => (
-                      <TextField isInvalid={!!error?.message}>
-                        <Label>Name</Label>
-                        <Input
-                          name="name"
-                          type="text"
-                          onChange={onChange}
-                          onBlur={onBlur}
+                      fieldState: { error, isTouched },
+                    }) => {
+                      const displayedError =
+                        (isTouched && !isNameFocused) || isSubmitted
+                          ? error
+                          : undefined;
+                      return (
+                        <TransformingInputController
                           value={value}
-                          disabled={disabled}
-                        />
-                        {!error && (
-                          <Text slot="description">
-                            A name for the cloned prompt.
-                          </Text>
-                        )}
-                        <FieldError>{error?.message}</FieldError>
-                      </TextField>
-                    )}
+                          onValueChange={onChange}
+                          transformValue={transformIdentifierInput}
+                        >
+                          {(transformingInput) => (
+                            <TextField
+                              isInvalid={!!displayedError?.message}
+                              name="name"
+                              value={transformingInput.displayValue}
+                              onChange={transformingInput.handleValueChange}
+                              onFocus={() => setIsNameFocused(true)}
+                              onBlur={() => {
+                                setIsNameFocused(false);
+                                onBlur();
+                              }}
+                              isDisabled={disabled}
+                            >
+                              <Label>Name</Label>
+                              <Input
+                                {...transformingInput.inputProps}
+                                type="text"
+                              />
+                              {!displayedError && (
+                                <Text slot="description">
+                                  {IDENTIFIER_DESCRIPTION}
+                                </Text>
+                              )}
+                              <FieldError>{displayedError?.message}</FieldError>
+                            </TextField>
+                          )}
+                        </TransformingInputController>
+                      );
+                    }}
                   />
                   <Controller
                     control={control}
@@ -239,7 +266,6 @@ export const ClonePromptDialog = ({
                   <Button
                     type="submit"
                     variant="primary"
-                    isDisabled={!isValid}
                     isPending={isClonePending}
                   >
                     Clone
