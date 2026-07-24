@@ -44,6 +44,7 @@ from phoenix.server.api.routers.agents import (
     _AgentSpanContextRecorder,
     _build_message_metadata_chunk,
     _ensure_project_exists,
+    _get_current_context_usage,
     _get_updated_provider_metadata,
     _is_async_generator,
     _persist_db_traces_and_emit_event,
@@ -258,7 +259,7 @@ def create_legacy_agents_router(
                 span_context=agent_span_recorder.span_context if agent_span_recorder else None,
                 turn_trace_context=None,
                 session_id=session_id,
-                usage=result.usage,
+                usage=_get_current_context_usage(result),
             )
             _log_run_complete(result)
 

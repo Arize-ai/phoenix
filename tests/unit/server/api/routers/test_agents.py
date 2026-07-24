@@ -21,6 +21,7 @@ from sqlalchemy import delete, func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.data_stream_protocol import TurnTraceContext
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.prompts import AgentPrompts
@@ -28,7 +29,6 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
-    TurnTraceContext,
     _build_message_metadata_chunk,
     _get_current_context_usage,
     _interleave_agent_and_subagent_message_chunks,

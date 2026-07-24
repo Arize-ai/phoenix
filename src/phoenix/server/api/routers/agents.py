@@ -63,7 +63,6 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from pydantic_ai.usage import RunUsage
 from sqlalchemy import Insert, exists, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
@@ -478,7 +477,7 @@ def _build_assistant_message_metadata(
     span_context: SpanContext | None,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
-    usage: RunUsage,
+    usage: RequestUsage,
 ) -> AssistantMessageMetadata:
     """Build the metadata payload attached to the turn's assistant message."""
     trace_ids = (
@@ -509,7 +508,7 @@ def _build_message_metadata_chunk(
     span_context: SpanContext | None,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
-    usage: RunUsage,
+    usage: RequestUsage,
 ) -> MessageMetadataChunk:
     """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     return MessageMetadataChunk(
@@ -2009,7 +2008,7 @@ def create_agents_router(
                 root_span_id=format_span_id(turn_ids.root_span_id),
                 started_at=turn_ids.started_at,
             )
-            if tracer is not None
+            if tracer is not None or body.turn_trace_context is not None
             else None
         )
 
