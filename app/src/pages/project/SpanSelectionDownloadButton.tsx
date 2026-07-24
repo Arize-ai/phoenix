@@ -142,8 +142,7 @@ async function fetchOtlpSpans({
 }
 
 /**
- * Fetches all spans in the Phoenix span format matching the given span or
- * trace IDs.
+ * Fetches all spans matching the given span or trace IDs.
  */
 async function fetchPhoenixSpans({
   projectId,
@@ -349,7 +348,7 @@ function SpanSelectionDownloadDialog({
                         File formats
                       </Heading>
                       <Text>
-                        JSONL has one Phoenix span per line. OTLP JSON uses the
+                        JSONL has one span per line. OTLP JSON uses the
                         OpenTelemetry JSON encoding.
                       </Text>
                     </ContextualHelp>
