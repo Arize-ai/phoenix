@@ -212,6 +212,7 @@ px project get my-project --format raw --no-progress | jq -r '.id'  # extract pr
 px trace list --limit 20 --format raw --no-progress | jq .
 px trace list --last-n-minutes 60 --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
 px trace list --since 2025-01-15T00:00:00Z --limit 50 --format raw --no-progress | jq .
+px trace list --since 2025-01-15T00:00:00Z --until 2025-01-16T00:00:00Z --limit 50 --format raw --no-progress | jq .  # time range (until is exclusive)
 px trace list --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
 px trace list --include-notes --format raw --no-progress | jq '.[].notes'
 px trace get <trace-id> --format raw | jq .
@@ -260,10 +261,12 @@ Trace
 px span list --limit 20                                    # recent spans (table view)
 px span list --last-n-minutes 60 --limit 50                # spans from last hour
 px span list --since 2025-01-15T00:00:00Z --limit 50       # spans since a timestamp
+px span list --since 2025-01-15T00:00:00Z --until 2025-01-16T00:00:00Z --limit 50  # time range (until is exclusive)
 px span list --span-kind LLM --limit 10                    # only LLM spans
 px span list --status-code ERROR --limit 20                # only errored spans
 px span list --name chat_completion --limit 10             # filter by span name
 px span list --trace-id <id> --format raw --no-progress | jq .   # all spans for a trace
+px span list --span-id <id> <id> --format raw --no-progress | jq .  # fetch specific spans by ID (server >= 19.6.0)
 px span list --parent-id null --limit 10                   # only root spans
 px span list --parent-id <span-id> --limit 10              # only children of a span
 px span list --include-annotations --limit 10              # include annotation scores

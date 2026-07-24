@@ -104,6 +104,8 @@ class TestGetSpansFilters:
             assert "name" not in query_string
             assert "span_kind" not in query_string
             assert "status_code" not in query_string
+            assert "trace_id" not in query_string
+            assert "span_id" not in query_string
             return httpx.Response(
                 200,
                 json={"data": [_make_span()], "next_cursor": None},
@@ -111,6 +113,45 @@ class TestGetSpansFilters:
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1
+
+
+class TestGetSpansIdFilters:
+    def test_single_span_id_filter(self) -> None:
+        transport = _make_handler(expected_params={"span_id": ["span-1"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            span_ids=["span-1"],
+        )
+        assert len(spans) == 1
+
+    def test_multiple_span_id_filter(self) -> None:
+        transport = _make_handler(expected_params={"span_id": ["span-1", "span-2"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            span_ids=["span-1", "span-2"],
+        )
+        assert len(spans) == 1
+
+    def test_trace_id_and_span_id_filters_combined(self) -> None:
+        transport = _make_handler(expected_params={"trace_id": ["trace-1"], "span_id": ["span-1"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            trace_ids=["trace-1"],
+            span_ids=["span-1"],
+        )
+        assert len(spans) == 1
+
+    async def test_span_ids_wired_through_async_client(self) -> None:
+        transport = _make_handler(expected_params={"span_id": ["span-1", "span-2"]})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            span_ids=["span-1", "span-2"],
+        )
         assert len(spans) == 1
 
 
@@ -338,4 +379,37 @@ async def test_async_get_spans_with_attributes_calls_guard_before_request() -> N
     with pytest.raises(_GuardSentinel):
         await AsyncSpans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
             project_identifier="my-project", attributes={"k": "v"}
+        )
+
+
+def test_get_spans_with_span_ids_calls_guard_before_request() -> None:
+    from phoenix.client.constants.server_requirements import GET_SPANS_SPAN_IDS
+
+    class _Guard:
+        def require(self, requirement: object) -> None:
+            if requirement is GET_SPANS_SPAN_IDS:
+                raise _GuardSentinel
+
+    transport = httpx.MockTransport(lambda r: pytest.fail("transport must not be reached"))
+    client = httpx.Client(transport=transport, base_url="http://test")
+    with pytest.raises(_GuardSentinel):
+        Spans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
+            project_identifier="my-project", span_ids=["span-1"]
+        )
+
+
+@pytest.mark.anyio
+async def test_async_get_spans_with_span_ids_calls_guard_before_request() -> None:
+    from phoenix.client.constants.server_requirements import GET_SPANS_SPAN_IDS
+
+    class _Guard:
+        async def require(self, requirement: object) -> None:
+            if requirement is GET_SPANS_SPAN_IDS:
+                raise _GuardSentinel
+
+    transport = httpx.MockTransport(lambda r: pytest.fail("transport must not be reached"))
+    client = httpx.AsyncClient(transport=transport, base_url="http://test")
+    with pytest.raises(_GuardSentinel):
+        await AsyncSpans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
+            project_identifier="my-project", span_ids=["span-1"]
         )
