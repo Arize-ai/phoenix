@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { useFilter, useInteractOutside } from "react-aria";
+import { useFilter, useFocusVisible, useInteractOutside } from "react-aria";
 import { Autocomplete, Input } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
@@ -72,7 +72,8 @@ const timeRangeSelectorCSS = css`
   &:focus-within:not([data-disabled]) {
     border-color: var(--global-input-field-border-color-active);
   }
-  &:has(:focus-visible):not([data-disabled]) {
+  &:has(:focus-visible):not([data-disabled]),
+  &[data-focus-visible]:not([data-disabled]) {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
@@ -237,6 +238,8 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const [popoverWidth, setPopoverWidth] = useState<string | undefined>();
   const [searchText, setSearchText] = useState("");
   const { contains } = useFilter({ sensitivity: "base" });
+  const { isFocusVisible } = useFocusVisible({ isTextInput: true });
+  const hasKeyboardFocusRing = isEditing && isFocusVisible;
   const closePresets = useCallback(() => {
     setIsPresetsOpen(false);
     setIsCalendarPickerOpen(false);
@@ -409,6 +412,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         css={timeRangeSelectorCSS}
         data-size={size}
         data-disabled={isDisabled || undefined}
+        data-focus-visible={hasKeyboardFocusRing || undefined}
         data-presets-open={isPresetsOpen || undefined}
         role="group"
         aria-label="Time range"
