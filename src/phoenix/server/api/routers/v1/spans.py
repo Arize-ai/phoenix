@@ -740,6 +740,10 @@ async def span_search_otlpv1(
         default=None,
         description="Filter by one or more trace IDs",
     ),
+    span_id: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by one or more span IDs",
+    ),
     parent_id: Optional[str] = Query(
         default=None,
         description='Filter by parent span ID. Use "null" to get root spans only.',
@@ -781,6 +785,8 @@ async def span_search_otlpv1(
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
     if trace_id:
         stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
+    if span_id:
+        stmt = stmt.where(models.Span.span_id.in_(span_id))
     if parent_id is not None:
         if parent_id == "null":
             stmt = stmt.where(models.Span.parent_id.is_(None))
@@ -917,6 +923,10 @@ async def span_search(
         default=None,
         description="Filter by one or more trace IDs",
     ),
+    span_id: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by one or more span IDs",
+    ),
     parent_id: Optional[str] = Query(
         default=None,
         description='Filter by parent span ID. Use "null" to get root spans only.',
@@ -963,6 +973,8 @@ async def span_search(
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
     if trace_id:
         stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
+    if span_id:
+        stmt = stmt.where(models.Span.span_id.in_(span_id))
     if parent_id is not None:
         if parent_id == "null":
             stmt = stmt.where(models.Span.parent_id.is_(None))

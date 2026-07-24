@@ -1016,7 +1016,11 @@ export function TracesTable(props: TracesTableProps) {
   const selectedRows = table.getSelectedRowModel().flatRows;
   const selectedSpans = selectedRows.map((row) => ({
     id: row.original.id,
-    traceId: row.original.trace.id,
+    spanId: row.original.spanId,
+    trace: {
+      id: row.original.trace.id,
+      traceId: row.original.trace.traceId,
+    },
   }));
   const clearSelection = useCallback(() => {
     setRowSelection({});

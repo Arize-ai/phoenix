@@ -862,7 +862,11 @@ export function SpansTable(props: SpansTableProps) {
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedSpans = selectedRows.map((row) => ({
     id: row.original.id,
-    traceId: row.original.trace.id,
+    spanId: row.original.spanId,
+    trace: {
+      id: row.original.trace.id,
+      traceId: row.original.trace.traceId,
+    },
   }));
   const clearSelection = useCallback(() => {
     setRowSelection({});

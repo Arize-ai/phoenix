@@ -1251,6 +1251,69 @@ async def test_otlp_span_search_filter_by_multiple_trace_ids(
     assert len(spans) == 4
 
 
+async def test_span_search_filter_by_single_span_id(
+    httpx_client: httpx.AsyncClient, multi_trace_project: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/multi-trace/spans",
+        params={"span_id": "aaa00000"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].context.span_id == "aaa00000"
+
+
+async def test_span_search_filter_by_multiple_span_ids(
+    httpx_client: httpx.AsyncClient, multi_trace_project: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/multi-trace/spans",
+        params=[("span_id", "aaa00000"), ("span_id", "bbb00001")],
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 2
+    assert {s.context.span_id for s in spans} == {"aaa00000", "bbb00001"}
+
+
+async def test_span_search_filter_by_nonexistent_span_id(
+    httpx_client: httpx.AsyncClient, multi_trace_project: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/multi-trace/spans",
+        params={"span_id": "does-not-exist"},
+    )
+    assert resp.is_success
+    assert resp.json()["data"] == []
+
+
+async def test_otlp_span_search_filter_by_single_span_id(
+    httpx_client: httpx.AsyncClient, multi_trace_project: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/multi-trace/spans/otlpv1",
+        params={"span_id": "bbb00000"},
+    )
+    assert resp.is_success
+    spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].span_id == "bbb00000"
+
+
+async def test_otlp_span_search_filter_by_multiple_span_ids(
+    httpx_client: httpx.AsyncClient, multi_trace_project: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/multi-trace/spans/otlpv1",
+        params=[("span_id", "aaa00001"), ("span_id", "bbb00000")],
+    )
+    assert resp.is_success
+    spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 2
+    assert {s.span_id for s in spans} == {"aaa00001", "bbb00000"}
+
+
 @pytest.fixture
 async def project_with_parent_spans(db: DbSessionFactory) -> None:
     """Insert a project with a root span and a child span."""
