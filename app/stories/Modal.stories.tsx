@@ -93,6 +93,50 @@ export const Tier1ViewportModal = {
   render: ViewportModalTemplate,
 };
 
+const scrollableViewportModalContent = Array.from(
+  { length: 12 },
+  (_, index) => (
+    <Text key={index}>
+      Scrollable viewport modal content row {index + 1}. The sticky header must
+      remain opaque while this content passes beneath it.
+    </Text>
+  )
+);
+
+const scrollableContentCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-200);
+`;
+
+const ScrollableViewportModalTemplate: StoryFn<ViewportModalProps> = (args) => (
+  <Tier1StoryFrame>
+    <ViewportModalOverlay defaultOpen>
+      <ViewportModal {...args}>
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Scrollable Viewport Modal</DialogTitle>
+              <DialogTitleExtra>
+                <DialogCloseButton slot="close" />
+              </DialogTitleExtra>
+            </DialogHeader>
+            <div css={scrollableContentCSS}>
+              {scrollableViewportModalContent}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </ViewportModal>
+    </ViewportModalOverlay>
+  </Tier1StoryFrame>
+);
+
+export const ScrollableTier1ViewportModal = {
+  args: { size: "S" },
+  render: ScrollableViewportModalTemplate,
+};
+
 const tier1FrameCSS = css`
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(18rem, 30%);

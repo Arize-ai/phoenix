@@ -90,6 +90,7 @@ export const centeredModalCSS = css`
       position: sticky;
       top: 0;
       z-index: 1;
+      background-color: var(--global-background-color-default);
     }
   }
 `;
