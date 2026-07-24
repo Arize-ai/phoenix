@@ -23,6 +23,8 @@ const contextualHelpTriggerCSS = css`
     all: unset;
     height: 14px !important;
     width: 14px !important;
+    // Opt out of the shared square icon-button min-width so this stays a
+    // compact 14px affordance rather than a full-height button
     min-width: 14px !important;
     min-height: 14px !important;
     padding: var(--global-dimension-size-50) !important;

@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import chunk from "lodash/chunk";
 import { useState } from "react";
 
 import type { components } from "@phoenix/api/__generated__/v1";
@@ -36,6 +37,16 @@ type PhoenixSpan = components["schemas"]["Span"];
 
 const PAGE_SIZE = 1000;
 
+// Cap IDs per request so the GET query string stays under common
+// server/proxy URL-length limits (~8 KB) and the SQL IN() clause stays under
+// database bound-parameter limits. Larger selections are split across
+// multiple requests.
+const ID_BATCH_SIZE = 100;
+
+// Defer object-URL revocation so the browser has time to start reading a
+// large blob before the URL is invalidated (matches the FileSaver pattern).
+const URL_REVOKE_DELAY_MS = 40_000;
+
 type SpanSearchQuery = {
   limit: number;
   span_id?: string[];
@@ -72,144 +83,105 @@ function sanitizeFileName(name: string): string {
   return name.replace(/[^\w.-]+/g, "_");
 }
 
+type SpanPage<Span> = { data: Span[]; next_cursor?: string | null };
+
 /**
- * Follows pagination cursors until the result set is exhausted, accumulating
- * the spans from each page.
+ * Turns an openapi-fetch error into an Error that preserves the HTTP status
+ * and any server-provided detail.
  */
-async function fetchAllPages<Span>({
+function toDownloadError(status: number, error: unknown): Error {
+  const detail =
+    typeof error === "string"
+      ? error
+      : error && typeof error === "object" && "detail" in error
+        ? String((error as { detail: unknown }).detail)
+        : "";
+  return new Error(detail ? `HTTP ${status}: ${detail}` : `HTTP ${status}`);
+}
+
+/**
+ * Fetches every span matching the given span or trace IDs, handing each page
+ * to `onPage` as it arrives. IDs are batched across requests to stay under
+ * server/proxy URL-length and database bound-parameter limits, and pagination
+ * cursors are followed within each batch. Streaming pages to the caller (over
+ * returning one array) lets the payload be serialized incrementally so span
+ * objects can be released between pages.
+ */
+async function fetchSpans<Span>({
+  spanIds,
+  traceIds,
   fetchPage,
-}: {
-  fetchPage: (
-    cursor: string | null
-  ) => Promise<{ data?: Span[]; next_cursor?: string | null } | undefined>;
-}): Promise<Span[]> {
-  const spans: Span[] = [];
-  let cursor: string | null = null;
-  do {
-    const page = await fetchPage(cursor);
-    if (page?.data == null) {
-      throw new Error("request failed");
-    }
-    spans.push(...page.data);
-    cursor = page.next_cursor ?? null;
-  } while (cursor);
-  return spans;
-}
-
-function buildSpanSearchQuery({
-  spanIds,
-  traceIds,
-  cursor,
+  onPage,
 }: {
   spanIds?: string[];
   traceIds?: string[];
-  cursor: string | null;
-}): SpanSearchQuery {
-  return {
-    limit: PAGE_SIZE,
-    ...(spanIds ? { span_id: spanIds } : {}),
-    ...(traceIds ? { trace_id: traceIds } : {}),
-    ...(cursor ? { cursor } : {}),
-  };
+  fetchPage: (query: SpanSearchQuery) => Promise<SpanPage<Span>>;
+  onPage: (spans: Span[]) => void;
+}): Promise<void> {
+  const useSpanIds = spanIds != null;
+  const idList = spanIds ?? traceIds ?? [];
+  for (const batch of chunk(idList, ID_BATCH_SIZE)) {
+    let cursor: string | null = null;
+    do {
+      const page = await fetchPage({
+        limit: PAGE_SIZE,
+        ...(useSpanIds ? { span_id: batch } : { trace_id: batch }),
+        ...(cursor ? { cursor } : {}),
+      });
+      onPage(page.data);
+      cursor = page.next_cursor ?? null;
+    } while (cursor);
+  }
+}
+
+async function fetchOtlpSpanPage(
+  projectId: string,
+  query: SpanSearchQuery
+): Promise<SpanPage<OtlpSpan>> {
+  const { data, error, response } = await authApiFetch.GET(
+    "/v1/projects/{project_identifier}/spans/otlpv1",
+    { params: { path: { project_identifier: projectId }, query } }
+  );
+  if (data == null) {
+    throw toDownloadError(response.status, error);
+  }
+  return data;
+}
+
+async function fetchSpanPage(
+  projectId: string,
+  query: SpanSearchQuery
+): Promise<SpanPage<PhoenixSpan>> {
+  const { data, error, response } = await authApiFetch.GET(
+    "/v1/projects/{project_identifier}/spans",
+    { params: { path: { project_identifier: projectId }, query } }
+  );
+  if (data == null) {
+    throw toDownloadError(response.status, error);
+  }
+  return data;
 }
 
 /**
- * Fetches all OTLP spans matching the given span or trace IDs.
+ * Downloads the assembled blob parts as a file. The parts are concatenated by
+ * the Blob constructor in native memory, avoiding a single giant JS string
+ * (which would hit the max-string-length limit for large exports).
  */
-async function fetchOtlpSpans({
-  projectId,
-  spanIds,
-  traceIds,
+function downloadBlob({
+  fileName,
+  parts,
+  type,
 }: {
-  projectId: string;
-  spanIds?: string[];
-  traceIds?: string[];
-}): Promise<OtlpSpan[]> {
-  return fetchAllPages({
-    fetchPage: async (cursor) => {
-      const { data } = await authApiFetch.GET(
-        "/v1/projects/{project_identifier}/spans/otlpv1",
-        {
-          params: {
-            path: { project_identifier: projectId },
-            query: buildSpanSearchQuery({ spanIds, traceIds, cursor }),
-          },
-        }
-      );
-      return data;
-    },
-  });
-}
-
-/**
- * Fetches all spans matching the given span or trace IDs.
- */
-async function fetchPhoenixSpans({
-  projectId,
-  spanIds,
-  traceIds,
-}: {
-  projectId: string;
-  spanIds?: string[];
-  traceIds?: string[];
-}): Promise<PhoenixSpan[]> {
-  return fetchAllPages({
-    fetchPage: async (cursor) => {
-      const { data } = await authApiFetch.GET(
-        "/v1/projects/{project_identifier}/spans",
-        {
-          params: {
-            path: { project_identifier: projectId },
-            query: buildSpanSearchQuery({ spanIds, traceIds, cursor }),
-          },
-        }
-      );
-      return data;
-    },
-  });
-}
-
-function downloadBlob({ fileName, blob }: { fileName: string; blob: Blob }) {
-  const url = URL.createObjectURL(blob);
+  fileName: string;
+  parts: BlobPart[];
+  type: string;
+}) {
+  const url = URL.createObjectURL(new Blob(parts, { type }));
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;
   link.click();
-  URL.revokeObjectURL(url);
-}
-
-function downloadJson({
-  fileName,
-  payload,
-}: {
-  fileName: string;
-  payload: unknown;
-}) {
-  downloadBlob({
-    fileName,
-    blob: new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    }),
-  });
-}
-
-/**
- * Downloads records as JSONL — one JSON object per line.
- */
-function downloadJsonl({
-  fileName,
-  records,
-}: {
-  fileName: string;
-  records: unknown[];
-}) {
-  downloadBlob({
-    fileName,
-    blob: new Blob(
-      [records.map((record) => JSON.stringify(record)).join("\n") + "\n"],
-      { type: "application/x-ndjson" }
-    ),
-  });
+  setTimeout(() => URL.revokeObjectURL(url), URL_REVOKE_DELAY_MS);
 }
 
 type SpanSelectionDownloadButtonProps = {
@@ -254,8 +226,8 @@ function SpanSelectionDownloadDialog({
   const [timestamp] = useState(() =>
     new Date().toISOString().slice(0, 19).replace(/:/g, "-")
   );
-  const defaultFileName = (scope: DownloadScope) =>
-    `${sanitizeFileName(projectName)}-${scope}-${timestamp}`;
+  const defaultFileName = (forScope: DownloadScope) =>
+    `${sanitizeFileName(projectName)}-${forScope}-${timestamp}`;
   const [fileName, setFileName] = useState(() => defaultFileName("spans"));
   const [isFileNameEdited, setIsFileNameEdited] = useState(false);
 
@@ -265,7 +237,7 @@ function SpanSelectionDownloadDialog({
     const fullFileName = fileName.endsWith(extension)
       ? fileName
       : `${fileName}${extension}`;
-    const ids =
+    const idFilter =
       scope === "spans"
         ? { spanIds: [...new Set(selectedSpans.map((span) => span.spanId))] }
         : {
@@ -273,15 +245,49 @@ function SpanSelectionDownloadDialog({
               ...new Set(selectedSpans.map((span) => span.trace.traceId)),
             ],
           };
+    // Serialize each page into string parts as it arrives so span objects can
+    // be released between pages and no single giant string is built.
+    const parts: BlobPart[] = [];
     try {
       if (format === "jsonl") {
-        const spans = await fetchPhoenixSpans({ projectId, ...ids });
-        downloadJsonl({ fileName: fullFileName, records: spans });
-      } else {
-        const spans = await fetchOtlpSpans({ projectId, ...ids });
-        downloadJson({
+        await fetchSpans<PhoenixSpan>({
+          ...idFilter,
+          fetchPage: (query) => fetchSpanPage(projectId, query),
+          onPage: (spans) => {
+            if (spans.length === 0) {
+              return;
+            }
+            parts.push(spans.map((span) => JSON.stringify(span)).join("\n"));
+            parts.push("\n");
+          },
+        });
+        downloadBlob({
           fileName: fullFileName,
-          payload: { resource_spans: [{ scope_spans: [{ spans }] }] },
+          parts,
+          type: "application/x-ndjson",
+        });
+      } else {
+        parts.push('{"resource_spans":[{"scope_spans":[{"spans":[');
+        let isFirstPage = true;
+        await fetchSpans<OtlpSpan>({
+          ...idFilter,
+          fetchPage: (query) => fetchOtlpSpanPage(projectId, query),
+          onPage: (spans) => {
+            if (spans.length === 0) {
+              return;
+            }
+            const serialized = spans
+              .map((span) => JSON.stringify(span))
+              .join(",");
+            parts.push(isFirstPage ? serialized : `,${serialized}`);
+            isFirstPage = false;
+          },
+        });
+        parts.push("]}]}]}");
+        downloadBlob({
+          fileName: fullFileName,
+          parts,
+          type: "application/json",
         });
       }
       close();
