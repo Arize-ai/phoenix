@@ -9,7 +9,6 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts";
-import type { ProjectViewMode } from "@phoenix/store/preferencesStore";
 
 export const ProjectViewModeToggle = () => {
   const { projectViewMode, setProjectViewMode } = usePreferencesContext(
@@ -28,8 +27,8 @@ export const ProjectViewModeToggle = () => {
       selectionMode="single"
       onSelectionChange={(value) => {
         const selectedKey = value.values().next().value;
-        if (typeof selectedKey === "string") {
-          setProjectViewMode(selectedKey as ProjectViewMode);
+        if (selectedKey === "table" || selectedKey === "grid") {
+          setProjectViewMode(selectedKey);
         }
       }}
       size="M"

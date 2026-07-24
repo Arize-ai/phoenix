@@ -29,7 +29,7 @@ const mockSpan1: MockSpan = {
     trace_id: "abc123def456",
     span_id: "span1",
   },
-} as unknown as MockSpan;
+};
 
 const mockSpan2: MockSpan = {
   name: "tool_call",
@@ -49,7 +49,7 @@ const mockSpan2: MockSpan = {
     trace_id: "abc123def456",
     span_id: "span2",
   },
-} as unknown as MockSpan;
+};
 
 const mockErrorSpan: MockSpan = {
   name: "failed_operation",
@@ -67,7 +67,7 @@ const mockErrorSpan: MockSpan = {
     trace_id: "error123",
     span_id: "span3",
   },
-} as unknown as MockSpan;
+};
 
 // Mock trace reflection
 const mockTraceReflection: Trace = {
@@ -126,7 +126,7 @@ const mockTraceWithAnnotations: Trace = {
           },
         },
       ],
-    } as unknown as MockSpan,
+    },
   ],
 };
 
@@ -173,7 +173,7 @@ const mockTraceWithNotes: Trace = {
           },
         },
       ],
-    } as unknown as MockSpan,
+    },
   ],
 };
 
@@ -307,7 +307,7 @@ describe("Output Formatting", () => {
               ...mockSpan1.attributes,
               "input.value": longValue,
             },
-          } as unknown as MockSpan,
+          },
         ],
       };
 

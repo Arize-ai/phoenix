@@ -16,9 +16,11 @@ export const BASE_ARGS = ["--endpoint", DEFAULT_MOCK_BASE_URL, "--no-progress"];
  * `vi.restoreAllMocks()`.
  */
 export function mockProcessExit() {
-  return vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
-    throw new Error(`process.exit:${code}`);
-  }) as never);
+  return vi
+    .spyOn(process, "exit")
+    .mockImplementation((code?: number): never => {
+      throw new Error(`process.exit:${code}`);
+    });
 }
 
 /**

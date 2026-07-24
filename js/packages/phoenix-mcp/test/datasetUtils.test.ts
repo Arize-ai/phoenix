@@ -25,6 +25,7 @@ describe("relay ID helpers", () => {
 
 describe("dataset resolution", () => {
   it("returns trimmed relay dataset IDs without calling the API", async () => {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial PhoenixClient mock
     const client = {
       GET: vi.fn(),
     } as never;
@@ -40,6 +41,7 @@ describe("dataset resolution", () => {
   });
 
   it("resolves dataset names through the API", async () => {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial PhoenixClient mock
     const client = {
       GET: vi.fn().mockResolvedValue({
         data: {

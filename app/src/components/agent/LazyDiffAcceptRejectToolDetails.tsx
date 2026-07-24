@@ -15,6 +15,7 @@ export function LazyDiffAcceptRejectToolDetails<
   T,
   P extends PendingDiffEdit<T>,
 >(props: DiffAcceptRejectToolDetailsProps<T, P>) {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- React.lazy erases the generic parameters of DiffAcceptRejectToolDetails; re-applying them here is safe by construction
   const Component = DiffAcceptRejectToolDetails as unknown as ComponentType<
     DiffAcceptRejectToolDetailsProps<T, P>
   >;

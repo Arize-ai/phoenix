@@ -20,9 +20,7 @@ export function isExperimentCompareViewMode(
   ];
   return (
     typeof maybeViewMode === "string" &&
-    experimentCompareViewModes.includes(
-      maybeViewMode as ExperimentCompareViewMode
-    )
+    experimentCompareViewModes.some((mode) => mode === maybeViewMode)
   );
 }
 

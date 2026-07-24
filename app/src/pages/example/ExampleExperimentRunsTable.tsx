@@ -246,7 +246,7 @@ export function ExampleExperimentRunsTable({
         overflow: auto;
       `}
       ref={tableContainerRef}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
     >
       <table css={tableCSS}>
         <thead>

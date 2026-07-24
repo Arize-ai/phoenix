@@ -83,7 +83,7 @@ export const AnnotationFormProvider = ({
         // if the annotation has an id and is not a freeform annotation and has a score that is not a number and has no label, delete it
         (data.id &&
           annotationConfigType !== "FREEFORM" &&
-          isNaN(data.score as number) &&
+          isNaN(Number(data.score)) &&
           !data.label) ||
         // if the annotation has an id and is a freeform annotation and has no explanation, delete it
         (data.id && annotationConfigType === "FREEFORM" && !data.explanation)

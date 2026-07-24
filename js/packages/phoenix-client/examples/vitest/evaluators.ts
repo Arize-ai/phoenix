@@ -21,6 +21,7 @@ export const correctness: Evaluator = {
   name: "correctness",
   kind: "CODE",
   evaluate: ({ output, expected }) =>
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- evaluator output/expected arrive as unknown; narrow to the app's SqlOutput
     sqlCorrectness(output as SqlOutput, expected as SqlOutput | undefined) ===
     1,
 };
@@ -30,6 +31,7 @@ export const tokenF1: Evaluator = {
   name: "token_f1",
   kind: "CODE",
   evaluate: ({ output, expected }) =>
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- evaluator output/expected arrive as unknown; narrow to the app's SqlOutput
     sqlTokenF1(output as SqlOutput, expected as SqlOutput | undefined),
 };
 
@@ -38,6 +40,7 @@ export const validSql: Evaluator = {
   name: "valid_sql",
   kind: "CODE",
   evaluate: ({ output }) => {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- evaluator output arrives as unknown; narrow to the app's SqlOutput
     const out = output as SqlOutput | undefined;
     return out ? looksLikeSql(out) : false;
   },

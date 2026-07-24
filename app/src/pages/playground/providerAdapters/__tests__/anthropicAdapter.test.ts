@@ -382,6 +382,7 @@ describe("anthropicConfigFromPromptInvocationParameters", () => {
   });
 
   it("throws when called with a non-Anthropic branch", () => {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- intentional non-Anthropic branch fixture exercising the throw path
     const data = {
       __typename: "PromptOpenAIInvocationParameters",
     } as unknown as PromptInvocationParametersReadableFragment$data;

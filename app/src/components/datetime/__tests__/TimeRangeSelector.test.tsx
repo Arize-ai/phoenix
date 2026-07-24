@@ -76,7 +76,7 @@ describe("TimeRangeSelector", () => {
       'input[type="search"]'
     );
     expect(searchInput).not.toBeNull();
-    return searchInput as HTMLInputElement;
+    return searchInput!;
   }
 
   async function typeIntoSearch(searchInput: HTMLInputElement, text: string) {

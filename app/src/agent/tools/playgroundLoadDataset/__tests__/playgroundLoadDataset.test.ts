@@ -1,4 +1,4 @@
-import type { SetURLSearchParams } from "react-router";
+import { createSearchParams, type SetURLSearchParams } from "react-router";
 
 import {
   buildDatasetSelectionSnapshot,
@@ -20,7 +20,7 @@ function createSearchParamsHarness(initial?: string) {
   let params = new URLSearchParams(initial);
   const setSearchParams = vi.fn<SetURLSearchParams>((next) => {
     const resolved = typeof next === "function" ? next(params) : next;
-    params = new URLSearchParams(resolved as Record<string, string>);
+    params = createSearchParams(resolved);
   });
   return {
     getSearchParams: () => params,
@@ -130,7 +130,10 @@ describe("playground load dataset agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    const setPendingLoadDataset = vi.fn();
+    const setPendingLoadDataset =
+      vi.fn<
+        (toolCallId: string, pendingLoad: PendingLoadDataset | null) => void
+      >();
     const harness = createSearchParamsHarness();
     const action = createLoadDatasetClientAction({
       playgroundStore,
@@ -157,7 +160,10 @@ describe("playground load dataset agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    const setPendingLoadDataset = vi.fn();
+    const setPendingLoadDataset =
+      vi.fn<
+        (toolCallId: string, pendingLoad: PendingLoadDataset | null) => void
+      >();
     const harness = createSearchParamsHarness("exampleId=ex-old");
     const action = createLoadDatasetClientAction({
       playgroundStore,
@@ -181,8 +187,7 @@ describe("playground load dataset agent tool", () => {
     );
 
     expect(setPendingLoadDataset).toHaveBeenCalledTimes(1);
-    const pendingLoad = setPendingLoadDataset.mock
-      .calls[0]![1] as PendingLoadDataset;
+    const pendingLoad = setPendingLoadDataset.mock.calls[0]![1]!;
     expect(pendingLoad.snapshot).toEqual({
       datasetId: "d1",
       splitIds: ["s1"],
@@ -216,7 +221,10 @@ describe("playground load dataset agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    const setPendingLoadDataset = vi.fn();
+    const setPendingLoadDataset =
+      vi.fn<
+        (toolCallId: string, pendingLoad: PendingLoadDataset | null) => void
+      >();
     const harness = createSearchParamsHarness();
     const resolveDatasetTarget = resolverFor({
       ok: true,
@@ -236,8 +244,7 @@ describe("playground load dataset agent tool", () => {
     });
 
     await action({ datasetName: "Support" }, toolCallContext);
-    const pendingLoad = setPendingLoadDataset.mock
-      .calls[0]![1] as PendingLoadDataset;
+    const pendingLoad = setPendingLoadDataset.mock.calls[0]![1]!;
 
     // The user picked a different dataset after the proposal.
     harness.setDrift("datasetId=other");
@@ -259,7 +266,10 @@ describe("playground load dataset agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    const setPendingLoadDataset = vi.fn();
+    const setPendingLoadDataset =
+      vi.fn<
+        (toolCallId: string, pendingLoad: PendingLoadDataset | null) => void
+      >();
     const harness = createSearchParamsHarness();
     const resolveDatasetTarget = vi
       .fn<ResolveDatasetTarget>()
@@ -285,8 +295,7 @@ describe("playground load dataset agent tool", () => {
     });
 
     await action({ datasetName: "Support" }, toolCallContext);
-    const pendingLoad = setPendingLoadDataset.mock
-      .calls[0]![1] as PendingLoadDataset;
+    const pendingLoad = setPendingLoadDataset.mock.calls[0]![1]!;
 
     await pendingLoad.accept?.();
 
@@ -306,7 +315,10 @@ describe("playground load dataset agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    const setPendingLoadDataset = vi.fn();
+    const setPendingLoadDataset =
+      vi.fn<
+        (toolCallId: string, pendingLoad: PendingLoadDataset | null) => void
+      >();
     const harness = createSearchParamsHarness();
     const action = createLoadDatasetClientAction({
       playgroundStore,

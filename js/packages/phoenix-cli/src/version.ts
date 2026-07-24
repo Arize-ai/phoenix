@@ -16,14 +16,6 @@ type SemanticVersion = {
   prerelease?: string;
 };
 
-interface LatestVersionResponse {
-  version?: unknown;
-}
-
-interface CliPackageJson {
-  version?: unknown;
-}
-
 export interface CliVersionStatus {
   currentVersion: string;
   latestVersion?: string;
@@ -38,9 +30,14 @@ export interface FetchLatestPublishedCliVersionOptions {
 function getPackageJsonVersion({
   packageJson,
 }: {
-  packageJson: CliPackageJson;
+  packageJson: unknown;
 }): string | undefined {
-  if (typeof packageJson.version !== "string") {
+  if (
+    packageJson == null ||
+    typeof packageJson !== "object" ||
+    !("version" in packageJson) ||
+    typeof packageJson.version !== "string"
+  ) {
     return undefined;
   }
   return trimToUndefined({ value: packageJson.version });
@@ -48,9 +45,9 @@ function getPackageJsonVersion({
 
 function readCliVersionFromPackageJson(): string | undefined {
   try {
-    const packageJson = JSON.parse(
+    const packageJson: unknown = JSON.parse(
       readFileSync(new URL("../package.json", import.meta.url), "utf-8")
-    ) as CliPackageJson;
+    );
 
     return getPackageJsonVersion({ packageJson });
   } catch {
@@ -210,8 +207,13 @@ export async function fetchLatestPublishedCliVersion({
       return undefined;
     }
 
-    const payload = (await response.json()) as LatestVersionResponse;
-    return typeof payload.version === "string" ? payload.version : undefined;
+    const payload: unknown = await response.json();
+    return payload != null &&
+      typeof payload === "object" &&
+      "version" in payload &&
+      typeof payload.version === "string"
+      ? payload.version
+      : undefined;
   } catch {
     return undefined;
   } finally {

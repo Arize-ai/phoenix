@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import type { Tracer } from "@opentelemetry/api";
+import { trace } from "@opentelemetry/api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createDocumentRelevanceEvaluator } from "../../src/llm/createDocumentRelevanceEvaluator";
@@ -207,7 +207,7 @@ describe("createDocumentRelevanceEvaluator", () => {
         explanation: "This is a test explanation",
       });
 
-    const customTracer = {} as Tracer; // Mock tracer object
+    const customTracer = trace.getTracer("test"); // No-op tracer for identity assertion
 
     const evaluator = createDocumentRelevanceEvaluator({
       model,

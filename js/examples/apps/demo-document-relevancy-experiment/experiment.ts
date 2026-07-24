@@ -4,7 +4,7 @@ import {
   asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
-import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import type { Example } from "@arizeai/phoenix-client/types/datasets";
 import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
 
 import { spaceKnowledgeApplication } from "./app";
@@ -30,8 +30,8 @@ const DATASET = [
 ];
 
 async function main() {
-  async function task(example: { input: { question: string } }) {
-    const question = example.input.question;
+  async function task(example: Example) {
+    const question = String(example.input.question);
     const result = await spaceKnowledgeApplication(question);
     return result.context || "";
   }
@@ -70,7 +70,7 @@ async function main() {
     experimentDescription:
       "Evaluate the relevancy of extracted context from a knowledge base",
     dataset: dataset,
-    task: task as ExperimentTask,
+    task,
     evaluators: [documentRelevancyCheck],
   });
 }

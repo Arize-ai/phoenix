@@ -72,6 +72,7 @@ function matchEntityRoute(
   );
   if (experimentMatch?.params.experimentId) {
     const { datasetId, experimentId } = experimentMatch.params;
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- datasetId is guaranteed present by the matched :datasetId route segment
     return experimentResource(datasetId as string, experimentId);
   }
   // The experiment compare route carries the experiment(s) in the query string,

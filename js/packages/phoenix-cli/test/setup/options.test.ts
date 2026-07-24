@@ -113,10 +113,9 @@ describe("resolveSetupInputs", () => {
     try {
       resolve({ noInput: true, instrument: true });
     } catch (error) {
-      expect((error as Error).message).toContain("--agent");
-      expect((error as Error).message).toContain(
-        "claude|codex|opencode|cursor"
-      );
+      const message = error instanceof Error ? error.message : String(error);
+      expect(message).toContain("--agent");
+      expect(message).toContain("claude|codex|opencode|cursor");
     }
   });
 

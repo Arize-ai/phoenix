@@ -194,6 +194,7 @@ export function declareTest<Input extends KVMap, Expected extends KVMap>(
           repetitions,
           dryRun: isDryRun,
           params: params as TestParams,
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- erasing generic Input/Expected to the base TestFn for the runner
           fn: fn as TestFn,
         });
       },

@@ -20,7 +20,8 @@ export function inferOpenAIApiTypeFromAttributes(
   let raw: Record<string, unknown> | null = null;
   if (typeof invocationParameters === "string") {
     try {
-      raw = JSON.parse(invocationParameters) as Record<string, unknown>;
+      const parsed: unknown = JSON.parse(invocationParameters);
+      raw = isPlainObject(parsed) ? parsed : null;
     } catch {
       return null;
     }

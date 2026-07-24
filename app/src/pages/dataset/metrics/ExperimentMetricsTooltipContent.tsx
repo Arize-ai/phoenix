@@ -7,6 +7,26 @@ import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader
 type ValueFormatter = (value: number | null | undefined) => string;
 
 /**
+ * Safely extracts the experiment fields from a recharts tooltip payload datum.
+ */
+function parseExperimentDatum(value: unknown): {
+  experimentName?: string;
+  isBaseline?: boolean;
+} {
+  if (typeof value !== "object" || value === null) {
+    return {};
+  }
+  const datum: { experimentName?: string; isBaseline?: boolean } = {};
+  if ("experimentName" in value && typeof value.experimentName === "string") {
+    datum.experimentName = value.experimentName;
+  }
+  if ("isBaseline" in value && typeof value.isBaseline === "boolean") {
+    datum.isBaseline = value.isBaseline;
+  }
+  return datum;
+}
+
+/**
  * Builds the tooltip content for an experiment metric chart: the shared
  * experiment header followed by one row per series. Each row's swatch comes
  * from the series' own payload entry so it always matches the rendered mark,
@@ -24,10 +44,7 @@ export function makeExperimentMetricsTooltipContent(
     if (!active || !payload || payload.length === 0) {
       return null;
     }
-    const datum = payload[0]?.payload as {
-      experimentName?: string;
-      isBaseline?: boolean;
-    };
+    const datum = parseExperimentDatum(payload[0]?.payload);
     return (
       <ChartTooltip>
         <ExperimentMetricsTooltipHeader

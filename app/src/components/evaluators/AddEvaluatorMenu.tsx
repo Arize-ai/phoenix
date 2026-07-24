@@ -281,7 +281,7 @@ const CodeEvaluatorTemplateSubmenu = ({
       >
         <Menu
           items={builtInCodeEvaluators}
-          onAction={(key) => onAction(key as string)}
+          onAction={(key) => onAction(String(key))}
         >
           {(evaluator) => (
             <MenuItem

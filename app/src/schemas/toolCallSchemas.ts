@@ -294,14 +294,18 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "MOONSHOT":
     case "PERPLEXITY":
     case "TOGETHER":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToToolCallMap[T] from a switch on targetProvider
       return toolCall as ProviderToToolCallMap[T];
     case "AWS":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToToolCallMap[T] from a switch on targetProvider
       return openAIToolCallToAws.parse(toolCall) as ProviderToToolCallMap[T];
     case "ANTHROPIC":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToToolCallMap[T] from a switch on targetProvider
       return openAIToolCallToAnthropic.parse(
         toolCall
       ) as ProviderToToolCallMap[T];
     case "GOOGLE":
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToToolCallMap[T] from a switch on targetProvider
       return toolCall as ProviderToToolCallMap[T];
     default:
       return assertUnreachable(targetProvider);
@@ -441,6 +445,7 @@ export function findToolCallArguments(
   }
   const toolCall = toOpenAIToolCall(subject);
   if (toolCall) {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- arguments come from parsed JSON so they are JSON-safe; validating with jsonLiteralSchema would change behavior for edge cases
     return toolCall.function.arguments as JSONLiteral;
   }
 
@@ -449,6 +454,7 @@ export function findToolCallArguments(
   const heuristic = toolCallHeuristicSchema.safeParse(subject);
   if (heuristic.success) {
     return (
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- arguments come from parsed JSON so they are JSON-safe; validating with jsonLiteralSchema would change behavior for edge cases
       ((heuristic.data.arguments ??
         heuristic.data.function?.arguments) as JSONLiteral) ?? null
     );

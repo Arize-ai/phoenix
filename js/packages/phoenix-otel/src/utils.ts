@@ -13,6 +13,7 @@ import type { AttributeValue } from "@opentelemetry/api";
 export function objectAsAttributes<T extends Record<string, unknown>>(
   obj: T
 ): Record<string, AttributeValue> {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- non-null entry values are attribute values by this function's contract
   return Object.fromEntries(
     Object.entries(obj).filter(([_, value]) => value !== null)
   ) as Record<string, AttributeValue>;

@@ -24,6 +24,7 @@ export function ExamplePage() {
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}
     >
+      {/* oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition */}
       <ExampleDetailsDialog exampleId={exampleId as string} />
     </Drawer>
   );

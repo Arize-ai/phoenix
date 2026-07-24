@@ -46,13 +46,17 @@ export const ProgressBarWithWidth: Story = {
 };
 
 export const ProgressBarWithCustomColor: Story = {
-  render: (args) => (
-    <div
-      style={{ "--mod-barloader-fill-color": "hotpink" } as React.CSSProperties}
-    >
-      <ProgressBar {...args} />
-    </div>
-  ),
+  render: (args) => {
+    const fillColorStyle: React.CSSProperties & Record<`--${string}`, string> =
+      {
+        "--mod-barloader-fill-color": "hotpink",
+      };
+    return (
+      <div style={fillColorStyle}>
+        <ProgressBar {...args} />
+      </div>
+    );
+  },
   args: {
     value: 60,
   },

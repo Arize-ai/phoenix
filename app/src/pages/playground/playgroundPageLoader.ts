@@ -158,7 +158,7 @@ export const playgroundPageLoader = async ({
     string,
     Promise<{
       instance: PlaygroundInstanceWithoutId;
-      promptVersion: { templateFormat: string };
+      promptVersion: { templateFormat: TemplateFormat };
     } | null>
   >();
 
@@ -188,7 +188,7 @@ export const playgroundPageLoader = async ({
     const result = await fetchCache.get(key);
     if (result) {
       instances.push(result.instance);
-      templateFormat ??= result.promptVersion.templateFormat as TemplateFormat;
+      templateFormat ??= result.promptVersion.templateFormat;
     }
   }
 

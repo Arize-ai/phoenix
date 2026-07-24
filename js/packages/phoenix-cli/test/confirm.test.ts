@@ -73,9 +73,7 @@ describe("confirmOrExit", () => {
   beforeEach(() => {
     originalIsTTY = process.stdin.isTTY;
     exitSpy = mockProcessExit();
-    stderrWriteSpy = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation((() => true) as never);
+    stderrWriteSpy = vi.spyOn(process.stderr, "write").mockReturnValue(true);
   });
 
   afterEach(() => {

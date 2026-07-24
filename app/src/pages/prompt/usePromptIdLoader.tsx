@@ -22,5 +22,6 @@ export const usePromptIdLoader = () => {
     );
   }
 
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route match guarantees this is the prompt/:promptId loader data
   return useRouteLoaderData(loader.id) as PromptLoaderData;
 };

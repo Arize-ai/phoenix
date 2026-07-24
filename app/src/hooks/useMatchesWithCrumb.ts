@@ -19,9 +19,10 @@ type RouteMatchWithCrumb = Match & {
 
 function isRouteMatchWithCrumb(match: Match): match is RouteMatchWithCrumb {
   return (
-    typeof match.handle == "object" &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    typeof (match.handle as any)?.crumb === "function"
+    typeof match.handle === "object" &&
+    match.handle != null &&
+    "crumb" in match.handle &&
+    typeof match.handle.crumb === "function"
   );
 }
 

@@ -208,8 +208,13 @@ export function awsConfigFromSpanInvocationParameters(raw: unknown): {
     let schemaObj: object | null = null;
     if (typeof js.schema === "string") {
       const { json } = safelyParseJSON(js.schema);
-      if (json != null && typeof json === "object" && !Array.isArray(json)) {
-        schemaObj = json as object;
+      const parsedSchema: unknown = json;
+      if (
+        parsedSchema != null &&
+        typeof parsedSchema === "object" &&
+        !Array.isArray(parsedSchema)
+      ) {
+        schemaObj = parsedSchema;
       }
     } else if (typeof js.schema === "object" && !Array.isArray(js.schema)) {
       schemaObj = js.schema;

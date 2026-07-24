@@ -9,8 +9,6 @@ export type PromptMessageRole = z.infer<typeof chatMessageRolesSchema>;
 export function parsePromptMessageRole(
   input: unknown
 ): PromptMessageRole | null {
-  return typeof input === "string" &&
-    chatMessageRolesSchema.safeParse(input).success
-    ? (input as PromptMessageRole)
-    : null;
+  const result = chatMessageRolesSchema.safeParse(input);
+  return result.success ? result.data : null;
 }

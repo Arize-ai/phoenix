@@ -30,6 +30,7 @@ export function compressObject<T extends Record<string, unknown>>(
 
   if (entries.length === 0) return undefined;
 
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- entries are filtered from T's own entries; Object.fromEntries widens the key type
   return Object.fromEntries(entries) as Partial<T>;
 }
 

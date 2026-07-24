@@ -26,7 +26,6 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
-import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { EditModelButtonMutation } from "./__generated__/EditModelButtonMutation.graphql";
@@ -105,7 +104,7 @@ function EditModelDialogContent({
         modelProvider={modelData.provider}
         modelNamePattern={modelData.namePattern}
         modelCost={
-          modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>
+          modelData.tokenPrices ? [...modelData.tokenPrices] : undefined
         }
         startDate={modelData.startTime}
         onSubmit={(params) => {

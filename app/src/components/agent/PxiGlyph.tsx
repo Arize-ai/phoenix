@@ -301,15 +301,16 @@ export function PxiGlyph({
 
   if (animation) {
     const thinkingSize = typeof dim === "number" ? `${dim}px` : dim;
-    const thinkingStyle =
+    const thinkingStyle: React.CSSProperties &
+      Record<"--pxi-thinking-size", string> =
       fill === "currentColor"
-        ? ({
+        ? {
             "--pxi-thinking-size": thinkingSize,
-          } as React.CSSProperties)
-        : ({
+          }
+        : {
             color: fill,
             "--pxi-thinking-size": thinkingSize,
-          } as React.CSSProperties);
+          };
 
     return (
       <span

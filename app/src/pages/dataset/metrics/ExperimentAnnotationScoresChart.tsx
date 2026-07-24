@@ -42,15 +42,32 @@ import { useExperimentMetricsData } from "./useExperimentMetricsData";
  */
 const CHART_ANIMATION_DURATION_MS = 400;
 
+/**
+ * Safely extracts the experiment fields from a recharts tooltip payload datum.
+ */
+function parseExperimentDatum(value: unknown): {
+  experimentName?: string;
+  isBaseline?: boolean;
+} {
+  if (typeof value !== "object" || value === null) {
+    return {};
+  }
+  const datum: { experimentName?: string; isBaseline?: boolean } = {};
+  if ("experimentName" in value && typeof value.experimentName === "string") {
+    datum.experimentName = value.experimentName;
+  }
+  if ("isBaseline" in value && typeof value.isBaseline === "boolean") {
+    datum.isBaseline = value.isBaseline;
+  }
+  return datum;
+}
+
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { theme } = useTheme();
   if (!active || !payload || payload.length === 0) {
     return null;
   }
-  const datum = payload[0]?.payload as {
-    experimentName?: string;
-    isBaseline?: boolean;
-  };
+  const datum = parseExperimentDatum(payload[0]?.payload);
   const annotationEntries = payload.filter(
     (entry) => typeof entry.value === "number"
   );
@@ -87,19 +104,24 @@ export function ExperimentAnnotationScoresChart({
     useExperimentMetricsData(datasetId);
 
   const scoreKeySet = new Set<string>();
-  const chartData = experiments.map((experiment) => {
-    const scores: Record<string, number | undefined> = {};
-    for (const summary of experiment.annotationSummaries) {
-      scoreKeySet.add(summary.annotationName);
-      scores[summary.annotationName] = summary.meanScore ?? undefined;
-    }
-    return {
-      sequenceNumber: experiment.sequenceNumber,
-      experimentName: experiment.name,
-      isBaseline: experiment.isBaseline,
-      ...scores,
-    };
-  });
+  const chartData: ({
+    sequenceNumber: number;
+    experimentName: string;
+    isBaseline: boolean;
+  } & Record<string, number | string | boolean | undefined>)[] =
+    experiments.map((experiment) => {
+      const scores: Record<string, number | undefined> = {};
+      for (const summary of experiment.annotationSummaries) {
+        scoreKeySet.add(summary.annotationName);
+        scores[summary.annotationName] = summary.meanScore ?? undefined;
+      }
+      return {
+        sequenceNumber: experiment.sequenceNumber,
+        experimentName: experiment.name,
+        isBaseline: experiment.isBaseline,
+        ...scores,
+      };
+    });
   const scoreKeys = Array.from(scoreKeySet);
 
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
@@ -114,7 +136,7 @@ export function ExperimentAnnotationScoresChart({
   let maxScore = -Infinity;
   for (const dataPoint of chartData) {
     for (const scoreKey of visibleScoreKeys) {
-      const scoreValue = dataPoint[scoreKey as keyof typeof dataPoint];
+      const scoreValue = dataPoint[scoreKey];
       if (typeof scoreValue === "number") {
         if (scoreValue < minScore) minScore = scoreValue;
         if (scoreValue > maxScore) maxScore = scoreValue;
@@ -127,10 +149,7 @@ export function ExperimentAnnotationScoresChart({
       : undefined;
 
   const hasData = chartData.some((dataPoint) =>
-    scoreKeys.some(
-      (scoreKey) =>
-        typeof dataPoint[scoreKey as keyof typeof dataPoint] === "number"
-    )
+    scoreKeys.some((scoreKey) => typeof dataPoint[scoreKey] === "number")
   );
 
   return (

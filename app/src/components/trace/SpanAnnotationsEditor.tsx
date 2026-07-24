@@ -52,7 +52,6 @@ import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import type { AnnotationConfig as AnnotationConfigType } from "@phoenix/pages/settings/types";
 import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
-import type { Mutable } from "@phoenix/typeUtils";
 import { isStringArray } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -475,14 +474,11 @@ function SpanAnnotationsList(props: {
     data.span
   );
   const spanNodeId = data.span.id;
-  const spanAnnotations = span.filteredSpanAnnotations as Mutable<
-    typeof span.filteredSpanAnnotations
-  >;
   const annotations = useMemo(() => {
     // we can only show one config per annotation name
     // so we need to group by name and pick the most recent one
-    return deduplicateAnnotationsByName(spanAnnotations);
-  }, [spanAnnotations]);
+    return deduplicateAnnotationsByName([...span.filteredSpanAnnotations]);
+  }, [span.filteredSpanAnnotations]);
   const currentAnnotationIds = useMemo(
     () => new Set(annotations.map((annotation) => annotation.id)),
     [annotations]
@@ -757,13 +753,15 @@ function SpanAnnotationsList(props: {
             accept={excludeExplanationButton}
           />
           {annotationConfigs?.map((annotationConfig, idx) => {
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- bridges the Relay __typename union to the app's annotationType-discriminated AnnotationConfig union
+            const config = annotationConfig.config as AnnotationConfig;
             const annotation = annotations.find(
-              (annotation) => annotation.name === annotationConfig.config.name
+              (annotation) => annotation.name === config.name
             );
             return (
               <AnnotationFormProvider
-                key={`${idx}_${annotationConfig.config.name}_form`}
-                annotationConfig={annotationConfig.config as AnnotationConfig}
+                key={`${idx}_${config.name}_form`}
+                annotationConfig={config}
                 currentAnnotationIDs={currentAnnotationIds}
                 annotation={annotation}
                 onCreate={handleCreate}
@@ -772,7 +770,7 @@ function SpanAnnotationsList(props: {
               >
                 <SpanAnnotationInput
                   annotation={annotation}
-                  annotationConfig={annotationConfig.config as AnnotationConfig}
+                  annotationConfig={config}
                 />
               </AnnotationFormProvider>
             );

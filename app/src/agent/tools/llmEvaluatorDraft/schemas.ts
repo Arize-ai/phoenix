@@ -20,23 +20,23 @@ function normalizeInputMappingAliases(input: unknown): unknown {
   });
 }
 
+/** Local guard: a non-null, non-array object whose properties can be read by key. */
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function normalizeEditLlmEvaluatorDraftInput(input: unknown): unknown {
   const normalized = normalizeAliases(input, {
     operations: ["operation"],
   });
-  if (
-    typeof normalized !== "object" ||
-    normalized === null ||
-    Array.isArray(normalized)
-  ) {
+  if (!isPlainRecord(normalized)) {
     return normalized;
   }
-  const candidate = normalized as Record<string, unknown>;
   if (
-    candidate.operations === undefined &&
-    typeof candidate.type === "string"
+    normalized.operations === undefined &&
+    typeof normalized.type === "string"
   ) {
-    return { operations: [candidate] };
+    return { operations: [normalized] };
   }
   return normalized;
 }

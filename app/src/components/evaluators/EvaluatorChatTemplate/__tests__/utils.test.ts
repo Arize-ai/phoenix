@@ -24,6 +24,7 @@ describe("makeLLMEvaluatorInstance", () => {
 
   it("falls back to default invocation config when the saved config has no invocation parameters", () => {
     const modelConfigByProvider: ModelConfigByProvider = {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- intentionally omits the required invocationParameters to exercise the fallback path
       [DEFAULT_MODEL_PROVIDER]: {
         provider: DEFAULT_MODEL_PROVIDER,
         modelName: "gpt-4o-mini",

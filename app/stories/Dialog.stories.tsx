@@ -52,13 +52,13 @@ const meta: Meta = {
 
 export default meta;
 
-type StoryArgs = DialogProps & { placement?: string };
+type StoryArgs = DialogProps & { placement?: PopoverProps["placement"] };
 
 // eslint-disable-next-line react/prop-types
 const Template: StoryFn<StoryArgs> = ({ placement = "bottom", ...args }) => (
   <DialogTrigger>
     <Button>Open Main Dialog</Button>
-    <Popover placement={placement as PopoverProps["placement"]}>
+    <Popover placement={placement}>
       <Dialog {...args}>
         <DialogContent>
           <DialogHeader>
@@ -95,7 +95,7 @@ const ControlledTemplate: StoryFn<StoryArgs> = ({
     <>
       <DialogTrigger isOpen={isMainOpen} onOpenChange={setIsMainOpen}>
         <Button ref={triggerRef}>Open Main Dialog</Button>
-        <Popover placement={placement as PopoverProps["placement"]}>
+        <Popover placement={placement}>
           <Dialog {...args}>
             <DialogContent>
               <DialogHeader>
@@ -123,10 +123,7 @@ const ControlledTemplate: StoryFn<StoryArgs> = ({
         </Popover>
       </DialogTrigger>
       <DialogTrigger isOpen={isNestedOpen} onOpenChange={setIsNestedOpen}>
-        <Popover
-          triggerRef={triggerRef}
-          placement={placement as PopoverProps["placement"]}
-        >
+        <Popover triggerRef={triggerRef} placement={placement}>
           <Dialog>
             <DialogContent>
               <DialogHeader>

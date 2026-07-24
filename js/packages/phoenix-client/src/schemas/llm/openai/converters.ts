@@ -33,6 +33,18 @@ import { openAIToolCallSchema } from "./toolCallSchemas";
 import { openAIToolChoiceSchema } from "./toolChoiceSchemas";
 import { openAIToolDefinitionSchema } from "./toolSchemas";
 
+function isAnthropicImageMediaType(
+  value: string | undefined
+): value is "jpeg" | "png" | "gif" | "webp" | "jpg" {
+  return (
+    value === "jpeg" ||
+    value === "png" ||
+    value === "gif" ||
+    value === "webp" ||
+    value === "jpg"
+  );
+}
+
 export const openAIChatPartToAnthropic = openaiChatPartSchema.transform(
   (openai) => {
     const type = openai.type;
@@ -43,25 +55,13 @@ export const openAIChatPartToAnthropic = openaiChatPartSchema.transform(
         if (!openai.image_url.url.startsWith("data:image/")) {
           return null;
         }
-        let mediaType: "jpeg" | "png" | "gif" | "webp" | "jpg" =
-          openai.image_url.url?.split(";")?.[0]?.split("/")[1] as
-            | "jpeg"
-            | "png"
-            | "gif"
-            | "webp"
-            | "jpg";
-        if (
-          mediaType !== "jpeg" &&
-          mediaType !== "jpg" &&
-          mediaType !== "png" &&
-          mediaType !== "gif" &&
-          mediaType !== "webp"
-        ) {
+        const rawMediaType = openai.image_url.url
+          ?.split(";")?.[0]
+          ?.split("/")[1];
+        if (!isAnthropicImageMediaType(rawMediaType)) {
           return null;
         }
-        if (mediaType === "jpg") {
-          mediaType = "jpeg" as const;
-        }
+        const mediaType = rawMediaType === "jpg" ? "jpeg" : rawMediaType;
         return {
           type: "image",
           source: {
@@ -202,6 +202,7 @@ export const openAIMessageToPhoenixPrompt = openAIMessageSchema.transform(
     } as const;
 
     return {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- role map produces the canonical Phoenix role values by construction
       role: roleMap[openai.role] as PhoenixMessageRole,
       content,
     };

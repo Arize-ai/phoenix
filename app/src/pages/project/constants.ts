@@ -9,7 +9,7 @@ export type ProjectTab = (typeof PROJECT_TABS)[number];
 export const DEFAULT_PAGE_SIZE = 30;
 
 export const isProjectTab = (tab: string): tab is ProjectTab => {
-  return PROJECT_TABS.includes(tab as ProjectTab);
+  return (PROJECT_TABS as readonly string[]).includes(tab);
 };
 
 /**
@@ -41,7 +41,7 @@ export type ProjectMetricChartKey = (typeof PROJECT_METRIC_CHART_KEYS)[number];
 export const isProjectMetricChartKey = (
   key: string
 ): key is ProjectMetricChartKey =>
-  PROJECT_METRIC_CHART_KEYS.includes(key as ProjectMetricChartKey);
+  (PROJECT_METRIC_CHART_KEYS as readonly string[]).includes(key);
 
 /**
  * The maximum number of metric charts that can be shown above a table at once.

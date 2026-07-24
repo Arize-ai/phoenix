@@ -79,16 +79,16 @@ export function hasStringifiedJSON(value: unknown): boolean {
 export function AttributesJSONBlock({ attributes }: { attributes: string }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const parsedAttributes = useMemo(() => {
+  const parsedAttributes = useMemo((): unknown => {
     try {
-      return JSON.parse(attributes) as Record<string, unknown>;
+      return JSON.parse(attributes);
     } catch {
       return null;
     }
   }, [attributes]);
 
   const canExpand = useMemo(
-    () => parsedAttributes && hasStringifiedJSON(parsedAttributes),
+    () => !!parsedAttributes && hasStringifiedJSON(parsedAttributes),
     [parsedAttributes]
   );
 

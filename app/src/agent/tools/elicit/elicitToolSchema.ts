@@ -16,16 +16,15 @@ export function parseElicitToolInput(input: unknown): ElicitToolInput | null {
 
   // Some transports serialize the questions array as a JSON string.
   // Pre-process to normalize before handing off to zod.
-  const raw = input as Record<string, unknown>;
-  let normalized: Record<string, unknown>;
-  if (typeof raw.questions === "string") {
+  let normalized: unknown;
+  if ("questions" in input && typeof input.questions === "string") {
     try {
-      normalized = { ...raw, questions: JSON.parse(raw.questions) };
+      normalized = { ...input, questions: JSON.parse(input.questions) };
     } catch {
       return null;
     }
   } else {
-    normalized = raw;
+    normalized = input;
   }
 
   const result = elicitToolInputSchema.safeParse(normalized);

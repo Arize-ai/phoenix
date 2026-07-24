@@ -22,11 +22,11 @@ export type PartialOutputToolCall = {
 const isPartialOutputToolCall = (
   toolCall: LlmProviderToolCall | PartialOutputToolCall
 ): toolCall is PartialOutputToolCall => {
-  const partialOutputToolCall = toolCall as PartialOutputToolCall;
-  if (!isStringKeyedObject(partialOutputToolCall.function)) {
+  if (!isStringKeyedObject(toolCall) || !("function" in toolCall)) {
     return false;
   }
-  return typeof partialOutputToolCall.function.arguments === "string";
+  const { function: fn } = toolCall;
+  return isStringKeyedObject(fn) && typeof fn.arguments === "string";
 };
 
 export function PlaygroundToolCall({

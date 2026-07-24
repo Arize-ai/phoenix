@@ -24,6 +24,7 @@ export function ExperimentDetailPage() {
       <ModalOverlay>
         <Modal variant="slideover" size="L">
           <Suspense fallback={<Loading />}>
+            {/* oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition */}
             <ExperimentDetailsDialog experimentId={experimentId as string} />
           </Suspense>
         </Modal>

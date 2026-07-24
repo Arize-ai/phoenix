@@ -16,8 +16,12 @@ export function formatTemplate(args: {
   if (typeof template === "string") {
     return renderTemplateString(template, variablesProxy);
   }
+  // Spreading a discriminated-union member widens its literal `role`, so TS
+  // cannot re-narrow the mapped result back to ModelMessage on its own; the
+  // structural identity is preserved.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- structural identity preserved
   return template.map((message) => {
-    if (message.content !== undefined && typeof message.content === "string") {
+    if (typeof message.content === "string") {
       return {
         ...message,
         content: renderTemplateString(message.content, variablesProxy),

@@ -76,6 +76,7 @@ export function ProjectPage() {
       <Suspense fallback={<Loading />}>
         <ProjectPageContent
           key={projectId}
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition
           projectId={projectId as string}
           timeRangeISOStrings={deferredTimeRangeISOStrings}
         />
@@ -90,7 +91,7 @@ const TABS = ["spans", "traces", "sessions", "config", "metrics"] as const;
  * Type guard for the tab path in the URL
  */
 const isTab = (tab: string): tab is (typeof TABS)[number] => {
-  return TABS.includes(tab as (typeof TABS)[number]);
+  return (TABS as readonly string[]).includes(tab);
 };
 
 const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
@@ -101,6 +102,7 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   config: 4,
 };
 
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.fromEntries widens keys/values; entries come from the exhaustive TAB_INDEX_MAP
 const TAB_PATH_BY_INDEX = Object.fromEntries(
   Object.entries(TAB_INDEX_MAP).map(([tab, index]) => [index, tab])
 ) as Record<number, (typeof TABS)[number]>;

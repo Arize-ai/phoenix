@@ -99,7 +99,9 @@ describe("AgentFabPositioner", () => {
       );
     });
 
-    const positioner = container.querySelector(".agent-chat-widget-positioner");
+    const positioner = container.querySelector<HTMLElement>(
+      ".agent-chat-widget-positioner"
+    );
     const button = container.querySelector("button");
     expect(positioner).not.toBeNull();
     expect(button).not.toBeNull();
@@ -196,7 +198,7 @@ describe("AgentFabPositioner", () => {
   it("does not move on click jitter below the drag threshold", () => {
     const onActivate = vi.fn();
     const { button, positioner } = renderPositioner({ onActivate });
-    const initialTransform = (positioner as HTMLElement).style.transform;
+    const initialTransform = positioner.style.transform;
 
     act(() => {
       dispatchPointerEvent(button, "pointerdown", {
@@ -214,7 +216,7 @@ describe("AgentFabPositioner", () => {
     });
 
     expect(onActivate).toHaveBeenCalledTimes(1);
-    expect((positioner as HTMLElement).style.transform).toBe(initialTransform);
+    expect(positioner.style.transform).toBe(initialTransform);
   });
 
   it("does not activate after a drag", () => {

@@ -113,6 +113,7 @@ export function formatAskUserState(
  */
 export function AskUserToolDetails({ part }: { part: ToolInvocationPart }) {
   const input = parseElicitToolInput(part.input);
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ask_user tool output shape is guaranteed by the tool contract; no runtime schema exists to parse against
   const output = part.output as ElicitToolOutput | null;
   const draft = useElicitationDraft(part.toolCallId);
   const responseState = getAskUserResponseState({ output, draft });

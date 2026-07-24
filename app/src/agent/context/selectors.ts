@@ -62,7 +62,9 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
     upsert(context);
   }
 
-  return order.map((key) => byKey.get(key) as AgentContext);
+  return order
+    .map((key) => byKey.get(key))
+    .filter((context): context is AgentContext => context !== undefined);
 }
 
 /**

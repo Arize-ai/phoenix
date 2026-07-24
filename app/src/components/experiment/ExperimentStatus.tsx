@@ -92,6 +92,7 @@ export function ExperimentStatus({
       </TooltipTrigger>
     );
   }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- status is a backend experiment-status enum value; the getStatus* switches assert exhaustiveness
   const validStatus = status as ExperimentStatusValue;
   return (
     <TooltipTrigger>

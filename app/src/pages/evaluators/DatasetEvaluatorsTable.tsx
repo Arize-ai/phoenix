@@ -66,18 +66,19 @@ const EVALUATOR_SORT_COLUMNS: DatasetEvaluatorSort["col"][] = [
   "updatedAt",
 ];
 
+const isDatasetEvaluatorSortColumn = (
+  value: string
+): value is DatasetEvaluatorSort["col"] =>
+  (EVALUATOR_SORT_COLUMNS as readonly string[]).includes(value);
+
 export const convertTanstackSortToEvaluatorSort = (
   sorting: SortingState
 ): DatasetEvaluatorSort | null | undefined => {
   if (sorting.length === 0) return null;
   const col = sorting[0].id;
-  if (
-    EVALUATOR_SORT_COLUMNS.includes(
-      col as (typeof EVALUATOR_SORT_COLUMNS)[number]
-    )
-  ) {
+  if (isDatasetEvaluatorSortColumn(col)) {
     return {
-      col: col as DatasetEvaluatorSort["col"],
+      col,
       dir: sorting[0].desc ? "desc" : "asc",
     };
   }
@@ -337,7 +338,7 @@ export const DatasetEvaluatorsTable = ({
         cell: ({ getValue, row }) => {
           return (
             <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
-              {getValue() as string}
+              {getValue<string>()}
             </Link>
           );
         },
@@ -348,7 +349,7 @@ export const DatasetEvaluatorsTable = ({
         accessorFn: (row) => row.evaluator.kind,
         size: 60,
         cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as EvaluatorKind} />
+          <EvaluatorKindToken kind={getValue<EvaluatorKind>()} />
         ),
       },
       {
@@ -559,7 +560,7 @@ export const DatasetEvaluatorsTable = ({
         flex: 1 1 auto;
         overflow: auto;
       `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
       ref={tableContainerRef}
     >
       <table

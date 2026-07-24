@@ -171,6 +171,7 @@ export function Slider<T extends number | number[]>({
           // check state to determine how we should fill the track
           // generate css vars for single thumb
           if (state.values.length === 1) {
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- CSS custom properties are not expressible in CSSProperties
             return {
               "--slider-start": "0%",
               "--slider-end": `${state.getThumbPercent(0) * 100}%`,
@@ -178,6 +179,7 @@ export function Slider<T extends number | number[]>({
           }
 
           // generate css vars for multi-thumb
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- CSS custom properties are not expressible in CSSProperties
           return {
             "--slider-start": `${state.getThumbPercent(0) * 100}%`,
             "--slider-end": `${state.getThumbPercent(1) * 100}%`,

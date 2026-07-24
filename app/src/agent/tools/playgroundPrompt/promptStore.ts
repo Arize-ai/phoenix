@@ -58,11 +58,14 @@ export function getPromptSnapshot({
       error: "Only chat playground prompts can be read or edited.",
     };
   }
-  const messages = instance.template.messageIds.map((messageId) => {
+  const maybeMessages = instance.template.messageIds.map((messageId) => {
     const message = state.allInstanceMessages[messageId];
     return normalizeMessageSnapshot(message);
   });
-  if (messages.some((message) => message == null)) {
+  const messages = maybeMessages.filter(
+    (message): message is PromptMessageSnapshot => message != null
+  );
+  if (messages.length !== maybeMessages.length) {
     return {
       ok: false,
       error: "The playground prompt has missing message state.",
@@ -87,7 +90,7 @@ export function getPromptSnapshot({
             : {}),
         }
       : null,
-    messages: messages as PromptMessageSnapshot[],
+    messages,
   };
   return {
     ok: true,

@@ -272,7 +272,7 @@ function EvaluatorPromptPreviewContent(
 }
 
 function MessageCard({ role, content }: { role: string; content: string }) {
-  const styles = useChatMessageStyles(role as ChatMessage["role"]);
+  const styles = useChatMessageStyles(role);
   return (
     <Card title={role} {...styles}>
       <pre

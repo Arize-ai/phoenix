@@ -107,6 +107,10 @@ function parseHeader(raw: string): McpHeader {
   return { name, value };
 }
 
+function isMcpAgentId(value: string): value is McpAgentId {
+  return (MCP_AGENT_IDS as readonly string[]).includes(value);
+}
+
 /** Reject bad flag values before any side effect runs. */
 function toMcpInputs(options: SetupMcpCommandOptions): {
   agent?: McpAgentId;
@@ -124,15 +128,16 @@ function toMcpInputs(options: SetupMcpCommandOptions): {
       "px setup mcp --format pretty|json|raw"
     );
   }
-  if (
-    options.agent !== undefined &&
-    !MCP_AGENT_IDS.includes(options.agent as McpAgentId)
-  ) {
-    fail(
-      format,
-      `Invalid --agent: ${options.agent}.`,
-      `px setup mcp --agent <${MCP_AGENT_IDS.join("|")}>`
-    );
+  let agent: McpAgentId | undefined;
+  if (options.agent !== undefined) {
+    if (!isMcpAgentId(options.agent)) {
+      fail(
+        format,
+        `Invalid --agent: ${options.agent}.`,
+        `px setup mcp --agent <${MCP_AGENT_IDS.join("|")}>`
+      );
+    }
+    agent = options.agent;
   }
   if (options.global && options.local) {
     fail(
@@ -157,7 +162,7 @@ function toMcpInputs(options: SetupMcpCommandOptions): {
   }
 
   return {
-    agent: options.agent as McpAgentId | undefined,
+    agent,
     scope: options.local ? "local" : options.global ? "global" : undefined,
     headers,
     endpointExplicit: options.endpoint !== undefined,

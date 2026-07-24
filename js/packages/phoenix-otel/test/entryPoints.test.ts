@@ -17,12 +17,12 @@ const esmEntry = new URL("../dist/esm/index.js", import.meta.url).href;
  */
 describe.skipIf(!existsSync(cjsEntry))("built entry points", () => {
   test("the CommonJS entry loads via require()", () => {
-    const otel = requireCjs(cjsEntry) as { register?: unknown };
+    const otel: { register?: unknown } = requireCjs(cjsEntry);
     expect(typeof otel.register).toBe("function");
   });
 
   test("the ESM entry loads via import()", async () => {
-    const otel = (await import(esmEntry)) as { register?: unknown };
+    const otel: { register?: unknown } = await import(esmEntry);
     expect(typeof otel.register).toBe("function");
   });
 });

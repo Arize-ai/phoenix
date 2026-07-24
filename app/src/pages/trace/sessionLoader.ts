@@ -23,6 +23,7 @@ export async function sessionLoader(args: LoaderFunctionArgs) {
       }
     `,
     {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- sessionId is a required route param
       id: sessionId as string,
     }
   ).toPromise();

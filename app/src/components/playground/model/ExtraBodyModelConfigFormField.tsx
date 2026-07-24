@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { readInvocationConfigField } from "@phoenix/pages/playground/providerAdapters";
 import type { PlaygroundNormalizedInstance } from "@phoenix/store";
-import { isObject } from "@phoenix/typeUtils";
+import { isObject, isStringKeyedObject } from "@phoenix/typeUtils";
 
 import type { JSONObjectFieldCodec } from "./JSONObjectModelConfigFormField";
 import {
@@ -34,15 +34,12 @@ const extraBodyCodec: JSONObjectFieldCodec<Record<string, unknown>> = {
     }
     try {
       const parsed = JSON.parse(raw);
-      if (!isObject(parsed) || Array.isArray(parsed)) {
+      if (!isStringKeyedObject(parsed) || Array.isArray(parsed)) {
         return { success: false, message: "Extra Body must be a JSON object" };
       }
       return {
         success: true,
-        data:
-          Object.keys(parsed).length > 0
-            ? (parsed as Record<string, unknown>)
-            : undefined,
+        data: Object.keys(parsed).length > 0 ? parsed : undefined,
       };
     } catch {
       return { success: false, message: "Invalid JSON format" };
@@ -83,9 +80,7 @@ export function ExtraBodyModelConfigFormField({
       description="Additional provider-specific options."
       placeholder={`{"provider_specific_option": true}`}
       jsonSchema={EXTRA_BODY_JSON_SCHEMA}
-      value={
-        isObject(extraBody) ? (extraBody as Record<string, unknown>) : undefined
-      }
+      value={isStringKeyedObject(extraBody) ? extraBody : undefined}
       codec={extraBodyCodec}
       onChange={handleChange}
       onErrorChange={onErrorChange}

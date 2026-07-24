@@ -52,6 +52,7 @@ export function TraceAnnotationSummary({
     `,
     {
       annotationName,
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition
       id: projectId as string,
       timeRange: timeRangeISOStrings,
       filterCondition: filterCondition || null,

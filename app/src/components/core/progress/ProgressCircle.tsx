@@ -20,7 +20,8 @@ function ProgressCircle({
       ref={ref}
       style={
         !isIndeterminate && value != null
-          ? ({ "--progress-circle-value": value } as React.CSSProperties)
+          ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- CSS custom property is not expressible in CSSProperties
+            ({ "--progress-circle-value": value } as React.CSSProperties)
           : undefined
       }
     >

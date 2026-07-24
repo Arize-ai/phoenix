@@ -18,6 +18,7 @@ import {
   toOpenAIReasoningEffortFormValue,
 } from "@phoenix/pages/playground/invocationParameterEnumOptions";
 import type { CanonicalResponseFormat } from "@phoenix/store/playground/types";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import type { PromptInvocationParametersReadableFragment$data } from "../__generated__/PromptInvocationParametersReadableFragment.graphql";
 import type {
@@ -63,8 +64,8 @@ export type OpenAIPromotedPlaygroundFields = {
 // ---------- helpers ----------------------------------------------------------
 
 function pickExtraBody(value: unknown): Record<string, unknown> | undefined {
-  if (value != null && typeof value === "object" && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
+  if (isPlainObject(value)) {
+    return value;
   }
   return undefined;
 }

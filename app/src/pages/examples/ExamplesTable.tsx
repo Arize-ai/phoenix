@@ -38,7 +38,6 @@ import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftCli
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
-import type { Mutable } from "@phoenix/typeUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
@@ -131,9 +130,7 @@ export function ExamplesTable({
       data.examples.edges
         .map((example) => ({
           id: example.example.id,
-          datasetSplits: example.example.datasetSplits as Mutable<
-            typeof example.example.datasetSplits
-          >,
+          datasetSplits: [...example.example.datasetSplits],
         }))
         .filter((example) => selectedExampleIds.includes(example.id))
         .reduce<ExamplesCache>((acc, example) => {
@@ -320,7 +317,7 @@ export function ExamplesTable({
         overflow: auto;
       `}
       ref={tableContainerRef}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
     >
       <table
         css={selectableTableCSS}

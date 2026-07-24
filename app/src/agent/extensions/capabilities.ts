@@ -82,6 +82,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
 ];
 
 /** Fast lookup map derived from the definitions array. */
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- keys come from AgentCapabilityKey-typed definitions; completeness is enforced by the runtime check below
 const AGENT_CAPABILITY_DEFINITIONS_BY_KEY = Object.fromEntries(
   AGENT_CAPABILITY_DEFINITIONS.map((def) => [def.key, def])
 ) as Record<AgentCapabilityKey, AgentCapabilityDefinition>;
@@ -91,6 +92,7 @@ const AGENT_CAPABILITY_DEFINITIONS_BY_KEY = Object.fromEntries(
 // the definitions array.  This catches the case where a developer adds a new key
 // to AgentCapabilityKey and DEFAULT_AGENT_CAPABILITIES but forgets to add its
 // definition to AGENT_CAPABILITY_DEFINITIONS.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.keys of a Record<AgentCapabilityKey, boolean> literal
 for (const key of Object.keys(
   DEFAULT_AGENT_CAPABILITIES
 ) as AgentCapabilityKey[]) {

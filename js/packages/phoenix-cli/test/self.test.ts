@@ -236,7 +236,7 @@ describe("self update command", () => {
       }
       return packageParentDirectory;
     });
-    spawnSyncMock.mockReturnValue({ status: 0 } as never);
+    spawnSyncMock.mockReturnValue({ status: 0 });
 
     await createSelfCommand().parseAsync(["update"], { from: "user" });
 
@@ -262,7 +262,7 @@ describe("self update command", () => {
       }
       return "/tmp/npm-root/node_modules";
     });
-    spawnSyncMock.mockReturnValue({ status: 0 } as never);
+    spawnSyncMock.mockReturnValue({ status: 0 });
 
     await createSelfCommand().parseAsync(["update"], { from: "user" });
 
@@ -294,7 +294,7 @@ describe("self update command", () => {
 
     process.env.PATH = `${denoBinDirectory}${path.delimiter}${originalPath ?? ""}`;
     execFileSyncMock.mockImplementation(() => "/tmp/unsupported-root");
-    spawnSyncMock.mockReturnValue({ status: 0 } as never);
+    spawnSyncMock.mockReturnValue({ status: 0 });
 
     try {
       await createSelfCommand().parseAsync(["update"], { from: "user" });

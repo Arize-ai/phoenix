@@ -13,11 +13,11 @@ import {
 } from "./DocumentAnnotationForm";
 
 const DANGER_ANNOTATION_LABELS = ["irrelevant", "unrelated"];
-const ANNOTATOR_KINDS = new Set(["HUMAN", "LLM", "CODE"] as const);
+const ANNOTATOR_KINDS: ReadonlySet<string> = new Set(["HUMAN", "LLM", "CODE"]);
 type AnnotatorKind = "HUMAN" | "LLM" | "CODE";
 
 function isAnnotatorKind(value: string): value is AnnotatorKind {
-  return ANNOTATOR_KINDS.has(value as AnnotatorKind);
+  return ANNOTATOR_KINDS.has(value);
 }
 
 export type DocumentAnnotation = {

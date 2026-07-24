@@ -938,8 +938,8 @@ function humanizeLabel(name: string): string {
     return name;
   }
   if (Array.isArray(parsed)) return summarizeValue(parsed) ?? name;
-  if (!parsed || typeof parsed !== "object") return name;
-  const entries = Object.entries(parsed as Record<string, unknown>).filter(
+  if (!isRecord(parsed)) return name;
+  const entries = Object.entries(parsed).filter(
     ([, v]) => v != null && v !== ""
   );
   if (entries.length === 0) return name;
@@ -985,6 +985,10 @@ const PREFERRED_SUMMARY_KEYS = [
   "status",
 ];
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function truncateSummary(value: string, maxLength = 96): string {
   return value.length <= maxLength
     ? value
@@ -1008,7 +1012,7 @@ function summaryPrimitive(value: unknown): string | null {
   }
   if (Array.isArray(value)) return `array(${value.length})`;
   if (typeof value === "object") {
-    return `object(${Object.keys(value as Record<string, unknown>).length})`;
+    return `object(${Object.keys(value).length})`;
   }
   return String(value);
 }
@@ -1065,8 +1069,8 @@ function summarizeValue(value: unknown, maxLength = 96): string | null {
       maxLength
     );
   }
-  if (typeof value === "object") {
-    return summarizeRecord(value as Record<string, unknown>, maxLength);
+  if (isRecord(value)) {
+    return summarizeRecord(value, maxLength);
   }
   return truncateSummary(String(value), maxLength);
 }

@@ -92,7 +92,7 @@ async function main(): Promise<void> {
     client,
     dataset: { datasetId },
     task: async ({ input }) => {
-      const question = (input as Record<string, string>).question;
+      const question = String(input.question);
       if (question.includes("2+2")) return "4";
       if (question.includes("capital")) return "Paris";
       if (question.includes("speed of light")) return "299,792,458 m/s";
@@ -116,8 +116,8 @@ async function main(): Promise<void> {
         kind: "CODE",
         evaluate: async ({ output, expected }) => {
           const outputStr = String(output);
-          const expectedAnswer =
-            (expected as Record<string, string>)?.answer ?? "";
+          const answer = expected?.answer;
+          const expectedAnswer = typeof answer === "string" ? answer : "";
           const isCorrect =
             outputStr.toLowerCase().includes(expectedAnswer.toLowerCase()) ||
             expectedAnswer.toLowerCase().includes(outputStr.toLowerCase());

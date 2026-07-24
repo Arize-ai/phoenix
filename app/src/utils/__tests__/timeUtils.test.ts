@@ -50,8 +50,7 @@ describe("toLocalISOWithOffset", () => {
 
     // Replace the global with a subclass that simulates the "24" convention:
     // midnight May 6 is rendered as May 5, 24:00:00.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (Intl as any).DateTimeFormat = class extends OriginalDTF {
+    const MockDateTimeFormat = class extends OriginalDTF {
       formatToParts(date?: number | Date): Intl.DateTimeFormatPart[] {
         return super.formatToParts(date).map((p) => {
           if (p.type === "hour") return { ...p, value: "24" };
@@ -66,6 +65,7 @@ describe("toLocalISOWithOffset", () => {
         });
       }
     };
+    Object.assign(Intl, { DateTimeFormat: MockDateTimeFormat });
 
     try {
       // Midnight May 6 UTC — with the mock, formatToParts returns day "05"
@@ -74,8 +74,7 @@ describe("toLocalISOWithOffset", () => {
       const result = toLocalISOWithOffset(date, "UTC");
       expect(result).toBe("2026-05-06T00:00:00+00:00");
     } finally {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (Intl as any).DateTimeFormat = OriginalDTF;
+      Object.assign(Intl, { DateTimeFormat: OriginalDTF });
     }
   });
 });

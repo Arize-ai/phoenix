@@ -56,18 +56,17 @@ const EVALUATOR_SORT_COLUMNS: EvaluatorSort["col"][] = [
   "updatedAt",
 ];
 
+const isEvaluatorSortColumn = (value: string): value is EvaluatorSort["col"] =>
+  (EVALUATOR_SORT_COLUMNS as readonly string[]).includes(value);
+
 export const convertTanstackSortToEvaluatorSort = (
   sorting: SortingState
 ): EvaluatorSort | null | undefined => {
   if (sorting.length === 0) return null;
   const col = sorting[0].id;
-  if (
-    EVALUATOR_SORT_COLUMNS.includes(
-      col as (typeof EVALUATOR_SORT_COLUMNS)[number]
-    )
-  ) {
+  if (isEvaluatorSortColumn(col)) {
     return {
-      col: col as EvaluatorSort["col"],
+      col,
       dir: sorting[0].desc ? "desc" : "asc",
     };
   }
@@ -518,7 +517,7 @@ export const EvaluatorsTable = ({
         flex: 1 1 auto;
         overflow: auto;
       `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
       ref={tableContainerRef}
     >
       <table

@@ -143,18 +143,14 @@ export function AgentContextPills() {
     return null;
   }
 
+  // The pills sit on the prompt input surface; match the stack seam to it.
+  const attachmentsStyle: CSSProperties & Record<`--${string}`, string> = {
+    "--attachment-stack-separator-color":
+      "var(--prompt-input-background-color)",
+  };
+
   return (
-    <Attachments
-      variant="inline"
-      collapsible
-      // The pills sit on the prompt input surface; match the stack seam to it.
-      style={
-        {
-          "--attachment-stack-separator-color":
-            "var(--prompt-input-background-color)",
-        } as CSSProperties
-      }
-    >
+    <Attachments variant="inline" collapsible style={attachmentsStyle}>
       {items.map((data) => (
         <Attachment key={data.id} data={data}>
           <AttachmentPreview />

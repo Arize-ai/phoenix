@@ -587,9 +587,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       return [];
     }
 
-    return (inputMessagesValue
-      ?.map((obj) => obj[SemanticAttributePrefixes.message])
-      .filter(Boolean) || []) as AttributeMessage[];
+    return inputMessagesValue
+      .map((obj) => obj[SemanticAttributePrefixes.message])
+      .filter((message) => message != null);
   }, [llmAttributes]);
 
   const llmTools = useMemo<AttributeLLMToolDefinition[]>(() => {
@@ -601,8 +601,8 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       return [];
     }
     const toolDefinitions = tools
-      ?.map((obj) => obj[SemanticAttributePrefixes.tool])
-      .filter(Boolean) as AttributeLLMToolDefinition[];
+      .map((obj) => obj[SemanticAttributePrefixes.tool])
+      .filter((tool) => tool != null);
     return toolDefinitions;
   }, [llmAttributes]);
 
@@ -626,9 +626,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     if (!isAttributeMessages(outputMessagesValue)) {
       return [];
     }
-    return (outputMessagesValue
+    return outputMessagesValue
       .map((obj) => obj[SemanticAttributePrefixes.message])
-      .filter(Boolean) || []) as AttributeMessage[];
+      .filter((message) => message != null);
   }, [llmAttributes]);
 
   const prompts = useMemo<string[]>(() => {
@@ -864,9 +864,11 @@ function RetrieverSpanInfo(props: {
     if (retrieverAttributes == null) {
       return [];
     }
-    return (retrieverAttributes[RetrievalAttributePostfixes.documents]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[];
+    return (
+      retrieverAttributes[RetrievalAttributePostfixes.documents]
+        ?.map((obj) => obj[SemanticAttributePrefixes.document])
+        .filter((document) => document != null) || []
+    );
   }, [retrieverAttributes]);
 
   // Construct a map of document position to document evaluations
@@ -1010,17 +1012,21 @@ function RerankerSpanInfo(props: {
     if (rerankerAttributes == null) {
       return [];
     }
-    return (rerankerAttributes[RerankerAttributePostfixes.input_documents]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[];
+    return (
+      rerankerAttributes[RerankerAttributePostfixes.input_documents]
+        ?.map((obj) => obj[SemanticAttributePrefixes.document])
+        .filter((document) => document != null) || []
+    );
   }, [rerankerAttributes]);
   const output_documents = useMemo<AttributeDocument[]>(() => {
     if (rerankerAttributes == null) {
       return [];
     }
-    return (rerankerAttributes[RerankerAttributePostfixes.output_documents]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[];
+    return (
+      rerankerAttributes[RerankerAttributePostfixes.output_documents]
+        ?.map((obj) => obj[SemanticAttributePrefixes.document])
+        .filter((document) => document != null) || []
+    );
   }, [rerankerAttributes]);
 
   const numInputDocuments = input_documents.length;
@@ -1112,9 +1118,11 @@ function EmbeddingSpanInfo(props: {
     if (embeddingAttributes == null) {
       return [];
     }
-    return (embeddingAttributes[EmbeddingAttributePostfixes.embeddings]
-      ?.map((obj) => obj[SemanticAttributePrefixes.embedding])
-      .filter(Boolean) || []) as AttributeEmbeddingEmbedding[];
+    return (
+      embeddingAttributes[EmbeddingAttributePostfixes.embeddings]
+        ?.map((obj) => obj[SemanticAttributePrefixes.embedding])
+        .filter((embedding) => embedding != null) || []
+    );
   }, [embeddingAttributes]);
 
   const hasEmbeddings = embeddings.length > 0;
@@ -1389,7 +1397,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   }
                   const id = toolCall.id;
                   const parsedArguments = safelyParseJSON(
-                    toolCall?.function?.arguments as string
+                    toolCall?.function?.arguments ?? ""
                   );
 
                   return (
@@ -1421,7 +1429,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                             padding: var(--global-dimension-size-200);
                           `}
                         >
-                          {toolCall?.function?.name as string}(
+                          {toolCall?.function?.name}(
                           {parsedArguments.json
                             ? JSON.stringify(parsedArguments.json, null, 2)
                             : `${toolCall?.function?.arguments}`}
@@ -1445,17 +1453,15 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                       margin: var(--global-dimension-size-100) 0;
                     `}
                   >
-                    {
-                      message[
-                        MessageAttributePostfixes.function_call_name
-                      ] as string
-                    }
-                    (
+                    {message[MessageAttributePostfixes.function_call_name]}(
                     {JSON.stringify(
                       JSON.parse(
-                        message[
-                          MessageAttributePostfixes.function_call_arguments_json
-                        ] as string
+                        String(
+                          message[
+                            MessageAttributePostfixes
+                              .function_call_arguments_json
+                          ]
+                        )
                       ),
                       null,
                       2

@@ -741,9 +741,7 @@ export function SessionDetailsTraceList({
             height: 100%;
             overflow: auto;
           `}
-          onScroll={(e) =>
-            debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
-          }
+          onScroll={(e) => debouncedFetchMoreOnBottomReached(e.currentTarget)}
         >
           {sessionRootSpans.map(({ traceId, rootSpan }, index) => {
             const isSelected = index === selectedIndex;

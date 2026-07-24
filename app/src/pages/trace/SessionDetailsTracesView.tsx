@@ -282,9 +282,7 @@ export function SessionDetailsTracesView({
             onSpanClick={handleSpanClick}
             rowRefs={rowRefs}
             isLoadingNext={isLoadingNext}
-            onScroll={(e) =>
-              throttledFetchMoreOnBottomReached(e.target as HTMLDivElement)
-            }
+            onScroll={(e) => throttledFetchMoreOnBottomReached(e.currentTarget)}
           />
         </div>
       </Panel>

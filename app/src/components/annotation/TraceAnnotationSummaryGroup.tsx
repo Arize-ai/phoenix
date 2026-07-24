@@ -112,6 +112,7 @@ const useTraceAnnotationSummaryGroup = (
     >((acc, edge) => {
       const name = edge.node.name;
       if (name && edge.node.annotationType === "CATEGORICAL") {
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the CategoricalAnnotationConfig inline fragment guarantees these fields when annotationType is CATEGORICAL
         acc[name] = edge.node as AnnotationConfigCategorical;
       }
       return acc;

@@ -1224,7 +1224,7 @@ export function ExperimentCompareListPage({
       <Flex direction="column" height="100%">
         <div
           css={tableWrapCSS}
-          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+          onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
           ref={tableContainerRef}
         >
           <table
@@ -1498,6 +1498,7 @@ function TableBody<T>({
 }
 
 //special memoized wrapper for our table body that we will use during column resizing
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- preserve the generic component signature through React.memo
 export const MemoizedTableBody = memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
