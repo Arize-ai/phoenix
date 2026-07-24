@@ -123,6 +123,15 @@ async function fetchPhoenixSpans({
   });
 }
 
+function downloadBlob({ fileName, blob }: { fileName: string; blob: Blob }) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function downloadJson({
   fileName,
   payload,
@@ -130,15 +139,31 @@ function downloadJson({
   fileName: string;
   payload: unknown;
 }) {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: "application/json",
+  downloadBlob({
+    fileName,
+    blob: new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    }),
   });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
+}
+
+/**
+ * Downloads records as JSONL — one JSON object per line.
+ */
+function downloadJsonl({
+  fileName,
+  records,
+}: {
+  fileName: string;
+  records: unknown[];
+}) {
+  downloadBlob({
+    fileName,
+    blob: new Blob(
+      [records.map((record) => JSON.stringify(record)).join("\n") + "\n"],
+      { type: "application/x-ndjson" }
+    ),
+  });
 }
 
 type SpanSelectionDownloadMenuProps = {
@@ -166,9 +191,9 @@ export function SpanSelectionDownloadMenu({
       switch (action) {
         case "spans": {
           const spans = await fetchPhoenixSpans({ projectId, spanIds });
-          downloadJson({
-            fileName: `spans-${timestamp}.json`,
-            payload: { spans },
+          downloadJsonl({
+            fileName: `spans-${timestamp}.jsonl`,
+            records: spans,
           });
           break;
         }
@@ -224,7 +249,7 @@ export function SpanSelectionDownloadMenu({
         >
           <MenuItem id="spans-otlp">Download Spans OTLP JSON</MenuItem>
           <MenuItem id="traces-otlp">Download Traces OTLP JSON</MenuItem>
-          <MenuItem id="spans">Download Spans JSON</MenuItem>
+          <MenuItem id="spans">Download Spans JSONL</MenuItem>
         </Menu>
       </Popover>
     </MenuTrigger>
