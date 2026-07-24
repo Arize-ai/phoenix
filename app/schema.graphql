@@ -3697,6 +3697,7 @@ enum SandboxBackendType {
   VERCEL
   DENO
   MODAL
+  TENKI
 }
 
 type SandboxConfig implements Node {
@@ -3744,16 +3745,18 @@ input SandboxConfigVariantInput @oneOf {
   vercel: VercelConfigInput
   wasm: WASMConfigInput
   modal: ModalConfigInput
+  tenki: TenkiConfigInput
 }
 
 """
 Admin-scoped deployment routing for a sandbox provider. Only providers that expose routing kwargs on their SDK ``create()`` appear in this union; others (WASM, Deno, Vercel, Modal) expose ``deployment: null``.
 """
-union SandboxDeployment = DaytonaDeploymentData | E2BDeploymentData
+union SandboxDeployment = DaytonaDeploymentData | E2BDeploymentData | TenkiDeploymentData
 
 input SandboxDeploymentVariantInput @oneOf {
   daytona: DaytonaDeploymentInput
   e2b: E2BDeploymentInput
+  tenki: TenkiDeploymentInput
 }
 
 enum SandboxHostingType {
@@ -4239,6 +4242,23 @@ type SystemApiKey implements ApiKey & Node {
 type TaskWorkItemId {
   datasetExampleId: Int!
   repetitionNumber: Int!
+}
+
+input TenkiConfigInput {
+  language: Language! = PYTHON
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+type TenkiDeploymentData {
+  apiUrl: String
+  projectId: String
+}
+
+input TenkiDeploymentInput {
+  apiUrl: String = null
+  projectId: String = null
 }
 
 type TestGenerativeModelCustomProviderCredentialsResult {

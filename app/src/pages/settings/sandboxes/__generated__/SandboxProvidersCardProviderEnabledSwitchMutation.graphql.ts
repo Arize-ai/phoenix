@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<598d1608deeb299619d90658f179cfe1>>
+ * @generated SignedSource<<6eec53222b8e95f1467703b58482f107>>
  * @lightSyntaxTransform
  */
 
@@ -17,9 +17,15 @@ export type UpdateSandboxProviderInput = {
 export type SandboxDeploymentVariantInput = {
   daytona: DaytonaDeploymentInput;
   e2b?: never;
+  tenki?: never;
 } | {
   daytona?: never;
   e2b: E2BDeploymentInput;
+  tenki?: never;
+} | {
+  daytona?: never;
+  e2b?: never;
+  tenki: TenkiDeploymentInput;
 };
 export type DaytonaDeploymentInput = {
   apiUrl?: string | null;
@@ -28,6 +34,10 @@ export type DaytonaDeploymentInput = {
 export type E2BDeploymentInput = {
   apiUrl?: string | null;
   domain?: string | null;
+};
+export type TenkiDeploymentInput = {
+  apiUrl?: string | null;
+  projectId?: string | null;
 };
 export type SandboxProvidersCardProviderEnabledSwitchMutation$variables = {
   input: UpdateSandboxProviderInput;

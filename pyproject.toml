@@ -109,6 +109,7 @@ dev = [
   "litellm>=1.83.14; python_version < '3.14'",  # >=1.83.14 fixes CVE-2026-42208; excluded because upstream metadata does not support Python 3.14 (https://github.com/BerriAI/litellm/issues/26343)
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
   "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
+  "tenki-sandbox>=0.4.0",  # type-checking only; runtime is gated by the [tenki] extra
   "wasmtime>=15.0",  # bundled in dev so the local WASM sandbox runs without an extra opt-in; the [wasm] extra still gates production installs
   "mypy==2.3.0",
   "mypy-boto3-bedrock-runtime",
@@ -199,6 +200,9 @@ vercel = [
 modal = [
   "modal>=1.2.0",
 ]
+tenki = [
+  "tenki-sandbox>=0.4.0",
+]
 pg = [
   "asyncpg",
 ]
@@ -234,13 +238,14 @@ container = [
   "types-aiobotocore-bedrock-runtime>=3.6.0",
   # Sandbox provider SDKs — bundled so the shipped container can use any
   # configured provider without a rebuild. Each pin matches the matching
-  # single-provider extra above ([wasm], [e2b], [daytona], [vercel], [modal]).
+  # single-provider extra above ([wasm], [e2b], [daytona], [vercel], [modal], [tenki]).
   "wasmtime>=15.0",
   "e2b-code-interpreter>=0.0.12",
   "daytona-sdk>=0.140.0",
   "vercel>=0.5.8",
   "websockets>=14.0",
   "modal>=1.2.0",
+  "tenki-sandbox>=0.4.0",
 ]
 
 [project.urls]
