@@ -380,3 +380,36 @@ async def test_async_get_spans_with_attributes_calls_guard_before_request() -> N
         await AsyncSpans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
             project_identifier="my-project", attributes={"k": "v"}
         )
+
+
+def test_get_spans_with_span_ids_calls_guard_before_request() -> None:
+    from phoenix.client.constants.server_requirements import GET_SPANS_SPAN_IDS
+
+    class _Guard:
+        def require(self, requirement: object) -> None:
+            if requirement is GET_SPANS_SPAN_IDS:
+                raise _GuardSentinel
+
+    transport = httpx.MockTransport(lambda r: pytest.fail("transport must not be reached"))
+    client = httpx.Client(transport=transport, base_url="http://test")
+    with pytest.raises(_GuardSentinel):
+        Spans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
+            project_identifier="my-project", span_ids=["span-1"]
+        )
+
+
+@pytest.mark.anyio
+async def test_async_get_spans_with_span_ids_calls_guard_before_request() -> None:
+    from phoenix.client.constants.server_requirements import GET_SPANS_SPAN_IDS
+
+    class _Guard:
+        async def require(self, requirement: object) -> None:
+            if requirement is GET_SPANS_SPAN_IDS:
+                raise _GuardSentinel
+
+    transport = httpx.MockTransport(lambda r: pytest.fail("transport must not be reached"))
+    client = httpx.AsyncClient(transport=transport, base_url="http://test")
+    with pytest.raises(_GuardSentinel):
+        await AsyncSpans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
+            project_identifier="my-project", span_ids=["span-1"]
+        )

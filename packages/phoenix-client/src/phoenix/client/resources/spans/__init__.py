@@ -1816,6 +1816,8 @@ class AsyncSpans:
         """
         if trace_ids:
             await self._guard.require(GET_SPANS_TRACE_IDS)
+        if span_ids:
+            await self._guard.require(GET_SPANS_SPAN_IDS)
         if name or span_kind or status_code:
             await self._guard.require(GET_SPANS_FILTERS)
         if attributes:
