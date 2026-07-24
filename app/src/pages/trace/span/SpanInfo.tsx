@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Alert, Card, Flex, View } from "@phoenix/components";
+import { AttributesJSONBlock } from "@phoenix/components/code";
 
 import { defaultCardProps } from "./constants";
 import { EmbeddingSpanInfo } from "./EmbeddingSpanInfo";
@@ -33,11 +34,8 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
       <View padding="size-200">
         <Flex direction="column" gap="size-200">
           {statusDescription}
-          <Alert variant="warning" title="Un-parsable attributes">
-            {`Failed to parse span attributes. ${parseError instanceof Error ? parseError.message : ""}`}
-          </Alert>
           <Card {...defaultCardProps} title="Attributes">
-            <View padding="size-100">{attributes}</View>
+            <AttributesJSONBlock attributes={attributes} />
           </Card>
         </Flex>
       </View>
