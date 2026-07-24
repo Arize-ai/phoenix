@@ -823,3 +823,12 @@ export const ValuePermutations: Story = {
   render: () => <AnnotationLabelValueTable />,
   tags: ["!dev"],
 };
+
+export const Ghost: Story = {
+  args: {
+    annotation: { name: "confidence" },
+    annotationDisplayPreference: "none",
+    clickable: true,
+    variant: "ghost",
+  },
+};

@@ -20,6 +20,7 @@ import {
   SectionHeading,
   View,
 } from "@phoenix/components";
+import { SpanDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 
@@ -424,6 +425,9 @@ export function SpanDetails({
           }
         />
       </View>
+      <Suspense fallback={null}>
+        <SpanDetailPanelAnnotationBar spanNodeId={span.id} />
+      </Suspense>
       <nav css={spanDetailsAnchorNavCSS} aria-label="Span detail sections">
         <ul>
           <li>

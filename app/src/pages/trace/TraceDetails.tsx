@@ -14,9 +14,6 @@ import invariant from "tiny-invariant";
 
 import {
   Flex,
-  Icon,
-  Icons,
-  LinkButton,
   Loading,
   RichTooltip,
   Text,
@@ -39,7 +36,6 @@ import {
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { usePersistedState } from "@phoenix/hooks";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
-import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 import type {
@@ -48,8 +44,6 @@ import type {
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
-import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
-import { TraceHeaderTraceAnnotations } from "./TraceHeaderTraceAnnotations";
 
 const TRACE_TREE_WIDTH_STORAGE_KEY = "arize-phoenix-trace-tree-width";
 
@@ -57,9 +51,11 @@ type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
 >["rootSpans"]["edges"][number]["span"];
 
-export type TraceHeaderCostSummary = NonNullable<
-  TraceDetailsQuery$data["project"]["trace"]
->["costSummary"];
+export type TraceHeaderCostSummary = {
+  completion?: { cost: number | null } | null;
+  prompt?: { cost: number | null } | null;
+  total?: { cost: number | null } | null;
+};
 
 export type TraceDetailsProps = {
   traceId: string;
@@ -79,7 +75,6 @@ export function TraceDetails(props: TraceDetailsProps) {
           ... on Project {
             trace(traceId: $traceId) {
               id
-              projectSessionId
               ...ConnectedTraceTree
               rootSpans: spans(
                 first: 1
@@ -88,23 +83,10 @@ export function TraceDetails(props: TraceDetailsProps) {
               ) {
                 edges {
                   span: node {
-                    statusCode
                     id
                     spanId
                     parentId
                   }
-                }
-              }
-              latencyMs
-              costSummary {
-                prompt {
-                  cost
-                }
-                completion {
-                  cost
-                }
-                total {
-                  cost
                 }
               }
             }
@@ -118,9 +100,6 @@ export function TraceDetails(props: TraceDetailsProps) {
     }
   );
   invariant(data.project.trace, "Trace is required to view the trace details");
-  const traceLatencyMs =
-    data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
-  const costSummary = data?.project?.trace?.costSummary;
   const rootSpans: RootSpan[] = useMemo(() => {
     const gqlSpans = data.project.trace?.rootSpans.edges || [];
     return gqlSpans.map((node) => node.span);
@@ -165,14 +144,6 @@ export function TraceDetails(props: TraceDetailsProps) {
         flex-direction: column;
       `}
     >
-      <TraceHeader
-        projectId={projectId}
-        traceNodeId={data.project.trace.id}
-        rootSpan={rootSpan}
-        latencyMs={traceLatencyMs}
-        costSummary={costSummary}
-        sessionId={data.project.trace?.projectSessionId}
-      />
       <Group
         orientation="horizontal"
         onLayoutChanged={handleLayoutChanged}
@@ -231,64 +202,6 @@ export function TraceDetails(props: TraceDetailsProps) {
         </Panel>
       </Group>
     </main>
-  );
-}
-
-function TraceHeader({
-  rootSpan,
-  traceNodeId,
-  latencyMs,
-  costSummary,
-  sessionId,
-  projectId,
-}: {
-  rootSpan: RootSpan | null;
-  traceNodeId: string;
-  latencyMs: number | null;
-  costSummary?: TraceHeaderCostSummary | null;
-  sessionId?: string | null;
-  projectId: string;
-}) {
-  const [searchParams] = useSearchParams();
-  const statusCode = (rootSpan?.statusCode ?? "UNSET") as SpanStatusCodeType;
-  const sessionSearch = clearSelectionScopedParams(searchParams);
-  const annotationSummaries = (
-    <Suspense fallback={null}>
-      <Flex
-        direction="row"
-        gap="size-400"
-        alignItems="stretch"
-        alignSelf="stretch"
-      >
-        {rootSpan ? (
-          <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
-        ) : null}
-        <TraceHeaderTraceAnnotations traceId={traceNodeId} />
-      </Flex>
-    </Suspense>
-  );
-  const trailingAction = sessionId ? (
-    <LinkButton
-      size="S"
-      variant="primary"
-      leadingVisual={<Icon svg={<Icons.MessagesSquare />} />}
-      to={{
-        pathname: `/projects/${projectId}/sessions/${sessionId}`,
-        search: sessionSearch,
-      }}
-    >
-      View Session
-    </LinkButton>
-  ) : null;
-
-  return (
-    <TraceHeaderContent
-      statusCode={statusCode}
-      latencyMs={latencyMs}
-      costSummary={costSummary}
-      annotationSummaries={annotationSummaries}
-      trailingAction={trailingAction}
-    />
   );
 }
 
