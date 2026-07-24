@@ -4,7 +4,7 @@
 
 # Replica count
 # -- Number of Phoenix pod replicas
-replicaCount: 1
+replicaCount: 3
 
 # Deployment strategy
 deployment:
@@ -171,7 +171,7 @@ server:
   # -- Maximum number of spans to hold in the processing queue before rejecting new requests (PHOENIX_MAX_SPANS_QUEUE_SIZE)
   # This is a heuristic to prevent memory issues when spans accumulate faster than they can be written to the database.
   # Memory usage: ~50KiB per span means 20,000 spans = ~1GiB. Adjust based on available memory and database throughput.
-  maxSpansQueueSize: 20000
+  maxSpansQueueSize: 50000
 
   # -- Comma-separated list of model provider names to display in the playground UI (PHOENIX_ALLOWED_PROVIDERS)
   # When unset, all providers are shown. Set to "NONE" to hide all providers.
@@ -744,11 +744,10 @@ image:
 # -- Resource configuration
 resources:
   limits:
-    cpu: "1000m"
-    memory: "2Gi"
+    memory: "8Gi"
   requests:
-    cpu: "500m"
-    memory: "1Gi"
+    cpu: "4000m"
+    memory: "8Gi"
 
 # -- Security context configuration
 securityContext:
