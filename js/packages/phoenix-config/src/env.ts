@@ -225,11 +225,11 @@ export function resetCrossTierEndpointWarningsForTesting(): void {
 export function getIntFromEnvironment(envKey: string) {
   const value = readEnvValue(envKey);
   if (!value) {
-    return;
+    return undefined;
   }
   const parsed = parseInt(value);
   if (Number.isNaN(parsed)) {
-    return;
+    return undefined;
   }
   return parsed;
 }
@@ -343,11 +343,11 @@ export function parseHeaders(value: string | undefined): Headers | undefined {
   try {
     const parsed = JSON.parse(value);
     if (!isHeaders(parsed)) {
-      return;
+      return undefined;
     }
     return parsed;
   } catch {
-    return;
+    return undefined;
   }
 }
 

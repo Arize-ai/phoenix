@@ -11,6 +11,7 @@ import {
 } from "@phoenix/components/ai/attachment";
 import type { AttachmentContextData } from "@phoenix/components/ai/attachment";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 const MAX_CONDITION_CHARS = 40;
 const ID_PREFIX_CHARS = 8;
@@ -55,6 +56,8 @@ function contextLabel(context: AgentContext): string {
       return "LLM Evaluator";
     case "dataset":
       return "Dataset";
+    default:
+      return assertUnreachable(context);
   }
 }
 

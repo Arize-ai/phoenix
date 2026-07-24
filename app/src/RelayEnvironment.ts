@@ -141,7 +141,7 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
     // throw an error to indicate to the developer what went wrong.
     (data) => {
       if (!isObject(data) || !("errors" in data)) {
-        return;
+        return undefined;
       }
       if (Array.isArray(data.errors)) {
         return new Error(
@@ -150,6 +150,7 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
           )}': ${JSON.stringify(data.errors)}`
         );
       }
+      return undefined;
     }
   );
 

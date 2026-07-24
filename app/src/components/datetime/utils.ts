@@ -61,7 +61,7 @@ function getLastNTimeRangeDurationMs({
     case "d":
       return quantity * DAY_IN_MS;
     default:
-      assertUnreachable(unit);
+      return assertUnreachable(unit);
   }
 }
 

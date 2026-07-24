@@ -157,7 +157,7 @@ export function RecentlyViewedTracker() {
   useEffect(() => {
     const match = matchEntityRoute(pathname, search);
     if (!match) {
-      return;
+      return undefined;
     }
     const subscription = fetchQuery<RecentlyViewedTrackerNodeQuery>(
       environment,
