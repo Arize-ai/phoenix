@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { Suspense, useMemo } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -48,7 +48,7 @@ type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
 >["rootSpans"]["edges"][number]["span"];
 
-type CostSummary = NonNullable<
+export type TraceHeaderCostSummary = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
 >["costSummary"];
 
@@ -198,13 +198,67 @@ function TraceHeader({
   rootSpan: RootSpan | null;
   traceNodeId: string;
   latencyMs: number | null;
-  costSummary?: CostSummary | null;
+  costSummary?: TraceHeaderCostSummary | null;
   sessionId?: string | null;
   projectId: string;
 }) {
   const [searchParams] = useSearchParams();
   const statusCode = (rootSpan?.statusCode ?? "UNSET") as SpanStatusCodeType;
   const sessionSearch = clearSelectionScopedParams(searchParams);
+  const annotationSummaries = (
+    <Suspense fallback={null}>
+      <Flex
+        direction="row"
+        gap="size-400"
+        alignItems="stretch"
+        alignSelf="stretch"
+      >
+        {rootSpan ? (
+          <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
+        ) : null}
+        <TraceHeaderTraceAnnotations traceId={traceNodeId} />
+      </Flex>
+    </Suspense>
+  );
+  const trailingAction = sessionId ? (
+    <LinkButton
+      size="S"
+      variant="primary"
+      leadingVisual={<Icon svg={<Icons.MessagesSquare />} />}
+      to={{
+        pathname: `/projects/${projectId}/sessions/${sessionId}`,
+        search: sessionSearch,
+      }}
+    >
+      View Session
+    </LinkButton>
+  ) : null;
+
+  return (
+    <TraceHeaderContent
+      statusCode={statusCode}
+      latencyMs={latencyMs}
+      costSummary={costSummary}
+      annotationSummaries={annotationSummaries}
+      trailingAction={trailingAction}
+    />
+  );
+}
+
+/** Presentational trace metrics header used by the trace details page. */
+export function TraceHeaderContent({
+  statusCode,
+  latencyMs,
+  costSummary,
+  annotationSummaries,
+  trailingAction,
+}: {
+  statusCode: SpanStatusCodeType;
+  latencyMs: number | null;
+  costSummary?: TraceHeaderCostSummary | null;
+  annotationSummaries?: ReactNode;
+  trailingAction?: ReactNode;
+}) {
   return (
     <View
       paddingTop="size-100"
@@ -285,39 +339,17 @@ function TraceHeader({
             <Text size="L">--</Text>
           )}
         </Flex>
-        <Suspense fallback={null}>
-          <Flex
-            direction="row"
-            gap="size-400"
-            alignItems="stretch"
-            alignSelf="stretch"
-          >
-            {rootSpan ? (
-              <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
-            ) : null}
-            <TraceHeaderTraceAnnotations traceId={traceNodeId} />
-          </Flex>
-        </Suspense>
-        {sessionId && (
+        {annotationSummaries}
+        {trailingAction ? (
           <span
             css={css`
               align-self: center;
               margin-left: auto;
             `}
           >
-            <LinkButton
-              size="S"
-              variant="primary"
-              leadingVisual={<Icon svg={<Icons.MessagesSquare />} />}
-              to={{
-                pathname: `/projects/${projectId}/sessions/${sessionId}`,
-                search: sessionSearch,
-              }}
-            >
-              View Session
-            </LinkButton>
+            {trailingAction}
           </span>
-        )}
+        ) : null}
       </Flex>
     </View>
   );

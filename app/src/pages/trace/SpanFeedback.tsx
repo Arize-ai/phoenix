@@ -34,6 +34,9 @@ type TableRow = SpanFeedback_annotations$data["spanAnnotations"][number] & {
   spanNodeId: string;
 };
 
+export type SpanAnnotation =
+  SpanFeedback_annotations$data["spanAnnotations"][number];
+
 const spanAnnotationsTableWrapCSS = css`
   overflow: auto;
 `;
@@ -41,9 +44,11 @@ const spanAnnotationsTableWrapCSS = css`
 function SpanAnnotationsTable({
   annotations,
   spanNodeId,
+  showActions,
 }: {
   annotations: SpanFeedback_annotations$data["spanAnnotations"];
   spanNodeId: string;
+  showActions: boolean;
 }) {
   const tableData = useMemo<TableRow[]>(() => {
     return annotations.map((annotation) => ({
@@ -54,8 +59,8 @@ function SpanAnnotationsTable({
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
 
-  const columns: ColumnDef<TableRow>[] = useMemo(
-    () => [
+  const columns: ColumnDef<TableRow>[] = useMemo(() => {
+    const columns: ColumnDef<TableRow>[] = [
       {
         header: "name",
         accessorKey: "name",
@@ -140,7 +145,9 @@ function SpanAnnotationsTable({
         size: 100,
         cell: TimestampCell,
       },
-      {
+    ];
+    if (showActions) {
+      columns.push({
         header: "",
         accessorKey: "actions",
         size: 100,
@@ -157,10 +164,10 @@ function SpanAnnotationsTable({
             />
           );
         },
-      },
-    ],
-    [setError, notifySuccess]
-  );
+      });
+    }
+    return columns;
+  }, [setError, notifySuccess, showActions]);
 
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
@@ -282,11 +289,28 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
     span
   );
 
-  const annotations = data.spanAnnotations;
+  return (
+    <SpanAnnotations annotations={data.spanAnnotations} spanNodeId={data.id} />
+  );
+}
 
-  const hasAnnotations = data.spanAnnotations.length > 0;
+/** Presentational annotation section used by span details and Storybook. */
+export function SpanAnnotations({
+  annotations,
+  spanNodeId,
+  showActions = true,
+}: {
+  annotations: readonly SpanAnnotation[];
+  spanNodeId: string;
+  showActions?: boolean;
+}) {
+  const hasAnnotations = annotations.length > 0;
   return hasAnnotations ? (
-    <SpanAnnotationsTable annotations={annotations} spanNodeId={data.id} />
+    <SpanAnnotationsTable
+      annotations={annotations}
+      spanNodeId={spanNodeId}
+      showActions={showActions}
+    />
   ) : (
     <AnnotationsEmpty />
   );

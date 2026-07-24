@@ -12,6 +12,9 @@ import { useTimeFormatters } from "@phoenix/hooks";
 import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
+import type { SpanHeader_span$data } from "./__generated__/SpanHeader_span.graphql";
+
+export type SpanHeaderData = Omit<SpanHeader_span$data, " $fragmentType">;
 
 const identityRowCSS = css`
   display: flex;
@@ -72,7 +75,6 @@ type SpanHeaderProps = {
  * cost) of uniformly muted mono text separated by dots.
  */
 export function SpanHeader(props: SpanHeaderProps) {
-  const { fullTimeFormatter } = useTimeFormatters();
   const span = useFragment(
     graphql`
       fragment SpanHeader_span on Span {
@@ -94,6 +96,19 @@ export function SpanHeader(props: SpanHeaderProps) {
     props.span
   );
 
+  return <SpanHeaderContent span={span} actions={props.actions} />;
+}
+
+/** Presentational span identity header used by the details page and Storybook. */
+export function SpanHeaderContent({
+  span,
+  actions,
+}: {
+  span: SpanHeaderData;
+  actions?: ReactNode;
+}) {
+  const { fullTimeFormatter } = useTimeFormatters();
+
   const startTime = useMemo<Date>(() => {
     return new Date(span.startTime);
   }, [span.startTime]);
@@ -111,9 +126,7 @@ export function SpanHeader(props: SpanHeaderProps) {
           {span.name}
         </Text>
         <SpanStatusBadge statusCode={span.code} labelVariant="full" />
-        {props.actions ? (
-          <div className="span-header__actions">{props.actions}</div>
-        ) : null}
+        {actions ? <div className="span-header__actions">{actions}</div> : null}
       </div>
       <div className="span-header__meta" css={metaRowCSS}>
         <span className="span-header__meta-item">

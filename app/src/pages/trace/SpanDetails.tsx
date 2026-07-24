@@ -118,6 +118,7 @@ type AttributeObject = {
 };
 
 type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
+export type SpanInfoSpan = Omit<Span, " $fragmentSpreads">;
 
 type DocumentEvaluation = NonNullable<Span["documentEvaluations"]>[number];
 
@@ -673,15 +674,7 @@ export function SpanDetails({
                 <SpanDetailsSectionHeading>
                   Attributes
                 </SpanDetailsSectionHeading>
-                <View padding="size-200">
-                  <Card
-                    title="All Attributes"
-                    {...defaultCardProps}
-                    titleExtra={attributesContextualHelp}
-                  >
-                    <AttributesJSONBlock attributes={span.attributes} />
-                  </Card>
-                </View>
+                <SpanAttributes attributes={span.attributes} />
               </section>
               <section id={spanDetailsSectionIds.events} aria-label="Events">
                 <SpanDetailsSectionHeading>
@@ -774,7 +767,7 @@ function AddSpanToDatasetButton({
   );
 }
 
-function SpanInfo({ span }: { span: Span }) {
+export function SpanInfo({ span }: { span: SpanInfoSpan }) {
   const { spanKind, attributes } = span;
   // Parse the attributes once
   const { json: attributesObject, parseError } =
@@ -852,7 +845,10 @@ function SpanInfo({ span }: { span: Span }) {
   );
 }
 
-function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+function LLMSpanInfo(props: {
+  span: SpanInfoSpan;
+  spanAttributes: AttributeObject;
+}) {
   const { spanAttributes, span } = props;
   const { input, output } = span;
   const llmAttributes = useMemo<AttributeLlm | null>(
@@ -1148,7 +1144,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 }
 
 function RetrieverSpanInfo(props: {
-  span: Span;
+  span: SpanInfoSpan;
   spanAttributes: AttributeObject;
 }) {
   const { spanAttributes, span } = props;
@@ -1289,7 +1285,7 @@ function RetrieverSpanInfo(props: {
 }
 
 function RerankerSpanInfo(props: {
-  span: Span;
+  span: SpanInfoSpan;
   spanAttributes: AttributeObject;
 }) {
   const { spanAttributes } = props;
@@ -1397,7 +1393,7 @@ function RerankerSpanInfo(props: {
 }
 
 function EmbeddingSpanInfo(props: {
-  span: Span;
+  span: SpanInfoSpan;
   spanAttributes: AttributeObject;
 }) {
   const { spanAttributes } = props;
@@ -1464,7 +1460,10 @@ function EmbeddingSpanInfo(props: {
   );
 }
 
-function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+function ToolSpanInfo(props: {
+  span: SpanInfoSpan;
+  spanAttributes: AttributeObject;
+}) {
   const { span, spanAttributes } = props;
   const { input, output } = span;
   const hasInput = typeof input?.value === "string";
@@ -1938,7 +1937,7 @@ function MessageContentListItem({
   );
 }
 
-function SpanIO({ span }: { span: Span }) {
+export function SpanIO({ span }: { span: SpanInfoSpan }) {
   const { input, output } = span;
   const isMissingIO = input == null && output == null;
   const inputIsText = input?.mimeType === "text";
@@ -1989,6 +1988,21 @@ function SpanIO({ span }: { span: Span }) {
         </Card>
       ) : null}
     </Flex>
+  );
+}
+
+/** The complete attributes card shown in the span details attributes section. */
+export function SpanAttributes({ attributes }: { attributes: string }) {
+  return (
+    <View padding="size-200">
+      <Card
+        title="All Attributes"
+        {...defaultCardProps}
+        titleExtra={attributesContextualHelp}
+      >
+        <AttributesJSONBlock attributes={attributes} />
+      </Card>
+    </View>
   );
 }
 

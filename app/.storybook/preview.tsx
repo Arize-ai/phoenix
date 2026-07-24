@@ -442,6 +442,7 @@ const preview: Preview = {
     options: {
       storySort: {
         order: [
+          "Detail panel",
           "Reference",
           ["Storybook frames", "Lines: border, divider"],
           "Core",
