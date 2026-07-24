@@ -15,8 +15,8 @@ import {
   DocumentationHelp,
   Icon,
   Icons,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { CanManageRetentionPolicy } from "@phoenix/components/auth";
 
@@ -52,8 +52,8 @@ export function SettingsDataPage() {
             >
               New Policy
             </Button>
-            <ModalOverlay>
-              <Modal>
+            <ViewportModalOverlay>
+              <ViewportModal>
                 <Dialog>
                   {({ close }) => (
                     <DialogContent>
@@ -71,8 +71,8 @@ export function SettingsDataPage() {
                     </DialogContent>
                   )}
                 </Dialog>
-              </Modal>
-            </ModalOverlay>
+              </ViewportModal>
+            </ViewportModalOverlay>
           </DialogTrigger>
         </CanManageRetentionPolicy>
       }

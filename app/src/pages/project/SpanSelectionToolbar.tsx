@@ -14,6 +14,8 @@ import {
   Icons,
   Modal,
   ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Popover,
   PopoverArrow,
   Text,
@@ -247,8 +249,8 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             isOpen={isCreatingDataset}
             onOpenChange={setIsCreatingDataset}
           >
-            <ModalOverlay>
-              <Modal>
+            <ViewportModalOverlay>
+              <ViewportModal>
                 <Dialog>
                   <DialogContent>
                     <DialogHeader>
@@ -280,8 +282,8 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                     />
                   </DialogContent>
                 </Dialog>
-              </Modal>
-            </ModalOverlay>
+              </ViewportModal>
+            </ViewportModalOverlay>
           </DialogTrigger>
           <SpanSelectionDownloadButton
             projectId={projectId}

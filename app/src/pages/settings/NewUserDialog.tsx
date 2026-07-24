@@ -3,8 +3,8 @@ import { graphql, useMutation } from "react-relay";
 
 import {
   Dialog,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Tab,
   TabList,
   TabPanel,
@@ -132,7 +132,7 @@ export function NewUserDialog({
         : "local"; // Fallback (should never happen due to backend validation)
 
   return (
-    <ModalOverlay
+    <ViewportModalOverlay
       isOpen={true}
       onOpenChange={(isOpen) => {
         if (!isOpen) {
@@ -140,7 +140,7 @@ export function NewUserDialog({
         }
       }}
     >
-      <Modal>
+      <ViewportModal>
         <Dialog>
           <DialogContent>
             <DialogHeader>
@@ -183,7 +183,7 @@ export function NewUserDialog({
             </Tabs>
           </DialogContent>
         </Dialog>
-      </Modal>
-    </ModalOverlay>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 }

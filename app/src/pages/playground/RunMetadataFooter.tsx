@@ -10,9 +10,9 @@ import {
   Icon,
   Icons,
   Loading,
-  Modal,
-  ModalOverlay,
   View,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -91,14 +91,14 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             <Button size="S" leadingVisual={<Icon svg={<Icons.Edit />} />}>
               Annotate
             </Button>
-            <ModalOverlay>
-              <Modal variant="slideover" size="S">
+            <ViewportModalOverlay>
+              <ViewportModal size="S">
                 <EditSpanAnnotationsDialog
                   spanNodeId={spanId}
                   projectId={trace.project.id}
                 />
-              </Modal>
-            </ModalOverlay>
+              </ViewportModal>
+            </ViewportModalOverlay>
           </DialogTrigger>
           <DialogTrigger
             onOpenChange={(open) => {
@@ -113,8 +113,8 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             <Button size="S" leadingVisual={<Icon svg={<Icons.Trace />} />}>
               View Trace
             </Button>
-            <ModalOverlay>
-              <Modal variant="slideover" size="fullscreen">
+            <ViewportModalOverlay>
+              <ViewportModal size="fullscreen">
                 <Suspense fallback={<Loading />}>
                   <PlaygroundRunTraceDetailsDialog
                     traceId={trace.traceId}
@@ -122,8 +122,8 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
                     title={`Playground Trace`}
                   />
                 </Suspense>
-              </Modal>
-            </ModalOverlay>
+              </ViewportModal>
+            </ViewportModalOverlay>
           </DialogTrigger>
         </Flex>
       </Flex>

@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode, RefObject } from "react";
 import { Pressable } from "react-aria";
-import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
 
 import {
@@ -18,7 +17,6 @@ import {
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
-import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import type {
   AgentFabPlacement,
   AgentPosition,
@@ -244,7 +242,14 @@ function AgentChatFrame({
   return (
     <>
       <Separator css={compactResizeHandleCSS} />
-      <Panel {...panelProps} id={panelId}>
+      <Panel
+        {...panelProps}
+        id={panelId}
+        aria-label={panelId === "agent-chat" ? "Assistant" : undefined}
+        data-agent-rail={panelId === "agent-chat" ? "" : undefined}
+        data-testid={panelId === "agent-chat" ? "assistant-rail" : undefined}
+        role={panelId === "agent-chat" ? "complementary" : undefined}
+      >
         <div css={contentCss}>{children}</div>
       </Panel>
     </>
@@ -277,43 +282,27 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
 export function FloatingAgentChatFrame({
   boundaryRef,
   children,
-  layer = "content",
   placement,
   size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   onSizeChange,
-  isForcedFloating = false,
 }: {
   boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
-  layer?: "content" | "modal";
   placement: AgentFabPlacement;
   size?: Size;
   onSizeChange?: (size: Size) => void;
-  isForcedFloating?: boolean;
 }) {
-  const activeModalPortalContainer = useActiveModalPortalContainerElement();
-  const panel = (
+  return (
     <ResizableFloatingPanel
       boundaryRef={boundaryRef}
-      layer={layer}
       minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
       placement={placement}
       size={size}
       onSizeChange={onSizeChange}
-      // Modal-layer surfaces share the modal-layer FAB's viewport positioning.
-      // Drawer-forced content-layer panels stay content-bound so they remain
-      // aligned with the content-layer FAB.
-      anchorToViewport={isForcedFloating && layer === "modal"}
     >
       {children}
     </ResizableFloatingPanel>
   );
-
-  if (layer !== "modal") {
-    return panel;
-  }
-
-  return createPortal(panel, activeModalPortalContainer ?? document.body);
 }
 
 const tracePanelContentCSS = css`

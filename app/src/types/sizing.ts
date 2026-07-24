@@ -1,2 +1,2 @@
-/** Pixel value (number) or percentage of viewport (string, e.g. "50%"). */
+/** Pixel value (number) or percentage of the owning container (e.g. "50%"). */
 export type SizeValue = number | `${number}%`;

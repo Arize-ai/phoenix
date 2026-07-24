@@ -11,8 +11,8 @@ import {
   Icon,
   Icons,
   Label,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Switch,
   Text,
 } from "@phoenix/components";
@@ -135,15 +135,15 @@ function ConfigureCredentialsButton({
         isDisabled={!hasCredentialSpecs}
         leadingVisual={<Icon svg={<Icons.Settings />} />}
       />
-      <ModalOverlay>
-        <Modal size="M">
+      <ViewportModalOverlay>
+        <ViewportModal size="M">
           <SandboxProviderCredentialsDialog
             backend={backend}
             onClose={() => setIsOpen(false)}
             onRefresh={onRefresh}
           />
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

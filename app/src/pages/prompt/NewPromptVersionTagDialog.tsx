@@ -16,8 +16,8 @@ import {
   Form,
   Input,
   Label,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Text,
   TextArea,
   TextField,
@@ -91,8 +91,8 @@ export function NewPromptVersionDialog({
   };
 
   return (
-    <ModalOverlay>
-      <Modal size="M">
+    <ViewportModalOverlay>
+      <ViewportModal size="M">
         <Dialog>
           <DialogContent>
             <DialogHeader>
@@ -192,7 +192,7 @@ export function NewPromptVersionDialog({
             </Form>
           </DialogContent>
         </Dialog>
-      </Modal>
-    </ModalOverlay>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 }

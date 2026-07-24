@@ -16,10 +16,10 @@ import {
   Menu,
   MenuItem,
   MenuTrigger,
-  Modal,
-  ModalOverlay,
   Popover,
   Text,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
@@ -145,8 +145,11 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
         </Popover>
       </MenuTrigger>
       <DialogTrigger isOpen={isFromFileOpen} onOpenChange={setIsFromFileOpen}>
-        <ModalOverlay isOpen={isFromFileOpen} onOpenChange={setIsFromFileOpen}>
-          <Modal variant="slideover" size="fullscreen">
+        <ViewportModalOverlay
+          isOpen={isFromFileOpen}
+          onOpenChange={setIsFromFileOpen}
+        >
+          <ViewportModal size="fullscreen">
             <Dialog css={dialogCSS}>
               <DialogHeader>
                 <DialogTitle>Update Dataset From File</DialogTitle>
@@ -163,12 +166,15 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
                 />
               </DialogContent>
             </Dialog>
-          </Modal>
-        </ModalOverlay>
+          </ViewportModal>
+        </ViewportModalOverlay>
       </DialogTrigger>
       <DialogTrigger isOpen={isManualOpen} onOpenChange={setIsManualOpen}>
-        <ModalOverlay isOpen={isManualOpen} onOpenChange={setIsManualOpen}>
-          <Modal variant="slideover" size="L">
+        <ViewportModalOverlay
+          isOpen={isManualOpen}
+          onOpenChange={setIsManualOpen}
+        >
+          <ViewportModal size="L">
             <Dialog css={dialogCSS}>
               {({ close }) => (
                 <>
@@ -188,8 +194,8 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
                 </>
               )}
             </Dialog>
-          </Modal>
-        </ModalOverlay>
+          </ViewportModal>
+        </ViewportModalOverlay>
       </DialogTrigger>
     </>
   );

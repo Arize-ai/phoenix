@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from "motion/react";
 import type { Ref, RefObject } from "react";
 import type { ButtonProps as AriaButtonProps } from "react-aria-components";
 import { Button as AriaButton } from "react-aria-components";
-import { createPortal } from "react-dom";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import {
@@ -16,7 +15,6 @@ import {
 } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
 import { AgentFabPositioner } from "./AgentFabPositioner";
@@ -371,8 +369,6 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const fabPlacement = useAgentContext((state) => state.fabPlacement);
   const setFabPlacement = useAgentContext((state) => state.setFabPlacement);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const activeModalPortalContainer = useActiveModalPortalContainerElement();
-  const hasOpenModal = activeModalPortalContainer !== null;
   const isResponsePending = useAgentContext((state) =>
     activeSessionId
       ? (state.isResponsePendingBySessionId[activeSessionId] ?? false)
@@ -402,13 +398,10 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
     return null;
   }
 
-  const portalContainer = activeModalPortalContainer ?? document.body;
-
-  return createPortal(
+  return (
     <AgentFabPositioner
-      boundaryRef={hasOpenModal ? undefined : boundaryRef}
+      boundaryRef={boundaryRef}
       isHidden={isOpen}
-      layer={hasOpenModal ? "modal" : "content"}
       placement={fabPlacement}
       size={isResponsePending ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
       onActivate={toggleOpen}
@@ -430,8 +423,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
         />
         <AgentChatWidgetTooltip />
       </TooltipTrigger>
-    </AgentFabPositioner>,
-    portalContainer ?? document.body
+    </AgentFabPositioner>
   );
 }
 

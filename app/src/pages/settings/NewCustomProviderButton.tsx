@@ -13,8 +13,8 @@ import {
   DialogTrigger,
   Icon,
   Icons,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   View,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -134,8 +134,8 @@ export function NewCustomProviderButton() {
       >
         New Provider
       </Button>
-      <ModalOverlay>
-        <Modal size="L">
+      <ViewportModalOverlay>
+        <ViewportModal size="L">
           <Dialog>
             <DialogContent>
               <DialogHeader>
@@ -147,8 +147,8 @@ export function NewCustomProviderButton() {
               <NewProviderDialogContent onClose={handleClose} />
             </DialogContent>
           </Dialog>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

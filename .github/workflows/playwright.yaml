@@ -130,6 +130,8 @@ jobs:
           echo "PHOENIX_WASM_BINARY_PATH=${{ github.workspace }}/.cache/wasm/python-3.12.0.wasm" >> "$GITHUB_ENV"
       - name: Run Playwright tests
         run: pnpm test:e2e
+      - name: Run assistant-enabled app frame tests
+        run: pnpm test:e2e:app-frame
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: always()
         with:

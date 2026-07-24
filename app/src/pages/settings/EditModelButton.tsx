@@ -22,8 +22,8 @@ import {
   Icon,
   Icons,
   Loading,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import type { Mutable } from "@phoenix/typeUtils";
@@ -189,8 +189,8 @@ export function EditModelButton({
         onPress={handleOpen}
         size="S"
       />
-      <ModalOverlay>
-        <Modal>
+      <ViewportModalOverlay>
+        <ViewportModal>
           <Dialog>
             <DialogContent>
               <DialogHeader>
@@ -212,8 +212,8 @@ export function EditModelButton({
               </Suspense>
             </DialogContent>
           </Dialog>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

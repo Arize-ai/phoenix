@@ -13,6 +13,8 @@ import {
   Loading,
   Modal,
   ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   View,
 } from "@phoenix/components";
 import type { APIKeyFormParams } from "@phoenix/components/auth";
@@ -116,15 +118,15 @@ export function APIKeysCard() {
             >
               System Key
             </Button>
-            <ModalOverlay>
-              <Modal size="M">
+            <ViewportModalOverlay>
+              <ViewportModal size="M">
                 <CreateAPIKeyDialog
                   onSubmit={onSubmit}
                   isCommitting={isCommitting}
                   defaultName="System"
                 />
-              </Modal>
-            </ModalOverlay>
+              </ViewportModal>
+            </ViewportModalOverlay>
           </DialogTrigger>
         }
       >

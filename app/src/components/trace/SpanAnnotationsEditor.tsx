@@ -26,8 +26,8 @@ import {
   Icon,
   Icons,
   Loading,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Popover,
   PopoverArrow,
   useFilter,
@@ -312,7 +312,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
         </Popover>
       </DialogTrigger>
       {showEditConfigDialog ? (
-        <ModalOverlay
+        <ViewportModalOverlay
           isOpen
           onOpenChange={(isOpen) => {
             if (!isOpen) {
@@ -320,12 +320,12 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
             }
           }}
         >
-          <Modal>
+          <ViewportModal>
             <AnnotationConfigDialog
               onAddAnnotationConfig={handleAddAnnotationConfig}
             />
-          </Modal>
-        </ModalOverlay>
+          </ViewportModal>
+        </ViewportModalOverlay>
       ) : null}
     </>
   );

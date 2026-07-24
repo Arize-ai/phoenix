@@ -5,19 +5,14 @@ import type {
   PointerEvent as ReactPointerEvent,
   ReactNode,
   RefObject,
-  SyntheticEvent as ReactSyntheticEvent,
 } from "react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
-import {
-  MODAL_FLOATING_UI_Z_INDEX,
-  NON_MODAL_FLOATING_Z_INDEX,
-} from "@phoenix/components/core/zIndex";
+import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
 import type { Bounds, Point, Size } from "@phoenix/types/geometry";
 
 import { FAB_INSET } from "./agentFabPositioning";
-import { useModalFloatingLayerInteractivity } from "./useModalFloatingLayerInteractivity";
 
 const FULLSCREEN_BREAKPOINT_PX = 600;
 const KEYBOARD_RESIZE_STEP_PX = 24;
@@ -26,8 +21,6 @@ const RESIZE_CORNER_HANDLE_SIZE_PX = 20;
 const RESIZE_EDGE_HANDLE_THICKNESS_PX = 8;
 const VIEWPORT_MARGIN_PX = FAB_INSET.horizontal;
 const VIEWPORT_VERTICAL_MARGIN_PX = FAB_INSET.vertical;
-
-type FloatingPanelLayer = "content" | "modal";
 
 type FloatingPanelGeometry = {
   x: number;
@@ -79,17 +72,10 @@ type MoveSession = {
 export type ResizableFloatingPanelProps = {
   boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
-  layer?: FloatingPanelLayer;
   minSize: Size;
   placement: AgentFabPlacement;
   size: Size;
   onSizeChange?: (size: Size) => void;
-  /**
-   * Anchor the panel to the viewport instead of the boundary element, even on
-   * the content layer. Keep content-layer callers boundary-bound when their FAB
-   * is also boundary-bound.
-   */
-  anchorToViewport?: boolean;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -197,17 +183,10 @@ function getBoundaryBounds(
 
 function getPanelBounds({
   boundary,
-  layer,
-  anchorToViewport = false,
 }: {
   boundary: HTMLElement | null | undefined;
-  layer: FloatingPanelLayer;
-  anchorToViewport?: boolean;
 }): Bounds {
-  if (layer === "content" && !anchorToViewport) {
-    return getBoundaryBounds(boundary) ?? getViewportBounds();
-  }
-  return getViewportBounds();
+  return getBoundaryBounds(boundary) ?? getViewportBounds();
 }
 
 function areBoundsEqual(bounds: Bounds, nextBounds: Bounds) {
@@ -507,10 +486,6 @@ const resizableFloatingPanelCSS = css`
     user-select: none;
   }
 
-  &[data-layer="modal"] {
-    z-index: ${MODAL_FLOATING_UI_Z_INDEX};
-  }
-
   .agent-chat-panel__header {
     cursor: grab;
     touch-action: none;
@@ -549,10 +524,6 @@ const resizeHandleCSS = css`
   &:focus-visible {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: calc(-1 * var(--focus-ring-thickness));
-  }
-
-  &[data-layer="modal"] {
-    z-index: ${MODAL_FLOATING_UI_Z_INDEX + 1};
   }
 
   &[data-edge] {
@@ -669,12 +640,10 @@ const resizeHandleCSS = css`
 export function ResizableFloatingPanel({
   boundaryRef,
   children,
-  layer = "content",
   minSize,
   placement,
   size,
   onSizeChange,
-  anchorToViewport = false,
 }: ResizableFloatingPanelProps) {
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -683,7 +652,6 @@ export function ResizableFloatingPanel({
   const pendingGeometryRef = useRef<FloatingPanelGeometry | null>(null);
   const latestGeometryRef = useRef<FloatingPanelGeometry | null>(null);
   const animationFrameIdRef = useRef<number | null>(null);
-  const previousLayerRef = useRef(layer);
   const previousPlacementRef = useRef(placement);
   // Until the user drags or resizes the panel it stays "pristine" and tracks
   // the default corner as the boundary changes. This keeps the panel pinned to
@@ -698,26 +666,16 @@ export function ResizableFloatingPanel({
     () => boundaryRef?.current ?? null
   );
   const [currentBounds, setCurrentBounds] = useState(() =>
-    getPanelBounds({
-      boundary: boundaryRef?.current ?? null,
-      layer,
-      anchorToViewport,
-    })
+    getPanelBounds({ boundary: boundaryRef?.current ?? null })
   );
   const [currentGeometry, setCurrentGeometry] = useState(() =>
     getDefaultGeometry({
-      bounds: getPanelBounds({
-        boundary: boundaryRef?.current ?? null,
-        layer,
-        anchorToViewport,
-      }),
+      bounds: getPanelBounds({ boundary: boundaryRef?.current ?? null }),
       minSize,
       placement,
       size,
     })
   );
-  useModalFloatingLayerInteractivity(panelRef, layer === "modal");
-
   const resizeLimits = getGeometryLimits({ bounds: currentBounds, minSize });
   const displayedGeometry = clampGeometry({
     bounds: currentBounds,
@@ -970,11 +928,6 @@ export function ResizableFloatingPanel({
   };
 
   useLayoutEffect(() => {
-    if (layer !== "content") {
-      setResolvedBoundary(null);
-      return;
-    }
-
     let animationFrameId: number | null = null;
     const syncBoundaryElement = () => {
       const nextBoundary = boundaryRef?.current ?? null;
@@ -994,15 +947,11 @@ export function ResizableFloatingPanel({
         window.cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [boundaryRef, layer]);
+  }, [boundaryRef]);
 
   useLayoutEffect(() => {
     const syncPanelBounds = () => {
-      const nextBounds = getPanelBounds({
-        boundary: resolvedBoundary,
-        layer,
-        anchorToViewport,
-      });
+      const nextBounds = getPanelBounds({ boundary: resolvedBoundary });
       setCurrentBounds((bounds) =>
         areBoundsEqual(bounds, nextBounds) ? bounds : nextBounds
       );
@@ -1029,10 +978,7 @@ export function ResizableFloatingPanel({
     syncPanelBounds();
 
     const observer =
-      layer === "content" &&
-      !anchorToViewport &&
-      resolvedBoundary &&
-      typeof ResizeObserver === "function"
+      resolvedBoundary && typeof ResizeObserver === "function"
         ? new ResizeObserver(syncPanelBounds)
         : null;
     if (resolvedBoundary && observer) {
@@ -1048,7 +994,7 @@ export function ResizableFloatingPanel({
       window.visualViewport?.removeEventListener("resize", syncPanelBounds);
       window.visualViewport?.removeEventListener("scroll", syncPanelBounds);
     };
-  }, [anchorToViewport, layer, minSize, placement, resolvedBoundary]);
+  }, [minSize, placement, resolvedBoundary]);
 
   useEffect(() => {
     setCurrentGeometry((geometry) =>
@@ -1065,13 +1011,11 @@ export function ResizableFloatingPanel({
   }, [currentBounds, minSize, size]);
 
   useEffect(() => {
-    const hasLayerChanged = previousLayerRef.current !== layer;
     const hasPlacementChanged = previousPlacementRef.current !== placement;
-    if (!hasLayerChanged && !hasPlacementChanged) {
+    if (!hasPlacementChanged) {
       return;
     }
 
-    previousLayerRef.current = layer;
     previousPlacementRef.current = placement;
     setCurrentGeometry((geometry) =>
       getDefaultGeometry({
@@ -1084,19 +1028,11 @@ export function ResizableFloatingPanel({
         },
       })
     );
-  }, [currentBounds, layer, minSize, placement]);
+  }, [currentBounds, minSize, placement]);
 
   useEffect(() => {
     return cancelPendingGeometryUpdate;
   }, []);
-
-  const stopModalLayerPropagation = (
-    event: ReactSyntheticEvent<HTMLDivElement>
-  ) => {
-    if (layer === "modal") {
-      event.stopPropagation();
-    }
-  };
 
   const floatingPanelStyle = {
     "--resizable-floating-panel-height": `${displayedGeometry.height}px`,
@@ -1127,7 +1063,6 @@ export function ResizableFloatingPanel({
           )}
           className="resizable-floating-panel__resize-handle"
           css={resizeHandleCSS}
-          data-layer={layer}
           data-edge={edge}
           data-resizing={resizingEdge === edge ? "true" : undefined}
           style={floatingPanelStyle}
@@ -1145,7 +1080,6 @@ export function ResizableFloatingPanel({
         id={panelId}
         className="resizable-floating-panel"
         css={resizableFloatingPanelCSS}
-        data-layer={layer}
         data-moving={isMoving ? "true" : undefined}
         data-placement={placement}
         data-resize-handle-highlighted={
@@ -1153,22 +1087,17 @@ export function ResizableFloatingPanel({
         }
         data-resizing={resizingEdge == null ? undefined : "true"}
         ref={panelRef}
-        onClick={stopModalLayerPropagation}
         onLostPointerCapture={handleMoveLostPointerCapture}
         onPointerCancel={(event) => {
-          stopModalLayerPropagation(event);
           finishMove(event);
         }}
         onPointerDown={(event) => {
-          stopModalLayerPropagation(event);
           handlePanelMovePointerDown(event);
         }}
         onPointerMove={(event) => {
-          stopModalLayerPropagation(event);
           handleMovePointerMove(event);
         }}
         onPointerUp={(event) => {
-          stopModalLayerPropagation(event);
           finishMove(event);
         }}
         style={floatingPanelStyle}

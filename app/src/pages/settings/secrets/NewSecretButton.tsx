@@ -12,8 +12,8 @@ import {
   DialogTrigger,
   Icon,
   Icons,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -46,8 +46,8 @@ export function NewSecretButton({ connectionId }: { connectionId: string }) {
       >
         New Secret
       </Button>
-      <ModalOverlay>
-        <Modal size="M">
+      <ViewportModalOverlay>
+        <ViewportModal size="M">
           <Dialog>
             <DialogContent>
               <DialogHeader>
@@ -86,8 +86,8 @@ export function NewSecretButton({ connectionId }: { connectionId: string }) {
               />
             </DialogContent>
           </Dialog>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

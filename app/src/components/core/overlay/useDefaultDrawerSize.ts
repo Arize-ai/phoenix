@@ -2,7 +2,9 @@ import { useRef, useState } from "react";
 
 import type { SizeValue } from "@phoenix/types/sizing";
 
-const STORAGE_KEY_PREFIX = "arize-phoenix-drawer";
+// v2 stores application-viewport percentages. v1 stored browser-viewport
+// percentages, so reusing those values would change their coordinate system.
+const STORAGE_KEY_PREFIX = "arize-phoenix-drawer-v2";
 // Drag emits at rAF rate (~60/sec); wait for motion to settle before
 // writing so we persist once per resize session rather than on every tick.
 const PERSIST_DEBOUNCE_MS = 250;
@@ -23,7 +25,7 @@ export interface UseDefaultDrawerSizeOptions {
 
 export interface UseDefaultDrawerSizeResult {
   /**
-   * The previously persisted size as a viewport percentage string (e.g.
+   * The previously persisted size as an application-viewport percentage (e.g.
    * `"50%"`), or `undefined` if nothing has been stored yet under this `id`.
    * Pass into `<Drawer defaultSize={...} />`.
    */
@@ -47,7 +49,7 @@ const resolveStorage = (override?: Storage): Storage | null => {
 
 /**
  * Persist a `<Drawer>`'s size between visits. The value is stored as a
- * viewport percentage (e.g. `50` for 50%) and returned as a
+ * percentage of the application viewport and returned as a
  * {@link SizeValue} string (e.g. `"50%"`).
  *
  * ```tsx
