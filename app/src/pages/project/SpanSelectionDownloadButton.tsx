@@ -14,7 +14,6 @@ import {
   DialogTitleExtra,
   ContextualHelp,
   DialogTrigger,
-  ExternalLink,
   Flex,
   Heading,
   Icon,
@@ -353,11 +352,6 @@ function SpanSelectionDownloadDialog({
                         JSONL has one Phoenix span per line. OTLP JSON uses the
                         OpenTelemetry JSON encoding.
                       </Text>
-                      <footer>
-                        <ExternalLink href="https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding">
-                          OTLP JSON specification
-                        </ExternalLink>
-                      </footer>
                     </ContextualHelp>
                   </Flex>
                   <ToggleButtonGroup
