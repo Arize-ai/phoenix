@@ -69,14 +69,12 @@ export function LLMInput({
     const providerIcon =
       typeof normalizedProvider === "string" &&
       isModelProvider(normalizedProvider) ? (
-        <GenerativeProviderIcon provider={normalizedProvider} />
+        <GenerativeProviderIcon provider={normalizedProvider} height={16} />
       ) : null;
     modelNameEl = (
       <Flex direction="row" gap="size-100" alignItems="center">
         {providerIcon}
-        <Text size="M" weight="heavy">
-          {modelName}
-        </Text>
+        <Text>{modelName}</Text>
       </Flex>
     );
   }
