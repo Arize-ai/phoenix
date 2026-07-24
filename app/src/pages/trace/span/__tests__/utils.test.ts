@@ -148,12 +148,11 @@ describe("getRerankerAttributes", () => {
 describe("getEmbeddingAttributes", () => {
   it("returns empty defaults when there are no embedding attributes", () => {
     expect(getEmbeddingAttributes({})).toEqual({
-      modelName: null,
       embeddings: [],
     });
   });
 
-  it("extracts the model name and embedded texts", () => {
+  it("extracts the embedded texts", () => {
     const result = getEmbeddingAttributes({
       embedding: {
         model_name: "text-embedding-3-small",
@@ -161,7 +160,6 @@ describe("getEmbeddingAttributes", () => {
       },
     });
     expect(result).toEqual({
-      modelName: "text-embedding-3-small",
       embeddings: [{ text: "embedded text" }],
     });
   });

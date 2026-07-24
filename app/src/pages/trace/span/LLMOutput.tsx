@@ -1,4 +1,4 @@
-import { Card, CopyToClipboardButton, Flex, View } from "@phoenix/components";
+import { Card, CopyToClipboardButton, Flex } from "@phoenix/components";
 import {
   ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
@@ -37,42 +37,38 @@ export function LLMOutput({
   if (!hasOutput && !hasOutputMessages) {
     return null;
   }
+
+  const isRawView = view === "output" && hasOutput;
+
   return (
-    <Card
-      {...defaultCardProps}
-      title="Output"
-      extra={
-        views.length > 0 ? (
-          <LLMIOViewSelect
-            label="Output view"
-            views={views}
-            value={view ?? ""}
-            onChange={setView}
-          />
-        ) : undefined
-      }
-    >
-      {view === "output-messages" && (
-        <LLMMessagesList messages={outputMessages} />
-      )}
-      {view === "output" && hasOutput && (
-        <View padding="size-200">
-          <MarkdownDisplayProvider>
-            <Card
-              {...defaultCardProps}
-              title="LLM Output"
-              extra={
-                <Flex direction="row" gap="size-100">
-                  <ConnectedMarkdownModeSelect />
-                  <CopyToClipboardButton text={output.value} />
-                </Flex>
-              }
-            >
-              <MimeTypeCodeBlock {...output} />
-            </Card>
-          </MarkdownDisplayProvider>
-        </View>
-      )}
-    </Card>
+    <MarkdownDisplayProvider>
+      <Card
+        {...defaultCardProps}
+        title="Output"
+        extra={
+          <Flex direction="row" gap="size-100" alignItems="center">
+            {isRawView && (
+              <>
+                <ConnectedMarkdownModeSelect />
+                <CopyToClipboardButton text={output.value} />
+              </>
+            )}
+            {views.length > 0 && (
+              <LLMIOViewSelect
+                label="Output view"
+                views={views}
+                value={view ?? ""}
+                onChange={setView}
+              />
+            )}
+          </Flex>
+        }
+      >
+        {view === "output-messages" && (
+          <LLMMessagesList messages={outputMessages} />
+        )}
+        {isRawView && <MimeTypeCodeBlock {...output} />}
+      </Card>
+    </MarkdownDisplayProvider>
   );
 }

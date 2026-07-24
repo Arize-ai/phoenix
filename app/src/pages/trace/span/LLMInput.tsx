@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Card, CopyToClipboardButton, Flex, View } from "@phoenix/components";
+import { Card, CopyToClipboardButton, Flex } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownModeSelect,
@@ -104,48 +104,43 @@ export function LLMInput({
     ),
   ].filter(Boolean);
 
+  const isRawView = view === "input" && hasInput;
+
   return (
-    <Card
-      collapsible
-      title="Input"
-      subTitle={modelNameEl}
-      extra={
-        views.length > 0 ? (
-          <LLMIOViewSelect
-            label="Input view"
-            views={views}
-            value={view ?? ""}
-            onChange={setView}
+    <MarkdownDisplayProvider>
+      <Card
+        collapsible
+        title="Input"
+        subTitle={modelNameEl}
+        extra={
+          <Flex direction="row" gap="size-100" alignItems="center">
+            {isRawView && (
+              <>
+                <ConnectedMarkdownModeSelect />
+                <CopyToClipboardButton text={input.value} />
+              </>
+            )}
+            {views.length > 0 && (
+              <LLMIOViewSelect
+                label="Input view"
+                views={views}
+                value={view ?? ""}
+                onChange={setView}
+              />
+            )}
+          </Flex>
+        }
+      >
+        {view === "input-messages" && (
+          <LLMMessagesList
+            messages={inputMessages}
+            leadingItems={messageLeadingItems}
           />
-        ) : undefined
-      }
-    >
-      {view === "input-messages" && (
-        <LLMMessagesList
-          messages={inputMessages}
-          leadingItems={messageLeadingItems}
-        />
-      )}
-      {view === "tools" && <LLMToolSchemasList toolSchemas={toolSchemas} />}
-      {view === "input" && hasInput && (
-        <View padding="size-200">
-          <MarkdownDisplayProvider>
-            <Card
-              {...defaultCardProps}
-              title="LLM Input"
-              extra={
-                <Flex direction="row" gap="size-100">
-                  <ConnectedMarkdownModeSelect />
-                  <CopyToClipboardButton text={input.value} />
-                </Flex>
-              }
-            >
-              <MimeTypeCodeBlock {...input} />
-            </Card>
-          </MarkdownDisplayProvider>
-        </View>
-      )}
-      {view === "prompts" && <LLMPromptsList prompts={prompts} />}
-    </Card>
+        )}
+        {view === "tools" && <LLMToolSchemasList toolSchemas={toolSchemas} />}
+        {isRawView && <MimeTypeCodeBlock {...input} />}
+        {view === "prompts" && <LLMPromptsList prompts={prompts} />}
+      </Card>
+    </MarkdownDisplayProvider>
   );
 }

@@ -14,17 +14,15 @@ import { defaultCardProps } from "./constants";
  * The input side of an embedding span — the texts that were embedded.
  */
 export function EmbeddingInput({
-  modelName,
   embeddings,
 }: {
-  modelName: string | null;
   embeddings: AttributeEmbeddingEmbedding[];
 }) {
+  const numTexts = embeddings.length;
   return (
     <Card
-      title={
-        "Embeddings" + (typeof modelName === "string" ? `: ${modelName}` : "")
-      }
+      title="Input"
+      subTitle={`${numTexts} ${numTexts === 1 ? "text" : "texts"}`}
       {...defaultCardProps}
     >
       {

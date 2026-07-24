@@ -1,6 +1,11 @@
-import { css } from "@emotion/react";
-
-import { Card, Counter, View } from "@phoenix/components";
+import {
+  Card,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+  View,
+} from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   MarkdownDisplayProvider,
@@ -8,11 +13,12 @@ import {
 import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
 import { DocumentItem } from "../DocumentItem";
-import { defaultCardProps } from "./constants";
+import { defaultCardProps, documentsListCSS } from "./constants";
 
 /**
  * The input side of a reranker span — the query and the documents that were
- * passed in to be reranked.
+ * passed in to be reranked, grouped under a single "Input" card so the reranker
+ * span details stay consistent with other span types.
  */
 export function RerankerInput({
   query,
@@ -23,46 +29,41 @@ export function RerankerInput({
 }) {
   const numInputDocuments = inputDocuments.length;
   return (
-    <>
+    <Card
+      title="Input"
+      subTitle={`${numInputDocuments} ${numInputDocuments === 1 ? "document" : "documents"}`}
+      {...defaultCardProps}
+    >
       <MarkdownDisplayProvider>
-        {query && (
-          <Card title="Query" {...defaultCardProps}>
-            <View padding="size-200">
-              <ConnectedMarkdownBlock>{query}</ConnectedMarkdownBlock>
-            </View>
-          </Card>
-        )}
+        <DisclosureGroup defaultExpandedKeys={["query"]}>
+          {query && (
+            <Disclosure id="query">
+              <DisclosureTrigger arrowPosition="start">Query</DisclosureTrigger>
+              <DisclosurePanel>
+                <View paddingX="size-200" paddingY="size-100">
+                  <ConnectedMarkdownBlock margin="none">
+                    {query}
+                  </ConnectedMarkdownBlock>
+                </View>
+              </DisclosurePanel>
+            </Disclosure>
+          )}
+          <Disclosure id="input-documents">
+            <DisclosureTrigger arrowPosition="start">
+              Documents
+            </DisclosureTrigger>
+            <DisclosurePanel>
+              <ul css={documentsListCSS}>
+                {inputDocuments.map((document, idx) => (
+                  <li key={idx}>
+                    <DocumentItem document={document} />
+                  </li>
+                ))}
+              </ul>
+            </DisclosurePanel>
+          </Disclosure>
+        </DisclosureGroup>
       </MarkdownDisplayProvider>
-      <Card
-        title={"Input Documents"}
-        titleExtra={<Counter>{numInputDocuments}</Counter>}
-        {...defaultCardProps}
-        defaultOpen={false}
-      >
-        {
-          <ul
-            css={css`
-              padding: var(--global-dimension-size-200);
-              display: flex;
-              flex-direction: column;
-              gap: var(--global-dimension-size-200);
-            `}
-          >
-            {inputDocuments.map((document, idx) => {
-              return (
-                <li key={idx}>
-                  <DocumentItem
-                    document={document}
-                    borderColor={"seafoam-300"}
-                    backgroundColor={"seafoam-100"}
-                    tokenColor="var(--global-color-seafoam-1000)"
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        }
-      </Card>
-    </>
+    </Card>
   );
 }

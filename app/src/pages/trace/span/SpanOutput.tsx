@@ -18,8 +18,6 @@ export function SpanOutput({ value, mimeType }: SpanIOValue) {
       <Card
         title="Output"
         {...defaultCardProps}
-        backgroundColor="green-100"
-        borderColor="green-300"
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             {isText ? <ConnectedMarkdownModeSelect /> : null}
