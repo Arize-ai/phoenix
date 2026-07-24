@@ -186,6 +186,19 @@ query = SpanQuery().where(
 )
 ```
 
+The `annotations` keyword is an alias for `evals` and works the same way.
+
+#### Filtering Spans by Trace-Level Annotations
+
+Annotations attached to a whole trace (rather than an individual span) are referenced with the `trace_annotations` keyword, which supports the same `score`, `label`, `explanation`, and existence syntax. Spans are returned when the trace they belong to carries a matching annotation.
+
+```python
+query = SpanQuery().where(
+    "trace_annotations['quality'].score >= 0.5"
+)
+# query = SpanQuery().where("trace_annotations['quality'].label == 'good'")
+```
+
 #### Filtering on Metadata
 
 `metadata` is an attribute that is a dictionary and it can be filtered like a dictionary.

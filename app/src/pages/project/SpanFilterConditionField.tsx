@@ -92,6 +92,11 @@ const spanFilterCompletions: Completion[] = [
     info: "Span annotations, accessed by name - e.x. annotations['quality'].score",
   },
   {
+    label: "trace_annotations",
+    type: "variable",
+    info: "Trace annotations, accessed by name - e.x. trace_annotations['quality'].score",
+  },
+  {
     label: "evals",
     type: "variable",
     info: "Span evaluations, accessed by name - e.x. evals['Hallucination'].label",
@@ -167,6 +172,14 @@ const spanFilterSnippets: DSLFilterSnippet[] = [
     snippet: "annotations['${name}'].score >= ${0.5}",
   },
   {
+    label: "filter by trace annotation score",
+    snippet: "trace_annotations['${name}'].score >= ${0.5}",
+  },
+  {
+    label: "filter by trace annotation label",
+    snippet: "trace_annotations['${name}'].label == '${label}'",
+  },
+  {
     label: "search output for substring",
     snippet: "'${search text}' in output.value",
   },
@@ -209,8 +222,8 @@ const spanFilterSnippets: DSLFilterSnippet[] = [
 ];
 
 /**
- * Fetches the annotation names that actually exist on the project's spans so
- * the typeahead can suggest real values rather than made-up examples
+ * Fetches the annotation names that exist on the project's spans and traces so
+ * the typeahead can suggest real values rather than made-up examples.
  */
 async function fetchAnnotationCompletions(
   projectId: string
@@ -222,20 +235,33 @@ async function fetchAnnotationCompletions(
         project: node(id: $id) {
           ... on Project {
             spanAnnotationNames
+            traceAnnotationsNames
           }
         }
       }
     `,
     { id: projectId }
   ).toPromise();
-  return createAnnotationMemberCompletions({
-    accessor: "annotations",
-    noun: "annotation",
-    sectionName: "Annotations",
-    // notes are a pseudo-annotation deliberately hidden from
-    // annotation-name surfaces
-    names: getNonNoteAnnotationNames(data?.project?.spanAnnotationNames ?? []),
-  });
+  return [
+    ...createAnnotationMemberCompletions({
+      accessor: "annotations",
+      noun: "annotation",
+      sectionName: "Annotations",
+      // notes are a pseudo-annotation deliberately hidden from
+      // annotation-name surfaces
+      names: getNonNoteAnnotationNames(
+        data?.project?.spanAnnotationNames ?? []
+      ),
+    }),
+    ...createAnnotationMemberCompletions({
+      accessor: "trace_annotations",
+      noun: "trace annotation",
+      sectionName: "Trace Annotations",
+      names: getNonNoteAnnotationNames(
+        data?.project?.traceAnnotationsNames ?? []
+      ),
+    }),
+  ];
 }
 
 type SpanFilterConditionFieldProps = {
