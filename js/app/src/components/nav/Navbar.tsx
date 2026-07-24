@@ -35,7 +35,8 @@ const topNavCSS = css`
      crumb links can compress to their ellipsis and right-aligned controls
      (page actions, the PXI button) stay visible when the nav narrows —
      e.g. beside a detail drawer or docked assistant panel. */
-  & > ol {
+  & > ol,
+  & > .top-navbar__page-controls > ol {
     flex: 0 1 auto;
     min-width: 0;
 
@@ -207,7 +208,11 @@ export function Brand() {
 }
 
 export function TopNavbar({ children }: { children: ReactNode }) {
-  return <nav css={topNavCSS}>{children}</nav>;
+  return (
+    <nav className="top-navbar" css={topNavCSS}>
+      {children}
+    </nav>
+  );
 }
 
 export function SideNavbar({
