@@ -33,7 +33,7 @@ export const cardCSS = (style?: CSSProperties) => css`
       display: flex;
       flex-direction: row;
       align-items: center;
-      gap: var(--global-dimension-size-100);
+      gap: var(--global-dimension-size-200);
       min-width: 0;
     }
 
