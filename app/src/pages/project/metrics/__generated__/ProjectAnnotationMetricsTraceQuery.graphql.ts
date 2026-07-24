@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1200f14be838fa071ec091e3cb6bfde1>>
+ * @generated SignedSource<<e5b8c2c9f30b60d3033e4de170fef7a7>>
  * @lightSyntaxTransform
  */
 
@@ -17,14 +17,14 @@ export type TimeBinConfig = {
   scale?: TimeBinScale;
   utcOffsetMinutes?: number;
 };
-export type ProjectEvaluationMetricsGridsSpanQuery$variables = {
+export type ProjectAnnotationMetricsTraceQuery$variables = {
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
 };
-export type ProjectEvaluationMetricsGridsSpanQuery$data = {
+export type ProjectAnnotationMetricsTraceQuery$data = {
   readonly project: {
-    readonly spanAnnotationMetricsTimeSeries?: {
+    readonly traceAnnotationMetricsTimeSeries?: {
       readonly data: ReadonlyArray<{
         readonly annotationSummaries: ReadonlyArray<{
           readonly labelFractions: ReadonlyArray<{
@@ -39,9 +39,9 @@ export type ProjectEvaluationMetricsGridsSpanQuery$data = {
     };
   };
 };
-export type ProjectEvaluationMetricsGridsSpanQuery = {
-  response: ProjectEvaluationMetricsGridsSpanQuery$data;
-  variables: ProjectEvaluationMetricsGridsSpanQuery$variables;
+export type ProjectAnnotationMetricsTraceQuery = {
+  response: ProjectAnnotationMetricsTraceQuery$data;
+  variables: ProjectAnnotationMetricsTraceQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -86,7 +86,7 @@ v4 = {
       ],
       "concreteType": "AnnotationMetricsTimeSeries",
       "kind": "LinkedField",
-      "name": "spanAnnotationMetricsTimeSeries",
+      "name": "traceAnnotationMetricsTimeSeries",
       "plural": false,
       "selections": [
         {
@@ -173,7 +173,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectEvaluationMetricsGridsSpanQuery",
+    "name": "ProjectAnnotationMetricsTraceQuery",
     "selections": [
       {
         "alias": "project",
@@ -199,7 +199,7 @@ return {
       (v1/*:: as any*/)
     ],
     "kind": "Operation",
-    "name": "ProjectEvaluationMetricsGridsSpanQuery",
+    "name": "ProjectAnnotationMetricsTraceQuery",
     "selections": [
       {
         "alias": "project",
@@ -230,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b9c4e55dfdaad572e546b20b6af81427",
+    "cacheID": "1504bf8303abce125f34b7bc48dc693d",
     "id": null,
     "metadata": {},
-    "name": "ProjectEvaluationMetricsGridsSpanQuery",
+    "name": "ProjectAnnotationMetricsTraceQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluationMetricsGridsSpanQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanAnnotationMetricsTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectAnnotationMetricsTraceQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceAnnotationMetricsTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "306756d6237c8d34751ee5048dbb260d";
+(node as any).hash = "24d4b56936214dc3692569ed4677fe10";
 
 export default node;

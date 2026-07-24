@@ -12,13 +12,13 @@ describe("projectStore metricChartKeys", () => {
     localStorage.removeItem(STORAGE_KEY);
   });
 
-  it("retains per-evaluation chart keys while dropping invalid persisted keys", () => {
+  it("retains per-annotation chart keys while dropping invalid persisted keys", () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
         state: {
           metricChartKeys: {
-            spans: ["spans_evaluation:quality", "bogus_chart"],
+            spans: ["spans_annotation:quality", "bogus_chart"],
           },
         },
         version: 0,
@@ -28,7 +28,7 @@ describe("projectStore metricChartKeys", () => {
     const store = createProjectStore({ projectId: PROJECT_ID });
 
     expect(store.state.getState().metricChartKeys.spans).toEqual([
-      "spans_evaluation:quality",
+      "spans_annotation:quality",
     ]);
   });
 });

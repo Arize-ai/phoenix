@@ -1,22 +1,21 @@
 import type { ComponentType } from "react";
+import invariant from "tiny-invariant";
 
 import { ChartPanel, type ChartTypeIconType } from "@phoenix/components/chart";
 import type {
   BuiltInProjectMetricChartKey,
+  MetricChartTableView,
   ProjectMetricChartKey,
 } from "@phoenix/pages/project/constants";
 import {
-  getProjectEvaluationMetricChartInfo,
+  getProjectAnnotationMetricChartInfo,
+  PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION,
   PROJECT_METRIC_CHART_KEYS,
 } from "@phoenix/pages/project/constants";
 
 import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
 import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
-import {
-  SessionEvaluationMetricPanel,
-  SpanEvaluationMetricPanel,
-  TraceEvaluationMetricPanel,
-} from "./ProjectEvaluationMetricsGrids";
+import { ProjectAnnotationMetricPanel } from "./ProjectAnnotationMetrics";
 import { SessionAnnotationScoreTimeSeries } from "./SessionAnnotationScoreTimeSeries";
 import { SpanAnnotationScoreTimeSeries } from "./SpanAnnotationScoreTimeSeries";
 import { SpanCountTimeSeries } from "./SpanCountTimeSeries";
@@ -37,6 +36,8 @@ import type { ProjectMetricViewProps } from "./types";
 
 export type ProjectMetricChart = {
   key: ProjectMetricChartKey;
+  annotationLevel?: MetricChartTableView;
+  annotationName?: string;
   /**
    * Shown as the chart panel title and as the chart's name in chart pickers
    */
@@ -55,6 +56,8 @@ export type ProjectMetricChart = {
 };
 
 type ProjectMetricPanelProps = ProjectMetricViewProps & {
+  annotationLevel?: MetricChartTableView;
+  annotationName?: string;
   fillHeight?: boolean;
 };
 
@@ -187,8 +190,9 @@ function createProjectMetricPanel({
 }
 
 /**
- * The canonical chart objects, built once so repeated lookups return stable
- * references.
+ * The built-in chart objects, built once so repeated lookups return stable
+ * references. Annotation chart objects are derived from their keys and share
+ * one stable panel component.
  */
 const CHARTS_BY_KEY = Object.fromEntries(
   PROJECT_METRIC_CHART_KEYS.map((key) => {
@@ -206,44 +210,47 @@ const CHARTS_BY_KEY = Object.fromEntries(
   })
 ) as Record<BuiltInProjectMetricChartKey, ProjectMetricChart>;
 
-// Cache generated descriptors so their Panel closures stay stable and a
-// stream refresh does not remount a selected evaluation chart.
-const EVALUATION_CHARTS_BY_KEY = new Map<
-  ProjectMetricChartKey,
-  ProjectMetricChart
->();
+function ProjectAnnotationChartPanel({
+  annotationLevel,
+  annotationName,
+  ...props
+}: ProjectMetricPanelProps) {
+  invariant(
+    annotationLevel != null,
+    "annotationLevel is required for a project annotation metric chart"
+  );
+  invariant(
+    annotationName != null,
+    "annotationName is required for a project annotation metric chart"
+  );
+  return (
+    <ProjectAnnotationMetricPanel
+      {...props}
+      annotationLevel={annotationLevel}
+      annotationName={annotationName}
+    />
+  );
+}
 
 export const getProjectMetricChart = (
   key: ProjectMetricChartKey
 ): ProjectMetricChart => {
-  const evaluationInfo = getProjectEvaluationMetricChartInfo(key);
-  if (evaluationInfo == null) {
+  const annotationInfo = getProjectAnnotationMetricChartInfo(key);
+  if (annotationInfo == null) {
     return CHARTS_BY_KEY[key as BuiltInProjectMetricChartKey];
   }
-  const cachedChart = EVALUATION_CHARTS_BY_KEY.get(key);
-  if (cachedChart != null) {
-    return cachedChart;
-  }
-  const { view, evaluationName } = evaluationInfo;
-  const chart: ProjectMetricChart = {
+  const { view: annotationLevel, annotationName } = annotationInfo;
+  return {
     key,
-    name: evaluationName,
-    description: "Evaluation results over time",
+    annotationLevel,
+    annotationName,
+    name: annotationName,
+    description: PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION,
+    // An annotation's view (line or bars) is only known once its metric data
+    // loads, so the catalog shows a neutral line glyph.
     chartType: "line",
-    Panel: ({ fillHeight = false, ...props }) => {
-      const panelProps = { ...props, evaluationName, fillHeight };
-      switch (view) {
-        case "spans":
-          return <SpanEvaluationMetricPanel {...panelProps} />;
-        case "traces":
-          return <TraceEvaluationMetricPanel {...panelProps} />;
-        case "sessions":
-          return <SessionEvaluationMetricPanel {...panelProps} />;
-      }
-    },
+    Panel: ProjectAnnotationChartPanel,
   };
-  EVALUATION_CHARTS_BY_KEY.set(key, chart);
-  return chart;
 };
 
 export const getProjectMetricCharts = (

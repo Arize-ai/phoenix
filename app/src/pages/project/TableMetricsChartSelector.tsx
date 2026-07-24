@@ -16,18 +16,20 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { MetricChartTableView, ProjectMetricChartKey } from "./constants";
 import {
-  getProjectEvaluationMetricChartInfo,
-  getProjectEvaluationMetricChartKey,
+  getProjectAnnotationMetricChartInfo,
+  getProjectAnnotationMetricChartKey,
   MAX_SELECTED_METRIC_CHARTS,
 } from "./constants";
-import { PROJECT_METRIC_CHARTS } from "./metrics/chartCatalog";
 import {
-  useSessionEvaluationMetricNames,
-  useSpanEvaluationMetricNames,
-  useTraceEvaluationMetricNames,
-} from "./metrics/ProjectEvaluationMetricsGrids";
+  getProjectMetricCharts,
+  PROJECT_METRIC_CHARTS,
+} from "./metrics/chartCatalog";
+import {
+  useSessionAnnotationMetricNames,
+  useSpanAnnotationMetricNames,
+  useTraceAnnotationMetricNames,
+} from "./metrics/ProjectAnnotationMetrics";
 import { MetricFetchKeyProvider } from "./metrics/types";
-import { useClosedTimeRange } from "./metrics/useClosedTimeRange";
 
 /**
  * The store-connected chart selector shown above a project table. Reads and
@@ -57,7 +59,6 @@ export function TableMetricsChartSelector({
 function ConnectedChartSelectorMenu({ view }: { view: MetricChartTableView }) {
   const projectId = useTracingContext((state) => state.projectId);
   const { fetchKey } = useStreamState();
-  const timeRange = useClosedTimeRange({ refreshKey: fetchKey });
   const selectedChartKeys = useProjectContext(
     (state) => state.metricChartKeys[view]
   );
@@ -70,7 +71,6 @@ function ConnectedChartSelectorMenu({ view }: { view: MetricChartTableView }) {
         <ProjectChartSelectorMenu
           view={view}
           projectId={projectId}
-          timeRange={timeRange}
           selectedChartKeys={selectedChartKeys}
           onSelectionChange={(keys) => setMetricChartKeys(view, keys)}
         />
@@ -82,7 +82,6 @@ function ConnectedChartSelectorMenu({ view }: { view: MetricChartTableView }) {
 type ProjectChartSelectorMenuProps = {
   view: MetricChartTableView;
   projectId: string;
-  timeRange: TimeRange;
   selectedChartKeys: ProjectMetricChartKey[];
   onSelectionChange: (keys: ProjectMetricChartKey[]) => void;
 };
@@ -99,80 +98,64 @@ function ProjectChartSelectorMenu(props: ProjectChartSelectorMenuProps) {
 }
 
 function SpanChartSelectorMenu(props: ProjectChartSelectorMenuProps) {
-  const evaluationNames = useSpanEvaluationMetricNames(props);
+  const annotationNames = useSpanAnnotationMetricNames(props.projectId);
   return (
     <ProjectChartSelectorMenuContent
       {...props}
-      evaluationNames={evaluationNames}
+      annotationNames={annotationNames}
     />
   );
 }
 
 function TraceChartSelectorMenu(props: ProjectChartSelectorMenuProps) {
-  const evaluationNames = useTraceEvaluationMetricNames(props);
+  const annotationNames = useTraceAnnotationMetricNames(props.projectId);
   return (
     <ProjectChartSelectorMenuContent
       {...props}
-      evaluationNames={evaluationNames}
+      annotationNames={annotationNames}
     />
   );
 }
 
 function SessionChartSelectorMenu(props: ProjectChartSelectorMenuProps) {
-  const evaluationNames = useSessionEvaluationMetricNames(props);
+  const annotationNames = useSessionAnnotationMetricNames(props.projectId);
   return (
     <ProjectChartSelectorMenuContent
       {...props}
-      evaluationNames={evaluationNames}
+      annotationNames={annotationNames}
     />
   );
 }
 
 function ProjectChartSelectorMenuContent({
   view,
-  evaluationNames,
+  annotationNames,
   selectedChartKeys,
   onSelectionChange,
 }: ProjectChartSelectorMenuProps & {
-  evaluationNames: ReadonlyArray<string>;
+  annotationNames: ReadonlyArray<string>;
 }) {
-  const availableEvaluationKeys = new Set<ProjectMetricChartKey>(
-    evaluationNames.map((evaluationName) =>
-      getProjectEvaluationMetricChartKey({ view, evaluationName })
-    )
+  const annotationKeys = annotationNames.map((annotationName) =>
+    getProjectAnnotationMetricChartKey({ view, annotationName })
   );
-  // Preserve a persisted evaluation if its annotation was deleted so the
-  // user can still deselect the empty chart.
-  const unavailableSelectedEvaluations = selectedChartKeys.flatMap((key) => {
-    const evaluationInfo = getProjectEvaluationMetricChartInfo(key);
-    return evaluationInfo == null || availableEvaluationKeys.has(key)
-      ? []
-      : [
-          {
-            key,
-            name: evaluationInfo.evaluationName,
-            description: "Evaluation results over time",
-            chartType: "line" as const,
-          },
-        ];
-  });
-  const evaluationOptions = evaluationNames.map((evaluationName) => ({
-    key: getProjectEvaluationMetricChartKey({
-      view,
-      evaluationName,
-    }),
-    name: evaluationName,
-    description: "Evaluation results over time",
-    // The lightweight catalog query intentionally omits full series data, so
-    // use a neutral chart glyph until the selected chart reveals its view.
-    chartType: "line" as const,
-  }));
+  const availableAnnotationKeys = new Set<ProjectMetricChartKey>(
+    annotationKeys
+  );
+  // Keep a persisted annotation visible if it was deleted so the user can
+  // still deselect the empty chart.
+  const unavailableSelectedAnnotationKeys = selectedChartKeys.filter(
+    (key) =>
+      getProjectAnnotationMetricChartInfo(key) != null &&
+      !availableAnnotationKeys.has(key)
+  );
   return (
     <MetricsChartSelector
       options={[
         ...PROJECT_METRIC_CHARTS,
-        ...evaluationOptions,
-        ...unavailableSelectedEvaluations,
+        ...getProjectMetricCharts([
+          ...annotationKeys,
+          ...unavailableSelectedAnnotationKeys,
+        ]),
       ]}
       selectedKeys={selectedChartKeys}
       maxSelected={MAX_SELECTED_METRIC_CHARTS}

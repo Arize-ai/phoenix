@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<253e903b036ae212ffeb11e5cd842529>>
+ * @generated SignedSource<<7dca1ee8e6bc0f7f6a69ac7badcbc866>>
  * @lightSyntaxTransform
  */
 
@@ -17,12 +17,12 @@ export type TimeBinConfig = {
   scale?: TimeBinScale;
   utcOffsetMinutes?: number;
 };
-export type ProjectEvaluationMetricsGridsSessionQuery$variables = {
+export type ProjectAnnotationMetricsSessionQuery$variables = {
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
 };
-export type ProjectEvaluationMetricsGridsSessionQuery$data = {
+export type ProjectAnnotationMetricsSessionQuery$data = {
   readonly project: {
     readonly sessionAnnotationMetricsTimeSeries?: {
       readonly data: ReadonlyArray<{
@@ -39,9 +39,9 @@ export type ProjectEvaluationMetricsGridsSessionQuery$data = {
     };
   };
 };
-export type ProjectEvaluationMetricsGridsSessionQuery = {
-  response: ProjectEvaluationMetricsGridsSessionQuery$data;
-  variables: ProjectEvaluationMetricsGridsSessionQuery$variables;
+export type ProjectAnnotationMetricsSessionQuery = {
+  response: ProjectAnnotationMetricsSessionQuery$data;
+  variables: ProjectAnnotationMetricsSessionQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -173,7 +173,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectEvaluationMetricsGridsSessionQuery",
+    "name": "ProjectAnnotationMetricsSessionQuery",
     "selections": [
       {
         "alias": "project",
@@ -199,7 +199,7 @@ return {
       (v1/*:: as any*/)
     ],
     "kind": "Operation",
-    "name": "ProjectEvaluationMetricsGridsSessionQuery",
+    "name": "ProjectAnnotationMetricsSessionQuery",
     "selections": [
       {
         "alias": "project",
@@ -230,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5d0faebb7c86e4f9e2d1ddedc81fd31b",
+    "cacheID": "7cb6893ceb88edac440d40c6fd3e4084",
     "id": null,
     "metadata": {},
-    "name": "ProjectEvaluationMetricsGridsSessionQuery",
+    "name": "ProjectAnnotationMetricsSessionQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluationMetricsGridsSessionQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessionAnnotationMetricsTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectAnnotationMetricsSessionQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessionAnnotationMetricsTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e1983f24926e556a4ed005a96bee772b";
+(node as any).hash = "07443607dcdc1026031d1d4cb6157f7f";
 
 export default node;

@@ -50,33 +50,38 @@ export const METRIC_CHART_TABLE_VIEWS = [
 
 export type MetricChartTableView = (typeof METRIC_CHART_TABLE_VIEWS)[number];
 
-const PROJECT_EVALUATION_METRIC_CHART_KEY_SUFFIX = "_evaluation:";
+export const PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION =
+  "Evaluation results over time";
 
-export type ProjectEvaluationMetricChartKey =
-  `${MetricChartTableView}${typeof PROJECT_EVALUATION_METRIC_CHART_KEY_SUFFIX}${string}`;
+// The table view identifies which entity-level metrics query should render an
+// annotation name that may also exist on another level.
+const PROJECT_ANNOTATION_METRIC_CHART_KEY_SEPARATOR = "_annotation:";
+
+export type ProjectAnnotationMetricChartKey =
+  `${MetricChartTableView}${typeof PROJECT_ANNOTATION_METRIC_CHART_KEY_SEPARATOR}${string}`;
 
 export type ProjectMetricChartKey =
   | BuiltInProjectMetricChartKey
-  | ProjectEvaluationMetricChartKey;
+  | ProjectAnnotationMetricChartKey;
 
-export function getProjectEvaluationMetricChartKey({
+export function getProjectAnnotationMetricChartKey({
   view,
-  evaluationName,
+  annotationName,
 }: {
   view: MetricChartTableView;
-  evaluationName: string;
-}): ProjectEvaluationMetricChartKey {
-  return `${view}${PROJECT_EVALUATION_METRIC_CHART_KEY_SUFFIX}${evaluationName}`;
+  annotationName: string;
+}): ProjectAnnotationMetricChartKey {
+  return `${view}${PROJECT_ANNOTATION_METRIC_CHART_KEY_SEPARATOR}${annotationName}`;
 }
 
-export function getProjectEvaluationMetricChartInfo(
+export function getProjectAnnotationMetricChartInfo(
   key: string
-): { view: MetricChartTableView; evaluationName: string } | undefined {
+): { view: MetricChartTableView; annotationName: string } | undefined {
   for (const view of METRIC_CHART_TABLE_VIEWS) {
-    const prefix = `${view}${PROJECT_EVALUATION_METRIC_CHART_KEY_SUFFIX}`;
+    const prefix = `${view}${PROJECT_ANNOTATION_METRIC_CHART_KEY_SEPARATOR}`;
     if (key.startsWith(prefix)) {
-      const evaluationName = key.slice(prefix.length);
-      return evaluationName.length > 0 ? { view, evaluationName } : undefined;
+      const annotationName = key.slice(prefix.length);
+      return annotationName.length > 0 ? { view, annotationName } : undefined;
     }
   }
   return undefined;
@@ -86,7 +91,7 @@ export const isProjectMetricChartKey = (
   key: string
 ): key is ProjectMetricChartKey =>
   PROJECT_METRIC_CHART_KEYS.includes(key as BuiltInProjectMetricChartKey) ||
-  getProjectEvaluationMetricChartInfo(key) != null;
+  getProjectAnnotationMetricChartInfo(key) != null;
 
 /**
  * The maximum number of metric charts that can be shown above a table at once.

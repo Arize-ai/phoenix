@@ -64,12 +64,14 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
     <ChartPanelStrip chartCount={charts.length}>
       {/* Re-fetch the charts on each stream refresh so they stay live */}
       <MetricFetchKeyProvider value={fetchKey}>
-        {charts.map(({ key, Panel }) => (
+        {charts.map(({ key, annotationLevel, annotationName, Panel }) => (
           <Panel
             key={key}
             projectId={projectId}
             timeRange={timeRange}
             onTimeRangeSelected={setCustomTimeRange}
+            annotationLevel={annotationLevel}
+            annotationName={annotationName}
             fillHeight
           />
         ))}

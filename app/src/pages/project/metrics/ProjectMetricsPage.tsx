@@ -6,11 +6,7 @@ import { Flex, useTimeRange } from "@phoenix/components";
 import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
 
 import { getProjectMetricChart } from "./chartCatalog";
-import {
-  SessionEvaluationMetricsGrid,
-  SpanEvaluationMetricsGrid,
-  TraceEvaluationMetricsGrid,
-} from "./ProjectEvaluationMetricsGrids";
+import { ProjectAnnotationMetricsGrid } from "./ProjectAnnotationMetrics";
 import { useClosedTimeRange } from "./useClosedTimeRange";
 
 /**
@@ -91,7 +87,8 @@ const MetricPanels = memo(function MetricPanels({
         onTimeRangeSelected={onTimeRangeSelected}
         row={["span_annotations"]}
       />
-      <SpanEvaluationMetricsGrid
+      <ProjectAnnotationMetricsGrid
+        annotationLevel="spans"
         projectId={projectId}
         timeRange={timeRange}
         onTimeRangeSelected={onTimeRangeSelected}
@@ -102,7 +99,8 @@ const MetricPanels = memo(function MetricPanels({
         onTimeRangeSelected={onTimeRangeSelected}
         row={["trace_annotations"]}
       />
-      <TraceEvaluationMetricsGrid
+      <ProjectAnnotationMetricsGrid
+        annotationLevel="traces"
         projectId={projectId}
         timeRange={timeRange}
         onTimeRangeSelected={onTimeRangeSelected}
@@ -113,7 +111,8 @@ const MetricPanels = memo(function MetricPanels({
         onTimeRangeSelected={onTimeRangeSelected}
         row={["session_annotations"]}
       />
-      <SessionEvaluationMetricsGrid
+      <ProjectAnnotationMetricsGrid
+        annotationLevel="sessions"
         projectId={projectId}
         timeRange={timeRange}
         onTimeRangeSelected={onTimeRangeSelected}

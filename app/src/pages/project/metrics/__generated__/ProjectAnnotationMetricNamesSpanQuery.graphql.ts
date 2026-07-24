@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad96672f008cd964da93fe7072b8f94b>>
+ * @generated SignedSource<<f2177f37c7c9260dadfd3193bd16f82a>>
  * @lightSyntaxTransform
  */
 
@@ -8,17 +8,17 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ProjectEvaluationMetricNamesTraceQuery$variables = {
+export type ProjectAnnotationMetricNamesSpanQuery$variables = {
   projectId: string;
 };
-export type ProjectEvaluationMetricNamesTraceQuery$data = {
+export type ProjectAnnotationMetricNamesSpanQuery$data = {
   readonly project: {
-    readonly traceAnnotationsNames?: ReadonlyArray<string>;
+    readonly spanAnnotationNames?: ReadonlyArray<string>;
   };
 };
-export type ProjectEvaluationMetricNamesTraceQuery = {
-  response: ProjectEvaluationMetricNamesTraceQuery$data;
-  variables: ProjectEvaluationMetricNamesTraceQuery$variables;
+export type ProjectAnnotationMetricNamesSpanQuery = {
+  response: ProjectAnnotationMetricNamesSpanQuery$data;
+  variables: ProjectAnnotationMetricNamesSpanQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -43,7 +43,7 @@ v2 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "traceAnnotationsNames",
+      "name": "spanAnnotationNames",
       "storageKey": null
     }
   ],
@@ -55,7 +55,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectEvaluationMetricNamesTraceQuery",
+    "name": "ProjectAnnotationMetricNamesSpanQuery",
     "selections": [
       {
         "alias": "project",
@@ -77,7 +77,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "ProjectEvaluationMetricNamesTraceQuery",
+    "name": "ProjectAnnotationMetricNamesSpanQuery",
     "selections": [
       {
         "alias": "project",
@@ -108,16 +108,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f98b99e7866d3729c6b9d454400546bc",
+    "cacheID": "140250e68824804630d7d5c4a634b148",
     "id": null,
     "metadata": {},
-    "name": "ProjectEvaluationMetricNamesTraceQuery",
+    "name": "ProjectAnnotationMetricNamesSpanQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluationMetricNamesTraceQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceAnnotationsNames\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectAnnotationMetricNamesSpanQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanAnnotationNames\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "be6c51a804676405e2e1735629c80316";
+(node as any).hash = "e3b65586ca1f08f5597900dfddc1b25f";
 
 export default node;
