@@ -89,6 +89,37 @@ async def test_dataset_example_span_resolver(
     }
 
 
+async def test_dataset_example_dataset_resolver(
+    gql_client: AsyncGraphQLClient,
+    dataset_with_span_and_nonspan_examples: Any,
+) -> None:
+    query = """
+      query ($exampleId: ID!) {
+        example: node(id: $exampleId) {
+          ... on DatasetExample {
+            dataset {
+              id
+              name
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"exampleId": str(GlobalID("DatasetExample", str(1)))},
+    )
+    assert not response.errors
+    assert response.data == {
+        "example": {
+            "dataset": {
+                "id": str(GlobalID("Dataset", str(1))),
+                "name": "dataset-name",
+            }
+        }
+    }
+
+
 async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
     gql_client: AsyncGraphQLClient,
     example_with_experiment_runs: Any,

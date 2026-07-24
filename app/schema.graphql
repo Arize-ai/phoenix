@@ -1097,11 +1097,19 @@ type DatasetExample implements Node {
   id: ID!
   externalId: String
   createdAt: DateTime!
+  dataset: Dataset!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
   experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
   experimentRepeatedRunGroups(experimentIds: [ID!]!): [ExperimentRepeatedRunGroup!]!
   datasetSplits: [DatasetSplit!]!
+}
+
+input DatasetExampleAddition {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  externalId: String
 }
 
 """A connection to a list of items."""
@@ -2645,14 +2653,12 @@ input PatchCodeEvaluatorInput {
 }
 
 input PatchDatasetExamplesInput {
-  patches: [DatasetExamplePatch!]!
+  datasetId: ID!
+  additions: [DatasetExampleAddition!]! = []
+  patches: [DatasetExamplePatch!]! = []
+  exampleIdsToDelete: [ID!]! = []
   versionDescription: String
   versionMetadata: JSON
-
-  """
-  When provided, every patched example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
-  """
-  datasetId: ID
 }
 
 input PatchDatasetInput {

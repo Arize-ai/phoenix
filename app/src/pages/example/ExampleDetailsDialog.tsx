@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Group, Panel, Separator } from "react-resizable-panels";
+import invariant from "tiny-invariant";
 
 import type { CardProps } from "@phoenix/components";
 import {
@@ -15,6 +16,8 @@ import {
   DialogTitleExtra,
   Flex,
   Heading,
+  Icon,
+  Icons,
   LinkButton,
   TitleWithID,
   ListBox,
@@ -36,7 +39,7 @@ import { AssignExamplesToSplitMenu } from "@phoenix/pages/examples/AssignExample
 import type { Mutable } from "@phoenix/typeUtils";
 
 import type { ExampleDetailsDialogQuery } from "./__generated__/ExampleDetailsDialogQuery.graphql";
-import { EditExampleButton } from "./EditExampleButton";
+import { EditExampleForm } from "./EditExampleForm";
 import { ExampleExperimentRunsTable } from "./ExampleExperimentRunsTable";
 
 type ViewMode = "json" | "pretty";
@@ -164,6 +167,7 @@ function ExampleDetailsDialogContent({
   datasetVersionId?: string;
 }) {
   const [fetchKey, setFetchKey] = useState(0);
+  const [isEditing, setIsEditing] = useState(false);
   const [inputViewMode, setInputViewMode] = useState<ViewMode>("pretty");
   const [outputViewMode, setOutputViewMode] = useState<ViewMode>("pretty");
   const data = useLazyLoadQuery<ExampleDetailsDialogQuery>(
@@ -173,6 +177,9 @@ function ExampleDetailsDialogContent({
           ... on DatasetExample {
             id
             externalId
+            dataset {
+              id
+            }
             revision(datasetVersionId: $datasetVersionId) {
               input
               output
@@ -201,45 +208,60 @@ function ExampleDetailsDialogContent({
     { exampleId: exampleId as string, datasetVersionId: datasetVersionId },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
-  const revision = useMemo(() => {
-    const rev = data.example.revision;
-    return {
-      input: JSON.stringify(rev?.input, null, 2),
-      output: JSON.stringify(rev?.output, null, 2),
-      metadata: JSON.stringify(rev?.metadata, null, 2),
-      // Raw values for DynamicContent
-      inputRaw: rev?.input,
-      outputRaw: rev?.output,
-    };
-  }, [data]);
-  const sourceSpanInfo = useMemo(() => {
-    const sourceSpan = data.example.span;
-    if (!sourceSpan) {
-      return null;
-    }
-    return {
-      id: sourceSpan.id,
-      traceId: sourceSpan.trace.traceId,
-      projectId: sourceSpan.trace.project.id,
-    };
-  }, [data]);
+  // Optional only because `dataset` is selected through an inline fragment; every
+  // dataset example belongs to a dataset.
+  const datasetId = data.example.dataset?.id;
+  invariant(datasetId, "a dataset example must belong to a dataset");
+  const currentRevision = data.example.revision;
+  const revision = {
+    input: JSON.stringify(currentRevision?.input, null, 2),
+    output: JSON.stringify(currentRevision?.output, null, 2),
+    metadata: JSON.stringify(currentRevision?.metadata, null, 2),
+    // Raw values for DynamicContent
+    inputRaw: currentRevision?.input,
+    outputRaw: currentRevision?.output,
+  };
+  const sourceSpan = data.example.span;
+  const sourceSpanInfo = sourceSpan
+    ? {
+        id: sourceSpan.id,
+        traceId: sourceSpan.trace.traceId,
+        projectId: sourceSpan.trace.project.id,
+      }
+    : null;
   const { input, output, metadata } = revision;
   const datasetSplits = data.example.datasetSplits ?? [];
-  const examplesCache = useMemo(() => {
-    const example = data.example;
-    if (example && example.id) {
-      return {
+  const example = data.example;
+  const examplesCache = example?.id
+    ? {
         [example.id]: {
           id: example.id,
           datasetSplits: (example.datasetSplits ?? []) as Mutable<
             NonNullable<typeof example.datasetSplits>
           >,
         },
-      };
-    }
-    return {};
-  }, [data]);
+      }
+    : {};
   const notifySuccess = useNotifySuccess();
+
+  if (isEditing) {
+    return (
+      <EditExampleForm
+        exampleId={exampleId}
+        datasetId={datasetId}
+        currentRevision={revision}
+        onCancel={() => setIsEditing(false)}
+        onCompleted={() => {
+          notifySuccess({
+            title: "Example updated",
+            message: `Example ${exampleId} has been updated.`,
+          });
+          setIsEditing(false);
+          setFetchKey((key) => key + 1);
+        }}
+      />
+    );
+  }
 
   return (
     <>
@@ -266,17 +288,13 @@ function ExampleDetailsDialogContent({
             examplesCache={examplesCache}
             size="S"
           />
-          <EditExampleButton
-            exampleId={exampleId as string}
-            currentRevision={revision}
-            onCompleted={() => {
-              notifySuccess({
-                title: "Example updated",
-                message: `Example ${exampleId} has been updated.`,
-              });
-              setFetchKey((key) => key + 1);
-            }}
-          />
+          <Button
+            size="S"
+            leadingVisual={<Icon svg={<Icons.Edit />} />}
+            onPress={() => setIsEditing(true)}
+          >
+            Edit
+          </Button>
         </DialogTitleExtra>
       </DialogHeader>
       <Group orientation="vertical">

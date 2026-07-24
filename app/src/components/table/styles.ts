@@ -130,6 +130,53 @@ export const selectableTableCSS = css(
   `
 );
 
+export const editableTableCSS = css(
+  tableCSS,
+  css`
+    tbody:not(.is-empty) {
+      tr {
+        td:has([data-cell-edit-trigger]) {
+          position: relative;
+          padding: 0;
+          cursor: text;
+        }
+        td:has([data-cell-edit-trigger]):hover::after,
+        td:has([data-cell-edit-trigger][data-focus-visible])::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          box-shadow: inset 0 0 0 1px var(--global-color-primary);
+          pointer-events: none;
+        }
+        td:has([data-cell-edit-trigger][data-dirty="true"]) {
+          background-color: rgba(var(--global-color-warning-rgb), 0.08);
+        }
+        td:has([data-cell-edit-trigger][data-dirty="true"])::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          right: 0;
+          border-top: 6px solid var(--global-color-warning);
+          border-left: 6px solid transparent;
+        }
+        &[data-deleted="true"] {
+          --table-cell-background-color: rgba(
+            var(--global-color-danger-rgb),
+            0.06
+          );
+          & > td {
+            background-color: var(--table-cell-background-color);
+          }
+          & > td:not([data-row-actions]) {
+            text-decoration: line-through;
+            color: var(--global-text-color-500);
+          }
+        }
+      }
+    }
+  `
+);
+
 export const paginationCSS = css`
   display: flex;
   justify-content: flex-end;
@@ -164,8 +211,11 @@ export function getCommonPinningStyles<Row>(
     position: isPinned ? "sticky" : "relative",
     width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
+    // Deferred through a custom property so a row can restyle its cells — a row
+    // marked for deletion tints every cell, and an inline background here would
+    // otherwise win against the stylesheet and leave the pinned column untinted.
     backgroundColor: isPinned
-      ? "var(--global-table-pinned-column-background-color)"
+      ? "var(--table-cell-background-color, var(--global-table-pinned-column-background-color))"
       : undefined,
   };
 }

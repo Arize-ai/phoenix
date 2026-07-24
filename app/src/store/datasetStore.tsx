@@ -51,7 +51,7 @@ export interface DatasetStoreState extends DatasetStoreProps {
   /**
    * Refreshes the latest version of the dataset
    */
-  refreshLatestVersion: () => void;
+  refreshLatestVersion: () => Promise<void>;
   /**
    * Set the metric charts to show above the experiments table
    */
@@ -73,14 +73,23 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
             set({ isRefreshingLatestVersion: true }, false, {
               type: "refreshLatestVersionInit",
             });
-            const newVersion = await fetchLatestVersion({
-              datasetId: dataset.datasetId,
-            });
-            set(
-              { latestVersion: newVersion, isRefreshingLatestVersion: false },
-              false,
-              { type: "refreshLatestVersionSuccess" }
-            );
+            try {
+              const newVersion = await fetchLatestVersion({
+                datasetId: dataset.datasetId,
+              });
+              set(
+                { latestVersion: newVersion, isRefreshingLatestVersion: false },
+                false,
+                { type: "refreshLatestVersionSuccess" }
+              );
+            } catch (error) {
+              // Leave `latestVersion` alone — a failed refresh must not look like
+              // a successful one — but never strand the in-flight flag.
+              set({ isRefreshingLatestVersion: false }, false, {
+                type: "refreshLatestVersionError",
+              });
+              throw error;
+            }
           },
           experimentsMetricChartKeys: DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
           setExperimentsMetricChartKeys: (keys: ExperimentMetricChartKey[]) => {

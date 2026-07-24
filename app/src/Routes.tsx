@@ -535,7 +535,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Dataset Examples",
                     description:
-                      "Browse dataset examples, rows, and example records.",
+                      "Browse and edit dataset examples, add or delete rows, and save changes as a new dataset version.",
                   },
                 }}
               >

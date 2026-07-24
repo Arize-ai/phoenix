@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9754eaa8d341ecf29dfaedc24e720321>>
+ * @generated SignedSource<<dfa38c295c26d5c5d6ba6051f5dbe92a>>
  * @lightSyntaxTransform
  */
 
@@ -28,20 +28,20 @@ export type DatasetExamplePatch = {
   metadata?: any | null;
   output?: any | null;
 };
-export type patchDatasetExamplesToolMutation$variables = {
+export type SaveDatasetExamplesDialogMutation$variables = {
   input: PatchDatasetExamplesInput;
 };
-export type patchDatasetExamplesToolMutation$data = {
+export type SaveDatasetExamplesDialogMutation$data = {
   readonly patchDatasetExamples: {
     readonly dataset: {
+      readonly exampleCount: number;
       readonly id: string;
-      readonly name: string;
     };
   };
 };
-export type patchDatasetExamplesToolMutation = {
-  response: patchDatasetExamplesToolMutation$data;
-  variables: patchDatasetExamplesToolMutation$variables;
+export type SaveDatasetExamplesDialogMutation = {
+  response: SaveDatasetExamplesDialogMutation$data;
+  variables: SaveDatasetExamplesDialogMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -86,7 +86,7 @@ v1 = [
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "name",
+            "name": "exampleCount",
             "storageKey": null
           }
         ],
@@ -101,7 +101,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "patchDatasetExamplesToolMutation",
+    "name": "SaveDatasetExamplesDialogMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -110,20 +110,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "patchDatasetExamplesToolMutation",
+    "name": "SaveDatasetExamplesDialogMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "9eaf1fac40959948180cc3d5a9ea3f46",
+    "cacheID": "d288305363838ec485d9665a37feaa6f",
     "id": null,
     "metadata": {},
-    "name": "patchDatasetExamplesToolMutation",
+    "name": "SaveDatasetExamplesDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation patchDatasetExamplesToolMutation(\n  $input: PatchDatasetExamplesInput!\n) {\n  patchDatasetExamples(input: $input) {\n    dataset {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation SaveDatasetExamplesDialogMutation(\n  $input: PatchDatasetExamplesInput!\n) {\n  patchDatasetExamples(input: $input) {\n    dataset {\n      id\n      exampleCount\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2d114158d6b674e082d7c03d4369f91f";
+(node as any).hash = "eeb63ee9ad98972dbc226eaea3abc7cb";
 
 export default node;
