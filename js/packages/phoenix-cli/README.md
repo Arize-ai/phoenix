@@ -229,6 +229,7 @@ px trace list --format raw --no-progress | jq    # pipe-friendly compact JSON
 px trace list ./my-traces --limit 50             # save as JSON files to directory
 px trace list --last-n-minutes 60 --limit 20     # filter by time window
 px trace list --since 2026-01-13T10:00:00Z       # since ISO timestamp
+px trace list --since 2026-01-13T10:00:00Z --until 2026-01-14T10:00:00Z # time range
 ```
 
 | Option                      | Description                            | Default  |
@@ -237,6 +238,7 @@ px trace list --since 2026-01-13T10:00:00Z       # since ISO timestamp
 | `-n, --limit <number>`      | Number of traces (newest first)        | 10       |
 | `--last-n-minutes <number>` | Only traces from the last N minutes    | —        |
 | `--since <timestamp>`       | Traces since ISO timestamp             | —        |
+| `--until <timestamp>`       | Traces whose spans started before ISO timestamp (exclusive) | — |
 | `--format <format>`         | `pretty`, `json`, or `raw`             | `pretty` |
 | `--no-progress`             | Suppress progress output               | —        |
 | `--include-annotations`     | Include trace and span annotations     | —        |

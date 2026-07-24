@@ -212,6 +212,7 @@ px project get my-project --format raw --no-progress | jq -r '.id'  # extract pr
 px trace list --limit 20 --format raw --no-progress | jq .
 px trace list --last-n-minutes 60 --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
 px trace list --since 2025-01-15T00:00:00Z --limit 50 --format raw --no-progress | jq .
+px trace list --since 2025-01-15T00:00:00Z --until 2025-01-16T00:00:00Z --limit 50 --format raw --no-progress | jq .  # time range (until is exclusive)
 px trace list --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
 px trace list --include-notes --format raw --no-progress | jq '.[].notes'
 px trace get <trace-id> --format raw | jq .
