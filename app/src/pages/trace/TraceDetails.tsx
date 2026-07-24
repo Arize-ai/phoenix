@@ -28,11 +28,13 @@ import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
+import { traceTreePanelContentCSS } from "@phoenix/components/trace/traceTreeStyles";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
 import {
   SPAN_DETAILS_MIN_WIDTH_PIXELS,
   TRACE_TREE_DEFAULT_WIDTH_PIXELS,
+  TRACE_TREE_MIN_WIDTH_PIXELS,
 } from "@phoenix/constants";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { usePersistedState } from "@phoenix/hooks";
@@ -183,10 +185,15 @@ export function TraceDetails(props: TraceDetailsProps) {
           id="trace-tree"
           panelRef={treePanelRef}
           defaultSize={preferredTreeWidth}
+          minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
           groupResizeBehavior="preserve-pixel-size"
+          css={css`
+            container-type: inline-size;
+          `}
+          style={{ maxWidth: "none", overflow: "visible" }}
         >
           <TraceTreeProvider>
-            <ScrollingPanelContent>
+            <TraceTreePanelContent>
               <TraceTreeToolbar />
               <ConnectedTraceTree
                 trace={data.project.trace}
@@ -201,10 +208,18 @@ export function TraceDetails(props: TraceDetailsProps) {
                   );
                 }}
               />
-            </ScrollingPanelContent>
+            </TraceTreePanelContent>
           </TraceTreeProvider>
         </Panel>
-        <Separator css={compactResizeHandleCSS} />
+        <Separator
+          css={[
+            compactResizeHandleCSS,
+            css`
+              position: relative;
+              z-index: 3;
+            `,
+          ]}
+        />
         <Panel id="span-details" minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}>
           <SpanDetailsWrapper>
             {selectedSpanNodeId ? (
@@ -401,17 +416,9 @@ function SpanDetailsWrapper({ children }: PropsWithChildren) {
   );
 }
 
-function ScrollingPanelContent({ children }: PropsWithChildren) {
+function TraceTreePanelContent({ children }: PropsWithChildren) {
   return (
-    <div
-      data-testid="scrolling-panel-content"
-      css={css`
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      `}
-    >
+    <div data-testid="scrolling-panel-content" css={traceTreePanelContentCSS}>
       {children}
     </div>
   );

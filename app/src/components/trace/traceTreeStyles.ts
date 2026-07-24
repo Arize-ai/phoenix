@@ -1,9 +1,41 @@
 import { css } from "@emotion/react";
 
+import { TRACE_TREE_HOVER_WIDTH_PIXELS } from "@phoenix/constants";
+
 export const NESTING_INDENT = 25;
 export const COMPACT_BREAKPOINT = "300px";
 export const LARGE_BREAKPOINT = "500px";
 export const EXTRA_LARGE_BREAKPOINT = "800px";
+
+/**
+ * Content for the resizable trace-tree column. The parent Panel is the query
+ * container. When the allocated column is narrower than size-3000, hovering
+ * or moving keyboard focus into the tree exposes a usable overlay without
+ * changing the resizable layout's remembered width.
+ */
+export const traceTreePanelContentCSS = css`
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  container-type: inline-size;
+  background: var(--global-background-color-default);
+
+  @container (width < ${TRACE_TREE_HOVER_WIDTH_PIXELS}px) {
+    &:hover,
+    &:focus-within {
+      z-index: 2;
+      width: var(--global-dimension-size-3000);
+      border-right: var(--global-border-size-thin) solid
+        var(--global-border-color-default);
+      box-shadow: 4px 0 12px rgba(var(--global-color-gray-900-rgb), 0.12);
+    }
+  }
+`;
 
 export const traceTreeListCSS = css`
   flex: 1 1 auto;

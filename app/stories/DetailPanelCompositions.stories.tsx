@@ -33,11 +33,13 @@ import {
   TraceTree,
   TraceTreeProvider,
 } from "@phoenix/components/trace/TraceTree";
+import { traceTreePanelContentCSS } from "@phoenix/components/trace/traceTreeStyles";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import {
   SPAN_DETAILS_MIN_WIDTH_PIXELS,
   TRACE_TREE_DEFAULT_WIDTH_PIXELS,
+  TRACE_TREE_MIN_WIDTH_PIXELS,
 } from "@phoenix/constants";
 import type { SpanHeaderData } from "@phoenix/pages/SpanHeader";
 import { SpanHeaderContent } from "@phoenix/pages/SpanHeader";
@@ -460,7 +462,7 @@ function TraceTreeFixture({
 }) {
   return (
     <TraceTreeProvider>
-      <div css={panelContentCSS}>
+      <div css={traceTreePanelContentCSS}>
         {hasToolbar ? <TraceTreeToolbar /> : null}
         <TraceTree
           spans={spans}
@@ -675,14 +677,27 @@ function TracePanelComposition({
         <Panel
           id={`trace-tree-${selectedSpan}`}
           defaultSize={TRACE_TREE_DEFAULT_WIDTH_PIXELS}
+          minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
           groupResizeBehavior="preserve-pixel-size"
+          css={css`
+            container-type: inline-size;
+          `}
+          style={{ maxWidth: "none", overflow: "visible" }}
         >
           <TraceTreeFixture
             selectedSpanNodeId={selectedSpanNodeId}
             onSpanClick={(span) => setActiveSpan(getSelectedSpan(span.id))}
           />
         </Panel>
-        <Separator css={compactResizeHandleCSS} />
+        <Separator
+          css={[
+            compactResizeHandleCSS,
+            css`
+              position: relative;
+              z-index: 3;
+            `,
+          ]}
+        />
         <Panel
           id={`span-details-${selectedSpan}`}
           minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}

@@ -2,17 +2,19 @@ import { css } from "@emotion/react";
 
 import {
   DebouncedSearch,
-  Flex,
   Icon,
   IconButton,
   Icons,
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import {
+  TRACE_TREE_HOVER_WIDTH_PIXELS,
+  TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS,
+} from "@phoenix/constants";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { useTraceTree } from "./TraceTreeContext";
-import { COMPACT_BREAKPOINT } from "./traceTreeStyles";
 
 /**
  * Header controls for the trace tree panel.
@@ -38,20 +40,22 @@ export function TraceTreeToolbar() {
       className="trace-tree-toolbar"
       css={css`
         display: flex;
-        flex-direction: row;
-        justify-content: space-between;
         box-sizing: border-box;
         width: 100%;
         flex: none;
-        align-items: center;
         padding: var(--global-dimension-size-100);
         border-bottom: 1px solid var(--global-border-color-default);
         height: var(--global-dimension-size-600);
-        @container (width < ${COMPACT_BREAKPOINT}) {
-          button {
-            display: none;
-          }
+
+        .trace-tree-toolbar__layout {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--global-dimension-size-100);
+          width: 100%;
         }
+
         .trace-tree-toolbar__search {
           flex: 1 1 auto;
           min-width: 0;
@@ -81,16 +85,53 @@ export function TraceTreeToolbar() {
             var(--global-dimension-size-200) + var(--global-font-size-l)
           ) !important;
         }
+
+        .trace-tree-toolbar__controls {
+          display: flex;
+          flex: none;
+          flex-direction: row;
+          gap: var(--global-dimension-size-100);
+        }
+
+        @container (width < ${TRACE_TREE_HOVER_WIDTH_PIXELS}px) {
+          .trace-tree-toolbar__search {
+            flex: none;
+            width: var(--global-button-height-s);
+          }
+
+          .trace-tree-toolbar__search .search-field {
+            width: var(--global-button-height-s);
+            height: var(--global-button-height-s);
+          }
+
+          .trace-tree-toolbar__search .react-aria-Input {
+            width: var(--global-button-height-s);
+            padding: 0 !important;
+            opacity: 0;
+            cursor: pointer;
+          }
+
+          .trace-tree-toolbar__search .search-field__icon {
+            left: 50%;
+            transform: translate(-50%, -50%);
+          }
+
+          .trace-tree-toolbar__search .search-field__clear {
+            display: none;
+          }
+        }
+
+        @container (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
+          height: auto;
+
+          .trace-tree-toolbar__layout,
+          .trace-tree-toolbar__controls {
+            flex-direction: column;
+          }
+        }
       `}
     >
-      <Flex
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        flex="none"
-        gap="size-100"
-        width="100%"
-      >
+      <div className="trace-tree-toolbar__layout">
         <div className="trace-tree-toolbar__search">
           <DebouncedSearch
             aria-label="Search trace tree"
@@ -100,7 +141,7 @@ export function TraceTreeToolbar() {
             variant="quiet"
           />
         </div>
-        <Flex direction="row" gap="size-100" className="trace-tree-controls">
+        <div className="trace-tree-toolbar__controls">
           <TooltipTrigger>
             <IconButton
               size="S"
@@ -143,8 +184,8 @@ export function TraceTreeToolbar() {
                 : "Show metrics in trace tree"}
             </Tooltip>
           </TooltipTrigger>
-        </Flex>
-      </Flex>
+        </div>
+      </div>
     </div>
   );
 }
