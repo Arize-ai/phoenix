@@ -140,7 +140,8 @@ type RootSpanMessageProps = {
   value: unknown;
 };
 
-function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
+/** Presentational session message bubble used by the turns view and Storybook. */
+export function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
   const isInput = role === "INPUT";
   const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
