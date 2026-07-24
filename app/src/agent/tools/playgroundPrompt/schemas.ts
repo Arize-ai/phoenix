@@ -7,6 +7,7 @@ import {
   chatMessageRolesSchema,
   chatMessageSchema,
 } from "@phoenix/pages/playground/schemas";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 export type PromptEditToolOutputSender = Chat<UIMessage>["addToolOutput"];
 
@@ -147,11 +148,6 @@ export const editPromptActionContextSchema = z
   })
   .transform((context) => context);
 
-/** Local guard: a non-null, non-array object whose properties can be read by key. */
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /**
  * Copies aliased keys (e.g. snake_case) to their canonical names (camelCase)
  * before Zod parsing. Canonical keys take precedence if both are present.
@@ -160,7 +156,7 @@ export function normalizeAliases(
   input: unknown,
   aliasesByKey: Record<string, string[]>
 ): unknown {
-  if (!isPlainRecord(input)) {
+  if (!isPlainObject(input)) {
     return input;
   }
   const candidate = input;

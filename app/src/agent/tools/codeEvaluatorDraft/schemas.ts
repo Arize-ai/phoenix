@@ -8,6 +8,7 @@ import {
   CODE_EVALUATOR_LANGUAGES,
   EVALUATOR_OPTIMIZATION_DIRECTIONS,
 } from "@phoenix/types";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import type { OutputConfigDraft } from "./types";
 
@@ -38,16 +39,11 @@ function normalizeOutputConfigAliases(input: unknown): unknown {
   });
 }
 
-/** Local guard: a non-null, non-array object whose properties can be read by key. */
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function normalizeEditCodeEvaluatorDraftInput(input: unknown): unknown {
   const normalized = normalizeAliases(input, {
     operations: ["operation"],
   });
-  if (!isPlainRecord(normalized)) {
+  if (!isPlainObject(normalized)) {
     return normalized;
   }
   if (

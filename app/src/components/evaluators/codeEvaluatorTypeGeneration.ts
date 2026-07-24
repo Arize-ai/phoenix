@@ -1,11 +1,5 @@
 import type { EvaluatorMappingSource } from "@phoenix/types";
-
-/**
- * Narrows an unknown value to a plain string-keyed object (excluding arrays).
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 /**
  * Infers a TypeScript type string from a JavaScript value.
@@ -42,7 +36,7 @@ function inferTypeFromValue(value: unknown, indent = 0): string {
     return `${elementType}[]`;
   }
 
-  if (isRecord(value)) {
+  if (isPlainObject(value)) {
     const entries = Object.entries(value);
     if (entries.length === 0) {
       return "Record<string, unknown>";
@@ -138,7 +132,7 @@ function inferPythonTypeFromValue(value: unknown): string {
     return `list[${elementType}]`;
   }
 
-  if (isRecord(value)) {
+  if (isPlainObject(value)) {
     const entries = Object.entries(value);
     if (entries.length === 0) {
       return "dict";
@@ -161,11 +155,11 @@ function formatPythonDictStructure(
   const spaces = "    ".repeat(indent);
 
   for (const [key, value] of Object.entries(data)) {
-    if (isRecord(value)) {
+    if (isPlainObject(value)) {
       lines.push(`${spaces}"${key}": {`);
       lines.push(...formatPythonDictStructure(value, indent + 1));
       lines.push(`${spaces}}`);
-    } else if (Array.isArray(value) && value.length > 0 && isRecord(value[0])) {
+    } else if (Array.isArray(value) && value.length > 0 && isPlainObject(value[0])) {
       lines.push(`${spaces}"${key}": [`);
       lines.push(`${spaces}    {`);
       lines.push(...formatPythonDictStructure(value[0], indent + 2));
@@ -201,7 +195,7 @@ export function generatePythonTypes(
   ];
 
   for (const { name, data } of fields) {
-    if (isRecord(data) && Object.keys(data).length > 0) {
+    if (isPlainObject(data) && Object.keys(data).length > 0) {
       lines.push(`${name}: dict`);
       const structureLines = formatPythonDictStructure(data, 1);
       if (structureLines.length > 0) {

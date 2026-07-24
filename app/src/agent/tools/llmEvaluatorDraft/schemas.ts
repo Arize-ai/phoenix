@@ -5,6 +5,7 @@ import { z } from "zod";
 import { outputConfigDraftSchema } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 export type LlmEvaluatorEditToolOutputSender = Chat<UIMessage>["addToolOutput"];
 
@@ -20,16 +21,11 @@ function normalizeInputMappingAliases(input: unknown): unknown {
   });
 }
 
-/** Local guard: a non-null, non-array object whose properties can be read by key. */
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function normalizeEditLlmEvaluatorDraftInput(input: unknown): unknown {
   const normalized = normalizeAliases(input, {
     operations: ["operation"],
   });
-  if (!isPlainRecord(normalized)) {
+  if (!isPlainObject(normalized)) {
     return normalized;
   }
   if (
