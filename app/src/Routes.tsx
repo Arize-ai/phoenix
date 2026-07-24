@@ -22,6 +22,7 @@ import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
+import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
 import { settingsSecretsPageLoader } from "@phoenix/pages/settings/secrets/settingsSecretsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
@@ -36,7 +37,6 @@ import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoad
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 import { SettingsSandboxesPage } from "@phoenix/pages/settings/SettingsSandboxesPage";
 import { settingsSandboxesPageLoader } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
-import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsUsersPage } from "@phoenix/pages/settings/SettingsUsersPage";
 import { UserDetailsDrawer } from "@phoenix/pages/settings/UserDetailsDrawer";
 import {
