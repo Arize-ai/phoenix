@@ -10,7 +10,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import { hoverRevealCSS } from "@phoenix/components/core/styles";
+import { interactionRevealCSS } from "@phoenix/components/core/styles";
 import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
 
 import { Logo, LogoText } from "./Logo";
@@ -49,7 +49,7 @@ const topNavCSS = css`
   }
 
   .copy-action-menu__button {
-    ${hoverRevealCSS}
+    ${interactionRevealCSS}
     transition: none;
   }
   &:hover .copy-action-menu__button,

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { hoverRevealCSS } from "@phoenix/components/core/styles";
+import { interactionRevealCSS } from "@phoenix/components/core/styles";
 
 // ---------------------------------------------------------------------------
 // Message (root container)
@@ -125,7 +125,7 @@ export const messageToolbarCSS = css`
      when the message is hovered or contains keyboard focus. A message can opt
      out (always show) via [data-pin-toolbar="true"] on the Message root — used
      for the most recent assistant turn. */
-  ${hoverRevealCSS}
+  ${interactionRevealCSS}
   transition: opacity 0.12s ease;
 
   [data-from]:hover > &,

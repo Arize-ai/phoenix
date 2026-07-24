@@ -19,11 +19,11 @@ export const quietHoverCSS = css`
 `;
 
 /**
- * Keeps a hover-revealed control reachable outside pointer interaction.
+ * Keeps an interaction-revealed control reachable across input modalities.
  * Compose this into the hidden control (or a wrapper around its controls),
  * then let the consumer reveal it when the larger hover target is hovered.
  */
-export const hoverRevealCSS = css`
+export const interactionRevealCSS = css`
   opacity: 0;
 
   &:hover,

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { hoverRevealCSS } from "@phoenix/components/core/styles";
+import { interactionRevealCSS } from "@phoenix/components/core/styles";
 
 // ---------------------------------------------------------------------------
 // Attachments (root container)
@@ -285,7 +285,7 @@ export const attachmentRemoveCSS = css`
   transition: opacity 0.2s ease;
 
   &[data-variant="grid"] {
-    ${hoverRevealCSS}
+    ${interactionRevealCSS}
     position: absolute;
     top: var(--global-dimension-size-75);
     right: var(--global-dimension-size-75);
@@ -296,7 +296,7 @@ export const attachmentRemoveCSS = css`
   }
 
   &[data-variant="inline"] {
-    ${hoverRevealCSS}
+    ${interactionRevealCSS}
     width: var(--global-dimension-size-200);
     height: var(--global-dimension-size-200);
   }
