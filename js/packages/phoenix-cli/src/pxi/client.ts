@@ -11,6 +11,7 @@ import {
 
 import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
 import { createPhoenixClient } from "../client";
+import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
@@ -19,6 +20,9 @@ import type {
   PxiContext,
   PxiMessage,
   PxiRuntimeOptions,
+  PxiSession,
+  PxiSessionClient,
+  PxiSessionSummary,
   PxiTransport,
 } from "./types";
 
@@ -81,20 +85,22 @@ async function readErrorDetail({
   }
 }
 
-/** Create a temporary `AgentSession`. */
-export async function createTemporaryAgentSession({
+/** Create an `AgentSession`. */
+export async function createAgentSession({
   config,
+  temporary,
   fetchImpl,
 }: {
   config: PhoenixConfig;
+  temporary: boolean;
   fetchImpl?: typeof globalThis.fetch;
-}): Promise<string> {
+}): Promise<PxiSession> {
   const client = createPhoenixClient({ config, fetch: fetchImpl });
   let agentSessionId: string | undefined;
   try {
     const { data: payload } = await client.POST("/agents/{agent_id}/sessions", {
       params: { path: { agent_id: SERVER_AGENT_ID } },
-      body: { title: "", temporary: true },
+      body: { title: "", temporary },
     });
     agentSessionId = payload?.data.id;
   } catch (error) {
@@ -111,7 +117,152 @@ export async function createTemporaryAgentSession({
       "Could not create a PXI chat session because Phoenix returned no session id."
     );
   }
-  return agentSessionId;
+  return {
+    id: agentSessionId,
+    title: "",
+    updatedAt: new Date().toISOString(),
+    isTemporary: temporary,
+    messages: [],
+  };
+}
+
+type GraphqlResponse<TData> = {
+  data?: TData;
+  errors?: Array<{ message?: unknown }>;
+};
+
+function getGraphqlErrorMessage({
+  payload,
+}: {
+  payload: GraphqlResponse<unknown>;
+}) {
+  const messages = payload.errors
+    ?.map((error) => error.message)
+    .filter((message): message is string => typeof message === "string");
+  return messages?.length ? messages.join("; ") : null;
+}
+
+async function fetchGraphql<TData>({
+  config,
+  query,
+  fetchImpl,
+}: {
+  config: PhoenixConfig;
+  query: string;
+  fetchImpl: typeof globalThis.fetch;
+}): Promise<TData> {
+  const request = buildGraphqlRequest({ query, config });
+  const response = await fetchImpl(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: request.body,
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Could not load PXI sessions: HTTP ${response.status} ${response.statusText} from ${request.url}.`
+    );
+  }
+  const payload = (await response.json()) as GraphqlResponse<TData>;
+  const graphqlError = getGraphqlErrorMessage({ payload });
+  if (graphqlError) {
+    throw new Error(`Could not load PXI sessions: ${graphqlError}`);
+  }
+  if (!payload.data) {
+    throw new Error(
+      "Could not load PXI sessions because Phoenix returned no data."
+    );
+  }
+  return payload.data;
+}
+
+function isSessionSummary(value: unknown): value is PxiSessionSummary {
+  if (!value || typeof value !== "object") return false;
+  const session = value as Record<string, unknown>;
+  return (
+    typeof session.id === "string" &&
+    typeof session.title === "string" &&
+    typeof session.updatedAt === "string"
+  );
+}
+
+function isPxiMessage(value: unknown): value is PxiMessage {
+  if (!value || typeof value !== "object") return false;
+  const message = value as Record<string, unknown>;
+  return (
+    typeof message.id === "string" &&
+    typeof message.role === "string" &&
+    Array.isArray(message.parts)
+  );
+}
+
+/** Create the session-management client used by the TUI. */
+export function createPxiSessionClient({
+  config,
+  fetch: fetchOverride,
+}: {
+  config: PhoenixConfig;
+  fetch?: typeof globalThis.fetch;
+}): PxiSessionClient {
+  const fetchImpl =
+    fetchOverride ??
+    (hasOAuthCredentials(config)
+      ? createOAuthFetch({ config })
+      : globalThis.fetch);
+  return {
+    createSession: ({ temporary }) =>
+      createAgentSession({ config, temporary, fetchImpl }),
+    async listSessions() {
+      const data = await fetchGraphql<{
+        agentSessions?: { edges?: Array<{ node?: unknown }> };
+      }>({
+        config,
+        fetchImpl,
+        query: `query PxiAgentSessions {
+          agentSessions(first: 20) {
+            edges { node { id title updatedAt } }
+          }
+        }`,
+      });
+      const sessions =
+        data.agentSessions?.edges?.map((edge) => edge.node) ?? [];
+      if (!sessions.every(isSessionSummary)) {
+        throw new Error(
+          "Could not load PXI sessions because Phoenix returned invalid session data."
+        );
+      }
+      return sessions;
+    },
+    async getSession({ sessionId }) {
+      const data = await fetchGraphql<{ agentSession?: unknown }>({
+        config,
+        fetchImpl,
+        query: `query PxiAgentSession {
+          agentSession: node(id: ${JSON.stringify(sessionId)}) {
+            ... on AgentSession { id title updatedAt isTemporary messages }
+          }
+        }`,
+      });
+      if (!data.agentSession || typeof data.agentSession !== "object") {
+        throw new Error(
+          "Could not restore the selected PXI session because it was not found."
+        );
+      }
+      const session = data.agentSession as Record<string, unknown>;
+      const isTemporary = session.isTemporary;
+      const messages = session.messages;
+      if (
+        !isSessionSummary(session) ||
+        typeof isTemporary !== "boolean" ||
+        !Array.isArray(messages) ||
+        !messages.every(isPxiMessage)
+      ) {
+        throw new Error(
+          "Could not restore the selected PXI session because Phoenix returned invalid data."
+        );
+      }
+      return { ...session, isTemporary, messages };
+    },
+  };
 }
 
 /**
@@ -213,9 +364,11 @@ export function buildPxiChatRequest({
 /** Create the AI SDK transport pointed at the configured Phoenix endpoint. */
 export function createServerAgentTransport({
   options,
+  agentSessionId,
   fetch,
 }: {
   options: PxiRuntimeOptions;
+  agentSessionId?: string;
   fetch?: typeof globalThis.fetch;
 }): PxiTransport {
   const endpoint = options.config.endpoint;
@@ -232,15 +385,20 @@ export function createServerAgentTransport({
   // The server session is created lazily on the first send and reused for the
   // rest of the chat. A failed creation clears the cached promise so the next
   // send can retry instead of being stuck on the rejection.
-  let agentSessionIdPromise: Promise<string> | null = null;
+  let agentSessionIdPromise: Promise<string> | null = agentSessionId
+    ? Promise.resolve(agentSessionId)
+    : null;
   const getAgentSessionId = (): Promise<string> => {
-    agentSessionIdPromise ??= createTemporaryAgentSession({
+    agentSessionIdPromise ??= createAgentSession({
       config: options.config,
+      temporary: false,
       fetchImpl: transportFetch,
-    }).catch((error: unknown) => {
-      agentSessionIdPromise = null;
-      throw error;
-    });
+    })
+      .then((session) => session.id)
+      .catch((error: unknown) => {
+        agentSessionIdPromise = null;
+        throw error;
+      });
     return agentSessionIdPromise;
   };
 
@@ -272,12 +430,29 @@ export function createServerAgentTransport({
 export async function streamAssistantMessage({
   stream,
   onAssistantMessage,
+  onSessionTitle,
 }: {
   stream: ReadableStream<UIMessageChunk>;
   onAssistantMessage: (message: PxiMessage) => void;
+  onSessionTitle?: (title: string) => void;
 }): Promise<PxiMessage | null> {
   let finalMessage: PxiMessage | null = null;
-  for await (const message of readUIMessageStream<PxiMessage>({ stream })) {
+  const observedStream = stream.pipeThrough(
+    new TransformStream<UIMessageChunk, UIMessageChunk>({
+      transform(chunk, controller) {
+        if (
+          chunk.type === "data-session-summary" &&
+          typeof chunk.data === "string"
+        ) {
+          onSessionTitle?.(chunk.data);
+        }
+        controller.enqueue(chunk);
+      },
+    })
+  );
+  for await (const message of readUIMessageStream<PxiMessage>({
+    stream: observedStream,
+  })) {
     finalMessage = message;
     onAssistantMessage(message);
   }
@@ -293,13 +468,20 @@ export async function streamAssistantMessage({
  */
 export function createPxiChatClient({
   options,
-  transport = createServerAgentTransport({ options }),
+  agentSessionId,
+  transport = createServerAgentTransport({ options, agentSessionId }),
 }: {
   options: PxiRuntimeOptions;
+  agentSessionId?: string;
   transport?: PxiTransport;
 }): PxiChatClient {
   return {
-    async sendMessage({ messages, abortSignal, onAssistantMessage }) {
+    async sendMessage({
+      messages,
+      abortSignal,
+      onAssistantMessage,
+      onSessionTitle,
+    }) {
       try {
         const stream = await transport.sendMessages({
           trigger: "submit-message",
@@ -308,7 +490,11 @@ export function createPxiChatClient({
           messages,
           abortSignal,
         });
-        return await streamAssistantMessage({ stream, onAssistantMessage });
+        return await streamAssistantMessage({
+          stream,
+          onAssistantMessage,
+          onSessionTitle,
+        });
       } catch (error) {
         throw formatPxiRuntimeError({
           error,

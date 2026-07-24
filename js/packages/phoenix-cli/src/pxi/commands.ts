@@ -6,7 +6,8 @@
  */
 
 export type CommandContext = {
-  clearMessages: () => void;
+  startNewSession: (options: { temporary: boolean }) => void;
+  openSessionPicker: () => void;
   exit: () => void;
 };
 
@@ -20,8 +21,23 @@ export type PxiCommand = {
 export const SLASH_COMMANDS: PxiCommand[] = [
   {
     name: "clear",
-    description: "Clear the conversation history",
-    handler: (_args, ctx) => ctx.clearMessages(),
+    description: "Start a new persisted session (alias for /new)",
+    handler: (_args, ctx) => ctx.startNewSession({ temporary: false }),
+  },
+  {
+    name: "new",
+    description: "Start a new persisted session",
+    handler: (_args, ctx) => ctx.startNewSession({ temporary: false }),
+  },
+  {
+    name: "sessions",
+    description: "Browse and restore persisted sessions",
+    handler: (_args, ctx) => ctx.openSessionPicker(),
+  },
+  {
+    name: "temporary",
+    description: "Start a new temporary session",
+    handler: (_args, ctx) => ctx.startNewSession({ temporary: true }),
   },
   {
     name: "exit",

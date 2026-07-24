@@ -2,7 +2,11 @@ import type { EventEmitter } from "node:events";
 import { Box, Text, useApp, useInput, useStdin } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-import { createPxiChatClient, createUserMessage } from "./client";
+import {
+  createPxiChatClient,
+  createPxiSessionClient,
+  createUserMessage,
+} from "./client";
 import {
   getSlashCommandName,
   matchingCommands,
@@ -27,7 +31,13 @@ import {
   type ToolProgress,
   type ToolProgressState,
 } from "./toolProgress";
-import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
+import type {
+  PxiChatClient,
+  PxiMessage,
+  PxiRuntimeOptions,
+  PxiSessionClient,
+  PxiSessionSummary,
+} from "./types";
 
 /**
  * The PXI terminal chat UI.
@@ -40,6 +50,13 @@ import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
 
 /** Whether the app is waiting on input (`idle`) or streaming a reply. */
 type PxiStatus = "idle" | "streaming";
+type SessionPickerState = {
+  status: "loading" | "ready" | "restoring" | "error";
+  sessions: PxiSessionSummary[];
+  query: string;
+  selectedIndex: number;
+  error: string | null;
+};
 type PxiMessagePart = PxiMessage["parts"][number];
 type DraftSegment = {
   text: string;
@@ -88,6 +105,7 @@ const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
   client?: PxiChatClient;
+  sessionClient?: PxiSessionClient;
   initialMessages?: PxiMessage[];
 };
 
@@ -522,6 +540,92 @@ function InputPrompt({
   );
 }
 
+function getFilteredSessions({
+  sessions,
+  query,
+}: {
+  sessions: PxiSessionSummary[];
+  query: string;
+}) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return sessions;
+  return sessions.filter((session) =>
+    session.title.toLowerCase().includes(normalizedQuery)
+  );
+}
+
+function getSessionTitle({ title }: { title: string }) {
+  return title.trim() || "Untitled session";
+}
+
+/** Session-selection mode rendered in place of the normal composer. */
+function SessionPicker({ state }: { state: SessionPickerState }) {
+  const filteredSessions = getFilteredSessions({
+    sessions: state.sessions,
+    query: state.query,
+  });
+  const selectedIndex = Math.min(
+    state.selectedIndex,
+    Math.max(filteredSessions.length - 1, 0)
+  );
+  const firstVisibleIndex = Math.max(0, selectedIndex - 7);
+  const visibleSessions = filteredSessions.slice(
+    firstVisibleIndex,
+    firstVisibleIndex + 8
+  );
+
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="single"
+      borderColor="cyan"
+      paddingX={1}
+      marginTop={1}
+    >
+      <Text bold>Recent sessions</Text>
+      {state.status === "loading" ? (
+        <Text dimColor>Loading sessions…</Text>
+      ) : null}
+      {state.error ? <Text color="red">{state.error}</Text> : null}
+      {state.status !== "loading" && state.sessions.length > 0 ? (
+        <Text>
+          <Text dimColor>Filter: </Text>
+          {state.query}
+          <Text color="cyan">█</Text>
+        </Text>
+      ) : null}
+      {state.status !== "loading" && filteredSessions.length === 0 ? (
+        <Text dimColor>
+          {state.sessions.length === 0
+            ? "No persisted sessions yet."
+            : "No sessions match this filter."}
+        </Text>
+      ) : null}
+      {visibleSessions.map((session, visibleIndex) => {
+        const sessionIndex = firstVisibleIndex + visibleIndex;
+        const isSelected = sessionIndex === selectedIndex;
+        return (
+          <Text key={session.id} color={isSelected ? "cyan" : undefined}>
+            {isSelected ? "› " : "  "}
+            <Text bold={isSelected}>
+              {getSessionTitle({ title: session.title })}
+            </Text>
+            <Text dimColor>
+              {"  "}
+              {new Date(session.updatedAt).toLocaleString()}
+            </Text>
+          </Text>
+        );
+      })}
+      <Text dimColor>
+        {state.status === "restoring"
+          ? "restoring session…"
+          : "type to filter · ↑↓ navigate · enter restore · esc cancel"}
+      </Text>
+    </Box>
+  );
+}
+
 function isKeyboardProtocolResponseInput({ input }: { input: string }) {
   return KEYBOARD_PROTOCOL_RESPONSE_PATTERN.test(input);
 }
@@ -622,7 +726,12 @@ export function ThinkingIndicator() {
  * `initialMessages` props exist mainly so tests can drive the UI with a fake
  * client and seeded history.
  */
-export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
+export function PxiApp({
+  options,
+  client,
+  sessionClient,
+  initialMessages = [],
+}: PxiAppProps) {
   const { exit } = useApp();
   // ink v7 narrowed useStdin()'s return type to its public props, but the
   // context value still carries the internal raw-input emitter this app
@@ -637,11 +746,19 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   );
   const [status, setStatus] = useState<PxiStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [activeSession, setActiveSession] = useState<PxiSessionSummary | null>(
+    null
+  );
+  const [isDraftTemporary, setIsDraftTemporary] = useState(false);
+  const [sessionPicker, setSessionPicker] = useState<SessionPickerState | null>(
+    null
+  );
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
-  const chatClient = useMemo(
-    () => client ?? createPxiChatClient({ options }),
-    [client, options]
+  const sessionRequestIdRef = useRef(0);
+  const serverSessionClient = useMemo(
+    () => sessionClient ?? createPxiSessionClient({ config: options.config }),
+    [options.config, sessionClient]
   );
 
   const handleExit = () => {
@@ -671,10 +788,99 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     setStatus("idle");
   };
 
-  const clearMessages = () => {
+  const startNewSession = ({ temporary }: { temporary: boolean }) => {
+    sessionRequestIdRef.current += 1;
+    setActiveSession(null);
+    setIsDraftTemporary(temporary);
+    setSessionPicker(null);
     setMessages([]);
     setError(null);
     setDraft(EMPTY_DRAFT_EDITOR_STATE);
+  };
+
+  const closeSessionPicker = () => {
+    sessionRequestIdRef.current += 1;
+    setSessionPicker(null);
+  };
+
+  const openSessionPicker = () => {
+    const requestId = sessionRequestIdRef.current + 1;
+    sessionRequestIdRef.current = requestId;
+    setDraft(EMPTY_DRAFT_EDITOR_STATE);
+    setError(null);
+    setSessionPicker({
+      status: "loading",
+      sessions: [],
+      query: "",
+      selectedIndex: 0,
+      error: null,
+    });
+    void serverSessionClient
+      .listSessions()
+      .then((sessions) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        setSessionPicker({
+          status: "ready",
+          sessions,
+          query: "",
+          selectedIndex: 0,
+          error: null,
+        });
+      })
+      .catch((sessionError: unknown) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        setSessionPicker({
+          status: "error",
+          sessions: [],
+          query: "",
+          selectedIndex: 0,
+          error:
+            sessionError instanceof Error
+              ? sessionError.message
+              : String(sessionError),
+        });
+      });
+  };
+
+  const restoreSelectedSession = () => {
+    if (!sessionPicker || sessionPicker.status !== "ready") return;
+    const filteredSessions = getFilteredSessions({
+      sessions: sessionPicker.sessions,
+      query: sessionPicker.query,
+    });
+    const selectedSession = filteredSessions[sessionPicker.selectedIndex];
+    if (!selectedSession) return;
+    const requestId = sessionRequestIdRef.current + 1;
+    sessionRequestIdRef.current = requestId;
+    setSessionPicker((current) =>
+      current ? { ...current, status: "restoring", error: null } : null
+    );
+    void serverSessionClient
+      .getSession({ sessionId: selectedSession.id })
+      .then((session) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        setActiveSession(session);
+        setIsDraftTemporary(session.isTemporary);
+        setMessages(session.messages);
+        setError(null);
+        setDraft(EMPTY_DRAFT_EDITOR_STATE);
+        setSessionPicker(null);
+      })
+      .catch((sessionError: unknown) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        setSessionPicker((current) =>
+          current
+            ? {
+                ...current,
+                status: "error",
+                error:
+                  sessionError instanceof Error
+                    ? sessionError.message
+                    : String(sessionError),
+              }
+            : null
+        );
+      });
   };
 
   const submitDraft = () => {
@@ -687,7 +893,8 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     if (text.startsWith("/")) {
       setDraft(EMPTY_DRAFT_EDITOR_STATE);
       const result = runSlashCommand(text, {
-        clearMessages,
+        startNewSession,
+        openSessionPicker,
         exit: handleExit,
       });
       if (result.type === "help") {
@@ -724,15 +931,42 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     setError(null);
     setStatus("streaming");
     setMessages(nextMessages);
-    void chatClient
-      .sendMessage({
+    void (async () => {
+      let resolvedClient = client;
+      if (!activeSession && (sessionClient || !resolvedClient)) {
+        const session = await serverSessionClient.createSession({
+          temporary: isDraftTemporary,
+        });
+        setActiveSession(session);
+        if (!resolvedClient) {
+          resolvedClient = createPxiChatClient({
+            options,
+            agentSessionId: session.id,
+          });
+        }
+      } else if (!resolvedClient && activeSession) {
+        resolvedClient = createPxiChatClient({
+          options,
+          agentSessionId: activeSession.id,
+        });
+      }
+      if (!resolvedClient) {
+        throw new Error("Could not initialize the PXI chat client.");
+      }
+      return resolvedClient.sendMessage({
         messages: nextMessages,
         abortSignal: abortController.signal,
         onAssistantMessage: (assistantMessage) => {
           streamingAssistantMessageRef.current = assistantMessage;
           setMessages([...nextMessages, assistantMessage]);
         },
-      })
+        onSessionTitle: (title) => {
+          setActiveSession((currentSession) =>
+            currentSession ? { ...currentSession, title } : currentSession
+          );
+        },
+      });
+    })()
       .then((assistantMessage) => {
         if (abortController.signal.aborted) {
           return;
@@ -765,10 +999,23 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       return;
     }
     if (isBackspaceInput({ input })) {
+      if (sessionPicker) {
+        setSessionPicker((current) =>
+          current
+            ? {
+                ...current,
+                query: current.query.slice(0, -1),
+                selectedIndex: 0,
+              }
+            : null
+        );
+        return;
+      }
       setDraft((value) => deleteDraftTextBeforeCursor({ draft: value }));
       return;
     }
     if (isForwardDeleteInput({ input })) {
+      if (sessionPicker) return;
       setDraft((value) => deleteDraftTextAtCursor({ draft: value }));
     }
   };
@@ -786,12 +1033,82 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   }, [inputEventEmitter]);
 
   useInput((input, key) => {
-    if (key.escape) {
-      interruptStream();
-      return;
-    }
     if ((key.ctrl && input === "c") || (key.ctrl && input === "d")) {
       handleExit();
+      return;
+    }
+    if (sessionPicker) {
+      if (key.escape) {
+        closeSessionPicker();
+        return;
+      }
+      if (
+        sessionPicker.status === "loading" ||
+        sessionPicker.status === "restoring"
+      ) {
+        return;
+      }
+      const filteredSessions = getFilteredSessions({
+        sessions: sessionPicker.sessions,
+        query: sessionPicker.query,
+      });
+      if (key.upArrow) {
+        setSessionPicker((current) =>
+          current
+            ? {
+                ...current,
+                selectedIndex: Math.max(0, current.selectedIndex - 1),
+              }
+            : null
+        );
+        return;
+      }
+      if (key.downArrow) {
+        setSessionPicker((current) =>
+          current
+            ? {
+                ...current,
+                selectedIndex: Math.min(
+                  Math.max(filteredSessions.length - 1, 0),
+                  current.selectedIndex + 1
+                ),
+              }
+            : null
+        );
+        return;
+      }
+      if (key.return) {
+        restoreSelectedSession();
+        return;
+      }
+      if (
+        key.backspace ||
+        key.delete ||
+        isStrippedBracketedPasteMarkerInput({ input }) ||
+        isKeyboardProtocolResponseInput({ input })
+      ) {
+        return;
+      }
+      if (input) {
+        const text = getDraftInputText({ input }).replace(/\n/g, "");
+        if (text) {
+          setSessionPicker((current) =>
+            current
+              ? {
+                  ...current,
+                  query: current.query + text,
+                  selectedIndex: 0,
+                  error: null,
+                  status: "ready",
+                }
+              : null
+          );
+        }
+      }
+      return;
+    }
+    if (key.escape) {
+      interruptStream();
       return;
     }
     if (status === "streaming") {
@@ -867,7 +1184,12 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       <PxiBanner />
       <Text dimColor>
         endpoint: {options.config.endpoint} | model: {getModelLabel(options)} |
-        session: {options.sessionId}
+        session:{" "}
+        {activeSession
+          ? getSessionTitle({ title: activeSession.title })
+          : isDraftTemporary
+            ? "new temporary session"
+            : "new session"}
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Transcript
@@ -881,12 +1203,16 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
         </Box>
       ) : null}
       {status === "streaming" ? <ThinkingIndicator /> : null}
-      <InputPrompt
-        draft={draft}
-        status={status}
-        usageLine={formatTokenUsageLine(getLatestAssistantUsage(messages))}
-        modelLabel={options.modelSelection.modelName}
-      />
+      {sessionPicker ? (
+        <SessionPicker state={sessionPicker} />
+      ) : (
+        <InputPrompt
+          draft={draft}
+          status={status}
+          usageLine={formatTokenUsageLine(getLatestAssistantUsage(messages))}
+          modelLabel={options.modelSelection.modelName}
+        />
+      )}
     </Box>
   );
 }

@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PxiApp, ThinkingIndicator } from "../src/pxi/App";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
-import type { PxiChatClient, PxiMessage } from "../src/pxi/types";
+import type {
+  PxiChatClient,
+  PxiMessage,
+  PxiSessionClient,
+} from "../src/pxi/types";
 
 const ESCAPE_CHARACTER = String.fromCharCode(27);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESCAPE_CHARACTER}\\[[0-9;]*m`, "g");
@@ -981,7 +985,7 @@ describe("PXI app", () => {
 
     const frame = stripAnsi(lastFrame() ?? "");
     expect(frame).toContain("/clear");
-    expect(frame).toContain("Clear the conversation history");
+    expect(frame).toContain("Start a new persisted session");
     unmount();
   });
 
@@ -1053,6 +1057,137 @@ describe("PXI app", () => {
     expect(frame).toContain("/clear");
     expect(frame).toContain("/help");
     expect(frame).toContain("/exit");
+    unmount();
+  });
+
+  it("creates a temporary server session on the first message after /temporary", async () => {
+    const createSession = vi.fn(
+      async ({ temporary }: { temporary: boolean }) => ({
+        id: "temporary-session",
+        title: "",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: temporary,
+        messages: [],
+      })
+    );
+    const sessionClient: PxiSessionClient = {
+      createSession,
+      listSessions: async () => [],
+      getSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+      />
+    );
+
+    await writeInput({ stdin, input: "/temporary" });
+    await writeInput({ stdin, input: "\r" });
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "session: new temporary session"
+    );
+    await writeInput({ stdin, input: "hello" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(createSession).toHaveBeenCalledWith({ temporary: true });
+    unmount();
+  });
+
+  it("updates a new session title from the streamed session summary", async () => {
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => ({
+        id: "session-1",
+        title: "",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+        messages: [],
+      }),
+      listSessions: async () => [],
+      getSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = {
+      sendMessage: async ({ onSessionTitle }) => {
+        onSessionTitle?.("Investigate missing spans");
+        return null;
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+      />
+    );
+
+    await writeInput({ stdin, input: "why are spans missing?" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "session: Investigate missing spans"
+    );
+    unmount();
+  });
+
+  it("browses and restores a persisted session", async () => {
+    const restoredMessage: PxiMessage = {
+      id: "restored-user",
+      role: "user",
+      parts: [{ type: "text", text: "restored conversation" }],
+    };
+    const getSession = vi.fn(async ({ sessionId }: { sessionId: string }) => ({
+      id: sessionId,
+      title: "Second session",
+      updatedAt: "2026-07-24T12:00:00Z",
+      isTemporary: false,
+      messages: [restoredMessage],
+    }));
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "First session",
+          updatedAt: "2026-07-24T13:00:00Z",
+        },
+        {
+          id: "session-2",
+          title: "Second session",
+          updatedAt: "2026-07-24T12:00:00Z",
+        },
+      ],
+      getSession,
+    };
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+      />
+    );
+
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    expect(stripAnsi(lastFrame() ?? "")).toContain("Recent sessions");
+    expect(stripAnsi(lastFrame() ?? "")).toContain("First session");
+
+    await writeInput({ stdin, input: DOWN_ARROW });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    expect(getSession).toHaveBeenCalledWith({ sessionId: "session-2" });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("restored conversation");
+    expect(stripAnsi(lastFrame() ?? "")).toContain("session: Second session");
     unmount();
   });
 
