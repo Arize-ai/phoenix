@@ -1,15 +1,6 @@
 import type { ReactNode } from "react";
 
-import {
-  Card,
-  CopyToClipboardButton,
-  Flex,
-  LazyTabPanel,
-  Tab,
-  TabList,
-  Tabs,
-  View,
-} from "@phoenix/components";
+import { Card, CopyToClipboardButton, Flex, View } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownModeSelect,
@@ -22,9 +13,10 @@ import type {
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { ReadonlyJSONBlock } from "../ReadonlyJSONBlock";
 import { defaultCardProps } from "./constants";
-import { CopyToClipboardWrap } from "./CopyToClipboardWrap";
+import { LLMInvocationParams } from "./LLMInvocationParams";
+import type { LLMIOView } from "./LLMIOViewSelect";
+import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
 import { LLMMessagesList } from "./LLMMessagesList";
 import { LLMPromptsList } from "./LLMPromptsList";
 import { LLMPromptTemplate } from "./LLMPromptTemplate";
@@ -33,9 +25,9 @@ import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanIOValue } from "./types";
 
 /**
- * The input side of an LLM span — the model card with tabs for input
- * messages, tools, raw input, prompt template, prompts, and invocation
- * parameters.
+ * The input side of an LLM span — the model card with a view select for
+ * messages, tools, raw input, and prompts. The prompt template and invocation
+ * parameters render as collapsed cards at the top of the input messages.
  */
 export function LLMInput({
   modelName,
@@ -84,82 +76,76 @@ export function LLMInput({
   const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(safelyParseJSON(invocationParameters).json || {}).length > 0;
-  const hasPromptTemplateObject = promptTemplate != null;
+
+  const views: LLMIOView[] = [];
+  if (hasInputMessages) views.push({ id: "input-messages", label: "Messages" });
+  if (hasLLMToolSchemas) views.push({ id: "tools", label: "Tools" });
+  if (hasInput) views.push({ id: "input", label: "Raw" });
+  if (hasPrompts) views.push({ id: "prompts", label: "Prompts" });
+  const { view, setView } = useLLMIOView(views);
+
+  // Collapsed cards shown above the input messages (input-only context)
+  const messageLeadingItems = [
+    promptTemplate != null && (
+      <Card
+        key="prompt-template"
+        {...defaultCardProps}
+        defaultOpen={false}
+        title="Prompt Template"
+      >
+        <LLMPromptTemplate promptTemplate={promptTemplate} />
+      </Card>
+    ),
+    hasInvocationParams && (
+      <LLMInvocationParams
+        key="invocation-params"
+        invocationParameters={invocationParameters}
+      />
+    ),
+  ].filter(Boolean);
 
   return (
     <Card
       collapsible
-      titleSeparator={false}
       title="Input"
       subTitle={modelNameEl}
+      extra={
+        views.length > 0 ? (
+          <LLMIOViewSelect
+            label="Input view"
+            views={views}
+            value={view ?? ""}
+            onChange={setView}
+          />
+        ) : undefined
+      }
     >
-      <Tabs>
-        <TabList>
-          {hasInputMessages && <Tab id="input-messages">Input Messages</Tab>}
-          {hasLLMToolSchemas && <Tab id="tools">Tools</Tab>}
-          {hasInput && <Tab id="input">Input</Tab>}
-          {hasPromptTemplateObject && (
-            <Tab id="prompt-template">Prompt Template</Tab>
-          )}
-          {hasPrompts && <Tab id="prompts">Prompts</Tab>}
-          {hasInvocationParams && (
-            <Tab id="invocation-params">Invocation Params</Tab>
-          )}
-        </TabList>
-
-        {hasInputMessages && (
-          <LazyTabPanel id="input-messages">
-            <LLMMessagesList messages={inputMessages} />
-          </LazyTabPanel>
-        )}
-
-        {hasLLMToolSchemas && (
-          <LazyTabPanel id="tools">
-            <LLMToolSchemasList toolSchemas={toolSchemas} />
-          </LazyTabPanel>
-        )}
-
-        {hasInput && (
-          <LazyTabPanel id="input">
-            <View padding="size-200">
-              <MarkdownDisplayProvider>
-                <Card
-                  {...defaultCardProps}
-                  title="LLM Input"
-                  extra={
-                    <Flex direction="row" gap="size-100">
-                      <ConnectedMarkdownModeSelect />
-                      <CopyToClipboardButton text={input.value} />
-                    </Flex>
-                  }
-                >
-                  <MimeTypeCodeBlock {...input} />
-                </Card>
-              </MarkdownDisplayProvider>
-            </View>
-          </LazyTabPanel>
-        )}
-
-        {hasPromptTemplateObject && (
-          <LazyTabPanel id="prompt-template">
-            <LLMPromptTemplate promptTemplate={promptTemplate} />
-          </LazyTabPanel>
-        )}
-
-        {hasPrompts && (
-          <LazyTabPanel id="prompts">
-            <LLMPromptsList prompts={prompts} />
-          </LazyTabPanel>
-        )}
-
-        {hasInvocationParams && (
-          <LazyTabPanel id="invocation-params">
-            <CopyToClipboardWrap text={invocationParameters} padding="size-100">
-              <ReadonlyJSONBlock>{invocationParameters}</ReadonlyJSONBlock>
-            </CopyToClipboardWrap>
-          </LazyTabPanel>
-        )}
-      </Tabs>
+      {view === "input-messages" && (
+        <LLMMessagesList
+          messages={inputMessages}
+          leadingItems={messageLeadingItems}
+        />
+      )}
+      {view === "tools" && <LLMToolSchemasList toolSchemas={toolSchemas} />}
+      {view === "input" && hasInput && (
+        <View padding="size-200">
+          <MarkdownDisplayProvider>
+            <Card
+              {...defaultCardProps}
+              title="LLM Input"
+              extra={
+                <Flex direction="row" gap="size-100">
+                  <ConnectedMarkdownModeSelect />
+                  <CopyToClipboardButton text={input.value} />
+                </Flex>
+              }
+            >
+              <MimeTypeCodeBlock {...input} />
+            </Card>
+          </MarkdownDisplayProvider>
+        </View>
+      )}
+      {view === "prompts" && <LLMPromptsList prompts={prompts} />}
     </Card>
   );
 }
