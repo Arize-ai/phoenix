@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b72a368465a4157396dbacd4eec5eacb>>
+ * @generated SignedSource<<4c8b9a177b59a064f51a0493fa479904>>
  * @lightSyntaxTransform
  */
 
@@ -267,7 +267,21 @@ return {
                                     "plural": false,
                                     "selections": [
                                       (v5/*:: as any*/),
-                                      (v3/*:: as any*/)
+                                      (v3/*:: as any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "gradientStartColor",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "gradientEndColor",
+                                        "storageKey": null
+                                      }
                                     ],
                                     "storageKey": null
                                   }
@@ -371,12 +385,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "25d6433327bd55427c59288866e3f402",
+    "cacheID": "a1b6ff3f508d8b3d9e7c0e9e7ef9fe60",
     "id": null,
     "metadata": {},
     "name": "RetentionPolicyActionMenuDeletePolicyMutation",
     "operationKind": "mutation",
-    "text": "mutation RetentionPolicyActionMenuDeletePolicyMutation(\n  $policyId: ID!\n) {\n  deleteProjectTraceRetentionPolicy(input: {id: $policyId}) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n    node {\n      id\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects {\n    edges {\n      node {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation RetentionPolicyActionMenuDeletePolicyMutation(\n  $policyId: ID!\n) {\n  deleteProjectTraceRetentionPolicy(input: {id: $policyId}) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n    node {\n      id\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects {\n    edges {\n      node {\n        name\n        id\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n}\n"
   }
 };
 })();

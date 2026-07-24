@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<217fe65e2557e5891e166ba1ed7725d2>>
+ * @generated SignedSource<<d339761a01cc7e8efda3045f625f7cf7>>
  * @lightSyntaxTransform
  */
 
@@ -178,7 +178,21 @@ return {
                             "plural": false,
                             "selections": [
                               (v2/*:: as any*/),
-                              (v1/*:: as any*/)
+                              (v1/*:: as any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "gradientStartColor",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "gradientEndColor",
+                                "storageKey": null
+                              }
                             ],
                             "storageKey": null
                           }
@@ -242,12 +256,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f9f28f0c1f07a912207e1a17f4a46292",
+    "cacheID": "c03666e53a32d7df31ff63d04851a841",
     "id": null,
     "metadata": {},
     "name": "settingsDataPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsDataPageLoaderQuery {\n  ...RetentionPoliciesTable_policies\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects {\n    edges {\n      node {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query settingsDataPageLoaderQuery {\n  ...RetentionPoliciesTable_policies\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects {\n    edges {\n      node {\n        name\n        id\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n}\n"
   }
 };
 })();

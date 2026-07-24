@@ -22,6 +22,7 @@ import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
+import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
 import { settingsSecretsPageLoader } from "@phoenix/pages/settings/secrets/settingsSecretsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
@@ -1023,7 +1024,12 @@ export const appRouteObjects = createRoutesFromElements(
               },
             }}
             loader={settingsDataPageLoader}
-          />
+          >
+            <Route
+              path=":policyId"
+              element={<RetentionPolicyDetailsDrawer />}
+            />
+          </Route>
           <Route
             path="prompts"
             element={<SettingsPromptsPage />}

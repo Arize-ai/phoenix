@@ -36,6 +36,27 @@ export const createPolicyDeletionSummaryText = ({
   return `This policy will delete traces ${policyString}`;
 };
 /**
+ * Creates a summary text for a retention policy's rule.
+ * @param rule - The retention rule with a GraphQL __typename discriminator.
+ * @returns A string describing the rule.
+ */
+export const createPolicyRuleSummaryText = (rule: {
+  readonly __typename: string;
+  readonly maxDays?: number;
+  readonly maxCount?: number;
+}): string => {
+  switch (rule.__typename) {
+    case "TraceRetentionRuleMaxCount":
+      return `${rule.maxCount} traces`;
+    case "TraceRetentionRuleMaxDays":
+      return rule.maxDays === 0 ? "Infinite" : `${rule.maxDays} days`;
+    case "TraceRetentionRuleMaxDaysOrCount":
+      return `${rule.maxDays} days or ${rule.maxCount} traces`;
+    default:
+      return "Unknown";
+  }
+};
+/**
  * Creates a summary text for a retention policy's enforcement schedule.
  * @param schedule - The cron expression for the enforcement schedule.
  * @returns A string describing the enforcement schedule.
