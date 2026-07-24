@@ -98,31 +98,31 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "llm.token_count.total - llm.token_count.prompt > 1000",
-            "attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float() > 1000"
+            "SafeJsonFloat(attributes[['llm', 'token_count', 'total']]) - SafeJsonFloat(attributes[['llm', 'token_count', 'prompt']]) > 1000"
             if sys.version_info >= (3, 9)
-            else "((attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float()) > 1000)",
+            else "((SafeJsonFloat(attributes[['llm', 'token_count', 'total']]) - SafeJsonFloat(attributes[['llm', 'token_count', 'prompt']])) > 1000)",
         ),
         (
             "first.value in (1,) and second.value in ('2',) and '3' in third.value",
-            "and_(attributes[['first', 'value']].as_float().in_((1,)), attributes[['second', 'value']].as_string().in_(('2',)), TextContains(attributes[['third', 'value']].as_string(), '3'))",
+            "and_(SafeJsonFloat(attributes[['first', 'value']]).in_((1,)), attributes[['second', 'value']].as_string().in_(('2',)), TextContains(attributes[['third', 'value']].as_string(), '3'))",
         ),
         (
             "'1.0' < my.value < 2.0",
-            "and_('1.0' < attributes[['my', 'value']].as_string(), attributes[['my', 'value']].as_float() < 2.0)"
+            "and_('1.0' < attributes[['my', 'value']].as_string(), SafeJsonFloat(attributes[['my', 'value']]) < 2.0)"
             if sys.version_info >= (3, 9)
-            else "and_(('1.0' < attributes[['my', 'value']].as_string()), (attributes[['my', 'value']].as_float() < 2.0))",
+            else "and_(('1.0' < attributes[['my', 'value']].as_string()), (SafeJsonFloat(attributes[['my', 'value']]) < 2.0))",
         ),
         (
             "first.value + 1 < second.value",
-            "attributes[['first', 'value']].as_float() + 1 < attributes[['second', 'value']].as_float()"
+            "SafeJsonFloat(attributes[['first', 'value']]) + 1 < SafeJsonFloat(attributes[['second', 'value']])"
             if sys.version_info >= (3, 9)
-            else "((attributes[['first', 'value']].as_float() + 1) < attributes[['second', 'value']].as_float())",
+            else "((SafeJsonFloat(attributes[['first', 'value']]) + 1) < SafeJsonFloat(attributes[['second', 'value']]))",
         ),
         (
             "first.value * second.value > third.value",
-            "attributes[['first', 'value']].as_float() * attributes[['second', 'value']].as_float() > attributes[['third', 'value']].as_float()"
+            "SafeJsonFloat(attributes[['first', 'value']]) * SafeJsonFloat(attributes[['second', 'value']]) > SafeJsonFloat(attributes[['third', 'value']])"
             if sys.version_info >= (3, 9)
-            else "((attributes[['first', 'value']].as_float() * attributes[['second', 'value']].as_float()) > attributes[['third', 'value']].as_float())",
+            else "((SafeJsonFloat(attributes[['first', 'value']]) * SafeJsonFloat(attributes[['second', 'value']])) > SafeJsonFloat(attributes[['third', 'value']]))",
         ),
         (
             "first.value + second.value > third.value",
@@ -132,15 +132,15 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "my.value == '1.0' or float(my.value) < 2.0",
-            "or_(attributes[['my', 'value']].as_string() == '1.0', attributes[['my', 'value']].as_float() < 2.0)"
+            "or_(attributes[['my', 'value']].as_string() == '1.0', SafeJsonFloat(attributes[['my', 'value']]) < 2.0)"
             if sys.version_info >= (3, 9)
-            else "or_((attributes[['my', 'value']].as_string() == '1.0'), (attributes[['my', 'value']].as_float() < 2.0))",
+            else "or_((attributes[['my', 'value']].as_string() == '1.0'), (SafeJsonFloat(attributes[['my', 'value']]) < 2.0))",
         ),
         (
             "not(-metadata['a.b'] + float(metadata[['c.d']]) != metadata[['e.f', 'g.h']])",
-            "not_(-attributes[['metadata', 'a.b']].as_float() + attributes[['metadata', 'c.d']].as_float() != attributes[['metadata', 'e.f', 'g.h']].as_float())"
+            "not_(-SafeJsonFloat(attributes[['metadata', 'a.b']]) + SafeJsonFloat(attributes[['metadata', 'c.d']]) != SafeJsonFloat(attributes[['metadata', 'e.f', 'g.h']]))"
             if sys.version_info >= (3, 9)
-            else "not_((((- attributes[['metadata', 'a.b']].as_float()) + attributes[['metadata', 'c.d']].as_float()) != attributes[['metadata', 'e.f', 'g.h']].as_float()))",
+            else "not_((((- SafeJsonFloat(attributes[['metadata', 'a.b']])) + SafeJsonFloat(attributes[['metadata', 'c.d']])) != SafeJsonFloat(attributes[['metadata', 'e.f', 'g.h']])))",
         ),
         (
             "attributes['attributes'] == attributes[['attributes']] != attributes[['attributes', 'attributes']]",
@@ -150,23 +150,23 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "metadata['is_empty'] == True",
-            "attributes[['metadata', 'is_empty']].as_boolean() == True",
+            "SafeJsonBoolean(attributes[['metadata', 'is_empty']]) == True",
         ),
         (
             "metadata['is_empty'] == False",
-            "attributes[['metadata', 'is_empty']].as_boolean() == False",
+            "SafeJsonBoolean(attributes[['metadata', 'is_empty']]) == False",
         ),
         (
             "True == metadata['is_empty']",
-            "True == attributes[['metadata', 'is_empty']].as_boolean()",
+            "True == SafeJsonBoolean(attributes[['metadata', 'is_empty']])",
         ),
         (
             "metadata['is_empty'] is True",
-            "attributes[['metadata', 'is_empty']].as_boolean() == True",
+            "SafeJsonBoolean(attributes[['metadata', 'is_empty']]) == True",
         ),
         (
             "metadata['is_empty'] is not False",
-            "attributes[['metadata', 'is_empty']].as_boolean() != False",
+            "SafeJsonBoolean(attributes[['metadata', 'is_empty']]) != False",
         ),
         (
             "span_kind == 'chain'",
@@ -233,6 +233,288 @@ async def test_filter_translated(
         await session.execute(f(select(models.Span.id)))
 
 
+def test_filter_rejects_non_boolean_logical_operands() -> None:
+    with pytest.raises(SyntaxError, match="logical operands must be boolean"):
+        SpanFilter("name and status_code")
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "name == 1",
+        "context.span_id == 1",
+        "latency_ms == 'slow'",
+        "llm.token_count.total == 'many'",
+        "cumulative_token_count.total == 'many'",
+        "annotations['quality'].label < 1",
+        "annotations['quality'].score == 'high'",
+    ],
+)
+def test_filter_rejects_incompatible_scalar_comparisons(condition: str) -> None:
+    with pytest.raises(SyntaxError, match="cannot compare"):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "name / 2 > 1",
+        "annotations['quality'].label * 2 > 1",
+        "latency_ms << 1 > 0",
+    ],
+)
+def test_filter_rejects_invalid_arithmetic(condition: str) -> None:
+    with pytest.raises(SyntaxError, match="invalid arithmetic"):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "name in [1]",
+        "annotations['quality'].label in [True]",
+        "annotations['quality'].score in ['high']",
+        "metadata['quality'] in [True, 'true']",
+        "1 in metadata['quality']",
+    ],
+)
+def test_filter_rejects_incompatible_collection_membership(condition: str) -> None:
+    with pytest.raises(SyntaxError, match="cannot compare"):
+        SpanFilter(condition)
+
+
+def test_filter_rejects_non_datetime_timestamp_comparison() -> None:
+    with pytest.raises(SyntaxError, match="cannot compare datetime and number"):
+        SpanFilter("start_time == 1")
+
+
+@pytest.mark.parametrize("condition", ["float(name) > 1", "float('not-a-number') > 1"])
+def test_filter_rejects_unsafe_string_to_number_cast(condition: str) -> None:
+    with pytest.raises(SyntaxError, match="cannot cast string to number"):
+        SpanFilter(condition)
+
+
+def test_filter_rejects_invalid_datetime_literal() -> None:
+    with pytest.raises(SyntaxError, match="invalid datetime literal"):
+        SpanFilter("start_time > 'yesterday'")
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "latency_ms > '100'",
+        "'100' < latency_ms",
+        "annotations['quality'].score >= '0.5'",
+        "start_time < '2024-01-01T00:00:00Z'",
+        "metadata['flag'] and name == 'x'",
+        "not metadata['flag']",
+        "latency_ms == None",
+    ],
+)
+def test_filter_accepts_previously_valid_conditions(condition: str) -> None:
+    SpanFilter(condition)
+
+
+def test_filter_rejects_zero_argument_cast() -> None:
+    with pytest.raises(SyntaxError, match="invalid expression"):
+        SpanFilter("float() > 1")
+
+
+def test_filter_rejects_string_column_vs_datetime_column_comparison() -> None:
+    with pytest.raises(SyntaxError, match="cannot compare"):
+        SpanFilter("name == start_time")
+
+
+async def test_filter_iso_datetime_string_executes(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    span_filter = SpanFilter("start_time >= '2021-01-01T00:00:00+00:00'")
+
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids)
+
+
+async def test_filter_non_numeric_json_cast_excludes_rows(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"value": "not-a-number"}}
+
+    span_filter = SpanFilter("float(metadata['value']) > 1")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == []
+
+
+async def test_filter_numeric_json_string_cast_matches(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"value": "1.25"}}
+
+    span_filter = SpanFilter("float(metadata['value']) == 1.25")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == [span.id]
+
+
+async def test_filter_non_boolean_json_cast_excludes_rows(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"flag": "not-a-boolean"}}
+
+    span_filter = SpanFilter("metadata['flag'] in [False]")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == []
+
+
+async def test_filter_boolean_json_string_cast_matches(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"flag": "false"}}
+
+    span_filter = SpanFilter("metadata['flag'] is False")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == [span.id]
+
+
+async def test_filter_real_json_boolean_matches(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        span.attributes = {**span.attributes, "metadata": {"flag": True}}
+
+    span_filter = SpanFilter("metadata['flag'] is True")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == [span.id]
+
+
+async def test_filter_datetime_in_tuple_matches(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span = await session.scalar(select(models.Span).order_by(models.Span.id).limit(1))
+        assert span is not None
+        iso = span.start_time.isoformat()
+
+    span_filter = SpanFilter(f"start_time in ('{iso}',)")
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert span.id in list(span_ids)
+
+
+async def test_filter_numeric_null_comparison_executes(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        none_ids = await session.scalars(SpanFilter("latency_ms == None")(select(models.Span.id)))
+        assert list(none_ids) == []
+        not_none_ids = await session.scalars(
+            SpanFilter("latency_ms != None")(select(models.Span.id))
+        )
+        assert list(not_none_ids)
+
+
+@pytest.mark.parametrize("operator", ["/", "%"])
+async def test_filter_zero_denominator_excludes_rows(
+    db: DbSessionFactory,
+    default_project: Any,
+    operator: str,
+) -> None:
+    span_filter = SpanFilter(f"latency_ms {operator} 0 > 1")
+
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == []
+
+
+async def test_filter_annotation_explanation_executes(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span_id = await session.scalar(select(models.Span.id).order_by(models.Span.id).limit(1))
+        assert span_id is not None
+        session.add(
+            models.SpanAnnotation(
+                span_rowid=span_id,
+                name="quality",
+                label=None,
+                score=None,
+                explanation="contains the needle",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+            )
+        )
+
+    span_filter = SpanFilter("'needle' in annotations['quality'].explanation")
+
+    async with db() as session:
+        span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(span_ids) == [span_id]
+
+
+async def test_filter_annotation_name_uses_python_string_escaping(
+    db: DbSessionFactory,
+    default_project: Any,
+) -> None:
+    async with db() as session:
+        span_id = await session.scalar(select(models.Span.id).order_by(models.Span.id).limit(1))
+        assert span_id is not None
+        session.add(
+            models.SpanAnnotation(
+                span_rowid=span_id,
+                name='rate"limit',
+                label="limited",
+                score=None,
+                explanation=None,
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+            )
+        )
+
+    span_filter = SpanFilter(r"""annotations["rate\"limit"].label == 'limited' """)
+    async with db() as session:
+        matched_span_ids = await session.scalars(span_filter(select(models.Span.id)))
+
+    assert list(matched_span_ids) == [span_id]
+
+
 @pytest.mark.parametrize(
     "filter_condition,expected",
     [
@@ -278,7 +560,7 @@ async def test_filter_translated(
         ),
         pytest.param(
             """evals["Hallucination"].label == 'correct' orevals["Hallucination"].score < 0.5""",
-            """span_annotation_0_label_00000000000000000000000000000000 == 'correct' orevals["Hallucination"].score < 0.5""",
+            """evals["Hallucination"].label == 'correct' orevals["Hallucination"].score < 0.5""",
             id="no-word-boundary-on-the-left",
         ),
         pytest.param(
@@ -311,6 +593,16 @@ async def test_filter_translated(
             """annotations['Hallucination']""",
             "span_annotation_0_exists_00000000000000000000000000000000",
             id="bare-annotations-exists",
+        ),
+        pytest.param(
+            """'annotations[\"quality\"].label' in name or annotations[\"quality\"].label == 'good'""",
+            """'annotations[\"quality\"].label' in name or span_annotation_0_label_00000000000000000000000000000000 == 'good'""",
+            id="annotation-spelling-inside-string-literal",
+        ),
+        pytest.param(
+            """metadata['café'] == 'yes' and annotations["quality"].label == 'good'""",
+            """metadata['café'] == 'yes' and span_annotation_0_label_00000000000000000000000000000000 == 'good'""",
+            id="unicode-before-annotation",
         ),
     ],
 )

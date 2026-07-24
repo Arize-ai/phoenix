@@ -1,8 +1,8 @@
 import ast
-import re
 import sys
 import typing
 from dataclasses import dataclass, field
+from datetime import datetime
 from difflib import SequenceMatcher
 from itertools import chain
 from types import MappingProxyType
@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import sqlalchemy
 from sqlalchemy import case, literal
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql.expression import ColumnElement, Select
@@ -20,16 +21,71 @@ from phoenix.db import models
 _VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation")
 
 
-AnnotationType: TypeAlias = typing.Literal["annotations", "evals"]
-AnnotationAttribute: TypeAlias = typing.Literal["label", "score"]
-AnnotationExpression: TypeAlias = str
+AnnotationAttribute: TypeAlias = typing.Literal["explanation", "label", "score"]
 AnnotationName: TypeAlias = str
 
-EVAL_EXPRESSION_PATTERN = re.compile(
-    r"""\b((annotations|evals)\[(".*?"|'.*?')\][.](label|score))\b"""
-)
 
-EVAL_NAME_PATTERN = re.compile(r"""(?<!\w)((annotations|evals)\[(".*?"|'.*?')\])(?![\w\.])""")
+class _SafeJsonFloat(sqlalchemy.sql.functions.FunctionElement[float]):
+    type = sqlalchemy.Float()
+    inherit_cache = True
+
+
+class _SafeJsonBoolean(sqlalchemy.sql.functions.FunctionElement[bool]):
+    type = sqlalchemy.Boolean()
+    inherit_cache = True
+
+
+@compiles(_SafeJsonBoolean)
+def _compile_safe_json_boolean(
+    element: typing.Any, compiler: typing.Any, **kwargs: typing.Any
+) -> str:
+    value = compiler.process(list(element.clauses)[0], **kwargs)
+    scalar = f"lower(json_extract({value}, '$'))"
+    # SQLite's JSON functions return booleans as integers (e.g. JSON_QUOTE of an
+    # extracted true is '1', whose json_type is 'integer'), so real JSON booleans
+    # arrive here as 1/0 rather than 'true'/'false'.
+    return (
+        f"CASE json_type({value}) WHEN 'true' THEN 1 WHEN 'false' THEN 0 "
+        f"WHEN 'integer' THEN CASE json_extract({value}, '$') WHEN 1 THEN 1 WHEN 0 THEN 0 END "
+        f"WHEN 'text' THEN CASE {scalar} WHEN 'true' THEN 1 WHEN 'false' THEN 0 END END"
+    )
+
+
+@compiles(_SafeJsonBoolean, "postgresql")
+def _compile_safe_json_boolean_postgresql(
+    element: typing.Any, compiler: typing.Any, **kwargs: typing.Any
+) -> str:
+    value = compiler.process(list(element.clauses)[0], **kwargs)
+    # The jsonpath .boolean() method requires PostgreSQL 17; this CASE works on
+    # all supported PostgreSQL versions.
+    scalar = f"({value} #>> '{{}}')"
+    return (
+        f"CASE jsonb_typeof({value}) WHEN 'boolean' THEN CAST({scalar} AS BOOLEAN) "
+        f"WHEN 'string' THEN CASE lower{scalar} WHEN 'true' THEN true WHEN 'false' THEN false END "
+        f"WHEN 'number' THEN CASE {scalar} WHEN '1' THEN true WHEN '0' THEN false END END"
+    )
+
+
+@compiles(_SafeJsonFloat)
+def _compile_safe_json_float(
+    element: typing.Any, compiler: typing.Any, **kwargs: typing.Any
+) -> str:
+    value = compiler.process(list(element.clauses)[0], **kwargs)
+    scalar = f"json_extract({value}, '$')"
+    return (
+        f"CASE WHEN json_type({value}) IN ('integer', 'real') THEN CAST({value} AS FLOAT) "
+        f"WHEN json_type({value}) = 'text' THEN CASE WHEN json_valid({scalar}) "
+        f"AND json_type({scalar}) IN ('integer', 'real') THEN CAST({scalar} AS FLOAT) END END"
+    )
+
+
+@compiles(_SafeJsonFloat, "postgresql")
+def _compile_safe_json_float_postgresql(
+    element: typing.Any, compiler: typing.Any, **kwargs: typing.Any
+) -> str:
+    value = compiler.process(list(element.clauses)[0], **kwargs)
+    converted = f"jsonb_path_query_first({value}, '$.double()', '{{}}'::jsonb, true)"
+    return f"CAST({converted} AS NUMERIC)"
 
 
 @dataclass(frozen=True)
@@ -46,6 +102,7 @@ class AliasedAnnotationRelation:
     table: AliasedClass[models.SpanAnnotation] = field(init=False, repr=False)
     _label_attribute_alias: str = field(init=False, repr=False)
     _score_attribute_alias: str = field(init=False, repr=False)
+    _explanation_attribute_alias: str = field(init=False, repr=False)
     _exists_attribute_alias: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -53,11 +110,13 @@ class AliasedAnnotationRelation:
         alias_id = uuid4().hex
         label_attribute_alias = f"{table_alias}_label_{alias_id}"
         score_attribute_alias = f"{table_alias}_score_{alias_id}"
+        explanation_attribute_alias = f"{table_alias}_explanation_{alias_id}"
         exists_attribute_alias = f"{table_alias}_exists_{alias_id}"
 
         table = aliased(models.SpanAnnotation, name=table_alias)
         object.__setattr__(self, "_label_attribute_alias", label_attribute_alias)
         object.__setattr__(self, "_score_attribute_alias", score_attribute_alias)
+        object.__setattr__(self, "_explanation_attribute_alias", explanation_attribute_alias)
         object.__setattr__(self, "_exists_attribute_alias", exists_attribute_alias)
         object.__setattr__(self, "table", table)
 
@@ -69,6 +128,7 @@ class AliasedAnnotationRelation:
         """
         yield self._label_attribute_alias, self.table.label
         yield self._score_attribute_alias, self.table.score
+        yield self._explanation_attribute_alias, self.table.explanation
         yield (
             self._exists_attribute_alias,
             case((self.table.id.is_not(None), literal(True)), else_=literal(False)),
@@ -82,6 +142,8 @@ class AliasedAnnotationRelation:
             return self._label_attribute_alias
         if attribute == "score":
             return self._score_attribute_alias
+        if attribute == "explanation":
+            return self._explanation_attribute_alias
         assert_never(attribute)
 
 
@@ -143,6 +205,10 @@ _BACKWARD_COMPATIBILITY_REPLACEMENTS: typing.Mapping[str, str] = MappingProxyTyp
 )
 
 
+class SpanFilterError(SyntaxError):
+    """An invalid span filter condition supplied by a caller."""
+
+
 @dataclass(frozen=True)
 class SpanFilter:
     condition: str = ""
@@ -151,24 +217,42 @@ class SpanFilter:
     compiled: typing.Any = field(init=False, repr=False)
     _aliased_annotation_relations: tuple[AliasedAnnotationRelation] = field(init=False, repr=False)
     _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
+    _literal_bindings: dict[str, typing.Any] = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
         return bool(self.condition)
 
     def __post_init__(self) -> None:
+        try:
+            self._initialize()
+        except SpanFilterError:
+            raise
+        except SyntaxError as error:
+            raise SpanFilterError(str(error)) from error
+
+    def _initialize(self) -> None:
         if not (source := self.condition):
             return
         root = ast.parse(source, mode="eval")
         _validate_expression(root, valid_eval_names=self.valid_eval_names)
         source, aliased_annotation_relations = _apply_eval_aliasing(source)
         root = ast.parse(source, mode="eval")
-        translated = _FilterTranslator(
+        translator = _FilterTranslator(
             reserved_keywords=(
                 alias
                 for aliased_annotation in aliased_annotation_relations
                 for alias, _ in aliased_annotation.attributes
             ),
-        ).visit(root)
+            string_keywords=(
+                alias
+                for aliased_annotation in aliased_annotation_relations
+                for alias in (
+                    aliased_annotation._label_attribute_alias,
+                    aliased_annotation._explanation_attribute_alias,
+                )
+            ),
+        )
+        translated = translator.visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
         aliased_annotation_attributes = {
@@ -180,6 +264,7 @@ class SpanFilter:
         object.__setattr__(self, "compiled", compiled)
         object.__setattr__(self, "_aliased_annotation_relations", aliased_annotation_relations)
         object.__setattr__(self, "_aliased_annotation_attributes", aliased_annotation_attributes)
+        object.__setattr__(self, "_literal_bindings", translator.literal_bindings)
 
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
@@ -191,12 +276,16 @@ class SpanFilter:
                     "__builtins__": {},
                     **_NAMES,
                     **self._aliased_annotation_attributes,
+                    **self._literal_bindings,
                     "not_": sqlalchemy.not_,
                     "and_": sqlalchemy.and_,
                     "or_": sqlalchemy.or_,
+                    "nullif": sqlalchemy.func.nullif,
                     "cast": sqlalchemy.cast,
                     "Float": sqlalchemy.Float,
                     "String": sqlalchemy.String,
+                    "SafeJsonBoolean": _SafeJsonBoolean,
+                    "SafeJsonFloat": _SafeJsonFloat,
                     "TextContains": models.TextContains,
                 },
             )
@@ -305,6 +394,10 @@ def _is_uppercase_enum(node: typing.Any) -> TypeGuard[ast.Name]:
     return isinstance(node, ast.Name) and node.id in ("span_kind", "status_code")
 
 
+def _is_datetime_name(node: typing.Any) -> TypeGuard[ast.Name]:
+    return isinstance(node, ast.Name) and node.id in _DATETIME_NAMES
+
+
 def _convert_to_uppercase(node: ast.expr) -> ast.expr:
     """Converts constants and lists/ tuples of constants to uppercase."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -331,6 +424,187 @@ def _is_bool_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, bool)
 
 
+def _is_none_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
+    return isinstance(node, ast.Constant) and node.value is None
+
+
+def _is_bool_sequence(node: typing.Any) -> TypeGuard[typing.Union[ast.List, ast.Tuple]]:
+    return (
+        isinstance(node, (ast.List, ast.Tuple))
+        and bool(node.elts)
+        and all(_is_bool_constant(element) for element in node.elts)
+    )
+
+
+FilterValueType: TypeAlias = typing.Literal["boolean", "datetime", "number", "string", "null"]
+
+
+def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
+    if isinstance(node, ast.Constant):
+        if node.value is None:
+            return "null"
+        if isinstance(node.value, bool):
+            return "boolean"
+        if isinstance(node.value, (int, float)):
+            return "number"
+        if isinstance(node.value, str):
+            return "string"
+        return None
+    if isinstance(node, ast.Name):
+        return _get_named_filter_value_type(node.id)
+    if isinstance(node, ast.Attribute) and _is_annotation(node.value):
+        if node.attr in ("label", "explanation"):
+            return "string"
+        if node.attr == "score":
+            return "number"
+        return None
+    if isinstance(node, ast.Attribute):
+        return _get_named_filter_value_type(ast.unparse(node))
+    if _is_annotation(node):
+        return "boolean"
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        if node.func.id == "str":
+            return "string"
+        if node.func.id in ("float", "int"):
+            return "number"
+    if isinstance(node, ast.BinOp):
+        if not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod)):
+            raise SyntaxError(f"invalid arithmetic operator: {ast.unparse(node.op)}")
+        left_type = _get_filter_value_type(node.left)
+        right_type = _get_filter_value_type(node.right)
+        if isinstance(node.op, ast.Add):
+            known_types = {value_type for value_type in (left_type, right_type) if value_type}
+            if not known_types:
+                return "string"
+            if len(known_types) == 1 and known_types <= {"number", "string"}:
+                return known_types.pop()
+        elif left_type in (None, "number") and right_type in (None, "number"):
+            return "number"
+        raise SyntaxError("invalid arithmetic operands")
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        operand_type = _get_filter_value_type(node.operand)
+        if operand_type not in (None, "number"):
+            raise SyntaxError("invalid arithmetic operand")
+        return "number"
+    if isinstance(node, ast.Compare):
+        return "boolean"
+    if isinstance(node, ast.BoolOp):
+        return "boolean"
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        return "boolean"
+    return None
+
+
+def _get_named_filter_value_type(name: str) -> typing.Optional[FilterValueType]:
+    name = _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(name, name)
+    if name in _STRING_NAMES:
+        return "string"
+    if name in _FLOAT_NAMES or name in _FLOAT_ATTRIBUTES:
+        return "number"
+    if name in _DATETIME_NAMES:
+        return "datetime"
+    return None
+
+
+def _validate_operand_types(expression: ast.Expression) -> None:
+    for node in ast.walk(expression.body):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in ("float", "int")
+        ):
+            if len(node.args) != 1:
+                raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
+            argument = node.args[0]
+            if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+                try:
+                    float(argument.value)
+                except ValueError as error:
+                    raise SyntaxError("cannot cast string to number") from error
+            elif _get_filter_value_type(argument) == "string":
+                raise SyntaxError("cannot cast string to number")
+            continue
+        if isinstance(node, ast.BoolOp):
+            # operands of unknown type (e.g. JSON attributes) are allowed as truthy values
+            if any(_get_filter_value_type(value) not in (None, "boolean") for value in node.values):
+                raise SyntaxError("logical operands must be boolean expressions")
+            continue
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            if _get_filter_value_type(node.operand) not in (None, "boolean"):
+                raise SyntaxError("logical operands must be boolean expressions")
+            continue
+        if not isinstance(node, ast.Compare):
+            continue
+        left = node.left
+        for operator, right in zip(node.ops, node.comparators):
+            if isinstance(operator, (ast.In, ast.NotIn)) and isinstance(
+                right, (ast.List, ast.Tuple)
+            ):
+                element_types = {
+                    element_type
+                    for element in right.elts
+                    if (element_type := _get_filter_value_type(element)) not in (None, "null")
+                }
+                if len(element_types) > 1:
+                    ordered_types: tuple[FilterValueType, ...] = (
+                        "boolean",
+                        "datetime",
+                        "number",
+                        "string",
+                    )
+                    present_types = [
+                        value_type for value_type in ordered_types if value_type in element_types
+                    ]
+                    first_type, second_type = present_types[0], present_types[1]
+                    raise SyntaxError(f"cannot compare {first_type} and {second_type}")
+                for element in right.elts:
+                    _validate_comparable_types(left, element)
+            elif isinstance(operator, (ast.In, ast.NotIn)):
+                left_type = _get_filter_value_type(left)
+                right_type = _get_filter_value_type(right)
+                if left_type not in (None, "string") or right_type not in (None, "string"):
+                    raise SyntaxError(
+                        f"cannot compare {left_type or 'value'} and {right_type or 'string'}"
+                    )
+            else:
+                _validate_comparable_types(left, right)
+            left = right
+
+
+def _validate_comparable_types(left: ast.AST, right: ast.AST) -> None:
+    left_type = _get_filter_value_type(left)
+    right_type = _get_filter_value_type(right)
+    if {left_type, right_type} == {"datetime", "string"}:
+        # only a string literal can be bound as a datetime
+        string_node = left if left_type == "string" else right
+        if _is_string_constant(string_node):
+            return
+    if {left_type, right_type} == {"number", "string"}:
+        # a numeric string literal is cast to a number at translation
+        string_node = left if left_type == "string" else right
+        if (
+            isinstance(string_node, ast.Constant)
+            and isinstance(string_node.value, str)
+            and _is_numeric_string(string_node.value)
+        ):
+            return
+    if (
+        left_type is not None
+        and right_type is not None
+        and left_type != right_type
+        and "null" not in (left_type, right_type)
+    ):
+        raise SyntaxError(f"cannot compare {left_type} and {right_type}")
+
+
+def _is_numeric_string(value: str) -> bool:
+    try:
+        float(value)
+    except ValueError:
+        return False
+    return True
+
+
 def _is_string_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
     return (
         isinstance(node, ast.Call)
@@ -345,9 +619,10 @@ def _is_string_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
 def _is_float_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
     return (
         isinstance(node, ast.Call)
-        and isinstance(func := node.func, ast.Attribute)
-        and func.attr == "as_float"
-        and isinstance(value := func.value, ast.Subscript)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "SafeJsonFloat"
+        and len(node.args) == 1
+        and isinstance(value := node.args[0], ast.Subscript)
         and isinstance(name := value.value, ast.Name)
         and name.id == "attributes"
     )
@@ -355,7 +630,11 @@ def _is_float_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
 
 def _as_string_attribute(node: typing.Union[ast.Subscript, ast.Call]) -> ast.Call:
     if isinstance(node, ast.Call):
-        value = typing.cast(ast.Attribute, node.func).value
+        value = (
+            node.args[0]
+            if isinstance(node.func, ast.Name) and node.func.id == "SafeJsonFloat"
+            else typing.cast(ast.Attribute, node.func).value
+        )
     elif isinstance(node, ast.Subscript):
         value = node
     else:
@@ -379,12 +658,8 @@ def _as_float_attribute(node: typing.Union[ast.Subscript, ast.Call]) -> ast.Call
     else:
         assert_never(node)
     return ast.Call(
-        func=ast.Attribute(
-            value=value,
-            attr="as_float",
-            ctx=ast.Load(),
-        ),
-        args=[],
+        func=ast.Name(id="SafeJsonFloat", ctx=ast.Load()),
+        args=[value],
         keywords=[],
     )
 
@@ -397,12 +672,8 @@ def _as_bool_attribute(node: typing.Union[ast.Subscript, ast.Call]) -> ast.Call:
     else:
         assert_never(node)
     return ast.Call(
-        func=ast.Attribute(
-            value=value,
-            attr="as_boolean",
-            ctx=ast.Load(),
-        ),
-        args=[],
+        func=ast.Name(id="SafeJsonBoolean", ctx=ast.Load()),
+        args=[value],
         keywords=[],
     )
 
@@ -512,6 +783,15 @@ class _ProjectionTranslator(ast.NodeTransformer):
 
 
 class _FilterTranslator(_ProjectionTranslator):
+    def __init__(
+        self,
+        reserved_keywords: typing.Iterable[str] = (),
+        string_keywords: typing.Iterable[str] = (),
+    ) -> None:
+        super().__init__(reserved_keywords)
+        self._string_keywords = frozenset(string_keywords)
+        self.literal_bindings: dict[str, typing.Any] = {}
+
     def visit_Compare(self, node: ast.Compare) -> typing.Any:
         if len(node.comparators) > 1:
             args: list[typing.Any] = []
@@ -520,25 +800,39 @@ class _FilterTranslator(_ProjectionTranslator):
                 args.append(self.visit(ast.Compare(left=left, ops=[op], comparators=[comparator])))
                 left = comparator
             return ast.Call(func=ast.Name(id="and_", ctx=ast.Load()), args=args, keywords=[])
-        left, op, right = self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
+        left_node, right_node = node.left, node.comparators[0]
+        left, op, right = self.visit(left_node), node.ops[0], self.visit(right_node)
+        if _is_datetime_name(left_node):
+            right = self._bind_datetime_literal(right_node, right)
+        elif _is_datetime_name(right_node):
+            left = self._bind_datetime_literal(left_node, left)
         if _is_uppercase_enum(left):
             right = _convert_to_uppercase(right)
         elif _is_uppercase_enum(right):
             left = _convert_to_uppercase(left)
         if _is_subscript(left, "attributes"):
             left = (
-                _as_bool_attribute(left) if _is_bool_constant(right) else _cast_as("String", left)
+                _as_bool_attribute(left)
+                if _is_bool_constant(right) or _is_bool_sequence(right)
+                else _cast_as("String", left)
             )
         if _is_subscript(right, "attributes"):
             right = (
-                _as_bool_attribute(right) if _is_bool_constant(left) else _cast_as("String", right)
+                _as_bool_attribute(right)
+                if _is_bool_constant(left) or _is_bool_sequence(left)
+                else _cast_as("String", right)
             )
-        if _is_float(left) and not _is_float(right):
+        if _is_float(left) and not _is_float(right) and not _is_none_constant(right):
             right = _cast_as("Float", right)
-        elif not _is_float(left) and _is_float(right):
+        elif not _is_float(left) and not _is_none_constant(left) and _is_float(right):
             left = _cast_as("Float", left)
         if isinstance(op, (ast.In, ast.NotIn)):
-            if _is_string_attribute(right) or ast.unparse(right) in _NAMES:
+            if (
+                _is_string_attribute(right)
+                or ast.unparse(right) in _NAMES
+                or isinstance(right, ast.Name)
+                and right.id in self._string_keywords
+            ):
                 call = ast.Call(
                     func=ast.Name(id="TextContains", ctx=ast.Load()),
                     args=[right, left],
@@ -563,6 +857,31 @@ class _FilterTranslator(_ProjectionTranslator):
         elif isinstance(op, ast.IsNot):
             op = ast.NotEq()
         return ast.Compare(left=left, ops=[op], comparators=[right])
+
+    def _bind_datetime_literal(self, source: ast.expr, translated: ast.expr) -> ast.expr:
+        if isinstance(source, (ast.List, ast.Tuple)) and isinstance(
+            translated, (ast.List, ast.Tuple)
+        ):
+            elts = [
+                self._bind_datetime_literal(source_elt, translated_elt)
+                for source_elt, translated_elt in zip(source.elts, translated.elts)
+            ]
+            if isinstance(translated, ast.List):
+                return ast.List(elts=elts, ctx=ast.Load())
+            return ast.Tuple(elts=elts, ctx=ast.Load())
+        if not (isinstance(source, ast.Constant) and isinstance(source.value, str)):
+            return translated
+        raw = source.value
+        if raw.endswith(("Z", "z")):
+            # Python 3.10's fromisoformat does not accept the Z suffix
+            raw = raw[:-1] + "+00:00"
+        try:
+            value = datetime.fromisoformat(raw)
+        except ValueError as error:
+            raise SyntaxError(f"invalid datetime literal: {source.value!r}") from error
+        name = f"__datetime_literal_{len(self.literal_bindings)}"
+        self.literal_bindings[name] = value
+        return ast.Name(id=name, ctx=ast.Load())
 
     def visit_BoolOp(self, node: ast.BoolOp) -> typing.Any:
         if isinstance(node.op, ast.And):
@@ -603,6 +922,12 @@ class _FilterTranslator(_ProjectionTranslator):
                 left = _cast_as(type_, left)
             if not _is_float(right):
                 right = _cast_as(type_, right)
+            if isinstance(op, (ast.Div, ast.Mod)):
+                right = ast.Call(
+                    func=ast.Name(id="nullif", ctx=ast.Load()),
+                    args=[right, ast.Constant(value=0)],
+                    keywords=[],
+                )
             return ast.BinOp(left=left, op=op, right=right)
         return _cast_as(type_, ast.BinOp(left=left, op=op, right=right))
 
@@ -625,15 +950,7 @@ def _validate_expression(
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None,
     valid_eval_attributes: tuple[str, ...] = _VALID_EVAL_ATTRIBUTES,
 ) -> None:
-    """
-    Validate primarily the structural (i.e. not semantic) characteristics of an
-    expression, e.g. function calls are not allowed. Note that the separation
-    between structural and semantic validation is a matter of convenience and is
-    not meant to be strict. Some validations such as that for the evaluation name
-    may be considered semantic but is placed here because it's convenient, and
-    additional exceptions may be raised later by the NodeTransformer regarding
-    either structural and semantic issues.
-    """
+    """Validate the expression's structure, names, attributes, and operand types."""
     if not isinstance(expression, ast.Expression):
         raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
     for i, node in enumerate(ast.walk(expression.body)):
@@ -719,6 +1036,7 @@ def _validate_expression(
             continue
         source_segment = ast.unparse(node)
         raise SyntaxError(f"invalid expression: {source_segment}")
+    _validate_operand_types(expression)
 
 
 def _as_attribute(
@@ -868,54 +1186,65 @@ def _apply_eval_aliasing(
     span_annotation_0_label_123 == 'correct' or span_annotation_0_score_456 < 0.5
     ```
     """
-    eval_aliases: dict[AnnotationName, AliasedAnnotationRelation] = {}
-    for (
-        annotation_expression,
-        _annotation_type,
-        annotation_name,
-        annotation_attribute,
-    ) in _parse_annotation_expressions_and_names(source):
-        if (eval_alias := eval_aliases.get(annotation_name)) is None:
-            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
-            eval_aliases[annotation_name] = eval_alias
-        alias_name = eval_alias.attribute_alias(annotation_attribute)
-        source = source.replace(annotation_expression, alias_name)
-
-    for match in EVAL_NAME_PATTERN.finditer(source):
-        annotation_expression, _, quoted_eval_name = match.groups()
-        annotation_name = quoted_eval_name[1:-1]
-        if (eval_alias := eval_aliases.get(annotation_name)) is None:
-            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
-            eval_aliases[annotation_name] = eval_alias
-        alias_name = eval_alias._exists_attribute_alias
-        source = source.replace(annotation_expression, alias_name)
-    return source, tuple(eval_aliases.values())
+    try:
+        root = ast.parse(source, mode="eval")
+    except SyntaxError:
+        return source, ()
+    aliaser = _AnnotationExpressionAliaser(source)
+    aliaser.visit(root)
+    encoded = source.encode()
+    for start, end, alias in sorted(aliaser.replacements, reverse=True):
+        encoded = encoded[:start] + alias.encode() + encoded[end:]
+    return encoded.decode(), aliaser.relations
 
 
-def _parse_annotation_expressions_and_names(
-    source: str,
-) -> typing.Iterator[
-    tuple[AnnotationExpression, AnnotationType, AnnotationName, AnnotationAttribute]
-]:
-    """
-    Parses filter conditions for evaluation expressions of the form:
+class _AnnotationExpressionAliaser(ast.NodeVisitor):
+    def __init__(self, source: str) -> None:
+        lines = source.splitlines(keepends=True)
+        self._line_offsets = [0]
+        for line in lines:
+            self._line_offsets.append(self._line_offsets[-1] + len(line.encode()))
+        self._relations_by_name: dict[AnnotationName, AliasedAnnotationRelation] = {}
+        self.replacements: list[tuple[int, int, str]] = []
 
-    ```
-    evals["<eval-name>"].<attribute>
-    annotations["eval-name"].<attribute>
-    ```
-    """
-    for match in EVAL_EXPRESSION_PATTERN.finditer(source):
-        (
-            annotation_expression,
-            _annotation_type,
-            quoted_eval_name,
-            evaluation_attribute_name,
-        ) = match.groups()
-        annotation_type = typing.cast(AnnotationType, _annotation_type)
-        yield (
-            annotation_expression,
-            annotation_type,
-            quoted_eval_name[1:-1],
-            typing.cast(AnnotationAttribute, evaluation_attribute_name),
-        )
+    @property
+    def relations(self) -> tuple[AliasedAnnotationRelation, ...]:
+        return tuple(self._relations_by_name.values())
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        if not _is_annotation(node.value):
+            self.generic_visit(node)
+            return
+        if node.attr not in _VALID_EVAL_ATTRIBUTES:
+            return
+        annotation_name = _get_subscript_key(node.value)
+        if annotation_name is None:
+            return
+        relation = self._get_relation(annotation_name)
+        attribute = typing.cast(AnnotationAttribute, node.attr)
+        self._add_replacement(node, relation.attribute_alias(attribute))
+
+    def visit_Subscript(self, node: ast.Subscript) -> None:
+        if not _is_annotation(node):
+            self.generic_visit(node)
+            return
+        annotation_name = _get_subscript_key(node)
+        if annotation_name is None:
+            return
+        relation = self._get_relation(annotation_name)
+        self._add_replacement(node, relation._exists_attribute_alias)
+
+    def _get_relation(self, annotation_name: str) -> AliasedAnnotationRelation:
+        if (relation := self._relations_by_name.get(annotation_name)) is None:
+            relation = AliasedAnnotationRelation(
+                index=len(self._relations_by_name),
+                name=annotation_name,
+            )
+            self._relations_by_name[annotation_name] = relation
+        return relation
+
+    def _add_replacement(self, node: ast.expr, alias: str) -> None:
+        if node.end_lineno is not None and node.end_col_offset is not None:
+            start = self._line_offsets[node.lineno - 1] + node.col_offset
+            end = self._line_offsets[node.end_lineno - 1] + node.end_col_offset
+            self.replacements.append((start, end, alias))

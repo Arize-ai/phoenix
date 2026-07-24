@@ -3650,17 +3650,23 @@ class TestProject:
             raise AssertionError("Test failed for trace count time series") from e
 
     @pytest.mark.parametrize(
-        "expectation,condition",
+        "expectation,condition,error_message",
         [
-            (True, "span_kind == 'LLM'"),
-            (False, "span_kind == 'LLM' and "),
-            (False, "span_kind == 'LLM' and ''"),
+            (True, "span_kind == 'LLM'", None),
+            (False, "span_kind == 'LLM' and ", None),
+            (False, "span_kind == 'LLM' and ''", None),
+            (
+                False,
+                "annotations['rate_limit_type'].label is True",
+                "cannot compare string and boolean",
+            ),
         ],
     )
     async def test_validate_span_filter_condition(
         self,
         condition: str,
         expectation: bool,
+        error_message: Optional[str],
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
     ) -> None:
@@ -3675,6 +3681,7 @@ class TestProject:
                     condition: $condition
                   ) {
                     isValid
+                    errorMessage
                   }
                 }
               }
@@ -3687,7 +3694,41 @@ class TestProject:
         )
         assert not response.errors
         assert (data := response.data) is not None
-        assert data["node"]["validateSpanFilterCondition"]["isValid"] == expectation
+        result = data["node"]["validateSpanFilterCondition"]
+        assert result["isValid"] == expectation
+        if error_message is not None:
+            assert error_message in result["errorMessage"]
+
+    async def test_invalid_span_filter_returns_actionable_execution_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+
+        query = """
+            query($id: ID!, $condition: String!) {
+              node(id: $id) {
+                ... on Project {
+                  spans(first: 1, filterCondition: $condition) {
+                    edges { node { id } }
+                  }
+                }
+              }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "condition": "annotations['rate_limit_type'].label is True",
+            },
+        )
+
+        assert response.errors
+        assert "cannot compare string and boolean" in response.errors[0].message
 
 
 @pytest.mark.parametrize(

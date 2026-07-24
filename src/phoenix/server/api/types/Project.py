@@ -1086,13 +1086,8 @@ class Project(Node):
                 # valid_eval_names=valid_eval_names,
             )
             stmt = span_filter(select(models.Span))
-            dialect = info.context.db.dialect
-            if dialect is SupportedSQLDialect.POSTGRESQL:
-                str(stmt.compile(dialect=sqlite.dialect()))
-            elif dialect is SupportedSQLDialect.SQLITE:
-                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
-            else:
-                assert_never(dialect)
+            str(stmt.compile(dialect=sqlite.dialect()))
+            str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
             return ValidationResult(is_valid=True, error_message=None)
         except Exception as e:
             return ValidationResult(
