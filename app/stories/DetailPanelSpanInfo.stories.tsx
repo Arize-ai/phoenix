@@ -22,54 +22,7 @@ const llmSpan = createSpanInfoFixture({
       model_name: "gpt-4.1",
       invocation_parameters: JSON.stringify({
         temperature: 0.2,
-        top_p: 0.95,
         max_completion_tokens: 4096,
-        frequency_penalty: 0.1,
-        presence_penalty: 0,
-        parallel_tool_calls: true,
-        tool_choice: "auto",
-        reasoning: { effort: "medium", summary: "auto" },
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "incident_summary",
-            strict: true,
-            schema: {
-              type: "object",
-              properties: {
-                severity: { type: "string", enum: ["sev0", "sev1", "sev2"] },
-                summary: { type: "string", maxLength: 2000 },
-                affectedServices: {
-                  type: "array",
-                  items: { type: "string" },
-                },
-                remediationSteps: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      owner: { type: "string" },
-                      action: { type: "string" },
-                      deadline: { type: "string", format: "date-time" },
-                    },
-                    required: ["owner", "action"],
-                  },
-                },
-              },
-              required: ["severity", "summary", "affectedServices"],
-              additionalProperties: false,
-            },
-          },
-        },
-        service_tier: "priority",
-        seed: 742_991,
-        stop: ["<END_INCIDENT>", "<ESCALATE>"],
-        metadata: {
-          environment: "production",
-          workflow: "incident-triage",
-          tenant: "enterprise-1042",
-          requestId: "req_01J3J8N6T7CX9QV2F5B4K1M0PZ",
-        },
       }),
     },
     metadata: { environment: "production", region: "us-west-2" },
@@ -741,8 +694,11 @@ export const SpecializedSpanKinds: Story = {
   args: { span: llmSpan },
   render: () => (
     <DetailPanelExamples>
-      <DetailPanelExample title="LLM">
+      <DetailPanelExample title="LLM · short invocation parameters">
         <SpanInfo span={llmSpan} />
+      </DetailPanelExample>
+      <DetailPanelExample title="LLM · long invocation parameters">
+        <SpanInfo span={longInvocationParametersSpan} />
       </DetailPanelExample>
       <DetailPanelExample title="Retriever">
         <SpanInfo span={retrieverSpan} />
@@ -756,13 +712,12 @@ export const SpecializedSpanKinds: Story = {
       <DetailPanelExample title="Tool">
         <SpanInfo span={toolSpan} />
       </DetailPanelExample>
+      <DetailPanelExample title="Tool · exhausted retries and regional failures">
+        <SpanInfo span={excessiveToolErrorSpan} />
+      </DetailPanelExample>
     </DetailPanelExamples>
   ),
   tags: ["!dev"],
-};
-
-export const LongInvocationParameters: Story = {
-  args: { span: longInvocationParametersSpan },
 };
 
 export const ExcessiveContent: Story = {
@@ -783,9 +738,6 @@ export const ExcessiveContent: Story = {
       </DetailPanelExample>
       <DetailPanelExample title="LLM · 10 production tool calls across two rounds">
         <SpanInfo span={excessiveToolCallsSpan} />
-      </DetailPanelExample>
-      <DetailPanelExample title="Tool · exhausted retries and regional failures">
-        <SpanInfo span={excessiveToolErrorSpan} />
       </DetailPanelExample>
     </DetailPanelExamples>
   ),
