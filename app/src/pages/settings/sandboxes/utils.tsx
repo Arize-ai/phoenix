@@ -19,9 +19,7 @@ import type {
   SandboxProvider,
 } from "./types";
 
-type Language =
-  | SandboxProvider["supportedLanguages"][number]
-  | BackendInfo["supportedLanguages"][number];
+type Language = SandboxProvider["supportedLanguages"][number];
 
 export function StatusText({
   status,

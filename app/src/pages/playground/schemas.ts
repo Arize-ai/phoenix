@@ -293,20 +293,19 @@ const promptTemplateVariablesSchema = z.string().transform((s, ctx) => {
     });
     return z.NEVER;
   }
-  const parsedVariables = Object.entries(json).reduce(
-    (acc, [key, value]) => {
-      if (typeof value === "string") {
-        acc[key] = value;
-      } else {
-        const { json } = safelyStringifyJSON(value);
-        if (json != null) {
-          acc[key] = json;
-        }
+  const parsedVariables = Object.entries(json).reduce<
+    Record<string, string | undefined>
+  >((acc, [key, value]) => {
+    if (typeof value === "string") {
+      acc[key] = value;
+    } else {
+      const { json } = safelyStringifyJSON(value);
+      if (json != null) {
+        acc[key] = json;
       }
-      return acc;
-    },
-    {} as Record<string, string | undefined>
-  );
+    }
+    return acc;
+  }, {});
   return parsedVariables;
 });
 
