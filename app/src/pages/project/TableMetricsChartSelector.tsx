@@ -10,6 +10,10 @@ import {
   MenuTrigger,
 } from "@phoenix/components";
 import { MetricsChartSelector } from "@phoenix/components/chart";
+import {
+  ErrorBoundary,
+  TextErrorBoundaryFallback,
+} from "@phoenix/components/exception";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
@@ -67,14 +71,16 @@ function ConnectedChartSelectorMenu({ view }: { view: MetricChartTableView }) {
   );
   return (
     <MetricFetchKeyProvider value={fetchKey}>
-      <Suspense fallback={<Loading />}>
-        <ProjectChartSelectorMenu
-          view={view}
-          projectId={projectId}
-          selectedChartKeys={selectedChartKeys}
-          onSelectionChange={(keys) => setMetricChartKeys(view, keys)}
-        />
-      </Suspense>
+      <ErrorBoundary fallback={TextErrorBoundaryFallback}>
+        <Suspense fallback={<Loading />}>
+          <ProjectChartSelectorMenu
+            view={view}
+            projectId={projectId}
+            selectedChartKeys={selectedChartKeys}
+            onSelectionChange={(keys) => setMetricChartKeys(view, keys)}
+          />
+        </Suspense>
+      </ErrorBoundary>
     </MetricFetchKeyProvider>
   );
 }

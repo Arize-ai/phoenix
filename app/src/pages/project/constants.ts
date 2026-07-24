@@ -81,7 +81,7 @@ export function getProjectAnnotationMetricChartInfo(
     const prefix = `${view}${PROJECT_ANNOTATION_METRIC_CHART_KEY_SEPARATOR}`;
     if (key.startsWith(prefix)) {
       const annotationName = key.slice(prefix.length);
-      return annotationName.length > 0 ? { view, annotationName } : undefined;
+      return { view, annotationName };
     }
   }
   return undefined;

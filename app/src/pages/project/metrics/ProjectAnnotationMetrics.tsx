@@ -24,6 +24,7 @@ import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import { PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION } from "@phoenix/pages/project/constants";
 
+import { getNonNoteAnnotationNames } from "../spanAnnotationUtils";
 import type { ProjectAnnotationMetricNamesSessionQuery } from "./__generated__/ProjectAnnotationMetricNamesSessionQuery.graphql";
 import type { ProjectAnnotationMetricNamesSpanQuery } from "./__generated__/ProjectAnnotationMetricNamesSpanQuery.graphql";
 import type { ProjectAnnotationMetricNamesTraceQuery } from "./__generated__/ProjectAnnotationMetricNamesTraceQuery.graphql";
@@ -279,7 +280,9 @@ export function useSpanAnnotationMetricNames(
     { projectId },
     useMetricQueryFetchOptions()
   );
-  return getSortedAnnotationNames(data.project.spanAnnotationNames ?? []);
+  return getSortedAnnotationNames(
+    getNonNoteAnnotationNames(data.project.spanAnnotationNames ?? [])
+  );
 }
 
 export function useTraceAnnotationMetricNames(
@@ -298,7 +301,9 @@ export function useTraceAnnotationMetricNames(
     { projectId },
     useMetricQueryFetchOptions()
   );
-  return getSortedAnnotationNames(data.project.traceAnnotationsNames ?? []);
+  return getSortedAnnotationNames(
+    getNonNoteAnnotationNames(data.project.traceAnnotationsNames ?? [])
+  );
 }
 
 export function useSessionAnnotationMetricNames(
@@ -317,7 +322,9 @@ export function useSessionAnnotationMetricNames(
     { projectId },
     useMetricQueryFetchOptions()
   );
-  return getSortedAnnotationNames(data.project.sessionAnnotationNames ?? []);
+  return getSortedAnnotationNames(
+    getNonNoteAnnotationNames(data.project.sessionAnnotationNames ?? [])
+  );
 }
 
 type ProjectAnnotationMetricsQueryProps = ProjectMetricViewProps & {
