@@ -1,5 +1,41 @@
 # Changelog
 
+## [2.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.13.0...arize-phoenix-client-v2.14.0) (2026-07-24)
+
+
+### Features
+
+* add direct server agent endpoint ([#13896](https://github.com/Arize-ai/phoenix/issues/13896)) ([6e93f93](https://github.com/Arize-ai/phoenix/commit/6e93f93d0f1c608b2f3f612f9cf9f5abc792cf1e))
+* **agents:** Add session context ([#13727](https://github.com/Arize-ai/phoenix/issues/13727)) ([031975c](https://github.com/Arize-ai/phoenix/commit/031975ccbe60e50967d8f192b6dfe6ca6de1daa7))
+* **agents:** move PXI tracing server-side ([#14215](https://github.com/Arize-ai/phoenix/issues/14215)) ([ea40aea](https://github.com/Arize-ai/phoenix/commit/ea40aea40a1ad8f0a5abe1b9c2172973aa339aa3))
+* **api:** assign annotation configs to projects over REST ([#14028](https://github.com/Arize-ai/phoenix/issues/14028)) ([83d3cef](https://github.com/Arize-ai/phoenix/commit/83d3cef5e5f4bfef2399ca6cb52f208673b9036b))
+* **api:** expose dataset example source span ([#13814](https://github.com/Arize-ai/phoenix/issues/13814)) ([e0cf022](https://github.com/Arize-ai/phoenix/commit/e0cf0229c95ba43c33f66ed7040cf6e79e894b37))
+* **api:** REST CRUD for user and system API keys ([257a77d](https://github.com/Arize-ai/phoenix/commit/257a77d5812916ff575f9b494dbdbd8534e8b14c))
+* **api:** REST CRUD for user and system API keys with a unified authority model ([50cc3db](https://github.com/Arize-ai/phoenix/commit/50cc3db8e8a1e692f1758d232100a2489837ea89))
+* **client:** add name_contains filter to Python client projects.list() ([#14132](https://github.com/Arize-ai/phoenix/issues/14132)) ([fa79dc0](https://github.com/Arize-ai/phoenix/commit/fa79dc0f249a5a8a205521af79b7c7946d814d9c)), closes [#14034](https://github.com/Arize-ai/phoenix/issues/14034)
+* **client:** add span_ids filter to get_spans in python and typescript clients ([#14697](https://github.com/Arize-ai/phoenix/issues/14697)) ([df7057a](https://github.com/Arize-ai/phoenix/commit/df7057ab12639e7333f755ced1fc3f36af5a054e))
+* phoenix env file ([#14188](https://github.com/Arize-ai/phoenix/issues/14188)) ([c0ab6a9](https://github.com/Arize-ai/phoenix/commit/c0ab6a9715bd8050094f8ac4135c7fa5d556c453))
+* **phoenix-client:** add pytest plugin for eval CI ([#13874](https://github.com/Arize-ai/phoenix/issues/13874)) ([6ebe82c](https://github.com/Arize-ai/phoenix/commit/6ebe82cb900d90fdd1fd6d6afc82bf8e76ec82ea))
+* **pxi:** add prompt route contexts ([#13834](https://github.com/Arize-ai/phoenix/issues/13834)) ([4524f82](https://github.com/Arize-ai/phoenix/commit/4524f829eea23afb016c8c77e30cd5066a11957f))
+* **sdk:** accept both PHOENIX_PROJECT_NAME and PHOENIX_PROJECT everywhere ([#14167](https://github.com/Arize-ai/phoenix/issues/14167)) ([1e7d9fc](https://github.com/Arize-ai/phoenix/commit/1e7d9fc3cd21aca4f221884b963ab20404c70eaf))
+* **server:** add dataset label REST endpoints ([#14024](https://github.com/Arize-ai/phoenix/issues/14024)) ([67f84ba](https://github.com/Arize-ai/phoenix/commit/67f84ba8e2b65aaa74684a9633167eb4343acbb6))
+* **ui:** add annotation summary to project settings ([#13850](https://github.com/Arize-ai/phoenix/issues/13850)) ([05582a1](https://github.com/Arize-ai/phoenix/commit/05582a132f5400bdaf7451c0e954df286ee09a81))
+
+
+### Bug Fixes
+
+* **agents:** keep browser clock out of the system prompt to preserve prompt caching ([#14362](https://github.com/Arize-ai/phoenix/issues/14362)) ([c5dbb20](https://github.com/Arize-ai/phoenix/commit/c5dbb2034961ab99eefb67eaf8bcc9cf77a6a97f))
+* **evals:** count AsyncExecutor timeouts against max_retries ([#14361](https://github.com/Arize-ai/phoenix/issues/14361)) ([90eee08](https://github.com/Arize-ai/phoenix/commit/90eee082b9e357a6669df29bc926a68f731fbc43))
+* preserve generator inputs in create_dataset and add_examples_to_dataset ([#13791](https://github.com/Arize-ai/phoenix/issues/13791)) ([c629b70](https://github.com/Arize-ai/phoenix/commit/c629b70cd4771918f0b185261793683b16739419))
+* Use same timeout policy for async client ([#13796](https://github.com/Arize-ai/phoenix/issues/13796)) ([fc0e5f8](https://github.com/Arize-ai/phoenix/commit/fc0e5f8f7f7999c1211d5d7fe012bd5270ad9e92))
+
+
+### Documentation
+
+* fill documentation gaps from 2026-06-24→07-01 audit ([#14015](https://github.com/Arize-ai/phoenix/issues/14015)) ([337a622](https://github.com/Arize-ai/phoenix/commit/337a622496ed43aae186b09ce488954c3fb27ad4))
+* fill small feature-gap docs across evals, tracing, playground, and packages ([e5764b3](https://github.com/Arize-ai/phoenix/commit/e5764b348eeaca2d824638264b9d929c5a730c5a))
+* **phoenix-client:** correct create_evaluator 2-tuple scorer docs ([#13939](https://github.com/Arize-ai/phoenix/issues/13939)) ([f123759](https://github.com/Arize-ai/phoenix/commit/f123759e80d729102a584759d6f7c2d07fa7b044))
+
 ## [2.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.12.0...arize-phoenix-client-v2.13.0) (2026-07-12)
 
 
