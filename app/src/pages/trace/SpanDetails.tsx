@@ -785,11 +785,8 @@ export function SpanInfo({ span }: { span: SpanInfoSpan }) {
       <View padding="size-200">
         <Flex direction="column" gap="size-200">
           {statusDescription}
-          <Alert variant="warning" title="Un-parsable attributes">
-            {`Failed to parse span attributes. ${parseError instanceof Error ? parseError.message : ""}`}
-          </Alert>
           <Card {...defaultCardProps} title="Attributes">
-            <View padding="size-100">{attributes}</View>
+            <AttributesJSONBlock attributes={attributes} />
           </Card>
         </Flex>
       </View>

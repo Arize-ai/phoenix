@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { useCallback, useMemo, useState } from "react";
 
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Alert, Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -107,32 +107,42 @@ export function AttributesJSONBlock({ attributes }: { attributes: string }) {
   }, []);
 
   return (
-    <View position="relative">
-      <div css={buttonContainerCSS}>
-        <Flex direction="row" gap="size-100">
-          {canExpand && (
-            <Button
-              size="S"
-              variant="default"
-              aria-label={isExpanded ? "Collapse Strings" : "Expand Strings"}
-              leadingVisual={
-                <Icon
-                  svg={isExpanded ? <Icons.BlockString /> : <Icons.BlockJSON />}
-                />
-              }
-              onPress={toggleExpand}
-            >
-              {isExpanded ? "Collapse Strings" : "Expand Strings"}
-            </Button>
-          )}
-          <CopyToClipboardButton text={displayValue} />
-        </Flex>
-      </div>
-      {parsedAttributes ? (
-        <JSONBlock value={displayValue} />
-      ) : (
-        <PreBlock>{attributes}</PreBlock>
+    <>
+      {parsedAttributes ? null : (
+        <Alert variant="danger" title="Malformed attributes payload" banner>
+          The attributes payload is not valid JSON. The raw value is shown
+          below.
+        </Alert>
       )}
-    </View>
+      <View position="relative">
+        <div css={buttonContainerCSS}>
+          <Flex direction="row" gap="size-100">
+            {canExpand && (
+              <Button
+                size="S"
+                variant="default"
+                aria-label={isExpanded ? "Collapse Strings" : "Expand Strings"}
+                leadingVisual={
+                  <Icon
+                    svg={
+                      isExpanded ? <Icons.BlockString /> : <Icons.BlockJSON />
+                    }
+                  />
+                }
+                onPress={toggleExpand}
+              >
+                {isExpanded ? "Collapse Strings" : "Expand Strings"}
+              </Button>
+            )}
+            <CopyToClipboardButton text={displayValue} />
+          </Flex>
+        </div>
+        {parsedAttributes ? (
+          <JSONBlock value={displayValue} />
+        ) : (
+          <PreBlock>{attributes}</PreBlock>
+        )}
+      </View>
+    </>
   );
 }
