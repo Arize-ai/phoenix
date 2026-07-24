@@ -35,6 +35,9 @@ const ViewportModalContext = createContext<ViewportModalContextValue | null>(
   null
 );
 
+const VIEWPORT_MODAL_INTERACTION_EXEMPT_SELECTOR =
+  "[data-viewport-modal-interaction-exempt]";
+
 const viewportModalOverlayCSS = css`
   ${modalBackdropCSS};
   position: absolute;
@@ -215,6 +218,9 @@ function ViewportModalOverlayInner({
   };
 
   const canCloseForTarget = (target: Element) => {
+    if (target.closest(VIEWPORT_MODAL_INTERACTION_EXEMPT_SELECTOR)) {
+      return false;
+    }
     const applicationViewport = appFrameOverlay?.applicationViewportElement;
     if (applicationViewport && !applicationViewport.contains(target)) {
       return false;
