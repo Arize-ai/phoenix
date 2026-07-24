@@ -13,6 +13,10 @@ import {
   useAssistantAgentEnabled,
 } from "@phoenix/components/agent";
 import {
+  AppFrameOverlayProvider,
+  useAppFrameOverlay,
+} from "@phoenix/components/core/overlay";
+import {
   AccountMenu,
   Brand,
   GitHubLink,
@@ -29,39 +33,53 @@ import {
 } from "@phoenix/components/nav";
 import { GlobalSearch } from "@phoenix/components/search";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import {
-  useActiveDrawerWidth,
-  useHasOpenDrawer,
-  useHasOpenModal,
-} from "@phoenix/hooks/useHasOpenModal";
+import { useActiveDrawerWidth } from "@phoenix/hooks/useHasOpenModal";
 
 import type { LayoutLoaderData } from "./layoutLoader";
 
 const layoutCSS = css`
-  display: flex;
-  direction: row;
   height: 100vh;
-  overflow: hidden;
+  width: 100vw;
+
+  &[data-has-pinned-rail="false"] {
+    min-width: 400px;
+  }
+
+  &[data-has-pinned-rail="true"] {
+    min-width: 841px;
+  }
 `;
 
-const mainViewCSS = css`
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
+const applicationViewportCSS = css`
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   height: 100%;
   overflow: hidden;
 `;
 
 const layoutContentPanelCSS = css`
-  display: flex;
-  flex-direction: column;
   min-width: 0;
   overflow: hidden;
 `;
 
+const sideNavCellCSS = css`
+  grid-column: 1;
+  grid-row: 1 / 3;
+  min-height: 0;
+`;
+
+const topNavCellCSS = css`
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+`;
+
 const contentCSS = css`
   --app-drawer-right-inset: 0px;
+  grid-column: 2;
+  grid-row: 2;
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
@@ -79,6 +97,28 @@ type ContentStyle = CSSProperties & {
   "--app-drawer-right-inset": string;
 };
 
+const drawerHostCSS = css`
+  grid-column: 1 / 3;
+  grid-row: 2;
+  position: relative;
+  z-index: 100;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+`;
+
+const viewportModalHostCSS = css`
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  position: relative;
+  z-index: 200;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+`;
+
 const bottomLinksCSS = css`
   display: flex;
   flex-direction: column;
@@ -95,66 +135,92 @@ const sideLinksCSS = css`
 `;
 
 export function Layout() {
+  return (
+    <AppFrameOverlayProvider>
+      <ApplicationFrame />
+    </AppFrameOverlayProvider>
+  );
+}
+
+function ApplicationFrame() {
   const contentRef = useRef<HTMLDivElement>(null);
+  const appFrameOverlay = useAppFrameOverlay();
   const { isSideNavExpanded, isSideNavExpansionAllowed, setIsSideNavExpanded } =
     useResponsiveSideNav();
+  const activeDrawerWidth = useActiveDrawerWidth();
+  const contentStyle: ContentStyle = {
+    "--app-drawer-right-inset": `${activeDrawerWidth}px`,
+  };
   const isAgentAssistantEnabled = useAssistantAgentEnabled();
   const isAgentPanelOpen = useAgentContext((state) => state.isOpen);
   const agentPosition = useAgentContext((state) => state.position);
   const isAgentFabFloating = useAgentContext(
     (state) => state.fabMode === "floating"
   );
-  const hasOpenModal = useHasOpenModal();
-  const hasOpenDrawer = useHasOpenDrawer();
-  const activeDrawerWidth = useActiveDrawerWidth();
-  const contentStyle: ContentStyle = {
-    "--app-drawer-right-inset": `${activeDrawerWidth}px`,
-  };
-  const shouldForceFloatingAgentPanel = hasOpenModal || hasOpenDrawer;
   const shouldShowDockedAgentPanel =
-    isAgentAssistantEnabled &&
-    isAgentPanelOpen &&
-    agentPosition === "pinned" &&
-    !shouldForceFloatingAgentPanel;
+    isAgentAssistantEnabled && isAgentPanelOpen && agentPosition === "pinned";
   const shouldShowFloatingAgentPanel =
-    isAgentAssistantEnabled &&
-    isAgentPanelOpen &&
-    (agentPosition === "detached" || shouldForceFloatingAgentPanel);
+    isAgentAssistantEnabled && isAgentPanelOpen && agentPosition === "detached";
   const panelIds = shouldShowDockedAgentPanel
     ? ["layout-content", "agent-chat"]
     : ["layout-content"];
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "layout-panels",
+    id: "application-frame-panels",
     panelIds,
     storage: localStorage,
   });
 
   return (
     <TopNavActionsProvider>
-      <div css={layoutCSS} data-testid="layout">
+      <div
+        data-testid="layout"
+        data-has-pinned-rail={shouldShowDockedAgentPanel ? "true" : "false"}
+        css={layoutCSS}
+      >
         <NavTitle />
-        <SideNav isExpanded={isSideNavExpanded} />
-        <div css={mainViewCSS}>
-          <Group
-            id="layout-panels"
-            orientation="horizontal"
-            defaultLayout={defaultLayout}
-            onLayoutChanged={onLayoutChanged}
+        <Group
+          id="application-frame-panels"
+          orientation="horizontal"
+          defaultLayout={defaultLayout}
+          onLayoutChanged={onLayoutChanged}
+        >
+          <Panel
+            id="layout-content"
+            css={layoutContentPanelCSS}
+            minSize="400px"
           >
-            <Panel id="layout-content" css={layoutContentPanelCSS}>
-              <TopNavbar rightInset={activeDrawerWidth}>
-                <SideNavToggleButton
-                  isExpanded={isSideNavExpanded}
-                  isDisabled={!isSideNavExpansionAllowed}
-                  onExpandedChange={setIsSideNavExpanded}
-                />
-                <NavBreadcrumb />
-                <TopNavActionsSlot />
-                {isAgentFabFloating ? null : <AgentChatTopNavButton />}
-              </TopNavbar>
+            <div
+              data-testid="application-viewport"
+              css={applicationViewportCSS}
+              ref={appFrameOverlay?.setApplicationViewportElement}
+            >
+              <div
+                data-testid="application-side-navigation"
+                css={sideNavCellCSS}
+                inert={appFrameOverlay?.isViewportBlocked || undefined}
+              >
+                <SideNav isExpanded={isSideNavExpanded} />
+              </div>
+              <div
+                data-testid="application-top-navigation"
+                css={topNavCellCSS}
+                inert={appFrameOverlay?.isViewportBlocked || undefined}
+              >
+                <TopNavbar>
+                  <SideNavToggleButton
+                    isExpanded={isSideNavExpanded}
+                    isDisabled={!isSideNavExpansionAllowed}
+                    onExpandedChange={setIsSideNavExpanded}
+                  />
+                  <NavBreadcrumb />
+                  <TopNavActionsSlot />
+                  {isAgentFabFloating ? null : <AgentChatTopNavButton />}
+                </TopNavbar>
+              </div>
               <div
                 data-testid="content"
                 css={contentCSS}
+                inert={appFrameOverlay?.isViewportBlocked || undefined}
                 ref={contentRef}
                 style={contentStyle}
               >
@@ -162,20 +228,27 @@ export function Layout() {
                   <AgentChatWidget boundaryRef={contentRef} />
                 ) : null}
                 {shouldShowFloatingAgentPanel ? (
-                  <FloatingAgentChatPanel
-                    boundaryRef={contentRef}
-                    isForcedFloating={shouldForceFloatingAgentPanel}
-                    layer={hasOpenModal ? "modal" : "content"}
-                  />
+                  <FloatingAgentChatPanel boundaryRef={contentRef} />
                 ) : null}
                 <Suspense fallback={<Loading />}>
                   <Outlet />
                 </Suspense>
               </div>
-            </Panel>
-            {shouldShowDockedAgentPanel ? <AgentChatPanel /> : null}
-          </Group>
-        </div>
+              <div
+                data-testid="application-drawer-plane"
+                css={drawerHostCSS}
+                inert={appFrameOverlay?.isViewportBlocked || undefined}
+                ref={appFrameOverlay?.setDrawerHostElement}
+              />
+              <div
+                data-testid="application-viewport-modal-plane"
+                css={viewportModalHostCSS}
+                ref={appFrameOverlay?.setViewportModalHostElement}
+              />
+            </div>
+          </Panel>
+          {shouldShowDockedAgentPanel ? <AgentChatPanel /> : null}
+        </Group>
       </div>
     </TopNavActionsProvider>
   );

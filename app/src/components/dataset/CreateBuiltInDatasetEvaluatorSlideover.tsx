@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
-import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
@@ -9,9 +8,10 @@ import {
   DialogContent,
   Flex,
   Loading,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
+import type { ViewportModalOverlayProps } from "@phoenix/components";
 import type { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation.graphql";
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
@@ -42,10 +42,10 @@ export function CreateBuiltInDatasetEvaluatorSlideover({
   updateConnectionIds: string[];
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
   datasetId: string;
-} & ModalOverlayProps) {
+} & Omit<ViewportModalOverlayProps, "children">) {
   return (
-    <ModalOverlay {...props}>
-      <Modal variant="slideover" size="fullscreen">
+    <ViewportModalOverlay {...props}>
+      <ViewportModal size="fullscreen">
         <Dialog aria-label="Add evaluator to dataset">
           {({ close }) => (
             <DialogContent
@@ -75,8 +75,8 @@ export function CreateBuiltInDatasetEvaluatorSlideover({
             </DialogContent>
           )}
         </Dialog>
-      </Modal>
-    </ModalOverlay>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 }
 

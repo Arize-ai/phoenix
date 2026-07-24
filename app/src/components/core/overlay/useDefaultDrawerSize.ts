@@ -2,7 +2,9 @@ import { useRef, useState } from "react";
 
 import type { SizeValue } from "@phoenix/types/sizing";
 
-const STORAGE_KEY_PREFIX = "arize-phoenix-drawer";
+// v2 stores percentages relative to the application viewport. v1 values were
+// relative to the browser viewport, so they cannot share a coordinate system.
+const STORAGE_KEY_PREFIX = "arize-phoenix-drawer-v2";
 // Drag emits at rAF rate (~60/sec); wait for motion to settle before
 // writing so we persist once per resize session rather than on every tick.
 const PERSIST_DEBOUNCE_MS = 250;

@@ -4,21 +4,20 @@ import type { SizeValue } from "@phoenix/types/sizing";
  * Default initial size for resizable drawers when no persisted size or
  * caller-provided `defaultSize` is available. Callers may override via
  * the `defaultSize` prop on `<Drawer>`. Expressed as a percentage of the
- * viewport width.
+ * application viewport width.
  */
 export const DRAWER_DEFAULT_SIZE: SizeValue = "35%";
 
 /**
  * Default minimum size for resizable drawers (e.g. trace, session,
  * evaluator detail drawers). Callers may override via the `minSize` prop
- * on `<Drawer>`. Expressed as a percentage of the viewport width.
+ * on `<Drawer>`. Expressed as a percentage of the application viewport width.
  */
 export const DRAWER_DEFAULT_MIN_SIZE: SizeValue = "40%";
 
 /**
- * Default maximum size for resizable drawers — leaves 5% of the viewport
- * visible so users can interact with content behind the drawer. Callers
- * may override via the `maxSize` prop on `<Drawer>`.
+ * Default maximum size for resizable drawers. The drawer also always leaves
+ * {@link DRAWER_VISIBLE_GUTTER_PX} of the application viewport visible.
  */
 export const DRAWER_DEFAULT_MAX_SIZE: SizeValue = "95%";
 
@@ -30,22 +29,18 @@ export const DRAWER_DEFAULT_MAX_SIZE: SizeValue = "95%";
  */
 export const DRAWER_HARD_MIN_SIZE_PX = 320;
 
-/**
- * Stable class added to every Phoenix drawer so app-level code can observe
- * drawer presence without depending on individual route state.
- */
+/** Space that remains visible at the left edge at maximum drawer expansion. */
+export const DRAWER_VISIBLE_GUTTER_PX = 80;
+
+/** Stable class used by app-level code to observe drawer presence. */
 export const DRAWER_CLASS_NAME = "phoenix-drawer";
 
-/**
- * Stable class added to every Phoenix modal overlay so app-level code can
- * observe the topmost modal without depending on React Aria internals.
- */
+/** Stable class used by app-level code to observe the topmost modal. */
 export const MODAL_OVERLAY_CLASS_NAME = "react-aria-ModalOverlay";
 
 /**
- * Marks the element inside a modal overlay that same-modal portals should use
- * as their container. Portaling into this element keeps those portals inside
- * React Aria's modal scope instead of making them overlay-dismiss targets.
+ * Marks the same-modal portal container. Portals mounted here remain inside
+ * the active modal's interaction scope.
  */
 export const MODAL_PORTAL_CONTAINER_ATTR = "data-modal-portal-container";
 export const MODAL_PORTAL_CONTAINER_SELECTOR = `[${MODAL_PORTAL_CONTAINER_ATTR}]`;

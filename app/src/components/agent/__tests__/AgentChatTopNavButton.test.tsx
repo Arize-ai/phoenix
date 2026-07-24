@@ -4,11 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
-  DRAWER_CLASS_NAME,
-  MODAL_OVERLAY_CLASS_NAME,
-  MODAL_PORTAL_CONTAINER_ATTR,
-} from "@phoenix/components/core/overlay/constants";
-import {
   AgentProvider,
   useAgentContext,
   useAgentStore,
@@ -88,21 +83,16 @@ describe("AgentChatTopNavButton", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
-    document
-      .querySelectorAll(`.${DRAWER_CLASS_NAME}, .${MODAL_OVERLAY_CLASS_NAME}`)
-      .forEach((element) => element.remove());
     agentStore = null;
     vi.unstubAllGlobals();
   });
 
   function installSideOverlays() {
     const drawer = document.createElement("div");
-    drawer.className = DRAWER_CLASS_NAME;
+    drawer.className = "drawer";
     const overlay = document.createElement("div");
-    overlay.className = MODAL_OVERLAY_CLASS_NAME;
+    overlay.className = "react-aria-ModalOverlay";
     const modal = document.createElement("div");
-    modal.setAttribute(MODAL_PORTAL_CONTAINER_ATTR, "");
-    modal.dataset.variant = "slideover";
     overlay.appendChild(modal);
     document.body.appendChild(drawer);
     document.body.appendChild(overlay);

@@ -9,8 +9,8 @@ import {
   Icon,
   Icons,
   Loading,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -217,14 +217,14 @@ function SaveButton({ instanceId, dirty }: SaveButtonProps) {
       >
         Prompt
       </Button>
-      <ModalOverlay>
-        <Modal>
+      <ViewportModalOverlay>
+        <ViewportModal>
           <UpsertPromptFromTemplateDialog
             instanceId={instanceId}
             selectedPromptId={instance.prompt?.id}
           />
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

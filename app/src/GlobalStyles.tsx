@@ -1540,7 +1540,8 @@ const appGlobalStylesCSS = css`
     background-color: var(--global-color-gray-100);
 
     margin: 0;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     #root,
     #root > div[data-overlay-container="true"],
     #root > div[data-overlay-container="true"] > .theme {

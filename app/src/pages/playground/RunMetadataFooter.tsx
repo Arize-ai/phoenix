@@ -10,9 +10,9 @@ import {
   Icon,
   Icons,
   Loading,
-  Modal,
-  ModalOverlay,
   View,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { SpanDetailPanelAnnotationButton } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -101,8 +101,8 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             <Button size="S" leadingVisual={<Icon svg={<Icons.Trace />} />}>
               View Trace
             </Button>
-            <ModalOverlay>
-              <Modal variant="slideover" size="fullscreen">
+            <ViewportModalOverlay>
+              <ViewportModal size="fullscreen">
                 <Suspense fallback={<Loading />}>
                   <PlaygroundRunTraceDetailsDialog
                     traceId={trace.traceId}
@@ -110,8 +110,8 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
                     title={`Playground Trace`}
                   />
                 </Suspense>
-              </Modal>
-            </ModalOverlay>
+              </ViewportModal>
+            </ViewportModalOverlay>
           </DialogTrigger>
         </Flex>
       </Flex>
