@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.16.1...arize-phoenix-otel-v0.17.0) (2026-07-24)
+
+
+### Features
+
+* phoenix env file ([#14188](https://github.com/Arize-ai/phoenix/issues/14188)) ([c0ab6a9](https://github.com/Arize-ai/phoenix/commit/c0ab6a9715bd8050094f8ac4135c7fa5d556c453))
+* **sdk:** accept both PHOENIX_PROJECT_NAME and PHOENIX_PROJECT everywhere ([#14167](https://github.com/Arize-ai/phoenix/issues/14167)) ([1e7d9fc](https://github.com/Arize-ai/phoenix/commit/1e7d9fc3cd21aca4f221884b963ab20404c70eaf))
+
+
+### Bug Fixes
+
+* Preserve HTTP collector path prefixes ([#13797](https://github.com/Arize-ai/phoenix/issues/13797)) ([54575a7](https://github.com/Arize-ai/phoenix/commit/54575a7e7e16421fba3392d5be994709b999ecd7))
+* skip malformed header segments in parse_env_headers ([#13775](https://github.com/Arize-ai/phoenix/issues/13775)) ([#13792](https://github.com/Arize-ai/phoenix/issues/13792)) ([64d61fe](https://github.com/Arize-ai/phoenix/commit/64d61feb4a23fe354b01a7299d1bbc8fd23ecfef))
+
+
+### Documentation
+
+* fill small feature-gap docs across evals, tracing, playground, and packages ([e5764b3](https://github.com/Arize-ai/phoenix/commit/e5764b348eeaca2d824638264b9d929c5a730c5a))
+
 ## [0.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.16.0...arize-phoenix-otel-v0.16.1) (2026-05-03)
 
 
