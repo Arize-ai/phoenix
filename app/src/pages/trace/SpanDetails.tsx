@@ -607,12 +607,12 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   }, [llmAttributes]);
 
   const llmToolSchemas = useMemo<string[]>(() => {
-    return llmTools.reduce((acc, tool) => {
+    return llmTools.reduce<string[]>((acc, tool) => {
       if (tool?.json_schema) {
         acc.push(tool.json_schema);
       }
       return acc;
-    }, [] as string[]);
+    }, []);
   }, [llmTools]);
 
   const outputMessages = useMemo<AttributeMessage[]>(() => {
@@ -874,7 +874,7 @@ function RetrieverSpanInfo(props: {
     Record<number, DocumentEvaluation[]>
   >(() => {
     const documentEvaluations = span.documentEvaluations;
-    return documentEvaluations.reduce(
+    return documentEvaluations.reduce<Record<number, DocumentEvaluation[]>>(
       (acc, documentEvaluation) => {
         const documentPosition = documentEvaluation.documentPosition;
         const evaluations = acc[documentPosition] || [];
@@ -883,7 +883,7 @@ function RetrieverSpanInfo(props: {
           [documentPosition]: [...evaluations, documentEvaluation],
         };
       },
-      {} as Record<number, DocumentEvaluation[]>
+      {}
     );
   }, [span.documentEvaluations]);
 

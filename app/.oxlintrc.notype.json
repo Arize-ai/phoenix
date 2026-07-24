@@ -1,0 +1,65 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+  "extends": ["../.oxlintrc.json"],
+
+  "options": {
+    "typeAware": false
+  },
+
+  "plugins": ["react", "typescript"],
+
+  "jsPlugins": [
+    {
+      "name": "react-hooks-js",
+      "specifier": "eslint-plugin-react-hooks"
+    }
+  ],
+
+  "env": {
+    "browser": true
+  },
+
+  "settings": {
+    "react": {
+      "version": "19.2.0"
+    }
+  },
+
+  "rules": {
+    "eslint/no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "react",
+            "importNames": ["forwardRef"],
+            "message": "Use ref as a prop instead (React 19). See https://react.dev/blog/2024/12/05/react-19#ref-as-a-prop"
+          }
+        ]
+      }
+    ],
+    "react/exhaustive-deps": "error",
+    "react/rules-of-hooks": "error",
+    "react-hooks-js/set-state-in-effect": "error",
+    "react-hooks-js/incompatible-library": "error",
+    "react/no-unknown-property": ["error", { "ignore": ["css"] }],
+    "react/react-in-jsx-scope": "off",
+    "typescript/no-empty-object-type": [
+      "error",
+      {
+        "allowInterfaces": "with-single-extends"
+      }
+    ]
+  },
+
+  // TODO: Enable jsx-a11y globally after the remaining app violations are addressed.
+  "overrides": [
+    {
+      "files": ["stories/**/*.stories.tsx"],
+      "plugins": ["react", "typescript", "jsx-a11y"]
+    }
+  ],
+
+  "ignorePatterns": ["playwright-report/**", "test-results/**"]
+}

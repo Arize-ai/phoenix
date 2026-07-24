@@ -68,7 +68,7 @@ export function ExperimentCompareMetricsPage({
   queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareMetricsQueryType>;
 }) {
   const [searchParams] = useSearchParams();
-  const [baseExperimentId = undefined, ...compareExperimentIds] =
+  const [baseExperimentId, ...compareExperimentIds] =
     searchParams.getAll("experimentId");
   if (baseExperimentId == null) {
     throw new Error("Empty state not yet implemented");

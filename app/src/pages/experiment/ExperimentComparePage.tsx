@@ -94,8 +94,8 @@ export function ExperimentComparePage() {
   );
   useAdvertiseAgentContext(advertisedDatasetContext);
   const [searchParams] = useSearchParams();
-  const { baseExperimentId = undefined, compareExperimentIds } = useMemo(() => {
-    const [baseExperimentId = undefined, ...compareExperimentIds] =
+  const { baseExperimentId, compareExperimentIds } = useMemo(() => {
+    const [baseExperimentId, ...compareExperimentIds] =
       searchParams.getAll("experimentId");
     return { baseExperimentId, compareExperimentIds };
   }, [searchParams]);
