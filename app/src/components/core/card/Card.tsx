@@ -43,7 +43,7 @@ function Card({
   }, [isCollapsed]);
 
   const headingContents = (
-    <div id={titleId}>
+    <div id={titleId} className="card__heading">
       <Heading level={3} weight="heavy" className="card__title">
         {title}
         {titleExtra}

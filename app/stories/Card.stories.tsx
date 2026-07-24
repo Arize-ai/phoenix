@@ -16,7 +16,8 @@ const meta: Meta = {
     },
     subTitle: {
       control: "text",
-      description: "Optional subtitle displayed below the title",
+      description:
+        "Optional subtitle displayed inline after the title in a lesser text color",
     },
     titleExtra: {
       control: false,

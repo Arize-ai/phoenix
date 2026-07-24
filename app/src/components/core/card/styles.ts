@@ -28,16 +28,32 @@ export const cardCSS = (style?: CSSProperties) => css`
       margin-right: var(--global-dimension-size-100);
     }
 
+    /* The title and subtitle are shown inline with a gap */
+    & .card__heading {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: var(--global-dimension-size-200);
+      min-width: 0;
+    }
+
     & .card__title {
       font-size: var(--global-font-size-m);
       line-height: var(--global-line-height-m);
       display: flex;
       align-items: center;
       gap: var(--global-dimension-size-100);
+      flex-shrink: 0;
+      white-space: nowrap;
     }
 
+    /* The subtitle truncates rather than wrapping the fixed-height header */
     & .card__sub-title {
       color: var(--global-text-color-700);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     /* Header layout when the title holds interactive controls */

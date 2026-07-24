@@ -17,9 +17,10 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
    */
   titleSeparator?: boolean;
   /**
-   * The subtitle of the card, displayed below the title.
+   * The subtitle of the card, displayed inline after the title with a lesser
+   * text color.
    */
-  subTitle?: string;
+  subTitle?: React.ReactNode;
   /**
    * Whether the card body can be collapsed.
    * @default false
