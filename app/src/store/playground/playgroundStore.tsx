@@ -108,12 +108,12 @@ export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
       __type: "chat",
       messageIds: template.messages.map((message) => message.id),
     } satisfies PlaygroundNormalizedChatTemplate,
-    messages: template.messages.reduce(
+    messages: template.messages.reduce<Record<number, ChatMessage>>(
       (acc, message) => {
         acc[message.id] = message;
         return acc;
       },
-      {} as Record<number, ChatMessage>
+      {}
     ),
   };
 };
@@ -372,12 +372,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             id: generateMessageId(),
           }));
         newMessageIds = copiedMessages.map((message) => message.id);
-        newMessageMap = copiedMessages.reduce(
+        newMessageMap = copiedMessages.reduce<Record<number, ChatMessage>>(
           (acc, message) => {
             acc[message.id] = message;
             return acc;
           },
-          {} as Record<number, ChatMessage>
+          {}
         );
       }
       set(
@@ -649,12 +649,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         {
           allInstanceMessages: {
             ...get().allInstanceMessages,
-            ...newMessages.reduce(
+            ...newMessages.reduce<Record<number, ChatMessage>>(
               (acc, message) => {
                 acc[message.id] = message;
                 return acc;
               },
-              {} as Record<number, ChatMessage>
+              {}
             ),
           },
           dirtyInstances: {
@@ -1312,13 +1312,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
               return instance;
             }
             const repetition = instance.repetitions[repetitionNumber];
-            const toolCallsById = toolCalls.reduce(
-              (acc, toolCall) => {
-                acc[toolCall.id] = toolCall;
-                return acc;
-              },
-              {} as Record<string, PartialOutputToolCall>
-            );
+            const toolCallsById = toolCalls.reduce<
+              Record<string, PartialOutputToolCall>
+            >((acc, toolCall) => {
+              acc[toolCall.id] = toolCall;
+              return acc;
+            }, {});
             return {
               ...instance,
               repetitions: {

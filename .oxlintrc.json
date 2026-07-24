@@ -10,10 +10,10 @@
     "typescript/no-require-imports": "error",
     "typescript/no-import-type-side-effects": "error",
     "typescript/prefer-ts-expect-error": "error",
-    // TODO: Re-promote consistent-return, no-unsafe-type-assertion, and
-    // prefer-reduce-type-parameter to "error" once existing violations are
-    // fixed. They became far stricter when tsgolint (type-aware linting) was
-    // adopted and pre-existing code has not been cleaned up yet.
+    // TODO: Re-promote consistent-return and no-unsafe-type-assertion to
+    // "error" once existing violations are fixed. They became far stricter
+    // when tsgolint (type-aware linting) was adopted and pre-existing code
+    // has not been cleaned up yet.
     "typescript/consistent-return": "warn",
     "typescript/consistent-type-imports": "error",
     "typescript/no-unsafe-type-assertion": "warn",
@@ -28,7 +28,7 @@
         "string": false
       }
     ],
-    "typescript/prefer-reduce-type-parameter": "warn",
+    "typescript/prefer-reduce-type-parameter": "error",
     "typescript/no-unused-vars": [
       "error",
       {

@@ -101,12 +101,12 @@ export function getLLMAttributes(
         .map((obj) => obj[SemanticAttributePrefixes.tool])
         .filter(Boolean) as AttributeLLMToolDefinition[])
     : [];
-  const toolSchemas = toolDefinitions.reduce((acc, tool) => {
+  const toolSchemas = toolDefinitions.reduce<string[]>((acc, tool) => {
     if (tool?.json_schema) {
       acc.push(tool.json_schema);
     }
     return acc;
-  }, [] as string[]);
+  }, []);
 
   const maybePrompts = llmAttributes[LLMAttributePostfixes.prompts];
   const prompts = isStringArray(maybePrompts) ? maybePrompts : [];
@@ -227,15 +227,14 @@ export function getToolAttributes(
 export function groupDocumentEvaluationsByPosition(
   documentEvaluations: ReadonlyArray<DocumentEvaluation>
 ): Partial<Record<number, DocumentEvaluation[]>> {
-  return documentEvaluations.reduce(
-    (acc, documentEvaluation) => {
-      const documentPosition = documentEvaluation.documentPosition;
-      const evaluations = acc[documentPosition] || [];
-      return {
-        ...acc,
-        [documentPosition]: [...evaluations, documentEvaluation],
-      };
-    },
-    {} as Partial<Record<number, DocumentEvaluation[]>>
-  );
+  return documentEvaluations.reduce<
+    Partial<Record<number, DocumentEvaluation[]>>
+  >((acc, documentEvaluation) => {
+    const documentPosition = documentEvaluation.documentPosition;
+    const evaluations = acc[documentPosition] || [];
+    return {
+      ...acc,
+      [documentPosition]: [...evaluations, documentEvaluation],
+    };
+  }, {});
 }
