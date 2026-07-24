@@ -150,6 +150,7 @@ const ASIDE_PANEL_MIN_SIZE_PIXELS = 300;
 const ASIDE_PANEL_MAX_SIZE_PIXELS = 500;
 const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
 const FINAL_SCROLL_ANIMATION_DURATION_SECONDS = 0.18;
+const SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS = 0.5;
 
 const spanDetailsAnchorNavCSS = css`
   flex: none;
@@ -211,6 +212,37 @@ const spanDetailsSectionsCSS = css`
   }
 `;
 
+const spanDetailsSectionHeadingCSS = css`
+  position: relative;
+  isolation: isolate;
+
+  & > :first-child {
+    position: relative;
+    z-index: 1;
+  }
+
+  [data-section-navigation-feedback] {
+    position: absolute;
+    inset: 1px 0;
+    z-index: 0;
+    background-color: var(--highlight-background);
+    opacity: 0;
+    pointer-events: none;
+  }
+`;
+
+function SpanDetailsSectionHeading({
+  children,
+  bordered,
+}: PropsWithChildren & { bordered?: boolean }) {
+  return (
+    <div css={spanDetailsSectionHeadingCSS}>
+      <SectionHeading bordered={bordered}>{children}</SectionHeading>
+      <span aria-hidden="true" data-section-navigation-feedback />
+    </div>
+  );
+}
+
 export function SpanDetails({
   spanNodeId,
 }: {
@@ -231,6 +263,10 @@ export function SpanDetails({
   const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
   const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
   const scrollAnimationRef = useRef<ReturnType<typeof animate> | null>(null);
+  const sectionFeedbackAnimationRef = useRef<ReturnType<typeof animate> | null>(
+    null
+  );
+  const sectionFeedbackElementRef = useRef<HTMLElement | null>(null);
   // Sync the aside panel collapsed state with the isAnnotatingSpans preference.
   // This handles initial mount (panel starts expanded by default, collapse if not annotating)
   // and external changes to isAnnotatingSpans (e.g. from the hotkey).
@@ -247,6 +283,7 @@ export function SpanDetails({
     const scrollContent = spanDetailsSectionsContentRef.current;
     return () => {
       scrollAnimationRef.current?.stop();
+      sectionFeedbackAnimationRef.current?.stop();
       if (scrollContent) {
         scrollContent.style.transform = "";
       }
@@ -359,6 +396,35 @@ export function SpanDetails({
     events: `span-details-${span.spanId}-events`,
   } as const;
 
+  const showSectionNavigationFeedback = (targetSection: HTMLElement) => {
+    const sectionFeedbackElement = targetSection.querySelector<HTMLElement>(
+      "[data-section-navigation-feedback]"
+    );
+    if (!sectionFeedbackElement) {
+      return;
+    }
+
+    sectionFeedbackAnimationRef.current?.stop();
+    if (sectionFeedbackElementRef.current) {
+      sectionFeedbackElementRef.current.style.opacity = "";
+    }
+    sectionFeedbackElementRef.current = sectionFeedbackElement;
+    sectionFeedbackAnimationRef.current = animate(
+      sectionFeedbackElement,
+      { opacity: [0, 1, 1, 0] },
+      {
+        duration: SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS,
+        ease: "easeInOut",
+        times: [0, 0.15, 0.55, 1],
+        onComplete: () => {
+          sectionFeedbackElement.style.opacity = "";
+          sectionFeedbackAnimationRef.current = null;
+          sectionFeedbackElementRef.current = null;
+        },
+      }
+    );
+  };
+
   const handleSectionLinkClick = ({
     event,
     sectionId,
@@ -398,6 +464,12 @@ export function SpanDetails({
     scrollAnimationRef.current?.stop();
     scrollAnimationRef.current = null;
     scrollContent.style.transform = "";
+    sectionFeedbackAnimationRef.current?.stop();
+    sectionFeedbackAnimationRef.current = null;
+    if (sectionFeedbackElementRef.current) {
+      sectionFeedbackElementRef.current.style.opacity = "";
+      sectionFeedbackElementRef.current = null;
+    }
 
     const currentScrollTop = scrollContainer.scrollTop;
     const maximumScrollTop =
@@ -412,19 +484,23 @@ export function SpanDetails({
       maximumScrollTop
     );
     const scrollDistance = targetScrollTop - currentScrollTop;
-    const shouldAnimateFinalDistance =
-      !shouldReduceMotion &&
+    const hasFullAnimationDistance =
       Math.abs(scrollDistance) > FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS;
+    scrollContainer.scrollTop = targetScrollTop;
 
-    if (!shouldAnimateFinalDistance) {
-      scrollContainer.scrollTop = targetScrollTop;
+    if (!hasFullAnimationDistance) {
+      showSectionNavigationFeedback(targetSection);
+      return;
+    }
+
+    if (shouldReduceMotion) {
+      showSectionNavigationFeedback(targetSection);
       return;
     }
 
     const scrollDirection = Math.sign(scrollDistance);
     const initialContentTransform = `translateY(${scrollDirection * FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS}px)`;
     scrollContent.style.transform = initialContentTransform;
-    scrollContainer.scrollTop = targetScrollTop;
     scrollAnimationRef.current = animate(
       scrollContent,
       { transform: [initialContentTransform, "translateY(0px)"] },
@@ -435,6 +511,7 @@ export function SpanDetails({
         onComplete: () => {
           scrollContent.style.transform = "";
           scrollAnimationRef.current = null;
+          showSectionNavigationFeedback(targetSection);
         },
       }
     );
@@ -566,7 +643,9 @@ export function SpanDetails({
           <div ref={spanDetailsSectionsRef} css={spanDetailsSectionsCSS}>
             <div ref={spanDetailsSectionsContentRef}>
               <section id={spanDetailsSectionIds.info} aria-label="Info">
-                <SectionHeading bordered={false}>Info</SectionHeading>
+                <SpanDetailsSectionHeading bordered={false}>
+                  Info
+                </SpanDetailsSectionHeading>
                 <ErrorBoundary>
                   <SpanInfo span={span} />
                 </ErrorBoundary>
@@ -575,7 +654,7 @@ export function SpanDetails({
                 id={spanDetailsSectionIds.annotations}
                 aria-label="Annotations"
               >
-                <SectionHeading>
+                <SpanDetailsSectionHeading>
                   <Flex
                     elementType="span"
                     direction="row"
@@ -584,14 +663,16 @@ export function SpanDetails({
                   >
                     Annotations <Counter>{span.spanAnnotations.length}</Counter>
                   </Flex>
-                </SectionHeading>
+                </SpanDetailsSectionHeading>
                 <SpanFeedback span={span} />
               </section>
               <section
                 id={spanDetailsSectionIds.attributes}
                 aria-label="Attributes"
               >
-                <SectionHeading>Attributes</SectionHeading>
+                <SpanDetailsSectionHeading>
+                  Attributes
+                </SpanDetailsSectionHeading>
                 <View padding="size-200">
                   <Card
                     title="All Attributes"
@@ -603,7 +684,7 @@ export function SpanDetails({
                 </View>
               </section>
               <section id={spanDetailsSectionIds.events} aria-label="Events">
-                <SectionHeading>
+                <SpanDetailsSectionHeading>
                   <Flex
                     elementType="span"
                     direction="row"
@@ -615,7 +696,7 @@ export function SpanDetails({
                       {span.events.length}
                     </Counter>
                   </Flex>
-                </SectionHeading>
+                </SpanDetailsSectionHeading>
                 <View>
                   <Suspense fallback={<Loading />}>
                     <SpanEventsList spanId={span.id} />
