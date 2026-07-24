@@ -2843,6 +2843,11 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+
+  """
+  How a span filter condition relates to root-span scoping, so clients need not parse the DSL. Structural only; use `validateSpanFilterCondition` to check validity.
+  """
+  analyzeSpanFilterCondition(condition: String!): SpanFilterConditionAnalysis!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
@@ -4166,6 +4171,13 @@ type SpanEvent {
   message: String!
   timestamp: DateTime!
   attributes: JSON!
+}
+
+type SpanFilterConditionAnalysis {
+  """
+  Whether a root predicate (`parent_span is None` or `parent_id is None`) binds every row the condition can match. `true` is a guarantee; `false` means not established, not that non-root spans are admitted.
+  """
+  selectsRootSpansOnly: Boolean!
 }
 
 type SpanIOValue {

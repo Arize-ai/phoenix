@@ -1,3 +1,4 @@
+import warnings
 from datetime import datetime
 from typing import Any
 
@@ -1399,3 +1400,39 @@ async def test_explode_and_concat_on_same_array_with_non_ascii_kwargs(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        pytest.param({"root_spans_only": True}, id="root-spans-only"),
+        pytest.param({"root_spans_only": False}, id="root-spans-only-false"),
+        # Deprecated even on its own: it is a no-op without `root_spans_only`,
+        # but a caller passing it is still using a deprecated argument.
+        pytest.param({"orphan_span_as_root_span": False}, id="orphan-flag-alone"),
+        pytest.param({"root_spans_only": True, "orphan_span_as_root_span": False}, id="both"),
+    ],
+)
+async def test_root_span_flags_warn_as_deprecated(
+    db: DbSessionFactory,
+    abc_project: Any,
+    kwargs: dict[str, Any],
+) -> None:
+    """The root-span flags are deprecated in favor of expressing the scoping in
+    the filter condition, and must say so the way `stop_time` already does."""
+    sq = SpanQuery()
+    async with db() as session:
+        with pytest.warns(DeprecationWarning, match="root_spans_only"):
+            await session.run_sync(sq, project_name="abc", **kwargs)
+
+
+async def test_no_deprecation_warning_without_the_root_span_flags(
+    db: DbSessionFactory,
+    abc_project: Any,
+) -> None:
+    """The migrated path -- root scoping inside the condition -- stays quiet."""
+    sq = SpanQuery().where("parent_id is None")
+    async with db() as session:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            await session.run_sync(sq, project_name="abc")

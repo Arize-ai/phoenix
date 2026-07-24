@@ -154,8 +154,28 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     limit: int = DEFAULT_SPAN_LIMIT
-    root_spans_only: Optional[bool] = None
-    orphan_span_as_root_span: bool = True
+    root_spans_only: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Restrict the results to root spans. "
+            "This parameter has been deprecated, express root-span scoping in the query's "
+            "filter condition instead: `parent_span is None` matches root spans including "
+            "orphans (spans whose parent is absent), and `parent_id is None` matches only "
+            "spans with no parent id. Putting it in the filter keeps the whole query in one "
+            "expression that can be composed with other clauses."
+        ),
+        deprecated=True,
+    )
+    orphan_span_as_root_span: bool = Field(
+        default=True,
+        description=(
+            "Whether an orphan span (one whose parent is absent) counts as a root span. "
+            "This parameter has been deprecated along with `root_spans_only`; choose the "
+            "behavior with the filter condition instead — `parent_span is None` treats "
+            "orphans as roots, `parent_id is None` does not."
+        ),
+        deprecated=True,
+    )
     project_name: Optional[str] = Field(
         default=None,
         description=(
