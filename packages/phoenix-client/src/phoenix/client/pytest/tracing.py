@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 from dataclasses import dataclass
-from typing import Any, Callable, Iterator, Optional
+from typing import Any, Callable, ContextManager, Iterator, Optional
 
 from opentelemetry.context import Context
 from opentelemetry.trace import Status, StatusCode
@@ -18,8 +18,11 @@ from phoenix.client.resources.experiments import (
     OPENINFERENCE_SPAN_KIND,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
-    _get_tracer,  # pyright: ignore[reportPrivateUsage]
+    _attach_global_tracer_provider,  # pyright: ignore[reportPrivateUsage]
+    _get_noop_tracer_bundle,  # pyright: ignore[reportPrivateUsage]
+    _get_tracer_bundle,  # pyright: ignore[reportPrivateUsage]
     _str_trace_id,  # pyright: ignore[reportPrivateUsage]
+    _TracerBundle,  # pyright: ignore[reportPrivateUsage]
     capture_spans,
 )
 
@@ -50,10 +53,19 @@ class SpanHandle:
 
 @dataclass
 class SuiteTracer:
-    """Process-local OpenInference tracer for one pytest worker, plus its project resource."""
+    """Task and evaluator tracing pipelines for one pytest worker."""
 
-    tracer: Any
-    resource: Any
+    task_bundle: _TracerBundle
+    evaluator_bundle: _TracerBundle
+    mount_evaluator_provider: bool = True
+
+    @property
+    def tracer(self) -> Any:
+        return self.task_bundle.tracer
+
+    @property
+    def resource(self) -> Any:
+        return self.task_bundle.resource
 
     @contextmanager
     def chain_span(
@@ -69,24 +81,43 @@ class SuiteTracer:
         close: pytest's ``hookwrapper`` captures a failing test's exception into the call
         outcome instead of raising it through the ``yield``, so the body never propagates it
         here — ``error_getter`` is how the span learns the test failed."""
-        with self._span(name, CHAIN, input_value, output_getter, error_getter) as handle:
+        with self._span(
+            self.task_bundle, name, CHAIN, input_value, output_getter, error_getter
+        ) as handle:
             yield handle
 
     @contextmanager
     def evaluator_span(self, name: str, *, input_value: Any) -> Iterator[SpanHandle]:
         """Open an EVALUATOR span around a genuine evaluator invocation. The evaluator is a
         direct call, so a failure propagates through the body and needs no ``error_getter``."""
-        with self._span(name, EVALUATOR, input_value, None, None) as handle:
-            yield handle
+        attachment: ContextManager[None] = (
+            _attach_global_tracer_provider(self.evaluator_bundle.provider)
+            if self.mount_evaluator_provider
+            else nullcontext()
+        )
+        with attachment:
+            with self._span(
+                self.evaluator_bundle,
+                name,
+                EVALUATOR,
+                input_value,
+                None,
+                None,
+                flush_provider=True,
+            ) as handle:
+                yield handle
 
     @contextmanager
     def _span(
         self,
+        bundle: _TracerBundle,
         name: str,
         span_kind: str,
         input_value: Any,
         output_getter: Optional[Callable[[], Any]],
         error_getter: Optional[Callable[[], Optional[BaseException]]],
+        *,
+        flush_provider: bool = False,
     ) -> Iterator[SpanHandle]:
         """Run the body inside a span, swallowing every tracing error so the body always runs
         and its own exception (if any) propagates. The body yields exactly once regardless.
@@ -98,8 +129,8 @@ class SuiteTracer:
         stack = ExitStack()
         span: Any = None
         try:
-            stack.enter_context(capture_spans(self.resource))
-            span = stack.enter_context(self.tracer.start_as_current_span(name, context=Context()))
+            stack.enter_context(capture_spans(bundle.resource))
+            span = stack.enter_context(bundle.tracer.start_as_current_span(name, context=Context()))
         except Exception as e:  # noqa: BLE001
             _warn_degraded(repr(e))
 
@@ -128,6 +159,9 @@ class SuiteTracer:
                         )
                     else:
                         span.set_status(Status(StatusCode.OK))
+            except Exception as e:  # noqa: BLE001
+                _warn_degraded(repr(e))
+            try:
                 stack.close()
                 if span is not None:
                     span_context = span.get_span_context()
@@ -135,10 +169,22 @@ class SuiteTracer:
                         handle.trace_id = _str_trace_id(span_context.trace_id)
             except Exception as e:  # noqa: BLE001
                 _warn_degraded(repr(e))
+            if flush_provider:
+                try:
+                    force_flush = getattr(bundle.provider, "force_flush", None)
+                    if force_flush is not None:
+                        force_flush()
+                except Exception as e:  # noqa: BLE001
+                    _warn_degraded(repr(e))
 
 
 def build_suite_tracer(
-    *, project_name: Optional[str], base_url: Optional[str], headers: Optional[dict[str, str]]
+    *,
+    project_name: Optional[str],
+    base_url: Optional[str],
+    headers: Optional[dict[str, str]],
+    evaluator_bundle: Optional[_TracerBundle] = None,
+    mount_evaluator_provider: bool = True,
 ) -> Optional[SuiteTracer]:
     """Build a process-local, non-global tracer via the experiments-runner helper.
 
@@ -148,11 +194,36 @@ def build_suite_tracer(
     if not project_name:
         return None
     try:
-        tracer, resource = _get_tracer(project_name, base_url, headers)
+        task_bundle = _get_tracer_bundle(project_name, base_url, headers)
+        if evaluator_bundle is None:
+            evaluator_bundle = _get_tracer_bundle("evaluators", base_url, headers)
     except Exception as e:  # noqa: BLE001
         _warn_degraded(repr(e))
         return None
-    return SuiteTracer(tracer=tracer, resource=resource)
+    return SuiteTracer(
+        task_bundle=task_bundle,
+        evaluator_bundle=evaluator_bundle,
+        mount_evaluator_provider=mount_evaluator_provider,
+    )
+
+
+def build_evaluator_bundle(
+    *, base_url: Optional[str], headers: Optional[dict[str, str]]
+) -> Optional[_TracerBundle]:
+    try:
+        return _get_tracer_bundle("evaluators", base_url, headers)
+    except Exception as e:  # noqa: BLE001
+        _warn_degraded(repr(e))
+        return None
+
+
+def build_noop_suite_tracer() -> SuiteTracer:
+    bundle = _get_noop_tracer_bundle()
+    return SuiteTracer(
+        task_bundle=bundle,
+        evaluator_bundle=bundle,
+        mount_evaluator_provider=False,
+    )
 
 
 def _set_io(span: Any, input_value: Any, output_value: Any) -> None:
