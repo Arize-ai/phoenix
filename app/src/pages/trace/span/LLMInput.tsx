@@ -88,7 +88,12 @@ export function LLMInput({
   const hasPromptTemplateObject = promptTemplate != null;
 
   return (
-    <Card collapsible titleSeparator={false} title="Input" extra={modelNameEl}>
+    <Card
+      collapsible
+      titleSeparator={false}
+      title="Input"
+      titleExtra={modelNameEl}
+    >
       <Tabs>
         <TabList>
           {hasInputMessages && <Tab id="input-messages">Input Messages</Tab>}
