@@ -232,17 +232,17 @@ px trace list --since 2026-01-13T10:00:00Z       # since ISO timestamp
 px trace list --since 2026-01-13T10:00:00Z --until 2026-01-14T10:00:00Z # time range
 ```
 
-| Option                      | Description                            | Default  |
-| --------------------------- | -------------------------------------- | -------- |
-| `[directory]`               | Save traces as JSON files to directory | stdout   |
-| `-n, --limit <number>`      | Number of traces (newest first)        | 10       |
-| `--last-n-minutes <number>` | Only traces from the last N minutes    | —        |
-| `--since <timestamp>`       | Traces since ISO timestamp             | —        |
-| `--until <timestamp>`       | Traces whose spans started before ISO timestamp (exclusive) | — |
-| `--format <format>`         | `pretty`, `json`, or `raw`             | `pretty` |
-| `--no-progress`             | Suppress progress output               | —        |
-| `--include-annotations`     | Include trace and span annotations     | —        |
-| `--include-notes`           | Include trace and span notes           | —        |
+| Option                      | Description                                                 | Default  |
+| --------------------------- | ----------------------------------------------------------- | -------- |
+| `[directory]`               | Save traces as JSON files to directory                      | stdout   |
+| `-n, --limit <number>`      | Number of traces (newest first)                             | 10       |
+| `--last-n-minutes <number>` | Only traces from the last N minutes                         | —        |
+| `--since <timestamp>`       | Traces since ISO timestamp                                  | —        |
+| `--until <timestamp>`       | Traces whose spans started before ISO timestamp (exclusive) | —        |
+| `--format <format>`         | `pretty`, `json`, or `raw`                                  | `pretty` |
+| `--no-progress`             | Suppress progress output                                    | —        |
+| `--include-annotations`     | Include trace and span annotations                          | —        |
+| `--include-notes`           | Include trace and span notes                                | —        |
 
 ```bash
 # Find ERROR traces
