@@ -4,6 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Disclosure,
   DisclosureGroup,
+  type DisclosureGroupProps,
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
@@ -64,8 +65,10 @@ export type SpanEvent = {
 
 export function SpanEventsListContent({
   events,
+  defaultExpandedKeys,
 }: {
   events: readonly SpanEvent[];
+  defaultExpandedKeys?: DisclosureGroupProps["defaultExpandedKeys"];
 }) {
   const { fullTimeFormatter } = useTimeFormatters();
 
@@ -82,6 +85,7 @@ export function SpanEventsListContent({
 
   return (
     <DisclosureGroup
+      defaultExpandedKeys={defaultExpandedKeys}
       css={css`
         .react-aria-Button[slot="trigger"] {
           padding: var(--global-dimension-size-200);
@@ -117,7 +121,7 @@ export function SpanEventsListContent({
         );
 
         return (
-          <Disclosure key={idx} isDisabled={!hasAttributes}>
+          <Disclosure id={idx} key={idx} isDisabled={!hasAttributes}>
             <DisclosureTrigger arrowPosition="start">
               {eventHeader}
             </DisclosureTrigger>
