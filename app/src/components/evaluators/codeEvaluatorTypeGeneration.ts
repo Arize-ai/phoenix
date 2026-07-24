@@ -159,7 +159,11 @@ function formatPythonDictStructure(
       lines.push(`${spaces}"${key}": {`);
       lines.push(...formatPythonDictStructure(value, indent + 1));
       lines.push(`${spaces}}`);
-    } else if (Array.isArray(value) && value.length > 0 && isPlainObject(value[0])) {
+    } else if (
+      Array.isArray(value) &&
+      value.length > 0 &&
+      isPlainObject(value[0])
+    ) {
       lines.push(`${spaces}"${key}": [`);
       lines.push(`${spaces}    {`);
       lines.push(...formatPythonDictStructure(value[0], indent + 2));
