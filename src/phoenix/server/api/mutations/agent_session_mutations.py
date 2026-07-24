@@ -16,7 +16,7 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
-from phoenix.server.api.agent_session_access import get_agent_session_owner_filter
+from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import IsAgentAssistantEnabled, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound

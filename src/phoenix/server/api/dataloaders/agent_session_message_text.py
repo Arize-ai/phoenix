@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Literal, Optional, cast
+from typing import Literal, Optional
 
 from sqlalchemy import Select, func, select
 from strawberry.dataloader import DataLoader
@@ -24,36 +24,32 @@ class AgentSessionMessageTextDataLoader(DataLoader[Key, Result]):
     @cached_property
     def _subquery(self) -> Select[tuple[int, PhoenixUIMessage, int]]:
         message = models.AgentSessionMessage
-        statement = select(
-            message.agent_session_id.label("agent_session_id"),
-            message.message.label("message"),
-        )
         if self._kind == "first_input":
-            statement = statement.where(
-                message.message["role"].as_string() == "user",
-                message.is_compaction_message.is_(False),
-            ).add_columns(
+            return select(
+                message.agent_session_id.label("agent_session_id"),
+                message.message.label("message"),
                 func.row_number()
                 .over(
                     partition_by=message.agent_session_id,
                     order_by=message.position.asc(),
                 )
-                .label("rank")
+                .label("rank"),
+            ).where(
+                message.message["role"].as_string() == "user",
+                message.is_compaction_message.is_(False),
             )
-        elif self._kind == "latest_output":
-            statement = statement.where(
-                message.message["role"].as_string() == "assistant"
-            ).add_columns(
+        if self._kind == "latest_output":
+            return select(
+                message.agent_session_id.label("agent_session_id"),
+                message.message.label("message"),
                 func.row_number()
                 .over(
                     partition_by=message.agent_session_id,
                     order_by=message.position.desc(),
                 )
-                .label("rank")
-            )
-        else:
-            assert_never(self._kind)
-        return cast(Select[tuple[int, PhoenixUIMessage, int]], statement)
+                .label("rank"),
+            ).where(message.message["role"].as_string() == "assistant")
+        assert_never(self._kind)
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         subquery = self._subquery.where(

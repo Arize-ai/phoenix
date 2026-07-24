@@ -35,7 +35,7 @@ from phoenix.db.helpers import (
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.db.types.prompts import PromptMessageRole
-from phoenix.server.api.agent_session_access import get_agent_session_owner_filter
+from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
