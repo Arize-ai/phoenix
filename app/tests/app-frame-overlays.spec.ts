@@ -41,6 +41,9 @@ test.describe("application frame overlays", () => {
     ).toHaveAttribute("inert", "");
     await expect(
       page.getByTestId("application-top-navigation")
+    ).not.toHaveAttribute("inert", "");
+    await expect(
+      page.getByTestId("application-top-navigation-page-controls")
     ).toHaveAttribute("inert", "");
     await expect(page.getByTestId("content")).toHaveAttribute("inert", "");
     await expect(page.getByTestId("application-drawer-plane")).toHaveAttribute(
@@ -70,6 +73,57 @@ test.describe("application frame overlays", () => {
     await expect(trigger).toBeFocused();
     await expect(rail).toHaveAttribute("data-e2e-identity", "persistent-rail");
     await expect(railInput).toHaveValue("draft survives viewport modality");
+  });
+
+  test("Tier 1 keeps a detached assistant interactive", async ({ page }) => {
+    await page.goto("/datasets");
+    const rail = await openAssistant(page);
+    await rail
+      .getByRole("button", { name: "Switch assistant to floating panel" })
+      .click();
+
+    const assistantInput = page.getByPlaceholder("Send a message...");
+    await expect(assistantInput).toBeVisible();
+    await page.getByTestId("create-dataset-button").click();
+
+    const dialog = page.getByRole("dialog", { name: "Create Dataset" });
+    await expect(dialog).toBeVisible();
+    expect(
+      await assistantInput.evaluate(
+        (element) => element.closest("[inert]") == null
+      )
+    ).toBe(true);
+
+    await assistantInput.fill("detached draft remains interactive");
+    await expect(assistantInput).toHaveValue(
+      "detached draft remains interactive"
+    );
+    await page.getByRole("button", { name: "Close assistant" }).click();
+    await expect(assistantInput).not.toBeVisible();
+    await expect(dialog).toBeVisible();
+  });
+
+  test("Tier 1 keeps the closed assistant available from the top nav", async ({
+    page,
+  }) => {
+    await page.goto("/datasets");
+    await page.getByTestId("create-dataset-button").click();
+
+    const dialog = page.getByRole("dialog", { name: "Create Dataset" });
+    const assistantButton = page.getByRole("button", { name: "Ask PXI" });
+    await expect(dialog).toBeVisible();
+    await expect(assistantButton).toBeVisible();
+    expect(
+      await assistantButton.evaluate(
+        (element) => element.closest("[inert]") == null
+      )
+    ).toBe(true);
+
+    await assistantButton.click();
+    await expect(
+      page.getByRole("complementary", { name: "Assistant" })
+    ).toBeVisible();
+    await expect(dialog).toBeVisible();
   });
 
   test("a drawer belongs to the page-content row and never crosses the rail", async ({
