@@ -9,6 +9,7 @@ import {
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useLocation, useNavigate, useParams } from "react-router";
+import invariant from "tiny-invariant";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -67,6 +68,7 @@ const mainCSS = css`
 
 export function ProjectPage() {
   const { projectId } = useParams();
+  invariant(projectId, "projectId is required by the route definition");
   const { timeRangeISOStrings } = useTimeRange();
   const deferredTimeRangeISOStrings = useDeferredValue(timeRangeISOStrings);
   return (
@@ -77,8 +79,7 @@ export function ProjectPage() {
       <Suspense fallback={<Loading />}>
         <ProjectPageContent
           key={projectId}
-          // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition
-          projectId={projectId as string}
+          projectId={projectId}
           timeRangeISOStrings={deferredTimeRangeISOStrings}
         />
       </Suspense>
@@ -148,7 +149,7 @@ function ProjectPageContentBody({
       }
     `,
     {
-      id: projectId as string,
+      id: projectId,
       timeRange: timeRangeISOStrings,
     },
     {
@@ -210,7 +211,7 @@ function ProjectPageContentBody({
   );
   useEffect(() => {
     startTransition(() => {
-      loadTableQueryForTab(tabIndex, projectId as string, treatOrphansAsRoots);
+      loadTableQueryForTab(tabIndex, projectId, treatOrphansAsRoots);
     });
   }, [tabIndex, projectId, treatOrphansAsRoots]);
 

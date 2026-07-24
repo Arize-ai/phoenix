@@ -1,5 +1,6 @@
 import { graphql, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
+import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -19,9 +20,9 @@ export const examplesLoaderGql = graphql`
  */
 export function examplesLoader(args: LoaderFunctionArgs) {
   const { datasetId } = args.params;
+  invariant(datasetId, "datasetId is required by the route definition");
   return loadQuery<examplesLoaderQuery>(RelayEnvironment, examplesLoaderGql, {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition
-    id: datasetId as string,
+    id: datasetId,
   });
 }
 

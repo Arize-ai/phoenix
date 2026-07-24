@@ -33,6 +33,7 @@ export function SessionPage() {
   const loaderData = useLoaderData<typeof sessionLoader>();
   invariant(loaderData, "loaderData is required");
   const { sessionId } = useParams();
+  invariant(sessionId, "sessionId is required by the route definition");
   const navigate = useNavigate();
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
@@ -71,8 +72,7 @@ export function SessionPage() {
               </Flex>
             </DialogHeader>
             <ErrorBoundary>
-              {/* oxlint-disable-next-line typescript/no-unsafe-type-assertion -- sessionId is a required route param */}
-              <SessionDetails sessionId={sessionId as string} />
+              <SessionDetails sessionId={sessionId} />
             </ErrorBoundary>
           </DialogContent>
         )}

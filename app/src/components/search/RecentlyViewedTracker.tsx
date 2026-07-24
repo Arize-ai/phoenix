@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { fetchQuery, graphql, useRelayEnvironment } from "react-relay";
 import { matchPath, useLocation } from "react-router";
+import invariant from "tiny-invariant";
 
 import type { RecentlyViewedResource } from "@phoenix/store/recentlyViewedStore";
 import { useRecentlyViewedStore } from "@phoenix/store/recentlyViewedStore";
@@ -72,8 +73,8 @@ function matchEntityRoute(
   );
   if (experimentMatch?.params.experimentId) {
     const { datasetId, experimentId } = experimentMatch.params;
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- datasetId is guaranteed present by the matched :datasetId route segment
-    return experimentResource(datasetId as string, experimentId);
+    invariant(datasetId, "the matched :datasetId segment is always present");
+    return experimentResource(datasetId, experimentId);
   }
   // The experiment compare route carries the experiment(s) in the query string,
   // e.g. /datasets/:datasetId/compare?experimentId=Y — record the experiment,

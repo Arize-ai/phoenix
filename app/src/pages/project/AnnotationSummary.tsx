@@ -7,6 +7,7 @@ import React, {
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
+import invariant from "tiny-invariant";
 
 import {
   Flex,
@@ -51,6 +52,7 @@ export function AnnotationSummary({
   filterCondition,
 }: AnnotationSummaryProps) {
   const { projectId } = useParams();
+  invariant(projectId, "projectId is required by the route definition");
   const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<AnnotationSummaryQuery>(
     graphql`
@@ -72,8 +74,7 @@ export function AnnotationSummary({
     `,
     {
       annotationName,
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition
-      id: projectId as string,
+      id: projectId,
       timeRange: timeRangeISOStrings,
       filterCondition: filterCondition || null,
     }

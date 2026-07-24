@@ -1,5 +1,6 @@
 import { fetchQuery, graphql } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
+import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -10,6 +11,7 @@ import type { sessionLoaderQuery } from "./__generated__/sessionLoaderQuery.grap
  */
 export async function sessionLoader(args: LoaderFunctionArgs) {
   const { sessionId } = args.params;
+  invariant(sessionId, "sessionId is required by the route definition");
   return await fetchQuery<sessionLoaderQuery>(
     RelayEnvironment,
     graphql`
@@ -23,8 +25,7 @@ export async function sessionLoader(args: LoaderFunctionArgs) {
       }
     `,
     {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- sessionId is a required route param
-      id: sessionId as string,
+      id: sessionId,
     }
   ).toPromise();
 }

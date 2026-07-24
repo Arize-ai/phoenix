@@ -184,6 +184,33 @@ export const toOpenAIMessage = (message: unknown): OpenAIMessage | null => {
 // indexed access type remains unresolved in each branch. The casts are sound
 // because each branch accesses the correct provider's converter and
 // assertUnreachable ensures exhaustive coverage.
+/**
+ * Per-SDK conversions from the OpenAI message format.
+ *
+ * This is a mapped type over the SDK union rather than a `switch`, because
+ * indexing it with the type parameter yields a function returning exactly
+ * `messages.fromOpenAI`s output for that SDK. Neither a `switch` on a generic
+ * value nor a direct index of `SDKProviderConverterMap` can express that -- both
+ * collapse to a union and need a cast. A missing SDK is a compile error here,
+ * which replaces the previous `assertUnreachable` default.
+ */
+const FROM_OPENAI_MESSAGE_CONVERTERS: {
+  [P in NonNullable<PromptSDKFormat>]: (
+    message: OpenAIMessage
+  ) => z.infer<(typeof SDKProviderConverterMap)[P]["messages"]["fromOpenAI"]>;
+} = {
+  OPENAI: (message) =>
+    SDKProviderConverterMap.OPENAI.messages.fromOpenAI.parse(message),
+  AZURE_OPENAI: (message) =>
+    SDKProviderConverterMap.AZURE_OPENAI.messages.fromOpenAI.parse(message),
+  ANTHROPIC: (message) =>
+    SDKProviderConverterMap.ANTHROPIC.messages.fromOpenAI.parse(message),
+  PHOENIX: (message) =>
+    SDKProviderConverterMap.PHOENIX.messages.fromOpenAI.parse(message),
+  VERCEL_AI: (message) =>
+    SDKProviderConverterMap.VERCEL_AI.messages.fromOpenAI.parse(message),
+};
+
 export const fromOpenAIMessage = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -194,36 +221,7 @@ export const fromOpenAIMessage = <
   targetProvider: TargetProviderSDK;
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["messages"]["fromOpenAI"]
-> => {
-  type ReturnType = z.infer<
-    (typeof SDKProviderConverterMap)[TargetProviderSDK]["messages"]["fromOpenAI"]
-  >;
-  switch (targetProvider) {
-    case "AZURE_OPENAI":
-    case "OPENAI":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.OPENAI.messages.fromOpenAI.parse(
-        message
-      ) as ReturnType;
-    case "ANTHROPIC":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.ANTHROPIC.messages.fromOpenAI.parse(
-        message
-      ) as ReturnType;
-    case "PHOENIX":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.PHOENIX.messages.fromOpenAI.parse(
-        message
-      ) as ReturnType;
-    case "VERCEL_AI":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.VERCEL_AI.messages.fromOpenAI.parse(
-        message
-      ) as ReturnType;
-    default:
-      return assertUnreachable(targetProvider);
-  }
-};
+> => FROM_OPENAI_MESSAGE_CONVERTERS[targetProvider](message);
 
 /**
  * Converts a tool call to the OpenAI format if possible
@@ -265,6 +263,33 @@ export const toOpenAIToolCall = (
  * @returns the tool call in the target provider format
  */
 // See comment on fromOpenAIMessage for why `as ReturnType` casts are needed.
+/**
+ * Per-SDK conversions from the OpenAI toolCall format.
+ *
+ * This is a mapped type over the SDK union rather than a `switch`, because
+ * indexing it with the type parameter yields a function returning exactly
+ * `toolCalls.fromOpenAI`s output for that SDK. Neither a `switch` on a generic
+ * value nor a direct index of `SDKProviderConverterMap` can express that -- both
+ * collapse to a union and need a cast. A missing SDK is a compile error here,
+ * which replaces the previous `assertUnreachable` default.
+ */
+const FROM_OPENAI_TOOL_CALL_CONVERTERS: {
+  [P in NonNullable<PromptSDKFormat>]: (
+    toolCall: OpenAIToolCall
+  ) => z.infer<(typeof SDKProviderConverterMap)[P]["toolCalls"]["fromOpenAI"]>;
+} = {
+  OPENAI: (toolCall) =>
+    SDKProviderConverterMap.OPENAI.toolCalls.fromOpenAI.parse(toolCall),
+  AZURE_OPENAI: (toolCall) =>
+    SDKProviderConverterMap.AZURE_OPENAI.toolCalls.fromOpenAI.parse(toolCall),
+  ANTHROPIC: (toolCall) =>
+    SDKProviderConverterMap.ANTHROPIC.toolCalls.fromOpenAI.parse(toolCall),
+  PHOENIX: (toolCall) =>
+    SDKProviderConverterMap.PHOENIX.toolCalls.fromOpenAI.parse(toolCall),
+  VERCEL_AI: (toolCall) =>
+    SDKProviderConverterMap.VERCEL_AI.toolCalls.fromOpenAI.parse(toolCall),
+};
+
 export const fromOpenAIToolCall = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -275,36 +300,7 @@ export const fromOpenAIToolCall = <
   targetProvider: TargetProviderSDK;
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolCalls"]["fromOpenAI"]
-> => {
-  type ReturnType = z.infer<
-    (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolCalls"]["fromOpenAI"]
-  >;
-  switch (targetProvider) {
-    case "AZURE_OPENAI":
-    case "OPENAI":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.OPENAI.toolCalls.fromOpenAI.parse(
-        toolCall
-      ) as ReturnType;
-    case "ANTHROPIC":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.ANTHROPIC.toolCalls.fromOpenAI.parse(
-        toolCall
-      ) as ReturnType;
-    case "PHOENIX":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.PHOENIX.toolCalls.fromOpenAI.parse(
-        toolCall
-      ) as ReturnType;
-    case "VERCEL_AI":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.VERCEL_AI.toolCalls.fromOpenAI.parse(
-        toolCall
-      ) as ReturnType;
-    default:
-      return assertUnreachable(targetProvider);
-  }
-};
+> => FROM_OPENAI_TOOL_CALL_CONVERTERS[targetProvider](toolCall);
 
 /**
  * Converts a tool choice to the OpenAI format
@@ -348,6 +344,33 @@ export const toOpenAIToolChoice = (
  * @returns the tool choice in the target provider format
  */
 // See comment on fromOpenAIMessage for why `as ReturnType` casts are needed.
+/**
+ * Per-SDK conversions from the OpenAI toolChoice format.
+ *
+ * This is a mapped type over the SDK union rather than a `switch`, because
+ * indexing it with the type parameter yields a function returning exactly
+ * `toolChoices.fromOpenAI`s output for that SDK. Neither a `switch` on a generic
+ * value nor a direct index of `SDKProviderConverterMap` can express that -- both
+ * collapse to a union and need a cast. A missing SDK is a compile error here,
+ * which replaces the previous `assertUnreachable` default.
+ */
+const FROM_OPENAI_TOOL_CHOICE_CONVERTERS: {
+  [P in NonNullable<PromptSDKFormat>]: (
+    toolChoice: OpenaiToolChoice
+  ) => z.infer<(typeof SDKProviderConverterMap)[P]["toolChoices"]["fromOpenAI"]>;
+} = {
+  OPENAI: (toolChoice) =>
+    SDKProviderConverterMap.OPENAI.toolChoices.fromOpenAI.parse(toolChoice),
+  AZURE_OPENAI: (toolChoice) =>
+    SDKProviderConverterMap.AZURE_OPENAI.toolChoices.fromOpenAI.parse(toolChoice),
+  ANTHROPIC: (toolChoice) =>
+    SDKProviderConverterMap.ANTHROPIC.toolChoices.fromOpenAI.parse(toolChoice),
+  PHOENIX: (toolChoice) =>
+    SDKProviderConverterMap.PHOENIX.toolChoices.fromOpenAI.parse(toolChoice),
+  VERCEL_AI: (toolChoice) =>
+    SDKProviderConverterMap.VERCEL_AI.toolChoices.fromOpenAI.parse(toolChoice),
+};
+
 export const fromOpenAIToolChoice = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -358,36 +381,7 @@ export const fromOpenAIToolChoice = <
   targetProvider: TargetProviderSDK;
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolChoices"]["fromOpenAI"]
-> => {
-  type ReturnType = z.infer<
-    (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolChoices"]["fromOpenAI"]
-  >;
-  switch (targetProvider) {
-    case "AZURE_OPENAI":
-    case "OPENAI":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.OPENAI.toolChoices.fromOpenAI.parse(
-        toolChoice
-      ) as ReturnType;
-    case "ANTHROPIC":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.ANTHROPIC.toolChoices.fromOpenAI.parse(
-        toolChoice
-      ) as ReturnType;
-    case "PHOENIX":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.PHOENIX.toolChoices.fromOpenAI.parse(
-        toolChoice
-      ) as ReturnType;
-    case "VERCEL_AI":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.VERCEL_AI.toolChoices.fromOpenAI.parse(
-        toolChoice
-      ) as ReturnType;
-    default:
-      return assertUnreachable(targetProvider);
-  }
-};
+> => FROM_OPENAI_TOOL_CHOICE_CONVERTERS[targetProvider](toolChoice);
 
 /**
  * Convert from any tool call format to OpenAI format if possible
@@ -426,6 +420,33 @@ export const toOpenAIToolDefinition = (
  * Convert from OpenAI tool call format to any other format
  */
 // See comment on fromOpenAIMessage for why `as ReturnType` casts are needed.
+/**
+ * Per-SDK conversions from the OpenAI toolDefinition format.
+ *
+ * This is a mapped type over the SDK union rather than a `switch`, because
+ * indexing it with the type parameter yields a function returning exactly
+ * `toolDefinitions.fromOpenAI`s output for that SDK. Neither a `switch` on a generic
+ * value nor a direct index of `SDKProviderConverterMap` can express that -- both
+ * collapse to a union and need a cast. A missing SDK is a compile error here,
+ * which replaces the previous `assertUnreachable` default.
+ */
+const FROM_OPENAI_TOOL_DEFINITION_CONVERTERS: {
+  [P in NonNullable<PromptSDKFormat>]: (
+    toolDefinition: OpenAIToolDefinition
+  ) => z.infer<(typeof SDKProviderConverterMap)[P]["toolDefinitions"]["fromOpenAI"]>;
+} = {
+  OPENAI: (toolDefinition) =>
+    SDKProviderConverterMap.OPENAI.toolDefinitions.fromOpenAI.parse(toolDefinition),
+  AZURE_OPENAI: (toolDefinition) =>
+    SDKProviderConverterMap.AZURE_OPENAI.toolDefinitions.fromOpenAI.parse(toolDefinition),
+  ANTHROPIC: (toolDefinition) =>
+    SDKProviderConverterMap.ANTHROPIC.toolDefinitions.fromOpenAI.parse(toolDefinition),
+  PHOENIX: (toolDefinition) =>
+    SDKProviderConverterMap.PHOENIX.toolDefinitions.fromOpenAI.parse(toolDefinition),
+  VERCEL_AI: (toolDefinition) =>
+    SDKProviderConverterMap.VERCEL_AI.toolDefinitions.fromOpenAI.parse(toolDefinition),
+};
+
 export const fromOpenAIToolDefinition = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -436,36 +457,7 @@ export const fromOpenAIToolDefinition = <
   targetProvider: TargetProviderSDK;
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolDefinitions"]["fromOpenAI"]
-> => {
-  type ReturnType = z.infer<
-    (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolDefinitions"]["fromOpenAI"]
-  >;
-  switch (targetProvider) {
-    case "AZURE_OPENAI":
-    case "OPENAI":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.OPENAI.toolDefinitions.fromOpenAI.parse(
-        toolDefinition
-      ) as ReturnType;
-    case "ANTHROPIC":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.ANTHROPIC.toolDefinitions.fromOpenAI.parse(
-        toolDefinition
-      ) as ReturnType;
-    case "PHOENIX":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.PHOENIX.toolDefinitions.fromOpenAI.parse(
-        toolDefinition
-      ) as ReturnType;
-    case "VERCEL_AI":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- generic TargetProviderSDK cannot be narrowed through switch/case control flow
-      return SDKProviderConverterMap.VERCEL_AI.toolDefinitions.fromOpenAI.parse(
-        toolDefinition
-      ) as ReturnType;
-    default:
-      return assertUnreachable(targetProvider);
-  }
-};
+> => FROM_OPENAI_TOOL_DEFINITION_CONVERTERS[targetProvider](toolDefinition);
 
 export function findToolCallId(maybeToolCall: unknown): string | null {
   let subject = maybeToolCall;

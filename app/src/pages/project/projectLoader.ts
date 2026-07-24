@@ -1,5 +1,6 @@
 import { fetchQuery, graphql } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
+import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -10,6 +11,7 @@ import type { projectLoaderQuery } from "./__generated__/projectLoaderQuery.grap
  */
 export async function projectLoader(args: LoaderFunctionArgs) {
   const { projectId } = args.params;
+  invariant(projectId, "projectId is required by the route definition");
   return await fetchQuery<projectLoaderQuery>(
     RelayEnvironment,
     graphql`
@@ -23,8 +25,7 @@ export async function projectLoader(args: LoaderFunctionArgs) {
       }
     `,
     {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition
-      id: projectId as string,
+      id: projectId,
     }
   ).toPromise();
 }

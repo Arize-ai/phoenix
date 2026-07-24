@@ -5,6 +5,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router";
+import invariant from "tiny-invariant";
 
 import {
   Dialog,
@@ -35,6 +36,8 @@ import { TraceDetails } from "./TraceDetails";
  */
 export function TracePage() {
   const { traceId, projectId } = useParams();
+  invariant(traceId, "traceId is required by the route definition");
+  invariant(projectId, "projectId is required by the route definition");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -73,8 +76,7 @@ export function TracePage() {
                 <DialogCloseButton close={close} />
                 <TraceDetailsPaginator currentId={paginationSubjectId} />
                 <DialogTitle>
-                  {/* oxlint-disable-next-line typescript/no-unsafe-type-assertion -- traceId is a required route param */}
-                  <TitleWithID title="Trace" id={traceId as string} />
+                  <TitleWithID title="Trace" id={traceId} />
                 </DialogTitle>
               </Flex>
               <DialogTitleExtra>
@@ -87,12 +89,7 @@ export function TracePage() {
               </DialogTitleExtra>
             </DialogHeader>
             <Suspense fallback={<Loading />}>
-              <TraceDetails
-                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- traceId is a required route param
-                traceId={traceId as string}
-                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- projectId is a required route param
-                projectId={projectId as string}
-              />
+              <TraceDetails traceId={traceId} projectId={projectId} />
             </Suspense>
           </DialogContent>
         )}

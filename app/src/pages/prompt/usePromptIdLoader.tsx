@@ -1,4 +1,5 @@
 import { useMatches, useRouteLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 
 import type { PromptLoaderData } from "./promptLoader";
 
@@ -22,6 +23,10 @@ export const usePromptIdLoader = () => {
     );
   }
 
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route match guarantees this is the prompt/:promptId loader data
-  return useRouteLoaderData(loader.id) as PromptLoaderData;
+  const data = useRouteLoaderData<PromptLoaderData>(loader.id);
+  invariant(
+    data,
+    "the matched /prompts/:promptId route always has loader data"
+  );
+  return data;
 };

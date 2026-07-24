@@ -1,4 +1,5 @@
 import { useNavigate, useParams } from "react-router";
+import invariant from "tiny-invariant";
 
 import { Drawer } from "@phoenix/components";
 import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
@@ -11,6 +12,7 @@ import { ExampleDetailsDialog } from "./ExampleDetailsDialog";
  */
 export function ExamplePage() {
   const { exampleId, datasetId } = useParams();
+  invariant(exampleId, "exampleId is required by the route definition");
   const navigate = useNavigate();
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "example-details",
@@ -24,8 +26,7 @@ export function ExamplePage() {
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}
     >
-      {/* oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition */}
-      <ExampleDetailsDialog exampleId={exampleId as string} />
+      <ExampleDetailsDialog exampleId={exampleId} />
     </Drawer>
   );
 }

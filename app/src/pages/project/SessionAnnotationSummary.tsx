@@ -1,6 +1,7 @@
 import { startTransition } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
+import invariant from "tiny-invariant";
 
 import { useTimeRange } from "@phoenix/components/datetime";
 
@@ -32,6 +33,7 @@ export function SessionAnnotationSummary({
   filterIoSubstringOrSessionId,
 }: SessionAnnotationSummaryProps) {
   const { projectId } = useParams();
+  invariant(projectId, "projectId is required by the route definition");
   const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<SessionAnnotationSummaryQuery>(
     graphql`
@@ -55,8 +57,7 @@ export function SessionAnnotationSummary({
     `,
     {
       annotationName,
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- route param guaranteed present by route definition
-      id: projectId as string,
+      id: projectId,
       timeRange: timeRangeISOStrings,
       filterIoSubstring: filterIoSubstringOrSessionId || null,
       sessionId: filterIoSubstringOrSessionId || null,

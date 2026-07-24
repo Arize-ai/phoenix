@@ -270,6 +270,34 @@ export const toOpenAIToolCall = (
 };
 
 /**
+ * Per-provider conversions from an OpenAI tool call. Declaring this as a mapped
+ * type over `ModelProvider` is what lets `fromOpenAIToolCall` stay cast-free:
+ * indexing it with the type parameter `T` yields a function returning exactly
+ * `ProviderToToolCallMap[T]`, which a `switch` on a generic value cannot do.
+ * A missing provider is a compile error, so this also replaces the previous
+ * `assertUnreachable` default.
+ */
+const OPENAI_TOOL_CALL_CONVERTERS: {
+  [P in ModelProvider]: (toolCall: OpenAIToolCall) => ProviderToToolCallMap[P];
+} = {
+  OPENAI: (toolCall) => toolCall,
+  AZURE_OPENAI: (toolCall) => toolCall,
+  DEEPSEEK: (toolCall) => toolCall,
+  XAI: (toolCall) => toolCall,
+  OLLAMA: (toolCall) => toolCall,
+  CEREBRAS: (toolCall) => toolCall,
+  FIREWORKS: (toolCall) => toolCall,
+  GROQ: (toolCall) => toolCall,
+  MOONSHOT: (toolCall) => toolCall,
+  PERPLEXITY: (toolCall) => toolCall,
+  TOGETHER: (toolCall) => toolCall,
+  AWS: (toolCall) => openAIToolCallToAws.parse(toolCall),
+  ANTHROPIC: (toolCall) => openAIToolCallToAnthropic.parse(toolCall),
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- GOOGLE falls back to JSONLiteral, which OpenAIToolCall does not structurally satisfy (its `arguments` values are `unknown`); parsing with jsonLiteralSchema here would change behavior
+  GOOGLE: (toolCall) => toolCall as JSONLiteral,
+};
+
+/**
  * Converts a tool call to a target provider format
  * @param toolCall the tool call to convert
  * @param targetProvider the provider to convert the tool call to
@@ -281,36 +309,8 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
 }: {
   toolCall: OpenAIToolCall;
   targetProvider: T;
-}): ProviderToToolCallMap[T] => {
-  switch (targetProvider) {
-    case "AZURE_OPENAI":
-    case "OPENAI":
-    case "DEEPSEEK":
-    case "XAI":
-    case "OLLAMA":
-    case "CEREBRAS":
-    case "FIREWORKS":
-    case "GROQ":
-    case "MOONSHOT":
-    case "PERPLEXITY":
-    case "TOGETHER":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToToolCallMap[T] from a switch on targetProvider
-      return toolCall as ProviderToToolCallMap[T];
-    case "AWS":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToToolCallMap[T] from a switch on targetProvider
-      return openAIToolCallToAws.parse(toolCall) as ProviderToToolCallMap[T];
-    case "ANTHROPIC":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToToolCallMap[T] from a switch on targetProvider
-      return openAIToolCallToAnthropic.parse(
-        toolCall
-      ) as ProviderToToolCallMap[T];
-    case "GOOGLE":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToToolCallMap[T] from a switch on targetProvider
-      return toolCall as ProviderToToolCallMap[T];
-    default:
-      return assertUnreachable(targetProvider);
-  }
-};
+}): ProviderToToolCallMap[T] =>
+  OPENAI_TOOL_CALL_CONVERTERS[targetProvider](toolCall);
 
 export const fromPromptToolCallPart = (
   part: ToolCallPart,

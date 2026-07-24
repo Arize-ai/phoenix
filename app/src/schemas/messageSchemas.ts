@@ -399,41 +399,43 @@ export const detectMessageProvider = (
 /**
  * Convert from OpenAI message format to any other format
  */
+/**
+ * Per-provider conversions from an OpenAI message. Declaring this as a mapped
+ * type over `ModelProvider` is what lets `fromOpenAIMessage` stay cast-free:
+ * indexing it with the type parameter `T` yields a function returning exactly
+ * `ProviderToMessageMap[T]`, which a `switch` on a generic value cannot do.
+ * A missing provider is a compile error, so this also replaces the previous
+ * `assertUnreachable` default.
+ */
+const OPENAI_MESSAGE_CONVERTERS: {
+  [P in ModelProvider]: (message: OpenAIMessage) => ProviderToMessageMap[P];
+} = {
+  OPENAI: (message) => message,
+  AZURE_OPENAI: (message) => message,
+  DEEPSEEK: (message) => message,
+  XAI: (message) => message,
+  OLLAMA: (message) => message,
+  CEREBRAS: (message) => message,
+  FIREWORKS: (message) => message,
+  GROQ: (message) => message,
+  MOONSHOT: (message) => message,
+  PERPLEXITY: (message) => message,
+  TOGETHER: (message) => message,
+  AWS: (message) => openAIMessageToAws.parse(message),
+  ANTHROPIC: (message) => openAIMessageToAnthropic.parse(message),
+  // TODO: Add Google message support
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- GOOGLE falls back to JSONLiteral, which OpenAIMessage does not structurally satisfy; parsing with jsonLiteralSchema here would change behavior
+  GOOGLE: (message) => message as JSONLiteral,
+};
+
 export const fromOpenAIMessage = <T extends ModelProvider>({
   message,
   targetProvider,
 }: {
   message: OpenAIMessage;
   targetProvider: T;
-}): ProviderToMessageMap[T] => {
-  switch (targetProvider) {
-    case "AZURE_OPENAI":
-    case "OPENAI":
-    case "DEEPSEEK":
-    case "XAI":
-    case "OLLAMA":
-    case "CEREBRAS":
-    case "FIREWORKS":
-    case "GROQ":
-    case "MOONSHOT":
-    case "PERPLEXITY":
-    case "TOGETHER":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToMessageMap[T] from a switch on targetProvider
-      return message as ProviderToMessageMap[T];
-    case "ANTHROPIC":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToMessageMap[T] from a switch on targetProvider
-      return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
-    case "AWS":
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToMessageMap[T] from a switch on targetProvider
-      return openAIMessageToAws.parse(message) as ProviderToMessageMap[T];
-    case "GOOGLE":
-      // TODO: Add Google message support
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- TS cannot narrow the generic indexed access ProviderToMessageMap[T] from a switch on targetProvider
-      return message as ProviderToMessageMap[T];
-    default:
-      return assertUnreachable(targetProvider);
-  }
-};
+}): ProviderToMessageMap[T] =>
+  OPENAI_MESSAGE_CONVERTERS[targetProvider](message);
 
 /**
  * Union of all message formats

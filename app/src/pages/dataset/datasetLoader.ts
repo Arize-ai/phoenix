@@ -1,5 +1,6 @@
 import { fetchQuery, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
+import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -11,8 +12,8 @@ import { DatasetPageQueryNode } from "./DatasetPage";
  */
 export async function datasetLoader(args: LoaderFunctionArgs) {
   const { datasetId } = args.params;
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- datasetId is guaranteed present by the :datasetId route param
-  const id = datasetId as string;
+  invariant(datasetId, "datasetId is required by the route definition");
+  const id = datasetId;
   const queryRef = loadQuery<DatasetPageQuery>(
     RelayEnvironment,
     DatasetPageQueryNode,
