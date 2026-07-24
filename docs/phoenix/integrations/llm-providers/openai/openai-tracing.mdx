@@ -6,7 +6,8 @@ description: "Phoenix provides auto-instrumentation for the [OpenAI Python Libra
 import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
 
 <Info>
-**Note***: This instrumentation also works with Azure OpenAI
+**Note***: This instrumentation also works with Azure OpenAI and
+OpenAI-compatible providers.
 
 </Info>
 
@@ -39,6 +40,24 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
+For an OpenAI-compatible provider such as TokenLab, configure the OpenAI client
+with the provider's base URL and API key. The same OpenInference
+instrumentation captures the request:
+
+```python
+import openai
+
+client = openai.OpenAI(
+    api_key="your-tokenlab-api-key",
+    base_url="https://api.tokenlab.sh/v1",
+)
+response = client.chat.completions.create(
+    model="claude-sonnet-5",
+    messages=[{"role": "user", "content": "Write a haiku."}],
+)
+print(response.choices[0].message.content)
+```
+
 ## Observe
 
 Now that you have tracing setup, all invocations of OpenAI (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation.
@@ -50,5 +69,4 @@ Now that you have tracing setup, all invocations of OpenAI (completions, chat co
 * [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai)
 
 * [Working examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai/examples)
-
 
