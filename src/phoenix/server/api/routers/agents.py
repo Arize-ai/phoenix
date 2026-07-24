@@ -1733,6 +1733,8 @@ def create_agents_router(
         response_model=GetAgentSessionResponseBody,
         response_model_by_alias=True,
         response_model_exclude_unset=True,
+        # AI SDK part types and tool states are required on the wire but modeled as defaults.
+        # Do not set response_model_exclude_defaults=True here.
     )
     async def get_session(
         agent_id: str,
