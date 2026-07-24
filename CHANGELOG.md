@@ -1,5 +1,25 @@
 # Changelog
 
+## [19.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.5.0...arize-phoenix-v19.6.0) (2026-07-24)
+
+
+### Features
+
+* **client:** add span_ids filter to get_spans in python and typescript clients ([#14697](https://github.com/Arize-ai/phoenix/issues/14697)) ([df7057a](https://github.com/Arize-ai/phoenix/commit/df7057ab12639e7333f755ced1fc3f36af5a054e))
+* **ui:** download selected spans or traces as OTLP JSON ([#14693](https://github.com/Arize-ai/phoenix/issues/14693)) ([4b4ad21](https://github.com/Arize-ai/phoenix/commit/4b4ad21ac9dc1084cfca2ff236a0509bf76944f6))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-evals to 3.3.0 ([#14679](https://github.com/Arize-ai/phoenix/issues/14679)) ([181adc8](https://github.com/Arize-ai/phoenix/commit/181adc809aad5f44fa93e89762d92c9d5b8378be))
+* **ui:** consistent span-detail input/output cards + session view polish ([#14699](https://github.com/Arize-ai/phoenix/issues/14699)) ([33c94e6](https://github.com/Arize-ai/phoenix/commit/33c94e62771125ee4e26797045f02861ce4903d1))
+* **ui:** extend session annotation panel to full drawer height ([#14700](https://github.com/Arize-ai/phoenix/issues/14700)) ([cf616df](https://github.com/Arize-ai/phoenix/commit/cf616dfea1182d503b2ccdf02b898306efd700c1))
+
+
+### Documentation
+
+* remove Phoenix Cloud in favor of local-first quickstarts ([#14575](https://github.com/Arize-ai/phoenix/issues/14575)) ([bc53eaf](https://github.com/Arize-ai/phoenix/commit/bc53eafcc4089d8b03d9b742df31a385ff0b53f1))
+
 ## [19.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.4.0...arize-phoenix-v19.5.0) (2026-07-23)
 
 
