@@ -11,9 +11,8 @@ import { agentContextKey, type AgentContext } from "./agentContextTypes";
  * {@link agentContextKey}. Project entries are *merged* rather than dropped
  * so a route-derived project entry collapses with mounted project entries
  * that contribute spans-page state — the freeform `spanFilter` DSL
- * expression from SpanFilterConditionField and the `rootSpansOnly` boolean
- * toggle from SpansTable — into a single project context with both fields
- * attached when present.
+ * expression from SpanFilterConditionField — into a single project context
+ * with that field attached when present.
  */
 export function selectActiveContexts(state: AgentState): AgentContext[] {
   const byKey = new Map<string, AgentContext>();
@@ -29,16 +28,13 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
     }
     if (existing.type === "project" && context.type === "project") {
       // Layer the mounted spans-page state onto the route-derived entry.
-      // The route version usually carries neither field; mounted components
-      // are the only source: SpanFilterConditionField advertises the
-      // freeform `spanFilter` DSL expression, and SpansTable advertises the
-      // `rootSpansOnly` toggle (a boolean for the root-vs-all-spans switch,
-      // distinct from any condition in `spanFilter`).
+      // The route version usually carries no filter; SpanFilterConditionField
+      // is the only source of the freeform `spanFilter` DSL expression, which
+      // describes the view in full (root-span scoping included).
       byKey.set(key, {
         ...existing,
         ...context,
         spanFilter: context.spanFilter ?? existing.spanFilter,
-        rootSpansOnly: context.rootSpansOnly ?? existing.rootSpansOnly,
       });
     }
     if (existing.type === "playground" && context.type === "playground") {

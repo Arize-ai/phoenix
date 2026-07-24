@@ -20,7 +20,10 @@ import {
   openInferenceAttributeCompletions,
   openInferenceAttributeValueCompletionSource,
 } from "./spanFilterSemanticConventionCompletions";
-import { validateSpanFilterCondition } from "./spanFilterValidation";
+import {
+  type SpanFilterConditionValidation,
+  validateSpanFilterCondition,
+} from "./spanFilterValidation";
 
 /**
  * The fields of the span filter DSL that an expression can reference
@@ -69,7 +72,12 @@ const spanFilterCompletions: Completion[] = [
   {
     label: "parent_id",
     type: "variable",
-    info: "The ID of a span's parent - None for root spans",
+    info: "The ID of a span's parent - use `parent_id is None` for root spans",
+  },
+  {
+    label: "parent_span",
+    type: "variable",
+    info: "The parent span - use `parent_span is None` for root spans, including orphans (spans whose parent is missing)",
   },
   {
     label: "latency_ms",
@@ -179,6 +187,10 @@ const spanFilterSnippets: DSLFilterSnippet[] = [
     snippet: "parent_id is None",
   },
   {
+    label: "filter for root spans (incl. orphans)",
+    snippet: "parent_span is None",
+  },
+  {
     label: "filter by trace id",
     snippet: "trace_id == '${trace id}'",
   },
@@ -240,9 +252,16 @@ async function fetchAnnotationCompletions(
 
 type SpanFilterConditionFieldProps = {
   /**
-   * Callback when the condition is valid
+   * Callback when the condition is valid.
+   *
+   * `selectsRootSpansOnly` reports whether the condition restricts the result
+   * set to root spans, which decides between cumulative and per-span metric
+   * columns. `null` when the server did not answer.
    */
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (
+    condition: string,
+    selectsRootSpansOnly: boolean | null
+  ) => void;
   placeholder?: string;
 };
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
@@ -286,9 +305,12 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   );
 
   const handleValidCondition = useCallback(
-    (condition: string) => {
+    (condition: string, validation: SpanFilterConditionValidation | null) => {
       recordValidCondition(condition);
-      onValidCondition(condition);
+      // A null validation means the condition was empty, which the field
+      // resolves without asking the server. An empty condition restricts
+      // nothing, so it is knowably not root-scoped.
+      onValidCondition(condition, validation?.selectsRootSpansOnly ?? false);
     },
     [recordValidCondition, onValidCondition]
   );

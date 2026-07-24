@@ -7,12 +7,9 @@ export function parseSetSpansFilterInput(
   if (typeof input !== "object" || input === null) return null;
   const candidate = input as {
     condition?: unknown;
-    rootSpansOnly?: unknown;
   };
   if (typeof candidate.condition !== "string") return null;
-  if (typeof candidate.rootSpansOnly !== "boolean") return null;
   return {
     condition: candidate.condition,
-    rootSpansOnly: candidate.rootSpansOnly,
   };
 }

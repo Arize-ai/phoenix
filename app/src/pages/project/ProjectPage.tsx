@@ -17,7 +17,6 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
-import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
@@ -129,9 +128,6 @@ function ProjectPageContentBody({
   projectId: string;
   timeRangeISOStrings: TimeRangeISOStrings;
 }) {
-  const treatOrphansAsRoots = useProjectContext(
-    (state) => state.treatOrphansAsRoots
-  );
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
   const data = useLazyLoadQuery<ProjectPageQueryType>(
@@ -176,18 +172,13 @@ function ProjectPageContentBody({
   // unfiltered data — dropping an applied filter while streaming (see issue
   // #14216). The tables instead own time-range and filter liveness through
   // their own `refetch`, so the preloaded query only needs an initial window
-  // and reloads solely on project, tab, or orphan-span changes.
+  // and reloads solely on project or tab changes.
   const loadTableQueryForTab = useEffectEvent(
-    (
-      currentTabIndex: number,
-      currentProjectId: string,
-      currentTreatOrphansAsRoots: boolean
-    ) => {
+    (currentTabIndex: number, currentProjectId: string) => {
       if (currentTabIndex === TAB_INDEX_MAP.spans) {
         loadSpansQuery({
           id: currentProjectId,
           timeRange: timeRangeISOStrings,
-          orphanSpanAsRootSpan: currentTreatOrphansAsRoots,
         });
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
         loadTracesQuery({
@@ -208,9 +199,9 @@ function ProjectPageContentBody({
   );
   useEffect(() => {
     startTransition(() => {
-      loadTableQueryForTab(tabIndex, projectId as string, treatOrphansAsRoots);
+      loadTableQueryForTab(tabIndex, projectId as string);
     });
-  }, [tabIndex, projectId, treatOrphansAsRoots]);
+  }, [tabIndex, projectId]);
 
   const onTabChange = useCallback(
     (index: number) => {

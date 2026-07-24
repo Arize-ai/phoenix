@@ -229,7 +229,6 @@ def _default_contexts() -> ResolvedContexts:
             type="project",
             project_node_id=DEFAULT_PROJECT_NODE_ID,
             span_filter="",
-            root_spans_only=False,
         )
     )
     return contexts

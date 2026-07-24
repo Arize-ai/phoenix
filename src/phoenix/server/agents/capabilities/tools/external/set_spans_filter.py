@@ -16,26 +16,31 @@ NAME = "set_spans_filter"
 
 DESCRIPTION = (
     "Set the spans table filter. The filter is applied declaratively as a "
-    "complete state: every call must specify BOTH the freeform filter "
-    "`condition` (Phoenix span filter DSL) AND the `rootSpansOnly` toggle, "
-    "and the table is updated to exactly that state. There is no notion of "
-    "leaving a field unchanged — always pass both. Pass `condition` as an "
-    "empty string to clear the filter."
+    "complete state: the freeform `condition` (Phoenix span filter DSL) "
+    "describes the entire view, and the table is updated to exactly that "
+    "state. There is no notion of leaving part of the filter unchanged — "
+    "always send the whole condition. Pass an empty string to clear it."
     "\n\n"
-    "PAIRING `condition` WITH `rootSpansOnly`: the filter condition only "
-    "matches within the currently selected root/all scope. When narrowing "
-    "to a `span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, "
-    "RETRIEVER, EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL), pair it with "
-    "`rootSpansOnly: false` — those kinds are almost always nested under a "
-    "CHAIN/AGENT root, so `rootSpansOnly: true` yields zero results even "
-    "when matching spans exist. Same applies when filtering by anything "
-    "that targets nested spans (specific tool names, status_code == "
-    "'ERROR' on inner calls, annotations attached to leaf spans). The "
-    "`rootSpansOnly` field only takes visible effect when the spans table "
-    "toggle is mounted (Spans tab); on other tabs only `condition` "
-    "applies, but you must still send `rootSpansOnly`."
+    "ROOT SPANS ARE PART OF THE CONDITION: restrict to root spans -- spans "
+    "with no parent -- with the predicate `parent_id is None`; omit it to "
+    "search every span. This is usually the top-level span of each trace, "
+    "but nothing enforces one root per trace: a fragmented or partially "
+    "ingested trace can have several, so do not treat the row count as a "
+    "trace count. Do NOT restrict to root spans when narrowing to a "
+    "`span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, RETRIEVER, "
+    "EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL) — those kinds are almost "
+    "always nested under a CHAIN/AGENT root, so combining them with a root "
+    "predicate yields zero results even when matching spans exist. The same "
+    "applies to anything that targets nested spans (specific tool names, "
+    "status_code == 'ERROR' on inner calls, annotations attached to leaf "
+    "spans). The spans table starts at `parent_id is None`, so dropping that "
+    "predicate is how you widen the view to every span."
     "\n\n"
     "DSL FIELDS:\n"
+    "  - Root spans: `parent_id is None` matches spans with no parent "
+    "pointer, and is the table's default. `parent_span is None` is the "
+    "wider form that also matches orphans -- spans whose parent was never "
+    "ingested -- and is what to use when the user asks about orphans.\n"
     "  - String: `span_kind`, `name` (the span name, NOT span_name), "
     "`status_code`, `status_message`, `span_id`, `trace_id`, `parent_id`. "
     "Compare with `==`, `!=`, or membership via `in`.\n"
@@ -60,22 +65,19 @@ DESCRIPTION = (
     "  - `status_code` values are UPPERCASE: 'OK', 'ERROR', 'UNSET'.\n"
     "  - Always wrap string literals in single or double quotes."
     "\n\n"
-    "EXAMPLES BY INTENT (every call sets both fields):\n"
-    "  - 'Show me LLM spans' → condition `span_kind == 'LLM'`, "
-    "rootSpansOnly: false\n"
-    "  - 'Tool calls' → condition `span_kind == 'TOOL'`, "
-    "rootSpansOnly: false\n"
-    "  - 'Errored spans' → condition `status_code == 'ERROR'`, "
-    "rootSpansOnly: false\n"
-    "  - 'Slow LLM calls' → condition `span_kind == 'LLM' and "
-    "latency_ms >= 5000`, rootSpansOnly: false\n"
-    "  - 'Top-level traces only' → condition `''`, rootSpansOnly: true\n"
-    "  - 'Hallucinations' → condition "
-    "`annotations['Hallucination'].label == 'hallucinated'`, "
-    "rootSpansOnly: false\n"
-    "  - 'Spans mentioning agent in input' → condition `'agent' in "
-    "input.value`, rootSpansOnly: false\n"
-    "  - 'Reset to default view' → condition `''`, rootSpansOnly: true."
+    "EXAMPLES BY INTENT:\n"
+    "  - 'Show me LLM spans' → `span_kind == 'LLM'`\n"
+    "  - 'Tool calls' → `span_kind == 'TOOL'`\n"
+    "  - 'Errored spans' → `status_code == 'ERROR'`\n"
+    "  - 'Slow LLM calls' → `span_kind == 'LLM' and latency_ms >= 5000`\n"
+    "  - 'Top-level traces only' → `parent_id is None`\n"
+    "  - 'Slow traces' → `parent_id is None and latency_ms >= 5000`\n"
+    "  - 'Include orphaned spans as roots' → `parent_span is None`\n"
+    "  - 'Hallucinations' → "
+    "`annotations['Hallucination'].label == 'hallucinated'`\n"
+    "  - 'Spans mentioning agent in input' → `'agent' in input.value`\n"
+    "  - 'Show everything' → `''`\n"
+    "  - 'Reset to default view' → `parent_id is None`."
 )
 
 PARAMETERS: dict[str, Any] = {
@@ -84,18 +86,13 @@ PARAMETERS: dict[str, Any] = {
         "condition": {
             "type": "string",
             "description": (
-                "The span filter DSL expression to apply. Pass an empty string to clear the filter."
-            ),
-        },
-        "rootSpansOnly": {
-            "type": "boolean",
-            "description": (
-                "Whether the spans table should restrict to root spans "
-                "(true) or include every span (false)."
+                "The span filter DSL expression to apply, including any root-span "
+                "restriction (`parent_id is None`). Pass an empty string to clear "
+                "the filter and show every span."
             ),
         },
     },
-    "required": ["condition", "rootSpansOnly"],
+    "required": ["condition"],
     "additionalProperties": False,
 }
 

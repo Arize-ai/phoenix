@@ -8,10 +8,4 @@
   <span_filter status="available"/>
 {% endif %}
 {% endif %}
-{% if project.root_spans_only is true %}
-  <spans_table_view>root_spans_only</spans_table_view>
-  <spans_table_guidance>To include non-root spans on the next `set_spans_filter` call, set `rootSpansOnly: false`.</spans_table_guidance>
-{% elif project.root_spans_only is false %}
-  <spans_table_view>all_spans</spans_table_view>
-{% endif %}
 </phoenix_project_context>
