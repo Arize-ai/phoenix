@@ -1,5 +1,6 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
@@ -103,57 +104,59 @@ function renderChatView(
 ) {
   act(() => {
     root.render(
-      <ThemeProvider themeMode="light" disableBodyTheme>
-        <AgentProvider
-          agentsConfig={{
-            collectorEndpoint: null,
-            assistantProjectName: "assistant_agent",
-            forceTracing: false,
-            webAccessEnabled: false,
-            assistantEnabled: true,
-            allowLocalTraces: true,
-            allowRemoteExport: false,
-          }}
-          observability={{
-            storeLocalTraces: true,
-            exportRemoteTraces: false,
-            attachUserId: false,
-            acknowledgedTraceConsent: {
+      <MemoryRouter>
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <AgentProvider
+            agentsConfig={{
+              collectorEndpoint: null,
+              assistantProjectName: "assistant_agent",
+              forceTracing: false,
+              webAccessEnabled: false,
+              assistantEnabled: true,
               allowLocalTraces: true,
               allowRemoteExport: false,
-            },
-          }}
-          capabilities={{
-            "bash.retainInactiveSessions": false,
-            "graphql.mutations": false,
-            "session.storeSessions": true,
-            "subagents.enabled": false,
-            "web.access": false,
-          }}
-          {...(initialDraftInputBySessionId
-            ? { draftInputBySessionId: initialDraftInputBySessionId }
-            : {})}
-        >
-          <ChatView
-            key={chatKey ?? sessionId ?? "no-session"}
-            sessionId={sessionId}
-            messages={chatMessages}
-            sendMessage={sendMessage}
-            stop={async () => undefined}
-            status={status}
-            error={error}
-            pendingElicitation={null}
-            handleElicitationSubmit={vi.fn()}
-            handleElicitationCancel={vi.fn()}
-            retryMessage={retryMessage}
-            rewindToMessage={rewindToMessage}
-            forkFromMessage={forkFromMessage}
-            modelMenuValue={{ provider: "ANTHROPIC", modelName: "claude" }}
-            onModelChange={vi.fn()}
-            autoFocusInput={autoFocusInput}
-          />
-        </AgentProvider>
-      </ThemeProvider>
+            }}
+            observability={{
+              storeLocalTraces: true,
+              exportRemoteTraces: false,
+              attachUserId: false,
+              acknowledgedTraceConsent: {
+                allowLocalTraces: true,
+                allowRemoteExport: false,
+              },
+            }}
+            capabilities={{
+              "bash.retainInactiveSessions": false,
+              "graphql.mutations": false,
+              "session.storeSessions": true,
+              "subagents.enabled": false,
+              "web.access": false,
+            }}
+            {...(initialDraftInputBySessionId
+              ? { draftInputBySessionId: initialDraftInputBySessionId }
+              : {})}
+          >
+            <ChatView
+              key={chatKey ?? sessionId ?? "no-session"}
+              sessionId={sessionId}
+              messages={chatMessages}
+              sendMessage={sendMessage}
+              stop={async () => undefined}
+              status={status}
+              error={error}
+              pendingElicitation={null}
+              handleElicitationSubmit={vi.fn()}
+              handleElicitationCancel={vi.fn()}
+              retryMessage={retryMessage}
+              rewindToMessage={rewindToMessage}
+              forkFromMessage={forkFromMessage}
+              modelMenuValue={{ provider: "ANTHROPIC", modelName: "claude" }}
+              onModelChange={vi.fn()}
+              autoFocusInput={autoFocusInput}
+            />
+          </AgentProvider>
+        </ThemeProvider>
+      </MemoryRouter>
     );
   });
 }
@@ -315,6 +318,33 @@ describe("ChatView", () => {
     expect(retryMessage).toHaveBeenCalledWith("assistant-message");
     expect(container.textContent).toContain("Show technical details");
     expect(container.textContent).toContain("provider unavailable");
+  });
+
+  it("surfaces API key errors with remediation guidance and a settings link", () => {
+    renderChatView(root, {
+      chatMessages: messages,
+      error: new Error(
+        "The model provider rejected the request because the API key is " +
+          "missing, invalid, or misconfigured. Add a valid API key for the " +
+          "selected model in Settings, then try again.\n\n" +
+          "Provider error: 401 Unauthorized"
+      ),
+      status: "error",
+      retryMessage: vi.fn(),
+      rewindToMessage: vi.fn(),
+      forkFromMessage: vi.fn(),
+    });
+
+    expect(container.textContent).toContain(
+      "The model provider rejected your API key."
+    );
+    expect(container.textContent).toContain("AI provider settings");
+    const settingsLink = Array.from(container.querySelectorAll("a")).find(
+      (anchor) => anchor.getAttribute("href") === "/settings/providers"
+    );
+    expect(settingsLink).not.toBeUndefined();
+    // technical detail from the provider is still available
+    expect(container.textContent).toContain("Provider error: 401 Unauthorized");
   });
 
   it("shows interrupted recovery when history ends on a user message", () => {
