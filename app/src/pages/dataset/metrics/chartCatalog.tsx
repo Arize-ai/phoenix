@@ -106,8 +106,9 @@ function createExperimentMetricPanel({
 }
 
 /**
- * The canonical chart objects, built once so repeated lookups return stable
- * references.
+ * The built-in chart objects, built once so repeated lookups return stable
+ * references. Annotation chart objects are derived per lookup from their key;
+ * only their shared `Panel` component reference is stable.
  */
 const CHARTS_BY_KEY = Object.fromEntries(
   EXPERIMENT_METRIC_CHART_KEYS.map((key) => {
@@ -153,6 +154,8 @@ export const getExperimentMetricChart = (
     annotationName,
     name: annotationName,
     description: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
+    // An annotation's view (line or bars) is only known once its metric data
+    // loads, so the catalog shows a neutral line glyph.
     chartType: "line",
     Panel: ExperimentAnnotationChartPanel,
   };

@@ -6,7 +6,6 @@ import { Loading } from "@phoenix/components";
 import {
   AnnotationMetricsChart,
   type AnnotationMetricsInputPoint,
-  type AnnotationMetricsSeries,
   AnnotationScoreLabelToggle,
   ChartPanel,
   getDefaultAnnotationMetricsView,
@@ -84,7 +83,7 @@ function ExperimentAnnotationMetricsPanels({
   );
 }
 
-export function useExperimentAnnotationMetricSeries({
+function useExperimentAnnotationMetricSeries({
   datasetId,
   annotationName,
   fetchKey,
@@ -157,24 +156,6 @@ function ExperimentAnnotationMetricPanelContent({
       annotationName,
       fetchKey,
     });
-  return (
-    <ExperimentAnnotationMetricsPanel
-      series={series}
-      baselineSequenceNumber={baselineSequenceNumber}
-      fillHeight={fillHeight}
-    />
-  );
-}
-
-export function ExperimentAnnotationMetricsPanel({
-  series,
-  baselineSequenceNumber,
-  fillHeight = false,
-}: {
-  series: AnnotationMetricsSeries;
-  baselineSequenceNumber?: number;
-  fillHeight?: boolean;
-}) {
   const [view, setView] = useState(() =>
     getDefaultAnnotationMetricsView(series)
   );

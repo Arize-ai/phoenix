@@ -12,13 +12,15 @@ import {
 import { MetricsChartSelector } from "@phoenix/components/chart";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import {
-  EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
   type ExperimentMetricChartKey,
   getExperimentAnnotationMetricChartKey,
   getExperimentAnnotationName,
   MAX_SELECTED_EXPERIMENT_METRIC_CHARTS,
 } from "@phoenix/pages/dataset/constants";
-import { EXPERIMENT_METRIC_CHARTS } from "@phoenix/pages/dataset/metrics/chartCatalog";
+import {
+  EXPERIMENT_METRIC_CHARTS,
+  getExperimentMetricCharts,
+} from "@phoenix/pages/dataset/metrics/chartCatalog";
 import { useExperimentAnnotationMetricNames } from "@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricNames";
 
 /**
@@ -72,38 +74,27 @@ function ExperimentChartSelectorMenu({
   onSelectionChange: (keys: ExperimentMetricChartKey[]) => void;
 }) {
   const annotationNames = useExperimentAnnotationMetricNames(datasetId);
+  const annotationKeys = annotationNames.map(
+    getExperimentAnnotationMetricChartKey
+  );
   const availableAnnotationKeys = new Set<ExperimentMetricChartKey>(
-    annotationNames.map(getExperimentAnnotationMetricChartKey)
+    annotationKeys
   );
   // Keep a persisted annotation visible if it was deleted so the
   // user can still deselect the empty chart.
-  const unavailableSelectedAnnotations = selectedChartKeys.flatMap((key) => {
-    const annotationName = getExperimentAnnotationName(key);
-    return annotationName == null || availableAnnotationKeys.has(key)
-      ? []
-      : [
-          {
-            key,
-            name: annotationName,
-            description: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
-            chartType: "line" as const,
-          },
-        ];
-  });
-  const annotationOptions = annotationNames.map((annotationName) => ({
-    key: getExperimentAnnotationMetricChartKey(annotationName),
-    name: annotationName,
-    description: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
-    // The lightweight catalog query intentionally omits full series data, so
-    // use a neutral chart glyph until the selected chart reveals its view.
-    chartType: "line" as const,
-  }));
+  const unavailableSelectedAnnotationKeys = selectedChartKeys.filter(
+    (key) =>
+      getExperimentAnnotationName(key) != null &&
+      !availableAnnotationKeys.has(key)
+  );
   return (
     <MetricsChartSelector
       options={[
         ...EXPERIMENT_METRIC_CHARTS,
-        ...annotationOptions,
-        ...unavailableSelectedAnnotations,
+        ...getExperimentMetricCharts([
+          ...annotationKeys,
+          ...unavailableSelectedAnnotationKeys,
+        ]),
       ]}
       selectedKeys={selectedChartKeys}
       maxSelected={MAX_SELECTED_EXPERIMENT_METRIC_CHARTS}
