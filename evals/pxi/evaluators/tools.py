@@ -53,6 +53,16 @@ def _expected_tools(expected: Any) -> dict[str, Any]:
     return _as_dict(_as_dict(expected).get("tools", {}))
 
 
+def _expected_documentation_tools(expected: Any) -> list[str]:
+    configured = _expected_tools(expected).get(
+        "documentation_any",
+        ["search_phoenix", "query_docs_filesystem_phoenix"],
+    )
+    if not isinstance(configured, list):
+        return []
+    return [name for name in configured if isinstance(name, str) and name]
+
+
 def _expected_tool_call_args(expected: Any) -> dict[str, Any]:
     return _as_dict(_as_dict(expected).get("tool_call_args", {}))
 
@@ -167,6 +177,37 @@ def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     the dataset YAML.
     """
     return evaluate_tools_called(output, expected)
+
+
+def evaluate_documentation_tools_used(output: Any, expected: Any) -> dict[str, Any]:
+    """Evaluate whether the PXI agent used at least one documentation tool."""
+    expected_tools = _expected_documentation_tools(expected)
+    observed = [
+        name for call in tool_calls_from_output(output) if (name := _tool_name(call)) is not None
+    ]
+    observed_documentation = [name for name in observed if name in expected_tools]
+    metadata = {
+        "expected_any_documentation_tool": expected_tools,
+        "observed_tools": observed,
+        "observed_documentation_tools": observed_documentation,
+    }
+    if observed_documentation:
+        return {
+            "score": 1.0,
+            "label": "pass",
+            "metadata": metadata,
+        }
+    return {
+        "score": 0.0,
+        "label": "fail",
+        "explanation": "No documentation tool was called.",
+        "metadata": metadata,
+    }
+
+
+@create_evaluator(name="documentation_tools_used", kind="code")
+def documentation_tools_used(output: Any, expected: Any) -> dict[str, Any]:
+    return evaluate_documentation_tools_used(output, expected)
 
 
 @create_evaluator(name="tool_call_count_within_limit", kind="code")

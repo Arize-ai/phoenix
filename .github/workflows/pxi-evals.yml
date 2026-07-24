@@ -28,6 +28,8 @@ env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
   PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+  PHOENIX_DANGEROUSLY_ENABLE_AGENTS: "true"
+  PHOENIX_ALLOW_EXTERNAL_RESOURCES: "true"
   PXI_EVAL_INITIAL_RESULTS_PATH: ${{ github.workspace }}/pxi-eval-results-initial.json
   PXI_EVAL_RETRY_RESULTS_PATH: ${{ github.workspace }}/pxi-eval-results-retry.json
   PXI_EVAL_RETRY_NODEIDS_PATH: ${{ github.workspace }}/pxi-eval-retry-nodeids.txt
@@ -35,6 +37,12 @@ env:
 jobs:
   regression:
     name: PXI Regression Evals
+    # PXI regression evals need repository secrets and a configured Phoenix
+    # endpoint. Fork-origin pull_request runs do not receive those secrets, so
+    # skip instead of failing before datasets run.
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

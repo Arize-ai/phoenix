@@ -33,6 +33,21 @@ def _required_in_app_links(expected: Any) -> list[str]:
     return [link for link in required if isinstance(link, str)]
 
 
+def _canonical_docs_domain(expected: Any) -> str:
+    domain = _expected_links(expected).get("canonical_docs_domain")
+    if isinstance(domain, str) and domain.strip():
+        return domain.rstrip("/")
+    return "https://arize.com/docs/phoenix"
+
+
+def _is_canonical_docs_href(href: str, domain: str) -> bool:
+    return href == domain or href.startswith(f"{domain}/")
+
+
+def _is_root_relative_href(href: str) -> bool:
+    return href.startswith("/") and not href.startswith("//")
+
+
 def _markdown_href_spans(text: str) -> tuple[list[str], list[tuple[int, int]]]:
     hrefs: list[str] = []
     spans: list[tuple[int, int]] = []
@@ -183,6 +198,65 @@ def evaluate_in_app_links(output: Any, expected: Any) -> dict[str, Any]:
     )
 
 
+def evaluate_documentation_links(output: Any, expected: Any) -> dict[str, Any]:
+    """Evaluate PXI answer links against canonical Phoenix docs markdown-link expectations."""
+    text = _assistant_text(output)
+    domain = _canonical_docs_domain(expected)
+    if text is None:
+        return _failure(
+            "Assistant output did not include text.",
+            {
+                "canonical_docs_domain": domain,
+                "observed_markdown_hrefs": [],
+                "canonical_documentation_hrefs": [],
+                "invalid_documentation_hrefs": [],
+                "bare_urls": [],
+            },
+        )
+
+    hrefs, href_spans = _markdown_href_spans(text)
+    bare_urls = _bare_urls(text, href_spans)
+    canonical = [href for href in hrefs if _is_canonical_docs_href(href, domain)]
+    root_relative = [href for href in hrefs if _is_root_relative_href(href)]
+    invalid = [
+        href
+        for href in hrefs
+        if not _is_canonical_docs_href(href, domain) and not _is_root_relative_href(href)
+    ]
+    if not canonical:
+        invalid.extend(root_relative)
+    metadata = {
+        "canonical_docs_domain": domain,
+        "observed_markdown_hrefs": hrefs,
+        "canonical_documentation_hrefs": canonical,
+        "root_relative_hrefs": root_relative,
+        "invalid_documentation_hrefs": invalid,
+        "bare_urls": bare_urls,
+    }
+
+    if bare_urls:
+        return _failure("Assistant output included bare URLs.", metadata)
+    if invalid:
+        return _failure(
+            "Assistant output included documentation links outside the canonical docs domain.",
+            metadata,
+        )
+    if not canonical:
+        return _failure("Assistant output did not include canonical documentation links.", metadata)
+
+    return {
+        "score": 1.0,
+        "label": "pass",
+        "explanation": "All documentation links used canonical Phoenix docs markdown URLs.",
+        "metadata": metadata,
+    }
+
+
 @create_evaluator(name="in_app_links_valid", kind="code")
 def in_app_links_valid(output: Any, expected: Any) -> dict[str, Any]:
     return evaluate_in_app_links(output, expected)
+
+
+@create_evaluator(name="documentation_links_valid", kind="code")
+def documentation_links_valid(output: Any, expected: Any) -> dict[str, Any]:
+    return evaluate_documentation_links(output, expected)
