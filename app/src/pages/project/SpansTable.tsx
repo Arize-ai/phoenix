@@ -1096,6 +1096,7 @@ export function SpansTable(props: SpansTableProps) {
         </Group>
         {selectedRows.length ? (
           <SpanSelectionToolbar
+            projectName={data.name}
             selectedSpans={selectedSpans}
             onClearSelection={clearSelection}
           />

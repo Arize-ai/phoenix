@@ -59,6 +59,7 @@ export interface SelectedSpan {
 }
 
 type SpanSelectionToolbarProps = {
+  projectName: string;
   selectedSpans: SelectedSpan[];
   onClearSelection: () => void;
 };
@@ -73,7 +74,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
   const [isDatasetPopoverOpen, setIsDatasetPopoverOpen] = useState(false);
   const [isDeletingTracesDialogOpen, setIsDeletingTracesDialogOpen] =
     useState(false);
-  const { selectedSpans, onClearSelection } = props;
+  const { projectName, selectedSpans, onClearSelection } = props;
 
   const traceIds = useMemo(
     () => [...new Set(selectedSpans.map((span) => span.trace.id))],
@@ -284,6 +285,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
           </DialogTrigger>
           <SpanSelectionDownloadMenu
             projectId={projectId}
+            projectName={projectName}
             selectedSpans={selectedSpans}
             onError={setError}
           />

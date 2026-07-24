@@ -1201,6 +1201,7 @@ export function TracesTable(props: TracesTableProps) {
         </div>
         {selectedRows.length ? (
           <SpanSelectionToolbar
+            projectName={data.name}
             selectedSpans={selectedSpans}
             onClearSelection={clearSelection}
           />

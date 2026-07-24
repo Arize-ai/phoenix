@@ -26,7 +26,21 @@ type SpanSearchQuery = {
   cursor?: string;
 };
 
-type DownloadAction = "spans" | "spans-otlp" | "traces-otlp";
+type DownloadAction = "spans" | "traces" | "spans-otlp" | "traces-otlp";
+
+const DOWNLOAD_ACTIONS: DownloadAction[] = [
+  "spans",
+  "traces",
+  "spans-otlp",
+  "traces-otlp",
+];
+
+/**
+ * Makes a name safe to use in a file name.
+ */
+function sanitizeFileName(name: string): string {
+  return name.replace(/[^\w.-]+/g, "_");
+}
 
 /**
  * Follows pagination cursors until the result set is exhausted, accumulating
@@ -98,14 +112,17 @@ async function fetchOtlpSpans({
 }
 
 /**
- * Fetches all spans in the Phoenix span format matching the given span IDs.
+ * Fetches all spans in the Phoenix span format matching the given span or
+ * trace IDs.
  */
 async function fetchPhoenixSpans({
   projectId,
   spanIds,
+  traceIds,
 }: {
   projectId: string;
-  spanIds: string[];
+  spanIds?: string[];
+  traceIds?: string[];
 }): Promise<PhoenixSpan[]> {
   return fetchAllPages({
     fetchPage: async (cursor) => {
@@ -114,7 +131,7 @@ async function fetchPhoenixSpans({
         {
           params: {
             path: { project_identifier: projectId },
-            query: buildSpanSearchQuery({ spanIds, cursor }),
+            query: buildSpanSearchQuery({ spanIds, traceIds, cursor }),
           },
         }
       );
@@ -168,16 +185,18 @@ function downloadJsonl({
 
 type SpanSelectionDownloadMenuProps = {
   projectId: string;
+  projectName: string;
   selectedSpans: SelectedSpan[];
   onError: (message: string) => void;
 };
 
 /**
  * A menu that downloads the selected spans, or the full traces they belong
- * to, as a JSON file.
+ * to, as a JSON or JSONL file.
  */
 export function SpanSelectionDownloadMenu({
   projectId,
+  projectName,
   selectedSpans,
   onError,
 }: SpanSelectionDownloadMenuProps) {
@@ -186,13 +205,25 @@ export function SpanSelectionDownloadMenu({
   const onDownload = async (action: DownloadAction) => {
     setIsDownloading(true);
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filePrefix = sanitizeFileName(projectName);
     const spanIds = [...new Set(selectedSpans.map((span) => span.spanId))];
+    const traceIds = [
+      ...new Set(selectedSpans.map((span) => span.trace.traceId)),
+    ];
     try {
       switch (action) {
         case "spans": {
           const spans = await fetchPhoenixSpans({ projectId, spanIds });
           downloadJsonl({
-            fileName: `spans-${timestamp}.jsonl`,
+            fileName: `${filePrefix}-spans-${timestamp}.jsonl`,
+            records: spans,
+          });
+          break;
+        }
+        case "traces": {
+          const spans = await fetchPhoenixSpans({ projectId, traceIds });
+          downloadJsonl({
+            fileName: `${filePrefix}-traces-${timestamp}.jsonl`,
             records: spans,
           });
           break;
@@ -200,18 +231,15 @@ export function SpanSelectionDownloadMenu({
         case "spans-otlp": {
           const spans = await fetchOtlpSpans({ projectId, spanIds });
           downloadJson({
-            fileName: `spans-otlp-${timestamp}.json`,
+            fileName: `${filePrefix}-spans-otlp-${timestamp}.json`,
             payload: { resource_spans: [{ scope_spans: [{ spans }] }] },
           });
           break;
         }
         case "traces-otlp": {
-          const traceIds = [
-            ...new Set(selectedSpans.map((span) => span.trace.traceId)),
-          ];
           const spans = await fetchOtlpSpans({ projectId, traceIds });
           downloadJson({
-            fileName: `traces-otlp-${timestamp}.json`,
+            fileName: `${filePrefix}-traces-otlp-${timestamp}.json`,
             payload: { resource_spans: [{ scope_spans: [{ spans }] }] },
           });
           break;
@@ -238,18 +266,15 @@ export function SpanSelectionDownloadMenu({
       <Popover placement="top end">
         <Menu
           onAction={(action) => {
-            if (
-              action === "spans" ||
-              action === "spans-otlp" ||
-              action === "traces-otlp"
-            ) {
-              onDownload(action);
+            if (DOWNLOAD_ACTIONS.includes(action as DownloadAction)) {
+              onDownload(action as DownloadAction);
             }
           }}
         >
           <MenuItem id="spans-otlp">Download Spans OTLP JSON</MenuItem>
           <MenuItem id="traces-otlp">Download Traces OTLP JSON</MenuItem>
           <MenuItem id="spans">Download Spans JSONL</MenuItem>
+          <MenuItem id="traces">Download Traces JSONL</MenuItem>
         </Menu>
       </Popover>
     </MenuTrigger>
