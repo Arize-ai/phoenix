@@ -34,7 +34,7 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetSelectorPopoverContent } from "./DatasetSelectorPopoverContent";
-import { SpanSelectionDownloadMenu } from "./SpanSelectionDownloadMenu";
+import { SpanSelectionDownloadButton } from "./SpanSelectionDownloadButton";
 import { TransferTracesButton } from "./TransferTracesButton";
 
 export interface SelectedSpan {
@@ -283,7 +283,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </Modal>
             </ModalOverlay>
           </DialogTrigger>
-          <SpanSelectionDownloadMenu
+          <SpanSelectionDownloadButton
             projectId={projectId}
             projectName={projectName}
             selectedSpans={selectedSpans}

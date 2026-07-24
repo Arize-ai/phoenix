@@ -23,6 +23,8 @@ const contextualHelpTriggerCSS = css`
     all: unset;
     height: 14px !important;
     width: 14px !important;
+    min-width: 14px !important;
+    min-height: 14px !important;
     padding: var(--global-dimension-size-50) !important;
     border-radius: var(--global-rounding-small);
     cursor: pointer;
