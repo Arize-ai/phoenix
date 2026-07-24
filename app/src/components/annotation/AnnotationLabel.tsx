@@ -13,6 +13,10 @@ export const baseAnnotationLabelCSS = css`
   display: flex;
   flex-direction: row;
   gap: var(--global-dimension-size-50);
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
   &[data-clickable="true"] {
     cursor: pointer;
     &:hover {
@@ -74,6 +78,7 @@ export function AnnotationLabel({
       <AnnotationNameAndValue
         annotation={annotation}
         displayPreference={annotationDisplayPreference}
+        showColorSwatch={false}
       />
       {children}
     </div>
