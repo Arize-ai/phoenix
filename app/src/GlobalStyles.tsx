@@ -880,7 +880,7 @@ const baseTokensCSS = (theme: Theme) => css`
       ? "var(--global-color-blue-500)"
       : "var(--global-color-blue-900)"};
     --hover-background: var(--global-color-gray-100);
-    --focus-ring-color: var(--global-color-primary-500);
+    --focus-ring-color: var(--global-color-primary);
     --focus-ring-thickness: var(--global-border-size-thick);
     --focus-ring-offset: var(--global-dimension-size-25);
 
@@ -1397,11 +1397,9 @@ const appGlobalStylesCSS = css`
     initial-value: 45deg;
   }
 
-  :where(:focus-visible),
-  button:-moz-focusring,
-  [type="button"]:-moz-focusring,
-  [type="reset"]:-moz-focusring,
-  [type="submit"]:-moz-focusring {
+  /* Keep the .theme ancestor for enough specificity to override
+     normalize.css's Firefox button focus ring without using !important. */
+  .theme :focus-visible {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
