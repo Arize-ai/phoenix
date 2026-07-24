@@ -107,7 +107,7 @@ const getSessionTraceUrl = ({
 
 const messageWrapCSS = css`
   width: fit-content;
-  max-width: 70%;
+  max-width: 80%;
 `;
 
 const outputMetadataMutedCSS = css`
@@ -125,6 +125,12 @@ const outputMetadataMutedCSS = css`
 `;
 
 const SESSION_TURN_MESSAGE_MAX_HEIGHT = 280;
+
+/**
+ * Max width of the turn content column. Wide enough to read long messages
+ * comfortably while keeping the conversation centered in wide panels.
+ */
+const SESSION_TURN_MAX_WIDTH = "1000px";
 
 type RootSpanMessageRole = "INPUT" | "OUTPUT";
 
@@ -771,7 +777,11 @@ export function SessionDetailsTraceList({
                   paddingBottom="size-200"
                   paddingX="size-200"
                 >
-                  <View width="100%" maxWidth="size-8500" marginX="auto">
+                  <View
+                    width="100%"
+                    maxWidth={SESSION_TURN_MAX_WIDTH}
+                    marginX="auto"
+                  >
                     <SessionTurnDetail
                       index={index}
                       traceId={traceId}
@@ -788,7 +798,11 @@ export function SessionDetailsTraceList({
               borderBottomWidth={"thin"}
               padding="size-200"
             >
-              <View width="100%" maxWidth="size-8500" marginX="auto">
+              <View
+                width="100%"
+                maxWidth={SESSION_TURN_MAX_WIDTH}
+                marginX="auto"
+              >
                 <Loading />
               </View>
             </View>
