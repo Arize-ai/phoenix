@@ -1,5 +1,13 @@
 # @arizeai/phoenix-cli
 
+## 1.11.1
+
+### Patch Changes
+
+- e35712a: Re-release to recover from a failed publish (versions were already on npm)
+- Updated dependencies [e35712a]
+  - @arizeai/phoenix-client@7.1.1
+
 ## 1.11.0
 
 ### Minor Changes
