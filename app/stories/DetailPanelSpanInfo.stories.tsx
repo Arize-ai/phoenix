@@ -163,6 +163,16 @@ const PRODUCTION_TOOLS = [
       startTime: { type: "string", format: "date-time" },
       endTime: { type: "string", format: "date-time" },
       stepSeconds: { type: "integer", minimum: 1 },
+      filters: {
+        type: "object",
+        properties: {
+          services: { type: "array", items: { type: "string" } },
+          regions: { type: "array", items: { type: "string" } },
+          environments: { type: "array", items: { type: "string" } },
+          excludeSyntheticTraffic: { type: "boolean" },
+        },
+        additionalProperties: false,
+      },
     },
     required: ["expression", "startTime", "endTime"],
   },
@@ -178,14 +188,11 @@ const PRODUCTION_TOOLS = [
   },
   {
     name: "search_traces",
-    description:
-      "Finds traces matching latency, error, and attribute predicates.",
+    description: "Finds matching traces.",
     properties: {
       condition: { type: "string" },
-      projectId: { type: "string" },
-      limit: { type: "integer", maximum: 1000 },
     },
-    required: ["condition", "projectId"],
+    required: ["condition"],
   },
   {
     name: "get_deployment_status",
@@ -199,13 +206,11 @@ const PRODUCTION_TOOLS = [
   },
   {
     name: "get_feature_flags",
-    description: "Lists evaluated feature flags for a tenant and service.",
+    description: "Lists feature flags.",
     properties: {
       tenantId: { type: "string" },
-      service: { type: "string" },
-      includeDisabled: { type: "boolean" },
     },
-    required: ["tenantId", "service"],
+    required: ["tenantId"],
   },
   {
     name: "get_recent_changes",
@@ -225,19 +230,36 @@ const PRODUCTION_TOOLS = [
       database: { type: "string" },
       sql: { type: "string" },
       statementTimeoutMs: { type: "integer", maximum: 30_000 },
+      executionPolicy: {
+        type: "object",
+        properties: {
+          regions: { type: "array", items: { type: "string" } },
+          retry: {
+            type: "object",
+            properties: {
+              attempts: { type: "integer", minimum: 1, maximum: 3 },
+              backoff: {
+                type: "string",
+                enum: ["none", "linear", "exponential"],
+              },
+            },
+            required: ["attempts", "backoff"],
+          },
+          auditReason: { type: "string", maxLength: 4000 },
+        },
+        required: ["regions", "auditReason"],
+        additionalProperties: false,
+      },
     },
     required: ["database", "sql"],
   },
   {
     name: "fetch_runbook",
-    description:
-      "Retrieves the current incident runbook and escalation policy.",
+    description: "Gets a runbook.",
     properties: {
       service: { type: "string" },
-      symptom: { type: "string" },
-      version: { type: "string" },
     },
-    required: ["service", "symptom"],
+    required: ["service"],
   },
   {
     name: "create_incident_timeline",
@@ -263,29 +285,6 @@ const PRODUCTION_TOOLS = [
       message: { type: "string", maxLength: 2000 },
     },
     required: ["team", "severity", "message"],
-  },
-  {
-    name: "update_status_page",
-    description: "Publishes a reviewed customer-facing incident update.",
-    properties: {
-      incidentId: { type: "string" },
-      componentIds: { type: "array", items: { type: "string" } },
-      message: { type: "string", maxLength: 5000 },
-    },
-    required: ["incidentId", "componentIds", "message"],
-  },
-  {
-    name: "rollback_deployment",
-    description:
-      "Initiates an audited rollback after an explicit approval token.",
-    properties: {
-      service: { type: "string" },
-      environment: { type: "string", const: "production" },
-      targetVersion: { type: "string" },
-      approvalToken: { type: "string" },
-      reason: { type: "string", maxLength: 4000 },
-    },
-    required: ["service", "environment", "targetVersion", "approvalToken"],
   },
 ] as const;
 
@@ -415,32 +414,6 @@ const PRODUCTION_TOOL_CALLS = [
       acknowledgedInSeconds: 47,
     },
   },
-  {
-    name: "update_status_page",
-    arguments: {
-      incidentId: "INC-2026-07142",
-      componentIds: ["agent-api", "agent-runs", "tool-execution"],
-      message:
-        "We are investigating elevated errors affecting agent runs in us-west-2.",
-    },
-    result: { error: "approval_required", reviewQueueId: "status-review-441" },
-  },
-  {
-    name: "rollback_deployment",
-    arguments: {
-      service: "orchestrator",
-      environment: "production",
-      targetVersion: "2026.07.22-19",
-      approvalToken: "approval_INC-2026-07142_rollback_1",
-      reason:
-        "Rollback the release correlated with connection pool saturation and elevated agent failures.",
-    },
-    result: {
-      rolloutId: "rollback-7721",
-      state: "in_progress",
-      estimatedSeconds: 420,
-    },
-  },
 ] as const;
 
 function getToolCall({
@@ -487,7 +460,7 @@ const excessiveRetrieverSpan = createSpanInfoFixture({
   },
   attributes: JSON.stringify({
     retrieval: {
-      documents: Array.from({ length: 24 }, (_unused, documentIndex) => ({
+      documents: Array.from({ length: 10 }, (_unused, documentIndex) => ({
         document: {
           id: `production-knowledge-${String(documentIndex + 1).padStart(3, "0")}`,
           content: `Production knowledge document ${documentIndex + 1}. ${"This section contains operational context, remediation guidance, ownership details, and historical incident evidence. ".repeat(4)}`,
@@ -506,7 +479,7 @@ const excessiveRetrieverSpan = createSpanInfoFixture({
     },
   }),
   documentRetrievalMetrics: Array.from(
-    { length: 16 },
+    { length: 10 },
     (_unused, metricIndex) => ({
       evaluationName: `enterprise retrieval evaluation ${metricIndex + 1} with a deliberately long name`,
       hit: metricIndex % 3 === 0 ? 0 : 1,
@@ -522,7 +495,7 @@ const excessiveRerankerSpan = createSpanInfoFixture({
     reranker: {
       query:
         "Rank operational evidence for a production incident involving agent failures, database pool saturation, a partial rollout, and cross-region retry amplification.",
-      input_documents: Array.from({ length: 40 }, (_unused, documentIndex) => ({
+      input_documents: Array.from({ length: 10 }, (_unused, documentIndex) => ({
         document: {
           id: `reranker-input-${String(documentIndex + 1).padStart(3, "0")}`,
           content: `Candidate evidence ${documentIndex + 1}: ${"observability signal and operational context ".repeat(6)}`,
@@ -530,7 +503,7 @@ const excessiveRerankerSpan = createSpanInfoFixture({
         },
       })),
       output_documents: Array.from(
-        { length: 20 },
+        { length: 10 },
         (_unused, documentIndex) => ({
           document: {
             id: `reranker-output-${String(documentIndex + 1).padStart(3, "0")}`,
@@ -548,7 +521,7 @@ const excessiveEmbeddingSpan = createSpanInfoFixture({
   attributes: JSON.stringify({
     embedding: {
       model_name: "text-embedding-3-large-production-batch",
-      embeddings: Array.from({ length: 48 }, (_unused, embeddingIndex) => ({
+      embeddings: Array.from({ length: 10 }, (_unused, embeddingIndex) => ({
         embedding: {
           text: `Embedding input ${embeddingIndex + 1}: ${"A realistically long chunk of enterprise documentation containing procedures, caveats, code identifiers, and cross-references. ".repeat(5)}`,
         },
@@ -585,8 +558,8 @@ const excessiveToolSchemasSpan = createSpanInfoFixture({
   }),
 });
 
-const firstToolCallBatch = PRODUCTION_TOOL_CALLS.slice(0, 6);
-const secondToolCallBatch = PRODUCTION_TOOL_CALLS.slice(6);
+const firstToolCallBatch = PRODUCTION_TOOL_CALLS.slice(0, 5);
+const secondToolCallBatch = PRODUCTION_TOOL_CALLS.slice(5);
 const excessiveToolCallsSpan = createSpanInfoFixture({
   spanKind: "llm",
   input: {
@@ -742,19 +715,19 @@ export const ExcessiveContent: Story = {
   args: { span: excessiveToolCallsSpan },
   render: () => (
     <DetailPanelExamples>
-      <DetailPanelExample title="Retriever · 24 documents and 16 metric sets">
+      <DetailPanelExample title="Retriever · 10 documents and 10 metric sets">
         <SpanInfo span={excessiveRetrieverSpan} />
       </DetailPanelExample>
-      <DetailPanelExample title="Reranker · 40 inputs and 20 outputs">
+      <DetailPanelExample title="Reranker · 10 inputs and 10 outputs">
         <SpanInfo span={excessiveRerankerSpan} />
       </DetailPanelExample>
-      <DetailPanelExample title="Embedding · 48 long inputs">
+      <DetailPanelExample title="Embedding · 10 long inputs">
         <SpanInfo span={excessiveEmbeddingSpan} />
       </DetailPanelExample>
-      <DetailPanelExample title="LLM · production tool catalog">
+      <DetailPanelExample title="LLM · 10 mixed-size production tools">
         <SpanInfo span={excessiveToolSchemasSpan} />
       </DetailPanelExample>
-      <DetailPanelExample title="LLM · 12 production tool calls across two rounds">
+      <DetailPanelExample title="LLM · 10 production tool calls across two rounds">
         <SpanInfo span={excessiveToolCallsSpan} />
       </DetailPanelExample>
       <DetailPanelExample title="Tool · exhausted retries and regional failures">
