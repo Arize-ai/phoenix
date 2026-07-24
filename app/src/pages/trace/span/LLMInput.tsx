@@ -72,7 +72,12 @@ export function LLMInput({
         <GenerativeProviderIcon provider={normalizedProvider} height={16} />
       ) : null;
     modelNameEl = (
-      <Flex direction="row" gap="size-100" alignItems="center">
+      <Flex
+        direction="row"
+        gap="size-100"
+        alignItems="center"
+        marginStart="size-100"
+      >
         {providerIcon}
         <Text>{modelName}</Text>
       </Flex>
