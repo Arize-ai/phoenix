@@ -28,8 +28,12 @@ type BuildAgentChatRequestBodyOptions = {
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
   messageId: string | undefined;
-  /** Runtime capability snapshot to expose to the model for this turn. */
-  capabilities: AgentCapabilities;
+  /**
+   * Runtime capability snapshot to expose to the model for this turn. Read
+   * defensively (missing flags default to `false`), so callers may pass a
+   * partial snapshot.
+   */
+  capabilities: Partial<AgentCapabilities>;
   /** Per-user PXI observability settings for this request. */
   observability: AgentObservabilitySettings;
   agentsConfig: AgentServerConfig;
@@ -68,7 +72,9 @@ export type AgentChatRequestBodyPatch = Pick<
  * Forwards the user's mutations toggle to the backend as a typed context so
  * the agent's server-side instructions can render the matching guidance.
  */
-function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
+function buildGraphQLContext(
+  capabilities: Partial<AgentCapabilities>
+): AgentContext {
   return {
     type: "graphql",
     mutationsEnabled: capabilities["graphql.mutations"] ?? false,
@@ -80,7 +86,9 @@ function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
  *
  * Forwards the user's web access toggle to the backend as a typed context.
  */
-function buildWebAccessContext(capabilities: AgentCapabilities): AgentContext {
+function buildWebAccessContext(
+  capabilities: Partial<AgentCapabilities>
+): AgentContext {
   return {
     type: "web_access",
     enabled: capabilities["web.access"] ?? false,
@@ -90,7 +98,9 @@ function buildWebAccessContext(capabilities: AgentCapabilities): AgentContext {
 /**
  * Build subagents context from the current capability snapshot.
  */
-function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
+function buildSubagentsContext(
+  capabilities: Partial<AgentCapabilities>
+): AgentContext {
   return {
     type: "subagents",
     enabled: capabilities["subagents.enabled"] ?? false,

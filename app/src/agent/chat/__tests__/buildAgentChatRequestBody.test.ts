@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createDefaultAgentCapabilities,
-  type AgentCapabilities,
-} from "@phoenix/agent/extensions/capabilities";
+import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 
 import {
   buildAgentChatRequestBody,
@@ -135,8 +132,8 @@ describe("buildAgentChatRequestBody", () => {
       messages: [] as AgentUIMessage[],
       trigger: "submit-message",
       messageId: undefined,
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- deliberately incomplete to exercise runtime defaulting of missing flags
-      capabilities: {} as AgentCapabilities,
+      // Deliberately incomplete to exercise runtime defaulting of missing flags.
+      capabilities: {},
       observability: {
         storeLocalTraces: false,
         exportRemoteTraces: false,
