@@ -74,7 +74,6 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { usePersistedState } from "@phoenix/hooks";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
@@ -183,9 +182,6 @@ export function ExperimentsTable({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
   const [, setSearchText] = useState("");
-  const refreshExperimentAnnotationMetrics = useDatasetContext(
-    (state) => state.refreshExperimentAnnotationMetrics
-  );
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
       graphql`
@@ -601,7 +597,6 @@ export function ExperimentsTable({
                 experimentId={row.original.id}
                 canSetBaseline
                 isBaseline={row.original.isBaseline}
-                onBaselineChanged={refreshExperimentAnnotationMetrics}
                 metadata={metadata}
                 jobStatus={row.original.job?.status ?? null}
                 size="S"
@@ -834,7 +829,6 @@ export function ExperimentsTable({
             datasetId={data.id}
             selectedExperiments={selectedExperiments}
             onClearSelection={clearSelection}
-            onBaselineChanged={refreshExperimentAnnotationMetrics}
             onExperimentsDeleted={() => {
               refetch({}, { fetchPolicy: "network-only" });
             }}

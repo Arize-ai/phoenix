@@ -38,7 +38,6 @@ type ExperimentSelectionToolbarProps = {
   datasetId: string;
   selectedExperiments: SelectedExperiment[];
   onClearSelection: () => void;
-  onBaselineChanged: () => void;
   onExperimentsDeleted: () => void;
 };
 
@@ -60,7 +59,6 @@ export function ExperimentSelectionToolbar(
     datasetId,
     selectedExperiments,
     onClearSelection,
-    onBaselineChanged,
     onExperimentsDeleted,
   } = props;
   const isPlural = selectedExperiments.length !== 1;
@@ -81,7 +79,6 @@ export function ExperimentSelectionToolbar(
     setExperimentBaseline({
       experimentId: singleSelectedExperiment.id,
       isBaseline: singleSelectedExperiment.isBaseline,
-      onCompleted: onBaselineChanged,
       onError: (message) => {
         notifyError({
           title: "Failed to update baseline",
@@ -89,12 +86,7 @@ export function ExperimentSelectionToolbar(
         });
       },
     });
-  }, [
-    singleSelectedExperiment,
-    setExperimentBaseline,
-    onBaselineChanged,
-    notifyError,
-  ]);
+  }, [singleSelectedExperiment, setExperimentBaseline, notifyError]);
 
   const handleDelete = useCallback(() => {
     deleteExperiments({

@@ -4,6 +4,7 @@ import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/cons
 
 import type { ExperimentAnnotationMetric_experiment$key } from "./__generated__/ExperimentAnnotationMetric_experiment.graphql";
 import type { ExperimentAnnotationMetricQuery } from "./__generated__/ExperimentAnnotationMetricQuery.graphql";
+import type { useExperimentAnnotationMetricDataBaselineQuery } from "./__generated__/useExperimentAnnotationMetricDataBaselineQuery.graphql";
 
 const experimentAnnotationMetricFragment = graphql`
   fragment ExperimentAnnotationMetric_experiment on Experiment
@@ -51,6 +52,18 @@ const experimentAnnotationMetricQuery = graphql`
   }
 `;
 
+const experimentAnnotationMetricBaselineQuery = graphql`
+  query useExperimentAnnotationMetricDataBaselineQuery($id: ID!) {
+    dataset: node(id: $id) {
+      ... on Dataset {
+        baselineExperiment {
+          id
+        }
+      }
+    }
+  }
+`;
+
 export type ExperimentAnnotationMetricDatum = {
   id: string;
   name: string;
@@ -69,15 +82,21 @@ export type ExperimentAnnotationMetricDatum = {
 export function useExperimentAnnotationMetricData({
   datasetId,
   annotationName,
-  fetchKey,
 }: {
   datasetId: string;
   annotationName: string;
-  fetchKey?: number;
 }): {
   experiments: ExperimentAnnotationMetricDatum[];
   baselineExperiment: ExperimentAnnotationMetricDatum | null;
 } {
+  // The baseline mutation cannot refetch these runtime-argument summaries,
+  // so key the query by the linked baseline to refetch them when it changes.
+  const baselineData =
+    useLazyLoadQuery<useExperimentAnnotationMetricDataBaselineQuery>(
+      experimentAnnotationMetricBaselineQuery,
+      { id: datasetId },
+      { fetchPolicy: "store-or-network" }
+    );
   const data = useLazyLoadQuery<ExperimentAnnotationMetricQuery>(
     experimentAnnotationMetricQuery,
     {
@@ -85,7 +104,10 @@ export function useExperimentAnnotationMetricData({
       count: EXPERIMENT_METRICS_EXPERIMENT_COUNT,
       annotationName,
     },
-    { fetchKey, fetchPolicy: "store-or-network" }
+    {
+      fetchKey: baselineData.dataset.baselineExperiment?.id ?? "no-baseline",
+      fetchPolicy: "store-or-network",
+    }
   );
   const baselineExperiment =
     data.dataset.baselineExperiment == null
@@ -109,6 +131,7 @@ function readExperimentAnnotationMetricDatum(
     name: data.name,
     sequenceNumber: data.sequenceNumber,
     isBaseline: data.isBaseline,
-    annotationSummaries: data.annotationSummaries,
+    // Missing from the store until the keyed refetch lands, despite the type.
+    annotationSummaries: data.annotationSummaries ?? [],
   };
 }

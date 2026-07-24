@@ -13,7 +13,6 @@ import {
   normalizeAnnotationMetrics,
 } from "@phoenix/components/chart";
 import { ErrorBoundary } from "@phoenix/components/exception";
-import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
 
 import {
@@ -86,14 +85,12 @@ function ExperimentAnnotationMetricsPanels({
 function useExperimentAnnotationMetricSeries({
   datasetId,
   annotationName,
-  fetchKey,
 }: {
   datasetId: string;
   annotationName: string;
-  fetchKey?: number;
 }) {
   const { experiments, baselineExperiment } = useExperimentAnnotationMetricData(
-    { datasetId, annotationName, fetchKey }
+    { datasetId, annotationName }
   );
   const annotationSeries = normalizeAnnotationMetrics({
     points: experiments.map(toAnnotationMetricsInputPoint),
@@ -147,14 +144,10 @@ function ExperimentAnnotationMetricPanelContent({
   annotationName: string;
   fillHeight: boolean;
 }) {
-  const fetchKey = useDatasetContext(
-    (state) => state.experimentAnnotationMetricsFetchKey
-  );
   const { series, baselineSequenceNumber } =
     useExperimentAnnotationMetricSeries({
       datasetId,
       annotationName,
-      fetchKey,
     });
   const [view, setView] = useState(() =>
     getDefaultAnnotationMetricsView(series)

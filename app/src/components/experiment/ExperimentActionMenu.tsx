@@ -59,12 +59,10 @@ type ExperimentActionMenuBaseProps = {
   | {
       canSetBaseline: true;
       isBaseline: boolean;
-      onBaselineChanged?: () => void;
     }
   | {
       canSetBaseline?: false;
       isBaseline?: undefined;
-      onBaselineChanged?: never;
     }
 );
 
@@ -347,7 +345,6 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                   setExperimentBaseline({
                     experimentId: props.experimentId,
                     isBaseline: props.isBaseline,
-                    onCompleted: props.onBaselineChanged,
                     onError: (message) => {
                       notifyError({
                         title: "Failed to update baseline",
