@@ -1979,6 +1979,44 @@ class TestApiAccessViaCookiesOrApiKeys:
     - Dynamic test IDs using token_hex(4) for test isolation
     """
 
+    def test_agent_sessions_are_scoped_to_api_key_owner(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        member = _get_user(_app, UserRoleInput.MEMBER).log_in(_app)
+        admin = _get_user(_app, UserRoleInput.ADMIN).log_in(_app)
+        member_client = _httpx_client(_app, member.tokens)
+        admin_client = _httpx_client(_app, admin.tokens)
+        member_session_response = member_client.post(
+            "agents/assistant/sessions",
+            json={"title": "Member session", "temporary": False},
+        )
+        member_session_response.raise_for_status()
+        member_session_id = member_session_response.json()["data"]["id"]
+        admin_session_response = admin_client.post(
+            "agents/assistant/sessions",
+            json={"title": "Admin session", "temporary": False},
+        )
+        admin_session_response.raise_for_status()
+        admin_session_id = admin_session_response.json()["data"]["id"]
+
+        member_api_client = _httpx_client(_app, member.create_api_key(_app))
+        list_response = member_api_client.get("agents/assistant/sessions")
+
+        assert list_response.status_code == 200
+        session_ids = {session["id"] for session in list_response.json()["data"]}
+        assert member_session_id in session_ids
+        assert admin_session_id not in session_ids
+        assert (
+            member_api_client.get(f"agents/assistant/sessions/{member_session_id}").status_code
+            == 200
+        )
+        assert (
+            member_api_client.get(f"agents/assistant/sessions/{admin_session_id}").status_code
+            == 404
+        )
+
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_role_based_access_control(
         self,

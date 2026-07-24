@@ -11,7 +11,6 @@ import {
 
 import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
 import { createPhoenixClient } from "../client";
-import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
@@ -126,75 +125,6 @@ export async function createAgentSession({
   };
 }
 
-type GraphqlResponse<TData> = {
-  data?: TData;
-  errors?: Array<{ message?: unknown }>;
-};
-
-function getGraphqlErrorMessage({
-  payload,
-}: {
-  payload: GraphqlResponse<unknown>;
-}) {
-  const messages = payload.errors
-    ?.map((error) => error.message)
-    .filter((message): message is string => typeof message === "string");
-  return messages?.length ? messages.join("; ") : null;
-}
-
-async function fetchGraphql<TData>({
-  config,
-  query,
-  fetchImpl,
-}: {
-  config: PhoenixConfig;
-  query: string;
-  fetchImpl: typeof globalThis.fetch;
-}): Promise<TData> {
-  const request = buildGraphqlRequest({ query, config });
-  const response = await fetchImpl(request.url, {
-    method: request.method,
-    headers: request.headers,
-    body: request.body,
-  });
-  if (!response.ok) {
-    throw new Error(
-      `Could not load PXI sessions: HTTP ${response.status} ${response.statusText} from ${request.url}.`
-    );
-  }
-  const payload = (await response.json()) as GraphqlResponse<TData>;
-  const graphqlError = getGraphqlErrorMessage({ payload });
-  if (graphqlError) {
-    throw new Error(`Could not load PXI sessions: ${graphqlError}`);
-  }
-  if (!payload.data) {
-    throw new Error(
-      "Could not load PXI sessions because Phoenix returned no data."
-    );
-  }
-  return payload.data;
-}
-
-function isSessionSummary(value: unknown): value is PxiSessionSummary {
-  if (!value || typeof value !== "object") return false;
-  const session = value as Record<string, unknown>;
-  return (
-    typeof session.id === "string" &&
-    typeof session.title === "string" &&
-    typeof session.updatedAt === "string"
-  );
-}
-
-function isPxiMessage(value: unknown): value is PxiMessage {
-  if (!value || typeof value !== "object") return false;
-  const message = value as Record<string, unknown>;
-  return (
-    typeof message.id === "string" &&
-    typeof message.role === "string" &&
-    Array.isArray(message.parts)
-  );
-}
-
 /** Create the session-management client used by the TUI. */
 export function createPxiSessionClient({
   config,
@@ -212,55 +142,52 @@ export function createPxiSessionClient({
     createSession: ({ temporary }) =>
       createAgentSession({ config, temporary, fetchImpl }),
     async listSessions() {
-      const data = await fetchGraphql<{
-        agentSessions?: { edges?: Array<{ node?: unknown }> };
-      }>({
-        config,
-        fetchImpl,
-        query: `query PxiAgentSessions {
-          agentSessions(first: 20) {
-            edges { node { id title updatedAt } }
-          }
-        }`,
-      });
-      const sessions =
-        data.agentSessions?.edges?.map((edge) => edge.node) ?? [];
-      if (!sessions.every(isSessionSummary)) {
+      const client = createPhoenixClient({ config, fetch: fetchImpl });
+      const { data: payload } = await client.GET(
+        "/agents/{agent_id}/sessions",
+        {
+          params: {
+            path: { agent_id: SERVER_AGENT_ID },
+            query: { limit: 20 },
+          },
+        }
+      );
+      if (!payload) {
         throw new Error(
-          "Could not load PXI sessions because Phoenix returned invalid session data."
+          "Could not load PXI sessions because Phoenix returned no data."
         );
       }
-      return sessions;
+      return payload.data.map(
+        ({ id, title, updated_at }): PxiSessionSummary => ({
+          id,
+          title,
+          updatedAt: updated_at,
+        })
+      );
     },
     async getSession({ sessionId }) {
-      const data = await fetchGraphql<{ agentSession?: unknown }>({
-        config,
-        fetchImpl,
-        query: `query PxiAgentSession {
-          agentSession: node(id: ${JSON.stringify(sessionId)}) {
-            ... on AgentSession { id title updatedAt isTemporary messages }
-          }
-        }`,
-      });
-      if (!data.agentSession || typeof data.agentSession !== "object") {
+      const client = createPhoenixClient({ config, fetch: fetchImpl });
+      const { data: payload } = await client.GET(
+        "/agents/{agent_id}/sessions/{session_id}",
+        {
+          params: {
+            path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },
+          },
+        }
+      );
+      if (!payload) {
         throw new Error(
-          "Could not restore the selected PXI session because it was not found."
+          "Could not restore the selected PXI session because Phoenix returned no data."
         );
       }
-      const session = data.agentSession as Record<string, unknown>;
-      const isTemporary = session.isTemporary;
-      const messages = session.messages;
-      if (
-        !isSessionSummary(session) ||
-        typeof isTemporary !== "boolean" ||
-        !Array.isArray(messages) ||
-        !messages.every(isPxiMessage)
-      ) {
-        throw new Error(
-          "Could not restore the selected PXI session because Phoenix returned invalid data."
-        );
-      }
-      return { ...session, isTemporary, messages };
+      const session = payload.data;
+      return {
+        id: session.id,
+        title: session.title,
+        updatedAt: session.updated_at,
+        isTemporary: session.is_temporary,
+        messages: session.messages as PxiMessage[],
+      };
     },
   };
 }

@@ -206,19 +206,15 @@ describe("PXI client", () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            data: {
-              agentSessions: {
-                edges: [
-                  {
-                    node: {
-                      id: "session-1",
-                      title: "Investigate traces",
-                      updatedAt: "2026-07-24T12:00:00Z",
-                    },
-                  },
-                ],
+            data: [
+              {
+                id: "session-1",
+                title: "Investigate traces",
+                created_at: "2026-07-24T11:00:00Z",
+                updated_at: "2026-07-24T12:00:00Z",
               },
-            },
+            ],
+            next_cursor: null,
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         )
@@ -227,19 +223,18 @@ describe("PXI client", () => {
         new Response(
           JSON.stringify({
             data: {
-              agentSession: {
-                id: "session-1",
-                title: "Investigate traces",
-                updatedAt: "2026-07-24T12:00:00Z",
-                isTemporary: false,
-                messages: [
-                  {
-                    id: "user-1",
-                    role: "user",
-                    parts: [{ type: "text", text: "What failed?" }],
-                  },
-                ],
-              },
+              id: "session-1",
+              title: "Investigate traces",
+              created_at: "2026-07-24T11:00:00Z",
+              updated_at: "2026-07-24T12:00:00Z",
+              is_temporary: false,
+              messages: [
+                {
+                  id: "user-1",
+                  role: "user",
+                  parts: [{ type: "text", text: "What failed?" }],
+                },
+              ],
             },
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }

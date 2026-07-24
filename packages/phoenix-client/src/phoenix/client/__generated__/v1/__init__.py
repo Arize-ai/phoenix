@@ -12,6 +12,13 @@ class AgentSession(TypedDict):
     id: str
 
 
+class AgentSessionSummary(TypedDict):
+    id: str
+    title: str
+    created_at: str
+    updated_at: str
+
+
 class AgentSpanContext(TypedDict):
     type: Literal["span"]
     projectNodeId: NotRequired[str]
@@ -303,6 +310,11 @@ class LDAPUserData(TypedDict):
     username: str
     role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
     auth_method: Literal["LDAP"]
+
+
+class ListAgentSessionsResponseBody(TypedDict):
+    data: Sequence[AgentSessionSummary]
+    next_cursor: Optional[str]
 
 
 class ListDatasetLabelsForDatasetResponseBody(TypedDict):
@@ -1839,6 +1851,15 @@ class PromptMessage(TypedDict):
     ]
 
 
+class AgentSessionData(TypedDict):
+    id: str
+    title: str
+    created_at: str
+    updated_at: str
+    is_temporary: bool
+    messages: Sequence[PhoenixUIMessage]
+
+
 class ChatRequest(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     id: str
@@ -1875,6 +1896,10 @@ class ChatRequest(TypedDict):
 class CompactAgentSessionResponseData(TypedDict):
     compacted: bool
     compaction_message: NotRequired[PhoenixUIMessage]
+
+
+class GetAgentSessionResponseBody(TypedDict):
+    data: AgentSessionData
 
 
 class PromptChatTemplate(TypedDict):
