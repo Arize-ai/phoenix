@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<191602823e0fa9ec906ada20827fb16f>>
+ * @generated SignedSource<<135cf03a4a6100f10bd6fb6908c995d4>>
  * @lightSyntaxTransform
  */
 
@@ -40,19 +40,19 @@ export type ProjectTraceRetentionRuleMaxDaysOrCountInput = {
   maxCount: number;
   maxDays: number;
 };
-export type EditRetentionPolicyMutation$variables = {
+export type RetentionPolicyProjectsPatchMutation$variables = {
   input: PatchProjectTraceRetentionPolicyInput;
 };
-export type EditRetentionPolicyMutation$data = {
+export type RetentionPolicyProjectsPatchMutation$data = {
   readonly patchProjectTraceRetentionPolicy: {
     readonly query: {
       readonly " $fragmentSpreads": FragmentRefs<"RetentionPoliciesTable_policies">;
     };
   };
 };
-export type EditRetentionPolicyMutation = {
-  response: EditRetentionPolicyMutation$data;
-  variables: EditRetentionPolicyMutation$variables;
+export type RetentionPolicyProjectsPatchMutation = {
+  response: RetentionPolicyProjectsPatchMutation$data;
+  variables: RetentionPolicyProjectsPatchMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -117,7 +117,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EditRetentionPolicyMutation",
+    "name": "RetentionPolicyProjectsPatchMutation",
     "selections": [
       {
         "alias": null,
@@ -154,7 +154,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "EditRetentionPolicyMutation",
+    "name": "RetentionPolicyProjectsPatchMutation",
     "selections": [
       {
         "alias": null,
@@ -351,16 +351,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "87d77012519de86e78a6b0eb7cc15e9d",
+    "cacheID": "07c23b129021ee79497d4cdf0f2e1792",
     "id": null,
     "metadata": {},
-    "name": "EditRetentionPolicyMutation",
+    "name": "RetentionPolicyProjectsPatchMutation",
     "operationKind": "mutation",
-    "text": "mutation EditRetentionPolicyMutation(\n  $input: PatchProjectTraceRetentionPolicyInput!\n) {\n  patchProjectTraceRetentionPolicy(input: $input) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects(first: 1000) {\n    edges {\n      node {\n        name\n        id\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n}\n"
+    "text": "mutation RetentionPolicyProjectsPatchMutation(\n  $input: PatchProjectTraceRetentionPolicyInput!\n) {\n  patchProjectTraceRetentionPolicy(input: $input) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects(first: 1000) {\n    edges {\n      node {\n        name\n        id\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9abcdadabb062864df4609df1e0448fd";
+(node as any).hash = "b081e9c1723b9fe88b759b72d87f163e";
 
 export default node;
