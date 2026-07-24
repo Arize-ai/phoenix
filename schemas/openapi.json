@@ -4642,6 +4642,27 @@
             "description": "Filter by one or more trace IDs"
           },
           {
+            "name": "span_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more span IDs",
+              "title": "Span Id"
+            },
+            "description": "Filter by one or more span IDs"
+          },
+          {
             "name": "parent_id",
             "in": "query",
             "required": false,
@@ -4877,6 +4898,27 @@
               "title": "Trace Id"
             },
             "description": "Filter by one or more trace IDs"
+          },
+          {
+            "name": "span_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more span IDs",
+              "title": "Span Id"
+            },
+            "description": "Filter by one or more span IDs"
           },
           {
             "name": "parent_id",

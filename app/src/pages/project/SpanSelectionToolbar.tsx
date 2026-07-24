@@ -34,14 +34,32 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetSelectorPopoverContent } from "./DatasetSelectorPopoverContent";
+import { SpanSelectionDownloadButton } from "./SpanSelectionDownloadButton";
 import { TransferTracesButton } from "./TransferTracesButton";
 
-interface SelectedSpan {
+export interface SelectedSpan {
+  /**
+   * The span node (relay global) ID
+   */
   id: string;
-  traceId: string;
+  /**
+   * The OpenTelemetry span ID
+   */
+  spanId: string;
+  trace: {
+    /**
+     * The trace node (relay global) ID
+     */
+    id: string;
+    /**
+     * The OpenTelemetry trace ID
+     */
+    traceId: string;
+  };
 }
 
 type SpanSelectionToolbarProps = {
+  projectName: string;
   selectedSpans: SelectedSpan[];
   onClearSelection: () => void;
 };
@@ -56,10 +74,10 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
   const [isDatasetPopoverOpen, setIsDatasetPopoverOpen] = useState(false);
   const [isDeletingTracesDialogOpen, setIsDeletingTracesDialogOpen] =
     useState(false);
-  const { selectedSpans, onClearSelection } = props;
+  const { projectName, selectedSpans, onClearSelection } = props;
 
   const traceIds = useMemo(
-    () => [...new Set(selectedSpans.map((span) => span.traceId))],
+    () => [...new Set(selectedSpans.map((span) => span.trace.id))],
     [selectedSpans]
   );
   const [commitSpansToDataset, isAddingSpansToDataset] = useMutation(graphql`
@@ -265,6 +283,12 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </Modal>
             </ModalOverlay>
           </DialogTrigger>
+          <SpanSelectionDownloadButton
+            projectId={projectId}
+            projectName={projectName}
+            selectedSpans={selectedSpans}
+            onError={setError}
+          />
           <Button
             size="M"
             aria-label="Delete Traces"
