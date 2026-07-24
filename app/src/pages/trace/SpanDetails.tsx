@@ -43,14 +43,14 @@ import {
   LazyTabPanel,
   LinkButton,
   Loading,
-  Modal,
-  ModalOverlay,
   Tab,
   TabList,
   Tabs,
   Text,
   ToggleButton,
   View,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { AttributesJSONBlock } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
@@ -452,8 +452,8 @@ function AddSpanToDatasetButton({
       >
         {buttonText}
       </Button>
-      <ModalOverlay>
-        <Modal variant="slideover" size="L">
+      <ViewportModalOverlay>
+        <ViewportModal size="L">
           <Suspense fallback={<Loading />}>
             <SpanToDatasetExampleDialog
               spanId={span.id}
@@ -471,8 +471,8 @@ function AddSpanToDatasetButton({
               }}
             />
           </Suspense>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

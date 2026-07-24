@@ -21,8 +21,8 @@ import {
   Icons,
   Input,
   Label,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Text,
   TextField,
   ToggleButton,
@@ -205,11 +205,11 @@ export function SpanSelectionDownloadButton(
         aria-label="Download selection"
         leadingVisual={<Icon svg={<Icons.Download />} />}
       />
-      <ModalOverlay>
-        <Modal size="S">
+      <ViewportModalOverlay>
+        <ViewportModal size="S">
           <SpanSelectionDownloadDialog {...props} />
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

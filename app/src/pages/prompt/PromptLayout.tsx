@@ -13,8 +13,8 @@ import {
   LazyTabPanel,
   Link,
   LinkButton,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   PageHeader,
   Tab,
   TabList,
@@ -118,16 +118,16 @@ export function PromptLayout() {
               >
                 Clone
               </Button>
-              <ModalOverlay>
-                <Modal size="M">
+              <ViewportModalOverlay>
+                <ViewportModal size="M">
                   <ClonePromptDialog
                     promptId={data.id}
                     promptName={data.name}
                     promptDescription={data.description ?? undefined}
                     promptMetadata={data.metadata ?? undefined}
                   />
-                </Modal>
-              </ModalOverlay>
+                </ViewportModal>
+              </ViewportModalOverlay>
             </DialogTrigger>
             <LinkButton
               variant="primary"

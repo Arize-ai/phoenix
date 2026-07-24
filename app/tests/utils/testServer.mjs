@@ -55,7 +55,10 @@ if (!fs.existsSync(wasmCachedBinary)) {
   );
 }
 
-if (process.env["PXI_E2E"] === "true") {
+if (
+  process.env["PXI_E2E"] === "true" ||
+  process.env["PHOENIX_E2E_ENABLE_AGENT_ASSISTANT"] === "true"
+) {
   process.env["PHOENIX_ALLOW_EXTERNAL_RESOURCES"] = "True";
 } else {
   // The PXI assistant is enabled by default, which renders a floating action
