@@ -25,6 +25,7 @@ import {
   type DraftEditorState,
 } from "./draftEditor";
 import { Markdown } from "./inkMarkdown";
+import { fetchRecommendedPxiModels } from "./preflight";
 import { formatTokenUsageLine, getLatestAssistantUsage } from "./tokenUsage";
 import {
   getToolProgressFromPart,
@@ -32,6 +33,7 @@ import {
   type ToolProgressState,
 } from "./toolProgress";
 import type {
+  ModelSelection,
   PxiChatClient,
   PxiMessage,
   PxiRuntimeOptions,
@@ -53,6 +55,13 @@ type PxiStatus = "idle" | "streaming";
 type SessionPickerState = {
   status: "loading" | "ready" | "restoring" | "error";
   sessions: PxiSessionSummary[];
+  query: string;
+  selectedIndex: number;
+  error: string | null;
+};
+type ModelPickerState = {
+  status: "loading" | "ready" | "error";
+  models: ModelSelection[];
   query: string;
   selectedIndex: number;
   error: string | null;
@@ -105,6 +114,11 @@ const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
   client?: PxiChatClient;
+  clientFactory?: (options: {
+    options: PxiRuntimeOptions;
+    agentSessionId: string;
+  }) => PxiChatClient;
+  modelLoader?: () => Promise<ModelSelection[]>;
   sessionClient?: PxiSessionClient;
   initialMessages?: PxiMessage[];
 };
@@ -152,12 +166,16 @@ function PxiBanner() {
   );
 }
 
-/** Format the active model for the status line (e.g. `ANTHROPIC/claude-opus-4-8`). */
-function getModelLabel(options: PxiRuntimeOptions): string {
-  if (options.modelSelection.providerType === "custom") {
-    return `custom:${options.modelSelection.providerId}/${options.modelSelection.modelName}`;
+/** Format a model selection for display (e.g. `ANTHROPIC/claude-opus-4-8`). */
+function getModelLabel({
+  modelSelection,
+}: {
+  modelSelection: ModelSelection;
+}): string {
+  if (modelSelection.providerType === "custom") {
+    return `custom:${modelSelection.providerId}/${modelSelection.modelName}`;
   }
-  return `${options.modelSelection.provider}/${options.modelSelection.modelName}`;
+  return `${modelSelection.provider}/${modelSelection.modelName}`;
 }
 
 /** Animated braille spinner shown while a tool call is still in flight. */
@@ -558,6 +576,83 @@ function getSessionTitle({ title }: { title: string }) {
   return title.trim() || "Untitled session";
 }
 
+function getFilteredModels({
+  models,
+  query,
+}: {
+  models: ModelSelection[];
+  query: string;
+}) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return models;
+  return models.filter((modelSelection) =>
+    getModelLabel({ modelSelection }).toLowerCase().includes(normalizedQuery)
+  );
+}
+
+/** Model-selection mode rendered in place of the normal composer. */
+function ModelPicker({ state }: { state: ModelPickerState }) {
+  const filteredModels = getFilteredModels({
+    models: state.models,
+    query: state.query,
+  });
+  const selectedIndex = Math.min(
+    state.selectedIndex,
+    Math.max(filteredModels.length - 1, 0)
+  );
+  const firstVisibleIndex = Math.max(0, selectedIndex - 7);
+  const visibleModels = filteredModels.slice(
+    firstVisibleIndex,
+    firstVisibleIndex + 8
+  );
+
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="single"
+      borderColor="cyan"
+      paddingX={1}
+      marginTop={1}
+    >
+      <Text bold>Recommended models</Text>
+      {state.status === "loading" ? (
+        <Text dimColor>Loading models…</Text>
+      ) : null}
+      {state.error ? <Text color="red">{state.error}</Text> : null}
+      {state.status !== "loading" && state.models.length > 0 ? (
+        <Text>
+          <Text dimColor>Filter: </Text>
+          {state.query}
+          <Text color="cyan">█</Text>
+        </Text>
+      ) : null}
+      {state.status !== "loading" && filteredModels.length === 0 ? (
+        <Text dimColor>
+          {state.models.length === 0
+            ? "No recommended models are available."
+            : "No models match this filter."}
+        </Text>
+      ) : null}
+      {visibleModels.map((modelSelection, visibleIndex) => {
+        const modelIndex = firstVisibleIndex + visibleIndex;
+        const isSelected = modelIndex === selectedIndex;
+        const label = getModelLabel({ modelSelection });
+        return (
+          <Text key={label} color={isSelected ? "cyan" : undefined}>
+            {isSelected ? "› " : "  "}
+            <Text bold={isSelected}>{label}</Text>
+          </Text>
+        );
+      })}
+      <Text dimColor>
+        {state.status === "error"
+          ? "esc close and retry"
+          : "type to filter · ↑↓ navigate · enter select · esc cancel"}
+      </Text>
+    </Box>
+  );
+}
+
 /** Session-selection mode rendered in place of the normal composer. */
 function SessionPicker({ state }: { state: SessionPickerState }) {
   const filteredSessions = getFilteredSessions({
@@ -729,6 +824,8 @@ export function ThinkingIndicator() {
 export function PxiApp({
   options,
   client,
+  clientFactory,
+  modelLoader,
   sessionClient,
   initialMessages = [],
 }: PxiAppProps) {
@@ -749,12 +846,16 @@ export function PxiApp({
   const [activeSession, setActiveSession] = useState<PxiSessionSummary | null>(
     null
   );
+  const [activeModelSelection, setActiveModelSelection] =
+    useState<ModelSelection>(options.modelSelection);
   const [isDraftTemporary, setIsDraftTemporary] = useState(false);
+  const [modelPicker, setModelPicker] = useState<ModelPickerState | null>(null);
   const [sessionPicker, setSessionPicker] = useState<SessionPickerState | null>(
     null
   );
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
+  const modelRequestIdRef = useRef(0);
   const sessionRequestIdRef = useRef(0);
   const serverSessionClient = useMemo(
     () => sessionClient ?? createPxiSessionClient({ config: options.config }),
@@ -789,9 +890,11 @@ export function PxiApp({
   };
 
   const startNewSession = ({ temporary }: { temporary: boolean }) => {
+    modelRequestIdRef.current += 1;
     sessionRequestIdRef.current += 1;
     setActiveSession(null);
     setIsDraftTemporary(temporary);
+    setModelPicker(null);
     setSessionPicker(null);
     setMessages([]);
     setError(null);
@@ -804,6 +907,8 @@ export function PxiApp({
   };
 
   const openSessionPicker = () => {
+    modelRequestIdRef.current += 1;
+    setModelPicker(null);
     const requestId = sessionRequestIdRef.current + 1;
     sessionRequestIdRef.current = requestId;
     setDraft(EMPTY_DRAFT_EDITOR_STATE);
@@ -840,6 +945,67 @@ export function PxiApp({
               : String(sessionError),
         });
       });
+  };
+
+  const closeModelPicker = () => {
+    modelRequestIdRef.current += 1;
+    setModelPicker(null);
+  };
+
+  const openModelPicker = () => {
+    sessionRequestIdRef.current += 1;
+    setSessionPicker(null);
+    const requestId = modelRequestIdRef.current + 1;
+    modelRequestIdRef.current = requestId;
+    setDraft(EMPTY_DRAFT_EDITOR_STATE);
+    setError(null);
+    setModelPicker({
+      status: "loading",
+      models: [],
+      query: "",
+      selectedIndex: 0,
+      error: null,
+    });
+    const loadModels =
+      modelLoader ??
+      (() => fetchRecommendedPxiModels({ config: options.config }));
+    void loadModels()
+      .then((models) => {
+        if (modelRequestIdRef.current !== requestId) return;
+        setModelPicker({
+          status: "ready",
+          models,
+          query: "",
+          selectedIndex: 0,
+          error: null,
+        });
+      })
+      .catch((modelError: unknown) => {
+        if (modelRequestIdRef.current !== requestId) return;
+        setModelPicker({
+          status: "error",
+          models: [],
+          query: "",
+          selectedIndex: 0,
+          error:
+            modelError instanceof Error
+              ? modelError.message
+              : String(modelError),
+        });
+      });
+  };
+
+  const selectModel = () => {
+    if (!modelPicker || modelPicker.status !== "ready") return;
+    const filteredModels = getFilteredModels({
+      models: modelPicker.models,
+      query: modelPicker.query,
+    });
+    const selectedModel = filteredModels[modelPicker.selectedIndex];
+    if (!selectedModel) return;
+    setActiveModelSelection(selectedModel);
+    setModelPicker(null);
+    setError(null);
   };
 
   const restoreSelectedSession = () => {
@@ -894,6 +1060,7 @@ export function PxiApp({
       setDraft(EMPTY_DRAFT_EDITOR_STATE);
       const result = runSlashCommand(text, {
         startNewSession,
+        openModelPicker,
         openSessionPicker,
         exit: handleExit,
       });
@@ -933,20 +1100,25 @@ export function PxiApp({
     setMessages(nextMessages);
     void (async () => {
       let resolvedClient = client;
+      const activeOptions = {
+        ...options,
+        modelSelection: activeModelSelection,
+      };
+      const createClient = clientFactory ?? createPxiChatClient;
       if (!activeSession && (sessionClient || !resolvedClient)) {
         const session = await serverSessionClient.createSession({
           temporary: isDraftTemporary,
         });
         setActiveSession(session);
         if (!resolvedClient) {
-          resolvedClient = createPxiChatClient({
-            options,
+          resolvedClient = createClient({
+            options: activeOptions,
             agentSessionId: session.id,
           });
         }
       } else if (!resolvedClient && activeSession) {
-        resolvedClient = createPxiChatClient({
-          options,
+        resolvedClient = createClient({
+          options: activeOptions,
           agentSessionId: activeSession.id,
         });
       }
@@ -999,6 +1171,18 @@ export function PxiApp({
       return;
     }
     if (isBackspaceInput({ input })) {
+      if (modelPicker) {
+        setModelPicker((current) =>
+          current
+            ? {
+                ...current,
+                query: current.query.slice(0, -1),
+                selectedIndex: 0,
+              }
+            : null
+        );
+        return;
+      }
       if (sessionPicker) {
         setSessionPicker((current) =>
           current
@@ -1015,7 +1199,7 @@ export function PxiApp({
       return;
     }
     if (isForwardDeleteInput({ input })) {
-      if (sessionPicker) return;
+      if (modelPicker || sessionPicker) return;
       setDraft((value) => deleteDraftTextAtCursor({ draft: value }));
     }
   };
@@ -1035,6 +1219,73 @@ export function PxiApp({
   useInput((input, key) => {
     if ((key.ctrl && input === "c") || (key.ctrl && input === "d")) {
       handleExit();
+      return;
+    }
+    if (modelPicker) {
+      if (key.escape) {
+        closeModelPicker();
+        return;
+      }
+      if (modelPicker.status !== "ready") {
+        return;
+      }
+      const filteredModels = getFilteredModels({
+        models: modelPicker.models,
+        query: modelPicker.query,
+      });
+      if (key.upArrow) {
+        setModelPicker((current) =>
+          current
+            ? {
+                ...current,
+                selectedIndex: Math.max(0, current.selectedIndex - 1),
+              }
+            : null
+        );
+        return;
+      }
+      if (key.downArrow) {
+        setModelPicker((current) =>
+          current
+            ? {
+                ...current,
+                selectedIndex: Math.min(
+                  Math.max(filteredModels.length - 1, 0),
+                  current.selectedIndex + 1
+                ),
+              }
+            : null
+        );
+        return;
+      }
+      if (key.return) {
+        selectModel();
+        return;
+      }
+      if (
+        key.backspace ||
+        key.delete ||
+        isStrippedBracketedPasteMarkerInput({ input }) ||
+        isKeyboardProtocolResponseInput({ input })
+      ) {
+        return;
+      }
+      if (input) {
+        const text = getDraftInputText({ input }).replace(/\n/g, "");
+        if (text) {
+          setModelPicker((current) =>
+            current
+              ? {
+                  ...current,
+                  query: current.query + text,
+                  selectedIndex: 0,
+                  error: null,
+                  status: "ready",
+                }
+              : null
+          );
+        }
+      }
       return;
     }
     if (sessionPicker) {
@@ -1200,8 +1451,8 @@ export function PxiApp({
     <Box flexDirection="column" paddingX={1}>
       <PxiBanner />
       <Text dimColor>
-        endpoint: {options.config.endpoint} | model: {getModelLabel(options)} |
-        session:{" "}
+        endpoint: {options.config.endpoint} | model:{" "}
+        {getModelLabel({ modelSelection: activeModelSelection })} | session:{" "}
         {activeSession
           ? getSessionTitle({ title: activeSession.title })
           : isDraftTemporary
@@ -1220,14 +1471,16 @@ export function PxiApp({
         </Box>
       ) : null}
       {status === "streaming" ? <ThinkingIndicator /> : null}
-      {sessionPicker ? (
+      {modelPicker ? (
+        <ModelPicker state={modelPicker} />
+      ) : sessionPicker ? (
         <SessionPicker state={sessionPicker} />
       ) : (
         <InputPrompt
           draft={draft}
           status={status}
           usageLine={formatTokenUsageLine(getLatestAssistantUsage(messages))}
-          modelLabel={options.modelSelection.modelName}
+          modelLabel={activeModelSelection.modelName}
         />
       )}
     </Box>

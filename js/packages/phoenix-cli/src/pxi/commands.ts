@@ -7,6 +7,7 @@
 
 export type CommandContext = {
   startNewSession: (options: { temporary: boolean }) => void;
+  openModelPicker: () => void;
   openSessionPicker: () => void;
   exit: () => void;
 };
@@ -23,6 +24,11 @@ export const SLASH_COMMANDS: PxiCommand[] = [
     name: "clear",
     description: "Start a new persisted session (alias for /new)",
     handler: (_args, ctx) => ctx.startNewSession({ temporary: false }),
+  },
+  {
+    name: "model",
+    description: "Switch models for this session",
+    handler: (_args, ctx) => ctx.openModelPicker(),
   },
   {
     name: "new",
