@@ -1,15 +1,8 @@
 import { css } from "@emotion/react";
 import { animate, useReducedMotion } from "motion/react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PropsWithChildren } from "react";
 import { Suspense, useEffect, useRef } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import {
-  Group,
-  Panel,
-  type PanelImperativeHandle,
-  Separator,
-} from "react-resizable-panels";
 import { useNavigate, useParams } from "react-router";
 
 import {
@@ -20,18 +13,14 @@ import {
   Flex,
   Icon,
   Icons,
-  Keyboard,
   LinkButton,
   Loading,
   Modal,
   ModalOverlay,
   SectionHeading,
-  ToggleButton,
   View,
 } from "@phoenix/components";
-import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
-import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 
 import { SpanHeader } from "../SpanHeader";
@@ -40,7 +29,6 @@ import type {
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanAttributesCard, SpanInfo } from "./span";
-import { SpanAside } from "./SpanAside";
 import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
 import { SpanFeedback } from "./SpanFeedback";
@@ -53,10 +41,6 @@ const spanHasException = (span: Span) => {
 };
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
-// The side panel sizes in pixels
-const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 400;
-const ASIDE_PANEL_MIN_SIZE_PIXELS = 300;
-const ASIDE_PANEL_MAX_SIZE_PIXELS = 500;
 const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
 const FINAL_SCROLL_ANIMATION_DURATION_SECONDS = 0.18;
 const SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS = 0.5;
@@ -161,15 +145,8 @@ export function SpanDetails({
   spanNodeId: string;
 }) {
   const { projectId } = useParams();
-  const isAnnotatingSpans = usePreferencesContext(
-    (state) => state.isAnnotatingSpans
-  );
-  const setIsAnnotatingSpans = usePreferencesContext(
-    (state) => state.setIsAnnotatingSpans
-  );
   const shouldReduceMotion = useReducedMotion();
 
-  const asidePanelRef = useRef<PanelImperativeHandle>(null);
   const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
   const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
   const scrollAnimationRef = useRef<ReturnType<typeof animate> | null>(null);
@@ -177,18 +154,6 @@ export function SpanDetails({
     null
   );
   const sectionFeedbackElementRef = useRef<HTMLElement | null>(null);
-  // Sync the aside panel collapsed state with the isAnnotatingSpans preference.
-  // This handles initial mount (panel starts expanded by default, collapse if not annotating)
-  // and external changes to isAnnotatingSpans (e.g. from the hotkey).
-  useEffect(() => {
-    const panel = asidePanelRef.current;
-    if (!panel) return;
-    if (isAnnotatingSpans && panel.isCollapsed()) {
-      panel.expand();
-    } else if (!isAnnotatingSpans && !panel.isCollapsed()) {
-      panel.collapse();
-    }
-  }, [isAnnotatingSpans]);
   useEffect(() => {
     const scrollContent = spanDetailsSectionsContentRef.current;
     return () => {
@@ -269,7 +234,6 @@ export function SpanDetails({
             }
             ...SpanHeader_span
             ...SpanFeedback_annotations
-            ...SpanAside_span
           }
         }
       }
@@ -287,17 +251,6 @@ export function SpanDetails({
   if (projectId == null) {
     throw new Error("Project ID is required to download a span");
   }
-
-  useHotkeys(
-    EDIT_ANNOTATION_HOTKEY,
-    () => {
-      if (!isAnnotatingSpans) {
-        setIsAnnotatingSpans(true);
-        asidePanelRef.current?.expand();
-      }
-    },
-    { preventDefault: true }
-  );
 
   const hasExceptions = spanHasException(span);
   const spanDetailsSectionIds = {
@@ -429,216 +382,165 @@ export function SpanDetails({
   };
 
   return (
-    <Group orientation="horizontal" id="span-details-layout">
-      <Panel>
-        <Flex
-          direction="column"
-          flex="1 1 auto"
-          height="100%"
-          ref={spanDetailsContainerRef}
-        >
-          <View
-            paddingTop="size-100"
-            paddingBottom="size-100"
-            paddingStart="size-150"
-            paddingEnd="size-200"
-            flex="none"
-            data-testid="span-header-row"
-          >
-            <SpanHeader
-              span={span}
-              actions={
-                <>
-                  <LinkButton
-                    variant={span.spanKind !== "llm" ? "default" : "primary"}
-                    leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-                    isDisabled={span.spanKind !== "llm"}
-                    to={`/playground/spans/${span.id}`}
-                    size="S"
-                    aria-label="Prompt Playground"
-                  >
-                    {isCondensedView ? null : "Playground"}
-                  </LinkButton>
-                  <AddSpanToDatasetButton
-                    span={span}
-                    buttonText={isCondensedView ? null : "Add to Dataset"}
-                  />
-                  <SpanDownloadMenu
-                    projectId={projectId}
-                    spanId={span.spanId}
-                    traceId={span.trace.traceId}
-                    buttonText={isCondensedView ? null : "Download"}
-                  />
-                  <ToggleButton
-                    size="S"
-                    isSelected={isAnnotatingSpans}
-                    onPress={() => {
-                      const next = !isAnnotatingSpans;
-                      setIsAnnotatingSpans(next);
-                      const asidePanel = asidePanelRef.current;
-                      if (asidePanel) {
-                        if (next) {
-                          asidePanel.expand();
-                        } else {
-                          asidePanel.collapse();
-                        }
-                      }
-                    }}
-                    leadingVisual={<Icon svg={<Icons.Edit2 />} />}
-                    trailingVisual={
-                      !isCondensedView &&
-                      !isAnnotatingSpans && (
-                        <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
-                      )
-                    }
-                  >
-                    {isCondensedView ? null : "Annotate"}
-                  </ToggleButton>
-                </>
-              }
-            />
-          </View>
-          <nav css={spanDetailsAnchorNavCSS} aria-label="Span detail sections">
-            <ul>
-              <li>
-                <a
-                  href={`#${spanDetailsSectionIds.info}`}
-                  onClick={(event) =>
-                    handleSectionLinkClick({
-                      event,
-                      sectionId: spanDetailsSectionIds.info,
-                    })
-                  }
-                >
-                  Info
-                </a>
-              </li>
-              <li>
-                <a
-                  href={`#${spanDetailsSectionIds.annotations}`}
-                  onClick={(event) =>
-                    handleSectionLinkClick({
-                      event,
-                      sectionId: spanDetailsSectionIds.annotations,
-                    })
-                  }
-                >
-                  Annotations <Counter>{span.spanAnnotations.length}</Counter>
-                </a>
-              </li>
-              <li>
-                <a
-                  href={`#${spanDetailsSectionIds.attributes}`}
-                  onClick={(event) =>
-                    handleSectionLinkClick({
-                      event,
-                      sectionId: spanDetailsSectionIds.attributes,
-                    })
-                  }
-                >
-                  Attributes
-                </a>
-              </li>
-              <li>
-                <a
-                  href={`#${spanDetailsSectionIds.events}`}
-                  onClick={(event) =>
-                    handleSectionLinkClick({
-                      event,
-                      sectionId: spanDetailsSectionIds.events,
-                    })
-                  }
-                >
-                  Events
-                  <Counter variant={hasExceptions ? "danger" : "default"}>
-                    {span.events.length}
-                  </Counter>
-                </a>
-              </li>
-            </ul>
-          </nav>
-          <div ref={spanDetailsSectionsRef} css={spanDetailsSectionsCSS}>
-            <div ref={spanDetailsSectionsContentRef}>
-              <section id={spanDetailsSectionIds.info} aria-label="Info">
-                <SpanDetailsSectionHeading bordered={false}>
-                  Info
-                </SpanDetailsSectionHeading>
-                <ErrorBoundary>
-                  <SpanInfo span={span} />
-                </ErrorBoundary>
-              </section>
-              <section
-                id={spanDetailsSectionIds.annotations}
-                aria-label="Annotations"
-              >
-                <SpanDetailsSectionHeading>
-                  <Flex
-                    elementType="span"
-                    direction="row"
-                    gap="size-100"
-                    alignItems="center"
-                  >
-                    Annotations <Counter>{span.spanAnnotations.length}</Counter>
-                  </Flex>
-                </SpanDetailsSectionHeading>
-                <SpanFeedback span={span} />
-              </section>
-              <section
-                id={spanDetailsSectionIds.attributes}
-                aria-label="Attributes"
-              >
-                <SpanDetailsSectionHeading>
-                  Attributes
-                </SpanDetailsSectionHeading>
-                <View padding="size-200">
-                  <SpanAttributesCard attributes={span.attributes} />
-                </View>
-              </section>
-              <section id={spanDetailsSectionIds.events} aria-label="Events">
-                <SpanDetailsSectionHeading>
-                  <Flex
-                    elementType="span"
-                    direction="row"
-                    gap="size-100"
-                    alignItems="center"
-                  >
-                    Events
-                    <Counter variant={hasExceptions ? "danger" : "default"}>
-                      {span.events.length}
-                    </Counter>
-                  </Flex>
-                </SpanDetailsSectionHeading>
-                <View>
-                  <Suspense fallback={<Loading />}>
-                    <SpanEventsList spanId={span.id} />
-                  </Suspense>
-                </View>
-              </section>
-            </div>
-          </div>
-        </Flex>
-      </Panel>
-      <Separator
-        css={compactResizeHandleCSS}
-        disabled={!isAnnotatingSpans}
-        style={isAnnotatingSpans ? undefined : { display: "none" }}
-      />
-      <Panel
-        panelRef={asidePanelRef}
-        defaultSize={ASIDE_PANEL_DEFAULT_SIZE_PIXELS}
-        collapsedSize={0}
-        minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
-        maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
-        collapsible
-        onResize={(panelSize) => {
-          if (panelSize.asPercentage === 0) {
-            setIsAnnotatingSpans(false);
-          }
-        }}
+    <Flex
+      direction="column"
+      flex="1 1 auto"
+      height="100%"
+      ref={spanDetailsContainerRef}
+    >
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-150"
+        paddingEnd="size-200"
+        flex="none"
+        data-testid="span-header-row"
       >
-        <SpanAside span={span} />
-      </Panel>
-    </Group>
+        <SpanHeader
+          span={span}
+          actions={
+            <>
+              <LinkButton
+                variant={span.spanKind !== "llm" ? "default" : "primary"}
+                leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                isDisabled={span.spanKind !== "llm"}
+                to={`/playground/spans/${span.id}`}
+                size="S"
+                aria-label="Prompt Playground"
+              >
+                {isCondensedView ? null : "Playground"}
+              </LinkButton>
+              <AddSpanToDatasetButton
+                span={span}
+                buttonText={isCondensedView ? null : "Add to Dataset"}
+              />
+              <SpanDownloadMenu
+                projectId={projectId}
+                spanId={span.spanId}
+                traceId={span.trace.traceId}
+                buttonText={isCondensedView ? null : "Download"}
+              />
+            </>
+          }
+        />
+      </View>
+      <nav css={spanDetailsAnchorNavCSS} aria-label="Span detail sections">
+        <ul>
+          <li>
+            <a
+              href={`#${spanDetailsSectionIds.info}`}
+              onClick={(event) =>
+                handleSectionLinkClick({
+                  event,
+                  sectionId: spanDetailsSectionIds.info,
+                })
+              }
+            >
+              Info
+            </a>
+          </li>
+          <li>
+            <a
+              href={`#${spanDetailsSectionIds.annotations}`}
+              onClick={(event) =>
+                handleSectionLinkClick({
+                  event,
+                  sectionId: spanDetailsSectionIds.annotations,
+                })
+              }
+            >
+              Annotations <Counter>{span.spanAnnotations.length}</Counter>
+            </a>
+          </li>
+          <li>
+            <a
+              href={`#${spanDetailsSectionIds.attributes}`}
+              onClick={(event) =>
+                handleSectionLinkClick({
+                  event,
+                  sectionId: spanDetailsSectionIds.attributes,
+                })
+              }
+            >
+              Attributes
+            </a>
+          </li>
+          <li>
+            <a
+              href={`#${spanDetailsSectionIds.events}`}
+              onClick={(event) =>
+                handleSectionLinkClick({
+                  event,
+                  sectionId: spanDetailsSectionIds.events,
+                })
+              }
+            >
+              Events
+              <Counter variant={hasExceptions ? "danger" : "default"}>
+                {span.events.length}
+              </Counter>
+            </a>
+          </li>
+        </ul>
+      </nav>
+      <div ref={spanDetailsSectionsRef} css={spanDetailsSectionsCSS}>
+        <div ref={spanDetailsSectionsContentRef}>
+          <section id={spanDetailsSectionIds.info} aria-label="Info">
+            <SpanDetailsSectionHeading bordered={false}>
+              Info
+            </SpanDetailsSectionHeading>
+            <ErrorBoundary>
+              <SpanInfo span={span} />
+            </ErrorBoundary>
+          </section>
+          <section
+            id={spanDetailsSectionIds.annotations}
+            aria-label="Annotations"
+          >
+            <SpanDetailsSectionHeading>
+              <Flex
+                elementType="span"
+                direction="row"
+                gap="size-100"
+                alignItems="center"
+              >
+                Annotations <Counter>{span.spanAnnotations.length}</Counter>
+              </Flex>
+            </SpanDetailsSectionHeading>
+            <SpanFeedback span={span} />
+          </section>
+          <section
+            id={spanDetailsSectionIds.attributes}
+            aria-label="Attributes"
+          >
+            <SpanDetailsSectionHeading>Attributes</SpanDetailsSectionHeading>
+            <View padding="size-200">
+              <SpanAttributesCard attributes={span.attributes} />
+            </View>
+          </section>
+          <section id={spanDetailsSectionIds.events} aria-label="Events">
+            <SpanDetailsSectionHeading>
+              <Flex
+                elementType="span"
+                direction="row"
+                gap="size-100"
+                alignItems="center"
+              >
+                Events
+                <Counter variant={hasExceptions ? "danger" : "default"}>
+                  {span.events.length}
+                </Counter>
+              </Flex>
+            </SpanDetailsSectionHeading>
+            <View>
+              <Suspense fallback={<Loading />}>
+                <SpanEventsList spanId={span.id} />
+              </Suspense>
+            </View>
+          </section>
+        </div>
+      </div>
+    </Flex>
   );
 }
 
