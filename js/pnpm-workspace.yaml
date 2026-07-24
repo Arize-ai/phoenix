@@ -5,15 +5,9 @@ packages:
 
 managePackageManagerVersions: true
 
-minimumReleaseAge: 4320
+minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
   - "@arizeai/openinference-core"
-  # oxlint@1.75.0 (published 2026-07-21T23:21Z) clears the 3-day quarantine
-  # on 2026-07-24T23:21Z; remove these entries after that.
-  - oxlint
-  - "@oxlint/*"
-  - oxlint-tsgolint
-  - "@oxlint-tsgolint/*"
 
 allowBuilds:
   # Only has a "use pnpm" preinstall guard; no build output needed.
