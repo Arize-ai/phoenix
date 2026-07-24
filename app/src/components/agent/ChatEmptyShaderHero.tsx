@@ -217,7 +217,7 @@ export function ChatEmptyShaderHero({
 
   useEffect(() => {
     if (typeof window === "undefined") {
-      return;
+      return undefined;
     }
 
     const updateContainerSize = () => {

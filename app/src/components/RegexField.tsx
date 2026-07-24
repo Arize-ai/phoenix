@@ -97,10 +97,10 @@ export const RegexField = ({
 
   useEffect(() => {
     if (!validateRegex) {
-      return;
+      return undefined;
     }
     if (!debouncedValue) {
-      return;
+      return undefined;
     }
 
     const query = fetchQuery<RegexFieldQuery>(environment, regexFieldQuery, {

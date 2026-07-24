@@ -265,7 +265,7 @@ export const EvaluatorOutputPreview = () => {
   const isLlmEvaluator = evaluatorKind === "LLM";
   useEffect(() => {
     if (!isLlmEvaluator) {
-      return;
+      return undefined;
     }
     const { registerClientAction, unregisterClientAction } =
       agentStore.getState();

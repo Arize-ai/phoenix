@@ -58,7 +58,7 @@ export function PromptInputTextarea({
   // via useLayoutEffect to avoid a visible flicker.
   useLayoutEffect(() => {
     const textarea = internalRef.current;
-    if (!textarea) return;
+    if (!textarea) return undefined;
 
     const resizeTextarea = () => {
       textarea.style.height = "auto";

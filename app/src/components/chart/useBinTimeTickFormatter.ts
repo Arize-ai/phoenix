@@ -51,7 +51,7 @@ export function useBinTimeTickFormatter({ scale }: { scale: TimeBinScale }) {
           timeZone: displayTimezone,
         });
       default: {
-        assertUnreachable(scale);
+        return assertUnreachable(scale);
       }
     }
   }, [scale, displayTimezone]);

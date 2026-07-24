@@ -16,7 +16,7 @@ import { Toast } from "./Toast";
  */
 function attachToastRegion(region: HTMLElement | null) {
   if (!region) {
-    return;
+    return undefined;
   }
   const measure = () => {
     const positioners =

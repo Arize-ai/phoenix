@@ -301,6 +301,6 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
         },
       };
     default:
-      assertUnreachable(model_provider);
+      return assertUnreachable(model_provider);
   }
 }

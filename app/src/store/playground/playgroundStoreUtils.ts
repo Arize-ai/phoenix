@@ -16,7 +16,7 @@ export const convertMessageToolCallsToProvider = ({
   provider: ModelProvider;
 }): ChatMessage["toolCalls"] => {
   if (toolCalls == null) {
-    return;
+    return undefined;
   }
   return toolCalls.map((toolCall) => {
     switch (provider) {
@@ -55,7 +55,7 @@ export const convertMessageToolCallsToProvider = ({
       case "GOOGLE":
         return toolCall;
       default:
-        assertUnreachable(provider);
+        return assertUnreachable(provider);
     }
   });
 };

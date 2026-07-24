@@ -179,7 +179,7 @@ export function useActiveDrawerWidth() {
 
   useEffect(() => {
     if (!drawer) {
-      return;
+      return undefined;
     }
 
     const measureDrawer = () => {

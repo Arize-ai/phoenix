@@ -129,7 +129,7 @@ export function ThemeProvider(
   }, []);
 
   useEffect(() => {
-    if (props.disableBodyTheme) return;
+    if (props.disableBodyTheme) return undefined;
     // When the theme changes, set a class on the body to override the default theme
     document.body.classList.add(`theme--${theme}`);
     document.body.classList.add(`theme`);

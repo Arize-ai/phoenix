@@ -303,7 +303,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   useEffect(() => {
     if (!runInProgress) {
-      return;
+      return undefined;
     }
     setApiError(null);
     const input = getChatCompletionInput({

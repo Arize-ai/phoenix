@@ -132,7 +132,7 @@ export const RetentionPoliciesTable = ({
           if (rule.__typename === "%other") {
             return "Unknown";
           }
-          assertUnreachable(rule);
+          return assertUnreachable(rule);
         },
       },
       {

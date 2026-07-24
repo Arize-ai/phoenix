@@ -210,6 +210,7 @@ export function ExampleExperimentRunsTable({
             />
           );
         }
+        return undefined;
       },
     },
   ];

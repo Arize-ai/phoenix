@@ -89,6 +89,7 @@ export function PromptChatMessages({
   if (template.__typename === "%other") {
     throw new Error("Unknown template type" + template.__typename);
   }
+  return null;
 }
 
 function ChatMessageContentPart({

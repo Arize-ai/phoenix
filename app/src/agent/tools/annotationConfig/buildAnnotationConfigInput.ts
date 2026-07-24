@@ -1,3 +1,5 @@
+import { assertUnreachable } from "@phoenix/typeUtils";
+
 import type { AnnotationConfigInput } from "./__generated__/createAnnotationConfigToolMutation.graphql";
 import type {
   AnnotationConfigDraft,
@@ -66,5 +68,7 @@ export function buildAnnotationConfigInput(
           upperBound: draft.upperBound ?? null,
         },
       };
+    default:
+      return assertUnreachable(draft.type);
   }
 }
