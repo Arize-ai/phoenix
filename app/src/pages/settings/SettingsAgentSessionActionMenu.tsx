@@ -170,7 +170,10 @@ export function SettingsAgentSessionActionMenu({
                   <Text>Edit title</Text>
                 </Flex>
               </MenuItem>
-              <MenuItem id={AgentSessionAction.Delete} textValue="Delete session">
+              <MenuItem
+                id={AgentSessionAction.Delete}
+                textValue="Delete session"
+              >
                 <Flex gap="size-75" alignItems="center">
                   <Icon svg={<Icons.Trash />} />
                   <Text>Delete</Text>

@@ -9351,6 +9351,7 @@
         "properties": {
           "title": {
             "type": "string",
+            "maxLength": 100,
             "title": "Title",
             "description": "Optional initial title.",
             "default": ""
