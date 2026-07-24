@@ -11,6 +11,7 @@ const messageContentListCSS = css`
   flex-direction: row;
   gap: var(--global-dimension-size-200);
   flex-wrap: wrap;
+  padding: var(--global-dimension-size-200);
 `;
 
 /**
@@ -18,7 +19,6 @@ const messageContentListCSS = css`
  */
 const messageContentTextListItemCSS = css`
   flex: 1 1 100%;
-  padding: var(--global-dimension-size-200);
 `;
 
 /**
