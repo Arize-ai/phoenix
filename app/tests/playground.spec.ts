@@ -73,10 +73,10 @@ test.describe("Playground", () => {
 
     await expect(reorderButtons).toHaveCount(2);
     await expect(messageItems).toHaveCount(2);
-    await expect(messageItems.nth(0).getByRole("textbox")).toContainText(
+    await expect(messageItems.nth(0).locator(".cm-content")).toContainText(
       "You are a chatbot"
     );
-    await expect(messageItems.nth(1).getByRole("textbox")).toContainText(
+    await expect(messageItems.nth(1).locator(".cm-content")).toContainText(
       "{{question}}"
     );
 
@@ -103,11 +103,124 @@ test.describe("Playground", () => {
       .toBeGreaterThanOrEqual(1);
     await page.mouse.up();
 
-    await expect(messageItems.nth(0).getByRole("textbox")).toContainText(
+    await expect(messageItems.nth(0).locator(".cm-content")).toContainText(
       "{{question}}"
     );
-    await expect(messageItems.nth(1).getByRole("textbox")).toContainText(
+    await expect(messageItems.nth(1).locator(".cm-content")).toContainText(
       "You are a chatbot"
+    );
+  });
+
+  test("moves keyboard focus through message editors until editing is intentional", async ({
+    page,
+  }) => {
+    await page.goto("/playground");
+    await expect(
+      page.getByRole("heading", { name: "Playground" })
+    ).toBeVisible();
+
+    const messageItems = page.locator("li").filter({
+      has: page.getByRole("button", { name: "Reorder message" }),
+    });
+    const systemMessageItem = messageItems.first();
+    const userMessageItem = messageItems.nth(1);
+    const reorderButton = systemMessageItem.getByRole("button", {
+      name: "Reorder message",
+    });
+    const messageStop = systemMessageItem.getByRole("button", {
+      name: "Edit message content",
+    });
+    const messageTextbox = systemMessageItem.getByRole("textbox", {
+      name: "Message content",
+    });
+    const messageContent = systemMessageItem.locator(".cm-content");
+
+    await expect(
+      page.getByRole("button", { name: "Edit message content" })
+    ).toHaveCount(2);
+
+    await reorderButton.focus();
+    await page.keyboard.press("Tab");
+    await expect(messageStop).toBeFocused();
+
+    await page.keyboard.press("Tab");
+    await expect(
+      userMessageItem.getByRole("button", { name: "user message" })
+    ).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(messageStop).toBeFocused();
+
+    await page.keyboard.press("Enter");
+    await expect(messageTextbox).toBeFocused();
+    await page.keyboard.press("End");
+    await page.keyboard.insertText("x");
+    await expect(messageTextbox).toContainText("You are a chatbotx");
+
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(messageTextbox).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(messageStop).toBeFocused();
+
+    await messageContent.click();
+    await expect(messageTextbox).toBeFocused();
+    const modelParametersButton = page.getByRole("button", {
+      name: "Configure model parameters",
+    });
+    await modelParametersButton.focus();
+    await expect(modelParametersButton).toBeFocused();
+    await expect(messageStop).toBeVisible();
+
+    await messageContent.click();
+    await expect(messageTextbox).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(messageStop).toBeFocused();
+  });
+
+  test("types printable characters directly into inactive message editors", async ({
+    page,
+  }) => {
+    await page.goto("/playground");
+    await expect(
+      page.getByRole("heading", { name: "Playground" })
+    ).toBeVisible();
+
+    const messageItems = page.locator("li").filter({
+      has: page.getByRole("button", { name: "Reorder message" }),
+    });
+    const systemMessage = messageItems.first();
+    const systemMessageStop = systemMessage.getByRole("button", {
+      name: "Edit message content",
+    });
+    const systemMessageContent = systemMessage.locator(".cm-content");
+
+    await systemMessageStop.focus();
+    await page.keyboard.press("Control+x");
+    await expect(systemMessageStop).toBeFocused();
+    await expect(systemMessageContent).toHaveText("You are a chatbot");
+
+    await page.keyboard.press("x");
+    await expect(
+      systemMessage.getByRole("textbox", { name: "Message content" })
+    ).toBeFocused();
+    await expect(systemMessageContent).toHaveText("xYou are a chatbot");
+
+    await page.keyboard.press("Escape");
+    await page.keyboard.press(" ");
+    await expect(systemMessageContent).toHaveText("x You are a chatbot");
+
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("?");
+    await expect(systemMessageContent).toHaveText("x ?You are a chatbot");
+
+    await page.keyboard.press("Escape");
+    const userMessage = messageItems.nth(1);
+    await userMessage
+      .getByRole("button", { name: "Edit message content" })
+      .focus();
+    await page.keyboard.press("z");
+    await expect(userMessage.locator(".cm-content")).toHaveText(
+      "z{{question}}"
     );
   });
 
