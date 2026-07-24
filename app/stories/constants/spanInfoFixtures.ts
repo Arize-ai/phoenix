@@ -44,6 +44,7 @@ export const llmChatSpan: SpanInfoFixture = {
         },
       ],
       model_name: "gpt-3.5-turbo",
+      provider: "openai",
       token_count: {
         completion: 63,
         total: 649,
