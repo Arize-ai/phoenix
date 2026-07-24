@@ -15,6 +15,7 @@ import {
   AppFrameOverlayProvider,
   useAppFrameOverlay,
 } from "@phoenix/components/core/overlay";
+import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import {
   AccountMenu,
   Brand,
@@ -72,6 +73,16 @@ const topNavCellCSS = css`
   grid-column: 2;
   grid-row: 1;
   min-width: 0;
+`;
+
+const topNavPageControlsCSS = css`
+  display: contents;
+`;
+
+const topNavAssistantControlCSS = css`
+  position: relative;
+  z-index: ${NON_MODAL_FLOATING_Z_INDEX};
+  flex: none;
 `;
 
 const contentCSS = css`
@@ -188,16 +199,27 @@ function ApplicationFrame() {
               >
                 <SideNav />
               </div>
-              <div
-                data-testid="application-top-navigation"
-                css={topNavCellCSS}
-                inert={appFrameOverlay?.isViewportBlocked || undefined}
-              >
+              <div data-testid="application-top-navigation" css={topNavCellCSS}>
                 <TopNavbar>
-                  <SideNavToggleButton />
-                  <NavBreadcrumb />
-                  <TopNavActionsSlot />
-                  {isAgentFabFloating ? null : <AgentChatTopNavButton />}
+                  <div
+                    className="top-navbar__page-controls"
+                    css={topNavPageControlsCSS}
+                    data-testid="application-top-navigation-page-controls"
+                    inert={appFrameOverlay?.isViewportBlocked || undefined}
+                  >
+                    <SideNavToggleButton />
+                    <NavBreadcrumb />
+                    <TopNavActionsSlot />
+                  </div>
+                  {isAgentFabFloating ? null : (
+                    <div
+                      className="top-navbar__assistant-control"
+                      css={topNavAssistantControlCSS}
+                      data-viewport-modal-interaction-exempt=""
+                    >
+                      <AgentChatTopNavButton />
+                    </div>
+                  )}
                 </TopNavbar>
               </div>
               <div
@@ -206,12 +228,6 @@ function ApplicationFrame() {
                 inert={appFrameOverlay?.isViewportBlocked || undefined}
                 ref={contentRef}
               >
-                {isAgentFabFloating ? (
-                  <AgentChatWidget boundaryRef={contentRef} />
-                ) : null}
-                {shouldShowFloatingAgentPanel ? (
-                  <FloatingAgentChatPanel boundaryRef={contentRef} />
-                ) : null}
                 <Suspense fallback={<Loading />}>
                   <Outlet />
                 </Suspense>
@@ -228,6 +244,12 @@ function ApplicationFrame() {
                 ref={appFrameOverlay?.setViewportModalHostElement}
               />
             </div>
+            {isAgentFabFloating ? (
+              <AgentChatWidget boundaryRef={contentRef} />
+            ) : null}
+            {shouldShowFloatingAgentPanel ? (
+              <FloatingAgentChatPanel boundaryRef={contentRef} />
+            ) : null}
           </Panel>
           {shouldShowDockedAgentPanel ? <AgentChatPanel /> : null}
         </Group>

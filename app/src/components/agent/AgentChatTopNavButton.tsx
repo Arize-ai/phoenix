@@ -22,10 +22,10 @@ const buttonWrapperCSS = css`
 /**
  * The PXI assistant button pinned to the far right of the top nav.
  *
- * It always remains in the nav flow. The layout reserves space for non-modal
- * drawers, while modal overlays cover it with the rest of the application
- * chrome. The button is never moved into overlay content or ahead of the
- * breadcrumb.
+ * It always remains in the nav flow. The application frame promotes its
+ * wrapper above viewport-scoped modals so the collaborative assistant remains
+ * available, while window-scoped modals still cover it. The button is never
+ * moved into overlay content or ahead of the breadcrumb.
  */
 export function AgentChatTopNavButton() {
   const isAssistantAgentEnabled = useAssistantAgentEnabled();

@@ -37,18 +37,25 @@ function FrameContent({ children }: { children: ReactNode }) {
         data-testid="viewport-modal-plane"
         ref={frame?.setViewportModalHostElement}
       />
-      <aside data-testid="assistant-rail">
+      <aside
+        data-testid="assistant-rail"
+        data-viewport-modal-interaction-exempt=""
+      >
         <button type="button">Rail action</button>
       </aside>
     </div>
   );
 }
 
-function TriggeredViewportModal() {
+function TriggeredViewportModal({
+  isDismissable = false,
+}: {
+  isDismissable?: boolean;
+} = {}) {
   return (
     <DialogTrigger>
       <Button>Open form</Button>
-      <ViewportModalOverlay>
+      <ViewportModalOverlay isDismissable={isDismissable}>
         <ViewportModal>
           <Dialog>
             <Heading slot="title">Edit dataset</Heading>
@@ -200,6 +207,26 @@ describe("ViewportModal", () => {
         new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })
       );
     });
+
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it("does not dismiss when the collaborative rail is pressed", () => {
+    act(() =>
+      root.render(
+        <Frame>
+          <TriggeredViewportModal isDismissable />
+        </Frame>
+      )
+    );
+    act(() =>
+      container.querySelector<HTMLButtonElement>("main button")?.click()
+    );
+
+    const railButton = container.querySelector<HTMLButtonElement>(
+      '[data-testid="assistant-rail"] button'
+    );
+    act(() => railButton?.click());
 
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
   });
