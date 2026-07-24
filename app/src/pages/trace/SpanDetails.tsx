@@ -39,6 +39,7 @@ import {
   DisclosurePanel,
   DisclosureTrigger,
   ErrorBoundary,
+  ExpandableContent,
   ExternalLink,
   Flex,
   Heading,
@@ -152,6 +153,7 @@ const ASIDE_PANEL_MAX_SIZE_PIXELS = 500;
 const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
 const FINAL_SCROLL_ANIMATION_DURATION_SECONDS = 0.18;
 const SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS = 0.5;
+const INVOCATION_PARAMETERS_COLLAPSED_HEIGHT_PIXELS = 320;
 
 const spanDetailsAnchorNavCSS = css`
   flex: none;
@@ -997,9 +999,6 @@ function LLMSpanInfo(props: {
               <Tab id="prompt-template">Prompt Template</Tab>
             )}
             {hasPrompts && <Tab id="prompts">Prompts</Tab>}
-            {hasInvocationParams && (
-              <Tab id="invocation-params">Invocation Params</Tab>
-            )}
           </TabList>
 
           {hasInputMessages && (
@@ -1083,21 +1082,22 @@ function LLMSpanInfo(props: {
               <LLMPromptsList prompts={prompts} />
             </LazyTabPanel>
           )}
-
-          {hasInvocationParams && (
-            <LazyTabPanel id="invocation-params">
-              <CopyToClipboard
-                text={invocation_parameters_str}
-                padding="size-100"
-              >
-                <ReadonlyJSONBlock>
-                  {invocation_parameters_str}
-                </ReadonlyJSONBlock>
-              </CopyToClipboard>
-            </LazyTabPanel>
-          )}
         </Tabs>
       </Card>
+      {hasInvocationParams ? (
+        <Card
+          {...defaultCardProps}
+          title="Invocation Parameters"
+          extra={<CopyToClipboardButton text={invocation_parameters_str} />}
+        >
+          <ExpandableContent
+            height={INVOCATION_PARAMETERS_COLLAPSED_HEIGHT_PIXELS}
+            expandedBehavior="grow"
+          >
+            <ReadonlyJSONBlock>{invocation_parameters_str}</ReadonlyJSONBlock>
+          </ExpandableContent>
+        </Card>
+      ) : null}
       {hasOutput || hasOutputMessages ? (
         <Card {...defaultCardProps} title="Output" titleSeparator={false}>
           <Tabs>

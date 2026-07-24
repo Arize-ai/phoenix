@@ -76,6 +76,56 @@ const llmSpan = createSpanInfoFixture({
   }),
 });
 
+const longInvocationParametersSpan = createSpanInfoFixture({
+  spanKind: "llm",
+  input: {
+    mimeType: "text",
+    value:
+      "Investigate the production incident and propose a remediation plan.",
+  },
+  output: {
+    mimeType: "text",
+    value:
+      "The rollout exhausted the database connection pool. Roll back the deployment and resize the pool before retrying.",
+  },
+  attributes: JSON.stringify({
+    llm: {
+      provider: "openai",
+      model_name: "gpt-4.1",
+      invocation_parameters: JSON.stringify({
+        temperature: 0.2,
+        max_completion_tokens: 16_384,
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "production_incident_report",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: Object.fromEntries(
+                Array.from({ length: 80 }, (_unused, propertyIndex) => [
+                  `diagnostic_signal_${String(propertyIndex + 1).padStart(3, "0")}`,
+                  {
+                    type: "string",
+                    description:
+                      "A detailed observation with supporting evidence, ownership, remediation guidance, and relevant operational caveats.",
+                  },
+                ])
+              ),
+              required: Array.from(
+                { length: 80 },
+                (_unused, propertyIndex) =>
+                  `diagnostic_signal_${String(propertyIndex + 1).padStart(3, "0")}`
+              ),
+              additionalProperties: false,
+            },
+          },
+        },
+      }),
+    },
+  }),
+});
+
 const retrieverSpan = createSpanInfoFixture({
   spanKind: "retriever",
   input: { mimeType: "text", value: "How do I rotate an API key?" },
@@ -709,6 +759,10 @@ export const SpecializedSpanKinds: Story = {
     </DetailPanelExamples>
   ),
   tags: ["!dev"],
+};
+
+export const LongInvocationParameters: Story = {
+  args: { span: longInvocationParametersSpan },
 };
 
 export const ExcessiveContent: Story = {
