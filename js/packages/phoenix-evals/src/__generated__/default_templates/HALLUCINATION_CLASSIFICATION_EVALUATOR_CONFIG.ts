@@ -4,41 +4,53 @@ import type { ClassificationEvaluatorConfig } from "../types";
 
 export const HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluatorConfig = {
   name: "hallucination",
-  description: "A specialized evaluator for detecting hallucinations in grounded LLM responses.",
+  description: "Detect whether an assistant response contains hallucinations — claims not supported by the conversation.",
   optimizationDirection: "MINIMIZE",
   template: [
     {
       role: "user",
       content: `
-In this task, you will be presented with a query, some context and a response. The response is generated to the question based on the context. The response may contain false information. You must use the context to determine if the response to the question contains false information, if the response is hallucinated. 
+You are an expert evaluator labeling whether an AI assistant's response contains hallucinations. A hallucination is any claim in the response that is not supported by, or that contradicts, the information available in the conversation.
 
-Your objective is to determine whether the response text contains factual information and is factual relative to the context. An 'hallucinated' response refers to a response that is not based on the context or assumes information that is not available in the context. 
+The conversation contains what the assistant had access to when responding: earlier user and assistant turns, tool calls, tool results, and any retrieved context. Treat it as the source of truth. It may contain markers such as "[... N earlier messages omitted ...]" or "...[truncated]..." indicating that content was elided to fit a length limit. Do not treat elided content as missing or as evidence of fabrication; judge only the claims you can actually check against the visible conversation.
 
-Your response should be a single word: either 'factual' or 'hallucinated', and it should not include any other text or characters. 
+<rubric>
 
-'hallucinated' indicates that the response provides factually inaccurate information to the query based on the context. 
+HALLUCINATED - The response does any of the following:
 
-'factual' indicates that the response to the question is correct relative to the context, and does not contain made up information. 
+- States facts that contradict the conversation
+- Asserts specific details (names, numbers, dates, quotes, entities, tool results, or events) that are not present in and cannot be reasonably derived from the conversation
+- Attributes claims, sources, or actions to the conversation that never appear in it
 
-Please read the query and context carefully before determining your response.
+FACTUAL - The response:
+
+- Makes only claims that are supported by, consistent with, or reasonably inferable from the conversation
+- Relies on uncontroversial general knowledge that does not conflict with the conversation
+- Declines to answer, expresses uncertainty, or asks a clarifying question without asserting unsupported facts
+
+</rubric>
+
+You are evaluating ONLY hallucination. Do NOT judge helpfulness, completeness, relevance, tone, or writing style. A response can be unhelpful or off-topic and still be factual, and a fluent, confident-sounding response can still be hallucinated.
 
 <data>
 
-<query>
+<conversation>
+{{conversation}}
+</conversation>
+
+<input>
 {{input}}
-</query>
+</input>
 
-<context>
-{{context}}
-</context>
-
-<response>
+<output>
 {{output}}
-</response>
+</output>
 
 </data>
 
-Is the response above factual or hallucinated based on the query and context?
+The input is the latest user message the response is answering. Carefully compare each factual claim in the output against the conversation and reason about whether it is supported before deciding. When the response asserts specifics that the conversation does not support, label it hallucinated.
+
+Is the response above factual or hallucinated based on the conversation?
 `,
     },
   ],

@@ -6,6 +6,10 @@ from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from phoenix.client.__generated__ import v1
 
+from .hallucination import (
+    async_get_hallucination_context,
+    get_hallucination_context,
+)
 from .rag import (
     async_get_input_output_context,
     async_get_retrieved_documents,
@@ -26,6 +30,8 @@ __all__ = [
     "get_retrieved_documents",
     "async_get_input_output_context",
     "async_get_retrieved_documents",
+    "get_hallucination_context",
+    "async_get_hallucination_context",
 ]
 
 # Source implementation:opentelemetry.sdk.trace.id_generator.RandomIdGenerator
