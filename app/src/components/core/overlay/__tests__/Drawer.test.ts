@@ -81,7 +81,7 @@ describe("Drawer", () => {
 
     expect(drawer?.style.width).toBe("55vw");
     expect(handle?.getAttribute("aria-valuenow")).toBe("55");
-    expect(onResize).toHaveBeenLastCalledWith(55);
+    expect(onResize).toHaveBeenLastCalledWith(55, 550);
 
     act(() => {
       handle?.dispatchEvent(
@@ -94,7 +94,7 @@ describe("Drawer", () => {
 
     expect(drawer?.style.width).toBe("50vw");
     expect(handle?.getAttribute("aria-valuenow")).toBe("50");
-    expect(onResize).toHaveBeenLastCalledWith(50);
+    expect(onResize).toHaveBeenLastCalledWith(50, 500);
 
     act(() => {
       handle?.dispatchEvent(
@@ -107,7 +107,7 @@ describe("Drawer", () => {
 
     expect(drawer?.style.width).toBe("35vw");
     expect(handle?.getAttribute("aria-valuenow")).toBe("35");
-    expect(onResize).toHaveBeenLastCalledWith(35);
+    expect(onResize).toHaveBeenLastCalledWith(35, 350);
 
     act(() => {
       handle?.dispatchEvent(
@@ -120,6 +120,48 @@ describe("Drawer", () => {
 
     expect(drawer?.style.width).toBe("95vw");
     expect(handle?.getAttribute("aria-valuenow")).toBe("95");
-    expect(onResize).toHaveBeenLastCalledWith(95);
+    expect(onResize).toHaveBeenLastCalledWith(95, 950);
+  });
+
+  it("keeps a pixel factory width independent of the viewport percentage", () => {
+    const onResize = vi.fn();
+
+    act(() => {
+      root.render(
+        createElement(
+          Drawer,
+          {
+            defaultSize: 1329,
+            isOpen: true,
+            maxSize: "95%",
+            minSize: "35%",
+            onResize,
+          },
+          createElement("div", null, "Drawer content")
+        )
+      );
+    });
+
+    const drawer = container.querySelector(
+      '[role="complementary"]'
+    ) as HTMLDivElement | null;
+    const handle = container.querySelector(
+      '[role="separator"]'
+    ) as HTMLDivElement | null;
+
+    expect(drawer?.style.width).toBe("1329px");
+    expect(drawer?.style.maxWidth).toBe("95vw");
+
+    act(() => {
+      handle?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          key: "ArrowRight",
+        })
+      );
+    });
+
+    expect(drawer?.style.width).toBe("900px");
+    expect(onResize).toHaveBeenLastCalledWith(90, 900);
   });
 });
