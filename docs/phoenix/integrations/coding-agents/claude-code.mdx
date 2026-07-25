@@ -8,6 +8,13 @@ keywords: ["claude code", "claude code tracing", "phoenix", "agent tracing", "cl
 
 Trace your [Claude Code](https://code.claude.com/docs/en/overview) sessions in Phoenix with the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) plugin — every turn shows up as a trace with the model call, each tool it runs, and token cost, grouped into its session. No application code changes required: the plugin hooks into Claude Code's lifecycle events and streams [OpenInference](https://github.com/Arize-ai/openinference) spans to Phoenix. Works with both the Claude Code CLI and the Claude Agent SDK.
 
+<Frame caption="A single Claude Code turn in Phoenix — every model call and tool call in one trace">
+  <img
+    src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/claude_code.png"
+    alt="Phoenix trace view for a Claude Code turn: the span tree lists eight sequential claude-opus-5 LLM calls with nested Bash and Read tool spans, alongside the turn's status, total cost, and latency, and the prompt and response in the detail panel"
+  />
+</Frame>
+
 <Note>
 **Use this to trace Claude Code (or Agent SDK) *sessions* via the plugin — enabled through a settings file, no in-code instrumentor.** If instead you are **building an application** with the Claude Agent SDK and want standard OpenInference agent, tool, and LLM spans in your app's code, use the [Claude Agent SDK](/docs/phoenix/integrations/python/claude-agent-sdk) instrumentor instead.
 </Note>
@@ -104,6 +111,18 @@ Now that you have tracing set up, all Claude Code sessions stream to your Phoeni
 - **Subagent spans** — activity from any subagents Claude spawns
 - **Session grouping** — all turns from the same session grouped by `session_id`
 
+<Frame caption="Browsing Claude Code turns in Phoenix and drilling into a single turn's span tree">
+  <video
+    src="https://storage.googleapis.com/arize-assets/phoenix/assets/videos/claude_code_tracing.mp4"
+    className="w-full rounded-xl"
+    controls
+    muted
+    playsInline
+  />
+</Frame>
+
+Every turn lands in the project as its own trace, with the prompt that started it in the `input` column — so you can scan a working session top to bottom, then open any turn to see exactly which tools ran and what they cost.
+
 <Frame caption="Claude Code turns grouped together in a single session view">
   <img
     src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/coding-harnesses/claude-code-session.png"
@@ -111,9 +130,9 @@ Now that you have tracing set up, all Claude Code sessions stream to your Phoeni
   />
 </Frame>
 
-Drill into any turn trace to inspect the full span tree, including model generations, tool calls, and subagent activity.
+Subagents nest inside the turn that spawned them, so a `Task` delegation shows up as its own subtree with the tools that subagent ran and the tokens it burned.
 
-<Frame caption="Detailed trace view for a Claude Code turn">
+<Frame caption="Subagent activity nested inside a Claude Code turn">
   <img
     src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/coding-harnesses/claude-code-trace.png"
     alt="Phoenix trace view showing the trace tree for a Claude Code turn — an LLM span with a nested subagent span and Glob, Grep, Read, and Edit tool spans — alongside the span's model (claude-opus-4-8), input, token count, cost, and latency"
