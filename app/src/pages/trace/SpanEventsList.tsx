@@ -122,18 +122,22 @@ export function SpanEventsListContent({
 
         return (
           <Disclosure id={idx} key={idx} isDisabled={!hasAttributes}>
-            <DisclosureTrigger arrowPosition="start">
-              {eventHeader}
-            </DisclosureTrigger>
-            {hasAttributes ? (
-              <DisclosurePanel>
-                <ReadonlyJSONBlock
-                  basicSetup={{ lineNumbers: false, foldGutter: false }}
-                >
-                  {JSON.stringify(event.attributes, null, 2)}
-                </ReadonlyJSONBlock>
-              </DisclosurePanel>
-            ) : null}
+            {({ isExpanded }) => (
+              <>
+                <DisclosureTrigger arrowPosition="start">
+                  {eventHeader}
+                </DisclosureTrigger>
+                {hasAttributes && isExpanded ? (
+                  <DisclosurePanel>
+                    <ReadonlyJSONBlock
+                      basicSetup={{ lineNumbers: false, foldGutter: false }}
+                    >
+                      {JSON.stringify(event.attributes, null, 2)}
+                    </ReadonlyJSONBlock>
+                  </DisclosurePanel>
+                ) : null}
+              </>
+            )}
           </Disclosure>
         );
       })}

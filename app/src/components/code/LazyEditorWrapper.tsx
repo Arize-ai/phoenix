@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 
 type LazyEditorWrapperProps = {
   /**
@@ -9,6 +9,8 @@ type LazyEditorWrapperProps = {
    * This allows for the editor to properly get its dimensions when it is rendered outside of the viewport.
    */
   preInitializationMinHeight: number;
+  /** Lightweight content to show before the editor enters the viewport. */
+  fallback?: ReactNode;
   children: ReactNode;
 } & ComponentPropsWithoutRef<"div">;
 
@@ -20,43 +22,37 @@ type LazyEditorWrapperProps = {
  */
 export function LazyEditorWrapper({
   preInitializationMinHeight,
+  fallback = null,
   children,
   ...rest
 }: LazyEditorWrapperProps) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(
+    () => typeof IntersectionObserver === "undefined"
+  );
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * The two useEffect hooks below are used to initialize the JSON editor.
-   * This is necessary because code mirror needs to calculate its dimensions to initialize properly.
-   * When it is rendered outside of the viewport, the dimensions may not always be calculated correctly,
-   * resulting in the editor being invisible or cut off when it is scrolled into view.
-   * Below we use a combination of an intersection observer and a delay to ensure that the editor is initialized correctly.
-   * For a related issue @see https://github.com/codemirror/dev/issues/1076
-   */
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      setIsVisible(entry.isIntersecting);
-    });
+    if (isInitialized) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) {
+          return;
+        }
+        observer.disconnect();
+        startTransition(() => setIsInitialized(true));
+      },
+      { rootMargin: "200px 0px" }
+    );
 
     if (wrapperRef.current) {
       observer.observe(wrapperRef.current);
     }
-    const current = wrapperRef.current;
 
-    return () => {
-      if (current) {
-        observer.unobserve(current);
-      }
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    if (isVisible && !isInitialized) {
-      setIsInitialized(true);
-    }
-  }, [isInitialized, isVisible]);
+    return () => observer.disconnect();
+  }, [isInitialized]);
 
   return (
     <div
@@ -68,7 +64,7 @@ export function LazyEditorWrapper({
           : "auto"};
       `}
     >
-      {children}
+      {isInitialized ? children : fallback}
     </div>
   );
 }

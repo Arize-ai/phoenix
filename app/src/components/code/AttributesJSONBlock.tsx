@@ -6,7 +6,10 @@ import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { JSONBlock } from "./JSONBlock";
+import { LazyEditorWrapper } from "./LazyEditorWrapper";
 import { PreBlock } from "./PreBlock";
+
+const JSON_EDITOR_PRE_INITIALIZATION_MIN_HEIGHT_PIXELS = 160;
 
 const buttonContainerCSS = css`
   position: absolute;
@@ -138,7 +141,14 @@ export function AttributesJSONBlock({ attributes }: { attributes: string }) {
           </Flex>
         </div>
         {parsedAttributes ? (
-          <JSONBlock value={displayValue} />
+          <LazyEditorWrapper
+            preInitializationMinHeight={
+              JSON_EDITOR_PRE_INITIALIZATION_MIN_HEIGHT_PIXELS
+            }
+            fallback={<PreBlock>{displayValue}</PreBlock>}
+          >
+            <JSONBlock value={displayValue} />
+          </LazyEditorWrapper>
         ) : (
           <PreBlock>{attributes}</PreBlock>
         )}

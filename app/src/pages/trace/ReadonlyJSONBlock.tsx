@@ -5,7 +5,10 @@ import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { useMemo } from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
+import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { useTheme } from "@phoenix/contexts";
+
+const JSON_EDITOR_PRE_INITIALIZATION_MIN_HEIGHT_PIXELS = 120;
 
 const codeMirrorCSS = css`
   width: 100%;
@@ -59,22 +62,29 @@ export function ReadonlyJSONBlock({
   }, [children]);
   if (mimeType === "json") {
     return (
-      <CodeMirror
-        value={value}
-        basicSetup={{
-          lineNumbers: true,
-          foldGutter: true,
-          bracketMatching: true,
-          syntaxHighlighting: true,
-          highlightActiveLine: false,
-          highlightActiveLineGutter: false,
-          ...basicSetup,
-        }}
-        extensions={[json(), EditorView.lineWrapping]}
-        editable={false}
-        theme={codeMirrorTheme}
-        css={codeMirrorCSS}
-      />
+      <LazyEditorWrapper
+        preInitializationMinHeight={
+          JSON_EDITOR_PRE_INITIALIZATION_MIN_HEIGHT_PIXELS
+        }
+        fallback={<PreBlock>{value}</PreBlock>}
+      >
+        <CodeMirror
+          value={value}
+          basicSetup={{
+            lineNumbers: true,
+            foldGutter: true,
+            bracketMatching: true,
+            syntaxHighlighting: true,
+            highlightActiveLine: false,
+            highlightActiveLineGutter: false,
+            ...basicSetup,
+          }}
+          extensions={[json(), EditorView.lineWrapping]}
+          editable={false}
+          theme={codeMirrorTheme}
+          css={codeMirrorCSS}
+        />
+      </LazyEditorWrapper>
     );
   } else {
     return <PreBlock>{value}</PreBlock>;

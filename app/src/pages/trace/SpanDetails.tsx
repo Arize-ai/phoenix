@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { animate, useReducedMotion } from "motion/react";
 import type { MouseEvent as ReactMouseEvent, PropsWithChildren } from "react";
-import { Suspense, useEffect, useRef } from "react";
+import { startTransition, Suspense, useEffect, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 
@@ -41,6 +41,9 @@ const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
 const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
 const FINAL_SCROLL_ANIMATION_DURATION_SECONDS = 0.18;
 const SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS = 0.5;
+const ANNOTATIONS_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 160;
+const ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
+const EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 
 const spanDetailsAnchorNavCSS = css`
   flex: none;
@@ -129,6 +132,50 @@ function SpanDetailsSectionHeading({
     <div css={spanDetailsSectionHeadingCSS}>
       <SectionHeading bordered={bordered}>{children}</SectionHeading>
       <span aria-hidden="true" data-section-navigation-feedback />
+    </div>
+  );
+}
+
+function DeferredSpanDetailsContent({
+  children,
+  placeholderHeight,
+}: PropsWithChildren<{ placeholderHeight: number }>) {
+  const [hasEnteredViewport, setHasEnteredViewport] = useState(
+    () => typeof IntersectionObserver === "undefined"
+  );
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (hasEnteredViewport) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting) {
+        return;
+      }
+      observer.disconnect();
+      startTransition(() => setHasEnteredViewport(true));
+    });
+
+    if (contentRef.current) {
+      observer.observe(contentRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasEnteredViewport]);
+
+  return (
+    <div
+      ref={contentRef}
+      data-deferred-content={hasEnteredViewport ? "mounted" : "pending"}
+      css={css`
+        min-height: ${hasEnteredViewport ? 0 : placeholderHeight}px;
+        content-visibility: auto;
+        contain-intrinsic-size: auto ${placeholderHeight}px;
+      `}
+    >
+      {hasEnteredViewport ? children : null}
     </div>
   );
 }
@@ -463,16 +510,24 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
                 Annotations <Counter>{span.spanAnnotations.length}</Counter>
               </Flex>
             </SpanDetailsSectionHeading>
-            <SpanFeedback span={span} />
+            <DeferredSpanDetailsContent
+              placeholderHeight={ANNOTATIONS_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
+            >
+              <SpanFeedback span={span} />
+            </DeferredSpanDetailsContent>
           </section>
           <section
             id={spanDetailsSectionIds.attributes}
             aria-label="Attributes"
           >
             <SpanDetailsSectionHeading>Attributes</SpanDetailsSectionHeading>
-            <View padding="size-200">
-              <SpanAttributesCard attributes={span.attributes} />
-            </View>
+            <DeferredSpanDetailsContent
+              placeholderHeight={ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
+            >
+              <View padding="size-200">
+                <SpanAttributesCard attributes={span.attributes} />
+              </View>
+            </DeferredSpanDetailsContent>
           </section>
           <section id={spanDetailsSectionIds.events} aria-label="Events">
             <SpanDetailsSectionHeading>
@@ -488,9 +543,13 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
                 </Counter>
               </Flex>
             </SpanDetailsSectionHeading>
-            <Suspense fallback={<Loading />}>
-              <SpanEventsList spanId={span.id} />
-            </Suspense>
+            <DeferredSpanDetailsContent
+              placeholderHeight={EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
+            >
+              <Suspense fallback={<Loading />}>
+                <SpanEventsList spanId={span.id} />
+              </Suspense>
+            </DeferredSpanDetailsContent>
           </section>
         </div>
       </div>
