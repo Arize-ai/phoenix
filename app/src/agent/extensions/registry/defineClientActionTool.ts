@@ -162,19 +162,37 @@ export function defineClientActionTool<TInput, TContext = undefined>(config: {
       // approval flows) receive a typed second argument. Preserving the
       // single-argument call keeps the action contract unchanged for the
       // common case.
-      const result = config.buildContext
-        ? await action(
-            input,
-            config.buildContext({
-              toolCall,
-              // Narrowed: requireSession guarantees a non-null session above.
-              // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- buildContext tools set requireSession, whose guard already bailed on a null session
-              sessionId: sessionId as string,
-              addToolOutput,
-              agentStore,
-            })
-          )
-        : await action(input);
+      //
+      // `buildContext` needs a session id, but `requireSession` and
+      // `buildContext` are independent config knobs — the type does not force a
+      // context tool to opt into the session guard. Every context tool sets both
+      // today, so the guard above has already returned by this point; checking
+      // again keeps that from being an assertion.
+      let result;
+      if (config.buildContext) {
+        if (sessionId == null) {
+          await addToolOutput({
+            state: "output-error",
+            tool: config.name,
+            toolCallId: toolCall.toolCallId,
+            errorText:
+              config.noSessionErrorText ??
+              "Cannot run this tool without an active session.",
+          });
+          return;
+        }
+        result = await action(
+          input,
+          config.buildContext({
+            toolCall,
+            sessionId,
+            addToolOutput,
+            agentStore,
+          })
+        );
+      } else {
+        result = await action(input);
+      }
       await emitClientActionResult({
         result,
         toolName: config.name,

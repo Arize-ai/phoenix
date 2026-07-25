@@ -1,6 +1,17 @@
 export type LastNTimeRangeUnit = "m" | "h" | "d";
 
 /**
+ * Narrows a raw string (e.g. a regex capture group) to a time-range unit.
+ * Tied to the runtime check rather than asserted, so widening the unit union
+ * without updating the parsers becomes a compile error.
+ */
+export function isLastNTimeRangeUnit(
+  value: string
+): value is LastNTimeRangeUnit {
+  return value === "m" || value === "h" || value === "d";
+}
+
+/**
  * A relative, open-ended time window expressed as a quantity and unit, e.g.
  * "15m", "12h", "30d". A fixed set of these is offered as presets
  * (see LAST_N_TIME_RANGES) but any positive quantity is a valid key.

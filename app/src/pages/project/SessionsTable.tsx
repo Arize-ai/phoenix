@@ -38,6 +38,7 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { typedMemo } from "@phoenix/components/table/typedMemo";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
@@ -137,11 +138,10 @@ const TableBody = <T extends { id: string }>({
 };
 
 // special memoized wrapper for our table body that we will use during column resizing
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- React.memo drops the generic component signature; restore it to keep TableBody's type
-export const MemoizedTableBody = React.memo(
+export const MemoizedTableBody = typedMemo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
-) as typeof TableBody;
+);
 
 export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below

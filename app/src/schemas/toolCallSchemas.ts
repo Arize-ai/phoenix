@@ -6,6 +6,7 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import type { JSONLiteral } from "./jsonLiteralSchema";
 import { jsonLiteralSchema } from "./jsonLiteralSchema";
+import { toJSONSchema7 } from "./toJSONSchema7";
 
 /**
  * The schema for an OpenAI tool call, this is what a message that calls a tool looks like
@@ -56,7 +57,7 @@ export const openAIToolCallsSchema = z.array(openAIToolCallSchema);
 /**
  * The JSON schema for multiple OpenAI tool calls
  */
-export const openAIToolCallsJSONSchema = z.toJSONSchema(openAIToolCallsSchema);
+export const openAIToolCallsJSONSchema = toJSONSchema7(openAIToolCallsSchema);
 
 export const awsToolCallSchema = z.object({
   toolUse: z.object({
@@ -70,7 +71,7 @@ export type AwsToolCall = z.infer<typeof awsToolCallSchema>;
 
 export const awsToolCallsSchema = z.array(awsToolCallSchema);
 
-export const awsToolCallsJSONSchema = z.toJSONSchema(awsToolCallsSchema);
+export const awsToolCallsJSONSchema = toJSONSchema7(awsToolCallsSchema);
 
 export const openAIToolCallToAws = openAIToolCallSchema.transform(
   (openai): AwsToolCall => ({
@@ -116,7 +117,7 @@ export const anthropicToolCallsSchema = z.array(anthropicToolCallSchema);
 /**
  * The JSON schema for multiple Anthropic tool calls
  */
-export const anthropicToolCallsJSONSchema = z.toJSONSchema(
+export const anthropicToolCallsJSONSchema = toJSONSchema7(
   anthropicToolCallsSchema
 );
 

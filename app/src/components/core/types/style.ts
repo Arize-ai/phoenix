@@ -1,4 +1,20 @@
 import type { SerializedStyles } from "@emotion/react";
+import type { CSSProperties } from "react";
+
+/**
+ * `CSSProperties` extended with CSS custom properties.
+ *
+ * React's `CSSProperties` has no index signature for `--*`, so an inline style
+ * object carrying custom properties fails its excess-property check. Annotating
+ * the object with this type accepts them without asserting: the intersection is
+ * still assignable to `CSSProperties`, so it passes straight to a `style` prop.
+ *
+ * @example
+ * const style: CSSPropertiesWithVars = { "--slider-start": "0%" };
+ * return <div style={style} />;
+ */
+export type CSSPropertiesWithVars = CSSProperties &
+  Record<`--${string}`, string | number>;
 
 export type ColorValue =
   | "gray-50"
@@ -556,6 +572,22 @@ export type TextColorValue =
   | "text-100"
   | "inherit"
   | ColorValue;
+
+/** The `text-*` shades within {@link TextColorValue}. */
+export type TextShadeColorValue = Extract<TextColorValue, `text-${string}`>;
+
+/**
+ * Narrows a text color to one of the `text-*` shades.
+ *
+ * `String.prototype.startsWith` cannot narrow a literal union, so this predicate
+ * ties the check to the type. Callers that also handle `"inherit"` first are
+ * left with plain `ColorValue` in the negative branch, with no assertion.
+ */
+export function isTextShadeColor(
+  color: TextColorValue
+): color is TextShadeColorValue {
+  return color.startsWith("text-");
+}
 
 /**
  * Makes a component stylable with emotion in addition to the component's styles.

@@ -194,7 +194,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const evaluatorDescription = datasetEvaluator.description;
   const evaluatorId = evaluator.id;
   // Load all output configs from the evaluator data, falling back to evaluator's defaults
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Relay data is deeply readonly; Mutable strips readonly for the store's expected shape
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- reinterprets the Relay __typename-discriminated config union as the store's union: strips readonly, drops __typename, and passes a "%other" member through as a valid config. Needs a real mapper
   const loadedOutputConfigs = (
     datasetEvaluator.outputConfigs?.length
       ? datasetEvaluator.outputConfigs

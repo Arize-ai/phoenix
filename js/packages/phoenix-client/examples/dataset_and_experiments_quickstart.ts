@@ -9,6 +9,7 @@ import type { RunExperimentParams } from "../src/experiments";
 import { asEvaluator, runExperiment } from "../src/experiments";
 import type { AnnotatorKind } from "../src/types/annotations";
 import type { Example } from "../src/types/datasets";
+import { readStringField } from "./_shared";
 
 // Replace with your actual OpenAI API key
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -82,8 +83,7 @@ async function main() {
   const task: RunExperimentParams["task"] = async (example: Example) => {
     // Safely access question with a type assertion
     const question =
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- example input is untyped JSON; treat question as a string
-      (example.input.question as string) || "No question provided";
+      readStringField(example.input, "question") || "No question provided";
     const messageContent = taskPromptTemplate.replace("{question}", question);
 
     const response = await openai.chat.completions.create({
@@ -154,8 +154,7 @@ async function main() {
     kind: "CODE" as AnnotatorKind,
     evaluate: async ({ output, expected }) => {
       const actualWords = new Set(String(output).toLowerCase().split(" "));
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- expected output is untyped JSON; treat answer as a string
-      const expectedAnswer = (expected?.answer as string) || "";
+      const expectedAnswer = readStringField(expected, "answer") || "";
       const expectedWords = new Set(expectedAnswer.toLowerCase().split(" "));
 
       const wordsInCommon = new Set(
@@ -207,11 +206,10 @@ async function main() {
     kind: "LLM" as AnnotatorKind,
     evaluate: async ({ input, output, expected }) => {
       // Safely access question and answer with type assertions and fallbacks
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- example input is untyped JSON; treat question as a string
-      const question = (input.question as string) || "No question provided";
+      const question =
+        readStringField(input, "question") || "No question provided";
       const referenceAnswer =
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- expected output is untyped JSON; treat answer as a string
-        (expected?.answer as string) || "No reference answer provided";
+        readStringField(expected, "answer") || "No reference answer provided";
       const answer = String(output);
 
       const res = await accuracyEval.evaluate({

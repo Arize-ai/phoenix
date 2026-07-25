@@ -170,6 +170,26 @@ function labelsAreEqual(
   );
 }
 
+/**
+ * Reads a label's counts out of the pre-populated map.
+ *
+ * `countsByLabel` is seeded with every label in `labels`, and `labels` is
+ * derived from the same `expected`/`output` arrays, so a miss is unreachable --
+ * this asserts that with a real check rather than a type assertion.
+ */
+function getClassCounts(
+  countsByLabel: Map<ClassificationLabel, ClassCounts>,
+  label: ClassificationLabel
+): ClassCounts {
+  const counts = countsByLabel.get(label);
+  if (counts === undefined) {
+    throw new Error(
+      `Unreachable: label ${String(label)} was not pre-populated in countsByLabel`
+    );
+  }
+  return counts;
+}
+
 function computeClassCounts(
   expected: ClassificationLabel[],
   output: ClassificationLabel[],
@@ -184,22 +204,17 @@ function computeClassCounts(
     });
   }
   for (const [index, expectedLabel] of expected.entries()) {
-    // `output` is validated to have the same length as `expected`.
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- length-validated parallel index access
-    const outputLabel = output[index] as ClassificationLabel;
-    // `labels` is derived from these same `expected`/`output` arrays, so both
-    // labels are always pre-populated keys in `countsByLabel`.
+    const outputLabel = output[index];
+    if (outputLabel === undefined) {
+      throw new Error(
+        "Unreachable: `output` is validated to have the same length as `expected`"
+      );
+    }
     if (labelsAreEqual(expectedLabel, outputLabel)) {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- label pre-populated as a key in countsByLabel
-      const counts = countsByLabel.get(expectedLabel) as ClassCounts;
-      counts.truePositive += 1;
+      getClassCounts(countsByLabel, expectedLabel).truePositive += 1;
     } else {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- label pre-populated as a key in countsByLabel
-      const predictedCounts = countsByLabel.get(outputLabel) as ClassCounts;
-      predictedCounts.falsePositive += 1;
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- label pre-populated as a key in countsByLabel
-      const expectedCounts = countsByLabel.get(expectedLabel) as ClassCounts;
-      expectedCounts.falseNegative += 1;
+      getClassCounts(countsByLabel, outputLabel).falsePositive += 1;
+      getClassCounts(countsByLabel, expectedLabel).falseNegative += 1;
     }
   }
   return countsByLabel;

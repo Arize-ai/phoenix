@@ -1,10 +1,13 @@
 import type { ColumnSort } from "@tanstack/react-table";
 
 import type {
+  ProjectSessionColumn,
   ProjectSessionSort,
   SessionsTableQuery$variables,
 } from "./__generated__/SessionsTableQuery.graphql";
 import type {
+  EvalAttr,
+  SpanColumn,
   SpanSort,
   TracesTableQuery$variables,
 } from "./__generated__/TracesTableQuery.graphql";
@@ -24,6 +27,47 @@ export const DEFAULT_SESSION_SORT: ProjectSessionSort = {
   dir: "desc",
 };
 
+/**
+ * Sortable columns, keyed so the record is exhaustive: adding a column to the
+ * GraphQL schema fails to compile here until it is listed, and removing one is
+ * caught too. That is what lets the guards below narrow a raw column id without
+ * asserting.
+ */
+const SPAN_COLUMNS = {
+  cumulativeTokenCostTotal: true,
+  cumulativeTokenCountCompletion: true,
+  cumulativeTokenCountPrompt: true,
+  cumulativeTokenCountTotal: true,
+  endTime: true,
+  latencyMs: true,
+  startTime: true,
+  tokenCostTotal: true,
+  tokenCountCompletion: true,
+  tokenCountPrompt: true,
+  tokenCountTotal: true,
+} satisfies Record<SpanColumn, true>;
+
+const PROJECT_SESSION_COLUMNS = {
+  costTotal: true,
+  endTime: true,
+  numTraces: true,
+  startTime: true,
+  tokenCountTotal: true,
+} satisfies Record<ProjectSessionColumn, true>;
+
+function isSpanColumn(value: string): value is SpanColumn {
+  return value in SPAN_COLUMNS;
+}
+
+function isProjectSessionColumn(value: string): value is ProjectSessionColumn {
+  return value in PROJECT_SESSION_COLUMNS;
+}
+
+/** An annotation column id encodes its attr and name; both must be present. */
+function isEvalAttr(value: string | undefined): value is EvalAttr {
+  return value === "label" || value === "score";
+}
+
 export function getGqlSort(
   sort: ColumnSort
 ): TracesTableQuery$variables["sort"] {
@@ -40,14 +84,11 @@ export function getGqlSort(
   }
   if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
     const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- annotation column ids are constructed via makeAnnotationColumnId so attr/name are present by construction
-    evalResultKey = {
-      attr,
-      name,
-    } as SpanSort["evalResultKey"];
-  } else {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- sortable column ids are limited to SpanColumn values by column definitions
-    col = sort.id as SpanSort["col"];
+    if (isEvalAttr(attr) && name !== undefined) {
+      evalResultKey = { attr, name };
+    }
+  } else if (isSpanColumn(sort.id)) {
+    col = sort.id;
   }
 
   return {
@@ -72,14 +113,11 @@ export function getGqlSessionSort(
   }
   if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
     const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- annotation column ids are constructed via makeAnnotationColumnId so attr/name are present by construction
-    annoResultKey = {
-      attr,
-      name,
-    } as ProjectSessionSort["annoResultKey"];
-  } else {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- sortable column ids are limited to ProjectSessionColumn values by column definitions
-    col = sort.id as ProjectSessionSort["col"];
+    if (isEvalAttr(attr) && name !== undefined) {
+      annoResultKey = { attr, name };
+    }
+  } else if (isProjectSessionColumn(sort.id)) {
+    col = sort.id;
   }
 
   return {

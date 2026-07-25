@@ -14,7 +14,7 @@ vi.unmock("../../src/utils/serverVersionUtils");
 
 import type { PhoenixClient } from "../../src/client";
 import { addSessionNote } from "../../src/sessions/addSessionNote";
-import { createTestClient } from "../testUtils";
+import { createTestClient, partialMock } from "../testUtils";
 
 const http = createHttp();
 
@@ -27,11 +27,10 @@ const http = createHttp();
  * HTTP interception — it can only be exercised with a stub client.
  */
 function createErrorStubClient(error: unknown): PhoenixClient {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- deliberate partial stub of PhoenixClient; only getServerVersion and POST are exercised
-  return {
+  return partialMock<PhoenixClient>({
     getServerVersion: async () => [14, 17, 0] as [number, number, number],
     POST: async () => ({ data: undefined, error }),
-  } as unknown as PhoenixClient;
+  });
 }
 
 /**

@@ -19,6 +19,7 @@ import { createClient } from "../src/client";
 import { createDataset } from "../src/datasets/createDataset";
 import { getSpans } from "../src/spans/getSpans";
 import type { Example } from "../src/types/datasets";
+import { isJsonRecord } from "./_shared";
 
 // Configuration
 const PHOENIX_BASE_URL = "http://localhost:6006";
@@ -49,9 +50,8 @@ function extractInput(
   const inputValue = attributes["input.value"];
   if (inputValue) {
     const parsed = parseJsonValue(inputValue);
-    if (typeof parsed === "object" && parsed !== null) {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- parsed JSON object narrowed to a string-keyed record
-      return parsed as Record<string, unknown>;
+    if (isJsonRecord(parsed)) {
+      return parsed;
     }
     return { value: parsed };
   }
@@ -68,9 +68,8 @@ function extractOutput(
   const outputValue = attributes["output.value"];
   if (outputValue) {
     const parsed = parseJsonValue(outputValue);
-    if (typeof parsed === "object" && parsed !== null) {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- parsed JSON object narrowed to a string-keyed record
-      return parsed as Record<string, unknown>;
+    if (isJsonRecord(parsed)) {
+      return parsed;
     }
     return { value: parsed };
   }

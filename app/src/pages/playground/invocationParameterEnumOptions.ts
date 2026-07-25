@@ -1,3 +1,5 @@
+import { objectFromEntries } from "@phoenix/typeUtils";
+
 import type {
   AnthropicOutputConfigEffort,
   AnthropicThinkingDisplay,
@@ -32,13 +34,11 @@ export const OPENAI_REASONING_EFFORT_FORM_VALUES = toLowercaseValues(
   OPENAI_REASONING_EFFORT_VALUES
 );
 
-const OPENAI_REASONING_EFFORT_FORM_VALUE_BY_ENUM: Record<
-  OpenAIReasoningEffort,
-  string
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- record is exhaustive by construction over all enum values
-> = Object.fromEntries(
-  OPENAI_REASONING_EFFORT_VALUES.map((value) => [value, value.toLowerCase()])
-) as Record<OpenAIReasoningEffort, string>;
+const OPENAI_REASONING_EFFORT_FORM_VALUE_BY_ENUM = objectFromEntries(
+  OPENAI_REASONING_EFFORT_VALUES.map(
+    (value) => [value, value.toLowerCase()] as const
+  )
+);
 
 function isOpenAIReasoningEffort(
   value: string

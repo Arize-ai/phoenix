@@ -25,6 +25,7 @@ import {
   runExperiment,
 } from "../src/experiments";
 import { getSpans } from "../src/spans/getSpans";
+import { readStringField } from "./_shared";
 
 const client = createClient({
   options: {
@@ -103,9 +104,7 @@ function createToolCallEvaluator(projectName: string) {
         spanKind: "TOOL",
       });
 
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- expected is untyped JSON; read the optional expectedTool field
-      const expectedTool = (expected as { expectedTool?: string })
-        ?.expectedTool;
+      const expectedTool = readStringField(expected, "expectedTool");
       const toolNames = toolSpans.map((s) => s.name);
       const found = expectedTool
         ? toolNames.some((name) => name.includes(expectedTool))
@@ -161,8 +160,7 @@ async function main() {
     dataset: { datasetId },
     setGlobalTracerProvider: true,
     task: async (example) => {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- example input is untyped JSON; treat question as a string
-      return runAgent(example.input.question as string);
+      return runAgent(readStringField(example.input, "question") ?? "");
     },
   });
 

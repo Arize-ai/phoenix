@@ -254,7 +254,7 @@ const EditEvaluatorDialog = ({
       datasetEvaluator.evaluator.promptVersion?.tools
     );
     // Load all output configs from the evaluator data, falling back to evaluator's defaults
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Relay data is deeply readonly; Mutable strips readonly for the store's expected shape
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this query selects outputConfigs fields as OPTIONAL (name?, optimizationDirection?, values?); the assertion silently promotes them to required. Needs a mapper that handles the absent-field case
     const loadedOutputConfigs = (
       datasetEvaluator.outputConfigs?.length
         ? datasetEvaluator.outputConfigs

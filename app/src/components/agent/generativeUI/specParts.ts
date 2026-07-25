@@ -166,9 +166,17 @@ function getToolInput(part: DataPart): unknown {
   return isPlainObject(part) ? part.input : undefined;
 }
 
-/** Validates an unknown value against the generative UI render spec contract. */
+/**
+ * Validates an unknown value against the generative UI render spec contract.
+ *
+ * Narrowing with a predicate keeps the ORIGINAL value rather than the parsed
+ * output: the schema uses plain `z.object`, so `result.data` would have unknown
+ * keys stripped, and the renderer receives whatever the model sent.
+ */
+function isSpec(value: unknown): value is Spec {
+  return renderGenerativeUISpecSchema.safeParse(value).success;
+}
+
 function parseSpec(value: unknown): Spec | null {
-  const result = renderGenerativeUISpecSchema.safeParse(value);
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- validated by renderGenerativeUISpecSchema; zod output shape differs from the library Spec type
-  return result.success ? (value as Spec) : null;
+  return isSpec(value) ? value : null;
 }

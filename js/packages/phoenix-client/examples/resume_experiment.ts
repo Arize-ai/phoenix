@@ -5,6 +5,7 @@ import {
   resumeExperiment,
   runExperiment,
 } from "../src/experiments";
+import { readField, readStringField } from "./_shared";
 
 /**
  * This example demonstrates how to resume an experiment that has incomplete runs.
@@ -37,8 +38,7 @@ async function main() {
     example: { input: Record<string, unknown> },
     options?: { simulateFailure?: boolean }
   ) => {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- example input is untyped JSON; treat question as a string
-    const question = example.input.question as string;
+    const question = readStringField(example.input, "question") ?? "";
     if (options?.simulateFailure && Math.random() < 0.5) {
       // 50% failure rate to simulate incomplete runs
       throw new Error("Simulated task failure");
@@ -64,12 +64,7 @@ async function main() {
           }
 
           // Simulate varied accuracy scores for visibility in UI
-          const outputObj =
-            typeof output === "object"
-              ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- task output is untyped JSON narrowed to a record
-                (output as Record<string, unknown>)
-              : {};
-          const outputStr = String(outputObj.answer || "");
+          const outputStr = String(readField(output, "answer") || "");
           const expectedStr = String(expected?.answer || "");
           const hasCorrectNumber = outputStr.includes(expectedStr);
 
@@ -109,12 +104,7 @@ async function main() {
           kind: "CODE",
           evaluate: async ({ output, expected }) => {
             // Simulate varied accuracy scores for visibility in UI
-            const outputObj =
-              typeof output === "object"
-                ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- task output is untyped JSON narrowed to a record
-                  (output as Record<string, unknown>)
-                : {};
-            const outputStr = String(outputObj.answer || "");
+            const outputStr = String(readField(output, "answer") || "");
             const expectedStr = String(expected?.answer || "");
             const hasCorrectNumber = outputStr.includes(expectedStr);
 

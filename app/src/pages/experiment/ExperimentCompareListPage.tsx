@@ -15,7 +15,6 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  memo,
   startTransition,
   useCallback,
   useEffect,
@@ -60,6 +59,7 @@ import {
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import { typedMemo } from "@phoenix/components/table/typedMemo";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -1498,11 +1498,10 @@ function TableBody<T>({
 }
 
 //special memoized wrapper for our table body that we will use during column resizing
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- preserve the generic component signature through React.memo
-export const MemoizedTableBody = memo(
+export const MemoizedTableBody = typedMemo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
-) as typeof TableBody;
+);
 
 const getAnnotationValue = (annotation: Annotation | undefined) => {
   return annotation?.score ?? annotation?.label ?? "--";

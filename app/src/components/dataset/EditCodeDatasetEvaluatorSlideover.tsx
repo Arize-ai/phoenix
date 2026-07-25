@@ -329,7 +329,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   const evaluatorLanguage = evaluator.language;
   const evaluatorSourceCode = currentVersion.sourceCode;
 
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Relay data is deeply readonly; Mutable strips readonly for the store's expected shape
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- reinterprets the Relay __typename-discriminated config union as the store's union: strips readonly, drops __typename, and passes a "%other" member through as a valid config. Needs a real mapper (see EditBuiltIn/EditLLM/CreateBuiltIn, same issue)
   const loadedOutputConfigs = (
     datasetEvaluator.outputConfigs?.length
       ? datasetEvaluator.outputConfigs

@@ -5,14 +5,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  memo,
-  startTransition,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { startTransition, useCallback, useMemo, useRef, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
@@ -71,6 +64,7 @@ import {
 } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { typedMemo } from "@phoenix/components/table/typedMemo";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
@@ -169,11 +163,10 @@ const TableBody = <T extends { id: string }>({
 };
 
 // Memoized wrapper for table body to use during column resizing
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- preserve the generic component signature through React.memo
-export const MemoizedTableBody = memo(
+export const MemoizedTableBody = typedMemo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
-) as typeof TableBody;
+);
 
 export function ExperimentsTable({
   dataset,

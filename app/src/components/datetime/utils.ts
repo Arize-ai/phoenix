@@ -16,6 +16,7 @@ import {
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { LAST_N_TIME_RANGES_MAP } from "./constants";
+import { isLastNTimeRangeUnit } from "./types";
 import type {
   LastNTimeRangeKey,
   LastNTimeRangeUnit,
@@ -46,8 +47,11 @@ function parseLastNTimeRangeKey(key: unknown): ParsedLastNTimeRange | null {
   if (quantity < 1) {
     return null;
   }
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- regex capture group constrains the unit to LastNTimeRangeUnit
-  return { quantity, unit: match[2] as LastNTimeRangeUnit };
+  const unit = match[2];
+  if (!isLastNTimeRangeUnit(unit)) {
+    return null;
+  }
+  return { quantity, unit };
 }
 
 function getLastNTimeRangeDurationMs({
@@ -263,9 +267,11 @@ export function parseTimeRangeSearchText(
   if (quantity < 1) {
     return null;
   }
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- regex capture group constrains the unit to LastNTimeRangeUnit
-  const unit = match[2][0] as LastNTimeRangeUnit;
-  return `${quantity}${unit}` as LastNTimeRangeKey;
+  const unit = match[2][0];
+  if (!isLastNTimeRangeUnit(unit)) {
+    return null;
+  }
+  return `${quantity}${unit}`;
 }
 
 /**

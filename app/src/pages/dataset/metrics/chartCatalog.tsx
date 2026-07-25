@@ -6,6 +6,7 @@ import {
   EXPERIMENT_METRIC_CHART_KEYS,
   EXPERIMENT_METRICS_EXPERIMENT_COUNT,
 } from "@phoenix/pages/dataset/constants";
+import { objectFromEntries } from "@phoenix/typeUtils";
 
 import { ExperimentAnnotationScoresChart } from "./ExperimentAnnotationScoresChart";
 import { ExperimentCostChart } from "./ExperimentCostChart";
@@ -75,13 +76,11 @@ const CHART_DEFINITIONS: Record<
  * The canonical chart objects, built once so repeated lookups return stable
  * references.
  */
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- record is exhaustive by construction over EXPERIMENT_METRIC_CHART_KEYS
-const CHARTS_BY_KEY = Object.fromEntries(
-  EXPERIMENT_METRIC_CHART_KEYS.map((key) => [
-    key,
-    { key, ...CHART_DEFINITIONS[key] },
-  ])
-) as Record<ExperimentMetricChartKey, ExperimentMetricChart>;
+const CHARTS_BY_KEY = objectFromEntries(
+  EXPERIMENT_METRIC_CHART_KEYS.map(
+    (key) => [key, { key, ...CHART_DEFINITIONS[key] }] as const
+  )
+);
 
 export const getExperimentMetricChart = (
   key: ExperimentMetricChartKey

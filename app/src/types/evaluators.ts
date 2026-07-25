@@ -146,6 +146,17 @@ export const CODE_EVALUATOR_LANGUAGES = ["PYTHON", "TYPESCRIPT"] as const;
 
 export type CodeEvaluatorLanguage = (typeof CODE_EVALUATOR_LANGUAGES)[number];
 
+/**
+ * Narrows a raw selection value (react-aria hands back `Key[] | Key | null`) to a
+ * supported language. Derived from the same tuple as the type, so adding a
+ * language needs no change here.
+ */
+export function isCodeEvaluatorLanguage(
+  value: unknown
+): value is CodeEvaluatorLanguage {
+  return CODE_EVALUATOR_LANGUAGES.some((language) => language === value);
+}
+
 export type SandboxBackendType =
   | "WASM"
   | "E2B"

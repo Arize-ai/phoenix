@@ -146,11 +146,13 @@ const columns = [
           return "";
       }
     },
-    cell: ({ getValue }: CellContext<PersistedAnnotationConfig, unknown>) => {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the accessorFn above returns a ReactNode but react-table types accessor values as unknown
-      const value = getValue() as React.ReactNode;
-      return <Flex gap="size-100">{value}</Flex>;
-    },
+    // Typing the cell context with the accessor's own value type makes
+    // `getValue()` return a ReactNode directly.
+    cell: ({
+      getValue,
+    }: CellContext<PersistedAnnotationConfig, React.ReactNode>) => (
+      <Flex gap="size-100">{getValue()}</Flex>
+    ),
   },
 ] satisfies ColumnDef<PersistedAnnotationConfig>[];
 

@@ -68,6 +68,7 @@ import type { AnnotationSummary } from "@phoenix/components/experiment/Experimen
 import { CellTop } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { typedMemo } from "@phoenix/components/table/typedMemo";
 import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -650,11 +651,10 @@ function TableBody<T>({
   );
 }
 // special memoized wrapper for our table body that we will use during column resizing
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- preserve the generic component signature through React.memo
-export const MemoizedTableBody = memo(
+export const MemoizedTableBody = typedMemo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
-) as typeof TableBody;
+);
 
 function getExecutionState({
   hasData,

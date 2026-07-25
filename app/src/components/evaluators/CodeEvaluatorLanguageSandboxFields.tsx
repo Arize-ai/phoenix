@@ -15,6 +15,7 @@ import {
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import type { CodeEvaluatorLanguage, SandboxBackendType } from "@phoenix/types";
+import { isCodeEvaluatorLanguage } from "@phoenix/types";
 
 /** Structural shape of ``SandboxConfig.config`` as returned by GraphQL. */
 export type SandboxConfigOptionConfig = {
@@ -65,10 +66,11 @@ export const CodeEvaluatorLanguageField = ({
       value={language}
       isDisabled={isDisabled}
       isRequired={isRequired}
-      onChange={(value) =>
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Select item ids are exactly CodeEvaluatorLanguage ("PYTHON" | "TYPESCRIPT")
-        onChange(value as CodeEvaluatorLanguage)
-      }
+      onChange={(value) => {
+        if (isCodeEvaluatorLanguage(value)) {
+          onChange(value);
+        }
+      }}
     >
       <Label>Language</Label>
       <Button>

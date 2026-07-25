@@ -1,4 +1,3 @@
-import type { JSONSchema7 } from "json-schema";
 import { useCallback } from "react";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -11,8 +10,7 @@ import type { PlaygroundNormalizedInstance } from "@phoenix/store";
 import type { JSONObjectFieldCodec } from "./JSONObjectModelConfigFormField";
 import { JSONObjectModelConfigFormField } from "./JSONObjectModelConfigFormField";
 
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- zod's z.toJSONSchema output and json-schema's JSONSchema7 are structurally compatible at runtime but not assignable across the two libraries' types
-const HEADERS_SCHEMA = httpHeadersJSONSchema as JSONSchema7;
+const HEADERS_SCHEMA = httpHeadersJSONSchema;
 
 const headersCodec: JSONObjectFieldCodec<Record<string, string>> = {
   format: (headers) => {

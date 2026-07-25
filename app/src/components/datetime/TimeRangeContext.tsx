@@ -9,6 +9,7 @@ import React, {
 import { useSearchParams } from "react-router";
 
 import {
+  parseSetTimeRangeInput,
   SET_TIME_RANGE_TOOL_NAME,
   type SetTimeRangeInput,
 } from "@phoenix/agent/tools/timeRange";
@@ -294,10 +295,15 @@ function useRegisterSetTimeRangeClientAction({
   useEffect(() => {
     const { registerClientAction, unregisterClientAction } =
       agentStore.getState();
-    registerClientAction(SET_TIME_RANGE_TOOL_NAME, (input) =>
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- client-action boundary: input is contractually SetTimeRangeInput for this tool
-      handleSetTimeRange(input as SetTimeRangeInput)
-    );
+    registerClientAction(SET_TIME_RANGE_TOOL_NAME, async (input) => {
+      // The registry parses before dispatch, but the client-action boundary
+      // types input as `unknown`; re-parsing narrows it without an assertion.
+      const parsed = parseSetTimeRangeInput(input);
+      if (parsed == null) {
+        return { ok: false, error: "Invalid set_time_range input" };
+      }
+      return handleSetTimeRange(parsed);
+    });
     return () => {
       unregisterClientAction(SET_TIME_RANGE_TOOL_NAME);
     };

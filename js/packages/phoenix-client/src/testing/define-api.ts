@@ -190,64 +190,83 @@ export interface PhoenixTestApi {
  * destructuring in each adapter.
  */
 export function createTestApi(getHooks: () => RunnerHooks): PhoenixTestApi {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- callable base is augmented with .only/.skip below to satisfy PhoenixDescribe
-  const describe = ((
-    name: string,
-    fn: () => void,
-    config?: SuiteConfig
-  ): void => {
-    declareDescribe(getHooks(), name, fn, config ?? {});
-  }) as PhoenixDescribe;
-  describe.only = (name, fn, config) => {
-    declareDescribe(getHooks(), name, fn, config ?? {}, "only");
-  };
-  describe.skip = (name, fn, config) => {
-    declareDescribe(getHooks(), name, fn, config ?? {}, "skip");
-  };
+  // `Object.assign` builds the callable and its `.only` / `.skip` properties as a
+  // single value typed as their intersection. Attaching the properties after the
+  // fact leaves the callable base needing an assertion to satisfy the interface.
+  const describe: PhoenixDescribe = Object.assign(
+    (name: string, fn: () => void, config?: SuiteConfig): void => {
+      declareDescribe(getHooks(), name, fn, config ?? {});
+    },
+    {
+      only: (name: string, fn: () => void, config?: SuiteConfig): void => {
+        declareDescribe(getHooks(), name, fn, config ?? {}, "only");
+      },
+      skip: (name: string, fn: () => void, config?: SuiteConfig): void => {
+        declareDescribe(getHooks(), name, fn, config ?? {}, "skip");
+      },
+    }
+  );
 
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- callable base is augmented with .only/.skip below to satisfy PhoenixTest
-  const test = (<Input extends KVMap = KVMap, Expected extends KVMap = KVMap>(
-    name: string,
-    params: TestParams<Input, Expected>,
-    fn: TestFn<Input, Expected>,
-    timeout?: number
-  ): void => {
-    declareTest(getHooks(), name, params, fn, "default", timeout);
-  }) as PhoenixTest;
-  test.only = (name, params, fn, timeout) => {
-    declareTest(getHooks(), name, params, fn, "only", timeout);
-  };
-  test.skip = (name, params, fn, timeout) => {
-    declareTest(getHooks(), name, params, fn, "skip", timeout);
-  };
-  test.each = <Input extends KVMap, Expected extends KVMap>(
-    table: TestEachRow<Input, Expected>[]
-  ): PhoenixTestEach<Input, Expected> => {
-    return (name, fn, timeout) => {
-      table.forEach((row, i) => {
-        const testName =
-          typeof name === "function"
-            ? name(row, i)
-            : interpolateName(name, row, i);
-        declareTest(
-          getHooks(),
-          testName,
-          {
-            id: row.id,
-            input: row.input,
-            expected: resolveReference(row),
-            metadata: row.metadata,
-            splits: row.splits,
-            repetitions: row.repetitions,
-            dryRun: row.dryRun,
-          },
-          fn,
-          "default",
-          timeout
-        );
-      });
-    };
-  };
+  // Same shape as `describe` above: `Object.assign` forms the callable and its
+  // properties together, so the intersection satisfies PhoenixTest without an
+  // assertion. Each property carries its own generic signature explicitly,
+  // since an object literal provides no contextual type.
+  const test: PhoenixTest = Object.assign(
+    <Input extends KVMap = KVMap, Expected extends KVMap = KVMap>(
+      name: string,
+      params: TestParams<Input, Expected>,
+      fn: TestFn<Input, Expected>,
+      timeout?: number
+    ): void => {
+      declareTest(getHooks(), name, params, fn, "default", timeout);
+    },
+    {
+      only: <Input extends KVMap = KVMap, Expected extends KVMap = KVMap>(
+        name: string,
+        params: TestParams<Input, Expected>,
+        fn: TestFn<Input, Expected>,
+        timeout?: number
+      ): void => {
+        declareTest(getHooks(), name, params, fn, "only", timeout);
+      },
+      skip: <Input extends KVMap = KVMap, Expected extends KVMap = KVMap>(
+        name: string,
+        params: TestParams<Input, Expected>,
+        fn: TestFn<Input, Expected>,
+        timeout?: number
+      ): void => {
+        declareTest(getHooks(), name, params, fn, "skip", timeout);
+      },
+      each: <Input extends KVMap, Expected extends KVMap>(
+        table: TestEachRow<Input, Expected>[]
+      ): PhoenixTestEach<Input, Expected> => {
+        return (name, fn, timeout) => {
+          table.forEach((row, i) => {
+            const testName =
+              typeof name === "function"
+                ? name(row, i)
+                : interpolateName(name, row, i);
+            declareTest(
+              getHooks(),
+              testName,
+              {
+                id: row.id,
+                input: row.input,
+                expected: resolveReference(row),
+                metadata: row.metadata,
+                splits: row.splits,
+                repetitions: row.repetitions,
+                dryRun: row.dryRun,
+              },
+              fn,
+              "default",
+              timeout
+            );
+          });
+        };
+      },
+    }
+  );
 
   // `it` is the canonical alias for `test`.
   const it = test;

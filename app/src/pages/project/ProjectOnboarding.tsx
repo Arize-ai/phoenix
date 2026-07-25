@@ -97,10 +97,13 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
           />
           <Tabs
             selectedKey={effectiveTab}
-            onSelectionChange={(key) =>
-              // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Tabs selection key is one of the rendered OnboardingTab ids
-              setSelectedTab(String(key) as OnboardingTab)
-            }
+            onSelectionChange={(key) => {
+              // Validate against the tabs actually rendered below.
+              const tab = tabs.find((candidate) => candidate === String(key));
+              if (tab) {
+                setSelectedTab(tab);
+              }
+            }}
           >
             <TabList>
               {"Python" in integration.configs && (

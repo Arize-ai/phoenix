@@ -192,18 +192,19 @@ export const openAIMessageToPhoenixPrompt = openAIMessageSchema.transform(
     }
 
     // Map roles
+    // Phoenix prompt roles are lowercase (see `PromptMessage.role` in the
+    // generated API types and `phoenixMessageRoleSchema`).
     const roleMap = {
-      system: "SYSTEM",
-      user: "USER",
-      assistant: "AI",
-      tool: "TOOL",
-      developer: "SYSTEM", // Map developer to SYSTEM
-      function: "TOOL", // Map function to TOOL
-    } as const;
+      system: "system",
+      user: "user",
+      assistant: "ai",
+      tool: "tool",
+      developer: "system", // Map developer to system
+      function: "tool", // Map function to tool
+    } as const satisfies Record<string, PhoenixMessageRole>;
 
     return {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- role map produces the canonical Phoenix role values by construction
-      role: roleMap[openai.role] as PhoenixMessageRole,
+      role: roleMap[openai.role],
       content,
     };
   }

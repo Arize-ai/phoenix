@@ -53,6 +53,7 @@ import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentA
 import { CellTop, PaddedCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { typedMemo } from "@phoenix/components/table/typedMemo";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
@@ -826,11 +827,10 @@ function TableBody<T>({
   );
 }
 //special memoized wrapper for our table body that we will use during column resizing
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- preserve the generic component signature through React.memo
-export const MemoizedTableBody = React.memo(
+export const MemoizedTableBody = typedMemo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
-) as typeof TableBody;
+);
 
 /**
  * Display the output of an experiment run.

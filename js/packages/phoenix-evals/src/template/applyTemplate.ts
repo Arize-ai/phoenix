@@ -1,3 +1,4 @@
+import type { ModelMessage } from "ai";
 import Mustache from "mustache";
 
 import type { PromptTemplate, RenderedPrompt } from "../types/templating";
@@ -19,16 +20,18 @@ export function formatTemplate(args: {
   // Spreading a discriminated-union member widens its literal `role`, so TS
   // cannot re-narrow the mapped result back to ModelMessage on its own; the
   // structural identity is preserved.
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- structural identity preserved
-  return template.map((message) => {
-    if (typeof message.content === "string") {
+  return template.map((message): ModelMessage => {
+    // A tool message's content is always an array of parts, so it never takes
+    // this branch at runtime; excluding it lets TS narrow the union to the
+    // members whose content can actually be a string.
+    if (message.role !== "tool" && typeof message.content === "string") {
       return {
         ...message,
         content: renderTemplateString(message.content, variablesProxy),
       };
     }
     return message;
-  }) as RenderedPrompt;
+  });
 }
 
 function renderTemplateString(

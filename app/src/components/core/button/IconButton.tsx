@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import type { ButtonProps } from "react-aria-components";
 import { Button } from "react-aria-components";
 
-import type { ColorValue, TextColorValue } from "../types";
+import type { TextColorValue } from "../types";
+import { isTextShadeColor } from "../types";
 import type { ComponentSize } from "../types/sizing";
 import { colorValue } from "../utils";
 
@@ -12,12 +13,11 @@ const getIconButtonColor = (color: TextColorValue): string => {
   if (color === "inherit") {
     return "inherit";
   }
-  if (color.startsWith("text-")) {
+  if (isTextShadeColor(color)) {
     const [, num] = color.split("-");
     return `var(--global-text-color-${num})`;
   }
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by the "inherit"/"text-" checks above, leaving only ColorValue
-  return colorValue(color as ColorValue);
+  return colorValue(color);
 };
 
 export interface IconButtonProps extends Omit<ButtonProps, "children"> {

@@ -19,6 +19,46 @@ import { parseSemanticVersion } from "./utils/semverUtils";
 /**
  * The HTTP response header that carries the Phoenix server version string.
  */
+/**
+ * Normalizes the client's `headers` option into a `Headers`.
+ *
+ * The option accepts a `Headers` instance, an array of key/value pairs, or a
+ * record whose values may be numbers, booleans, arrays, or nullish — not just
+ * a plain string record. Spreading it handles only the record form: a
+ * `Headers` instance spreads to `{}` and an array spreads to index keys,
+ * either of which would silently drop credentials from this request.
+ */
+function toHeaders(headers: ClientOptions["headers"]): Headers {
+  const result = new Headers();
+  if (!headers) {
+    return result;
+  }
+  if (headers instanceof Headers) {
+    headers.forEach((value, key) => result.append(key, value));
+    return result;
+  }
+  if (Array.isArray(headers)) {
+    for (const [key, value] of headers) {
+      if (key != null && value != null) {
+        result.append(key, String(value));
+      }
+    }
+    return result;
+  }
+  for (const [key, value] of Object.entries(headers)) {
+    if (value == null) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        result.append(key, String(item));
+      }
+    } else {
+      result.append(key, String(value));
+    }
+  }
+  return result;
+}
 export const PHOENIX_SERVER_VERSION_HEADER = "x-phoenix-server-version";
 
 export type pathsV1 = oapiPathsV1;
@@ -139,10 +179,7 @@ export const createClient = (
       if (serverVersion != null) return serverVersion;
       try {
         const baseUrl = mergedOptions.baseUrl ?? "";
-        const headers = mergedOptions.headers
-          ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- headers option is a plain string record at runtime
-            { ...(mergedOptions.headers as Record<string, string>) }
-          : {};
+        const headers = toHeaders(mergedOptions.headers);
         const resp = await fetch(`${baseUrl}/arize_phoenix_version`, {
           headers,
         });

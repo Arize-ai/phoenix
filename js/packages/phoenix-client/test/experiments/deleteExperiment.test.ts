@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { PhoenixClient } from "../../src/client";
 import { deleteExperiment } from "../../src/experiments/deleteExperiment";
-import { createTestClient } from "../testUtils";
+import { createTestClient, partialMock } from "../testUtils";
 
 const http = createHttp();
 
@@ -62,10 +62,9 @@ function createStubClient(deleteResult: {
   data: null;
   error: unknown;
 }): PhoenixClient {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- deliberate partial stub of PhoenixClient; only DELETE is exercised
-  return {
+  return partialMock<PhoenixClient>({
     DELETE: async () => deleteResult,
-  } as unknown as PhoenixClient;
+  });
 }
 
 describe("deleteExperiment", () => {

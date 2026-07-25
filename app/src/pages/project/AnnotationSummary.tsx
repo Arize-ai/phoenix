@@ -33,7 +33,6 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
-import type { Mutable } from "@phoenix/typeUtils";
 import { formatPercent } from "@phoenix/utils/numberFormatUtils";
 
 import type { AnnotationSummaryQuery } from "./__generated__/AnnotationSummaryQuery.graphql";
@@ -429,8 +428,7 @@ export function SummaryValuePreview({
       {hasLabelFractions ? (
         <PieChart {...chartDimensions}>
           <Pie
-            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- recharts Pie requires a mutable array; source is a readonly GraphQL array
-            data={labelFractions as Mutable<typeof labelFractions>}
+            data={[...labelFractions]}
             dataKey="fraction"
             nameKey="label"
             cx="50%"

@@ -69,6 +69,17 @@ const sumCounts = (annotations: readonly AnnotationNameCount[]) =>
   annotations.reduce((total, annotation) => total + annotation.count, 0);
 
 /**
+ * Narrows a RadioGroup value (react-aria hands back a plain string) to the
+ * annotation time-range field. The two cases mirror the Radio options rendered
+ * below, which are the only values the group can produce.
+ */
+function isAnnotationTimeRangeField(
+  value: string
+): value is AnnotationTimeRangeField {
+  return value === "ANNOTATION_CREATED_AT" || value === "SOURCE_START_TIME";
+}
+
+/**
  * Performs the bulk delete for a single annotation target type (span, trace,
  * or session). The target-type-specific Relay mutation is bound by the parent.
  */
@@ -627,8 +638,10 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
                 <RadioGroup
                   value={timeRangeField}
                   onChange={(value) => {
-                    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- RadioGroup value is one of the Radio option ids (AnnotationTimeRangeField)
-                    setTimeRangeField(value as AnnotationTimeRangeField);
+                    if (!isAnnotationTimeRangeField(value)) {
+                      return;
+                    }
+                    setTimeRangeField(value);
                     setDeleteError(null);
                   }}
                   direction="column"

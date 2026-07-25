@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { isObject } from "@phoenix/typeUtils";
 
+import { toJSONSchema7 } from "./toJSONSchema7";
+
 /**
  * Detect duplicate keys in raw JSON string before parsing.
  * This is necessary because JSON.parse() silently overwrites duplicates.
@@ -106,7 +108,7 @@ export type HttpHeaders = z.infer<typeof httpHeadersSchema>;
 /**
  * JSON Schema for HTTP headers (for JSONEditor validation)
  */
-export const httpHeadersJSONSchema = z.toJSONSchema(httpHeadersSchema);
+export const httpHeadersJSONSchema = toJSONSchema7(httpHeadersSchema);
 
 /**
  * Transform a string to HTTP headers schema.

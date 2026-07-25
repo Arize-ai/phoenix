@@ -1,7 +1,6 @@
 import { fetchQuery, graphql } from "react-relay";
 
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
-import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { readPlaygroundPromptVersion } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
@@ -174,9 +173,7 @@ function buildLlmBody({
   outputConfigs: DatasetEvaluatorNode["outputConfigs"];
   evaluator: DatasetEvaluatorNode["evaluator"];
 }): unknown {
-  const promptVersionRef =
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the query spreads fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on promptVersion, so the node carries the fragment key
-    evaluator.promptVersion as fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key | null;
+  const promptVersionRef = evaluator.promptVersion;
   if (promptVersionRef == null) {
     return { inputMapping, outputConfigs };
   }

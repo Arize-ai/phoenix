@@ -16,7 +16,6 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import type { DisplayTimezone } from "@phoenix/store/preferencesStore";
 import { packageManagersByLanguage } from "@phoenix/store/preferencesStore";
 import {
   isProgrammingLanguage,
@@ -127,8 +126,7 @@ export function ViewerPreferences() {
               if (value === "local") {
                 setDisplayTimezone(undefined);
               } else {
-                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- react-aria selection Key narrowed to the DisplayTimezone option id
-                setDisplayTimezone(value as DisplayTimezone);
+                setDisplayTimezone(String(value));
               }
             }}
           >

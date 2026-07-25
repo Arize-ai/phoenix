@@ -16,7 +16,7 @@ vi.unmock("../../src/utils/serverVersionUtils");
 
 import type { PhoenixClient } from "../../src/client";
 import { createDataset } from "../../src/datasets/createDataset";
-import { createTestClient } from "../testUtils";
+import { createTestClient, partialMock } from "../testUtils";
 
 const http = createHttp();
 
@@ -459,8 +459,7 @@ describe("createDataset", () => {
           error: null,
           response: new Response(null, { status: 200 }),
         });
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial POST-only stub standing in for a full PhoenixClient
-      const stubClient = { POST: postMock } as unknown as PhoenixClient;
+      const stubClient = partialMock<PhoenixClient>({ POST: postMock });
 
       const result = await createDataset({
         client: stubClient,
@@ -486,8 +485,7 @@ describe("createDataset", () => {
         error: "inputs must be non-empty",
         response: new Response(null, { status: 422 }),
       });
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial POST-only stub standing in for a full PhoenixClient
-      const stubClient = { POST: postMock } as unknown as PhoenixClient;
+      const stubClient = partialMock<PhoenixClient>({ POST: postMock });
 
       await expect(
         createDataset({

@@ -1,5 +1,6 @@
 import copy from "copy-to-clipboard";
 import { useCallback, useState } from "react";
+import type { Key } from "react-aria-components";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 
@@ -45,6 +46,15 @@ export enum ExperimentAction {
   STOP_EXPERIMENT = "STOP_EXPERIMENT",
   RESUME_EXPERIMENT = "RESUME_EXPERIMENT",
   DELETE_EXPERIMENT = "DELETE_EXPERIMENT",
+}
+
+/**
+ * Narrows a react-aria menu key to an action. The menu only renders keys from
+ * this enum, so a miss is unreachable -- checking it keeps the exhaustive
+ * `switch` below honest without asserting the key type.
+ */
+function isExperimentAction(value: Key): value is ExperimentAction {
+  return Object.values(ExperimentAction).some((action) => action === value);
 }
 
 type ExperimentJobStatus = "RUNNING" | "COMPLETED" | "STOPPED" | "ERROR";
@@ -310,8 +320,10 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
               projectId ? [] : [ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES]
             }
             onAction={(firedAction) => {
-              // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- menu keys are ExperimentAction values by construction; the switch default asserts exhaustiveness
-              const action = firedAction as ExperimentAction;
+              if (!isExperimentAction(firedAction)) {
+                return;
+              }
+              const action = firedAction;
               switch (action) {
                 case ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES: {
                   return navigate(`/projects/${projectId}`);

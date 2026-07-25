@@ -12,6 +12,22 @@ export interface SqlOutput {
   sql: string;
 }
 
+/**
+ * Narrows an evaluator payload to {@link SqlOutput}.
+ *
+ * `output` and `expected` reach an evaluator as `unknown` — an evaluator can run
+ * before `logOutput()`. Checking the shape keeps the evaluators total instead of
+ * asserting a type onto a value that may not have it.
+ */
+export function isSqlOutput(value: unknown): value is SqlOutput {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "sql" in value &&
+    typeof value.sql === "string"
+  );
+}
+
 const CANNED: Array<[RegExp, string]> = [
   [/count.*users|users.*count/i, "SELECT COUNT(*) FROM users;"],
   [/customers/i, "SELECT * FROM customers;"],

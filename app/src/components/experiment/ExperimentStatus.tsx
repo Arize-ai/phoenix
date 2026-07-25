@@ -12,6 +12,25 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 
 type ExperimentStatusValue = "RUNNING" | "COMPLETED" | "ERROR" | "STOPPED";
 
+/**
+ * Narrows a raw backend status string to a known status.
+ *
+ * The status arrives typed as `string`, so this replaces an assertion with a
+ * real check. An unrecognized value already threw before this guard existed --
+ * the exhaustive switches below end in `assertUnreachable` -- so the throw
+ * added at the call site preserves that behavior with a clearer message.
+ */
+function isExperimentStatusValue(
+  value: string
+): value is ExperimentStatusValue {
+  return (
+    value === "RUNNING" ||
+    value === "COMPLETED" ||
+    value === "ERROR" ||
+    value === "STOPPED"
+  );
+}
+
 function getStatusVariant(status: ExperimentStatusValue): BadgeVariant {
   switch (status) {
     case "RUNNING":
@@ -92,8 +111,10 @@ export function ExperimentStatus({
       </TooltipTrigger>
     );
   }
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- status is a backend experiment-status enum value; the getStatus* switches assert exhaustiveness
-  const validStatus = status as ExperimentStatusValue;
+  if (!isExperimentStatusValue(status)) {
+    throw new Error(`Unexpected experiment status: ${status}`);
+  }
+  const validStatus = status;
   return (
     <TooltipTrigger>
       <TriggerWrap>

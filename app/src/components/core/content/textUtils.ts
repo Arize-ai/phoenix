@@ -1,7 +1,5 @@
-import type {
-  ColorValue,
-  TextColorValue,
-} from "@phoenix/components/core/types";
+import type { TextColorValue } from "@phoenix/components/core/types";
+import { isTextShadeColor } from "@phoenix/components/core/types";
 
 import { colorValue } from "../utils";
 
@@ -9,10 +7,9 @@ export function getTextColor(color: TextColorValue): string {
   if (color === "inherit") {
     return "inherit";
   }
-  if (color.startsWith("text-")) {
+  if (isTextShadeColor(color)) {
     const [, num] = color.split("-");
     return `var(--global-text-color-${num})`;
   }
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- text-* and "inherit" handled above; remainder is ColorValue but startsWith can't narrow the literal union
-  return colorValue(color as ColorValue);
+  return colorValue(color);
 }

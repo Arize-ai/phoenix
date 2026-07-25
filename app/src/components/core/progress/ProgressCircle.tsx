@@ -2,8 +2,15 @@ import type { Ref } from "react";
 import React from "react";
 import { ProgressBar } from "react-aria-components";
 
+import type { CSSPropertiesWithVars } from "@phoenix/components/core/types";
+
 import { progressCircleCSS } from "./styles";
 import type { ProgressCircleProps } from "./types";
+
+/** Exposes the progress value to CSS as a custom property. */
+function progressValueStyle(value: number): CSSPropertiesWithVars {
+  return { "--progress-circle-value": value };
+}
 
 function ProgressCircle({
   ref,
@@ -20,8 +27,7 @@ function ProgressCircle({
       ref={ref}
       style={
         !isIndeterminate && value != null
-          ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- CSS custom property is not expressible in CSSProperties
-            ({ "--progress-circle-value": value } as React.CSSProperties)
+          ? progressValueStyle(value)
           : undefined
       }
     >

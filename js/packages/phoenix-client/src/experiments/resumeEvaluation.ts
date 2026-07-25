@@ -800,8 +800,9 @@ async function runSingleEvaluation({
           code: SpanStatusCode.ERROR,
           message: error,
         });
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- recordException tolerates any value; caught err is unknown
-        span.recordException(err as Error);
+        // Errors record their stack; anything else records the same string the
+        // span status carries.
+        span.recordException(err instanceof Error ? err : error);
 
         throw err;
       } finally {

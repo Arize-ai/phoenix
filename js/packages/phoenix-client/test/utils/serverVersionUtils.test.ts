@@ -15,6 +15,7 @@ import {
   capabilityLabel,
   ensureServerCapability,
 } from "../../src/utils/serverVersionUtils";
+import { partialMock } from "../testUtils";
 
 describe("capabilityLabel", () => {
   it("derives label for a route requirement", () => {
@@ -60,8 +61,7 @@ describe("ensureServerCapability", () => {
     };
     await expect(
       ensureServerCapability({
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock; ensureServerCapability only calls getServerVersion
-        client: mockClient as never,
+        client: partialMock<PhoenixClient>(mockClient),
         requirement: GET_SESSION,
       })
     ).resolves.toBeUndefined();
@@ -73,8 +73,7 @@ describe("ensureServerCapability", () => {
     };
     await expect(
       ensureServerCapability({
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock; ensureServerCapability only calls getServerVersion
-        client: mockClient as never,
+        client: partialMock<PhoenixClient>(mockClient),
         requirement: GET_SESSION,
       })
     ).rejects.toThrow(/requires Phoenix server >= 13\.5\.0/);
@@ -86,8 +85,7 @@ describe("ensureServerCapability", () => {
     };
     await expect(
       ensureServerCapability({
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock; ensureServerCapability only calls getServerVersion
-        client: mockClient as never,
+        client: partialMock<PhoenixClient>(mockClient),
         requirement: DELETE_SESSION,
       })
     ).rejects.toThrow(/The DELETE \/v1\/sessions\/\{session_id\} route/);
@@ -99,8 +97,7 @@ describe("ensureServerCapability", () => {
     };
     await expect(
       ensureServerCapability({
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock; ensureServerCapability only calls getServerVersion
-        client: mockClient as never,
+        client: partialMock<PhoenixClient>(mockClient),
         requirement: GET_SPANS_TRACE_IDS,
       })
     ).rejects.toThrow(/The 'trace_id' query parameter/);
@@ -117,8 +114,7 @@ describe("ensureServerCapability", () => {
     };
     await expect(
       ensureServerCapability({
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- partial mock; ensureServerCapability only calls getServerVersion
-        client: mockClient as never,
+        client: partialMock<PhoenixClient>(mockClient),
         requirement: GET_SESSION,
       })
     ).rejects.toThrow(/version could not be determined/);

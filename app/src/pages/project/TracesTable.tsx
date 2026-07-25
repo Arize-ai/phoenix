@@ -59,6 +59,7 @@ import {
 } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { typedMemo } from "@phoenix/components/table/typedMemo";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
@@ -190,11 +191,10 @@ const TableBody = <
 };
 
 // special memoized wrapper for our table body that we will use during column resizing
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- React.memo drops the generic component signature; restore it to keep TableBody's type
-export const MemoizedTableBody = React.memo(
+export const MemoizedTableBody = typedMemo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
-) as typeof TableBody;
+);
 
 const MetadataCell = <TData extends ISpanItem, TValue>({
   row,

@@ -179,11 +179,6 @@ export const toOpenAIMessage = (message: unknown): OpenAIMessage | null => {
 /**
  * Convert from OpenAI message format to any other format
  */
-// Casts to ReturnType below are unavoidable: TypeScript cannot narrow a generic
-// type parameter (TargetProviderSDK) through switch/case control flow, so the
-// indexed access type remains unresolved in each branch. The casts are sound
-// because each branch accesses the correct provider's converter and
-// assertUnreachable ensures exhaustive coverage.
 /**
  * Per-SDK conversions from the OpenAI message format.
  *
@@ -357,12 +352,16 @@ export const toOpenAIToolChoice = (
 const FROM_OPENAI_TOOL_CHOICE_CONVERTERS: {
   [P in NonNullable<PromptSDKFormat>]: (
     toolChoice: OpenaiToolChoice
-  ) => z.infer<(typeof SDKProviderConverterMap)[P]["toolChoices"]["fromOpenAI"]>;
+  ) => z.infer<
+    (typeof SDKProviderConverterMap)[P]["toolChoices"]["fromOpenAI"]
+  >;
 } = {
   OPENAI: (toolChoice) =>
     SDKProviderConverterMap.OPENAI.toolChoices.fromOpenAI.parse(toolChoice),
   AZURE_OPENAI: (toolChoice) =>
-    SDKProviderConverterMap.AZURE_OPENAI.toolChoices.fromOpenAI.parse(toolChoice),
+    SDKProviderConverterMap.AZURE_OPENAI.toolChoices.fromOpenAI.parse(
+      toolChoice
+    ),
   ANTHROPIC: (toolChoice) =>
     SDKProviderConverterMap.ANTHROPIC.toolChoices.fromOpenAI.parse(toolChoice),
   PHOENIX: (toolChoice) =>
@@ -433,18 +432,30 @@ export const toOpenAIToolDefinition = (
 const FROM_OPENAI_TOOL_DEFINITION_CONVERTERS: {
   [P in NonNullable<PromptSDKFormat>]: (
     toolDefinition: OpenAIToolDefinition
-  ) => z.infer<(typeof SDKProviderConverterMap)[P]["toolDefinitions"]["fromOpenAI"]>;
+  ) => z.infer<
+    (typeof SDKProviderConverterMap)[P]["toolDefinitions"]["fromOpenAI"]
+  >;
 } = {
   OPENAI: (toolDefinition) =>
-    SDKProviderConverterMap.OPENAI.toolDefinitions.fromOpenAI.parse(toolDefinition),
+    SDKProviderConverterMap.OPENAI.toolDefinitions.fromOpenAI.parse(
+      toolDefinition
+    ),
   AZURE_OPENAI: (toolDefinition) =>
-    SDKProviderConverterMap.AZURE_OPENAI.toolDefinitions.fromOpenAI.parse(toolDefinition),
+    SDKProviderConverterMap.AZURE_OPENAI.toolDefinitions.fromOpenAI.parse(
+      toolDefinition
+    ),
   ANTHROPIC: (toolDefinition) =>
-    SDKProviderConverterMap.ANTHROPIC.toolDefinitions.fromOpenAI.parse(toolDefinition),
+    SDKProviderConverterMap.ANTHROPIC.toolDefinitions.fromOpenAI.parse(
+      toolDefinition
+    ),
   PHOENIX: (toolDefinition) =>
-    SDKProviderConverterMap.PHOENIX.toolDefinitions.fromOpenAI.parse(toolDefinition),
+    SDKProviderConverterMap.PHOENIX.toolDefinitions.fromOpenAI.parse(
+      toolDefinition
+    ),
   VERCEL_AI: (toolDefinition) =>
-    SDKProviderConverterMap.VERCEL_AI.toolDefinitions.fromOpenAI.parse(toolDefinition),
+    SDKProviderConverterMap.VERCEL_AI.toolDefinitions.fromOpenAI.parse(
+      toolDefinition
+    ),
 };
 
 export const fromOpenAIToolDefinition = <

@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import {
+  parseSetSpansFilterInput,
   SET_SPANS_FILTER_TOOL_NAME,
   type SetSpansFilterInput,
 } from "@phoenix/agent/tools/spansFilter";
@@ -150,10 +151,15 @@ function useRegisterSetSpansFilterClientAction({
   useEffect(() => {
     const { registerClientAction, unregisterClientAction } =
       agentStore.getState();
-    registerClientAction(SET_SPANS_FILTER_TOOL_NAME, (input) =>
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- input already validated by the tool's parseInput; AgentClientAction types it as unknown
-      handleSetSpansFilter(input as SetSpansFilterInput)
-    );
+    registerClientAction(SET_SPANS_FILTER_TOOL_NAME, async (input) => {
+      // The registry parses before dispatch, but the client-action boundary
+      // types input as `unknown`; re-parsing narrows it without an assertion.
+      const parsed = parseSetSpansFilterInput(input);
+      if (parsed == null) {
+        return { ok: false, error: "Invalid set_spans_filter input" };
+      }
+      return handleSetSpansFilter(parsed);
+    });
     return () => {
       unregisterClientAction(SET_SPANS_FILTER_TOOL_NAME);
     };

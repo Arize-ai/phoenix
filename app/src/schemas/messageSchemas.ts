@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import type { ModelProviders } from "@phoenix/constants/generativeConstants";
-import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatContentAsString } from "@phoenix/utils/jsonUtils";
 import {
   asTextPart,

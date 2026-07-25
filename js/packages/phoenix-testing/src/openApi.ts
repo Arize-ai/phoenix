@@ -41,6 +41,11 @@ export function getOpenApiDocument({
  * to the schema. Map-form `examples` (OpenAPI media-type examples) are not
  * arrays and pass through untouched.
  */
+/** Narrows a normalized JSON value to a string-keyed object. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function normalizeSchemaExamples(node: unknown): unknown {
   if (Array.isArray(node)) {
     return node.map(normalizeSchemaExamples);
@@ -82,10 +87,10 @@ export async function createOpenApiHandlers({
 }: {
   baseUrl?: string;
 } = {}): Promise<RequestHandler[]> {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- normalizeSchemaExamples preserves the document's object shape
-  const document = normalizeSchemaExamples(
-    getOpenApiDocument({ baseUrl })
-  ) as Record<string, unknown>;
+  const document = normalizeSchemaExamples(getOpenApiDocument({ baseUrl }));
+  if (!isRecord(document)) {
+    throw new Error("Expected the OpenAPI document to normalize to an object");
+  }
   // The document is a runtime-validated JSON value; fromOpenApi's parameter
   // type is the openapi-types Document union, which structural typing of a
   // Record<string, unknown> cannot satisfy without a cast.

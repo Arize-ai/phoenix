@@ -1,17 +1,14 @@
 /**
- * If the incoming function returns a promise, return the promise.
- * Otherwise, return a promise that resolves to the incoming function's return value.
+ * Normalizes a possibly-async value into a promise.
+ *
+ * `Promise.resolve` already covers both cases at runtime — handed a native
+ * promise it returns that same promise, and handed a plain value it wraps it —
+ * so no branching is needed. Typing the result as `Promise<Awaited<Result>>`
+ * also avoids the `never` arms that a conditional return type would require,
+ * which could not be narrowed from a runtime `instanceof` check anyway.
  */
-export function promisifyResult<Result>(result: Result) {
-  if (result instanceof Promise) {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- conditional return type cannot be narrowed from the runtime instanceof check
-    return result as Result extends Promise<infer ResolvedValue>
-      ? Promise<ResolvedValue>
-      : never;
-  }
-
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- conditional return type cannot be narrowed from the runtime instanceof check
-  return Promise.resolve(result) as Result extends Promise<unknown>
-    ? never
-    : Promise<Result>;
+export function promisifyResult<Result>(
+  result: Result
+): Promise<Awaited<Result>> {
+  return Promise.resolve(result);
 }

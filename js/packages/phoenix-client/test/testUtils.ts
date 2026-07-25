@@ -20,3 +20,18 @@ export function createTestClient({
     options: { baseUrl },
   });
 }
+
+/**
+ * Builds a stand-in for `T` from only the members a test actually exercises.
+ *
+ * This is the single sanctioned home for the partial-double assertion. Prefer it
+ * over `as never` / `as T` at the call site: the `Partial<T>` parameter still
+ * checks the members you do provide against the real type, so a renamed method
+ * or a changed signature fails the test build instead of silently passing.
+ *
+ * Only use this where the code under test provably touches the provided subset.
+ */
+export function partialMock<T>(partial: Partial<T>): T {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see the doc comment above; this is the one place the partial-double gap is acknowledged
+  return partial as T;
+}
