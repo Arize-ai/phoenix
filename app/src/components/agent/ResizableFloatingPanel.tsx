@@ -10,7 +10,9 @@ import type {
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 import {
+  MODAL_FLOATING_UI_CONTROL_Z_INDEX,
   MODAL_FLOATING_UI_Z_INDEX,
+  NON_MODAL_FLOATING_CONTROL_Z_INDEX,
   NON_MODAL_FLOATING_Z_INDEX,
 } from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
@@ -542,7 +544,7 @@ const resizableFloatingPanelCSS = css`
 
 const resizeHandleCSS = css`
   position: fixed;
-  z-index: ${NON_MODAL_FLOATING_Z_INDEX + 1};
+  z-index: ${NON_MODAL_FLOATING_CONTROL_Z_INDEX};
   border: none;
   outline: none;
   padding: 0;
@@ -555,7 +557,7 @@ const resizeHandleCSS = css`
   }
 
   &[data-layer="modal"] {
-    z-index: ${MODAL_FLOATING_UI_Z_INDEX + 1};
+    z-index: ${MODAL_FLOATING_UI_CONTROL_Z_INDEX};
   }
 
   &[data-edge] {

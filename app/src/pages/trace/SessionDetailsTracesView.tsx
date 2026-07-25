@@ -32,7 +32,10 @@ import {
   EmptyStateArea,
   EmptyStateGraphic,
 } from "@phoenix/components/core/empty";
-import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import {
+  compactResizeHandleCSS,
+  diagnosticResizeHandleCSS,
+} from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
   ResizableTraceTreePanelContent,
@@ -324,9 +327,10 @@ export function SessionDetailsTracesView({
         aria-label="Resize trace tree"
         css={[
           compactResizeHandleCSS,
+          diagnosticResizeHandleCSS,
           css`
             position: relative;
-            z-index: 3;
+            z-index: var(--global-z-index-local-control);
           `,
         ]}
       />

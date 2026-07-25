@@ -68,7 +68,7 @@ const modalCSS = css`
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
-    z-index: 100;
+    z-index: var(--global-z-index-local-raised);
     top: 0;
     right: 0;
     left: auto;
@@ -131,7 +131,7 @@ const modalCSS = css`
     & .dialog__header {
       position: sticky;
       top: 0;
-      z-index: 1;
+      z-index: var(--global-z-index-local-raised);
     }
   }
 `;

@@ -53,3 +53,46 @@ export const compactResizeHandleCSS = css`
     background-color: var(--global-resize-handle-indicator-color-hover);
   }
 `;
+
+/**
+ * Makes a vertical resize handle's pointer target visible while preserving its
+ * one-pixel layout width. The target extends size-100 to the left and size-150
+ * to the right of the handle.
+ */
+export const diagnosticResizeHandleCSS = css`
+  --resize-handle-hit-area-left: var(--global-dimension-size-100);
+  --resize-handle-hit-area-right: var(--global-dimension-size-150);
+  position: relative;
+  overflow: visible;
+  background: transparent;
+
+  &::before {
+    content: "";
+    position: absolute;
+    z-index: var(--global-z-index-local-base);
+    top: 0;
+    bottom: 0;
+    left: calc(-1 * var(--resize-handle-hit-area-left));
+    right: calc(-1 * var(--resize-handle-hit-area-right));
+    background: rgb(0 255 0 / 15%);
+    cursor: ew-resize;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    z-index: var(--global-z-index-local-raised);
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--global-border-size-thin);
+    background: #ff00ff;
+    pointer-events: none;
+  }
+
+  &:hover,
+  &:active,
+  &[data-dragging="true"] {
+    background: transparent;
+  }
+`;

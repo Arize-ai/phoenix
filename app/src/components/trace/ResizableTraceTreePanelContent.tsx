@@ -7,23 +7,26 @@ import type {
 } from "react";
 import { useRef, useState } from "react";
 
+import { diagnosticResizeHandleCSS } from "@phoenix/components/resize";
+
 import { traceTreePanelContentCSS } from "./traceTreeStyles";
 
 export const resizableTraceTreePanelStyle: CSSProperties = {
   maxWidth: "none",
   overflow: "visible",
   position: "relative",
-  zIndex: 4,
+  zIndex: "var(--global-z-index-local-overlay)",
 };
 
 const overlayResizeHandleCSS = css`
+  ${diagnosticResizeHandleCSS};
   display: none;
   position: absolute;
-  z-index: 3;
+  z-index: var(--global-z-index-local-control);
   top: 0;
   right: 0;
   bottom: 0;
-  width: var(--global-dimension-size-100);
+  width: var(--global-border-size-thin);
   padding: 0;
   border: 0;
   outline: none;
@@ -31,22 +34,6 @@ const overlayResizeHandleCSS = css`
   cursor: ew-resize;
   touch-action: none;
   transform: translateX(50%);
-
-  &::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 50%;
-    width: var(--global-border-size-thin);
-    background: var(--global-resize-handle-background-color);
-    transform: translateX(-50%);
-  }
-
-  &:hover::after,
-  &[data-dragging="true"]::after {
-    background: var(--global-resize-handle-indicator-color-hover);
-  }
 `;
 
 type ResizableTraceTreePanelContentProps = PropsWithChildren<{

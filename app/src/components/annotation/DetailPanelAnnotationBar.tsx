@@ -102,7 +102,7 @@ export type DetailPanelAnnotationBarProps = {
 
 const annotationBarCSS = css`
   position: relative;
-  z-index: 2;
+  z-index: var(--global-z-index-local-raised);
   flex: none;
   border-bottom: 1px solid var(--global-border-color-default);
   background: var(--global-background-color-default);

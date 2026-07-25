@@ -1,14 +1,13 @@
-/**
- * Shared app stacking layers.
- *
- * Non-modal floating UI should sit above page content but below modal
- * backdrops. Modal floating UI is reserved for controls that intentionally
- * remain available while a modal backdrop is mounted. Portaled popovers and
- * toasts use the top overlay layer so controls opened from floating surfaces
- * remain usable.
- */
-export const MODAL_OVERLAY_Z_INDEX = 1000;
-export const MODAL_DIALOG_Z_INDEX = MODAL_OVERLAY_Z_INDEX + 1;
-export const NON_MODAL_FLOATING_Z_INDEX = MODAL_OVERLAY_Z_INDEX - 1;
-export const MODAL_FLOATING_UI_Z_INDEX = MODAL_DIALOG_Z_INDEX + 1;
-export const PORTALED_OVERLAY_Z_INDEX = 100000;
+/** CSS variable aliases for the canonical app stacking tokens in GlobalStyles. */
+export const NON_MODAL_FLOATING_Z_INDEX = "var(--global-z-index-app-floating)";
+export const NON_MODAL_FLOATING_CONTROL_Z_INDEX =
+  "var(--global-z-index-app-floating-control)";
+export const MODAL_OVERLAY_Z_INDEX = "var(--global-z-index-app-modal-backdrop)";
+export const MODAL_DIALOG_Z_INDEX = "var(--global-z-index-app-modal)";
+export const MODAL_FLOATING_UI_Z_INDEX =
+  "var(--global-z-index-app-modal-floating)";
+export const MODAL_FLOATING_UI_CONTROL_Z_INDEX =
+  "var(--global-z-index-app-modal-floating-control)";
+export const PORTALED_OVERLAY_Z_INDEX =
+  "var(--global-z-index-app-portaled-overlay)";
+export const NOTIFICATION_Z_INDEX = "var(--global-z-index-app-notification)";

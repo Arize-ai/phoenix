@@ -16,7 +16,10 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import {
+  compactResizeHandleCSS,
+  diagnosticResizeHandleCSS,
+} from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
   ResizableTraceTreePanelContent,
@@ -178,9 +181,10 @@ export function TraceDetails({
           aria-label="Resize trace tree"
           css={[
             compactResizeHandleCSS,
+            diagnosticResizeHandleCSS,
             css`
               position: relative;
-              z-index: 3;
+              z-index: var(--global-z-index-local-control);
             `,
           ]}
         />

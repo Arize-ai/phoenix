@@ -11,6 +11,7 @@ import { OverlayTriggerStateContext } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { DrawerContext } from "@phoenix/components/core/overlay/DrawerContext";
+import { diagnosticResizeHandleCSS } from "@phoenix/components/resize";
 import type { SizeValue } from "@phoenix/types/sizing";
 
 import {
@@ -29,7 +30,6 @@ function resolveToPixels(value: SizeValue): number {
   return (parseFloat(value) / 100) * window.innerWidth;
 }
 
-const RESIZE_HANDLE_WIDTH_PX = 4;
 const KEYBOARD_RESIZE_STEP_PERCENT = 5;
 const normalizeSize = (value: number) => Number(value.toFixed(3));
 
@@ -40,27 +40,20 @@ const drawerCSS = css`
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  z-index: 100;
+  z-index: var(--global-z-index-app-drawer);
   top: 0;
   right: 0;
   left: auto;
   .drawer__resize-handle {
+    ${diagnosticResizeHandleCSS};
     position: absolute;
     left: 0;
     top: 0;
     bottom: 0;
-    width: ${RESIZE_HANDLE_WIDTH_PX}px;
+    width: var(--global-border-size-thin);
     cursor: ew-resize;
-    z-index: 10;
+    z-index: var(--global-z-index-local-control);
     touch-action: none;
-    background-color: transparent;
-    transition: background-color 150ms ease-out;
-  }
-
-  .drawer__resize-handle:hover,
-  .drawer__resize-handle[data-dragging="true"],
-  .drawer__resize-handle:focus-visible {
-    background-color: var(--global-border-color-default);
   }
 
   .drawer__resize-handle:focus-visible {

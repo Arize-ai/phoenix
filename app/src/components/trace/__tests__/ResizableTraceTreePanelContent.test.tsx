@@ -92,7 +92,7 @@ describe("ResizableTraceTreePanelContent", () => {
       toDOMRect({ left: 100, width: 240 })
     );
     vi.spyOn(handle, "getBoundingClientRect").mockReturnValue(
-      toDOMRect({ left: 336, width: 8 })
+      toDOMRect({ left: 339.5, width: 1 })
     );
 
     act(() => {

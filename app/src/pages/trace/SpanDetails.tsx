@@ -111,13 +111,13 @@ const spanDetailsSectionHeadingCSS = css`
 
   & > :first-child {
     position: relative;
-    z-index: 1;
+    z-index: var(--global-z-index-local-raised);
   }
 
   [data-section-navigation-feedback] {
     position: absolute;
     inset: 1px 0;
-    z-index: 0;
+    z-index: var(--global-z-index-local-base);
     background-color: var(--highlight-background);
     opacity: 0;
     pointer-events: none;

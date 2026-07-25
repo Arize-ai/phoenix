@@ -18,7 +18,7 @@ export const EXTRA_LARGE_BREAKPOINT = "800px";
  */
 export const traceTreePanelContentCSS = css`
   position: relative;
-  z-index: 1;
+  z-index: var(--global-z-index-local-base);
   box-sizing: border-box;
   width: 100%;
   height: 100%;
@@ -29,7 +29,7 @@ export const traceTreePanelContentCSS = css`
   background: var(--global-background-color-default);
 
   &[data-overlay-resizing="true"] {
-    z-index: 2;
+    z-index: var(--global-z-index-local-raised);
     width: 100%;
     border-right: var(--global-border-size-thin) solid
       var(--global-border-color-default);
@@ -42,7 +42,7 @@ export const traceTreePanelContentCSS = css`
 
   @container trace-tree-panel (width < ${TRACE_TREE_HOVER_WIDTH_PIXELS}px) {
     &:is(:hover, :focus-within):not([data-overlay-resizing="true"]) {
-      z-index: 2;
+      z-index: var(--global-z-index-local-raised);
       width: var(--global-dimension-size-3000);
       border-right: var(--global-border-size-thin) solid
         var(--global-border-color-default);
