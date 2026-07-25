@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import {
+  Alert,
   Button,
   DialogTrigger,
   Icon,
@@ -11,6 +12,7 @@ import {
   Modal,
   ModalOverlay,
   Popover,
+  View,
 } from "@phoenix/components";
 import { SpanDownloadDialog } from "@phoenix/components/trace/SpanDownloadDialog";
 import {
@@ -19,7 +21,6 @@ import {
   sanitizeSpanDownloadFileName,
   type SingleSpanDownloadFormat,
 } from "@phoenix/components/trace/spanDownloadUtils";
-import { useNotifyError } from "@phoenix/contexts";
 
 enum SpanDownloadAction {
   SPAN_JSON = "span-json",
@@ -29,7 +30,6 @@ enum SpanDownloadAction {
 
 type SpanDownloadMenuProps = {
   projectId: string;
-  projectName: string;
   spanId: string;
   traceId: string;
   buttonText: string | null;
@@ -38,32 +38,33 @@ type SpanDownloadMenuProps = {
 /** Span-detail download actions for the current span and its trace. */
 export function SpanDownloadMenu({
   projectId,
-  projectName,
   spanId,
   traceId,
   buttonText,
 }: SpanDownloadMenuProps) {
-  const notifyError = useNotifyError();
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isTraceDialogOpen, setIsTraceDialogOpen] = useState(false);
 
   const onDownloadSpan = async (format: SingleSpanDownloadFormat) => {
     setIsDownloading(true);
+    setDownloadError(null);
     const timestamp = getSpanDownloadTimestamp();
-    const safeProjectName = sanitizeSpanDownloadFileName(projectName);
+    const safeTraceId = sanitizeSpanDownloadFileName(traceId);
     const formatSuffix = format === "otlp-json" ? "-otlp" : "";
     try {
       await downloadSingleSpan({
         projectId,
         spanId,
         format,
-        fileName: `${safeProjectName}-span-${spanId}${formatSuffix}-${timestamp}.json`,
+        fileName: `${safeTraceId}-span-${spanId}${formatSuffix}-${timestamp}.json`,
       });
     } catch (error) {
-      notifyError({
-        title: "Failed to download span",
-        message: error instanceof Error ? error.message : String(error),
-      });
+      setDownloadError(
+        `Failed to download span: ${error instanceof Error ? error.message : String(error)}`
+      );
+      setIsMenuOpen(true);
     } finally {
       setIsDownloading(false);
     }
@@ -75,7 +76,15 @@ export function SpanDownloadMenu({
 
   return (
     <>
-      <MenuTrigger>
+      <MenuTrigger
+        isOpen={isMenuOpen}
+        onOpenChange={(isOpen) => {
+          setIsMenuOpen(isOpen);
+          if (isOpen) {
+            setDownloadError(null);
+          }
+        }}
+      >
         <Button
           size="S"
           aria-label="Download span"
@@ -85,6 +94,13 @@ export function SpanDownloadMenu({
           {buttonText}
         </Button>
         <Popover placement="bottom end">
+          {downloadError ? (
+            <View padding="size-100">
+              <Alert variant="danger" banner>
+                {downloadError}
+              </Alert>
+            </View>
+          ) : null}
           <Menu
             aria-label="Span download options"
             disabledKeys={disabledKeys}
@@ -120,15 +136,9 @@ export function SpanDownloadMenu({
           <Modal size="S">
             <SpanDownloadDialog
               projectId={projectId}
-              projectName={projectName}
+              fileNamePrefix={traceId}
               selectedSpans={[{ spanId, trace: { traceId } }]}
               initialScope="traces"
-              onError={(message) => {
-                notifyError({
-                  title: "Failed to download trace",
-                  message,
-                });
-              }}
             />
           </Modal>
         </ModalOverlay>

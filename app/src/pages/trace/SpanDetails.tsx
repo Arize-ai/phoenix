@@ -9,7 +9,7 @@ import {
   type PanelImperativeHandle,
   Separator,
 } from "react-resizable-panels";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import {
   Button,
@@ -67,6 +67,7 @@ export function SpanDetails({
    */
   spanNodeId: string;
 }) {
+  const { projectId } = useParams();
   const isAnnotatingSpans = usePreferencesContext(
     (state) => state.isAnnotatingSpans
   );
@@ -104,10 +105,6 @@ export function SpanDetails({
             trace {
               id
               traceId
-            }
-            project {
-              id
-              name
             }
             name
             spanKind
@@ -176,6 +173,9 @@ export function SpanDetails({
       "Expected a span, but got a different type" + span.__typename
     );
   }
+  if (projectId == null) {
+    throw new Error("Project ID is required to download a span");
+  }
 
   useHotkeys(
     EDIT_ANNOTATION_HOTKEY,
@@ -226,8 +226,7 @@ export function SpanDetails({
                     buttonText={isCondensedView ? null : "Add to Dataset"}
                   />
                   <SpanDownloadMenu
-                    projectId={span.project.id}
-                    projectName={span.project.name}
+                    projectId={projectId}
                     spanId={span.spanId}
                     traceId={span.trace.traceId}
                     buttonText={isCondensedView ? null : "Download"}

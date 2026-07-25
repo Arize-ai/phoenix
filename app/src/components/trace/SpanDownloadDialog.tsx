@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import { useState } from "react";
 
 import {
+  Alert,
   Button,
   ContextualHelp,
   Dialog,
@@ -42,9 +43,8 @@ export type DownloadableSpan = {
 
 export type SpanDownloadDialogProps = {
   projectId: string;
-  projectName: string;
+  fileNamePrefix: string;
   selectedSpans: DownloadableSpan[];
-  onError: (message: string) => void;
   initialScope?: SpanDownloadScope;
 };
 
@@ -68,17 +68,17 @@ const labeledGroupCSS = css`
  */
 export function SpanDownloadDialog({
   projectId,
-  projectName,
+  fileNamePrefix,
   selectedSpans,
-  onError,
   initialScope = "spans",
 }: SpanDownloadDialogProps) {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [scope, setScope] = useState<SpanDownloadScope>(initialScope);
   const [format, setFormat] = useState<SpanDownloadFormat>("jsonl");
   const [timestamp] = useState(() => getSpanDownloadTimestamp());
   const getDefaultFileName = (downloadScope: SpanDownloadScope) =>
-    `${sanitizeSpanDownloadFileName(projectName)}-${downloadScope}-${timestamp}`;
+    `${sanitizeSpanDownloadFileName(fileNamePrefix)}-${downloadScope}-${timestamp}`;
   const [fileName, setFileName] = useState(() =>
     getDefaultFileName(initialScope)
   );
@@ -86,6 +86,7 @@ export function SpanDownloadDialog({
 
   const onDownload = async (close: () => void) => {
     setIsDownloading(true);
+    setError(null);
     const extension = SPAN_DOWNLOAD_FILE_EXTENSIONS[format];
     const fullFileName = fileName.endsWith(extension)
       ? fileName
@@ -107,10 +108,9 @@ export function SpanDownloadDialog({
       });
       close();
     } catch (error) {
-      onError(
+      setError(
         `Failed to download: ${error instanceof Error ? error.message : String(error)}`
       );
-      close();
     } finally {
       setIsDownloading(false);
     }
@@ -130,6 +130,13 @@ export function SpanDownloadDialog({
               />
             </DialogTitleExtra>
           </DialogHeader>
+          {error ? (
+            <View paddingX="size-200" paddingTop="size-100">
+              <Alert variant="danger" banner>
+                {error}
+              </Alert>
+            </View>
+          ) : null}
           <View padding="size-200">
             <Flex direction="column" gap="size-200">
               <Flex direction="row" gap="size-400">

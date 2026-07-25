@@ -285,9 +285,8 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
           </DialogTrigger>
           <SpanSelectionDownloadButton
             projectId={projectId}
-            projectName={projectName}
+            fileNamePrefix={projectName}
             selectedSpans={selectedSpans}
-            onError={setError}
           />
           <Button
             size="M"
