@@ -4,7 +4,7 @@
 
 - Docker
 - `uv tool install harbor`
-- An API key for the provider you pass via `-m` (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`)
+- An API key for the provider you pass via `-m` (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`)
 
 ## Run
 
