@@ -1,3 +1,5 @@
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2FArize-ai%2Fphoenix.svg)](https://mcptoplist.com/server/glama%2FArize-ai%2Fphoenix)
+
 <p align="center">
     <a target="_blank" href="https://phoenix.arize.com" style="background:none">
         <img alt="phoenix banner" src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/socal/github-large-banner-phoenix-v2.jpg?raw=true" width="auto" height="auto"></img>
