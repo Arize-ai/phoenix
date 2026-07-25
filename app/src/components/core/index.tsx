@@ -23,6 +23,7 @@ export * from "./tag";
 export * from "./overlay";
 export * from "./radio";
 export * from "./toggleButtonGroup";
+export * from "./segmentedControl";
 export * from "./listbox";
 export * from "./gridlist";
 export * from "./token";

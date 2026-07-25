@@ -1,14 +1,6 @@
 import { useState } from "react";
 
-import {
-  Button,
-  ListBox,
-  Popover,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectItem,
-  SelectValue,
-} from "@phoenix/components";
+import { SegmentedControl, SegmentedControlItem } from "@phoenix/components";
 
 export type LLMIOView = {
   /** The stable id of the view, used as the select key */
@@ -34,8 +26,8 @@ export function useLLMIOView(views: LLMIOView[]) {
 }
 
 /**
- * A compact select rendered in the header of an LLM Input / Output card that
- * switches which view is shown in the card body, replacing the previous tabs.
+ * A compact segmented control rendered in the header of an LLM Input / Output
+ * card that switches which view is shown in the card body.
  */
 export function LLMIOViewSelect({
   label,
@@ -43,7 +35,7 @@ export function LLMIOViewSelect({
   value,
   onChange,
 }: {
-  /** Accessible label for the select */
+  /** Accessible label for the control */
   label: string;
   /** The available views to choose from */
   views: LLMIOView[];
@@ -53,25 +45,17 @@ export function LLMIOViewSelect({
   onChange: (view: string) => void;
 }) {
   return (
-    <Select
+    <SegmentedControl
       aria-label={label}
-      value={value}
       size="S"
-      onChange={(key) => onChange(String(key))}
+      selectedKey={value}
+      onSelectionChange={(key) => onChange(String(key))}
     >
-      <Button>
-        <SelectValue />
-        <SelectChevronUpDownIcon />
-      </Button>
-      <Popover placement="bottom end">
-        <ListBox>
-          {views.map((view) => (
-            <SelectItem key={view.id} id={view.id}>
-              {view.label}
-            </SelectItem>
-          ))}
-        </ListBox>
-      </Popover>
-    </Select>
+      {views.map((view) => (
+        <SegmentedControlItem key={view.id} id={view.id}>
+          {view.label}
+        </SegmentedControlItem>
+      ))}
+    </SegmentedControl>
   );
 }

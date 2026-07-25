@@ -11,6 +11,12 @@ class ResizeObserverMock {
 }
 globalThis.ResizeObserver = ResizeObserverMock;
 
+// jsdom does not implement the Web Animations API, which react-aria's
+// SelectionIndicator uses to settle its slide transition
+if (typeof Element.prototype.getAnimations !== "function") {
+  Element.prototype.getAnimations = () => [];
+}
+
 // jsdom does not expose CSS.escape, which react-aria uses to build selectors
 // for virtually focused collection items
 if (typeof globalThis.CSS === "undefined") {
