@@ -9,7 +9,7 @@ import {
   type PanelImperativeHandle,
   Separator,
 } from "react-resizable-panels";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import {
   Button,
@@ -43,6 +43,7 @@ import type {
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanAttributesCard, SpanInfo } from "./span";
 import { SpanAside } from "./SpanAside";
+import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
@@ -66,6 +67,7 @@ export function SpanDetails({
    */
   spanNodeId: string;
 }) {
+  const { projectId } = useParams();
   const isAnnotatingSpans = usePreferencesContext(
     (state) => state.isAnnotatingSpans
   );
@@ -171,6 +173,9 @@ export function SpanDetails({
       "Expected a span, but got a different type" + span.__typename
     );
   }
+  if (projectId == null) {
+    throw new Error("Project ID is required to download a span");
+  }
 
   useHotkeys(
     EDIT_ANNOTATION_HOTKEY,
@@ -219,6 +224,12 @@ export function SpanDetails({
                   <AddSpanToDatasetButton
                     span={span}
                     buttonText={isCondensedView ? null : "Add to Dataset"}
+                  />
+                  <SpanDownloadMenu
+                    projectId={projectId}
+                    spanId={span.spanId}
+                    traceId={span.trace.traceId}
+                    buttonText={isCondensedView ? null : "Download"}
                   />
                   <ToggleButton
                     size="S"
