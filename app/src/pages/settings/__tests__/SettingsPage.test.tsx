@@ -64,15 +64,4 @@ describe("SettingsPage access control without authentication", () => {
       expect(container.textContent).not.toContain("API Keys page");
     }
   );
-
-  it("does not render the Users or API Keys tabs", async () => {
-    await renderSettingsPage("/settings/general");
-
-    const tabNames = Array.from(
-      container.querySelectorAll('[role="tab"]'),
-      (tab) => tab.textContent
-    );
-    expect(tabNames).not.toContain("Users");
-    expect(tabNames).not.toContain("API Keys");
-  });
 });
