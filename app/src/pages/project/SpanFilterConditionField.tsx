@@ -8,6 +8,7 @@ import {
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
   type DSLFilterSnippet,
+  type DSLFilterValidConditionArgs,
   useDSLFilterConditionHistory,
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
@@ -15,12 +16,19 @@ import environment from "@phoenix/RelayEnvironment";
 
 import type { SpanFilterConditionFieldCompletionsQuery } from "./__generated__/SpanFilterConditionFieldCompletionsQuery.graphql";
 import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
+import {
+  ORPHAN_AWARE_ROOT_SPANS_CONDITION,
+  STRICT_ROOT_SPANS_CONDITION,
+} from "./spanFilterRootScope";
 import { useSpanFilters } from "./SpanFiltersContext";
 import {
   openInferenceAttributeCompletions,
   openInferenceAttributeValueCompletionSource,
 } from "./spanFilterSemanticConventionCompletions";
-import { validateSpanFilterCondition } from "./spanFilterValidation";
+import {
+  type SpanFilterConditionValidation,
+  validateSpanFilterCondition,
+} from "./spanFilterValidation";
 
 /**
  * The fields of the span filter DSL that an expression can reference
@@ -69,7 +77,12 @@ const spanFilterCompletions: Completion[] = [
   {
     label: "parent_id",
     type: "variable",
-    info: "The ID of a span's parent - None for root spans",
+    info: "The ID of a span's parent - use `parent_id is None` for root spans",
+  },
+  {
+    label: "parent_span",
+    type: "variable",
+    info: "The parent span - use `parent_span is None` for root spans, including orphans (spans whose parent is missing)",
   },
   {
     label: "latency_ms",
@@ -176,7 +189,11 @@ const spanFilterSnippets: DSLFilterSnippet[] = [
   },
   {
     label: "filter for root spans",
-    snippet: "parent_id is None",
+    snippet: STRICT_ROOT_SPANS_CONDITION,
+  },
+  {
+    label: "filter for root spans (incl. orphans)",
+    snippet: ORPHAN_AWARE_ROOT_SPANS_CONDITION,
   },
   {
     label: "filter by trace id",
@@ -238,11 +255,22 @@ async function fetchAnnotationCompletions(
   });
 }
 
+/**
+ * The argument handed to `onValidCondition`: the condition that passed
+ * validation, plus whether it restricts the result set to root spans, which
+ * decides between cumulative and per-span metric columns. `null` when the
+ * server did not answer.
+ */
+export type SpanFilterValidConditionArgs = {
+  condition: string;
+  selectsRootSpansOnly: boolean | null;
+};
+
 type SpanFilterConditionFieldProps = {
   /**
    * Callback when the condition is valid
    */
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (args: SpanFilterValidConditionArgs) => void;
   placeholder?: string;
 };
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
@@ -286,9 +314,21 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   );
 
   const handleValidCondition = useCallback(
-    (condition: string) => {
+    ({
+      condition,
+      validationResult,
+    }: DSLFilterValidConditionArgs<SpanFilterConditionValidation>) => {
       recordValidCondition(condition);
-      onValidCondition(condition);
+      // A null validation result means the condition was empty, which the
+      // field resolves without asking the server. An empty condition restricts
+      // nothing, so it is knowably not root-scoped. Otherwise the server's
+      // answer passes through as-is, `null` (unanswered) included.
+      onValidCondition({
+        condition,
+        selectsRootSpansOnly: validationResult
+          ? validationResult.selectsRootSpansOnly
+          : false,
+      });
     },
     [recordValidCondition, onValidCondition]
   );

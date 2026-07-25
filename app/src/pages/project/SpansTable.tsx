@@ -18,8 +18,6 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
-import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
-import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
   Flex,
   Heading,
@@ -27,8 +25,6 @@ import {
   Icons,
   Link,
   OverflowRow,
-  SegmentedControl,
-  SegmentedControlItem,
   Text,
   View,
 } from "@phoenix/components";
@@ -66,7 +62,10 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SPAN_FILTER_CONDITION_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
@@ -84,12 +83,14 @@ import {
   SpanInputValueTooltipCell,
   SpanOutputValueTooltipCell,
 } from "./IOValueTooltipCell";
-import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
-import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import {
+  SpanFilterConditionField,
+  type SpanFilterValidConditionArgs,
+} from "./SpanFilterConditionField";
 import { useSpanFilters } from "./SpanFiltersContext";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
@@ -113,15 +114,9 @@ type SpansTableProps = {
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-type RootSpanFilterValue = "root" | "all";
-
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
-
-function isRootSpanFilterValue(val: unknown): val is RootSpanFilterValue {
-  return val === "root" || val === "all";
-}
 
 const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   table,
@@ -201,35 +196,66 @@ export const MemoizedTableBody = React.memo(
 ) as typeof TableBody;
 
 export function SpansTable(props: SpansTableProps) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [filterCondition, setFilterCondition] = useState<string>("");
-  const { rootSpansOnly, setRootSpansOnly } = useSpanFilters();
-  const projectId = useTracingContext((state) => state.projectId);
+  // The applied (last-valid) filter condition that drives the query. Seeded
+  // from the URL so a shared/reloaded link restores the filtered view.
+  const { filterCondition: draftCondition } = useSpanFilters();
+  const [filterCondition, setFilterCondition] = useState<string>(
+    () => draftCondition
+  );
+  // Root-ness is a property of the filter condition, not state of its own, so
+  // it is read back from the condition rather than tracked separately. It
+  // decides which token/cost columns are fetched and shown: a cumulative
+  // rollup only makes sense on a root span, since on a nested span it
+  // double-counts against its ancestors' rows. Starts `true` because the
+  // table's default filter is root-scoped; the first analysis confirms it.
+  const [rootSpansOnly, setRootSpansOnly] = useState<boolean>(true);
+
+  // Persist the applied filter to the URL. Written only from the change
+  // handler, so in-progress edits and render churn never touch the URL; other
+  // params (e.g. the selected span) are preserved.
+  const writeFilterConditionParam = useCallback(
+    (condition: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          // Written even when empty. An absent param means "no filter was
+          // applied here", which seeds the default; an empty one means the
+          // filter was deliberately cleared. Deleting it instead would make
+          // those two indistinguishable, so clearing the filter would not
+          // survive a reload -- the default would come back.
+          next.set(SPAN_FILTER_CONDITION_PARAM, condition);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+  const handleValidFilterCondition = useCallback(
+    ({ condition, selectsRootSpansOnly }: SpanFilterValidConditionArgs) => {
+      setFilterCondition(condition);
+      writeFilterConditionParam(condition);
+      // `null` means the server did not answer, in which case the previous
+      // answer is kept rather than flipping the columns on a hiccup.
+      if (selectsRootSpansOnly !== null) {
+        setRootSpansOnly(selectsRootSpansOnly);
+      }
+    },
+    [writeFilterConditionParam]
+  );
+
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
   // still applied. The parent query is intentionally not reloaded on window
   // slides — see the load effect in `ProjectPage` and issue #14216.
   const { timeRangeISOStrings } = useTimeRange();
-
-  // Advertise the current rootSpansOnly state so the agent's context message
-  // reflects whether the toggle is mounted on this tab.
-  const advertisedRootSpansOnlyContext = useMemo<AgentContext | null>(() => {
-    if (!projectId) {
-      return null;
-    }
-    return {
-      type: "project",
-      projectNodeId: projectId,
-      rootSpansOnly,
-    };
-  }, [projectId, rootSpansOnly]);
-  useAdvertiseAgentContext(advertisedRootSpansOnlyContext);
 
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const {
@@ -256,13 +282,16 @@ export function SpansTable(props: SpansTableProps) {
           spanAnnotationNames
           ...SpanColumnSelector_annotations
           ...SpanColumnSelector_traceAnnotations
+          # Root-span scoping is expressed inside $filterCondition, so the
+          # rootSpansOnly / orphanSpanAsRootSpan arguments are deliberately not
+          # passed: sending both would AND two independent root filters
+          # together, and the stricter one would silently win. $rootSpansOnly
+          # survives only as a presentation flag for the field selections below.
           spans(
             first: $first
             after: $after
             sort: $sort
-            rootSpansOnly: $rootSpansOnly
             filterCondition: $filterCondition
-            orphanSpanAsRootSpan: $orphanSpanAsRootSpan
             timeRange: $timeRange
           ) @connection(key: "SpansTable_spans") {
             edges {
@@ -787,10 +816,14 @@ export function SpansTable(props: SpansTableProps) {
   ];
 
   useEffect(() => {
-    // Skip the first render. It's been loaded by the parent
+    // Skip the first render. It's been loaded by the parent — but the parent's
+    // query carries no filter condition, so a seeded one (from the URL or the
+    // page default) still needs a fetch of its own.
     if (isFirstRender.current === true) {
       isFirstRender.current = false;
-      return;
+      if (!filterCondition) {
+        return;
+      }
     }
     //if the sorting changes, we need to reset the pagination
     startTransition(() => {
@@ -927,35 +960,16 @@ export function SpansTable(props: SpansTableProps) {
           flex="none"
         >
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-            <SpanFilterConditionField onValidCondition={setFilterCondition} />
+            <SpanFilterConditionField
+              onValidCondition={handleValidFilterCondition}
+            />
 
-            <SegmentedControl
-              aria-label="Toggle between root and all spans"
-              selectedKey={rootSpansOnly ? "root" : "all"}
-              onSelectionChange={(selectedKey) => {
-                if (isRootSpanFilterValue(selectedKey)) {
-                  setRootSpansOnly(selectedKey === "root");
-                } else {
-                  throw new Error(
-                    `Unknown root span filter selection: ${selectedKey}`
-                  );
-                }
-              }}
-            >
-              <SegmentedControlItem aria-label="root spans" id="root">
-                Root Spans
-              </SegmentedControlItem>
-              <SegmentedControlItem aria-label="all spans" id="all">
-                All
-              </SegmentedControlItem>
-            </SegmentedControl>
             <TableMetricsChartSelector view="spans" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
             <RowExpandToggleButton
               isExpanded={areRowsExpanded}
               onChange={setAreRowsExpanded}
             />
-            <ProjectFilterConfigButton />
             <TableAsideToggleButton />
           </Flex>
         </View>

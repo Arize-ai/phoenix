@@ -1078,7 +1078,11 @@ export function TracesTable(props: TracesTableProps) {
           flex="none"
         >
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-            <SpanFilterConditionField onValidCondition={setFilterCondition} />
+            <SpanFilterConditionField
+              onValidCondition={({ condition }) =>
+                setFilterCondition(condition)
+              }
+            />
             <TableMetricsChartSelector view="traces" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
             <RowExpandToggleButton

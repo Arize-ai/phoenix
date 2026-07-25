@@ -186,11 +186,19 @@ async function validateExperimentRunFilterCondition(
   return validationResult.validateExperimentRunFilterCondition;
 }
 
+/**
+ * The argument handed to `onValidCondition`: the condition that passed
+ * validation
+ */
+export type ExperimentRunFilterValidConditionArgs = {
+  condition: string;
+};
+
 type ExperimentRunFilterConditionFieldProps = {
   /**
    * Callback when the condition is valid
    */
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (args: ExperimentRunFilterValidConditionArgs) => void;
   placeholder?: string;
 };
 export function ExperimentRunFilterConditionField(

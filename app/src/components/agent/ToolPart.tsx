@@ -1008,20 +1008,16 @@ function getCallSubagentName(part: ToolInvocationPart): string {
 }
 
 /**
- * Builds the collapsed-row preview for `set_spans_filter`. Shows the span
- * filter DSL condition, annotated with the root/all-spans scope. When the
- * condition is empty the call only resets scope, so we surface that instead.
+ * Builds the collapsed-row preview for `set_spans_filter`. The span filter DSL
+ * condition describes the whole view, root-span scoping included, so it is
+ * shown verbatim. An empty condition clears the filter.
  */
 function getSetSpansFilterToolPreview(part: ToolInvocationPart): string {
   const parsed = parseSetSpansFilterInput(part.input);
   if (!parsed) {
     return "";
   }
-  const condition = parsed.condition.trim();
-  if (!condition) {
-    return parsed.rootSpansOnly ? "Root spans only" : "All spans";
-  }
-  return parsed.rootSpansOnly ? `${condition} · root spans` : condition;
+  return parsed.condition.trim() || "All spans";
 }
 
 function getToolPresentation(

@@ -113,7 +113,23 @@ function snippetToCompletion({ label, snippet }: DSLFilterSnippet): Completion {
   });
 }
 
-export type DSLFilterConditionFieldProps = {
+/**
+ * The argument handed to `onValidCondition`: the condition that passed
+ * validation, plus whatever `validateCondition` resolved to for it —
+ * `null` for an empty condition, which the field resolves itself.
+ */
+export type DSLFilterValidConditionArgs<
+  TValidationResult extends DSLFilterConditionValidationResult =
+    DSLFilterConditionValidationResult,
+> = {
+  condition: string;
+  validationResult: TValidationResult | null;
+};
+
+export type DSLFilterConditionFieldProps<
+  TValidationResult extends DSLFilterConditionValidationResult =
+    DSLFilterConditionValidationResult,
+> = {
   /**
    * The current filter condition expression (controlled)
    */
@@ -159,11 +175,17 @@ export type DSLFilterConditionFieldProps = {
    */
   validateCondition: (
     condition: string
-  ) => Promise<DSLFilterConditionValidationResult | null | undefined>;
+  ) => Promise<TValidationResult | null | undefined>;
   /**
-   * Callback when the condition passes validation
+   * Callback when the condition passes validation. Receives whatever
+   * `validateCondition` resolved to, so a caller that asks the server for more
+   * than validity gets the rest of the answer without a channel of its own.
+   * `validationResult` is `null` for an empty condition, which is resolved
+   * here rather than by the validator.
    */
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (
+    args: DSLFilterValidConditionArgs<TValidationResult>
+  ) => void;
   /**
    * Callback whenever the validity of the condition changes, including when
    * a validation round-trip is in flight (invalid until proven valid)
@@ -192,7 +214,9 @@ export type DSLFilterConditionFieldProps = {
  * field — so an error can never fight the suggestions dropdown for the same
  * space.
  */
-export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
+export function DSLFilterConditionField<
+  TValidationResult extends DSLFilterConditionValidationResult,
+>(props: DSLFilterConditionFieldProps<TValidationResult>) {
   const {
     value,
     onChange,
@@ -208,6 +232,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     className,
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const hasSettled = useRef<boolean>(false);
   // null means the condition is not known to be invalid; the empty string
   // means invalid with no server-provided detail
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -335,9 +360,12 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     // An empty condition means "no filter" — resolve it here rather than
     // asking the validator about a blank (or whitespace-only) expression
     if (value.trim() === "") {
+      // An empty mount is a settled field, so the next value is a typed one
+      // and takes the debounce.
+      hasSettled.current = true;
       onValidationStateChange?.(true);
       startTransition(() => {
-        onValidCondition("");
+        onValidCondition({ condition: "", validationResult: null });
       });
       return undefined;
     }
@@ -345,7 +373,12 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     onValidationStateChange?.(false);
 
     // Debounce so intermediate keystrokes neither hit the server nor flash
-    // the field red while a valid expression is being typed
+    // the field red while a valid expression is being typed. A non-empty value
+    // at mount was not typed -- it arrives from a URL or a caller's default --
+    // so it is validated at once, which is also what any consumer waiting on
+    // the result to render is waiting for.
+    const delay = hasSettled.current ? 250 : 0;
+    hasSettled.current = true;
     const timeout = setTimeout(() => {
       validateCondition(value)
         .then((result) => {
@@ -360,7 +393,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
             setErrorMessage(null);
             onValidationStateChange?.(true);
             startTransition(() => {
-              onValidCondition(value);
+              onValidCondition({ condition: value, validationResult: result });
             });
           }
         })
@@ -374,7 +407,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
           setErrorMessage("The condition could not be validated");
           onValidationStateChange?.(false);
         });
-    }, 250);
+    }, delay);
 
     return () => {
       isCancelled = true;
