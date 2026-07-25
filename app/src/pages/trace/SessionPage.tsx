@@ -17,14 +17,14 @@ import {
   DialogTitle,
   TitleWithID,
 } from "@phoenix/components";
-import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
-import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
+import { TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS } from "@phoenix/constants";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
 import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import { SessionDetails } from "./SessionDetails";
+import { useDetailsPanelSizing } from "./useDetailsPanelSizing";
 
 /**
  * A component that shows the details of a session
@@ -37,9 +37,12 @@ export function SessionPage() {
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
   const parentSearch = clearSelectionScopedParams(location.search);
-  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
-    id: "session-details",
-  });
+  const {
+    defaultDrawerSize,
+    onDrawerSizeChange,
+    onPreferredTreeWidthChange,
+    preferredTreeWidth,
+  } = useDetailsPanelSizing();
 
   return (
     <Drawer
@@ -51,9 +54,9 @@ export function SessionPage() {
           hash: location.hash,
         })
       }
-      defaultSize={defaultSize}
-      minSize={DRAWER_DEFAULT_MIN_SIZE}
-      onResize={onSizeChange}
+      defaultSize={defaultDrawerSize}
+      minSize={TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS}
+      onResize={onDrawerSizeChange}
     >
       <Dialog>
         {({ close }) => (
@@ -71,7 +74,11 @@ export function SessionPage() {
               </Flex>
             </DialogHeader>
             <ErrorBoundary>
-              <SessionDetails sessionId={sessionId as string} />
+              <SessionDetails
+                sessionId={sessionId as string}
+                preferredTreeWidth={preferredTreeWidth}
+                onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+              />
             </ErrorBoundary>
           </DialogContent>
         )}

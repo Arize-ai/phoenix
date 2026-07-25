@@ -20,15 +20,15 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
-import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
+import { TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS } from "@phoenix/constants";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
 import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 import { TraceDetails } from "./TraceDetails";
+import { useDetailsPanelSizing } from "./useDetailsPanelSizing";
 
 /**
  * A component that shows the details of a trace (e.g. a collection of spans)
@@ -43,9 +43,12 @@ export function TracePage() {
   const parentSearch = withSearchParams(searchParams, (params) => {
     params.delete(SELECTED_SPAN_NODE_ID_PARAM);
   });
-  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
-    id: "trace-details",
-  });
+  const {
+    defaultDrawerSize,
+    onDrawerSizeChange,
+    onPreferredTreeWidthChange,
+    preferredTreeWidth,
+  } = useDetailsPanelSizing();
 
   // if we are focused on a particular span, use that as the subjectId
   // otherwise, use the traceId
@@ -61,9 +64,9 @@ export function TracePage() {
           hash: location.hash,
         })
       }
-      defaultSize={defaultSize}
-      minSize={DRAWER_DEFAULT_MIN_SIZE}
-      onResize={onSizeChange}
+      defaultSize={defaultDrawerSize}
+      minSize={TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS}
+      onResize={onDrawerSizeChange}
     >
       <Dialog>
         {({ close }) => (
@@ -89,6 +92,8 @@ export function TracePage() {
               <TraceDetails
                 traceId={traceId as string}
                 projectId={projectId as string}
+                preferredTreeWidth={preferredTreeWidth}
+                onPreferredTreeWidthChange={onPreferredTreeWidthChange}
               />
             </Suspense>
           </DialogContent>

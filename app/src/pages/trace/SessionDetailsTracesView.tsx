@@ -15,12 +15,7 @@ import {
   usePaginationFragment,
   usePreloadedQuery,
 } from "react-relay";
-import {
-  Group,
-  Panel,
-  Separator,
-  useDefaultLayout,
-} from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 
 import {
@@ -43,6 +38,11 @@ import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
+import { traceTreePanelContentCSS } from "@phoenix/components/trace/traceTreeStyles";
+import {
+  SPAN_DETAILS_MIN_WIDTH_PIXELS,
+  TRACE_TREE_MIN_WIDTH_PIXELS,
+} from "@phoenix/constants";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
@@ -59,6 +59,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
+import { usePreferredTreePanel } from "./useDetailsPanelSizing";
 
 const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
 
@@ -98,8 +99,12 @@ type TraceSelectHandler = ({
 
 export function SessionDetailsTracesView({
   queryRef,
+  preferredTreeWidth,
+  onPreferredTreeWidthChange,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTracesViewQuery>;
+  preferredTreeWidth: number;
+  onPreferredTreeWidthChange: (width: number) => void;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTracesViewQuery>(
     sessionDetailsTracesViewQuery,
@@ -239,9 +244,9 @@ export function SessionDetailsTracesView({
     }
   }, [hasNext, isLoadingNext, loadNext, traces]);
 
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "session-traces-view-layout",
-    storage: localStorage,
+  const { onLayoutChanged, treePanelRef } = usePreferredTreePanel({
+    preferredTreeWidth,
+    onPreferredTreeWidthChange,
   });
 
   const fetchMoreOnBottomReached = useCallback(
@@ -265,13 +270,26 @@ export function SessionDetailsTracesView({
   return (
     <Group
       orientation="horizontal"
-      defaultLayout={defaultLayout}
       onLayoutChanged={onLayoutChanged}
       css={viewGroupCSS}
       data-testid="session-traces-view"
     >
-      <Panel id="session-traces-list" defaultSize="50%" minSize="20%">
-        <div css={tracesListPanelCSS}>
+      <Panel
+        id="session-traces-list"
+        panelRef={treePanelRef}
+        defaultSize={preferredTreeWidth}
+        minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
+        groupResizeBehavior="preserve-pixel-size"
+        css={css`
+          container-name: trace-tree-panel;
+          container-type: inline-size;
+        `}
+        style={{ maxWidth: "none", overflow: "visible" }}
+      >
+        <div
+          className="trace-tree-panel-content"
+          css={[traceTreePanelContentCSS, tracesListPanelCSS]}
+        >
           <TraceRowList
             traces={traces}
             expandedIds={expandedIds}
@@ -288,8 +306,19 @@ export function SessionDetailsTracesView({
           />
         </div>
       </Panel>
-      <Separator css={compactResizeHandleCSS} />
-      <Panel id="session-traces-span-details">
+      <Separator
+        css={[
+          compactResizeHandleCSS,
+          css`
+            position: relative;
+            z-index: 3;
+          `,
+        ]}
+      />
+      <Panel
+        id="session-traces-span-details"
+        minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
+      >
         <SpanDetailsPanel selectedSpanNodeId={selectedSpanNodeId} />
       </Panel>
     </Group>
@@ -723,5 +752,5 @@ const traceTreeContainerCSS = css`
 
 const spanDetailsContainerCSS = css`
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
 `;

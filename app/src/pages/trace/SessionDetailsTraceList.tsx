@@ -7,12 +7,7 @@ import { isNumber, isString, throttle } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
-import {
-  Group,
-  Panel,
-  Separator,
-  useDefaultLayout,
-} from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import type { To } from "react-router";
 import { useLocation, useSearchParams } from "react-router";
 
@@ -43,6 +38,10 @@ import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import {
+  SPAN_DETAILS_MIN_WIDTH_PIXELS,
+  TRACE_TREE_MIN_WIDTH_PIXELS,
+} from "@phoenix/constants";
+import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
   SESSION_VIEW_PARAM,
@@ -60,6 +59,7 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
+import { usePreferredTreePanel } from "./useDetailsPanelSizing";
 
 export const sessionDetailsTraceListQuery = graphql`
   query SessionDetailsTraceListQuery($id: ID!, $first: Int!) {
@@ -140,7 +140,8 @@ type RootSpanMessageProps = {
   value: unknown;
 };
 
-function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
+/** Presentational session message bubble used by the turns view and Storybook. */
+export function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
   const isInput = role === "INPUT";
   const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
@@ -565,8 +566,12 @@ const panelContentCSS = css`
 
 export function SessionDetailsTraceList({
   queryRef,
+  preferredTreeWidth,
+  onPreferredTreeWidthChange,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
+  preferredTreeWidth: number;
+  onPreferredTreeWidthChange: (width: number) => void;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
     sessionDetailsTraceListQuery,
@@ -666,11 +671,11 @@ export function SessionDetailsTraceList({
   );
 
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "session-details-layout",
-    panelIds: ["session-turns", "session-turn-details"],
-    storage: localStorage,
-  });
+  const { onLayoutChanged, treePanelRef: navigationPanelRef } =
+    usePreferredTreePanel({
+      preferredTreeWidth,
+      onPreferredTreeWidthChange,
+    });
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
 
@@ -730,18 +735,23 @@ export function SessionDetailsTraceList({
   return (
     <Group
       orientation="horizontal"
-      defaultLayout={defaultLayout}
       onLayoutChanged={onLayoutChanged}
       css={css`
         flex: 1 1 auto;
         overflow: hidden;
       `}
     >
-      <Panel id="session-turns" defaultSize="20%" minSize="10%">
+      <Panel
+        id="session-turns"
+        panelRef={navigationPanelRef}
+        defaultSize={preferredTreeWidth}
+        minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
+        groupResizeBehavior="preserve-pixel-size"
+      >
         <div css={panelContentCSS}>{turnListPanel}</div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />
-      <Panel id="session-turn-details">
+      <Panel id="session-turn-details" minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}>
         <div
           css={css`
             height: 100%;

@@ -64,6 +64,7 @@ export const mediumRootCSS = css`
     --global-dimension-size-6000: 480px;
     --global-dimension-size-8000: 640px;
     --global-dimension-size-8500: 680px;
+    --global-dimension-size-12000: 960px;
   }
 `;
 

@@ -10,10 +10,10 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
-import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
+import { TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS } from "@phoenix/constants";
 import { TraceDetails } from "@phoenix/pages/trace/TraceDetails";
+import { useDetailsPanelSizing } from "@phoenix/pages/trace/useDetailsPanelSizing";
 
 import type { datasetEvaluatorDetailsLoader } from "./datasetEvaluatorDetailsLoader";
 
@@ -29,9 +29,12 @@ export function EvaluatorTracePage() {
     EVALUATOR_DETAILS_ROUTE_ID
   );
   const projectId = loaderData?.projectId;
-  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
-    id: "evaluator-trace-details",
-  });
+  const {
+    defaultDrawerSize,
+    onDrawerSizeChange,
+    onPreferredTreeWidthChange,
+    preferredTreeWidth,
+  } = useDetailsPanelSizing();
 
   invariant(traceId, "traceId is required");
   invariant(projectId, "projectId is required");
@@ -44,9 +47,9 @@ export function EvaluatorTracePage() {
       onClose={() =>
         navigate(`/datasets/${datasetId}/evaluators/${evaluatorId}`)
       }
-      defaultSize={defaultSize}
-      minSize={DRAWER_DEFAULT_MIN_SIZE}
-      onResize={onSizeChange}
+      defaultSize={defaultDrawerSize}
+      minSize={TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS}
+      onResize={onDrawerSizeChange}
     >
       <Dialog>
         {({ close }) => (
@@ -66,7 +69,12 @@ export function EvaluatorTracePage() {
               </DialogTitleExtra>
             </DialogHeader>
             <Suspense fallback={<Loading />}>
-              <TraceDetails traceId={traceId} projectId={projectId} />
+              <TraceDetails
+                traceId={traceId}
+                projectId={projectId}
+                preferredTreeWidth={preferredTreeWidth}
+                onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+              />
             </Suspense>
           </DialogContent>
         )}

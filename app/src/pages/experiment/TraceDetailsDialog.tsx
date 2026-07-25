@@ -15,6 +15,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { TraceDetails } from "@phoenix/pages/trace";
+import { useDetailsPanelSizing } from "@phoenix/pages/trace/useDetailsPanelSizing";
 
 export function TraceDetailsDialog({
   traceId,
@@ -25,6 +26,9 @@ export function TraceDetailsDialog({
   projectId: string;
   title: string;
 }) {
+  const { onPreferredTreeWidthChange, preferredTreeWidth } =
+    useDetailsPanelSizing();
+
   return (
     <Dialog>
       <DialogContent>
@@ -44,7 +48,12 @@ export function TraceDetailsDialog({
           </DialogTitleExtra>
         </DialogHeader>
         <Suspense fallback={<Loading />}>
-          <TraceDetails traceId={traceId} projectId={projectId} />
+          <TraceDetails
+            traceId={traceId}
+            projectId={projectId}
+            preferredTreeWidth={preferredTreeWidth}
+            onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+          />
         </Suspense>
       </DialogContent>
     </Dialog>

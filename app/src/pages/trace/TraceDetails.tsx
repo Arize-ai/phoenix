@@ -1,22 +1,14 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren } from "react";
-import { Suspense, useMemo } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
+import { Suspense } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import {
-  Group,
-  Panel,
-  Separator,
-  useDefaultLayout,
-} from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
   Flex,
-  Icon,
-  Icons,
-  LinkButton,
   Loading,
   RichTooltip,
   Text,
@@ -28,11 +20,15 @@ import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
+import { traceTreePanelContentCSS } from "@phoenix/components/trace/traceTreeStyles";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
+import {
+  SPAN_DETAILS_MIN_WIDTH_PIXELS,
+  TRACE_TREE_MIN_WIDTH_PIXELS,
+} from "@phoenix/constants";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
-import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 import type {
@@ -41,27 +37,34 @@ import type {
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
-import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
-import { TraceHeaderTraceAnnotations } from "./TraceHeaderTraceAnnotations";
+import { usePreferredTreePanel } from "./useDetailsPanelSizing";
 
 type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
 >["rootSpans"]["edges"][number]["span"];
 
-type CostSummary = NonNullable<
-  TraceDetailsQuery$data["project"]["trace"]
->["costSummary"];
+export type TraceHeaderCostSummary = {
+  completion?: { cost: number | null } | null;
+  prompt?: { cost: number | null } | null;
+  total?: { cost: number | null } | null;
+};
 
 export type TraceDetailsProps = {
   traceId: string;
   projectId: string;
+  preferredTreeWidth: number;
+  onPreferredTreeWidthChange: (width: number) => void;
 };
 
 /**
  * A component that shows the details of a trace (e.g. a collection of spans)
  */
-export function TraceDetails(props: TraceDetailsProps) {
-  const { traceId, projectId } = props;
+export function TraceDetails({
+  traceId,
+  projectId,
+  preferredTreeWidth,
+  onPreferredTreeWidthChange,
+}: TraceDetailsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<TraceDetailsQuery>(
     graphql`
@@ -70,7 +73,6 @@ export function TraceDetails(props: TraceDetailsProps) {
           ... on Project {
             trace(traceId: $traceId) {
               id
-              projectSessionId
               ...ConnectedTraceTree
               rootSpans: spans(
                 first: 1
@@ -79,23 +81,10 @@ export function TraceDetails(props: TraceDetailsProps) {
               ) {
                 edges {
                   span: node {
-                    statusCode
                     id
                     spanId
                     parentId
                   }
-                }
-              }
-              latencyMs
-              costSummary {
-                prompt {
-                  cost
-                }
-                completion {
-                  cost
-                }
-                total {
-                  cost
                 }
               }
             }
@@ -109,21 +98,16 @@ export function TraceDetails(props: TraceDetailsProps) {
     }
   );
   invariant(data.project.trace, "Trace is required to view the trace details");
-  const traceLatencyMs =
-    data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
-  const costSummary = data?.project?.trace?.costSummary;
-  const rootSpans: RootSpan[] = useMemo(() => {
-    const gqlSpans = data.project.trace?.rootSpans.edges || [];
-    return gqlSpans.map((node) => node.span);
-  }, [data]);
+  const gqlSpans = data.project.trace?.rootSpans.edges || [];
+  const rootSpans: RootSpan[] = gqlSpans.map((node) => node.span);
   const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   invariant(rootSpans.length > 0, "At least one root must be resolvable");
   const rootSpan = rootSpans[0];
   const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
 
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "trace-details-layout",
-    storage: localStorage,
+  const { onLayoutChanged, treePanelRef } = usePreferredTreePanel({
+    preferredTreeWidth,
+    onPreferredTreeWidthChange,
   });
 
   return (
@@ -135,26 +119,28 @@ export function TraceDetails(props: TraceDetailsProps) {
         flex-direction: column;
       `}
     >
-      <TraceHeader
-        projectId={projectId}
-        traceNodeId={data.project.trace.id}
-        rootSpan={rootSpan}
-        latencyMs={traceLatencyMs}
-        costSummary={costSummary}
-        sessionId={data.project.trace?.projectSessionId}
-      />
       <Group
         orientation="horizontal"
-        defaultLayout={defaultLayout}
         onLayoutChanged={onLayoutChanged}
         css={css`
           flex: 1 1 auto;
           overflow: hidden;
         `}
       >
-        <Panel id="trace-tree" defaultSize="30%" minSize="5%">
+        <Panel
+          id="trace-tree"
+          panelRef={treePanelRef}
+          defaultSize={preferredTreeWidth}
+          minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
+          groupResizeBehavior="preserve-pixel-size"
+          css={css`
+            container-name: trace-tree-panel;
+            container-type: inline-size;
+          `}
+          style={{ maxWidth: "none", overflow: "visible" }}
+        >
           <TraceTreeProvider>
-            <ScrollingPanelContent>
+            <TraceTreePanelContent>
               <TraceTreeToolbar />
               <ConnectedTraceTree
                 trace={data.project.trace}
@@ -169,42 +155,46 @@ export function TraceDetails(props: TraceDetailsProps) {
                   );
                 }}
               />
-            </ScrollingPanelContent>
+            </TraceTreePanelContent>
           </TraceTreeProvider>
         </Panel>
-        <Separator css={compactResizeHandleCSS} />
-        <Panel id="span-details">
-          <ScrollingTabsWrapper>
+        <Separator
+          css={[
+            compactResizeHandleCSS,
+            css`
+              position: relative;
+              z-index: 3;
+            `,
+          ]}
+        />
+        <Panel id="span-details" minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}>
+          <SpanDetailsWrapper>
             {selectedSpanNodeId ? (
               <Suspense fallback={<Loading />}>
                 <SpanDetails spanNodeId={selectedSpanNodeId} />
               </Suspense>
             ) : null}
-          </ScrollingTabsWrapper>
+          </SpanDetailsWrapper>
         </Panel>
       </Group>
     </main>
   );
 }
 
-function TraceHeader({
-  rootSpan,
-  traceNodeId,
+/** Presentational trace metrics header used by the trace details page. */
+export function TraceHeaderContent({
+  statusCode,
   latencyMs,
   costSummary,
-  sessionId,
-  projectId,
+  annotationSummaries,
+  trailingAction,
 }: {
-  rootSpan: RootSpan | null;
-  traceNodeId: string;
+  statusCode: SpanStatusCodeType;
   latencyMs: number | null;
-  costSummary?: CostSummary | null;
-  sessionId?: string | null;
-  projectId: string;
+  costSummary?: TraceHeaderCostSummary | null;
+  annotationSummaries?: ReactNode;
+  trailingAction?: ReactNode;
 }) {
-  const [searchParams] = useSearchParams();
-  const statusCode = (rootSpan?.statusCode ?? "UNSET") as SpanStatusCodeType;
-  const sessionSearch = clearSelectionScopedParams(searchParams);
   return (
     <View
       paddingTop="size-100"
@@ -285,68 +275,29 @@ function TraceHeader({
             <Text size="L">--</Text>
           )}
         </Flex>
-        <Suspense fallback={null}>
-          <Flex
-            direction="row"
-            gap="size-400"
-            alignItems="stretch"
-            alignSelf="stretch"
-          >
-            {rootSpan ? (
-              <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
-            ) : null}
-            <TraceHeaderTraceAnnotations traceId={traceNodeId} />
-          </Flex>
-        </Suspense>
-        {sessionId && (
+        {annotationSummaries}
+        {trailingAction ? (
           <span
             css={css`
               align-self: center;
               margin-left: auto;
             `}
           >
-            <LinkButton
-              size="S"
-              variant="primary"
-              leadingVisual={<Icon svg={<Icons.MessagesSquare />} />}
-              to={{
-                pathname: `/projects/${projectId}/sessions/${sessionId}`,
-                search: sessionSearch,
-              }}
-            >
-              View Session
-            </LinkButton>
+            {trailingAction}
           </span>
-        )}
+        ) : null}
       </Flex>
     </View>
   );
 }
 
-function ScrollingTabsWrapper({ children }: PropsWithChildren) {
+function SpanDetailsWrapper({ children }: PropsWithChildren) {
   return (
     <div
       data-testid="scrolling-tabs-wrapper"
       css={css`
         height: 100%;
         overflow: hidden;
-        .tabs {
-          height: 100%;
-          overflow: hidden;
-          .tabs__extra {
-            width: 100%;
-            padding-right: var(--global-dimension-size-200);
-            padding-bottom: var(--global-dimension-size-50);
-          }
-          .tabs__pane-container {
-            min-height: 100%;
-            height: 100%;
-            overflow-y: auto;
-            div[role="tabpanel"] {
-              height: 100%;
-            }
-          }
-        }
       `}
     >
       {children}
@@ -354,16 +305,12 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
   );
 }
 
-function ScrollingPanelContent({ children }: PropsWithChildren) {
+function TraceTreePanelContent({ children }: PropsWithChildren) {
   return (
     <div
+      className="trace-tree-panel-content"
       data-testid="scrolling-panel-content"
-      css={css`
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      `}
+      css={traceTreePanelContentCSS}
     >
       {children}
     </div>
