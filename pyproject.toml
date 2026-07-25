@@ -66,7 +66,7 @@ dependencies = [
   "bashkit>=0.10.0",
   "authlib>=1.7.0",
   "joserfc",
-  "arize-phoenix-client>=2.11.0",
+  "arize-phoenix-client>=2.13.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
