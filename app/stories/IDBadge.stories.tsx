@@ -20,6 +20,8 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const LONG_ID = `span_${"0123456789abcdef".repeat(32)}`;
+
 export const Default: Story = {
   args: {
     id: "c5b943dba87507a2",
@@ -44,6 +46,21 @@ export const CustomTooltip: Story = {
 export const Quiet: Story = {
   args: {
     id: "c5b943dba87507a2",
+    variant: "quiet",
+  },
+};
+
+/** Long IDs truncate at the component's maximum width. */
+export const Long: Story = {
+  args: {
+    id: LONG_ID,
+  },
+};
+
+/** The quiet treatment uses the same maximum width and truncation. */
+export const LongQuiet: Story = {
+  args: {
+    id: LONG_ID,
     variant: "quiet",
   },
 };
