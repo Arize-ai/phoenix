@@ -671,11 +671,14 @@ export function SessionDetailsTraceList({
   );
 
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const { onLayoutChanged, treePanelRef: navigationPanelRef } =
-    usePreferredTreePanel({
-      preferredTreeWidth,
-      onPreferredTreeWidthChange,
-    });
+  const {
+    groupElementRef,
+    onLayoutChanged,
+    treePanelRef: navigationPanelRef,
+  } = usePreferredTreePanel({
+    preferredTreeWidth,
+    onPreferredTreeWidthChange,
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
 
@@ -734,6 +737,7 @@ export function SessionDetailsTraceList({
 
   return (
     <Group
+      elementRef={groupElementRef}
       orientation="horizontal"
       onLayoutChanged={onLayoutChanged}
       css={css`
@@ -742,7 +746,7 @@ export function SessionDetailsTraceList({
       `}
     >
       <Panel
-        id="session-turns"
+        id="details-panel-tree-column"
         panelRef={navigationPanelRef}
         defaultSize={preferredTreeWidth}
         minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
@@ -750,8 +754,15 @@ export function SessionDetailsTraceList({
       >
         <div css={panelContentCSS}>{turnListPanel}</div>
       </Panel>
-      <Separator css={compactResizeHandleCSS} />
-      <Panel id="session-turn-details" minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}>
+      <Separator
+        id="details-panel-tree-separator"
+        aria-label="Resize session turns"
+        css={compactResizeHandleCSS}
+      />
+      <Panel
+        id="details-panel-main-column"
+        minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
+      >
         <div
           css={css`
             height: 100%;

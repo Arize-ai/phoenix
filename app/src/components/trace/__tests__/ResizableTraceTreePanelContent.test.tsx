@@ -54,6 +54,7 @@ describe("ResizableTraceTreePanelContent", () => {
   it("starts an overlay resize from the rendered handle position", () => {
     const onResizeStart = vi.fn();
     const onResize = vi.fn((width: number) => width);
+    const onResizeEnd = vi.fn();
 
     act(() => {
       root.render(
@@ -61,7 +62,7 @@ describe("ResizableTraceTreePanelContent", () => {
           ResizableTraceTreePanelContent,
           {
             onResize,
-            onResizeEnd: vi.fn(),
+            onResizeEnd,
             onResizeStart,
           },
           createElement("div", null, "Trace tree")
@@ -97,9 +98,11 @@ describe("ResizableTraceTreePanelContent", () => {
     act(() => {
       dispatchPointerEvent(handle, "pointerdown", { clientX: 338 });
       dispatchPointerEvent(handle, "pointermove", { clientX: 358 });
+      dispatchPointerEvent(handle, "pointerup", { clientX: 358 });
     });
 
     expect(onResizeStart).toHaveBeenCalledWith(240);
     expect(onResize).toHaveBeenCalledWith(260);
+    expect(onResizeEnd).toHaveBeenCalledWith(true);
   });
 });

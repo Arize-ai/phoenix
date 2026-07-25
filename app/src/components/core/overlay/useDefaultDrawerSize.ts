@@ -21,6 +21,8 @@ export interface UseDefaultDrawerSizeOptions {
   defaultSize?: SizeValue;
   /** Unit used to store explicit user resize preferences. */
   persistenceUnit?: "percentage" | "pixels";
+  /** Optional minimum applied when restoring a finite pixel preference. */
+  minimumSize?: number;
   /**
    * Storage backend. Defaults to `localStorage`. Pass `sessionStorage` for
    * per-tab persistence, or any object implementing the Web Storage interface
@@ -77,6 +79,7 @@ export function useDefaultDrawerSize({
   id,
   defaultSize: factoryDefaultSize,
   persistenceUnit = "percentage",
+  minimumSize,
   storage,
 }: UseDefaultDrawerSizeOptions): UseDefaultDrawerSizeResult {
   const key = `${STORAGE_KEY_PREFIX}-${id}-size`;
@@ -92,7 +95,7 @@ export function useDefaultDrawerSize({
       if (!raw) return factoryDefaultSize;
       const parsed = Number(raw);
       const isValidPercentage = parsed > 0 && parsed <= 100;
-      const isValidPixelSize = parsed > 0;
+      const isValidPixelSize = minimumSize != null || parsed > 0;
       if (
         !Number.isFinite(parsed) ||
         (persistenceUnit === "percentage"
@@ -101,7 +104,9 @@ export function useDefaultDrawerSize({
       ) {
         return factoryDefaultSize;
       }
-      return persistenceUnit === "percentage" ? `${parsed}%` : parsed;
+      return persistenceUnit === "percentage"
+        ? `${parsed}%`
+        : Math.max(parsed, minimumSize ?? parsed);
     } catch {
       return factoryDefaultSize;
     }

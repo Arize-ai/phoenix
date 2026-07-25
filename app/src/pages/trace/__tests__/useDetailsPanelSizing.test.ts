@@ -17,14 +17,26 @@ describe("details panel sizing", () => {
   it("derives the factory drawer width from its inner columns", () => {
     expect(
       getDetailsPanelDrawerWidth({
-        treeWidth: TRACE_TREE_DEFAULT_WIDTH_PIXELS,
-        mainDetailsWidth: SPAN_DETAILS_FACTORY_WIDTH_PIXELS,
+        columnWidths: [
+          TRACE_TREE_DEFAULT_WIDTH_PIXELS,
+          SPAN_DETAILS_FACTORY_WIDTH_PIXELS,
+        ],
+        separatorWidths: [TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS],
       })
     ).toBe(
       TRACE_TREE_DEFAULT_WIDTH_PIXELS +
         TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS +
         SPAN_DETAILS_FACTORY_WIDTH_PIXELS
     );
+  });
+
+  it("derives drawer width from any ordered set of columns and separators", () => {
+    expect(
+      getDetailsPanelDrawerWidth({
+        columnWidths: [100, 200, 300],
+        separatorWidths: [1, 2],
+      })
+    ).toBe(603);
   });
 
   it("does not turn constraint-driven tree compression into a smaller detail preference", () => {

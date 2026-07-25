@@ -56,7 +56,7 @@ export function SessionPage() {
       }
       defaultSize={defaultDrawerSize}
       minSize={TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS}
-      onResize={onDrawerSizeChange}
+      onResizeEnd={onDrawerSizeChange}
     >
       <Dialog>
         {({ close }) => (

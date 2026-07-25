@@ -248,6 +248,7 @@ export function SessionDetailsTracesView({
   }, [hasNext, isLoadingNext, loadNext, traces]);
 
   const {
+    groupElementRef,
     onLayoutChanged,
     onOverlayResize,
     onOverlayResizeEnd,
@@ -278,13 +279,14 @@ export function SessionDetailsTracesView({
 
   return (
     <Group
+      elementRef={groupElementRef}
       orientation="horizontal"
       onLayoutChanged={onLayoutChanged}
       css={viewGroupCSS}
       data-testid="session-traces-view"
     >
       <Panel
-        id="session-traces-list"
+        id="details-panel-tree-column"
         panelRef={treePanelRef}
         defaultSize={preferredTreeWidth}
         minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
@@ -318,6 +320,8 @@ export function SessionDetailsTracesView({
         </ResizableTraceTreePanelContent>
       </Panel>
       <Separator
+        id="details-panel-tree-separator"
+        aria-label="Resize trace tree"
         css={[
           compactResizeHandleCSS,
           css`
@@ -327,7 +331,7 @@ export function SessionDetailsTracesView({
         ]}
       />
       <Panel
-        id="session-traces-span-details"
+        id="details-panel-main-column"
         minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
       >
         <SpanDetailsPanel selectedSpanNodeId={selectedSpanNodeId} />

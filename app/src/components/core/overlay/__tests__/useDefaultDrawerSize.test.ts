@@ -15,17 +15,20 @@ function TestComponent({
   storage,
   onRender,
   defaultSize,
+  minimumSize,
   persistenceUnit,
 }: {
   storage: Storage;
   onRender: (result: ReturnType<typeof useDefaultDrawerSize>) => void;
   defaultSize?: number;
+  minimumSize?: number;
   persistenceUnit?: "percentage" | "pixels";
 }) {
   const result = useDefaultDrawerSize({
     id: "trace-details",
     storage,
     defaultSize,
+    minimumSize,
     persistenceUnit,
   });
   onRender(result);
@@ -146,5 +149,30 @@ describe("useDefaultDrawerSize", () => {
       defaultSize: 1500,
       onSizeChange: expect.any(Function),
     });
+  });
+
+  it("clamps a finite persisted pixel width without rewriting storage", () => {
+    const storage = window.localStorage;
+    storage.clear();
+    storage.setItem(DRAWER_STORAGE_KEY, "-1");
+    const onRender = vi.fn();
+
+    act(() => {
+      root.render(
+        createElement(TestComponent, {
+          storage,
+          onRender,
+          defaultSize: 960,
+          minimumSize: 640,
+          persistenceUnit: "pixels",
+        })
+      );
+    });
+
+    expect(onRender.mock.calls.at(-1)![0]).toEqual({
+      defaultSize: 640,
+      onSizeChange: expect.any(Function),
+    });
+    expect(storage.getItem(DRAWER_STORAGE_KEY)).toBe("-1");
   });
 });

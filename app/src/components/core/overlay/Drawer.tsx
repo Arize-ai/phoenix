@@ -51,7 +51,7 @@ const drawerCSS = css`
     bottom: 0;
     width: ${RESIZE_HANDLE_WIDTH_PX}px;
     cursor: ew-resize;
-    z-index: 2;
+    z-index: 10;
     touch-action: none;
     background-color: transparent;
     transition: background-color 150ms ease-out;
@@ -73,13 +73,14 @@ const drawerCSS = css`
   }
 
   .react-aria-Dialog {
-    box-shadow: 0 8px 20px rgba(0 0 0 / 0.1);
+    box-shadow:
+      inset 1px 0 0 var(--global-border-color-default),
+      0 8px 20px rgba(0 0 0 / 0.1);
     width: 100%;
     height: 100%;
     border-radius: 0;
     background: var(--global-background-color-default);
     color: var(--global-text-color-900);
-    border-left: 1px solid var(--global-border-color-default);
     outline: none;
   }
 `;
@@ -101,6 +102,12 @@ export type DrawerProps = {
    * `useDefaultDrawerSize` hook to persist size between visits.
    */
   onResize?: (sizePercent: number, sizePixels: number) => void;
+  /**
+   * Fires after a pointer or keyboard resize finishes at a different width.
+   * Use this instead of `onResize` when transient drag widths must not be
+   * persisted as user preferences.
+   */
+  onResizeEnd?: (sizePercent: number, sizePixels: number) => void;
   children?: ReactNode;
   ref?: Ref<HTMLDivElement>;
 };
@@ -138,6 +145,7 @@ export function Drawer({
   minSize,
   maxSize,
   onResize,
+  onResizeEnd,
   children,
 }: DrawerProps) {
   const drawerId = useId();
@@ -183,6 +191,7 @@ export function Drawer({
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const startSizeRef = useRef(0);
+  const dragSizeRef = useRef(0);
   const pendingSizeRef = useRef<number | null>(null);
   const rafIdRef = useRef<number | null>(null);
 
@@ -198,6 +207,10 @@ export function Drawer({
     onResize?.(getSizePercent(nextSize), getSizePixels(nextSize));
   };
 
+  const notifyResizeEnd = (nextSize: number) => {
+    onResizeEnd?.(getSizePercent(nextSize), getSizePixels(nextSize));
+  };
+
   const flushPendingSize = () => {
     rafIdRef.current = null;
     if (pendingSizeRef.current == null) return;
@@ -210,6 +223,7 @@ export function Drawer({
     event.currentTarget.setPointerCapture(event.pointerId);
     startXRef.current = event.clientX;
     startSizeRef.current = isPixelBased ? getSizePixels(size) : size;
+    dragSizeRef.current = startSizeRef.current;
     isDraggingRef.current = true;
     setIsDragging(true);
     event.preventDefault();
@@ -221,11 +235,12 @@ export function Drawer({
     // increases width; dragging right decreases it. Preserve the unit of the
     // initial size so factory pixel widths do not become viewport-relative.
     const deltaPixels = event.clientX - startXRef.current;
-    pendingSizeRef.current = isPixelBased
+    dragSizeRef.current = isPixelBased
       ? clampPixels(startSizeRef.current - deltaPixels)
       : clampPercent(
           startSizeRef.current - (deltaPixels / window.innerWidth) * 100
         );
+    pendingSizeRef.current = dragSizeRef.current;
     if (rafIdRef.current == null) {
       rafIdRef.current = requestAnimationFrame(flushPendingSize);
     }
@@ -247,6 +262,9 @@ export function Drawer({
       pendingSizeRef.current = null;
       commitResize(finalSize);
     }
+    if (dragSizeRef.current !== startSizeRef.current) {
+      notifyResizeEnd(dragSizeRef.current);
+    }
 
     setIsDragging(false);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -259,7 +277,11 @@ export function Drawer({
     const nextSize = isPixelBased
       ? clampedPixels
       : normalizeSize((clampedPixels / window.innerWidth) * 100);
-    commitResize(nextSize);
+    const currentSize = isPixelBased ? getSizePixels(size) : clampPercent(size);
+    if (nextSize !== currentSize) {
+      commitResize(nextSize);
+      notifyResizeEnd(nextSize);
+    }
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

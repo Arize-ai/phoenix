@@ -53,7 +53,7 @@ type ResizableTraceTreePanelContentProps = PropsWithChildren<{
   contentCSS?: SerializedStyles;
   onResizeStart: (width: number) => void;
   onResize: (width: number) => number;
-  onResizeEnd: () => void;
+  onResizeEnd: (didMove: boolean) => void;
 }>;
 
 /**
@@ -71,6 +71,7 @@ export function ResizableTraceTreePanelContent({
   const contentRef = useRef<HTMLDivElement>(null);
   const startPointerXRef = useRef(0);
   const startWidthRef = useRef(0);
+  const didMoveRef = useRef(false);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -82,6 +83,7 @@ export function ResizableTraceTreePanelContent({
       : handleRect.width;
     startPointerXRef.current = event.clientX;
     startWidthRef.current = renderedWidth;
+    didMoveRef.current = false;
     onResizeStart(renderedWidth);
     setIsOverlayResizing(true);
     event.preventDefault();
@@ -91,6 +93,7 @@ export function ResizableTraceTreePanelContent({
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
     const pointerDelta = event.clientX - startPointerXRef.current;
+    didMoveRef.current ||= pointerDelta !== 0;
     onResize(startWidthRef.current + pointerDelta);
   };
 
@@ -98,7 +101,7 @@ export function ResizableTraceTreePanelContent({
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
     event.currentTarget.releasePointerCapture(event.pointerId);
     setIsOverlayResizing(false);
-    onResizeEnd();
+    onResizeEnd(didMoveRef.current);
   };
 
   return (
@@ -111,6 +114,7 @@ export function ResizableTraceTreePanelContent({
     >
       {children}
       <div
+        data-testid="details-panel-tree-overlay-separator"
         className="trace-tree-panel-content__resize-handle"
         role="separator"
         aria-label="Resize trace tree"

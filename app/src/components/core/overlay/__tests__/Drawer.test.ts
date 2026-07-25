@@ -35,6 +35,7 @@ describe("Drawer", () => {
 
   it("supports keyboard resizing from the separator", () => {
     const onResize = vi.fn();
+    const onResizeEnd = vi.fn();
 
     act(() => {
       root.render(
@@ -46,6 +47,7 @@ describe("Drawer", () => {
             maxSize: "95%",
             minSize: "35%",
             onResize,
+            onResizeEnd,
           },
           createElement("div", null, "Drawer content")
         )
@@ -82,6 +84,7 @@ describe("Drawer", () => {
     expect(drawer?.style.width).toBe("55vw");
     expect(handle?.getAttribute("aria-valuenow")).toBe("55");
     expect(onResize).toHaveBeenLastCalledWith(55, 550);
+    expect(onResizeEnd).toHaveBeenLastCalledWith(55, 550);
 
     act(() => {
       handle?.dispatchEvent(
@@ -121,6 +124,8 @@ describe("Drawer", () => {
     expect(drawer?.style.width).toBe("95vw");
     expect(handle?.getAttribute("aria-valuenow")).toBe("95");
     expect(onResize).toHaveBeenLastCalledWith(95, 950);
+    expect(onResizeEnd).toHaveBeenCalledTimes(4);
+    expect(onResizeEnd).toHaveBeenLastCalledWith(95, 950);
   });
 
   it("keeps a pixel factory width independent of the viewport percentage", () => {

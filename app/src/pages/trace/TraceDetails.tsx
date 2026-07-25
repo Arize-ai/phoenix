@@ -109,6 +109,7 @@ export function TraceDetails({
   const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
 
   const {
+    groupElementRef,
     onLayoutChanged,
     onOverlayResize,
     onOverlayResizeEnd,
@@ -129,6 +130,7 @@ export function TraceDetails({
       `}
     >
       <Group
+        elementRef={groupElementRef}
         orientation="horizontal"
         onLayoutChanged={onLayoutChanged}
         css={css`
@@ -137,7 +139,7 @@ export function TraceDetails({
         `}
       >
         <Panel
-          id="trace-tree"
+          id="details-panel-tree-column"
           panelRef={treePanelRef}
           defaultSize={preferredTreeWidth}
           minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
@@ -172,6 +174,8 @@ export function TraceDetails({
           </TraceTreeProvider>
         </Panel>
         <Separator
+          id="details-panel-tree-separator"
+          aria-label="Resize trace tree"
           css={[
             compactResizeHandleCSS,
             css`
@@ -180,7 +184,10 @@ export function TraceDetails({
             `,
           ]}
         />
-        <Panel id="span-details" minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}>
+        <Panel
+          id="details-panel-main-column"
+          minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
+        >
           <SpanDetailsWrapper>
             {selectedSpanNodeId ? (
               <Suspense fallback={<Loading />}>
