@@ -2748,6 +2748,49 @@ class TestProject:
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
 
+    async def test_parent_is_none_matches_orphan_aware_root_spans_only(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """The DSL predicate ``filterCondition: "parent_span is None"`` selects the same
+        spans as ``rootSpansOnly: true, orphanSpanAsRootSpan: true`` — verifying the
+        correlated ``NOT EXISTS`` behaves correctly once the resolver's project
+        predicate and query structure are applied, not just in direct SpanFilter
+        execution.
+        """
+        project = _orphan_spans.projects[0]
+
+        # Orphan-aware roots computed directly from the fixture: a NULL parent, or a
+        # parent_id that references no span in the table.
+        existing_span_ids = {s.span_id for s in _orphan_spans.spans}
+        expected = {
+            _gid(s)
+            for s in _orphan_spans.spans
+            if s.parent_id is None or s.parent_id not in existing_span_ids
+        }
+        # The fixture must exercise both kinds of root, or the test proves nothing.
+        assert any(s.parent_id is None for s in _orphan_spans.spans)
+        assert any(
+            s.parent_id is not None and s.parent_id not in existing_span_ids
+            for s in _orphan_spans.spans
+        )
+
+        dsl_res = await self._node(
+            'spans(filterCondition:"parent_span is None",first:100){edges{node{id}}}',
+            project,
+            httpx_client,
+        )
+        flag_res = await self._node(
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
+            project,
+            httpx_client,
+        )
+        dsl_ids = {e["node"]["id"] for e in dsl_res["edges"]}
+        flag_ids = {e["node"]["id"] for e in flag_res["edges"]}
+        assert dsl_ids == expected
+        assert dsl_ids == flag_ids
+
     @pytest.fixture
     async def _time_series_data(
         self,
