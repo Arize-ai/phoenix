@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
+import { Button as AriaButton } from "react-aria-components";
 
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 
@@ -13,10 +14,33 @@ export const baseAnnotationLabelCSS = css`
   display: flex;
   flex-direction: row;
   gap: var(--global-dimension-size-50);
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  text-align: left;
   &[data-clickable="true"] {
     cursor: pointer;
     &:hover {
       background-color: var(--global-color-gray-300);
+    }
+
+    &:focus-visible {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
+  }
+  &[data-variant="ghost"] {
+    border-style: dotted;
+    opacity: 0.62;
+
+    &:hover,
+    &:focus-visible,
+    &[data-pressed] {
+      opacity: 1;
     }
   }
   .icon-wrap {
@@ -31,6 +55,9 @@ export function AnnotationLabel({
   className,
   children,
   clickable: _clickable,
+  variant = "default",
+  onHoverStart,
+  onFocus,
 }: PropsWithChildren<{
   annotation: Annotation;
   /**
@@ -50,32 +77,53 @@ export function AnnotationLabel({
    */
   annotationDisplayPreference?: AnnotationDisplayPreference;
   className?: string;
+  /** A subdued, dotted label for a configured annotation without a value. */
+  variant?: "default" | "ghost";
+  onHoverStart?: () => void;
+  onFocus?: () => void;
 }>) {
   const clickable = _clickable ?? typeof onClick == "function";
-  return (
-    <div
-      role={clickable ? "button" : undefined}
-      data-clickable={clickable}
-      className={className}
-      css={css(baseAnnotationLabelCSS)}
-      aria-label={
-        clickable
-          ? "Click to view the annotation trace"
-          : `Annotation: ${annotation.name}`
-      }
-      onClick={(e) => {
-        if (onClick) {
-          e.stopPropagation();
-          e.preventDefault();
-          onClick();
-        }
-      }}
-    >
+  const content = (
+    <>
       <AnnotationNameAndValue
         annotation={annotation}
         displayPreference={annotationDisplayPreference}
+        showColorSwatch={false}
       />
       {children}
+    </>
+  );
+
+  if (clickable) {
+    return (
+      <AriaButton
+        type="button"
+        data-clickable="true"
+        data-variant={variant}
+        className={className}
+        css={css(baseAnnotationLabelCSS)}
+        aria-label={`Open ${annotation.name} annotation`}
+        onHoverStart={onHoverStart}
+        onFocus={onFocus}
+        onClick={(event) => {
+          event.stopPropagation();
+          onClick?.();
+        }}
+      >
+        {content}
+      </AriaButton>
+    );
+  }
+
+  return (
+    <div
+      data-clickable={clickable}
+      data-variant={variant}
+      className={className}
+      css={css(baseAnnotationLabelCSS)}
+      aria-label={`Annotation: ${annotation.name}`}
+    >
+      {content}
     </div>
   );
 }

@@ -11,28 +11,64 @@ import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { AnnotationScoreText } from "./AnnotationScoreText";
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
-const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
+const nameCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
   display: flex;
   align-items: center;
-  overflow: hidden;
-  .text {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: ${maxWidth};
+  > .text {
     display: inline-block;
-    max-width: ${maxWidth};
+    max-width: 100%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 `;
 
+const valueCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
+  display: flex;
+  align-items: center;
+  flex: 0 3 auto;
+  min-width: 0;
+  max-width: ${maxWidth};
+  overflow: hidden;
+  > .text {
+    box-sizing: border-box;
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+`;
+
+const nameAndValueCSS = css`
+  overflow: hidden;
+`;
+
 const valuePartsCSS = css`
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: var(--global-dimension-size-100);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  > .text {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  > [data-value-kind="score"] {
+    flex: none;
+  }
 `;
 
 // A thin separator between value pieces (e.g. a label and its score). Tinted
 // with the current text color so it inherits the optimization-direction color.
 const valueDividerCSS = css`
+  flex: none;
   width: 1px;
   height: 0.7em;
   background-color: currentColor;
@@ -44,6 +80,7 @@ const valueDividerCSS = css`
  * monospace font; labels render in the default font.
  */
 type AnnotationValuePart = {
+  kind: "label" | "score" | "fallback";
   text: string;
   fontFamily: "mono" | "default";
 };
@@ -61,10 +98,14 @@ const getAnnotationValueParts = (
 ): AnnotationValuePart[] => {
   const scorePart: AnnotationValuePart | null =
     typeof annotation.score === "number"
-      ? { text: formatFloat(annotation.score), fontFamily: "mono" }
+      ? {
+          kind: "score",
+          text: formatFloat(annotation.score),
+          fontFamily: "mono",
+        }
       : null;
   const labelPart: AnnotationValuePart | null = annotation.label
-    ? { text: annotation.label, fontFamily: "default" }
+    ? { kind: "label", text: annotation.label, fontFamily: "default" }
     : null;
 
   const withFallback = (
@@ -75,7 +116,7 @@ const getAnnotationValueParts = (
     );
     return present.length > 0
       ? present
-      : [{ text: "n/a", fontFamily: "default" }];
+      : [{ kind: "fallback", text: "n/a", fontFamily: "default" }];
   };
 
   switch (displayPreference) {
@@ -95,6 +136,10 @@ const getAnnotationValueParts = (
 interface AnnotationNameAndValueProps {
   annotation: Annotation;
   displayPreference: AnnotationDisplayPreference;
+  /**
+   * Optional minimum width for the annotation name. This can align values in
+   * vertically stacked layouts; inline layouts should use the default of zero.
+   */
   minWidth?: CSSProperties["minWidth"];
   maxWidth?: CSSProperties["maxWidth"];
   size?: TextSize;
@@ -113,7 +158,7 @@ export function AnnotationNameAndValue({
   annotation,
   displayPreference,
   size,
-  minWidth = "5rem",
+  minWidth = 0,
   maxWidth = "9rem",
   positiveOptimization,
   showColorSwatch = true,
@@ -126,32 +171,28 @@ export function AnnotationNameAndValue({
       gap="size-100"
       alignItems="center"
       className="annotation-name-and-value"
-      maxWidth={maxWidth}
-      minWidth={minWidth}
+      width="fit-content"
+      maxWidth="100%"
+      minWidth={0}
+      css={nameAndValueCSS}
     >
       {showColorSwatch && (
         <AnnotationColorSwatch annotationName={annotation.name} />
       )}
-      <div css={css(textCSS(maxWidth), { minWidth })} title={annotation.name}>
+      <div css={css(nameCSS(maxWidth), { minWidth })} title={annotation.name}>
         <Text weight="heavy" size={size} color="inherit">
           {annotation.name}
         </Text>
       </div>
       {valueParts.length > 0 && (
-        <div
-          css={css(
-            textCSS(maxWidth),
-            css`
-              margin-left: var(--global-dimension-100);
-            `
-          )}
-        >
+        <div css={valueCSS(maxWidth)}>
           <AnnotationScoreText positiveOptimization={positiveOptimization}>
             <span css={valuePartsCSS}>
               {valueParts.map((part, index) => (
                 <Fragment key={index}>
                   {index > 0 && <span aria-hidden css={valueDividerCSS} />}
                   <Text
+                    data-value-kind={part.kind}
                     fontFamily={part.fontFamily}
                     color="inherit"
                     size={size}

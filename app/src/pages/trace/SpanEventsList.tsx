@@ -4,6 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Disclosure,
   DisclosureGroup,
+  type DisclosureGroupProps,
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
@@ -28,8 +29,8 @@ type SpanEventsListProps = {
 };
 
 /**
- * Wrapper component that lazily fetches span events with attributes
- * when the Events tab is selected.
+ * Wrapper component that fetches span events with their full attributes when
+ * the events section is mounted.
  */
 export function SpanEventsList({ spanId }: SpanEventsListProps) {
   const data = useLazyLoadQuery<SpanEventsListQuery>(
@@ -55,14 +56,20 @@ export function SpanEventsList({ spanId }: SpanEventsListProps) {
   return <SpanEventsListContent events={events} />;
 }
 
-type SpanEvent = {
+export type SpanEvent = {
   name: string;
   message: string;
   timestamp: string;
   attributes: unknown;
 };
 
-function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
+export function SpanEventsListContent({
+  events,
+  defaultExpandedKeys,
+}: {
+  events: readonly SpanEvent[];
+  defaultExpandedKeys?: DisclosureGroupProps["defaultExpandedKeys"];
+}) {
   const { fullTimeFormatter } = useTimeFormatters();
 
   if (events.length === 0) {
@@ -78,6 +85,7 @@ function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
 
   return (
     <DisclosureGroup
+      defaultExpandedKeys={defaultExpandedKeys}
       css={css`
         .react-aria-Button[slot="trigger"] {
           padding: var(--global-dimension-size-200);
@@ -113,7 +121,7 @@ function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
         );
 
         return (
-          <Disclosure key={idx} isDisabled={!hasAttributes}>
+          <Disclosure id={idx} key={idx} isDisabled={!hasAttributes}>
             <DisclosureTrigger arrowPosition="start">
               {eventHeader}
             </DisclosureTrigger>
