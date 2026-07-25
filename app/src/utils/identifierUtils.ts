@@ -1,27 +1,10 @@
 import type { ValidateResult } from "react-hook-form";
 
-/**
- * Identifier character set: lowercase alphanumerics, dashes, and underscores.
- * The empty string matches so partial input is permitted while a user types.
- */
-export const allowedIdentifierCharactersRegex = /^[_a-z0-9-]*$/;
-
-/**
- * Identifiers must begin and end with a lowercase alphanumeric character.
- * The empty string and single alphanumerics are permitted.
- */
-export const leadingAndTrailingAlphanumericCharactersRegex =
-  /^([a-z0-9](.*[a-z0-9])?)?$/;
-
-/**
- * Human-readable error messages surfaced by the identifier validators below.
- */
-export const IDENTIFIER_ERROR_MESSAGES = {
-  empty: "Cannot be empty",
-  allowedChars:
-    "Must have only lowercase alphanumeric characters, dashes, and underscores",
-  leadingTrailing: "Must start and end with lowercase alphanumeric characters",
-} as const;
+import {
+  ALLOWED_IDENTIFIER_CHARACTERS_PATTERN,
+  IDENTIFIER_ERROR_MESSAGES,
+  LEADING_AND_TRAILING_ALPHANUMERIC_CHARACTERS_PATTERN,
+} from "@phoenix/constants";
 
 /**
  * Checks that `value` is non-empty and only uses the allowed identifier
@@ -35,7 +18,7 @@ export function validateIdentifierAllowedChars(value: string): ValidateResult {
   if (!value || value.trim() === "") {
     return IDENTIFIER_ERROR_MESSAGES.empty;
   }
-  if (!allowedIdentifierCharactersRegex.test(value)) {
+  if (!ALLOWED_IDENTIFIER_CHARACTERS_PATTERN.test(value)) {
     return IDENTIFIER_ERROR_MESSAGES.allowedChars;
   }
   return true;
@@ -52,7 +35,7 @@ export function validateIdentifierAllowedChars(value: string): ValidateResult {
 export function validateIdentifierLeadingTrailing(
   value: string
 ): ValidateResult {
-  if (!leadingAndTrailingAlphanumericCharactersRegex.test(value)) {
+  if (!LEADING_AND_TRAILING_ALPHANUMERIC_CHARACTERS_PATTERN.test(value)) {
     return IDENTIFIER_ERROR_MESSAGES.leadingTrailing;
   }
   return true;
@@ -74,10 +57,11 @@ export function validateIdentifier(value: string): ValidateResult {
 
 /**
  * Lowercases `value`, collapses whitespace runs into single dashes, and drops
- * any character outside the allowed identifier set. Leading and trailing
- * separators are preserved so the caller can keep typing (e.g. typing
- * "foo " should yield "foo-" without the dash being stripped mid-edit and
- * jumping the cursor).
+ * any character outside the allowed identifier set. Leading separators are
+ * discarded because they can never form a valid identifier. Trailing
+ * separators are preserved so the caller can keep typing (e.g. typing "foo "
+ * should yield "foo-" without the dash being stripped mid-edit and jumping
+ * the cursor).
  *
  * Use this as a controlled-input transformer; for one-shot conversion of an
  * arbitrary string into a final identifier, use {@link getIdentifier}.
@@ -86,7 +70,8 @@ export function transformIdentifierInput(value: string): string {
   return value
     .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^_a-z0-9-]/g, "");
+    .replace(/[^_a-z0-9-]/g, "")
+    .replace(/^[_-]+/, "");
 }
 
 /**

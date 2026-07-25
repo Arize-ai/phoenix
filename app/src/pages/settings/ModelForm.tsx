@@ -21,6 +21,7 @@ import {
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { RegexField } from "@phoenix/components/RegexField";
+import { useTransformingInput } from "@phoenix/hooks/useTransformingInput";
 import { ModelTokenCostControlTable } from "@phoenix/pages/settings/ModelTokenCostControlTable";
 import type { ModelTokenKind } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
@@ -100,6 +101,11 @@ function ModelProviderComboBox({
   invalid: boolean;
   description?: string;
 }) {
+  const transformingInput = useTransformingInput({
+    value,
+    onValueChange: onChange,
+    transformValue: (inputValue) => inputValue.toLowerCase(),
+  });
   return (
     <ComboBox
       label="Provider"
@@ -107,16 +113,15 @@ function ModelProviderComboBox({
       selectedKey={
         PROVIDER_OPTIONS.find((option) => option.value === value)?.key || ""
       }
-      inputValue={value}
+      inputValue={transformingInput.displayValue}
       onSelectionChange={(key) => {
         const provider = PROVIDER_OPTIONS.find((option) => option.key === key);
         if (provider) {
           onChange(provider.value);
         }
       }}
-      onInputChange={(value) => {
-        onChange(value?.toLowerCase());
-      }}
+      onInputChange={transformingInput.handleValueChange}
+      inputProps={transformingInput.inputProps}
       onBlur={onBlur}
       isInvalid={invalid}
       size="M"
