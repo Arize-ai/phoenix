@@ -26,9 +26,9 @@ import {
   Icon,
   Icons,
   Link,
+  SegmentedControl,
+  SegmentedControlItem,
   Text,
-  ToggleButton,
-  ToggleButtonGroup,
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
@@ -917,15 +917,10 @@ export function SpansTable(props: SpansTableProps) {
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
             <SpanFilterConditionField onValidCondition={setFilterCondition} />
 
-            <ToggleButtonGroup
+            <SegmentedControl
               aria-label="Toggle between root and all spans"
-              selectionMode="single"
-              selectedKeys={[rootSpansOnly ? "root" : "all"]}
-              onSelectionChange={(selection) => {
-                if (selection.size === 0) {
-                  return;
-                }
-                const selectedKey = selection.keys().next().value;
+              selectedKey={rootSpansOnly ? "root" : "all"}
+              onSelectionChange={(selectedKey) => {
                 if (isRootSpanFilterValue(selectedKey)) {
                   setRootSpansOnly(selectedKey === "root");
                 } else {
@@ -935,13 +930,13 @@ export function SpansTable(props: SpansTableProps) {
                 }
               }}
             >
-              <ToggleButton aria-label="root spans" id="root">
+              <SegmentedControlItem aria-label="root spans" id="root">
                 Root Spans
-              </ToggleButton>
-              <ToggleButton aria-label="all spans" id="all">
+              </SegmentedControlItem>
+              <SegmentedControlItem aria-label="all spans" id="all">
                 All
-              </ToggleButton>
-            </ToggleButtonGroup>
+              </SegmentedControlItem>
+            </SegmentedControl>
             <TableMetricsChartSelector view="spans" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
             <ProjectFilterConfigButton />

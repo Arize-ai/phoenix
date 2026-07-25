@@ -1080,6 +1080,59 @@ const checkboxCSS = (theme: Theme) => css`
   }
 `;
 
+const segmentedControlCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    /* ── Segmented control semantic tokens ────────────────────────────
+       The SegmentedControl styles (components/core/segmentedControl)
+       reference only these tokens, never raw palette values. Retheme the
+       control by remapping here — component CSS stays untouched. */
+
+    /* The recessed track the segments sit in. It has to sit one clear step
+       below the thumb, since that gap is the only thing marking which segment
+       is selected. In dark the field surface already sits that far below the
+       thumb; in light the field surface is within ~3% of it, so the track drops
+       an extra step instead. The border is shared with fields in both themes,
+       which is what keeps the control from reading as a different system in a
+       toolbar. */
+    --global-segmented-control-background-color: ${theme === "dark"
+      ? "var(--global-input-field-background-color)"
+      : "var(--global-color-gray-200)"};
+    --global-segmented-control-border-color: var(
+      --global-input-field-border-color
+    );
+    /* Hairline between unselected segments; suppressed next to the thumb. It
+       follows the control's own border so the two never drift apart. */
+    --global-segmented-control-divider-color: var(
+      --global-segmented-control-border-color
+    );
+    /* The thumb behind the selected segment reads as a raised surface, so it
+       moves away from the track in whichever direction the theme has room:
+       lighter than the track in dark mode, brighter than the page in light. */
+    --global-segmented-control-thumb-background-color: ${theme === "dark"
+      ? "var(--global-color-gray-300)"
+      : "var(--global-color-gray-50)"};
+    --global-segmented-control-thumb-border-color: ${theme === "dark"
+      ? "var(--global-color-gray-400)"
+      : "var(--global-color-gray-300)"};
+    /* Segment labels: unselected segments recede, and hover brings a label
+       forward behind a soft pill without competing with the thumb. */
+    --global-segmented-control-item-text-color: var(--global-text-color-700);
+    --global-segmented-control-item-text-color-hover: var(
+      --global-text-color-900
+    );
+    --global-segmented-control-item-text-color-selected: var(
+      --global-text-color-900
+    );
+    --global-segmented-control-item-text-color-disabled: var(
+      --global-text-color-300
+    );
+    --global-segmented-control-item-background-color-hover: var(
+      --global-color-primary-50
+    );
+  }
+`;
+
 const disclosureCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1335,6 +1388,7 @@ export const derivedCSS = (theme: Theme) =>
     buttonCSS(theme),
     pxiCSS(theme),
     checkboxCSS(theme),
+    segmentedControlCSS(theme),
     disclosureCSS(theme),
     tooltipCSS(theme),
     dndCSS(theme),
