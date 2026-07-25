@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Main vs. flattened drawer tabs</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --page: #f5f5f2;
+        --panel: #ffffff;
+        --panel-2: #eeeee9;
+        --text: #171716;
+        --muted: #64645f;
+        --line: #d9d9d2;
+        --main: #3561d9;
+        --main-soft: #edf2ff;
+        --flat: #0c8065;
+        --flat-soft: #e9f7f2;
+        --warn: #a65a00;
+        --warn-soft: #fff3df;
+        --shadow: 0 18px 50px rgb(31 31 24 / 8%);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --page: #111210;
+          --panel: #191a17;
+          --panel-2: #23241f;
+          --text: #f3f3ed;
+          --muted: #aaa9a0;
+          --line: #35362f;
+          --main: #8ba8ff;
+          --main-soft: #1d2949;
+          --flat: #67d8b7;
+          --flat-soft: #14372e;
+          --warn: #ffc46b;
+          --warn-soft: #432e13;
+          --shadow: 0 18px 50px rgb(0 0 0 / 32%);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--text);
+        font: 16px/1.58 ui-sans-serif, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      code {
+        padding: 0.08rem 0.32rem;
+        border: 1px solid var(--line);
+        border-radius: 0.35rem;
+        background: var(--panel-2);
+        font-size: 0.88em;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.15;
+        letter-spacing: -0.025em;
+      }
+
+      h1 {
+        max-width: 930px;
+        font-size: clamp(2.6rem, 7vw, 5.6rem);
+      }
+
+      h2 {
+        margin-bottom: 1rem;
+        font-size: clamp(1.7rem, 3vw, 2.45rem);
+      }
+
+      h3 {
+        margin-bottom: 0.55rem;
+        font-size: 1.18rem;
+      }
+
+      p {
+        margin: 0.55rem 0 0;
+      }
+
+      ul,
+      ol {
+        margin: 0.7rem 0 0;
+        padding-left: 1.25rem;
+      }
+
+      li + li {
+        margin-top: 0.42rem;
+      }
+
+      .shell {
+        width: min(1320px, calc(100% - 2rem));
+        margin: 0 auto;
+      }
+
+      .hero {
+        padding: 5rem 0 3.5rem;
+      }
+
+      .eyebrow,
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
+      .eyebrow {
+        margin-bottom: 1.25rem;
+        padding: 0.52rem 0.72rem;
+      }
+
+      .pill {
+        padding: 0.42rem 0.62rem;
+      }
+
+      .pill.main {
+        border-color: color-mix(in srgb, var(--main) 35%, var(--line));
+        background: var(--main-soft);
+        color: var(--main);
+      }
+
+      .pill.flat {
+        border-color: color-mix(in srgb, var(--flat) 35%, var(--line));
+        background: var(--flat-soft);
+        color: var(--flat);
+      }
+
+      .lede {
+        max-width: 850px;
+        margin-top: 1.4rem;
+        color: var(--muted);
+        font-size: clamp(1.1rem, 2.3vw, 1.45rem);
+      }
+
+      .verdict {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        gap: 1rem;
+        margin-top: 2.5rem;
+      }
+
+      .verdict > div,
+      .card,
+      .media-card,
+      .finding,
+      .callout {
+        border: 1px solid var(--line);
+        border-radius: 1rem;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .verdict > div {
+        padding: 1.25rem;
+      }
+
+      .verdict strong {
+        display: block;
+        margin-bottom: 0.4rem;
+        font-size: 1.15rem;
+      }
+
+      section {
+        padding: 3.2rem 0;
+      }
+
+      .section-intro {
+        max-width: 820px;
+        margin-bottom: 1.5rem;
+        color: var(--muted);
+      }
+
+      .media-grid,
+      .comparison-grid,
+      .findings-grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .media-grid {
+        grid-template-columns: repeat(12, 1fr);
+      }
+
+      .media-card {
+        grid-column: span 6;
+        overflow: hidden;
+      }
+
+      .media-card.wide {
+        grid-column: 2 / span 10;
+      }
+
+      .media-card video,
+      .media-card img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 10;
+        background: #0e0e0e;
+        object-fit: contain;
+      }
+
+      .media-copy {
+        padding: 1rem 1.1rem 1.15rem;
+      }
+
+      .media-copy p {
+        color: var(--muted);
+      }
+
+      .raw-note {
+        margin-top: 1rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .comparison-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .card {
+        overflow: hidden;
+      }
+
+      .card picture,
+      .card img {
+        display: block;
+        width: 100%;
+      }
+
+      .card img {
+        aspect-ratio: 16 / 10;
+        background: #111;
+        object-fit: cover;
+        object-position: top;
+      }
+
+      .card-copy {
+        padding: 1.1rem;
+      }
+
+      .card-copy p {
+        color: var(--muted);
+      }
+
+      .findings-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .finding {
+        padding: 1.2rem;
+      }
+
+      .finding p,
+      .finding li {
+        color: var(--muted);
+      }
+
+      .finding.priority {
+        grid-column: span 2;
+        border-color: color-mix(in srgb, var(--main) 42%, var(--line));
+      }
+
+      .callout {
+        padding: 1.3rem;
+        border-color: color-mix(in srgb, var(--warn) 50%, var(--line));
+        background: var(--warn-soft);
+      }
+
+      .callout strong {
+        color: var(--warn);
+      }
+
+      table {
+        width: 100%;
+        margin-top: 1rem;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 0.7rem;
+        background: var(--panel);
+      }
+
+      th,
+      td {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 0.78rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      details {
+        margin-top: 1rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--line);
+        border-radius: 0.75rem;
+        background: var(--panel);
+      }
+
+      summary {
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      footer {
+        padding: 3rem 0 5rem;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      @media (max-width: 820px) {
+        .hero {
+          padding-top: 3rem;
+        }
+
+        .verdict,
+        .comparison-grid,
+        .findings-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .finding.priority {
+          grid-column: auto;
+        }
+
+        .media-card,
+        .media-card.wide {
+          grid-column: 1 / -1;
+        }
+
+        table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero shell">
+      <div class="eyebrow">Directional comparison · July 24, 2026</div>
+      <h1>Main and the flattened drawer are converging—selectively.</h1>
+      <p class="lede">
+        The lines of work share a goal: make span details easier to scan and
+        reduce nested UI. They do not yet share an architecture, and their
+        annotation models are actively opposed.
+      </p>
+
+      <div class="verdict">
+        <div>
+          <strong>High similarity in presentation</strong>
+          Pure span renderers, consistent Input/Output cards, realistic fixture
+          coverage, fewer nested tabs, and better stress handling.
+        </div>
+        <div>
+          <strong>Low similarity in annotation ownership</strong>
+          Main preserves a full-height resizable annotation rail. The active
+          branch replaces annotation rails with a fixed horizontal bar and
+          removes information-bearing headers to make room.
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="shell" id="videos">
+        <h2>Raw interaction evidence</h2>
+        <p class="section-intro">
+          These clips are direct 1600×1000 captures without labels, zooms,
+          callouts, or composited explanation. The text beside each clip states
+          what matters.
+        </p>
+
+        <div class="media-grid">
+          <article class="media-card">
+            <video
+              controls
+              playsinline
+              preload="metadata"
+              poster="artifacts/flat-drawer-compare/screenshots/main-llm-video-frame.png"
+            >
+              <source
+                src="artifacts/flat-drawer-compare/videos/main-llm-view-switcher.mp4"
+                type="video/mp4"
+              />
+            </video>
+            <div class="media-copy">
+              <div class="pill main">Main · LLM span</div>
+              <h3>Nested tabs become a compact view selector</h3>
+              <p>
+                The clip moves from Messages to Tools to Raw. This is the clearest
+                point of directional overlap: main has already flattened one
+                layer inside the local branch's future flat Info section.
+              </p>
+            </div>
+          </article>
+
+          <article class="media-card">
+            <video
+              controls
+              playsinline
+              preload="metadata"
+              poster="artifacts/flat-drawer-compare/screenshots/main-reranker-video-frame.png"
+            >
+              <source
+                src="artifacts/flat-drawer-compare/videos/main-reranker-input-output.mp4"
+                type="video/mp4"
+              />
+            </video>
+            <div class="media-copy">
+              <div class="pill main">Main · Reranker span</div>
+              <h3>Input and Output become the stable card vocabulary</h3>
+              <p>
+                Query and documents are grouped under Input; reranked documents
+                sit under Output. Counts are subtitles and the document cards no
+                longer rely on decorative input/output colors.
+              </p>
+            </div>
+          </article>
+
+          <article class="media-card wide">
+            <video
+              controls
+              playsinline
+              preload="metadata"
+              poster="artifacts/flat-drawer-compare/screenshots/flat-drawer-video-frame.png"
+            >
+              <source
+                src="artifacts/flat-drawer-compare/videos/flat-drawer-section-navigation.mp4"
+                type="video/mp4"
+              />
+            </video>
+            <div class="media-copy">
+              <div class="pill flat">Active branch · real app</div>
+              <h3>Top-level tabs become one navigable detail document</h3>
+              <p>
+                The clip jumps to Attributes and Events while the annotation bar
+                remains fixed, then changes the selected trace-tree span and
+                exposes the additional-span annotation hierarchy. This is the
+                active branch's distinct contribution—not something main has
+                already landed.
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <p class="raw-note">
+          All delivered videos are H.264 MP4, yuv420p, 25 fps, silent, and
+          fast-start encoded. Durations: 9.28s, 8.72s, and 11.60s.
+        </p>
+      </section>
+
+      <section class="shell" id="screenshots">
+        <h2>The visual direction at rest</h2>
+        <p class="section-intro">
+          Each image automatically follows the viewer's light/dark preference;
+          both raw captures remain linked below the image.
+        </p>
+
+        <div class="comparison-grid">
+          <article class="card">
+            <picture>
+              <source
+                media="(prefers-color-scheme: dark)"
+                srcset="artifacts/flat-drawer-compare/screenshots/main-llm-dark.png"
+              />
+              <img
+                src="artifacts/flat-drawer-compare/screenshots/main-llm-light.png"
+                alt="Main branch LLM span info cards with Input and Output view selectors"
+              />
+            </picture>
+            <div class="card-copy">
+              <div class="pill main">Main</div>
+              <h3>A componentized body inside the existing tab shell</h3>
+              <p>
+                Main's visible advance is inside the body: clean Input/Output
+                cards and view selectors. The outer Info/Annotations/Attributes/
+                Events tab model remains.
+              </p>
+              <p>
+                <a href="artifacts/flat-drawer-compare/screenshots/main-llm-light.png">Light PNG</a>
+                ·
+                <a href="artifacts/flat-drawer-compare/screenshots/main-llm-dark.png">Dark PNG</a>
+              </p>
+            </div>
+          </article>
+
+          <article class="card">
+            <picture>
+              <source
+                media="(prefers-color-scheme: dark)"
+                srcset="artifacts/flat-drawer-compare/screenshots/flat-drawer-dark.png"
+              />
+              <img
+                src="artifacts/flat-drawer-compare/screenshots/flat-drawer-light.png"
+                alt="Flattened drawer branch showing a trace tree, fixed annotation bar, section links, and stacked detail sections"
+              />
+            </picture>
+            <div class="card-copy">
+              <div class="pill flat">Active flat branch</div>
+              <h3>A new outer shell around the span body</h3>
+              <p>
+                The active branch changes the whole reading model: a fixed
+                annotation bar, anchor navigation, stacked sections, and one
+                scrollable detail document beside a narrow-capable trace tree.
+              </p>
+              <p>
+                <a href="artifacts/flat-drawer-compare/screenshots/flat-drawer-light.png">Light PNG</a>
+                ·
+                <a href="artifacts/flat-drawer-compare/screenshots/flat-drawer-dark.png">Dark PNG</a>
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell" id="rework">
+        <h2>Dimension 1: rework and competing work</h2>
+        <p class="section-intro">
+          The path overlap looks small on paper, but main moved most of the old
+          monolith into new files while the local branch continued changing the
+          same responsibilities in place.
+        </p>
+
+        <div class="findings-grid">
+          <article class="finding priority">
+            <div class="pill main">Highest leverage</div>
+            <h3>Use main's <code>trace/span/</code> layer as the substrate</h3>
+            <p>
+              Commit <code>ec7865195</code> extracts focused renderers such as
+              <code>LLMInput</code>, <code>RerankerInput</code>,
+              <code>SpanIO</code>, and <code>SpanAttributesCard</code>. It also
+              adds a Relay-independent <code>SpanInfoData</code> shape, pure
+              parsers/getters, unit tests, realistic stories, and a barrel
+              export.
+            </p>
+            <p>
+              Reapply the local flat section shell around those components.
+              Retaining the roughly 2,000-line local <code>SpanDetails.tsx</code>
+              would duplicate landed work and preserve obsolete ownership.
+            </p>
+          </article>
+
+          <article class="finding">
+            <h3>Tab reduction is complementary</h3>
+            <p>
+              The local branch removes top-level span tabs. Main removes nested
+              LLM tabs. Keep both ideas: main's LLM view selector inside the
+              local branch's flat Info section.
+            </p>
+          </article>
+
+          <article class="finding">
+            <h3>Normalize cards before porting stories</h3>
+            <p>
+              Adopt main's Input/Output vocabulary, inline subtitles, shared
+              document-list styles, and parent-header raw controls. Then update
+              the local stories to the new visual structure.
+            </p>
+          </article>
+
+          <article class="finding">
+            <h3>Consolidate overlapping Storybook matrices</h3>
+            <p>
+              Main's fixtures are strongest as the canonical functional matrix.
+              The local suite adds the valuable stress dimension: long values,
+              excessive tools/documents, narrow panels, malformed attributes,
+              and composed drawer states.
+            </p>
+          </article>
+
+          <article class="finding">
+            <h3>Preserve orthogonal local fixes</h3>
+            <p>
+              ID truncation, annotation-label overflow, presentational event and
+              annotation exports, pixel sizing, narrow trace-tree support, and
+              composition stories are not superseded by the reviewed main
+              commits.
+            </p>
+          </article>
+        </div>
+
+        <details>
+          <summary>Commit-by-commit relevance</summary>
+          <table>
+            <thead>
+              <tr><th>Commit</th><th>Assessment</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>4b4ad21ac</code></td><td>Selection download; essentially orthogonal.</td></tr>
+              <tr><td><code>ec7865195</code></td><td>SpanDetails decomposition; strongly overlapping and worth adopting.</td></tr>
+              <tr><td><code>33c94e627</code></td><td>Card normalization and session polish; overlapping and mostly complementary.</td></tr>
+              <tr><td><code>cf616dfea</code></td><td>Full-height session annotation rail; directly competing.</td></tr>
+              <tr><td><code>1e275cb75</code></td><td>Packaging/version update; orthogonal.</td></tr>
+            </tbody>
+          </table>
+        </details>
+      </section>
+
+      <section class="shell" id="incompatibility">
+        <h2>Dimension 2: actual incompatibility</h2>
+        <div class="callout">
+          <strong>Product decision required:</strong> choose the resizable
+          annotation rail or the fixed annotation bar. Keeping both creates two
+          editors, duplicate fetching/mutations, competing keyboard behavior,
+          and layout pressure.
+        </div>
+
+        <div class="findings-grid" style="margin-top: 1rem">
+          <article class="finding priority">
+            <h3>Annotation ownership is the fundamental fork</h3>
+            <p>
+              Main moves the session resizable group above the metrics header so
+              its annotation rail spans the full drawer. Main's span view also
+              retains <code>SpanAside</code>, the annotate toggle, hotkey,
+              persisted preference, and collapsible panel.
+            </p>
+            <p>
+              The local branch deliberately removes those rails and adds a fixed
+              horizontal annotation bar. Its own follow-up notes acknowledge
+              that trace/session status, tokens, cost, latency, and the direct
+              “View Session” action disappear with the old headers. If the fixed
+              bar wins, those metrics need an intentional new home.
+            </p>
+          </article>
+
+          <article class="finding">
+            <h3><code>SpanDetails.tsx</code> cannot be merged mechanically</h3>
+            <p>
+              Main imports canonical components from <code>./span</code>; the
+              local file still defines and exports its own renderers. Main also
+              moved <code>SpanImage</code>. Keep the extracted ownership and port
+              the flat layout, rather than retaining both sets of symbols.
+            </p>
+          </article>
+
+          <article class="finding">
+            <h3>Local stories need new imports and types</h3>
+            <p>
+              They currently import <code>SpanInfo</code>, <code>SpanIO</code>,
+              <code>SpanAttributes</code>, and a Relay-derived type from
+              <code>SpanDetails</code>. Main's canonical exports and structural
+              type now live under <code>@phoenix/pages/trace/span</code>.
+            </p>
+          </article>
+
+          <article class="finding">
+            <h3><code>SessionDetails.tsx</code> is semantic, not just textual</h3>
+            <p>
+              Main queries and renders metrics plus the side rail. The local
+              branch queries only the view data and puts the fixed bar above the
+              tabs. Resolve the product model first, then write one coherent
+              query/layout.
+            </p>
+          </article>
+
+          <article class="finding">
+            <h3>Regenerate Relay artifacts</h3>
+            <p>
+              Generated query files may auto-merge without matching the resolved
+              source graph. Regenerate them after the source architecture is
+              settled; do not treat a clean generated-file merge as proof.
+            </p>
+          </article>
+        </div>
+
+        <details>
+          <summary>Confirmed non-conflicts</summary>
+          <ul>
+            <li>Main's session-turn width change and the local presentational export auto-merge.</li>
+            <li>The OTLP selection-download work is compatible with the local narrow-tree work.</li>
+            <li>The drawer pixel-sizing work does not textually conflict with the reviewed main window.</li>
+            <li>Main's Card and DocumentItem changes are additive; local visual expectations simply need rebaselining.</li>
+          </ul>
+        </details>
+      </section>
+
+      <section class="shell" id="integration">
+        <h2>Recommended integration order</h2>
+        <ol>
+          <li>Bring in main and accept <code>trace/span/</code> as canonical.</li>
+          <li>Choose the annotation model before resolving <code>SessionDetails.tsx</code>.</li>
+          <li>Rebuild the flat top-level sections around main's extracted span components.</li>
+          <li>Port complementary stress fixtures; avoid two complete span-kind story matrices.</li>
+          <li>Preserve orthogonal local fixes as separable commits where possible.</li>
+          <li>Regenerate Relay output, then run typecheck, unit, Storybook, and visual checks.</li>
+        </ol>
+
+        <div class="verdict">
+          <div>
+            <strong>The flat-drawer idea remains valuable.</strong>
+            Anchor navigation, stacked sections, fixed context, narrow sizing,
+            and stress coverage are not present on main.
+          </div>
+          <div>
+            <strong>The old implementation substrate does not.</strong>
+            Main's pure component layer should replace the local monolithic span
+            renderer. The annotation interaction model is the only fundamental
+            incompatibility.
+          </div>
+        </div>
+      </section>
+
+      <section class="shell" id="method">
+        <h2>Scope and capture notes</h2>
+        <table>
+          <tbody>
+            <tr><th>Main window</th><td><code>bc53eafcc..1e275cb75</code></td></tr>
+            <tr><th>Local committed tip</th><td><code>rick/flatten-drawer-tabs</code> at <code>33827ed6f</code></td></tr>
+            <tr><th>Local branch point</th><td><code>318552827</code></td></tr>
+            <tr><th>Merge-tree baseline</th><td>Local branch + <code>bc53eafcc</code> is textually clean.</td></tr>
+            <tr><th>Current merge-tree</th><td>Conflicts only in <code>SessionDetails.tsx</code> and <code>SpanDetails.tsx</code>.</td></tr>
+            <tr><th>Main media</th><td>Fixture-backed Storybook stories from the current main checkout.</td></tr>
+            <tr><th>Flat media</th><td>Real running app from the active flattened-drawer worktree and its existing fixture database.</td></tr>
+          </tbody>
+        </table>
+
+        <details>
+          <summary>Media manifest and reproduction</summary>
+          <p>
+            Raw screenshots, MP4s, poster frames, and the small reproduction
+            script are under <a href="artifacts/flat-drawer-compare/">artifacts/flat-drawer-compare/</a>.
+            Run <code>node artifacts/flat-drawer-compare/capture-media.mjs</code>
+            while both development surfaces are available. The script deletes
+            recorder WebM input immediately after validated H.264 conversion.
+          </p>
+        </details>
+      </section>
+    </main>
+
+    <footer class="shell">
+      Analysis artifact only. No product source changes, commits, pushes, or
+      GitHub mutations were made.
+    </footer>
+  </body>
+</html>
