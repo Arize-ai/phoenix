@@ -1,5 +1,6 @@
 import type { Annotation } from "@phoenix/components/annotation/types";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 export type AnnotationAggregate = {
   label: string | null;
@@ -181,4 +182,5 @@ export function getAnnotationConfigFromDraft({
         optimizationDirection: draft.optimizationDirection,
       };
   }
+  return assertUnreachable(draft.annotationType);
 }

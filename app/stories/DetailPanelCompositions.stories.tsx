@@ -47,8 +47,8 @@ import { AnnotationsEmpty } from "@phoenix/pages/trace/AnnotationsEmpty";
 import { RootSpanMessage } from "@phoenix/pages/trace/SessionDetailsTraceList";
 import type { SessionView } from "@phoenix/pages/trace/SessionViewTabs";
 import { SessionViewTabs } from "@phoenix/pages/trace/SessionViewTabs";
-import type { SpanInfoSpan } from "@phoenix/pages/trace/SpanDetails";
-import { SpanAttributes, SpanInfo } from "@phoenix/pages/trace/SpanDetails";
+import type { SpanInfoData } from "@phoenix/pages/trace/span";
+import { SpanAttributesCard, SpanInfo } from "@phoenix/pages/trace/span";
 import { SpanEventsListContent } from "@phoenix/pages/trace/SpanEventsList";
 import { SpanAnnotations } from "@phoenix/pages/trace/SpanFeedback";
 import type { TraceHeaderCostSummary } from "@phoenix/pages/trace/TraceDetails";
@@ -252,21 +252,11 @@ function createDetailSpan({
   overrides,
 }: {
   header: SpanHeaderData;
-  overrides?: Partial<SpanInfoSpan>;
+  overrides?: Partial<SpanInfoData>;
 }) {
   return createSpanInfoFixture({
     id: header.id,
-    latencyMs: header.latencyMs,
-    name: header.name,
-    spanId: header.spanId,
     spanKind: header.spanKind,
-    startTime: header.startTime,
-    statusCode: header.code,
-    tokenCountTotal: header.tokenCountTotal,
-    trace: {
-      id: "Trace-node-01",
-      traceId: "Trace-34d790eb0d3341a68b61545d765a5ff0",
-    },
     ...overrides,
   });
 }
@@ -274,7 +264,6 @@ function createDetailSpan({
 const ROOT_SPAN_DETAILS = createDetailSpan({
   header: ROOT_SPAN,
   overrides: {
-    endTime: "2026-07-23T16:00:01.842Z",
     input: {
       mimeType: "text",
       value: "Find hotels near Gion with breakfast included.",
@@ -293,7 +282,6 @@ const ROOT_SPAN_DETAILS = createDetailSpan({
 const CHILD_SPAN_DETAILS = createDetailSpan({
   header: CHILD_SPAN,
   overrides: {
-    endTime: "2026-07-23T16:00:01.680Z",
     input: {
       mimeType: "text",
       value: "Find hotels near Gion with breakfast included.",
@@ -320,7 +308,6 @@ const CHILD_SPAN_DETAILS = createDetailSpan({
 const TOOL_SPAN_DETAILS = createDetailSpan({
   header: TOOL_SPAN,
   overrides: {
-    endTime: "2026-07-23T16:00:01.220Z",
     input: {
       mimeType: "json",
       value: JSON.stringify(
@@ -480,7 +467,7 @@ function SpanDetailsFixture({
   details,
 }: {
   header: SpanHeaderData;
-  details: SpanInfoSpan;
+  details: SpanInfoData;
 }) {
   const sectionIdPrefix = useId().replaceAll(":", "");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -617,7 +604,7 @@ function SpanDetailsFixture({
               Attributes
             </Text>
           </View>
-          <SpanAttributes attributes={details.attributes} />
+          <SpanAttributesCard attributes={details.attributes} />
         </section>
         <section id={sectionIds.events} aria-label="Events">
           <View padding="size-200">

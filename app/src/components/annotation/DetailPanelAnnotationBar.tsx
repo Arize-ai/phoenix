@@ -298,7 +298,7 @@ function useDismissPopoverOnEscape({
 }) {
   useEffect(() => {
     if (!isOpen) {
-      return;
+      return undefined;
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {

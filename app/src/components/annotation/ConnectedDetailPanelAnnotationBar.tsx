@@ -33,6 +33,7 @@ import {
   DetailPanelAnnotationBar,
 } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 const annotationConfigFields = graphql`
   fragment ConnectedDetailPanelAnnotationBarConfigFields on AnnotationConfigBase
@@ -136,6 +137,7 @@ function getAnnotationConfigInput(
         },
       };
   }
+  return assertUnreachable(config);
 }
 
 function getMutationError(error: Error) {
@@ -217,6 +219,7 @@ function getAnnotationConfig(
         threshold: config.threshold,
       };
   }
+  return assertUnreachable(config.annotationType);
 }
 
 type ConfigMutationHandlers = Pick<
