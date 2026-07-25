@@ -317,7 +317,7 @@ function getDocsTheme(themeMode: string, systemTheme: ProviderTheme) {
  * changes via the Storybook channel (emitted by the decorator).
  */
 function ThemedDocsContainer(props: DocsContainerProps) {
-  const [themeMode, setThemeMode] = useState("auto");
+  const [themeMode, setThemeMode] = useState("both");
   const systemTheme = useSystemTheme();
   const effectiveTheme = getEffectiveTheme(themeMode, systemTheme);
   const docsTheme = getDocsTheme(themeMode, systemTheme);
@@ -477,11 +477,11 @@ const preview: Preview = {
     },
   },
   initialGlobals: {
-    theme: "auto",
+    theme: "both",
   },
   decorators: [
     (Story, { globals, parameters }) => {
-      const themeMode = globals.theme ?? "auto";
+      const themeMode = globals.theme ?? "both";
       const { resolvedThemes, systemTheme } = useResolvedThemes(themeMode);
       const isBoth = resolvedThemes.length > 1;
       const frame = getStoryFrame(parameters);

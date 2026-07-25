@@ -61,7 +61,7 @@ const THEME_OPTIONS = [
 function ThemeToolbar() {
   const [globals, updateGlobals] = useGlobals();
   const api = useStorybookApi();
-  const currentTheme = globals.theme ?? "auto";
+  const currentTheme = globals.theme ?? "both";
 
   const applyManagerTheme = useCallback(
     (mode: string) => {
@@ -140,7 +140,7 @@ addons.register("phoenix-theme-toolbar", () => {
 addons.register("phoenix-manager-options", (api) => {
   api.setOptions({
     enableShortcuts: false,
-    theme: getThemeForMode(api.getGlobals()?.theme ?? "auto"),
+    theme: getThemeForMode(api.getGlobals()?.theme ?? "both"),
   });
 });
 
@@ -148,7 +148,7 @@ addons.register("phoenix-manager-options", (api) => {
 addons.register("phoenix-auto-theme", (api) => {
   const channel = addons.getChannel();
 
-  const getThemeMode = () => api.getGlobals()?.theme ?? "auto";
+  const getThemeMode = () => api.getGlobals()?.theme ?? "both";
 
   channel.on(THEME_CHANGE_EVENT, (scheme: string) => {
     const mode = getThemeMode();
