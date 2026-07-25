@@ -7,6 +7,7 @@ export * from "./CompactJSONCell";
 export * from "./CellWithControlsWrap";
 export * from "./CopyableTextCell";
 export * from "./LoadMoreRow";
+export * from "./TableColumnHeader";
 export * from "./TableEmpty";
 export * from "./TableEmptyWrap";
 export * from "./CellTop";

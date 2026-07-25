@@ -6,6 +6,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@phoenix/components";
+import { embeddedCopyButtonCSS } from "@phoenix/components/core/copy/styles";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { packageManagersByLanguage } from "@phoenix/store/preferencesStore";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
@@ -13,11 +14,7 @@ import { isPackageManager } from "@phoenix/types/code";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { BashBlock } from "./BashBlock";
-import {
-  codeBlockWithCopyCSS,
-  copyableSurfaceCSS,
-  embeddedCopyButtonCSS,
-} from "./styles";
+import { codeBlockWithCopyCSS, copyableSurfaceCSS } from "./styles";
 
 /**
  * Maps each package manager to its install command prefix.
