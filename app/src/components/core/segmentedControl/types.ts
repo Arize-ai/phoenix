@@ -10,10 +10,7 @@ import type {
   StylableProps,
 } from "@phoenix/components/core/types";
 
-/**
- * The segmented control owns selection, orientation, and layout, so the
- * underlying multi-select toggle group API is not passed through.
- */
+/** Selection, orientation, and layout are the control's, not the caller's. */
 type InheritedGroupProps = Omit<
   AriaToggleButtonGroupProps,
   | "children"
@@ -28,9 +25,7 @@ type InheritedGroupProps = Omit<
 
 export interface SegmentedControlProps
   extends InheritedGroupProps, SizingProps, StylableProps {
-  /**
-   * The content to display in the segmented control. Expects `SegmentedControlItem` children.
-   */
+  /** Expects `SegmentedControlItem` children. */
   children: ReactNode;
   /**
    * Whether the items should divide the container width equally.
@@ -47,10 +42,7 @@ export interface SegmentedControlProps
   ref?: Ref<HTMLDivElement>;
 }
 
-/**
- * Selection lives on the group, so the standalone toggle props are not
- * passed through to the item.
- */
+/** Selection lives on the group, so the standalone toggle props are dropped. */
 type InheritedItemProps = Omit<
   AriaToggleButtonProps,
   "children" | "className" | "defaultSelected" | "isSelected" | "onChange"
@@ -58,12 +50,9 @@ type InheritedItemProps = Omit<
 
 export interface SegmentedControlItemProps
   extends InheritedItemProps, StylableProps {
-  /**
-   * The content to display in the segmented control item. A string is wrapped
-   * in a `Text` for you; otherwise compose an `Icon`, a `Text`, or both.
-   */
+  /** A string is wrapped in a `Text`; otherwise compose an `Icon`, a `Text`, or both. */
   children: ReactNode;
-  /** The id of the item, matching the value used in SegmentedControl's `selectedKey` prop. */
+  /** Matches the value used in SegmentedControl's `selectedKey`. */
   id: Key;
   className?: string;
   ref?: Ref<HTMLButtonElement>;

@@ -101,10 +101,7 @@ export const IconOnly = () => (
   </SegmentedControl>
 );
 
-/**
- * Segments with very different label widths stress the thumb's slide-and-
- * stretch animation — the width delta is as large as the travel distance.
- */
+/** Stresses the thumb's stretch: the width delta rivals the travel distance. */
 export const MixedWidths = () => (
   <SegmentedControl aria-label="Span filter" defaultSelectedKey="all">
     <SegmentedControlItem id="all">All</SegmentedControlItem>

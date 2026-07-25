@@ -9,18 +9,13 @@ import { classNames } from "@phoenix/utils/classNames";
 import { segmentedControlCSS } from "./styles";
 import type { SegmentedControlItemProps, SegmentedControlProps } from "./types";
 
-/**
- * The id of the first item the user could actually land on, used to seed the
- * selection when the caller doesn't name one.
- */
+/** The first item the user could land on, used when the caller names no default. */
 function getFirstEnabledItemId(children: ReactNode): Key | undefined {
   for (const child of Children.toArray(children)) {
     if (!isValidElement<Partial<SegmentedControlItemProps>>(child)) {
       continue;
     }
-    // `Children.toArray` flattens arrays but not fragments, so recurse into
-    // them — a caller who groups related segments in a fragment should still
-    // land on the first segment rather than on no selection at all.
+    // Children.toArray flattens arrays but not fragments.
     if (child.type === Fragment) {
       const nestedId = getFirstEnabledItemId(
         (child.props as { children?: ReactNode }).children
@@ -54,11 +49,9 @@ export function SegmentedControl({
   css: cssProp,
   ...props
 }: SegmentedControlProps) {
-  // A segmented control always reflects a current view, so when the caller
-  // doesn't name a default, start on the first segment. Computed lazily —
-  // react-aria only reads the default at mount, and this avoids re-walking
-  // the children on every render. Harmless when `selectedKey` is controlled,
-  // since the default is ignored entirely in that case.
+  // A segmented control always reflects a current view, so fall back to the
+  // first segment. Held in state because react-aria only reads the default at
+  // mount, so re-walking the children on later renders is wasted work.
   const [resolvedDefaultSelectedKey] = useState(
     () => defaultSelectedKey ?? getFirstEnabledItemId(children)
   );
