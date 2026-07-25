@@ -157,7 +157,7 @@
     "playwright": "^1.61.1",
     "relay-compiler": "^21.0.1",
     "rollup-plugin-visualizer": "^7.0.1",
-    "storybook": "storybook dev -p 6007",
+    "storybook": "^10.5.2",
     "ts-plugin-sort-import-suggestions": "^1.0.4",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2",
