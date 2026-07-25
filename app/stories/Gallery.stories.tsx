@@ -92,7 +92,7 @@ const Template: StoryFn = () => {
           >
             {`Toggle Direction: ${direction}`}
           </Button>
-          <ToggleButtonGroup size="S">
+          <ToggleButtonGroup size="S" selectionMode="multiple">
             <ToggleButton>Option 1</ToggleButton>
             <ToggleButton>Option 2</ToggleButton>
             <ToggleButton>Option 3</ToggleButton>

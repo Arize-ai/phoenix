@@ -1,4 +1,4 @@
-import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
+import { SegmentedControl, SegmentedControlItem } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { GenAIOperationType } from "@phoenix/store";
 
@@ -12,25 +12,21 @@ export function PlaygroundOperationTypeRadioGroup() {
     (state) => state.setOperationType
   );
   return (
-    <ToggleButtonGroup
-      defaultSelectedKeys={[operationType]}
+    <SegmentedControl
+      selectedKey={operationType}
       aria-label="Operation Type"
-      onSelectionChange={(v) => {
-        if (v.size === 0) {
-          return;
-        }
-        const type = v.keys().next().value;
+      onSelectionChange={(type) => {
         if (typeof type === "string" && isGenAIOperationType(type)) {
           setOperationType(type);
         }
       }}
     >
-      <ToggleButton aria-label="Chat" id={"chat"}>
+      <SegmentedControlItem aria-label="Chat" id="chat">
         Chat
-      </ToggleButton>
-      <ToggleButton aria-label="Completion" id={"text_completion"}>
+      </SegmentedControlItem>
+      <SegmentedControlItem aria-label="Completion" id="text_completion">
         Completion
-      </ToggleButton>
-    </ToggleButtonGroup>
+      </SegmentedControlItem>
+    </SegmentedControl>
   );
 }
