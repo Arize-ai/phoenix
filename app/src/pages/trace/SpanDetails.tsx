@@ -43,6 +43,7 @@ import type {
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanAttributesCard, SpanInfo } from "./span";
 import { SpanAside } from "./SpanAside";
+import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
@@ -103,6 +104,10 @@ export function SpanDetails({
             trace {
               id
               traceId
+            }
+            project {
+              id
+              name
             }
             name
             spanKind
@@ -219,6 +224,13 @@ export function SpanDetails({
                   <AddSpanToDatasetButton
                     span={span}
                     buttonText={isCondensedView ? null : "Add to Dataset"}
+                  />
+                  <SpanDownloadMenu
+                    projectId={span.project.id}
+                    projectName={span.project.name}
+                    spanId={span.spanId}
+                    traceId={span.trace.traceId}
+                    buttonText={isCondensedView ? null : "Download"}
                   />
                   <ToggleButton
                     size="S"
