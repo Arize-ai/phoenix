@@ -2791,6 +2791,149 @@ class TestProject:
         assert dsl_ids == expected
         assert dsl_ids == flag_ids
 
+    @pytest.mark.parametrize(
+        "condition,orphan_span_as_root_span",
+        [
+            pytest.param("parent_span is None", True, id="orphan-aware-both"),
+            pytest.param("parent_id is None", True, id="strict-condition-orphan-aware-flag"),
+            pytest.param("parent_id is None", False, id="strict-both"),
+            pytest.param("parent_span is None", False, id="orphan-aware-condition-strict-flag"),
+            # Disjunction where every branch is strict-scoped: the flag skip now
+            # fires off an `or`, so the rows must still match the flag alone.
+            pytest.param(
+                "(parent_id is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                True,
+                id="disjunction-all-strict-orphan-flag",
+            ),
+            pytest.param(
+                "(parent_id is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                False,
+                id="disjunction-all-strict-strict-flag",
+            ),
+            # Negated root predicate: `not (parent_id is not None)` is strict-scoped,
+            # so the skip fires off a `not` and must not change the result.
+            pytest.param(
+                "not (parent_id is not None) and '1' in input.value",
+                True,
+                id="negated-predicate-strict-orphan-flag",
+            ),
+            pytest.param(
+                "not (parent_id is not None) and '1' in input.value",
+                False,
+                id="negated-predicate-strict-strict-flag",
+            ),
+            # A form the analyzer does *not* recognize (De Morgan over a compound):
+            # it under-claims, so the flag's scoping is applied as well. Pinned
+            # because an under-claim must stay harmless -- redundant SQL, same rows.
+            pytest.param(
+                "not (parent_id is not None or '9' in input.value)",
+                True,
+                id="unrecognized-form-flag-still-applied",
+            ),
+            # Disjunction whose branches mix strict and orphan-aware: scoped to
+            # orphan-aware (the wider), so it may skip the orphan-aware flag but
+            # not the strict one.
+            pytest.param(
+                "(parent_span is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                True,
+                id="disjunction-mixed-orphan-flag",
+            ),
+            pytest.param(
+                "(parent_span is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                False,
+                id="disjunction-mixed-strict-flag",
+            ),
+        ],
+    )
+    async def test_root_predicate_and_flag_together_match_the_flag_alone(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+        condition: str,
+        orphan_span_as_root_span: bool,
+    ) -> None:
+        """Sending `rootSpansOnly` *and* a root predicate must not change the result.
+
+        The resolver drops the flag's scoping when the condition already implies
+        it, so this pins that the optimization is semantics-preserving. The
+        strict-flag/orphan-aware-condition case is the one that must NOT be
+        optimized away: skipping a strict flag there would admit orphans.
+        """
+        project = _orphan_spans.projects[0]
+        orphan_arg = str(orphan_span_as_root_span).lower()
+
+        async def span_ids(field: str) -> set[str]:
+            result = await self._node(field, project, httpx_client)
+            return {e["node"]["id"] for e in result["edges"]}
+
+        both = await span_ids(
+            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
+            f'filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
+        )
+        flag_only = await span_ids(
+            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
+            "first:100){edges{node{id}}}"
+        )
+        condition_only = await span_ids(
+            f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
+        )
+        # Combining them is the intersection, which is what the flag alone gives
+        # whenever the condition is at least as strict.
+        assert both == flag_only & condition_only
+        assert both
+
+    async def test_analyze_span_filter_condition_tracks_actual_query_scope(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """``analyzeSpanFilterCondition`` tells a client whether a filtered view is
+        root-scoped, which is what decides between cumulative and per-span metric
+        columns. Its answer has to match what the query actually returns, so this
+        checks the verdict against the rows for both a scoped and an unscoped
+        condition.
+        """
+        project = _orphan_spans.projects[0]
+        user_condition = "'2' in input.value"
+        root_scoped = f"parent_span is None and {user_condition}"
+
+        async def analyze(condition: str) -> bool:
+            result = await self._node(
+                f'analyzeSpanFilterCondition(condition:"{condition}"){{selectsRootSpansOnly}}',
+                project,
+                httpx_client,
+            )
+            return bool(result["selectsRootSpansOnly"])
+
+        async def span_ids(condition: str) -> set[str]:
+            result = await self._node(
+                f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}',
+                project,
+                httpx_client,
+            )
+            return {e["node"]["id"] for e in result["edges"]}
+
+        assert await analyze(user_condition) is False
+        assert await analyze(root_scoped) is True
+
+        scoped_ids = await span_ids(root_scoped)
+        unscoped_ids = await span_ids(user_condition)
+        # The verdict is only meaningful if the predicate actually narrowed the
+        # result; a silently dropped predicate would make these equal.
+        assert scoped_ids < unscoped_ids
+        # ...and it narrows to exactly what the boolean arguments selected.
+        flag_res = await self._node(
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,"
+            f'filterCondition:"{user_condition}",first:100){{edges{{node{{id}}}}}}',
+            project,
+            httpx_client,
+        )
+        assert scoped_ids == {e["node"]["id"] for e in flag_res["edges"]}
+
     @pytest.fixture
     async def _time_series_data(
         self,

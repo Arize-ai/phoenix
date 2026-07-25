@@ -1,6 +1,9 @@
 import ast
+import random
 import sys
+import typing
 from ast import unparse
+from collections import Counter
 from datetime import datetime
 from typing import Any, Optional
 from unittest.mock import patch
@@ -14,9 +17,11 @@ from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.filter import (
     Projector,
+    RootSpanScope,
     SpanFilter,
     _apply_eval_aliasing,
     _get_attribute_keys_list,
+    root_span_scope,
 )
 
 
@@ -536,3 +541,423 @@ def test_parent_predicate_sentinels_unreachable_from_user_input(sentinel: str) -
     translated = unparse(SpanFilter(f"{sentinel} == 'x'").translated).strip()
     # resolves to an attribute path, not the bare injected name
     assert translated.startswith(f"attributes[['{sentinel}']]")
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        pytest.param("", None, id="empty"),
+        pytest.param("parent_span is None", "orphan_aware", id="orphan-aware"),
+        pytest.param("parent_id is None", "strict", id="strict"),
+        pytest.param("parent_span == None", "orphan_aware", id="eq-spelling"),
+        pytest.param("None is parent_span", "orphan_aware", id="reversed-operands"),
+        pytest.param("span_kind == 'LLM'", None, id="unrelated-condition"),
+        pytest.param(
+            "parent_span is None and span_kind == 'LLM'",
+            "orphan_aware",
+            id="leading-conjunct",
+        ),
+        pytest.param(
+            "span_kind == 'LLM' and parent_id is None",
+            "strict",
+            id="trailing-conjunct",
+        ),
+        pytest.param(
+            "(span_kind == 'LLM' and parent_span is None) and latency_ms > 5",
+            "orphan_aware",
+            id="nested-conjunct",
+        ),
+        # Conjoined restrictions compound, so the narrower one is what the
+        # condition actually selects.
+        pytest.param(
+            "parent_span is None and parent_id is None",
+            "strict",
+            id="both-predicates-narrowest-wins",
+        ),
+        # A root predicate under `or` leaves non-root spans in the result set,
+        # so the condition imposes no root restriction at all.
+        pytest.param("parent_span is None or span_kind == 'LLM'", None, id="disjunction"),
+        pytest.param("not (parent_span is None)", None, id="negation"),
+        pytest.param("parent_span is not None", None, id="non-root-predicate"),
+        # An in-progress edit must not raise.
+        pytest.param("span_kind == 'LLM' and", None, id="unparseable"),
+    ],
+)
+def test_root_span_scope_reports_what_the_condition_restricts_to(
+    condition: str,
+    expected: typing.Optional[RootSpanScope],
+) -> None:
+    assert root_span_scope(condition) == expected
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        # Every branch of the disjunction is root-scoped, so every matching row
+        # is a root span even though no single conjunct binds the whole
+        # expression.
+        pytest.param(
+            "(parent_id is None and span_kind == 'LLM') or (parent_id is None and latency_ms > 5)",
+            "strict",
+            id="all-branches-strict",
+        ),
+        # Branch scopes union rather than intersect, so the widest wins: a row
+        # from the orphan-aware branch need not satisfy the strict one.
+        pytest.param(
+            "(parent_id is None and a == 1) or (parent_span is None and b == 2)",
+            "orphan_aware",
+            id="all-branches-widest-wins",
+        ),
+        # One unscoped branch admits non-root rows, so the whole is unscoped.
+        pytest.param(
+            "(parent_id is None and a == 1) or b == 2",
+            None,
+            id="one-branch-unscoped",
+        ),
+        # `not (x is not None)` is the double negative of a root predicate.
+        pytest.param("not (parent_id is not None)", "strict", id="negated-is-not-none"),
+        pytest.param("not (parent_span is not None)", "orphan_aware", id="negated-orphan-aware"),
+        # Negating a root predicate selects non-root spans, the opposite.
+        pytest.param("not (parent_id is None)", None, id="negated-root-predicate"),
+    ],
+)
+def test_root_span_scope_handles_disjunctions_and_negations(
+    condition: str,
+    expected: typing.Optional[RootSpanScope],
+) -> None:
+    assert root_span_scope(condition) == expected
+
+
+# `root_span_scope` has two consumers with two different failure modes, so it
+# owes two separate guarantees.
+#
+# SOUNDNESS, covered here: a non-None answer must be true. The query builders
+# drop the `root_spans_only` flag's SQL on the strength of it, so an over-claim
+# readmits the rows that flag would have excluded -- the only failure mode that
+# changes a result set.
+#
+# COMPLETENESS, covered by the scope tests above: supported root-only forms must
+# return a scope. This is *not* merely an optimization concern.
+# `analyzeSpanFilterCondition` surfaces the same answer to the frontend, which
+# reads None as "not root-scoped" and picks per-span rather than cumulative
+# metric columns. So under-claiming cannot change which rows come back, but it
+# is user-visible, and unsupported forms are a known gap rather than a
+# non-issue.
+#
+# Below: conditions that admit at least one non-root span, all of which must
+# return None.
+_CONDITIONS_ADMITTING_NON_ROOT_SPANS = [
+    "span_kind == 'LLM'",
+    "parent_id is not None",
+    "parent_span is not None",
+    "not (parent_id is None)",
+    "not (parent_span is None)",
+    # compared to something other than None
+    "parent_id == 'abc'",
+    "parent_id != None",
+    "'x' in parent_id",
+    # an *attribute* that happens to be named parent_id is a different thing
+    "attributes['parent_id'] is None",
+    # one unscoped branch is enough to admit non-root rows
+    "parent_id is None or span_kind == 'LLM'",
+    "parent_id is None or True",
+    "(parent_id is None and span_kind == 'CHAIN') or span_kind == 'LLM'",
+    "parent_span is None or parent_id is not None",
+    # a tautology matches everything, root or not
+    "parent_id is None or parent_id is not None",
+    # De Morgan: `parent_id is not None or span_kind != 'LLM'`, which admits
+    # any span whose kind is not LLM, root or not.
+    "not (parent_id is None and span_kind == 'LLM')",
+]
+
+
+@pytest.mark.parametrize("condition", _CONDITIONS_ADMITTING_NON_ROOT_SPANS)
+def test_root_span_scope_never_over_claims_on_non_root_conditions(condition: str) -> None:
+    assert root_span_scope(condition) is None
+
+
+# Conditions restricting to orphan-aware roots but *not* to strict roots: they
+# match spans whose parent_id is set but absent from the table. Reporting
+# "strict" for any of these would let a caller drop a strict `root_spans_only`
+# flag, readmitting the orphans that flag exists to exclude.
+_ORPHAN_AWARE_BUT_NOT_STRICT_CONDITIONS = [
+    "parent_span is None",
+    "parent_span == None",
+    "None is parent_span",
+    "parent_span is None and span_kind == 'CHAIN'",
+    "(parent_span is None and span_kind == 'CHAIN') or (parent_span is None and latency_ms > 5)",
+    "not (parent_span is not None)",
+]
+
+
+@pytest.mark.parametrize("condition", _ORPHAN_AWARE_BUT_NOT_STRICT_CONDITIONS)
+def test_root_span_scope_never_over_claims_strictness(condition: str) -> None:
+    assert root_span_scope(condition) != "strict"
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        # Double negation is the identity on which rows come back.
+        pytest.param("not not (parent_id is None)", "strict", id="double-negation"),
+        pytest.param("not not (parent_span is None)", "orphan_aware", id="double-negation-orphan"),
+        # A chained comparison is a conjunction of its links.
+        pytest.param("None is parent_id is None", "strict", id="chained-comparison"),
+        pytest.param("None is parent_span is None", "orphan_aware", id="chained-comparison-orphan"),
+        # ...so an unscoped link drops out rather than disqualifying the chain.
+        pytest.param(
+            "span_kind == 'CHAIN' and None is parent_id is None",
+            "strict",
+            id="chained-comparison-in-conjunction",
+        ),
+    ],
+)
+def test_root_span_scope_classifies_equivalent_rewrites(
+    condition: str,
+    expected: typing.Optional[RootSpanScope],
+) -> None:
+    """Forms that mean the same thing as a plain root predicate must classify the
+    same way, since the frontend picks metric columns off this answer."""
+    assert root_span_scope(condition) == expected
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        # `not (A or B)` is `not A and not B`: one restricting conjunct bounds
+        # the whole, so an unrestricting sibling drops out.
+        pytest.param(
+            "not (parent_id is not None or span_kind == 'LLM')",
+            "strict",
+            id="not-or-strict",
+        ),
+        pytest.param(
+            "not (parent_span is not None or span_kind == 'LLM')",
+            "orphan_aware",
+            id="not-or-orphan-aware",
+        ),
+        # `not (A and B)` is `not A or not B`: a disjunction, so *every* negated
+        # branch has to restrict.
+        pytest.param(
+            "not (parent_id is not None and parent_span is not None)",
+            "orphan_aware",
+            id="not-and-both-negated-branches-restrict",
+        ),
+        pytest.param(
+            "not (parent_id is not None and span_kind == 'LLM')",
+            None,
+            id="not-and-one-branch-unrestricting",
+        ),
+        # Nested polarity: two negations restore the original sense.
+        pytest.param(
+            "not (not (parent_id is None) and span_kind == 'LLM')",
+            None,
+            id="nested-negation-disjunction",
+        ),
+        pytest.param(
+            "not (not (parent_id is None) or span_kind == 'LLM')",
+            "strict",
+            id="nested-negation-conjunction",
+        ),
+        # A literal-True conjunct negates to a literal-False branch, which
+        # contributes no rows and folds out of the disjunction.
+        pytest.param(
+            "not (parent_id is not None and True)",
+            "strict",
+            id="not-and-true-folds",
+        ),
+        # ...whereas negating a literal-False conjunct yields a branch matching
+        # everything, so nothing is restricted.
+        pytest.param(
+            "not (parent_id is not None and False)",
+            None,
+            id="not-and-false-does-not-fold",
+        ),
+    ],
+)
+def test_root_span_scope_applies_de_morgan(
+    condition: str,
+    expected: typing.Optional[RootSpanScope],
+) -> None:
+    """Negation is handled by flipping polarity during the descent, so `and` and
+    `or` swap roles under a `not`. These pin both directions, including the ones
+    that must stay unrestricted -- a swapped rule would over-claim there."""
+    assert root_span_scope(condition) == expected
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        # A literal that can never be TRUE returns nothing, and an empty result
+        # is vacuously root-scoped -- so such a branch cannot widen a disjunction
+        # and drops out of one on its own.
+        pytest.param("parent_id is None or False", "strict", id="or-false"),
+        pytest.param("parent_id is None or None", "strict", id="or-null"),
+        pytest.param("parent_id is None or not True", "strict", id="or-not-true"),
+        pytest.param("not (parent_id is not None and None)", "strict", id="not-and-null"),
+        pytest.param(
+            "parent_span is None or (False and span_kind == 'LLM')",
+            "orphan_aware",
+            id="or-never-true-conjunction",
+        ),
+        # `None` is never TRUE in either sense -- `not NULL` is NULL, still not
+        # TRUE -- whereas `not False` is always TRUE and restricts nothing.
+        pytest.param("parent_id is None or not None", "strict", id="or-not-null"),
+        pytest.param("parent_id is None or not False", None, id="or-not-false"),
+        pytest.param("parent_id is None or True", None, id="or-true"),
+        # A never-TRUE conjunct empties the whole conjunction, which is
+        # vacuously root-scoped.
+        pytest.param("span_kind == 'LLM' and False", "strict", id="and-false"),
+        # ...but as a disjunct it leaves the other branch's rows, which are not
+        # root-scoped.
+        pytest.param("span_kind == 'LLM' or False", None, id="or-false-unscoped-sibling"),
+    ],
+)
+def test_root_span_scope_treats_never_true_literals_as_vacuously_scoped(
+    condition: str,
+    expected: typing.Optional[RootSpanScope],
+) -> None:
+    """Constant folding is not special-cased: mapping a never-TRUE leaf to the
+    narrowest scope makes it fall out of the same lattice rules as everything
+    else."""
+    assert root_span_scope(condition) == expected
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("not " * 2000 + "(parent_id is None)", id="deep-negation"),
+        pytest.param("(" * 2000 + "parent_id is None" + ")" * 2000, id="deep-grouping"),
+        pytest.param(" or ".join(["parent_id is None"] * 2000), id="wide-disjunction"),
+    ],
+)
+def test_root_span_scope_survives_pathologically_nested_input(condition: str) -> None:
+    """The analyzer is reachable from the API with an arbitrary string, so input
+    deep enough to exhaust the stack has to read as "cannot tell" rather than
+    escaping as a RecursionError."""
+    assert root_span_scope(condition) in (None, "strict")
+
+
+# Atoms for the generated corpus below. The root predicates appear in both
+# spellings and both polarities; the ordinary predicates discriminate among the
+# fixture's spans without saying anything about parentage; the constants exist
+# to exercise the never-TRUE folding.
+_CORPUS_ATOMS = (
+    "parent_id is None",
+    "parent_id is not None",
+    "parent_span is None",
+    "parent_span is not None",
+    "span_kind == 'LLM'",
+    "name == 'A'",
+    "name == 'C'",
+    "status_code == 'OK'",
+    "True",
+    "False",
+    "None",
+)
+
+
+def _generate_expression(rand: random.Random, depth: int) -> str:
+    if depth <= 0:
+        return rand.choice(_CORPUS_ATOMS)
+    kind = rand.choice(("atom", "atom", "and", "or", "not"))
+    if kind == "atom":
+        return rand.choice(_CORPUS_ATOMS)
+    if kind == "not":
+        return f"not ({_generate_expression(rand, depth - 1)})"
+    joiner = " and " if kind == "and" else " or "
+    operands = [_generate_expression(rand, depth - 1) for _ in range(rand.randint(2, 3))]
+    return "(" + joiner.join(operands) + ")"
+
+
+async def test_root_span_scope_never_over_claims_against_generated_expressions(
+    db: DbSessionFactory,
+    parent_predicate_project: None,
+) -> None:
+    """Checks soundness against the database rather than against expectations.
+
+    Every other test here asserts a hand-authored answer, which only ever
+    confirms the cases someone thought of. This one generates boolean
+    expressions, and wherever the analyzer commits to a scope it runs the
+    condition as SQL and requires that every row actually returned satisfies
+    that scope. So the analyzer is checked against the translator and the
+    database's own three-valued logic, not against a second model of them.
+
+    Only over-claiming is a failure. A ``None`` verdict is allowed for anything,
+    since under-claiming is the safe direction.
+    """
+    rand = random.Random(14497)
+    # `A` is the only strict root; `C` is an orphan, a root only in the wider
+    # sense; `B` and `D` have parents present in the table.
+    allowed_by_scope = {"strict": {"A"}, "orphan_aware": {"A", "C"}}
+
+    exercised: Counter[str] = Counter()
+    async with db() as session:
+        for _ in range(400):
+            condition = _generate_expression(rand, depth=3)
+            scope = root_span_scope(condition)
+            if scope is None:
+                continue
+            try:
+                span_filter = SpanFilter(condition)
+            except SyntaxError:
+                # e.g. a bare constant, which the DSL rejects as a whole condition
+                continue
+            returned = set(await session.scalars(span_filter(select(models.Span.span_id))))
+            assert returned <= allowed_by_scope[scope], (
+                f"{condition!r} was reported as {scope!r} but returned {sorted(returned)}"
+            )
+            exercised[scope] += 1
+            if "not " in condition:
+                exercised["negated"] += 1
+            if any(literal in condition for literal in ("True", "False", "None")):
+                exercised["with_literal"] += 1
+            if returned:
+                # The assertion above is vacuously satisfied by an empty result,
+                # so at least some verdicts have to be checked against rows that
+                # were actually returned.
+                exercised["returned_rows"] += 1
+
+    # Without this the assertions above could pass on a corpus that had
+    # degenerated -- into expressions that never commit to a scope, that only
+    # ever reach one verdict, or that all match nothing.
+    minimums = {
+        "strict": 5,
+        "orphan_aware": 3,
+        "negated": 3,
+        "with_literal": 3,
+        "returned_rows": 5,
+    }
+    missing = {k: (exercised[k], n) for k, n in minimums.items() if exercised[k] < n}
+    assert not missing, f"corpus under-exercised (got, wanted): {missing}; all: {dict(exercised)}"
+
+
+@pytest.mark.parametrize(
+    "condition,expected_message",
+    [
+        pytest.param(
+            "not " * 500 + "(parent_id is None)",
+            "nested too deeply",
+            id="deep-negation",
+        ),
+        # CPython's parser rejects deeply nested grouping on its own, before any
+        # stack is exhausted, so this arrives as a SyntaxError already. Its
+        # wording belongs to the interpreter and varies by version, so only the
+        # type is asserted -- the invariant is the same either way.
+        pytest.param(
+            "(" * 500 + "parent_id is None" + ")" * 500,
+            None,
+            id="deep-grouping",
+        ),
+    ],
+)
+def test_span_filter_reports_deeply_nested_input_as_malformed(
+    condition: str,
+    expected_message: typing.Optional[str],
+) -> None:
+    """Every stage of construction recurses -- the parser, the validator, the
+    translator, `compile` -- and conditions arrive from the API, so input deep
+    enough to exhaust the stack has to surface as a malformed filter rather than
+    as a RecursionError escaping from whichever stage ran out first."""
+    with pytest.raises(SyntaxError, match=expected_message):
+        SpanFilter(condition)

@@ -106,13 +106,15 @@ nothing. Use `limit=` to control result size instead.
 ## Not Filtering Spans Appropriately
 
 ```python
+from phoenix.client.types.spans import SpanQuery
+
 # WRONG — fetches all spans including internal LLM calls, retrievers, etc.
 df = client.spans.get_spans_dataframe(project_identifier="my-project")
 
 # RIGHT for end-to-end evaluation — filter to top-level spans
 df = client.spans.get_spans_dataframe(
     project_identifier="my-project",
-    root_spans_only=True,
+    query=SpanQuery().where("parent_id is None"),
 )
 
 # RIGHT for RAG evaluation — fetch child spans for retriever/LLM metrics
@@ -123,7 +125,10 @@ retriever_spans = all_spans[all_spans["span_kind"] == "RETRIEVER"]
 llm_spans = all_spans[all_spans["span_kind"] == "LLM"]
 ```
 
-**Why**: For end-to-end evaluation (e.g., overall answer quality), use `root_spans_only=True`.
+**Why**: For end-to-end evaluation (e.g., overall answer quality), scope the query to root
+spans with `SpanQuery().where("parent_id is None")` — the `root_spans_only=True` argument is
+deprecated. Use `parent_span is None` instead if you also want orphans (spans whose parent is
+absent) counted as roots.
 For RAG systems, you often need child spans separately — retriever spans for
 DocumentRelevance and LLM spans for Faithfulness. Choose the right span level
 for your evaluation target.

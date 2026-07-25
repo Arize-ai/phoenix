@@ -305,6 +305,7 @@ Query for spans and annotations from your projects for custom evaluation and ann
 
 ```python
 from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
 from datetime import datetime, timedelta
 
 client = Client()
@@ -313,7 +314,7 @@ client = Client()
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="my-llm-app",
     limit=1000,
-    root_spans_only=True,  # Only get top-level spans
+    query=SpanQuery().where("parent_id is None"),  # Only top-level spans
     start_time=datetime.now() - timedelta(hours=24)
 )
 

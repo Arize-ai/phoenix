@@ -155,7 +155,7 @@ for span in trace_spans:
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="my-llm-app",
     limit=1000,
-    root_spans_only=True,  # Only get top-level spans
+    query=SpanQuery().where("parent_id is None"),  # Only top-level spans
     start_time=datetime.now() - timedelta(hours=24)
 )
 
