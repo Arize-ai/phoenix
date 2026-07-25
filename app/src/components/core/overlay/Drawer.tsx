@@ -1,4 +1,4 @@
-import { css, keyframes } from "@emotion/react";
+import { css } from "@emotion/react";
 import type {
   CSSProperties,
   KeyboardEvent,
@@ -33,15 +33,6 @@ const RESIZE_HANDLE_WIDTH_PX = 4;
 const KEYBOARD_RESIZE_STEP_PERCENT = 5;
 const normalizeSize = (value: number) => Number(value.toFixed(3));
 
-const drawerSlideIn = keyframes`
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-`;
-
 const drawerCSS = css`
   --visual-viewport-height: 100vh;
   height: var(--visual-viewport-height);
@@ -53,8 +44,6 @@ const drawerCSS = css`
   top: 0;
   right: 0;
   left: auto;
-  animation: ${drawerSlideIn} 300ms;
-
   .drawer__resize-handle {
     position: absolute;
     left: 0;
