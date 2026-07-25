@@ -120,10 +120,15 @@ export function usePreferredTreePanel({
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
 }): {
+  onOverlayResize: (width: number) => number;
+  onOverlayResizeEnd: () => void;
+  onOverlayResizeStart: (width: number) => void;
   onLayoutChanged: (layout: Layout, meta: LayoutChangedMeta) => void;
   treePanelRef: RefObject<PanelImperativeHandle | null>;
 } {
   const treePanelRef = useRef<PanelImperativeHandle>(null);
+  const isOverlayResizingRef = useRef(false);
+  const overlayResizeSessionRef = useRef(0);
 
   const onLayoutChanged = (
     _layout: Layout,
@@ -131,6 +136,8 @@ export function usePreferredTreePanel({
   ) => {
     const treePanel = treePanelRef.current;
     if (!treePanel) return;
+
+    if (isOverlayResizingRef.current) return;
 
     if (isUserInteraction) {
       onPreferredTreeWidthChange(treePanel.getSize().inPixels);
@@ -143,5 +150,37 @@ export function usePreferredTreePanel({
     treePanel.resize(preferredTreeWidth);
   };
 
-  return { onLayoutChanged, treePanelRef };
+  const resizeOverlay = (width: number) => {
+    const treePanel = treePanelRef.current;
+    if (!treePanel) return preferredTreeWidth;
+    treePanel.resize(width);
+    return treePanel.getSize().inPixels;
+  };
+
+  const onOverlayResizeStart = (width: number) => {
+    overlayResizeSessionRef.current += 1;
+    isOverlayResizingRef.current = true;
+    resizeOverlay(width);
+  };
+
+  const onOverlayResizeEnd = () => {
+    const resizeSession = overlayResizeSessionRef.current;
+    const treePanel = treePanelRef.current;
+    if (treePanel) {
+      onPreferredTreeWidthChange(treePanel.getSize().inPixels);
+    }
+    requestAnimationFrame(() => {
+      if (overlayResizeSessionRef.current === resizeSession) {
+        isOverlayResizingRef.current = false;
+      }
+    });
+  };
+
+  return {
+    onLayoutChanged,
+    onOverlayResize: resizeOverlay,
+    onOverlayResizeEnd,
+    onOverlayResizeStart,
+    treePanelRef,
+  };
 }

@@ -18,9 +18,12 @@ import {
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import {
+  ResizableTraceTreePanelContent,
+  resizableTraceTreePanelStyle,
+} from "@phoenix/components/trace/ResizableTraceTreePanelContent";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
-import { traceTreePanelContentCSS } from "@phoenix/components/trace/traceTreeStyles";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
 import {
@@ -105,7 +108,13 @@ export function TraceDetails({
   const rootSpan = rootSpans[0];
   const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
 
-  const { onLayoutChanged, treePanelRef } = usePreferredTreePanel({
+  const {
+    onLayoutChanged,
+    onOverlayResize,
+    onOverlayResizeEnd,
+    onOverlayResizeStart,
+    treePanelRef,
+  } = usePreferredTreePanel({
     preferredTreeWidth,
     onPreferredTreeWidthChange,
   });
@@ -137,10 +146,14 @@ export function TraceDetails({
             container-name: trace-tree-panel;
             container-type: inline-size;
           `}
-          style={{ maxWidth: "none", overflow: "visible" }}
+          style={resizableTraceTreePanelStyle}
         >
           <TraceTreeProvider>
-            <TraceTreePanelContent>
+            <ResizableTraceTreePanelContent
+              onResize={onOverlayResize}
+              onResizeEnd={onOverlayResizeEnd}
+              onResizeStart={onOverlayResizeStart}
+            >
               <TraceTreeToolbar />
               <ConnectedTraceTree
                 trace={data.project.trace}
@@ -155,7 +168,7 @@ export function TraceDetails({
                   );
                 }}
               />
-            </TraceTreePanelContent>
+            </ResizableTraceTreePanelContent>
           </TraceTreeProvider>
         </Panel>
         <Separator
@@ -299,18 +312,6 @@ function SpanDetailsWrapper({ children }: PropsWithChildren) {
         height: 100%;
         overflow: hidden;
       `}
-    >
-      {children}
-    </div>
-  );
-}
-
-function TraceTreePanelContent({ children }: PropsWithChildren) {
-  return (
-    <div
-      className="trace-tree-panel-content"
-      data-testid="scrolling-panel-content"
-      css={traceTreePanelContentCSS}
     >
       {children}
     </div>

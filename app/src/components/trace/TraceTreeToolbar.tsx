@@ -78,11 +78,11 @@ export function TraceTreeToolbar() {
         .trace-tree-toolbar__search .search-field__icon {
           left: var(--global-dimension-size-100);
           color: var(--global-text-color-500);
-          font-size: var(--global-font-size-l);
+          font-size: var(--searchfield-icon-size);
         }
         .trace-tree-toolbar__search .search-field__icon ~ .react-aria-Input {
           padding-left: calc(
-            var(--global-dimension-size-200) + var(--global-font-size-l)
+            var(--global-dimension-size-200) + var(--searchfield-icon-size)
           ) !important;
         }
 
@@ -147,6 +147,7 @@ export function TraceTreeToolbar() {
             defaultValue={searchQuery}
             onChange={setSearchQuery}
             placeholder="Search trace"
+            size="S"
             variant="quiet"
           />
         </div>

@@ -34,11 +34,14 @@ import {
 } from "@phoenix/components/core/empty";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import {
+  ResizableTraceTreePanelContent,
+  resizableTraceTreePanelStyle,
+} from "@phoenix/components/trace/ResizableTraceTreePanelContent";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
-import { traceTreePanelContentCSS } from "@phoenix/components/trace/traceTreeStyles";
 import {
   SPAN_DETAILS_MIN_WIDTH_PIXELS,
   TRACE_TREE_MIN_WIDTH_PIXELS,
@@ -244,7 +247,13 @@ export function SessionDetailsTracesView({
     }
   }, [hasNext, isLoadingNext, loadNext, traces]);
 
-  const { onLayoutChanged, treePanelRef } = usePreferredTreePanel({
+  const {
+    onLayoutChanged,
+    onOverlayResize,
+    onOverlayResizeEnd,
+    onOverlayResizeStart,
+    treePanelRef,
+  } = usePreferredTreePanel({
     preferredTreeWidth,
     onPreferredTreeWidthChange,
   });
@@ -284,11 +293,13 @@ export function SessionDetailsTracesView({
           container-name: trace-tree-panel;
           container-type: inline-size;
         `}
-        style={{ maxWidth: "none", overflow: "visible" }}
+        style={resizableTraceTreePanelStyle}
       >
-        <div
-          className="trace-tree-panel-content"
-          css={[traceTreePanelContentCSS, tracesListPanelCSS]}
+        <ResizableTraceTreePanelContent
+          contentCSS={tracesListPanelCSS}
+          onResize={onOverlayResize}
+          onResizeEnd={onOverlayResizeEnd}
+          onResizeStart={onOverlayResizeStart}
         >
           <TraceRowList
             traces={traces}
@@ -300,11 +311,11 @@ export function SessionDetailsTracesView({
             onSpanClick={handleSpanClick}
             rowRefs={rowRefs}
             isLoadingNext={isLoadingNext}
-            onScroll={(e) =>
-              throttledFetchMoreOnBottomReached(e.target as HTMLDivElement)
+            onScroll={(event) =>
+              throttledFetchMoreOnBottomReached(event.currentTarget)
             }
           />
-        </div>
+        </ResizableTraceTreePanelContent>
       </Panel>
       <Separator
         css={[

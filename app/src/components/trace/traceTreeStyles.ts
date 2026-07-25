@@ -28,14 +28,29 @@ export const traceTreePanelContentCSS = css`
   container-type: inline-size;
   background: var(--global-background-color-default);
 
+  &[data-overlay-resizing="true"] {
+    z-index: 2;
+    width: 100%;
+    border-right: var(--global-border-size-thin) solid
+      var(--global-border-color-default);
+    box-shadow: 4px 0 12px rgba(var(--global-color-gray-900-rgb), 0.12);
+
+    .trace-tree-panel-content__resize-handle {
+      display: block;
+    }
+  }
+
   @container trace-tree-panel (width < ${TRACE_TREE_HOVER_WIDTH_PIXELS}px) {
-    &:hover,
-    &:focus-within {
+    &:is(:hover, :focus-within):not([data-overlay-resizing="true"]) {
       z-index: 2;
       width: var(--global-dimension-size-3000);
       border-right: var(--global-border-size-thin) solid
         var(--global-border-color-default);
       box-shadow: 4px 0 12px rgba(var(--global-color-gray-900-rgb), 0.12);
+
+      .trace-tree-panel-content__resize-handle {
+        display: block;
+      }
 
       .trace-tree-toolbar__search {
         flex: 1 1 auto;
@@ -49,7 +64,7 @@ export const traceTreePanelContentCSS = css`
       .trace-tree-toolbar__search .react-aria-Input {
         width: 100%;
         padding-left: calc(
-          var(--global-dimension-size-200) + var(--global-font-size-l)
+          var(--global-dimension-size-200) + var(--searchfield-icon-size)
         ) !important;
         padding-right: var(--global-dimension-size-300) !important;
         opacity: 1;
@@ -68,8 +83,7 @@ export const traceTreePanelContentCSS = css`
   }
 
   @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
-    &:hover,
-    &:focus-within {
+    &:is(:hover, :focus-within):not([data-overlay-resizing="true"]) {
       .trace-tree-toolbar__controls {
         width: 100%;
       }
