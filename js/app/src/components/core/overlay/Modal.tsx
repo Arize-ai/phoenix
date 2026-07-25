@@ -80,6 +80,21 @@ export const centeredModalCSS = css`
     border: 1px solid var(--global-border-color-default);
     outline: none;
 
+    &:has(> .react-aria-DialogContent) {
+      // Keep the rounded shell as the clipping boundary. The content owns
+      // scrolling so its scrollbar is clipped to the shell's border radius.
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    & > .react-aria-DialogContent {
+      min-height: 0;
+      overflow: auto;
+      // prevent bounce in safari when scrolling
+      overscroll-behavior: contain;
+    }
+
     & .dialog__header {
       position: sticky;
       top: 0;
