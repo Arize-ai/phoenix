@@ -821,7 +821,6 @@ export const ValuePermutations: Story = {
     },
   },
   render: () => <AnnotationLabelValueTable />,
-  tags: ["!dev"],
 };
 
 export const Ghost: Story = {
