@@ -10,7 +10,10 @@ import { useId, useRef, useState } from "react";
 import { OverlayTriggerStateContext } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { DrawerContext } from "@phoenix/components/core/overlay/DrawerContext";
+import {
+  DrawerContext,
+  DrawerResizeContext,
+} from "@phoenix/components/core/overlay/DrawerContext";
 import { diagnosticResizeHandleCSS } from "@phoenix/components/resize";
 import type { SizeValue } from "@phoenix/types/sizing";
 
@@ -277,6 +280,16 @@ export function Drawer({
     }
   };
 
+  const resizeFromDescendant = (nextPixels: number) => {
+    const clampedPixels = clampPixels(nextPixels);
+    setSize(
+      isPixelBased
+        ? clampedPixels
+        : normalizeSize((clampedPixels / window.innerWidth) * 100)
+    );
+    return clampedPixels;
+  };
+
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     switch (event.key) {
       case "ArrowLeft":
@@ -313,6 +326,11 @@ export function Drawer({
   const minPx = resolveMin();
   const maxPx = resolveMax();
   const sizePercent = getSizePercent(size);
+  const resizeController = {
+    getSizePixels: () => getSizePixels(size),
+    getMaximumSizePixels: resolveMax,
+    resizeToPixels: resizeFromDescendant,
+  };
 
   const style = {
     width: isPixelBased ? `${size}px` : `${size}vw`,
@@ -337,37 +355,39 @@ export function Drawer({
 
   return (
     <DrawerContext.Provider value={true}>
-      <OverlayTriggerStateContext.Provider value={overlayState}>
-        <div
-          role="complementary"
-          id={drawerId}
-          className={DRAWER_CLASS_NAME}
-          aria-label="Detail drawer"
-          css={drawerCSS}
-          data-dragging={isDragging ? "true" : undefined}
-          style={style}
-          ref={ref}
-        >
+      <DrawerResizeContext.Provider value={resizeController}>
+        <OverlayTriggerStateContext.Provider value={overlayState}>
           <div
-            role="separator"
-            tabIndex={0}
-            aria-controls={drawerId}
-            aria-orientation="vertical"
-            aria-label="Resize drawer"
-            aria-valuenow={Math.round(sizePercent)}
-            aria-valuemin={Math.round((minPx / window.innerWidth) * 100)}
-            aria-valuemax={Math.round((maxPx / window.innerWidth) * 100)}
-            className="drawer__resize-handle"
+            role="complementary"
+            id={drawerId}
+            className={DRAWER_CLASS_NAME}
+            aria-label="Detail drawer"
+            css={drawerCSS}
             data-dragging={isDragging ? "true" : undefined}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onKeyDown={handleKeyDown}
-          />
-          {children}
-        </div>
-      </OverlayTriggerStateContext.Provider>
+            style={style}
+            ref={ref}
+          >
+            <div
+              role="separator"
+              tabIndex={0}
+              aria-controls={drawerId}
+              aria-orientation="vertical"
+              aria-label="Resize drawer"
+              aria-valuenow={Math.round(sizePercent)}
+              aria-valuemin={Math.round((minPx / window.innerWidth) * 100)}
+              aria-valuemax={Math.round((maxPx / window.innerWidth) * 100)}
+              className="drawer__resize-handle"
+              data-dragging={isDragging ? "true" : undefined}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              onKeyDown={handleKeyDown}
+            />
+            {children}
+          </div>
+        </OverlayTriggerStateContext.Provider>
+      </DrawerResizeContext.Provider>
     </DrawerContext.Provider>
   );
 }

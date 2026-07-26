@@ -111,9 +111,9 @@ export function TraceDetails({
   const {
     groupElementRef,
     onLayoutChanged,
-    onOverlayResize,
-    onOverlayResizeEnd,
-    onOverlayResizeStart,
+    onTreeResize,
+    onTreeResizeEnd,
+    onTreeResizeStart,
     treePanelRef,
   } = usePreferredTreePanel({
     preferredTreeWidth,
@@ -171,9 +171,9 @@ export function TraceDetails({
           </TraceTreeProvider>
         </Panel>
         <ResizableTraceTreeSeparator
-          onResize={onOverlayResize}
-          onResizeEnd={onOverlayResizeEnd}
-          onResizeStart={onOverlayResizeStart}
+          onResize={onTreeResize}
+          onResizeEnd={onTreeResizeEnd}
+          onResizeStart={onTreeResizeStart}
         />
         <Panel
           id="details-panel-main-column"

@@ -44,6 +44,7 @@ export const traceTreePanelContentCSS = css`
         :has(
           .details-panel-tree-separator:is(
             [data-overlay-resizing="true"],
+            [data-dragging="true"],
             [data-separator="active"]
           )
         )
@@ -53,6 +54,7 @@ export const traceTreePanelContentCSS = css`
         :has(
           .details-panel-tree-separator:is(
             [data-overlay-resizing="true"],
+            [data-dragging="true"],
             [data-separator="active"]
           )
         )

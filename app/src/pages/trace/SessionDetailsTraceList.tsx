@@ -7,7 +7,7 @@ import { isNumber, isString, throttle } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel } from "react-resizable-panels";
 import type { To } from "react-router";
 import { useLocation, useSearchParams } from "react-router";
 
@@ -30,9 +30,9 @@ import {
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
-import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { ResizableTraceTreeSeparator } from "@phoenix/components/trace/ResizableTraceTreePanelContent";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
@@ -674,6 +674,9 @@ export function SessionDetailsTraceList({
   const {
     groupElementRef,
     onLayoutChanged,
+    onTreeResize,
+    onTreeResizeEnd,
+    onTreeResizeStart,
     treePanelRef: navigationPanelRef,
   } = usePreferredTreePanel({
     preferredTreeWidth,
@@ -754,10 +757,11 @@ export function SessionDetailsTraceList({
       >
         <div css={panelContentCSS}>{turnListPanel}</div>
       </Panel>
-      <Separator
-        id="details-panel-tree-separator"
-        aria-label="Resize session turns"
-        css={compactResizeHandleCSS}
+      <ResizableTraceTreeSeparator
+        ariaLabel="Resize session turns"
+        onResize={onTreeResize}
+        onResizeEnd={onTreeResizeEnd}
+        onResizeStart={onTreeResizeStart}
       />
       <Panel
         id="details-panel-main-column"

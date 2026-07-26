@@ -436,10 +436,10 @@ test.describe("Details panel column behavior assertions", () => {
     });
   });
 
-  test("CC-2, TC-4, TC-5, and PS-7: tree divider stops at the main minimum and persists only on release", async ({
+  test("CC-2, TC-4, TC-5, TC-8, TC-9, and PS-7: one tree drag transitions from main shrinkage to drawer growth", async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 1800, height: 900 });
+    await page.setViewportSize({ width: 2000, height: 900 });
     await page.goto(`/projects/${fixture.projectId}/traces/${fixture.traceId}`);
     await expectColumnWidths({
       page,
@@ -452,7 +452,7 @@ test.describe("Details panel column behavior assertions", () => {
     const start = await getCenter(treeSeparator);
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
-    await expect(treeSeparator).toHaveAttribute("data-separator", "active");
+    await expect(treeSeparator).toHaveAttribute("data-dragging", "true");
     await page.mouse.move(start.x - 200, start.y);
 
     await expectColumnWidths({
@@ -464,12 +464,20 @@ test.describe("Details panel column behavior assertions", () => {
     const narrowSeparatorCenter = await getCenter(treeSeparator);
     expect(Math.round(narrowSeparatorCenter.x)).toBe(Math.round(start.x - 200));
 
+    await page.mouse.move(start.x + 200, start.y);
+    await expectColumnWidths({
+      page,
+      drawerWidth: FACTORY_DRAWER_WIDTH,
+      treeWidth: 568,
+      mainWidth: 760,
+    });
+
     await page.mouse.move(start.x + 500, start.y);
 
     await expectColumnWidths({
       page,
-      drawerWidth: FACTORY_DRAWER_WIDTH,
-      treeWidth: 688,
+      drawerWidth: 1509,
+      treeWidth: 868,
       mainWidth: MINIMUM_MAIN_WIDTH,
     });
     expect(await getStoredPreferences(page)).toEqual({
@@ -482,15 +490,83 @@ test.describe("Details panel column behavior assertions", () => {
       .poll(() => getStoredPreferences(page))
       .toEqual({
         main: null,
-        tree: "688",
+        tree: "868",
       });
     await page.reload();
     await expectColumnWidths({
       page,
-      drawerWidth: 1649,
-      treeWidth: 688,
+      drawerWidth: 1829,
+      treeWidth: 868,
       mainWidth: FACTORY_MAIN_WIDTH,
     });
+  });
+
+  test("TC-4 and TC-8: a tree drag grows the drawer immediately from the main minimum and cancellation restores it", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2000, height: 900 });
+    await page.evaluate(
+      ([mainPreferenceKey, mainWidth]) => {
+        localStorage.setItem(mainPreferenceKey, mainWidth);
+      },
+      [MAIN_PREFERENCE_KEY, String(MINIMUM_MAIN_WIDTH)]
+    );
+    await page.goto(`/projects/${fixture.projectId}/traces/${fixture.traceId}`);
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1009,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+
+    const treeSeparator = page.getByTestId("details-panel-tree-separator");
+    const start = await getCenter(treeSeparator);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x + 200, start.y);
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1209,
+      treeWidth: 568,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+    await treeSeparator.dispatchEvent("pointercancel", {
+      bubbles: true,
+      cancelable: true,
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+    await expect(treeSeparator).not.toHaveAttribute("data-dragging", "true");
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1009,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+    expect(await getStoredPreferences(page)).toEqual({
+      main: String(MINIMUM_MAIN_WIDTH),
+      tree: null,
+    });
+    await page.mouse.up();
+
+    const restarted = await getCenter(treeSeparator);
+    await page.mouse.move(restarted.x, restarted.y);
+    await page.mouse.down();
+    await page.mouse.move(restarted.x + 200, restarted.y);
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1209,
+      treeWidth: 568,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+    await expect
+      .poll(() => getStoredPreferences(page))
+      .toEqual({
+        main: String(MINIMUM_MAIN_WIDTH),
+        tree: "568",
+      });
   });
 
   test("NR and UN: narrow and ultra-narrow overlays never displace the main column", async ({

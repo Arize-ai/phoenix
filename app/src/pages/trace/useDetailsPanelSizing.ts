@@ -1,11 +1,12 @@
 import type { RefObject } from "react";
-import { useEffect, useRef } from "react";
+import { useContext, useEffect, useRef } from "react";
 import type {
   Layout,
   LayoutChangedMeta,
   PanelImperativeHandle,
 } from "react-resizable-panels";
 
+import { DrawerResizeContext } from "@phoenix/components/core/overlay/DrawerContext";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import {
   SPAN_DETAILS_FACTORY_WIDTH_PIXELS,
@@ -58,6 +59,52 @@ export function getMainDetailsWidthFromDrawer({
     SPAN_DETAILS_MIN_WIDTH_PIXELS,
     drawerWidth - treeWidth - TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS
   );
+}
+
+export function getTreeDividerDragLayout({
+  maximumDrawerWidth,
+  minimumMainWidth,
+  minimumTreeWidth,
+  requestedTreeWidth,
+  startDrawerWidth,
+  startMainWidth,
+  startTreeWidth,
+}: {
+  maximumDrawerWidth: number;
+  minimumMainWidth: number;
+  minimumTreeWidth: number;
+  requestedTreeWidth: number;
+  startDrawerWidth: number;
+  startMainWidth: number;
+  startTreeWidth: number;
+}): { drawerWidth: number; treeWidth: number } {
+  const clampedRequestedTreeWidth = Math.max(
+    minimumTreeWidth,
+    requestedTreeWidth
+  );
+  const mainColumnShrinkCapacity = Math.max(
+    0,
+    startMainWidth - minimumMainWidth
+  );
+  const largestTreeWidthWithoutDrawerGrowth =
+    startTreeWidth + mainColumnShrinkCapacity;
+  const availableDrawerGrowth = Math.max(
+    0,
+    maximumDrawerWidth - startDrawerWidth
+  );
+  const treeWidth = Math.min(
+    clampedRequestedTreeWidth,
+    largestTreeWidthWithoutDrawerGrowth + availableDrawerGrowth
+  );
+  const drawerGrowth = Math.max(
+    0,
+    treeWidth - largestTreeWidthWithoutDrawerGrowth
+  );
+
+  return {
+    drawerWidth: startDrawerWidth + drawerGrowth,
+    treeWidth,
+  };
 }
 
 export function useDetailsPanelSizing(): {
@@ -125,24 +172,52 @@ export function usePreferredTreePanel({
   onPreferredTreeWidthChange: (width: number) => void;
 }): {
   groupElementRef: RefObject<HTMLDivElement | null>;
-  onOverlayResize: (width: number) => number;
-  onOverlayResizeEnd: (didMove: boolean) => void;
-  onOverlayResizeStart: (width: number) => void;
+  onTreeResize: (width: number) => number;
+  onTreeResizeEnd: (options: {
+    didMove: boolean;
+    shouldCommit: boolean;
+  }) => void;
+  onTreeResizeStart: (width: number) => void;
   onLayoutChanged: (layout: Layout, meta: LayoutChangedMeta) => void;
   treePanelRef: RefObject<PanelImperativeHandle | null>;
 } {
+  const drawerResizeController = useContext(DrawerResizeContext);
   const groupElementRef = useRef<HTMLDivElement>(null);
   const treePanelRef = useRef<PanelImperativeHandle>(null);
-  const isOverlayResizingRef = useRef(false);
-  const overlayResizeSessionRef = useRef(0);
-  const overlayResizeStartWidthRef = useRef(preferredTreeWidth);
+  const isTreeResizingRef = useRef(false);
+  const treeResizeSessionRef = useRef(0);
+  const pendingTreeResizeFrameRef = useRef<number | null>(null);
+  const treeResizeStateRef = useRef<{
+    maximumDrawerWidth: number;
+    startDrawerWidth: number;
+    startMainWidth: number;
+    startTreeWidth: number;
+  } | null>(null);
+  const latestTreeResizeLayoutRef = useRef<{
+    drawerWidth: number;
+    treeWidth: number;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pendingTreeResizeFrameRef.current != null) {
+        cancelAnimationFrame(pendingTreeResizeFrameRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const groupElement = groupElementRef.current;
-    if (!groupElement) return;
+    if (!groupElement) return undefined;
 
     const reclaimPreferredTreeWidth = () => {
-      if (isOverlayResizingRef.current) return;
+      if (isTreeResizingRef.current) {
+        const activeTreeWidth = latestTreeResizeLayoutRef.current?.treeWidth;
+        if (activeTreeWidth != null) {
+          treePanelRef.current?.resize(activeTreeWidth);
+        }
+        return;
+      }
       const availableTreeWidth =
         groupElement.getBoundingClientRect().width -
         TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS -
@@ -180,7 +255,7 @@ export function usePreferredTreePanel({
     const treePanel = treePanelRef.current;
     if (!treePanel) return;
 
-    if (isOverlayResizingRef.current) return;
+    if (isTreeResizingRef.current) return;
 
     if (isUserInteraction) {
       onPreferredTreeWidthChange(treePanel.getSize().inPixels);
@@ -193,37 +268,109 @@ export function usePreferredTreePanel({
     treePanel.resize(preferredTreeWidth);
   };
 
-  const resizeOverlay = (width: number) => {
-    const treePanel = treePanelRef.current;
-    if (!treePanel) return preferredTreeWidth;
-    treePanel.resize(width);
-    return treePanel.getSize().inPixels;
-  };
+  const applyTreeResizeLayout = (layout: {
+    drawerWidth: number;
+    treeWidth: number;
+  }) => {
+    latestTreeResizeLayoutRef.current = layout;
+    drawerResizeController?.resizeToPixels(layout.drawerWidth);
 
-  const onOverlayResizeStart = (width: number) => {
-    overlayResizeSessionRef.current += 1;
-    isOverlayResizingRef.current = true;
-    overlayResizeStartWidthRef.current =
-      treePanelRef.current?.getSize().inPixels ?? preferredTreeWidth;
-    resizeOverlay(width);
-  };
-
-  const onOverlayResizeEnd = (didMove: boolean) => {
-    const resizeSession = overlayResizeSessionRef.current;
     const treePanel = treePanelRef.current;
-    if (treePanel) {
-      const releasedWidth = treePanel.getSize().inPixels;
-      const didResize =
-        didMove && releasedWidth !== overlayResizeStartWidthRef.current;
-      if (didResize) {
-        onPreferredTreeWidthChange(releasedWidth);
-      } else {
-        treePanel.resize(overlayResizeStartWidthRef.current);
+    if (!treePanel) return;
+    treePanel.resize(layout.treeWidth);
+
+    // Growing the drawer commits through React state. Retry the panel resize
+    // after that wider group has been laid out; the immediate call above still
+    // handles the fixed-drawer portion of the same gesture without a frame of
+    // lag.
+    if (treePanel.getSize().inPixels !== layout.treeWidth) {
+      if (pendingTreeResizeFrameRef.current != null) {
+        cancelAnimationFrame(pendingTreeResizeFrameRef.current);
       }
+      pendingTreeResizeFrameRef.current = requestAnimationFrame(() => {
+        pendingTreeResizeFrameRef.current = null;
+        treePanelRef.current?.resize(layout.treeWidth);
+      });
+    }
+  };
+
+  const getTreeResizeLayout = (requestedTreeWidth: number) => {
+    const resizeState = treeResizeStateRef.current;
+    if (!resizeState) {
+      return {
+        drawerWidth:
+          drawerResizeController?.getSizePixels() ??
+          groupElementRef.current?.getBoundingClientRect().width ??
+          0,
+        treeWidth: preferredTreeWidth,
+      };
+    }
+    return getTreeDividerDragLayout({
+      ...resizeState,
+      minimumMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
+      minimumTreeWidth: TRACE_TREE_MIN_WIDTH_PIXELS,
+      requestedTreeWidth,
+    });
+  };
+
+  const onTreeResize = (requestedTreeWidth: number) => {
+    const layout = getTreeResizeLayout(requestedTreeWidth);
+    applyTreeResizeLayout(layout);
+    return layout.treeWidth;
+  };
+
+  const onTreeResizeStart = (renderedTreeWidth: number) => {
+    const groupWidth =
+      groupElementRef.current?.getBoundingClientRect().width ?? 0;
+    const startTreeWidth =
+      treePanelRef.current?.getSize().inPixels ?? preferredTreeWidth;
+    const startDrawerWidth =
+      drawerResizeController?.getSizePixels() ?? groupWidth;
+    treeResizeSessionRef.current += 1;
+    isTreeResizingRef.current = true;
+    treeResizeStateRef.current = {
+      maximumDrawerWidth:
+        drawerResizeController?.getMaximumSizePixels() ?? startDrawerWidth,
+      startDrawerWidth,
+      startMainWidth: Math.max(
+        SPAN_DETAILS_MIN_WIDTH_PIXELS,
+        groupWidth - startTreeWidth - TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS
+      ),
+      startTreeWidth,
+    };
+    onTreeResize(renderedTreeWidth);
+  };
+
+  const onTreeResizeEnd = ({
+    didMove,
+    shouldCommit,
+  }: {
+    didMove: boolean;
+    shouldCommit: boolean;
+  }) => {
+    const resizeSession = treeResizeSessionRef.current;
+    const resizeState = treeResizeStateRef.current;
+    const releasedLayout = latestTreeResizeLayoutRef.current;
+    const didResize =
+      shouldCommit &&
+      didMove &&
+      resizeState != null &&
+      releasedLayout != null &&
+      releasedLayout.treeWidth !== resizeState.startTreeWidth;
+
+    if (didResize && releasedLayout) {
+      onPreferredTreeWidthChange(releasedLayout.treeWidth);
+    } else if (resizeState) {
+      applyTreeResizeLayout({
+        drawerWidth: resizeState.startDrawerWidth,
+        treeWidth: resizeState.startTreeWidth,
+      });
     }
     requestAnimationFrame(() => {
-      if (overlayResizeSessionRef.current === resizeSession) {
-        isOverlayResizingRef.current = false;
+      if (treeResizeSessionRef.current === resizeSession) {
+        isTreeResizingRef.current = false;
+        treeResizeStateRef.current = null;
+        latestTreeResizeLayoutRef.current = null;
       }
     });
   };
@@ -231,9 +378,9 @@ export function usePreferredTreePanel({
   return {
     groupElementRef,
     onLayoutChanged,
-    onOverlayResize: resizeOverlay,
-    onOverlayResizeEnd,
-    onOverlayResizeStart,
+    onTreeResize,
+    onTreeResizeEnd,
+    onTreeResizeStart,
     treePanelRef,
   };
 }

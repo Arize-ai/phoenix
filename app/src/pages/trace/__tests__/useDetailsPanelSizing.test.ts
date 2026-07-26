@@ -5,12 +5,14 @@ import {
   SPAN_DETAILS_MIN_WIDTH_PIXELS,
   TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS,
   TRACE_TREE_DEFAULT_WIDTH_PIXELS,
+  TRACE_TREE_MIN_WIDTH_PIXELS,
 } from "@phoenix/constants";
 
 import {
   getDetailsPanelDrawerWidth,
   getMainDetailsWidthFromDrawer,
   getPreferredColumnWidth,
+  getTreeDividerDragLayout,
 } from "../useDetailsPanelSizing";
 
 describe("details panel sizing", () => {
@@ -75,5 +77,69 @@ describe("details panel sizing", () => {
         minimumWidth: 48,
       })
     ).toBe(48);
+  });
+
+  it("uses main-column slack before growing the drawer during a tree drag", () => {
+    expect(
+      getTreeDividerDragLayout({
+        maximumDrawerWidth: 1900,
+        minimumMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
+        minimumTreeWidth: TRACE_TREE_MIN_WIDTH_PIXELS,
+        requestedTreeWidth: 568,
+        startDrawerWidth: 1329,
+        startMainWidth: 960,
+        startTreeWidth: 368,
+      })
+    ).toEqual({ drawerWidth: 1329, treeWidth: 568 });
+
+    expect(
+      getTreeDividerDragLayout({
+        maximumDrawerWidth: 1900,
+        minimumMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
+        minimumTreeWidth: TRACE_TREE_MIN_WIDTH_PIXELS,
+        requestedTreeWidth: 868,
+        startDrawerWidth: 1329,
+        startMainWidth: 960,
+        startTreeWidth: 368,
+      })
+    ).toEqual({ drawerWidth: 1509, treeWidth: 868 });
+  });
+
+  it("grows the tree and drawer together when the main column starts at minimum", () => {
+    expect(
+      getTreeDividerDragLayout({
+        maximumDrawerWidth: 1400,
+        minimumMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
+        minimumTreeWidth: TRACE_TREE_MIN_WIDTH_PIXELS,
+        requestedTreeWidth: 468,
+        startDrawerWidth: 1009,
+        startMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
+        startTreeWidth: 368,
+      })
+    ).toEqual({ drawerWidth: 1109, treeWidth: 468 });
+  });
+
+  it("clamps a tree drag at both the tree minimum and drawer maximum", () => {
+    const commonOptions = {
+      maximumDrawerWidth: 1400,
+      minimumMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
+      minimumTreeWidth: TRACE_TREE_MIN_WIDTH_PIXELS,
+      startDrawerWidth: 1329,
+      startMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
+      startTreeWidth: 688,
+    };
+
+    expect(
+      getTreeDividerDragLayout({
+        ...commonOptions,
+        requestedTreeWidth: 12,
+      })
+    ).toEqual({ drawerWidth: 1329, treeWidth: 48 });
+    expect(
+      getTreeDividerDragLayout({
+        ...commonOptions,
+        requestedTreeWidth: 900,
+      })
+    ).toEqual({ drawerWidth: 1400, treeWidth: 759 });
   });
 });

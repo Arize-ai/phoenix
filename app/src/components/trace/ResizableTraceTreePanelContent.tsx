@@ -49,17 +49,24 @@ export function ResizableTraceTreePanelContent({
 }
 
 type ResizableTraceTreeSeparatorProps = {
+  ariaLabel?: string;
   onResizeStart: (width: number) => void;
   onResize: (width: number) => number;
-  onResizeEnd: (didMove: boolean) => void;
+  onResizeEnd: (options: { didMove: boolean; shouldCommit: boolean }) => void;
 };
 
 /**
- * The single separator for the trace-tree column. When narrow content expands
- * as an overlay, the separator follows its rendered edge. Starting a drag
- * promotes that overlay width to the real panel before resizing continues.
+ * The single pointer-gesture owner for the trace-tree column. It intercepts
+ * before react-resizable-panels' document-capture listener so a drag can move
+ * from shrinking the main column to growing the enclosing drawer without a
+ * second owner taking over. The library continues to own keyboard resizing.
+ *
+ * When narrow content expands as an overlay, the separator follows its
+ * rendered edge. Starting a drag promotes that overlay width to the real panel
+ * before resizing continues.
  */
 export function ResizableTraceTreeSeparator({
+  ariaLabel = "Resize trace tree",
   onResizeStart,
   onResize,
   onResizeEnd,
@@ -67,6 +74,7 @@ export function ResizableTraceTreeSeparator({
   const separatorRef = useRef<HTMLDivElement>(null);
   const [overlayOffset, setOverlayOffset] = useState(0);
   const [isOverlayResizing, setIsOverlayResizing] = useState(false);
+  const [isPointerResizing, setIsPointerResizing] = useState(false);
   const overlayOffsetRef = useRef(0);
   const activePointerIdRef = useRef<number | null>(null);
   const startPointerXRef = useRef(0);
@@ -111,7 +119,8 @@ export function ResizableTraceTreeSeparator({
     const separator = separatorRef.current;
     const eventTarget = event.target;
     if (
-      overlayOffsetRef.current === 0 ||
+      !event.isPrimary ||
+      (event.pointerType === "mouse" && event.button !== 0) ||
       !(eventTarget instanceof Node) ||
       !separator?.contains(eventTarget)
     ) {
@@ -119,18 +128,23 @@ export function ResizableTraceTreeSeparator({
     }
 
     const treePanel = separator.previousElementSibling;
+    if (!(treePanel instanceof HTMLElement)) return;
     const content = treePanel?.querySelector<HTMLElement>(
       ".trace-tree-panel-content"
     );
-    if (!content) return;
 
-    // react-resizable-panels begins resizing from a document capture listener.
-    // Intercept only the translated overlay separator at window capture so its
-    // old, narrow layout is not captured as a second competing drag session.
+    // react-resizable-panels begins resizing from a document capture listener;
+    // reserve this pointer at window capture so only this state machine can
+    // resize the panels during the gesture.
     event.preventDefault();
     event.stopPropagation();
+    separator.focus({ preventScroll: true });
     separator.setPointerCapture(event.pointerId);
-    const renderedWidth = content.getBoundingClientRect().width;
+    const isStartingFromOverlay =
+      overlayOffsetRef.current > 0 && content != null;
+    const renderedWidth = isStartingFromOverlay
+      ? content.getBoundingClientRect().width
+      : treePanel.getBoundingClientRect().width;
     activePointerIdRef.current = event.pointerId;
     startPointerXRef.current = event.clientX;
     startWidthRef.current = renderedWidth;
@@ -138,25 +152,47 @@ export function ResizableTraceTreeSeparator({
     onResizeStart(renderedWidth);
     overlayOffsetRef.current = 0;
     setOverlayOffset(0);
-    setIsOverlayResizing(true);
+    setIsOverlayResizing(isStartingFromOverlay);
+    setIsPointerResizing(true);
   });
 
   const handleWindowPointerMove = useEffectEvent((event: PointerEvent) => {
     if (activePointerIdRef.current !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
     const pointerDelta = event.clientX - startPointerXRef.current;
     didMoveRef.current ||= pointerDelta !== 0;
     onResize(startWidthRef.current + pointerDelta);
   });
 
-  const finishWindowResize = useEffectEvent((event: PointerEvent) => {
-    if (activePointerIdRef.current !== event.pointerId) return;
-    const separator = separatorRef.current;
-    if (separator?.hasPointerCapture(event.pointerId)) {
-      separator.releasePointerCapture(event.pointerId);
+  const finishWindowResize = useEffectEvent(
+    ({
+      event,
+      shouldCommit,
+    }: {
+      event: PointerEvent;
+      shouldCommit: boolean;
+    }) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const separator = separatorRef.current;
+      if (separator?.hasPointerCapture(event.pointerId)) {
+        separator.releasePointerCapture(event.pointerId);
+      }
+      activePointerIdRef.current = null;
+      setIsOverlayResizing(false);
+      setIsPointerResizing(false);
+      onResizeEnd({ didMove: didMoveRef.current, shouldCommit });
     }
-    activePointerIdRef.current = null;
-    setIsOverlayResizing(false);
-    onResizeEnd(didMoveRef.current);
+  );
+
+  const handleWindowPointerUp = useEffectEvent((event: PointerEvent) => {
+    finishWindowResize({ event, shouldCommit: true });
+  });
+
+  const handleWindowPointerCancel = useEffectEvent((event: PointerEvent) => {
+    finishWindowResize({ event, shouldCommit: false });
   });
 
   // The window capture listener runs before react-resizable-panels' document
@@ -164,13 +200,17 @@ export function ResizableTraceTreeSeparator({
   useEffect(() => {
     window.addEventListener("pointerdown", handleWindowPointerDown, true);
     window.addEventListener("pointermove", handleWindowPointerMove, true);
-    window.addEventListener("pointerup", finishWindowResize, true);
-    window.addEventListener("pointercancel", finishWindowResize, true);
+    window.addEventListener("pointerup", handleWindowPointerUp, true);
+    window.addEventListener("pointercancel", handleWindowPointerCancel, true);
     return () => {
       window.removeEventListener("pointerdown", handleWindowPointerDown, true);
       window.removeEventListener("pointermove", handleWindowPointerMove, true);
-      window.removeEventListener("pointerup", finishWindowResize, true);
-      window.removeEventListener("pointercancel", finishWindowResize, true);
+      window.removeEventListener("pointerup", handleWindowPointerUp, true);
+      window.removeEventListener(
+        "pointercancel",
+        handleWindowPointerCancel,
+        true
+      );
     };
   }, []);
 
@@ -178,10 +218,11 @@ export function ResizableTraceTreeSeparator({
     <Separator
       id="details-panel-tree-separator"
       elementRef={separatorRef}
-      aria-label="Resize trace tree"
+      aria-label={ariaLabel}
       className="details-panel-tree-separator"
       data-overlay-active={overlayOffset > 0 || undefined}
       data-overlay-resizing={isOverlayResizing || undefined}
+      data-dragging={isPointerResizing ? "true" : undefined}
       css={treeSeparatorCSS}
       style={{
         transform:
