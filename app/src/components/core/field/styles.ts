@@ -25,7 +25,10 @@ export const fieldBaseCSS = css`
     margin: 0;
     flex: 1 1 auto;
     font-size: var(--global-font-size-s);
-    min-width: var(--global-input-field-min-width);
+    // --field-min-width lets a field that has to fit a narrow container (a
+    // flexed toolbar slot, a control that collapses to an icon) shrink below
+    // the comfortable default rather than overriding this rule.
+    min-width: var(--field-min-width, var(--global-input-field-min-width));
     background-color: var(--field-background-color);
     color: var(--field-text-color);
     border: var(--global-border-size-thin) solid var(--field-border-color);
@@ -63,8 +66,8 @@ export const fieldBaseCSS = css`
       outline-offset: calc(-1 * var(--focus-ring-thickness));
     }
     &:is([data-readonly], [readonly])[data-hovered]:not([data-invalid]):not(
-      [data-focus-visible]
-    ) {
+        [data-focus-visible]
+      ) {
       background-color: var(--field-readonly-background-color-hover);
       border-color: transparent;
     }

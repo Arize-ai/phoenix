@@ -1,7 +1,10 @@
 import { css } from "@emotion/react";
-import type { CSSProperties } from "react";
-import { useRef } from "react";
+import type { CSSProperties, FocusEvent } from "react";
+import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Button, Input } from "react-aria-components";
+
+import type { BaseVariant, QuietVariant } from "../types";
 
 import type { DebouncedSearchProps } from "./DebouncedSearch";
 import type { SearchFieldProps } from "./SearchField";
@@ -23,29 +26,17 @@ export interface SearchButtonProps
    * The expanded field looks the same either way.
    * @default "default"
    */
-  variant?: "default" | "quiet";
-  /**
-   * What opens the collapsed field.
-   * - "focus": the field itself is the tab stop and expands whenever it gains
-   *   focus — including as Tab passes through on the way somewhere else.
-   * - "press": the collapsed control is a real icon-only button. Tabbing rests
-   *   on the button without opening anything; pressing it opens the field, and
-   *   Escape from an empty field returns focus to the button.
-   * @default "focus"
-   */
-  trigger?: "focus" | "press";
+  variant?: Extract<BaseVariant, "default"> | QuietVariant;
 }
 
 const searchButtonCSS = css`
   --search-button-collapsed-size: var(--global-button-height-s);
+  // the field's comfortable min-width would stop the input shrinking to the
+  // collapsed square
+  --field-min-width: 0;
   position: relative;
   width: var(--search-button-expanded-width, var(--global-dimension-size-3000));
   transition: width 0.2s ease-in-out;
-
-  // the shared field min-width would stop the input shrinking to the square
-  .search-field .react-aria-Input {
-    min-width: 0;
-  }
 
   .search-field .search-field__icon {
     transition: left 0.2s ease-in-out, font-size 0.2s ease-in-out,
@@ -62,13 +53,13 @@ const searchButtonCSS = css`
     transition: opacity 0.15s ease-in-out 0.1s;
   }
 
-  // The press trigger: a transparent hit target laid over the collapsed
-  // square. The field beneath paints all of the chrome, so the button carries
-  // only the semantics — and its own focus ring, since the field shows no
-  // focus treatment while the button is what holds focus. It exists only
-  // while the field is collapsed (see below): once the field is open the
-  // trigger has no job, and leaving the tab order means Tab moves on from the
-  // input rather than onto an invisible button.
+  // The trigger: a transparent hit target laid over the collapsed square. The
+  // field beneath paints all of the chrome, so the button carries only the
+  // semantics — and its own focus ring, since the field shows no focus
+  // treatment while the button is what holds focus. It exists only while the
+  // field is collapsed: once the field is open the trigger has no job, and
+  // leaving the tab order means Tab moves on from the input rather than onto
+  // an invisible button.
   .search-button__trigger {
     display: none;
     position: absolute;
@@ -86,13 +77,10 @@ const searchButtonCSS = css`
     }
   }
 
-  // Collapsed: nothing typed and the field itself unfocused. Focusing the
-  // field expands; blurring while empty collapses. Held as CSS rather than
-  // React state so the two appearances are one set of elements — nothing
-  // mounts, moves focus, or flashes at the moment of transition. Scoped to
-  // the field's own focus so that in press mode, focus resting on the trigger
-  // button does not open the field.
-  &:has(.search-field[data-empty]):not(:has(.search-field:focus-within)) {
+  // Collapsed and expanded are the same elements throughout — only this
+  // attribute changes, so nothing mounts, moves focus, or flashes at the
+  // moment of transition.
+  &[data-collapsed="true"] {
     width: var(--search-button-collapsed-size);
 
     .search-button__trigger {
@@ -137,13 +125,13 @@ const searchButtonCSS = css`
       }
     }
 
+    // the expanded side insets would force the border box wider than the square
+    --searchfield-input-padding-start: 0;
+    --searchfield-input-padding-end: 0;
+
     .search-field .react-aria-Input {
       cursor: pointer;
       caret-color: transparent;
-      // the expanded side padding would force the border box wider than the
-      // square; the shared rules carry !important so this must too
-      padding-left: 0 !important;
-      padding-right: 0 !important;
     }
 
     .search-field .react-aria-Input::placeholder {
@@ -181,42 +169,53 @@ const searchButtonCSS = css`
 `;
 
 /**
- * A search field that rests as an icon button. It expands when opened —
- * focused by default, pressed with `trigger="press"` — and collapses back to
- * the button when it loses focus while empty; while it holds a query it stays
- * open showing it. For toolbars and card headers too tight to give an idle
- * search field its full width.
+ * A search field that rests as an icon button. Pressing the button expands it
+ * into an S-size search field; it collapses back to the button when it loses
+ * focus while empty, and while it holds a query it stays open showing it. For
+ * toolbars and card headers too tight to give an idle search field its full
+ * width.
  *
- * The collapsed button and the expanded field are the same search input
- * throughout, so nothing jumps at the moment of transition and no focus
- * management is involved. `trigger="press"` lays a real icon-only button over
- * the collapsed square, so it announces as a button and Tab can pass through
- * without opening it. Only the `S` size exists.
+ * The collapsed button and the expanded field are the same elements
+ * throughout, so nothing jumps at the moment of transition. The button laid
+ * over the collapsed square is a real one, so it announces as a button and Tab
+ * rests on it rather than opening the field in passing. Only the `S` size
+ * exists.
  */
 export function SearchButton({
   onChange: propsOnChange,
   debounceMs = 200,
   placeholder,
   expandedWidth,
-  trigger = "focus",
   variant = "default",
   onKeyDown: propsOnKeyDown,
   ...props
 }: SearchButtonProps) {
+  const fieldRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const isPress = trigger === "press";
 
-  const onChange = useDebouncedChange(propsOnChange, debounceMs);
+  // Collapsed is one predicate, read by the tab order below and — through
+  // data-collapsed — by every rule in the stylesheet.
+  const [isFieldFocused, setIsFieldFocused] = useState(false);
+  const [hasText, setHasText] = useState(() => Boolean(props.defaultValue));
+  const isCollapsed = !hasText && !isFieldFocused;
 
-  // carried as a custom property rather than composed into the css prop, so
-  // the stylesheet stays a single cached serialization
-  const style: CSSProperties | undefined = expandedWidth
-    ? {
-        // @ts-expect-error custom CSS properties
-        "--search-button-expanded-width": expandedWidth,
-      }
-    : undefined;
+  const debouncedOnChange = useDebouncedChange(propsOnChange, debounceMs);
+  const onChange = (value: string) => {
+    setHasText(value !== "");
+    debouncedOnChange(value);
+  };
+
+  // Focus tracked on the wrapper but attributed to the field, so that focus
+  // resting on the trigger leaves the field collapsed, while a hop from the
+  // input to the clear button — a blur and a focus in immediate succession —
+  // does not collapse it mid-interaction.
+  const isInField = (node: Element | null) =>
+    node != null && fieldRef.current?.contains(node) === true;
+  const onFocus = (e: FocusEvent<HTMLDivElement>) =>
+    setIsFieldFocused(isInField(e.target));
+  const onBlur = (e: FocusEvent<HTMLDivElement>) =>
+    setIsFieldFocused(isInField(e.relatedTarget));
 
   const onKeyDown: SearchFieldProps["onKeyDown"] = (e) => {
     // The field itself clears on Escape while it holds text; once empty the
@@ -227,51 +226,57 @@ export function SearchButton({
       e.target instanceof HTMLInputElement &&
       e.target.value === ""
     ) {
-      e.target.blur();
       // hand focus back to the trigger rather than dropping it on the page.
-      // The blur above collapses the field, which is what lets the hidden
-      // trigger take focus again.
+      // Collapsing has to reach the DOM first: the trigger is display:none
+      // while the field is open, and a hidden button cannot take focus.
+      flushSync(() => setIsFieldFocused(false));
       triggerRef.current?.focus();
     }
     propsOnKeyDown?.(e);
   };
 
+  // carried as a custom property rather than composed into the css prop, so
+  // the stylesheet stays a single cached serialization
+  const style: CSSProperties | undefined = expandedWidth
+    ? {
+        // @ts-expect-error custom CSS properties
+        "--search-button-expanded-width": expandedWidth,
+      }
+    : undefined;
+
   return (
     <div
       className="search-button"
       data-variant={variant}
+      data-collapsed={isCollapsed}
       css={searchButtonCSS}
       style={style}
+      onFocus={onFocus}
+      onBlur={onBlur}
     >
       <SearchField
+        ref={fieldRef}
         size="S"
         onChange={onChange}
         onKeyDown={onKeyDown}
         {...props}
       >
-        {({ isEmpty }) => (
-          <>
-            <SearchIcon />
-            <Input
-              ref={inputRef}
-              placeholder={placeholder}
-              // in press mode the trigger button is the collapsed tab stop,
-              // so the empty input steps out of the tab order; holding text
-              // it is the thing to reach, and takes the stop back
-              tabIndex={isPress && isEmpty ? -1 : undefined}
-            />
-          </>
-        )}
-      </SearchField>
-      {isPress && (
-        <Button
-          ref={triggerRef}
-          className="search-button__trigger"
-          aria-label={props["aria-label"]}
-          isDisabled={props.isDisabled}
-          onPress={() => inputRef.current?.focus()}
+        <SearchIcon />
+        <Input
+          ref={inputRef}
+          placeholder={placeholder}
+          // the trigger is the collapsed tab stop, so the input steps out of
+          // the tab order until the field is open
+          tabIndex={isCollapsed ? -1 : undefined}
         />
-      )}
+      </SearchField>
+      <Button
+        ref={triggerRef}
+        className="search-button__trigger"
+        aria-label={props["aria-label"]}
+        isDisabled={props.isDisabled}
+        onPress={() => inputRef.current?.focus()}
+      />
     </div>
   );
 }

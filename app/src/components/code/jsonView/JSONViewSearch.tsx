@@ -24,9 +24,6 @@ export function JSONViewSearch({
     <SearchButton
       aria-label="Search JSON keys and values"
       placeholder={placeholder}
-      // a real button at rest, so tabbing across the toolbar's controls does
-      // not open the field in passing
-      trigger="press"
       // The field unmounts whenever the table is left or the surrounding card
       // is collapsed, while the filter it set stays applied. Seeding from the
       // query means a remounted box shows the rows that are actually missing

@@ -11,9 +11,10 @@ import {
 } from "@phoenix/components";
 
 /**
- * A search field at rest as an icon button. Focus it — click or Tab — and it
- * expands into an S-size search field; blur it while empty and it collapses
- * back. While it holds a query it stays open showing it.
+ * A search field at rest as an icon button. Press it and it expands into an
+ * S-size search field; blur it while empty and it collapses back. While it
+ * holds a query it stays open showing it. Tab rests on the collapsed button
+ * without opening anything, and Escape from the empty field hands focus back.
  */
 const meta: Meta<typeof SearchButton> = {
   title: "Core/Forms/Search Button",
@@ -22,10 +23,6 @@ const meta: Meta<typeof SearchButton> = {
     controls: { expanded: true },
   },
   argTypes: {
-    trigger: {
-      control: { type: "radio" },
-      options: ["focus", "press"],
-    },
     variant: {
       control: { type: "radio" },
       options: ["default", "quiet"],
@@ -51,17 +48,6 @@ export const WithDefaultValue: Story = {
   },
 };
 
-/**
- * With `trigger="press"` the collapsed control is a real icon-only button:
- * Tab rests on it without opening anything, pressing it opens the field, and
- * Escape from the empty field hands focus back to the button.
- */
-export const PressTrigger: Story = {
-  args: {
-    trigger: "press",
-  },
-};
-
 /** Borderless, for toolbars made of quiet `IconButton`s. */
 export const Quiet: Story = {
   args: {
@@ -71,7 +57,7 @@ export const Quiet: Story = {
 
 /**
  * The compact toolbar it exists for: at rest it takes an icon button's
- * footprint beside the other controls, and expands leftward on focus. The
+ * footprint beside the other controls, and expands leftward when pressed. The
  * variant follows the neighbors — quiet beside `IconButton`s, default
  * beside bordered `Button`s.
  */
