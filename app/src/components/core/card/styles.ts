@@ -85,8 +85,8 @@ export const cardCSS = (style?: CSSProperties) => css`
     }
   }
 
-  &[data-collapsed="false"][data-title-separator="true"] > header {
-    border-bottom: 1px solid var(--global-card-border-color);
+  &[data-collapsed="false"][data-title-separator="true"] > .card__body {
+    border-top: 1px solid var(--global-card-border-color);
   }
 
   /* Card Body Styles */
@@ -98,6 +98,14 @@ export const cardCSS = (style?: CSSProperties) => css`
   }
 
   /* Compact variant styles */
+  &[data-variant="compact"] > header {
+    box-sizing: border-box;
+    height: calc(
+      var(--global-input-height-s) + 2 * var(--global-dimension-size-50)
+    );
+    padding: var(--global-dimension-size-50);
+  }
+
   &[data-variant="compact"] .card__title {
     font-size: var(--global-font-size-m);
     line-height: var(--global-line-height-m);

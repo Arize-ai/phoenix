@@ -4,6 +4,11 @@ import type { ViewStyleProps } from "@phoenix/components/core/types";
 
 export interface CardProps extends PropsWithChildren<ViewStyleProps> {
   /**
+   * The vertical density of the card header.
+   * @default "default"
+   */
+  variant?: "default" | "compact";
+  /**
    * The title of the card, displayed in the card header.
    */
   title?: string | React.ReactNode;

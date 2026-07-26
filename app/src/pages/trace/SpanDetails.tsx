@@ -109,7 +109,7 @@ const spanDetailsSectionsCSS = css`
   min-height: 0;
   overflow-y: auto;
 
-  section:last-of-type:after {
+  & > [data-span-details-sections-content]::after {
     content: "";
     display: block;
     height: var(--global-dimension-size-400);
@@ -508,7 +508,10 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
         </TooltipTrigger>
       </nav>
       <div ref={spanDetailsSectionsRef} css={spanDetailsSectionsCSS}>
-        <div ref={spanDetailsSectionsContentRef}>
+        <div
+          ref={spanDetailsSectionsContentRef}
+          data-span-details-sections-content
+        >
           <section id={spanDetailsSectionIds.info} aria-label="Info">
             <SpanDetailsSectionHeading bordered={false}>
               Info

@@ -11,6 +11,7 @@ import type { CardProps } from "./types";
 
 function Card({
   ref,
+  variant = "default",
   title,
   titleExtra,
   titleSeparator = true,
@@ -101,6 +102,7 @@ function Card({
       ref={ref}
       css={cardCSS(styleProps.style)}
       className="card"
+      data-variant={variant}
       data-collapsible={collapsible}
       data-collapsed={isCollapsed}
       data-title-separator={titleSeparator}
