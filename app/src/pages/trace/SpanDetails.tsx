@@ -7,6 +7,7 @@ import { useNavigate, useParams } from "react-router";
 
 import {
   Button,
+  CollapsibleContentProvider,
   Counter,
   DialogTrigger,
   ErrorBoundary,
@@ -18,6 +19,9 @@ import {
   Modal,
   ModalOverlay,
   SectionHeading,
+  Tooltip,
+  TooltipTrigger,
+  useCollapsibleContent,
   View,
 } from "@phoenix/components";
 import { SpanDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
@@ -44,11 +48,15 @@ const ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 const EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 
 const spanDetailsAnchorNavCSS = css`
+  display: flex;
+  align-items: center;
   flex: none;
   border-bottom: 1px solid var(--global-border-color-default);
 
   ul {
     display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
     margin: 0;
     padding: 0;
     overflow-x: auto;
@@ -88,6 +96,11 @@ const spanDetailsAnchorNavCSS = css`
       outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
       outline-offset: calc(-1 * var(--focus-ring-offset));
     }
+  }
+
+  & > button {
+    flex: none;
+    margin-right: var(--global-dimension-size-100);
   }
 `;
 
@@ -179,7 +192,16 @@ function DeferredSpanDetailsContent({
 }
 
 export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
+  return (
+    <CollapsibleContentProvider key={spanNodeId}>
+      <SpanDetailsContent spanNodeId={spanNodeId} />
+    </CollapsibleContentProvider>
+  );
+}
+
+function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const { projectId } = useParams();
+  const { collapseAll, expandAll, isCollapsed } = useCollapsibleContent();
   const shouldReduceMotion = useReducedMotion();
   const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
   const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
@@ -280,6 +302,7 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
   }
 
   const hasExceptions = span.events.some((event) => event.name === "exception");
+  const expandCollapseAllLabel = isCollapsed ? "Expand all" : "Collapse all";
   const spanDetailsSectionIds = {
     info: `span-details-${span.spanId}-info`,
     attributes: `span-details-${span.spanId}-attributes`,
@@ -470,6 +493,19 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
             </Counter>
           </SpanDetailSectionLink>
         </ul>
+        <TooltipTrigger>
+          <Button
+            size="S"
+            variant="quiet"
+            aria-label={expandCollapseAllLabel}
+            onPress={isCollapsed ? expandAll : collapseAll}
+          >
+            <Icon
+              svg={isCollapsed ? <Icons.RowCollapse /> : <Icons.RowExpand />}
+            />
+          </Button>
+          <Tooltip offset={-5}>{expandCollapseAllLabel}</Tooltip>
+        </TooltipTrigger>
       </nav>
       <div ref={spanDetailsSectionsRef} css={spanDetailsSectionsCSS}>
         <div ref={spanDetailsSectionsContentRef}>

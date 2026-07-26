@@ -3,6 +3,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { vi } from "vitest";
 
 import { AttributesJSONBlock } from "@phoenix/components/code/AttributesJSONBlock";
+import {
+  CollapsibleContentProvider,
+  useCollapsibleContent,
+} from "@phoenix/components/core/contexts/CollapsibleContentContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 let container: HTMLDivElement;
@@ -41,6 +45,15 @@ function renderAttributes(attributes: string) {
   });
 }
 
+function CollapseAllButton() {
+  const { collapseAll, expandAll, isCollapsed } = useCollapsibleContent();
+  return (
+    <button onClick={isCollapsed ? expandAll : collapseAll}>
+      {isCollapsed ? "Expand all" : "Collapse all"}
+    </button>
+  );
+}
+
 describe("AttributesJSONBlock", () => {
   it("automatically renders an error alert with malformed attributes", () => {
     renderAttributes('{"valid": true, "truncated":');
@@ -55,5 +68,41 @@ describe("AttributesJSONBlock", () => {
     renderAttributes('{"valid": true}');
 
     expect(container.querySelector('[data-variant="danger"]')).toBeNull();
+  });
+
+  it("folds the JSON tree when its collapse-all scope is collapsed", () => {
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <CollapsibleContentProvider>
+            <CollapseAllButton />
+            <AttributesJSONBlock
+              attributes={JSON.stringify({
+                input: { nested: { value: "input" } },
+                output: { nested: { value: "output" } },
+              })}
+            />
+          </CollapsibleContentProvider>
+        </ThemeProvider>
+      );
+    });
+
+    expect(container.querySelector(".cm-foldPlaceholder")).toBeNull();
+
+    const collapseAllButton = Array.from(
+      container.querySelectorAll("button")
+    ).find((button) => button.textContent === "Collapse all");
+    expect(collapseAllButton).toBeDefined();
+    act(() => collapseAllButton?.click());
+
+    expect(container.querySelector(".cm-foldPlaceholder")).not.toBeNull();
+
+    const expandAllButton = Array.from(
+      container.querySelectorAll("button")
+    ).find((button) => button.textContent === "Expand all");
+    expect(expandAllButton).toBeDefined();
+    act(() => expandAllButton?.click());
+
+    expect(container.querySelector(".cm-foldPlaceholder")).toBeNull();
   });
 });

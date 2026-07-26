@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import type { CSSProperties, PropsWithChildren } from "react";
+import type { CSSProperties, PropsWithChildren, ReactNode } from "react";
+import { Children, Fragment, isValidElement } from "react";
 import {
   Button,
   Disclosure as AriaDisclosure,
@@ -11,6 +12,7 @@ import {
   Heading,
 } from "react-aria-components";
 
+import { useCollapsibleContent } from "@phoenix/components/core/contexts/CollapsibleContentContext";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { Icon, Icons } from "../icon";
@@ -22,6 +24,28 @@ export type DisclosureGroupProps = AriaDisclosureGroupProps &
   StylableProps &
   SizingProps;
 
+function getDisclosureKeys(children: ReactNode) {
+  const disclosureKeys: Array<string | number> = [];
+
+  Children.forEach(children, (child) => {
+    if (
+      !isValidElement<{
+        children?: ReactNode;
+        id?: string | number;
+      }>(child)
+    ) {
+      return;
+    }
+    if (child.type === Fragment) {
+      disclosureKeys.push(...getDisclosureKeys(child.props.children));
+    } else if (child.props.id != null) {
+      disclosureKeys.push(child.props.id);
+    }
+  });
+
+  return disclosureKeys;
+}
+
 /**
  * Wrap multiple Disclosure components in a DisclosureGroup to control
  * the expanded state of the items more easily.
@@ -32,16 +56,29 @@ export const DisclosureGroup = ({
   className,
   css: propCSS,
   size,
+  children,
+  defaultExpandedKeys,
   ...props
 }: DisclosureGroupProps) => {
+  const { actionVersion, expansionAction } = useCollapsibleContent();
+  const nextDefaultExpandedKeys =
+    expansionAction === "collapse"
+      ? []
+      : expansionAction === "expand"
+        ? getDisclosureKeys(children)
+        : defaultExpandedKeys;
   return (
     <AriaDisclosureGroup
+      key={actionVersion}
       allowsMultipleExpanded
       className={classNames("disclosure-group", className)}
       css={css(disclosureGroupCSS, propCSS)}
       data-size={size}
       {...props}
-    />
+      defaultExpandedKeys={nextDefaultExpandedKeys}
+    >
+      {children}
+    </AriaDisclosureGroup>
   );
 };
 

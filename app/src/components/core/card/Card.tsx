@@ -1,6 +1,8 @@
 import type { Ref } from "react";
 import { useEffect, useEffectEvent, useId, useState } from "react";
 
+import { useCollapsibleContent } from "@phoenix/components/core/contexts/CollapsibleContentContext";
+
 import { Heading } from "../content";
 import { DisclosureArrow } from "../icon";
 import { useStyleProps, viewStyleProps } from "../utils";
@@ -24,10 +26,20 @@ function Card({
   testId,
   ...otherProps
 }: CardProps & { ref?: Ref<HTMLElement> }) {
+  const { actionVersion, expansionAction } = useCollapsibleContent();
   const { styleProps } = useStyleProps(otherProps, viewStyleProps);
-  const [isCollapsed, setIsCollapsed] = useState(
-    collapsible ? !defaultOpen : false
-  );
+  const [collapseState, setCollapseState] = useState(() => ({
+    actionVersion,
+    isCollapsed: collapsible
+      ? expansionAction === "collapse" ||
+        (expansionAction === null && !defaultOpen)
+      : false,
+  }));
+  const hasPendingGlobalAction =
+    collapsible && collapseState.actionVersion !== actionVersion;
+  const isCollapsed = hasPendingGlobalAction
+    ? expansionAction === "collapse"
+    : collapseState.isCollapsed;
 
   const headerId = useId();
   const collapseButtonId = useId();
@@ -59,7 +71,10 @@ function Card({
   const collapseButton = (
     <button
       onClick={() => {
-        setIsCollapsed(!isCollapsed);
+        setCollapseState({
+          actionVersion,
+          isCollapsed: !isCollapsed,
+        });
       }}
       className="card__collapsible-button button--reset"
       id={collapseButtonId}
