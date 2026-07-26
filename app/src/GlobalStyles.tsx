@@ -980,7 +980,11 @@ const menuCSS = (theme: Theme) => css`
     /* Menu colors and spacing */
     --global-menu-border-color: var(--global-border-color-default);
     --global-menu-background-color: var(--global-background-color-default);
+    --global-menu-item-foreground-color: ${theme === "dark"
+      ? "var(--global-text-color-700)"
+      : "var(--global-text-color-900)"};
     --global-menu-item-background-color-hover: var(--hover-background);
+    --global-menu-section-title-foreground-color: var(--global-text-color-900);
     --global-menu-split-item-content-gap: var(--global-dimension-size-300);
     --global-menu-item-gap: var(--global-dimension-size-50);
     --global-menu-item-content-gap: var(--global-dimension-size-100);

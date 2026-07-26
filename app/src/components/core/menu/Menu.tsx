@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { KeyboardEvent, PropsWithChildren, ReactNode } from "react";
-import type { PopoverProps } from "react-aria-components";
 import {
   Header,
   Menu as AriaMenu,
@@ -15,7 +14,7 @@ import { classNames } from "@phoenix/utils/classNames";
 import { Heading, Text } from "../content";
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";
-import { Popover } from "../overlay";
+import { Popover, type PopoverProps } from "../overlay/Popover";
 
 const menuCSS = css`
   --menu-min-width: 250px;
@@ -101,7 +100,7 @@ const menuItemCss = css`
   border-radius: var(--global-rounding-small);
   outline: none;
   cursor: default;
-  color: var(--global-text-color-900);
+  color: var(--global-menu-item-foreground-color);
   text-decoration: none;
   position: relative;
   display: flex;
@@ -293,6 +292,7 @@ export const MenuContainer = ({
 
 const menuSectionTitleCss = css`
   padding: var(--global-dimension-size-50) var(--global-dimension-size-100) 0;
+  color: var(--global-menu-section-title-foreground-color);
 `;
 
 export const MenuSectionTitle = ({
@@ -305,7 +305,9 @@ export const MenuSectionTitle = ({
   return (
     <Header css={menuSectionTitleCss}>
       <Flex justifyContent="space-between" alignItems="center">
-        <Text weight="heavy">{title}</Text>
+        <Text weight="heavy" color="inherit">
+          {title}
+        </Text>
         {trailingContent}
       </Flex>
     </Header>

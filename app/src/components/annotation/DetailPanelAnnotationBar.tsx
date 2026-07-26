@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent } from "react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useInteractOutside } from "react-aria";
+import { MenuSection } from "react-aria-components";
 
 import {
   Alert,
@@ -21,13 +22,20 @@ import {
   Label,
   LinkButton,
   Menu,
+  MenuContainer,
+  MenuFooter,
+  MenuHeader,
+  MenuHeaderTitle,
   MenuItem,
+  MenuSectionTitle,
+  MenuTrigger,
   Modal,
   ModalOverlay,
   NumberField,
   Popover,
   PopoverArrow,
   SearchField,
+  SearchIcon,
   Slider,
   SliderNumberField,
   Text,
@@ -174,6 +182,14 @@ const annotationPopoverCSS = css`
   overflow: auto;
 `;
 
+const projectAnnotationsMenuCSS = css`
+  max-height: 360px;
+
+  &&[data-empty] {
+    padding-bottom: var(--global-dimension-size-200);
+  }
+`;
+
 const compactIconButtonCSS = css`
   flex: none;
   padding: var(--global-dimension-size-50);
@@ -229,41 +245,6 @@ const annotationEntryCSS = css`
 
   .annotation-entry__explanation--deleting {
     opacity: 0.2;
-  }
-`;
-
-const categoricalOptionsCSS = css`
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-small);
-  overflow: hidden;
-
-  li + li {
-    border-top: 1px solid var(--global-border-color-default);
-  }
-
-  button {
-    display: flex;
-    width: 100%;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--global-dimension-size-200);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  button:hover,
-  button:focus-visible,
-  button[aria-pressed="true"] {
-    background: var(--global-list-item-hover-background-color);
   }
 `;
 
@@ -343,32 +324,6 @@ const annotationAdvancedFieldsCSS = css`
 
 const annotationValueEditorFooterExtraCSS = css`
   margin-right: auto;
-`;
-
-const annotationConfigActionsCSS = css`
-  border-top: 1px solid var(--global-border-color-default);
-`;
-
-const annotationConfigListCSS = css`
-  list-style: none;
-  margin: 0;
-  padding: var(--global-menu-item-gap);
-
-  li + li {
-    margin-top: var(--global-menu-item-gap);
-  }
-`;
-
-const annotationConfigListItemCSS = css`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--global-menu-item-gap);
-
-  & > button:first-of-type {
-    justify-content: flex-start;
-    min-width: 0;
-  }
 `;
 
 function getValueDraft({
@@ -546,7 +501,7 @@ function AnnotationTargetRow({
           const annotations = annotationsByName[name] ?? [];
           return (
             <AnnotationValuePopover
-              key={`${target.id}-${id}`}
+              key={`${target.id}-${id}-${name}`}
               annotationName={name}
               annotations={annotations}
               config={config}
@@ -1637,62 +1592,25 @@ function AddAnnotationPopover({
     getNewAnnotationConfigDraft()
   );
   const [error, setError] = useState<string | null>(null);
-  const [previewConfig, setPreviewConfig] = useState<AnnotationConfig | null>(
-    null
-  );
-  const previewTriggerRef = useRef<Element>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-  const closePreview = () => setPreviewConfig(null);
   const handlePopoverOpenChange = (nextOpen: boolean) => {
     setIsOpen(nextOpen);
     if (!nextOpen) {
-      closePreview();
+      setError(null);
+      setIsCreatingConfig(false);
+      setSearchValue("");
     }
   };
-  const openPreview = ({
-    config,
-    trigger,
-  }: {
-    config: AnnotationConfig;
-    trigger: Element;
-  }) => {
-    previewTriggerRef.current = trigger;
-    setPreviewConfig(config);
-  };
-  useInteractOutside({
-    ref: previewRef,
-    isDisabled: previewConfig == null,
-    onInteractOutside: (event) => {
-      if (
-        previewTriggerRef.current &&
-        event.composedPath().includes(previewTriggerRef.current)
-      ) {
-        return;
-      }
-      closePreview();
-    },
-  });
-  useDismissPopoverOnEscape({
-    isOpen,
-    onDismiss: () => {
-      if (!isCreatingConfig && searchValue.trim()) {
-        setSearchValue("");
-        return;
-      }
-      handlePopoverOpenChange(false);
-    },
-  });
   const projectIds = new Set(
     projectAnnotationConfigs.map((config) => config.id)
   );
   const normalizedSearch = searchValue.trim().toLocaleLowerCase();
+  const canCreateFromSearch = normalizedSearch.length >= 3;
   const matchesSearch = (config: AnnotationConfig) =>
     config.name.toLocaleLowerCase().includes(normalizedSearch);
   const activeConfigs = projectAnnotationConfigs.filter(matchesSearch);
   const inactiveConfigs = allAnnotationConfigs.filter(
     (config) => !projectIds.has(config.id) && matchesSearch(config)
   );
-  const hasResults = activeConfigs.length > 0 || inactiveConfigs.length > 0;
   const openConfigCreator = () => {
     setConfigDraft(
       getNewAnnotationConfigDraft({
@@ -1704,7 +1622,7 @@ function AddAnnotationPopover({
 
   return (
     <>
-      <DialogTrigger isOpen={isOpen} onOpenChange={handlePopoverOpenChange}>
+      <MenuTrigger isOpen={isOpen} onOpenChange={handlePopoverOpenChange}>
         {isAddAnnotationButtonCompact ? (
           <IconButton size="S" aria-label="Add annotation">
             <Icon svg={<Icons.Plus />} />
@@ -1714,23 +1632,20 @@ function AddAnnotationPopover({
             Add annotation
           </Button>
         )}
-        <Popover
+        <MenuContainer
           placement="bottom end"
-          css={annotationPopoverCSS}
           layer="non-modal"
-          isKeyboardDismissDisabled={false}
-          shouldCloseOnInteractOutside={() => true}
+          minHeight={0}
+          maxHeight="min(620px, calc(100vh - var(--global-dimension-size-800)))"
+          aria-label={`Manage ${target.label.toLocaleLowerCase()} annotations`}
         >
-          <PopoverArrow />
-          <Dialog
-            aria-label={`Manage ${target.label.toLocaleLowerCase()} annotations`}
-          >
-            {error ? (
-              <View padding="size-100">
-                <Alert variant="danger">{error}</Alert>
-              </View>
-            ) : null}
-            {isCreatingConfig ? (
+          {error ? (
+            <View padding="size-100">
+              <Alert variant="danger">{error}</Alert>
+            </View>
+          ) : null}
+          {isCreatingConfig ? (
+            <Dialog aria-label="Add annotation configuration">
               <AnnotationConfigEditor
                 draft={configDraft}
                 mode="create"
@@ -1749,11 +1664,12 @@ function AddAnnotationPopover({
                   setSearchValue("");
                 }}
               />
-            ) : (
-              <>
-                <DialogHeader>
-                  <DialogTitle>Project annotations</DialogTitle>
-                  <DialogTitleExtra>
+            </Dialog>
+          ) : (
+            <>
+              <MenuHeader>
+                <MenuHeaderTitle
+                  trailingContent={
                     <LinkButton
                       size="S"
                       variant="quiet"
@@ -1761,134 +1677,103 @@ function AddAnnotationPopover({
                     >
                       Manage
                     </LinkButton>
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <View padding="size-100">
-                  <SearchField
-                    aria-label="Filter annotations"
-                    value={searchValue}
-                    onChange={setSearchValue}
-                    autoFocus
-                  >
-                    <Input placeholder="Filter annotations" />
-                  </SearchField>
-                </View>
-                {!hasResults && normalizedSearch ? (
-                  <View padding="size-200">
-                    <EmptyState
-                      graphic={<EmptyStateGraphic variant="annotation" />}
-                      description="No matching annotations"
-                      action={{
-                        type: "strip",
-                        items: [
-                          {
-                            kind: "button",
-                            variant: "primary",
-                            children: `Create “${searchValue.trim()}”`,
-                            onPress: openConfigCreator,
-                          },
-                        ],
-                      }}
-                    />
-                  </View>
-                ) : (
-                  <View maxHeight="360px" overflow="auto">
-                    {activeConfigs.length > 0 ? (
-                      <AnnotationConfigListSection title="On this project">
-                        {activeConfigs.map((config) =>
-                          renderAnnotationConfigListItem({
-                            config,
-                            action: "remove",
-                            onAction: () => {
-                              closePreview();
-                              setPendingRemoval(config);
-                            },
-                            onPreviewClose: closePreview,
-                            onPreviewOpen: openPreview,
-                          })
-                        )}
-                      </AnnotationConfigListSection>
-                    ) : null}
-                    {inactiveConfigs.length > 0 ? (
-                      <AnnotationConfigListSection
-                        ariaLabel="Available annotations"
-                        title={
-                          activeConfigs.length > 0
-                            ? "Available annotations"
-                            : undefined
-                        }
-                      >
-                        {inactiveConfigs.map((config) =>
-                          renderAnnotationConfigListItem({
-                            config,
-                            action: "add",
-                            onPreviewClose: closePreview,
-                            onPreviewOpen: openPreview,
-                            onAction: async () => {
-                              setError(null);
-                              if (!config.id) {
-                                setError(
-                                  "The annotation configuration does not have an ID."
-                                );
-                                return;
-                              }
-                              const result =
-                                await onAddAnnotationConfigToProject(config.id);
-                              if (isMutationFailure(result)) {
-                                setError(result.error);
-                              }
-                            },
-                          })
-                        )}
-                      </AnnotationConfigListSection>
-                    ) : null}
-                  </View>
+                  }
+                >
+                  Project annotations
+                </MenuHeaderTitle>
+                <SearchField
+                  aria-label="Filter annotations"
+                  value={searchValue}
+                  onChange={setSearchValue}
+                  variant="quiet"
+                  autoFocus
+                >
+                  <SearchIcon />
+                  <Input placeholder="Filter annotations" />
+                </SearchField>
+              </MenuHeader>
+              <Menu
+                css={projectAnnotationsMenuCSS}
+                aria-label="Project annotations"
+                shouldCloseOnSelect={false}
+                renderEmptyState={() => (
+                  <EmptyState
+                    graphic={<EmptyStateGraphic variant="annotation" />}
+                    description={
+                      normalizedSearch
+                        ? "No matching annotations"
+                        : "No annotation configurations"
+                    }
+                    action={
+                      canCreateFromSearch
+                        ? {
+                            type: "strip",
+                            items: [
+                              {
+                                kind: "button",
+                                variant: "primary",
+                                children: `Create “${searchValue.trim()}”`,
+                                onPress: openConfigCreator,
+                              },
+                            ],
+                          }
+                        : undefined
+                    }
+                  />
                 )}
-                <div css={annotationConfigActionsCSS}>
-                  <ul
-                    css={annotationConfigListCSS}
-                    aria-label="Annotation config actions"
-                  >
-                    <li css={annotationConfigListItemCSS}>
-                      <Button
-                        size="S"
-                        variant="quiet"
-                        onPress={openConfigCreator}
-                      >
-                        New annotation config
-                      </Button>
-                    </li>
-                  </ul>
-                </div>
-              </>
-            )}
-            <Popover
-              ref={previewRef}
-              triggerRef={previewTriggerRef}
-              isOpen={previewConfig != null}
-              onOpenChange={(nextOpen) => {
-                if (!nextOpen) {
-                  closePreview();
-                }
-              }}
-              placement="right top"
-              trigger="SubmenuTrigger"
-              css={annotationPopoverCSS}
-              layer="non-modal"
-              isNonModal
-              shouldCloseOnInteractOutside={(element) =>
-                !previewTriggerRef.current?.contains(element)
-              }
-            >
-              {previewConfig ? (
-                <Dialog aria-label={`${previewConfig.name} annotation preview`}>
-                  <AnnotationConfigPreview config={previewConfig} />
-                </Dialog>
-              ) : null}
-            </Popover>
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
+              >
+                {inactiveConfigs.length > 0 ? (
+                  <MenuSection>
+                    {activeConfigs.length > 0 ? (
+                      <MenuSectionTitle title="Available annotations" />
+                    ) : null}
+                    {inactiveConfigs.map((config) => (
+                      <AnnotationConfigMenuItem
+                        key={`add-${config.id}`}
+                        action="add"
+                        config={config}
+                        onAction={async () => {
+                          setError(null);
+                          if (!config.id) {
+                            setError(
+                              "The annotation configuration does not have an ID."
+                            );
+                            return;
+                          }
+                          const result = await onAddAnnotationConfigToProject(
+                            config.id
+                          );
+                          if (isMutationFailure(result)) {
+                            setError(result.error);
+                          }
+                        }}
+                      />
+                    ))}
+                  </MenuSection>
+                ) : null}
+                {activeConfigs.length > 0 ? (
+                  <MenuSection>
+                    <MenuSectionTitle title="On this project" />
+                    {activeConfigs.map((config) => (
+                      <AnnotationConfigMenuItem
+                        key={`remove-${config.id}`}
+                        action="remove"
+                        config={config}
+                        onAction={() => setPendingRemoval(config)}
+                      />
+                    ))}
+                  </MenuSection>
+                ) : null}
+              </Menu>
+              <MenuFooter>
+                <Button size="S" variant="quiet" onPress={openConfigCreator}>
+                  New annotation config
+                </Button>
+              </MenuFooter>
+            </>
+          )}
+        </MenuContainer>
+      </MenuTrigger>
       <ModalOverlay
         isOpen={pendingRemoval != null}
         isDismissable={false}
@@ -1958,148 +1843,27 @@ function AddAnnotationPopover({
   );
 }
 
-function AnnotationConfigListSection({
-  ariaLabel,
-  children,
-  title,
-}: {
-  ariaLabel?: string;
-  children: ReactNode;
-  title?: string;
-}) {
-  return (
-    <section aria-label={ariaLabel ?? title}>
-      {title ? (
-        <View
-          paddingX="size-150"
-          paddingY="size-100"
-          borderTopWidth="thin"
-          borderBottomWidth="thin"
-          borderColor="default"
-        >
-          <Text size="XS" color="text-500" weight="heavy">
-            {title}
-          </Text>
-        </View>
-      ) : null}
-      <ul css={annotationConfigListCSS} aria-label={ariaLabel ?? title}>
-        {children}
-      </ul>
-    </section>
-  );
-}
-
-function renderAnnotationConfigListItem({
+function AnnotationConfigMenuItem({
   action,
   config,
   onAction,
-  onPreviewClose,
-  onPreviewOpen,
 }: {
   action: "add" | "remove";
   config: AnnotationConfig;
   onAction: () => void | Promise<void>;
-  onPreviewClose: () => void;
-  onPreviewOpen: (params: {
-    config: AnnotationConfig;
-    trigger: Element;
-  }) => void;
 }) {
   return (
-    <li key={`${action}-${config.id}`} css={annotationConfigListItemCSS}>
-      <Button
-        size="S"
-        variant="quiet"
-        leadingVisual={
-          action === "add" ? <Icon svg={<Icons.Plus />} /> : undefined
-        }
-        onPress={action === "add" ? () => void onAction() : undefined}
-        onHoverStart={(event) =>
-          onPreviewOpen({ config, trigger: event.target })
-        }
-        onHoverEnd={onPreviewClose}
-        onFocus={(event) =>
-          onPreviewOpen({ config, trigger: event.currentTarget })
-        }
-        onBlur={onPreviewClose}
-      >
-        {config.name}
-      </Button>
-      {action === "remove" ? (
-        <IconButton
-          size="S"
-          variant="danger"
-          aria-label={`Remove ${config.name} from project`}
-          onPress={() => void onAction()}
-        >
-          <Icon svg={<Icons.Minus />} />
-        </IconButton>
-      ) : null}
-    </li>
-  );
-}
-
-function AnnotationConfigPreview({ config }: { config: AnnotationConfig }) {
-  const direction =
-    config.optimizationDirection === "MAXIMIZE"
-      ? "maximize"
-      : config.optimizationDirection === "MINIMIZE"
-        ? "minimize"
-        : "no direction";
-  return (
-    <View padding="size-150" minWidth="260px">
-      <Flex direction="column" gap="size-150">
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Text weight="heavy">{config.name}</Text>
-          <Token size="S">{direction}</Token>
-        </Flex>
-        {config.description ? (
-          <Text size="XS" color="text-500">
-            {config.description}
-          </Text>
-        ) : null}
-        <div aria-disabled="true">
-          {config.annotationType === "CATEGORICAL" ? (
-            <ul css={categoricalOptionsCSS}>
-              {(config.values ?? []).map((value) => (
-                <li key={value.label}>
-                  <button type="button" disabled>
-                    <span>{value.label}</span>
-                    <span>{value.score ?? "—"}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : config.annotationType === "CONTINUOUS" ? (
-            <Slider
-              isDisabled
-              label={config.name}
-              minValue={config.lowerBound ?? 0}
-              maxValue={config.upperBound ?? 1}
-              defaultValue={config.lowerBound ?? 0}
-            >
-              <SliderNumberField isDisabled />
-            </Slider>
-          ) : (
-            <Flex direction="column" gap="size-100" alignItems="end">
-              <TextField
-                isDisabled
-                aria-label={`${config.name} preview`}
-                css={{ width: "100%" }}
-              >
-                <Input placeholder="Enter annotation value" />
-              </TextField>
-              <Button isDisabled size="S" variant="default">
-                Save annotation
-              </Button>
-            </Flex>
-          )}
-        </div>
-      </Flex>
-    </View>
+    <MenuItem
+      id={`${action}-${config.id}`}
+      textValue={config.name}
+      trailingContent={
+        <Text size="XS" color="text-500">
+          {action === "add" ? "Add" : "Remove"}
+        </Text>
+      }
+      onAction={() => void onAction()}
+    >
+      {config.name}
+    </MenuItem>
   );
 }

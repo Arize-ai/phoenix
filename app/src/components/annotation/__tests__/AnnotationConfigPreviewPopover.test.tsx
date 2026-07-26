@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { userEvent } from "storybook/test";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import {
@@ -24,7 +24,7 @@ const annotationConfig: AnnotationConfig = {
   ],
 };
 
-describe("annotation config preview popover", () => {
+describe("add annotation menu", () => {
   installTestMatchMedia();
 
   let container: HTMLDivElement;
@@ -169,78 +169,30 @@ describe("annotation config preview popover", () => {
 
   function getConfigTrigger() {
     const trigger = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("button")
-    ).find((button) => button.textContent === annotationConfig.name);
+      document.querySelectorAll<HTMLElement>('[role="menuitem"]')
+    ).find((menuItem) => menuItem.textContent?.includes(annotationConfig.name));
     if (!trigger) {
       throw new Error("Annotation config trigger was not rendered");
     }
     return trigger;
   }
 
-  function getPreview() {
-    return document.querySelector(
-      `[aria-label="${annotationConfig.name} annotation preview"]`
-    );
-  }
-
-  it("closes on hover end and outside press across subsequent opens", async () => {
+  it("stays open when a menu item is hovered", async () => {
     await renderAnnotationBar();
     const user = userEvent.setup();
 
     await act(async () => user.click(getAddAnnotationTrigger()));
-    const firstConfigTrigger = getConfigTrigger();
-    vi.spyOn(firstConfigTrigger, "getBoundingClientRect").mockReturnValue({
-      bottom: 132,
-      height: 32,
-      left: 100,
-      right: 420,
-      top: 100,
-      width: 320,
-      x: 100,
-      y: 100,
-      toJSON: () => ({}),
-    });
+    await act(async () => user.hover(getConfigTrigger()));
 
-    await act(async () => user.hover(firstConfigTrigger));
+    expect(getAddAnnotationTrigger().getAttribute("aria-expanded")).toBe(
+      "true"
+    );
     expect(
       document.querySelector('[aria-label="Manage this span annotations"]')
     ).not.toBeNull();
-    expect(getPreview()).not.toBeNull();
-    expect(
-      getPreview()
-        ?.closest<HTMLElement>(".react-aria-Popover")
-        ?.style.getPropertyValue("--trigger-width")
-    ).toBe("320px");
-
-    await act(async () => user.unhover(firstConfigTrigger));
-    expect(getPreview()).toBeNull();
-
-    await act(async () => user.hover(firstConfigTrigger));
-    expect(getPreview()).not.toBeNull();
-
-    const outsideTarget = document.createElement("div");
-    document.body.appendChild(outsideTarget);
-    act(() => {
-      outsideTarget.dispatchEvent(
-        new MouseEvent("pointerdown", {
-          bubbles: true,
-          cancelable: true,
-          composed: true,
-        })
-      );
-      outsideTarget.dispatchEvent(
-        new MouseEvent("click", {
-          bubbles: true,
-          cancelable: true,
-          composed: true,
-        })
-      );
-    });
-    expect(getPreview()).toBeNull();
-    outsideTarget.remove();
   });
 
-  it("renders available annotations and actions as lists", async () => {
+  it("renders annotations with the shared menu primitives", async () => {
     await renderAnnotationBar();
     const user = userEvent.setup();
 
@@ -252,17 +204,24 @@ describe("annotation config preview popover", () => {
     expect(manageLink?.textContent).toBe("Manage");
     expect(manageLink?.querySelector("svg")).toBeNull();
     expect(document.body.textContent).not.toContain("Available annotations");
-
-    const configTrigger = getConfigTrigger();
-    expect(configTrigger.querySelector("svg")).not.toBeNull();
-
     const menuDialog = document.querySelector(
       '[aria-label="Manage this span annotations"]'
     );
-    const lists = menuDialog?.querySelectorAll("ul");
-    expect(lists).toHaveLength(2);
-    expect(lists?.[0]?.querySelectorAll(":scope > li")).toHaveLength(1);
-    expect(lists?.[1]?.querySelectorAll(":scope > li")).toHaveLength(1);
+    expect(
+      menuDialog?.querySelector('[data-testid="menu-header-title"]')
+        ?.textContent
+    ).toContain("Project annotations");
+    expect(
+      menuDialog?.querySelector<HTMLElement>(".search-field")?.dataset.variant
+    ).toBe("quiet");
+
+    const configTrigger = getConfigTrigger();
+    expect(configTrigger.querySelector("svg")).toBeNull();
+    expect(configTrigger.textContent).toContain("Add");
+
+    const menu = menuDialog?.querySelector('[role="menu"]');
+    expect(menu?.getAttribute("aria-label")).toBe("Project annotations");
+    expect(menu?.querySelectorAll('[role="menuitem"]')).toHaveLength(1);
     const newConfigItem = Array.from(
       menuDialog?.querySelectorAll<HTMLButtonElement>("button") ?? []
     ).find((button) => button.textContent === "New annotation config");
@@ -272,49 +231,39 @@ describe("annotation config preview popover", () => {
     expect(document.body.textContent).toContain("Add annotation configuration");
   });
 
-  it("previews freeform annotations with a standard save action", async () => {
-    const freeformConfig: AnnotationConfig = {
-      id: "config-observation",
-      name: "observation",
-      description: "Freeform reviewer feedback",
-      annotationType: "FREEFORM",
-      optimizationDirection: "NONE",
+  it("lists available annotations before project annotations", async () => {
+    const availableAnnotationConfig: AnnotationConfig = {
+      ...annotationConfig,
+      id: "config-quality",
+      name: "quality",
     };
-    await renderAnnotationBar({ allAnnotationConfigs: [freeformConfig] });
+    await renderAnnotationBar({
+      allAnnotationConfigs: [annotationConfig, availableAnnotationConfig],
+      projectAnnotationConfigs: [annotationConfig],
+    });
     const user = userEvent.setup();
 
     await act(async () => user.click(getAddAnnotationTrigger()));
-    const freeformTrigger = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("button")
-    ).find((button) => button.textContent === freeformConfig.name);
-    expect(freeformTrigger).not.toBeUndefined();
 
-    await act(async () => user.hover(freeformTrigger!));
-
-    const preview = document.querySelector(
-      `[aria-label="${freeformConfig.name} annotation preview"]`
-    );
-    const saveAnnotation = Array.from(
-      preview?.querySelectorAll<HTMLButtonElement>("button") ?? []
-    ).find((button) => button.textContent === "Save annotation");
-    expect(saveAnnotation?.disabled).toBe(true);
-    expect(saveAnnotation?.querySelector("svg")).toBeNull();
-    expect(preview?.querySelector('[aria-label="Submit preview"]')).toBeNull();
+    const menuItems =
+      document.querySelectorAll<HTMLElement>('[role="menuitem"]');
+    expect(menuItems).toHaveLength(2);
+    expect(menuItems[0]?.textContent).toContain("quality");
+    expect(menuItems[0]?.textContent).toContain("Add");
+    expect(menuItems[1]?.textContent).toContain("toxicity");
+    expect(menuItems[1]?.textContent).toContain("Remove");
   });
 
-  it("uses a danger-on-hover minus button for project annotations", async () => {
+  it("uses one actionable menu item for each project annotation", async () => {
     await renderAnnotationBar({ projectAnnotationConfigs: [annotationConfig] });
     const user = userEvent.setup();
 
     await act(async () => user.click(getAddAnnotationTrigger()));
 
-    const removeButton = document.querySelector<HTMLButtonElement>(
-      '[aria-label="Remove toxicity from project"]'
-    );
-    expect(removeButton?.dataset.variant).toBe("danger");
-    expect(removeButton?.querySelector("path")?.getAttribute("d")).toBe(
-      "M19 13H5a1 1 0 0 1 0-2h14a1 1 0 0 1 0 2z"
-    );
+    const removeItem = getConfigTrigger();
+    expect(removeItem.querySelectorAll("button")).toHaveLength(0);
+    expect(removeItem.querySelector("svg")).toBeNull();
+    expect(removeItem.textContent).toContain("Remove");
   });
 
   it("keeps the annotations popover beneath the removal modal backdrop", async () => {
@@ -328,10 +277,7 @@ describe("annotation config preview popover", () => {
     const annotationPopover = annotationDialog?.closest(".react-aria-Popover");
     expect(annotationPopover).not.toBeNull();
 
-    const removeButton = document.querySelector<HTMLButtonElement>(
-      '[aria-label="Remove toxicity from project"]'
-    );
-    await act(async () => user.click(removeButton!));
+    await act(async () => user.click(getConfigTrigger()));
 
     const modalOverlay = document.querySelector(
       '[data-testid="modal-overlay"]'

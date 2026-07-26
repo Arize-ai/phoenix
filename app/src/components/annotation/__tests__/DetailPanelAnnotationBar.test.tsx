@@ -271,7 +271,7 @@ describe("DetailPanelAnnotationBar", () => {
     );
   });
 
-  it("quick creates an annotation config from an empty search result", async () => {
+  it("creates an annotation config using the filtered name", async () => {
     const onCreateAnnotationConfig = vi
       .fn<DetailPanelAnnotationBarProps["onCreateAnnotationConfig"]>()
       .mockResolvedValue({ success: true });
@@ -286,7 +286,21 @@ describe("DetailPanelAnnotationBar", () => {
     const search = document.querySelector<HTMLInputElement>(
       'input[placeholder="Filter annotations"]'
     );
-    await act(async () => user.type(search!, "helpfulness"));
+    await act(async () => user.type(search!, "he"));
+    expect(
+      Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === "Create “he”"
+      )
+    ).toBeUndefined();
+
+    await act(async () => user.type(search!, "l"));
+    expect(
+      Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === "Create “hel”"
+      )
+    ).not.toBeUndefined();
+
+    await act(async () => user.type(search!, "pfulness"));
 
     expect(document.body.textContent).toContain("No matching annotations");
     expect(document.querySelector('svg[height="140"]')).not.toBeNull();
@@ -319,7 +333,7 @@ describe("DetailPanelAnnotationBar", () => {
     });
   });
 
-  it("clears the annotation filter before dismissing with Escape", async () => {
+  it("clears the menu search before Escape dismisses the menu", async () => {
     const user = userEvent.setup();
     const trigger = document.querySelector<HTMLButtonElement>(
       '[aria-label="Add annotation"]'
@@ -466,6 +480,52 @@ describe("DetailPanelAnnotationBar", () => {
         "--annotation-score-foreground-color"
       )
     ).toContain("--global-text-color-700");
+  });
+
+  it("does not carry a locally created value to a renamed config", async () => {
+    const createdAnnotation: Annotation = {
+      id: "annotation-created",
+      name: "quality",
+      label: "good",
+      score: 1,
+    };
+    const onCreateAnnotation = vi
+      .fn<DetailPanelAnnotationBarProps["onCreateAnnotation"]>()
+      .mockResolvedValue({ success: true, annotation: createdAnnotation });
+    renderAnnotationBar({ annotations: [], onCreateAnnotation });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>('[aria-label="Add good"]')!
+      )
+    );
+
+    const renamedConfig = { ...config, name: "quality-review" };
+    renderAnnotationBar({
+      allAnnotationConfigs: [renamedConfig],
+      projectAnnotationConfigs: [renamedConfig],
+      annotations: [createdAnnotation],
+      onCreateAnnotation,
+    });
+
+    const originalAnnotation = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Open quality annotation"]'
+    );
+    const renamedAnnotation = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Open quality-review annotation"]'
+    );
+    expect(originalAnnotation?.dataset.variant).toBe("default");
+    expect(originalAnnotation?.textContent).toContain("1.00");
+    expect(renamedAnnotation?.dataset.variant).toBe("ghost");
+    expect(renamedAnnotation?.textContent).not.toContain("1.00");
   });
 
   it("creates a freeform annotation with the standard save action", async () => {
