@@ -1,23 +1,20 @@
 import { css } from "@emotion/react";
-import type { CSSProperties, FocusEvent } from "react";
+import type { FocusEvent } from "react";
 import { useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { Button, Input } from "react-aria-components";
+import { flushSync } from "react-dom";
+
+import { useDebouncedChange } from "@phoenix/hooks/useDebouncedChange";
 
 import type { BaseVariant, QuietVariant } from "../types";
-
 import type { DebouncedSearchProps } from "./DebouncedSearch";
 import type { SearchFieldProps } from "./SearchField";
 import { SearchField, SearchIcon } from "./SearchField";
-import { useDebouncedChange } from "./useDebouncedChange";
 
-export interface SearchButtonProps
-  extends Omit<DebouncedSearchProps, "size" | "variant" | "children"> {
-  /**
-   * CSS width of the expanded field
-   * @default var(--global-dimension-size-3000)
-   */
-  expandedWidth?: string;
+export interface SearchButtonProps extends Omit<
+  DebouncedSearchProps,
+  "size" | "variant" | "children"
+> {
   /**
    * The chrome of the collapsed button, matching the `Button` vocabulary.
    * - "default": bordered, like the default `Button` — for toolbars whose
@@ -32,15 +29,24 @@ export interface SearchButtonProps
 const searchButtonCSS = css`
   --search-button-collapsed-size: var(--global-button-height-s);
   // the field's comfortable min-width would stop the input shrinking to the
-  // collapsed square
+  // collapsed square, so the floor moves out to this wrapper — the element a
+  // tight toolbar actually squeezes — where it can be the collapsed square
+  // while collapsed and the field's usual minimum once open. It animates
+  // alongside the width so the widths never disagree mid-transition.
   --field-min-width: 0;
   position: relative;
-  width: var(--search-button-expanded-width, var(--global-dimension-size-3000));
-  transition: width 0.2s ease-in-out;
+  width: var(--global-dimension-size-3000);
+  min-width: var(--global-input-field-min-width);
+  transition:
+    width 0.2s ease-in-out,
+    min-width 0.2s ease-in-out;
 
   .search-field .search-field__icon {
-    transition: left 0.2s ease-in-out, font-size 0.2s ease-in-out,
-      color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+    transition:
+      left 0.2s ease-in-out,
+      font-size 0.2s ease-in-out,
+      color 0.2s ease-in-out,
+      opacity 0.2s ease-in-out;
     // clicks on the icon fall through to the input beneath, so the collapsed
     // square is one hit target
     pointer-events: none;
@@ -82,6 +88,7 @@ const searchButtonCSS = css`
   // moment of transition.
   &[data-collapsed="true"] {
     width: var(--search-button-collapsed-size);
+    min-width: var(--search-button-collapsed-size);
 
     .search-button__trigger {
       display: block;
@@ -146,10 +153,9 @@ const searchButtonCSS = css`
       color: var(--search-button-collapsed-icon-color);
       opacity: var(--search-button-collapsed-icon-opacity, 1);
       left: calc(
-        (
-            var(--search-button-collapsed-size) -
-              var(--search-button-collapsed-icon-size)
-          ) / 2
+        (var(--search-button-collapsed-size) -
+            var(--search-button-collapsed-icon-size)) /
+          2
       );
     }
 
@@ -185,7 +191,6 @@ export function SearchButton({
   onChange: propsOnChange,
   debounceMs = 200,
   placeholder,
-  expandedWidth,
   variant = "default",
   onKeyDown: propsOnKeyDown,
   ...props
@@ -194,13 +199,16 @@ export function SearchButton({
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Collapsed is one predicate, read by the tab order below and — through
-  // data-collapsed — by every rule in the stylesheet.
+  // Collapsed is one predicate, read by the input's inert state below and —
+  // through data-collapsed — by every rule in the stylesheet.
   const [isFieldFocused, setIsFieldFocused] = useState(false);
   const [hasText, setHasText] = useState(() => Boolean(props.defaultValue));
   const isCollapsed = !hasText && !isFieldFocused;
 
-  const debouncedOnChange = useDebouncedChange(propsOnChange, debounceMs);
+  const debouncedOnChange = useDebouncedChange({
+    onChange: propsOnChange,
+    debounceMs,
+  });
   const onChange = (value: string) => {
     setHasText(value !== "");
     debouncedOnChange(value);
@@ -214,8 +222,17 @@ export function SearchButton({
     node != null && fieldRef.current?.contains(node) === true;
   const onFocus = (e: FocusEvent<HTMLDivElement>) =>
     setIsFieldFocused(isInField(e.target));
-  const onBlur = (e: FocusEvent<HTMLDivElement>) =>
+  const onBlur = (e: FocusEvent<HTMLDivElement>) => {
+    // A blur with no relatedTarget is either focus landing somewhere
+    // unfocusable or the whole window going away; only the first took focus out
+    // of the field. On a window blur the input stays the active element and
+    // gets focus straight back, so collapsing on it would slam the field shut
+    // and re-open it as the user tabs between apps.
+    if (e.relatedTarget == null && !document.hasFocus()) {
+      return;
+    }
     setIsFieldFocused(isInField(e.relatedTarget));
+  };
 
   const onKeyDown: SearchFieldProps["onKeyDown"] = (e) => {
     // The field itself clears on Escape while it holds text; once empty the
@@ -231,18 +248,15 @@ export function SearchButton({
       // while the field is open, and a hidden button cannot take focus.
       flushSync(() => setIsFieldFocused(false));
       triggerRef.current?.focus();
+      // Dismissing the field is the whole of this Escape. React Aria hands an
+      // empty field's Escape onward — `continuePropagation` — for an enclosing
+      // dialog to close on, which is exactly what we have just spent it on, so
+      // take the propagation back.
+      e.preventDefault();
+      e.stopPropagation();
     }
     propsOnKeyDown?.(e);
   };
-
-  // carried as a custom property rather than composed into the css prop, so
-  // the stylesheet stays a single cached serialization
-  const style: CSSProperties | undefined = expandedWidth
-    ? {
-        // @ts-expect-error custom CSS properties
-        "--search-button-expanded-width": expandedWidth,
-      }
-    : undefined;
 
   return (
     <div
@@ -250,7 +264,6 @@ export function SearchButton({
       data-variant={variant}
       data-collapsed={isCollapsed}
       css={searchButtonCSS}
-      style={style}
       onFocus={onFocus}
       onBlur={onBlur}
     >
@@ -265,17 +278,27 @@ export function SearchButton({
         <Input
           ref={inputRef}
           placeholder={placeholder}
-          // the trigger is the collapsed tab stop, so the input steps out of
-          // the tab order until the field is open
-          tabIndex={isCollapsed ? -1 : undefined}
+          // While collapsed the trigger is the entire control, and the field
+          // behind it is an icon square with no room to type in. `inert` takes
+          // the input out of the tab order and out of the accessibility tree
+          // together, so the collapsed state announces as one button rather
+          // than as a button beside a second, identically named searchbox that
+          // a screen reader can land on and type into unseen.
+          inert={isCollapsed}
         />
       </SearchField>
       <Button
         ref={triggerRef}
         className="search-button__trigger"
         aria-label={props["aria-label"]}
+        aria-expanded={!isCollapsed}
         isDisabled={props.isDisabled}
-        onPress={() => inputRef.current?.focus()}
+        onPress={() => {
+          // Opening has to reach the DOM first: the input is inert while the
+          // field is collapsed, and an inert input cannot take focus.
+          flushSync(() => setIsFieldFocused(true));
+          inputRef.current?.focus();
+        }}
       />
     </div>
   );

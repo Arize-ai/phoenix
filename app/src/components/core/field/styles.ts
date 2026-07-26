@@ -66,8 +66,8 @@ export const fieldBaseCSS = css`
       outline-offset: calc(-1 * var(--focus-ring-thickness));
     }
     &:is([data-readonly], [readonly])[data-hovered]:not([data-invalid]):not(
-        [data-focus-visible]
-      ) {
+      [data-focus-visible]
+    ) {
       background-color: var(--field-readonly-background-color-hover);
       border-color: transparent;
     }

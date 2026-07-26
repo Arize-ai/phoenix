@@ -1,11 +1,14 @@
 import { Input } from "react-aria-components";
 
+import { useDebouncedChange } from "@phoenix/hooks/useDebouncedChange";
+
 import type { SearchFieldProps } from "./SearchField";
 import { SearchField, SearchIcon } from "./SearchField";
-import { useDebouncedChange } from "./useDebouncedChange";
 
-export interface DebouncedSearchProps
-  extends Omit<SearchFieldProps, "value" | "onChange"> {
+export interface DebouncedSearchProps extends Omit<
+  SearchFieldProps,
+  "value" | "onChange"
+> {
   onChange: (value: string) => void;
   /**
    * Text to show the user before typing
@@ -32,7 +35,10 @@ export function DebouncedSearch({
   placeholder,
   ...props
 }: DebouncedSearchProps) {
-  const onChange = useDebouncedChange(propsOnChange, debounceMs);
+  const onChange = useDebouncedChange({
+    onChange: propsOnChange,
+    debounceMs,
+  });
 
   return (
     <SearchField onChange={onChange} {...props}>
