@@ -5,7 +5,10 @@ import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
-import { DetailPanelAnnotationBar } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
+import {
+  type AnnotationBarRow,
+  DetailPanelAnnotationBar,
+} from "@phoenix/components/annotation/DetailPanelAnnotationBar";
 import type { AnnotationConfig } from "@phoenix/components/annotation/types";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
@@ -41,8 +44,21 @@ describe("annotation config preview popover", () => {
 
   async function renderAnnotationBar({
     projectAnnotationConfigs = [],
+    rows = [
+      {
+        id: "span-row",
+        kind: "target",
+        target: {
+          annotations: [],
+          id: "span-1",
+          kind: "span",
+          label: "This span",
+        },
+      },
+    ],
   }: {
     projectAnnotationConfigs?: readonly AnnotationConfig[];
+    rows?: readonly AnnotationBarRow[];
   } = {}) {
     const successfulMutation = async () => ({ success: true }) as const;
     const successfulCreateMutation = async () =>
@@ -60,18 +76,7 @@ describe("annotation config preview popover", () => {
         <MemoryRouter>
           <ThemeProvider themeMode="light" disableBodyTheme>
             <DetailPanelAnnotationBar
-              rows={[
-                {
-                  id: "span-row",
-                  kind: "target",
-                  target: {
-                    annotations: [],
-                    id: "span-1",
-                    kind: "span",
-                    label: "This span",
-                  },
-                },
-              ]}
+              rows={rows}
               allAnnotationConfigs={[annotationConfig]}
               projectAnnotationConfigs={projectAnnotationConfigs}
               onAddAnnotationConfigToProject={successfulMutation}
@@ -105,6 +110,59 @@ describe("annotation config preview popover", () => {
     expect(trigger.dataset.size).toBe("S");
     expect(trigger.dataset.variant).toBe("quiet");
     expect(trigger.querySelector("svg")).toBeNull();
+  });
+
+  it("uses a plus icon when the project has annotation configs", async () => {
+    await renderAnnotationBar({
+      projectAnnotationConfigs: [annotationConfig],
+    });
+
+    const trigger = getAddAnnotationTrigger();
+    expect(trigger.textContent).toBe("");
+    expect(trigger.querySelector("svg")).not.toBeNull();
+  });
+
+  it("uses plus icons in every row when any displayed item has annotations", async () => {
+    await renderAnnotationBar({
+      rows: [
+        {
+          id: "trace-row",
+          kind: "target",
+          target: {
+            annotations: [],
+            id: "trace-1",
+            kind: "trace",
+            label: "Trace",
+          },
+        },
+        {
+          id: "span-row",
+          kind: "target",
+          target: {
+            annotations: [
+              {
+                id: "annotation-1",
+                name: annotationConfig.name,
+                label: "safe",
+                score: 0,
+              },
+            ],
+            id: "span-1",
+            kind: "span",
+            label: "This span",
+          },
+        },
+      ],
+    });
+
+    const triggers = container.querySelectorAll<HTMLButtonElement>(
+      'button[aria-label="Add annotation"]'
+    );
+    expect(triggers).toHaveLength(2);
+    for (const trigger of triggers) {
+      expect(trigger.textContent).toBe("");
+      expect(trigger.querySelector("svg")).not.toBeNull();
+    }
   });
 
   function getConfigTrigger() {

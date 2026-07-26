@@ -54,6 +54,7 @@ import type {
   AnnotatorKind,
 } from "@phoenix/components/annotation/types";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { classNames } from "@phoenix/utils/classNames";
 import { isPlainObject } from "@phoenix/utils/jsonUtils";
@@ -494,6 +495,14 @@ export function DetailPanelAnnotationBar({
   projectAnnotationConfigs,
   rows,
 }: DetailPanelAnnotationBarProps) {
+  const hasVisibleAnnotationLabels =
+    projectAnnotationConfigs.length > 0 ||
+    rows.some(
+      (row) => row.kind === "target" && row.target.annotations.length > 0
+    );
+  // The full affordance helps when the annotation area is otherwise empty. Once
+  // a ghost or real annotation label is visible, the compact icon avoids clutter.
+  const isAddAnnotationButtonCompact = hasVisibleAnnotationLabels;
   const sharedProps = {
     allAnnotationConfigs,
     onAddAnnotationConfigToProject,
@@ -516,6 +525,7 @@ export function DetailPanelAnnotationBar({
           <AnnotationTargetRow
             key={row.id}
             target={row.target}
+            isAddAnnotationButtonCompact={isAddAnnotationButtonCompact}
             {...sharedProps}
           />
         )
@@ -534,10 +544,14 @@ type AnnotationBarConfigState = {
 
 function AnnotationTargetRow({
   allAnnotationConfigs,
+  isAddAnnotationButtonCompact,
   projectAnnotationConfigs,
   target,
   ...sharedProps
-}: SharedAnnotationBarProps & { target: AnnotationBarTarget }) {
+}: SharedAnnotationBarProps & {
+  isAddAnnotationButtonCompact: boolean;
+  target: AnnotationBarTarget;
+}) {
   const annotationsByName = groupAnnotationsByName({
     annotations: target.annotations,
   });
@@ -583,6 +597,7 @@ function AnnotationTargetRow({
         <AddAnnotationPopover
           target={target}
           allAnnotationConfigs={allAnnotationConfigs}
+          isAddAnnotationButtonCompact={isAddAnnotationButtonCompact}
           projectAnnotationConfigs={projectAnnotationConfigs}
           {...sharedProps}
         />
@@ -1719,6 +1734,7 @@ function AnnotationConfigEditor({
 
 function AddAnnotationPopover({
   allAnnotationConfigs,
+  isAddAnnotationButtonCompact,
   onAddAnnotationConfigToProject,
   onCreateAnnotationConfig,
   onRemoveAnnotationConfigFromProject,
@@ -1731,7 +1747,10 @@ function AddAnnotationPopover({
   | "onCreateAnnotationConfig"
   | "onRemoveAnnotationConfigFromProject"
   | "projectAnnotationConfigs"
-> & { target: AnnotationBarTarget }) {
+> & {
+  isAddAnnotationButtonCompact: boolean;
+  target: AnnotationBarTarget;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [pendingRemoval, setPendingRemoval] = useState<AnnotationConfig | null>(
@@ -1779,7 +1798,13 @@ function AddAnnotationPopover({
   });
   useDismissPopoverOnEscape({
     isOpen,
-    onDismiss: () => handlePopoverOpenChange(false),
+    onDismiss: () => {
+      if (!isCreatingConfig && searchValue.trim()) {
+        setSearchValue("");
+        return;
+      }
+      handlePopoverOpenChange(false);
+    },
   });
   const projectIds = new Set(
     projectAnnotationConfigs.map((config) => config.id)
@@ -1792,13 +1817,27 @@ function AddAnnotationPopover({
     (config) => !projectIds.has(config.id) && matchesSearch(config)
   );
   const hasResults = activeConfigs.length > 0 || inactiveConfigs.length > 0;
+  const openConfigCreator = () => {
+    setConfigDraft(
+      getNewAnnotationConfigDraft({
+        name: searchValue.trim(),
+      })
+    );
+    setIsCreatingConfig(true);
+  };
 
   return (
     <>
       <DialogTrigger isOpen={isOpen} onOpenChange={handlePopoverOpenChange}>
-        <Button size="S" variant="quiet" aria-label="Add annotation">
-          Add annotation
-        </Button>
+        {isAddAnnotationButtonCompact ? (
+          <IconButton size="S" aria-label="Add annotation">
+            <Icon svg={<Icons.Plus />} />
+          </IconButton>
+        ) : (
+          <Button size="S" variant="quiet" aria-label="Add annotation">
+            Add annotation
+          </Button>
+        )}
         <Popover
           placement="bottom end"
           css={annotationPopoverCSS}
@@ -1860,9 +1899,21 @@ function AddAnnotationPopover({
                 </View>
                 {!hasResults && normalizedSearch ? (
                   <View padding="size-200">
-                    <Flex justifyContent="center">
-                      <Text color="text-500">No matching annotations</Text>
-                    </Flex>
+                    <EmptyState
+                      graphic={<EmptyStateGraphic variant="annotation" />}
+                      description="No matching annotations"
+                      action={{
+                        type: "strip",
+                        items: [
+                          {
+                            kind: "button",
+                            variant: "primary",
+                            children: `Create “${searchValue.trim()}”`,
+                            onPress: openConfigCreator,
+                          },
+                        ],
+                      }}
+                    />
                   </View>
                 ) : (
                   <View maxHeight="360px" overflow="auto">
@@ -1926,14 +1977,7 @@ function AddAnnotationPopover({
                       <Button
                         size="S"
                         variant="quiet"
-                        onPress={() => {
-                          setConfigDraft(
-                            getNewAnnotationConfigDraft({
-                              name: searchValue.trim(),
-                            })
-                          );
-                          setIsCreatingConfig(true);
-                        }}
+                        onPress={openConfigCreator}
                       >
                         New annotation config
                       </Button>

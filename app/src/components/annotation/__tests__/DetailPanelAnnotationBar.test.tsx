@@ -1,5 +1,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { MemoryRouter } from "react-router";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -66,29 +67,31 @@ describe("DetailPanelAnnotationBar", () => {
     act(() => {
       root.render(
         <ThemeProvider themeMode="dark" disableBodyTheme>
-          <DetailPanelAnnotationBar
-            allAnnotationConfigs={allAnnotationConfigs}
-            projectAnnotationConfigs={projectAnnotationConfigs}
-            rows={[
-              {
-                id: "span-1",
-                kind: "target",
-                target: {
+          <MemoryRouter>
+            <DetailPanelAnnotationBar
+              allAnnotationConfigs={allAnnotationConfigs}
+              projectAnnotationConfigs={projectAnnotationConfigs}
+              rows={[
+                {
                   id: "span-1",
-                  kind: "span",
-                  label: "Span",
-                  annotations,
+                  kind: "target",
+                  target: {
+                    id: "span-1",
+                    kind: "span",
+                    label: "Span",
+                    annotations,
+                  },
                 },
-              },
-            ]}
-            onAddAnnotationConfigToProject={mutationResult}
-            onCreateAnnotation={onCreateAnnotation}
-            onCreateAnnotationConfig={onCreateAnnotationConfig}
-            onDeleteAnnotation={onDeleteAnnotation}
-            onRemoveAnnotationConfigFromProject={mutationResult}
-            onUpdateAnnotation={onUpdateAnnotation}
-            onUpdateAnnotationConfig={mutationResult}
-          />
+              ]}
+              onAddAnnotationConfigToProject={mutationResult}
+              onCreateAnnotation={onCreateAnnotation}
+              onCreateAnnotationConfig={onCreateAnnotationConfig}
+              onDeleteAnnotation={onDeleteAnnotation}
+              onRemoveAnnotationConfigFromProject={mutationResult}
+              onUpdateAnnotation={onUpdateAnnotation}
+              onUpdateAnnotationConfig={mutationResult}
+            />
+          </MemoryRouter>
         </ThemeProvider>
       );
     });
@@ -207,6 +210,81 @@ describe("DetailPanelAnnotationBar", () => {
     expect(document.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
       "Overall response quality"
     );
+  });
+
+  it("quick creates an annotation config from an empty search result", async () => {
+    const onCreateAnnotationConfig = vi
+      .fn<DetailPanelAnnotationBarProps["onCreateAnnotationConfig"]>()
+      .mockResolvedValue({ success: true });
+    renderAnnotationBar({ onCreateAnnotationConfig });
+    const user = userEvent.setup();
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Add annotation"]'
+    );
+    expect(trigger).not.toBeNull();
+
+    await act(async () => user.click(trigger!));
+    const search = document.querySelector<HTMLInputElement>(
+      'input[placeholder="Filter annotations"]'
+    );
+    await act(async () => user.type(search!, "helpfulness"));
+
+    expect(document.body.textContent).toContain("No matching annotations");
+    expect(document.querySelector('svg[height="140"]')).not.toBeNull();
+    const createFromSearch = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "Create “helpfulness”");
+    expect(createFromSearch).not.toBeUndefined();
+
+    await act(async () => user.click(createFromSearch!));
+
+    expect(document.body.textContent).toContain("Add annotation configuration");
+    expect(document.querySelector<HTMLInputElement>("input")?.value).toBe(
+      "helpfulness"
+    );
+    const save = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "Save");
+    await act(async () => user.click(save!));
+
+    expect(onCreateAnnotationConfig).toHaveBeenCalledWith({
+      annotationType: "CATEGORICAL",
+      description: null,
+      id: "",
+      name: "helpfulness",
+      optimizationDirection: "MAXIMIZE",
+      values: [
+        { label: "positive", score: 1 },
+        { label: "negative", score: 0 },
+      ],
+    });
+  });
+
+  it("clears the annotation filter before dismissing with Escape", async () => {
+    const user = userEvent.setup();
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Add annotation"]'
+    );
+    expect(trigger).not.toBeNull();
+
+    await act(async () => user.click(trigger!));
+    const search = document.querySelector<HTMLInputElement>(
+      'input[placeholder="Filter annotations"]'
+    );
+    expect(search).not.toBeNull();
+    await act(async () => user.type(search!, "helpfulness"));
+
+    await act(async () => user.keyboard("{Escape}"));
+
+    expect(search?.value).toBe("");
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+
+    await act(async () => user.keyboard("{Escape}"));
+
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      document.querySelector('input[placeholder="Filter annotations"]')
+    ).toBeNull();
   });
 
   it("creates a categorical annotation directly from a ghost label", async () => {
