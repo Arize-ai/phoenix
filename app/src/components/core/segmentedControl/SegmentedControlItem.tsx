@@ -1,8 +1,7 @@
 import { css } from "@emotion/react";
-import { useContext, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import {
   SelectionIndicator as AriaSelectionIndicator,
-  SelectionIndicatorContext as AriaSelectionIndicatorContext,
   ToggleButton as AriaToggleButton,
 } from "react-aria-components";
 
@@ -17,31 +16,24 @@ import {
 import type { SegmentedControlItemProps } from "./types";
 
 /**
- * Keeps react-aria's shared selection indicator on the control's horizontal
- * axis. Its general-purpose FLIP measurement includes viewport movement in
- * both axes, but vertical page reflow must not move a horizontal control's
- * thumb outside its track.
+ * react-aria slides the shared thumb by seeding an inline `translate` with the
+ * viewport delta between the outgoing and incoming segment. It measures both
+ * axes, so vertical page movement between those two measurements would fling a
+ * horizontal control's thumb off its track — keep the horizontal delta, drop
+ * the vertical one. The indicator is a child, so its layout effect has already
+ * seeded the value by the time this one runs.
  */
-function SegmentedControlThumb() {
+function SegmentedControlThumb({ isSelected }: { isSelected: boolean }) {
   const thumbRef = useRef<HTMLDivElement>(null);
-  const selectionIndicatorContext = useContext(AriaSelectionIndicatorContext);
-  const isSelected =
-    selectionIndicatorContext != null &&
-    "isSelected" in selectionIndicatorContext &&
-    selectionIndicatorContext.isSelected;
 
   useLayoutEffect(() => {
+    // Only the incoming thumb is seeded; every other render leaves it empty.
     const thumb = thumbRef.current;
-    const inlineTranslate = thumb?.style.translate.trim();
-    if (!thumb || !isSelected || !inlineTranslate) {
-      return;
+    const translate = thumb?.style.translate;
+    if (thumb && isSelected && translate) {
+      thumb.style.translate = `${translate.split(" ")[0]} 0px`;
     }
-
-    // The child indicator measures first. Preserve its horizontal FLIP delta,
-    // then discard any viewport-derived vertical delta before paint.
-    const [translateX] = inlineTranslate.split(/\s+/);
-    thumb.style.translate = `${translateX} 0px`;
-  });
+  }, [isSelected]);
 
   return (
     <AriaSelectionIndicator
@@ -67,13 +59,19 @@ export function SegmentedControlItem({
       className={classNames("segmented-control__item", className)}
       css={css(segmentedControlItemCSS, cssProp)}
     >
-      <div
-        className="segmented-control__item-content"
-        css={segmentedControlItemContentCSS}
-      >
-        {typeof children === "string" ? <Text>{children}</Text> : children}
-      </div>
-      <SegmentedControlThumb />
+      {/* Render props, so the thumb re-renders when selection changes and its
+          layout effect gets a chance to correct the seeded translate. */}
+      {({ isSelected }) => (
+        <>
+          <div
+            className="segmented-control__item-content"
+            css={segmentedControlItemContentCSS}
+          >
+            {typeof children === "string" ? <Text>{children}</Text> : children}
+          </div>
+          <SegmentedControlThumb isSelected={isSelected} />
+        </>
+      )}
     </AriaToggleButton>
   );
 }
