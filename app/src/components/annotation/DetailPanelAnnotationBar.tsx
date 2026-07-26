@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useInteractOutside } from "react-aria";
 
 import {
@@ -306,6 +306,7 @@ function useDismissPopoverOnEscape({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
         onDismiss();
       }
     };
@@ -436,15 +437,13 @@ function AnnotationValuePopover({
   target: AnnotationBarTarget;
 }) {
   const hasAnnotations = annotations.length > 0;
+  const initialView = hasAnnotations ? "summary" : "value";
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState<AnnotationPopoverView>(
-    hasAnnotations ? "summary" : "value"
-  );
-  const [returnView, setReturnView] = useState<AnnotationPopoverView>(
-    hasAnnotations ? "summary" : "value"
-  );
+  const [view, setView] = useState<AnnotationPopoverView>(initialView);
+  const [returnView, setReturnView] =
+    useState<AnnotationPopoverView>(initialView);
   const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(
     null
   );
@@ -459,9 +458,34 @@ function AnnotationValuePopover({
   >(null);
   const [error, setError] = useState<string | null>(null);
   const aggregate = getAnnotationAggregate({ annotations });
+  const resetPopover = useCallback(() => {
+    setView(initialView);
+    setReturnView(initialView);
+    setEditingAnnotation(null);
+    setValueDraft(getValueDraft({ config }));
+    setConfigDraft(getAnnotationConfigDraft({ config }));
+    setDeletingAnnotationId(null);
+    setError(null);
+  }, [config, initialView]);
+  const handleOpenChange = useCallback(
+    (nextIsOpen: boolean) => {
+      if (!nextIsOpen || !isOpen) {
+        resetPopover();
+      }
+      setIsOpen(nextIsOpen);
+    },
+    [isOpen, resetPopover]
+  );
+  const handleEscape = useCallback(() => {
+    if (view !== initialView) {
+      resetPopover();
+      return;
+    }
+    handleOpenChange(false);
+  }, [handleOpenChange, initialView, resetPopover, view]);
   useDismissPopoverOnEscape({
     isOpen,
-    onDismiss: () => setIsOpen(false),
+    onDismiss: handleEscape,
   });
   useInteractOutside({
     ref: popoverRef,
@@ -473,7 +497,7 @@ function AnnotationValuePopover({
       ) {
         return;
       }
-      setIsOpen(false);
+      handleOpenChange(false);
     },
   });
 
@@ -489,7 +513,7 @@ function AnnotationValuePopover({
   };
 
   return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+    <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
       <AnnotationLabel
         ref={triggerRef}
         annotation={{
@@ -589,7 +613,7 @@ function AnnotationValuePopover({
                     if (hasAnnotations) {
                       setView("summary");
                     } else {
-                      setIsOpen(false);
+                      handleOpenChange(false);
                     }
                   }}
                   onSubmit={async () => {
@@ -641,9 +665,22 @@ function AnnotationPopoverHeader({
   config: AnnotationConfig;
   onEditConfig: () => void;
 }) {
+  const annotationType = config.annotationType.toLocaleLowerCase();
+  const optimizationDirection =
+    config.optimizationDirection === "MAXIMIZE"
+      ? "maximize"
+      : config.optimizationDirection === "MINIMIZE"
+        ? "minimize"
+        : null;
   return (
     <DialogHeader>
-      <DialogTitle>{config.name}</DialogTitle>
+      <Flex direction="row" gap="size-100" alignItems="center" wrap>
+        <DialogTitle>{config.name}</DialogTitle>
+        <Token size="S">{annotationType}</Token>
+        {optimizationDirection ? (
+          <Token size="S">{optimizationDirection}</Token>
+        ) : null}
+      </Flex>
       <DialogTitleExtra>
         <Button
           css={compactIconButtonCSS}
@@ -702,15 +739,14 @@ function AnnotationSummaryList({
                   <Flex direction="row" gap="size-200" wrap>
                     {annotation.score != null ? (
                       <Text fontFamily="mono">
-                        Score {formatFloat(annotation.score)}
+                        {formatFloat(annotation.score)}
                       </Text>
                     ) : null}
                     {annotation.label ? (
-                      <Text>Label {annotation.label}</Text>
-                    ) : null}
-                    {annotation.score == null && !annotation.label ? (
-                      <Text color="text-500">No value</Text>
-                    ) : null}
+                      <Text>{annotation.label}</Text>
+                    ) : (
+                      <Text color="text-500">--</Text>
+                    )}
                   </Flex>
                   {annotation.explanation ? (
                     <Text size="XS" color="text-500">
@@ -1139,7 +1175,6 @@ function AddAnnotationPopover({
           annotationDisplayPreference="none"
           clickable
           variant="ghost"
-          onClick={() => setIsOpen(true)}
         />
         <Popover
           placement="bottom end"
@@ -1372,14 +1407,32 @@ function AnnotationConfigMenuItem({
   onAction: () => void | Promise<void>;
 }) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  useInteractOutside({
+    ref: previewRef,
+    isDisabled: !isPreviewOpen,
+    onInteractOutside: (event) => {
+      if (
+        triggerRef.current &&
+        event.composedPath().includes(triggerRef.current)
+      ) {
+        return;
+      }
+      setIsPreviewOpen(false);
+    },
+  });
   return (
     <li css={configListItemCSS}>
       <DialogTrigger isOpen={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <Button
+          ref={triggerRef}
           variant="quiet"
           size="S"
           onHoverStart={() => setIsPreviewOpen(true)}
+          onHoverEnd={() => setIsPreviewOpen(false)}
           onFocus={() => setIsPreviewOpen(true)}
+          onBlur={() => setIsPreviewOpen(false)}
           onPress={() => {
             if (action === "add") {
               void onAction();
@@ -1388,7 +1441,15 @@ function AnnotationConfigMenuItem({
         >
           {config.name}
         </Button>
-        <Popover placement="right top" css={annotationPopoverCSS} isNonModal>
+        <Popover
+          ref={previewRef}
+          placement="right top"
+          css={annotationPopoverCSS}
+          isNonModal
+          shouldCloseOnInteractOutside={(element) =>
+            !triggerRef.current?.contains(element)
+          }
+        >
           <Dialog aria-label={`${config.name} annotation preview`}>
             <AnnotationConfigPreview config={config} />
           </Dialog>
