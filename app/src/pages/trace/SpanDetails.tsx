@@ -54,7 +54,10 @@ const spanHasException = (span: Span) => {
   return span.events.some((event) => event.name === "exception");
 };
 
-const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
+// Below this container width the header actions collapse to icon-only buttons.
+// The identity row also holds the span kind, name, and status badge, so the
+// actions have to give up their labels well before the container gets narrow.
+const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 1200;
 // The side panel sizes in pixels
 const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 400;
 const ASIDE_PANEL_MIN_SIZE_PIXELS = 300;
