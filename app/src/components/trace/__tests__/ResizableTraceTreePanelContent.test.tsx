@@ -143,6 +143,12 @@ describe("ResizableTraceTreePanelContent", () => {
 
     act(() => {
       dispatchPointerEvent(separator, "pointerdown", { clientX: 340 });
+    });
+
+    expect(separator.dataset.overlayResizing).toBe("true");
+    expect(separator.dataset.separator).not.toBe("active");
+
+    act(() => {
       dispatchPointerEvent(separator, "pointermove", { clientX: 360 });
       dispatchPointerEvent(separator, "pointerup", { clientX: 360 });
     });
@@ -150,5 +156,70 @@ describe("ResizableTraceTreePanelContent", () => {
     expect(onResizeStart).toHaveBeenCalledWith(240);
     expect(onResize).toHaveBeenCalledWith(260);
     expect(onResizeEnd).toHaveBeenCalledWith(true);
+  });
+
+  it("keeps the separator at its allocated edge during a native drag", () => {
+    const onResizeStart = vi.fn();
+    const onResize = vi.fn((width: number) => width);
+    const onResizeEnd = vi.fn();
+
+    act(() => {
+      root.render(
+        createElement(
+          Group,
+          { orientation: "horizontal" },
+          createElement(
+            Panel,
+            { defaultSize: 368, minSize: 48 },
+            createElement(ResizableTraceTreePanelContent, null, "Trace tree")
+          ),
+          createElement(ResizableTraceTreeSeparator, {
+            onResize,
+            onResizeEnd,
+            onResizeStart,
+          }),
+          createElement(Panel, null, "Details")
+        )
+      );
+    });
+
+    const panel = container.querySelector("[data-panel]");
+    const content = container.querySelector(".trace-tree-panel-content");
+    const separator = container.querySelector(".details-panel-tree-separator");
+    if (
+      !(panel instanceof HTMLDivElement) ||
+      !(content instanceof HTMLDivElement) ||
+      !(separator instanceof HTMLDivElement)
+    ) {
+      return;
+    }
+
+    vi.spyOn(panel, "getBoundingClientRect").mockReturnValue(
+      toDOMRect({ left: 100, width: 168 })
+    );
+    vi.spyOn(content, "getBoundingClientRect").mockReturnValue(
+      toDOMRect({ left: 100, width: 240 })
+    );
+
+    act(() => {
+      dispatchPointerEvent(separator, "pointerdown", { clientX: 468 });
+    });
+    expect(onResizeStart).not.toHaveBeenCalled();
+
+    // jsdom does not calculate the library's resize hit regions, so mirror
+    // the active attribute it applies before the panel crosses the breakpoint.
+    separator.dataset.separator = "active";
+
+    act(() => {
+      resizeObserverEntries.forEach(({ callback, observer }) =>
+        callback([], observer)
+      );
+    });
+
+    expect(separator.style.transform).toBe("");
+
+    act(() => {
+      dispatchPointerEvent(separator, "pointerup", { clientX: 268 });
+    });
   });
 });

@@ -41,12 +41,27 @@ export const traceTreePanelContentCSS = css`
 
   @container trace-tree-panel (width < ${TRACE_TREE_HOVER_WIDTH_PIXELS}px) {
     .details-panel-columns:not(
-        :has(.details-panel-tree-separator[data-overlay-resizing="true"])
+        :has(
+          .details-panel-tree-separator:is(
+            [data-overlay-resizing="true"],
+            [data-separator="active"]
+          )
+        )
       )
       &:is(:hover, :focus-within),
     .details-panel-columns:not(
-        :has(.details-panel-tree-separator[data-overlay-resizing="true"])
-      ):has(.details-panel-tree-separator:is(:hover, :focus-visible))
+        :has(
+          .details-panel-tree-separator:is(
+            [data-overlay-resizing="true"],
+            [data-separator="active"]
+          )
+        )
+      ):has(
+        .details-panel-tree-separator[data-overlay-active="true"]:is(
+          :hover,
+          :focus-visible
+        )
+      )
       & {
       z-index: var(--global-z-index-local-raised);
       width: var(--global-dimension-size-3000);
@@ -86,12 +101,27 @@ export const traceTreePanelContentCSS = css`
 
   @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
     .details-panel-columns:not(
-        :has(.details-panel-tree-separator[data-overlay-resizing="true"])
+        :has(
+          .details-panel-tree-separator:is(
+            [data-overlay-resizing="true"],
+            [data-separator="active"]
+          )
+        )
       )
       &:is(:hover, :focus-within),
     .details-panel-columns:not(
-        :has(.details-panel-tree-separator[data-overlay-resizing="true"])
-      ):has(.details-panel-tree-separator:is(:hover, :focus-visible))
+        :has(
+          .details-panel-tree-separator:is(
+            [data-overlay-resizing="true"],
+            [data-separator="active"]
+          )
+        )
+      ):has(
+        .details-panel-tree-separator[data-overlay-active="true"]:is(
+          :hover,
+          :focus-visible
+        )
+      )
       & {
       .trace-tree-toolbar__controls {
         width: 100%;

@@ -362,6 +362,17 @@ test.describe("Details panel column behavior assertions", () => {
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await expect(treeSeparator).toHaveAttribute("data-separator", "active");
+    await page.mouse.move(start.x - 200, start.y);
+
+    await expectColumnWidths({
+      page,
+      drawerWidth: FACTORY_DRAWER_WIDTH,
+      treeWidth: 168,
+      mainWidth: 1160,
+    });
+    const narrowSeparatorCenter = await getCenter(treeSeparator);
+    expect(Math.round(narrowSeparatorCenter.x)).toBe(Math.round(start.x - 200));
+
     await page.mouse.move(start.x + 500, start.y);
 
     await expectColumnWidths({
