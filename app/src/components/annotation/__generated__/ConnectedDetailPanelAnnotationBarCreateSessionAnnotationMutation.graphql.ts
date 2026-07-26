@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a4148fff6668b6d2dd629ce3c9132483>>
+ * @generated SignedSource<<33e27bceec73f680ea1502c88d29fff7>>
  * @lightSyntaxTransform
  */
 
@@ -26,8 +26,8 @@ export type ConnectedDetailPanelAnnotationBarCreateSessionAnnotationMutation$var
 };
 export type ConnectedDetailPanelAnnotationBarCreateSessionAnnotationMutation$data = {
   readonly createProjectSessionAnnotations: {
-    readonly query: {
-      readonly __typename: "Query";
+    readonly projectSessionAnnotation: {
+      readonly id: string;
     };
   };
 };
@@ -62,16 +62,16 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Query",
+        "concreteType": "ProjectSessionAnnotation",
         "kind": "LinkedField",
-        "name": "query",
+        "name": "projectSessionAnnotation",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "__typename",
+            "name": "id",
             "storageKey": null
           }
         ],
@@ -99,16 +99,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "19ef122550ec441deab99204be02b755",
+    "cacheID": "d8af107414dbf617f7d9019cb2fec1f1",
     "id": null,
     "metadata": {},
     "name": "ConnectedDetailPanelAnnotationBarCreateSessionAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation ConnectedDetailPanelAnnotationBarCreateSessionAnnotationMutation(\n  $input: CreateProjectSessionAnnotationInput!\n) {\n  createProjectSessionAnnotations(input: $input) {\n    query {\n      __typename\n    }\n  }\n}\n"
+    "text": "mutation ConnectedDetailPanelAnnotationBarCreateSessionAnnotationMutation(\n  $input: CreateProjectSessionAnnotationInput!\n) {\n  createProjectSessionAnnotations(input: $input) {\n    projectSessionAnnotation {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "de52d62b2a8d19557b82fca3ac75e4c3";
+(node as any).hash = "8e782971da8989f10fcf17912dc3789d";
 
 export default node;

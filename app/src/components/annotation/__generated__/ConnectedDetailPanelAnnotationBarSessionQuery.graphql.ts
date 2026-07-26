@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6f11678a19a9ce5e651a81b5c7111159>>
+ * @generated SignedSource<<2300558e5fd6358c875a849780e5cd7e>>
  * @lightSyntaxTransform
  */
 
@@ -242,17 +242,31 @@ v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "annotatorKind",
+  "name": "metadata",
   "storageKey": null
 },
 v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "createdAt",
+  "name": "annotatorKind",
   "storageKey": null
 },
 v18 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "source",
+  "storageKey": null
+},
+v19 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v20 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -278,7 +292,7 @@ v18 = {
   ],
   "storageKey": null
 },
-v19 = [
+v21 = [
   {
     "alias": null,
     "args": null,
@@ -392,7 +406,9 @@ return {
                           (v15/*:: as any*/),
                           (v16/*:: as any*/),
                           (v17/*:: as any*/),
-                          (v18/*:: as any*/)
+                          (v18/*:: as any*/),
+                          (v19/*:: as any*/),
+                          (v20/*:: as any*/)
                         ],
                         "type": "Annotation",
                         "abstractKey": "__isAnnotation"
@@ -428,7 +444,7 @@ return {
         "kind": "LinkedField",
         "name": "annotationConfigs",
         "plural": false,
-        "selections": (v19/*:: as any*/),
+        "selections": (v21/*:: as any*/),
         "storageKey": null
       },
       {
@@ -460,7 +476,7 @@ return {
                     "kind": "LinkedField",
                     "name": "annotationConfigs",
                     "plural": false,
-                    "selections": (v19/*:: as any*/),
+                    "selections": (v21/*:: as any*/),
                     "storageKey": null
                   }
                 ],
@@ -485,6 +501,8 @@ return {
                       (v16/*:: as any*/),
                       (v17/*:: as any*/),
                       (v18/*:: as any*/),
+                      (v19/*:: as any*/),
+                      (v20/*:: as any*/),
                       {
                         "kind": "TypeDiscriminator",
                         "abstractKey": "__isNode"
@@ -506,12 +524,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c57737cd3f5f9758c241994298cfe159",
+    "cacheID": "7e0e4317bad31e2220c9d0c388bbcaac",
     "id": null,
     "metadata": {},
     "name": "ConnectedDetailPanelAnnotationBarSessionQuery",
     "operationKind": "query",
-    "text": "query ConnectedDetailPanelAnnotationBarSessionQuery(\n  $id: ID!\n) {\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ...ConnectedDetailPanelAnnotationBarConfigFields\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      id\n      project {\n        id\n        annotationConfigs {\n          edges {\n            node {\n              __typename\n              ...ConnectedDetailPanelAnnotationBarConfigFields\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n      sessionAnnotations {\n        ...ConnectedDetailPanelAnnotationBarAnnotationFields\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarAnnotationFields on Annotation {\n  __isAnnotation: __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  label\n  score\n  explanation\n  annotatorKind\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarConfigFields on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  description\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    lowerBound\n    upperBound\n    optimizationDirection\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n  }\n}\n"
+    "text": "query ConnectedDetailPanelAnnotationBarSessionQuery(\n  $id: ID!\n) {\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ...ConnectedDetailPanelAnnotationBarConfigFields\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      id\n      project {\n        id\n        annotationConfigs {\n          edges {\n            node {\n              __typename\n              ...ConnectedDetailPanelAnnotationBarConfigFields\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n      sessionAnnotations {\n        ...ConnectedDetailPanelAnnotationBarAnnotationFields\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarAnnotationFields on Annotation {\n  __isAnnotation: __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  label\n  score\n  explanation\n  metadata\n  annotatorKind\n  source\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarConfigFields on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  description\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    lowerBound\n    upperBound\n    optimizationDirection\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n  }\n}\n"
   }
 };
 })();

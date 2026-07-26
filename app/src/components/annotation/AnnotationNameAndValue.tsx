@@ -3,7 +3,7 @@ import { Fragment } from "react";
 import type { CSSProperties } from "react";
 
 import { Flex, Text } from "@phoenix/components";
-import type { TextSize } from "@phoenix/components/core/types";
+import type { TextColorValue, TextSize } from "@phoenix/components/core/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
@@ -143,6 +143,8 @@ interface AnnotationNameAndValueProps {
   minWidth?: CSSProperties["minWidth"];
   maxWidth?: CSSProperties["maxWidth"];
   size?: TextSize;
+  /** The annotation name color. */
+  nameColor?: TextColorValue;
   /**
    * Whether the annotation is a positive or negative optimization
    *
@@ -160,6 +162,7 @@ export function AnnotationNameAndValue({
   size,
   minWidth = 0,
   maxWidth = "9rem",
+  nameColor = "text-700",
   positiveOptimization,
   showColorSwatch = true,
 }: AnnotationNameAndValueProps) {
@@ -180,7 +183,7 @@ export function AnnotationNameAndValue({
         <AnnotationColorSwatch annotationName={annotation.name} />
       )}
       <div css={css(nameCSS(maxWidth), { minWidth })} title={annotation.name}>
-        <Text weight="heavy" size={size} color="inherit">
+        <Text size={size} color={nameColor}>
           {annotation.name}
         </Text>
       </div>

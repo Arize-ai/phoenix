@@ -1,4 +1,5 @@
 export * from "./AnnotationColorSwatch";
+export * from "./AnnotationConfigStatus";
 export * from "./AnnotationLabel";
 export * from "./AnnotationTooltip";
 export * from "./optimizationUtils";

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { FormEvent, ReactNode } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useInteractOutside } from "react-aria";
 
 import {
@@ -13,13 +13,18 @@ import {
   DialogTitleExtra,
   DialogTrigger,
   Flex,
+  IDBadge,
   Icon,
+  IconButton,
   Icons,
   Input,
   Label,
   LinkButton,
+  Menu,
+  MenuItem,
   Modal,
   ModalOverlay,
+  NumberField,
   Popover,
   PopoverArrow,
   SearchField,
@@ -36,14 +41,22 @@ import {
   getAnnotationAggregate,
   getAnnotationConfigDraft,
   getAnnotationConfigFromDraft,
+  getInferredAnnotationConfigDraft,
   getNewAnnotationConfigDraft,
   groupAnnotationsByName,
 } from "@phoenix/components/annotation/annotationBarUtils";
+import { AnnotationConfigStatus } from "@phoenix/components/annotation/AnnotationConfigStatus";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import type {
   Annotation,
   AnnotationConfig,
+  AnnotationSource,
+  AnnotatorKind,
 } from "@phoenix/components/annotation/types";
+import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { classNames } from "@phoenix/utils/classNames";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 export type AnnotationTargetKind = "session" | "trace" | "span";
@@ -60,13 +73,20 @@ export type AnnotationBarRow =
   | { id: string; kind: "message"; text: string };
 
 export type AnnotationValueDraft = {
+  annotatorKind: AnnotatorKind;
   explanation: string;
   label: string | null;
+  metadata: Record<string, unknown>;
   score: number | null;
+  source: AnnotationSource;
 };
 
 export type AnnotationBarMutationResult =
   | { success: true }
+  | { error: string; success: false };
+
+export type AnnotationBarCreateResult =
+  | { annotation: Annotation; success: true }
   | { error: string; success: false };
 
 export type DetailPanelAnnotationBarProps = {
@@ -75,10 +95,10 @@ export type DetailPanelAnnotationBarProps = {
     configId: string
   ) => Promise<AnnotationBarMutationResult>;
   onCreateAnnotation: (params: {
-    config: AnnotationConfig;
+    annotationName: string;
     target: AnnotationBarTarget;
     value: AnnotationValueDraft;
-  }) => Promise<AnnotationBarMutationResult>;
+  }) => Promise<AnnotationBarCreateResult>;
   onCreateAnnotationConfig: (
     config: AnnotationConfig
   ) => Promise<AnnotationBarMutationResult>;
@@ -106,11 +126,16 @@ const annotationBarCSS = css`
   z-index: var(--global-z-index-local-raised);
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-size-100);
   flex: none;
-  padding: var(--global-dimension-size-100);
+  width: 100%;
+  box-sizing: border-box;
+  border-top: 1px solid var(--global-border-color-default);
   border-bottom: 1px solid var(--global-border-color-default);
   background: var(--global-background-color-default);
+
+  & > * + * {
+    border-top: 1px solid var(--global-border-color-default);
+  }
 `;
 
 const annotationRowCSS = css`
@@ -119,7 +144,6 @@ const annotationRowCSS = css`
   gap: var(--global-dimension-size-100);
   align-items: center;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
-  border: 1px solid var(--global-border-color-default);
 `;
 
 const annotationLabelsCSS = css`
@@ -130,7 +154,6 @@ const annotationLabelsCSS = css`
   min-width: 0;
 
   & > * {
-    min-width: min(128px, 100%);
     max-width: min(280px, 100%);
   }
 `;
@@ -140,7 +163,6 @@ const annotationMessageCSS = css`
   align-items: center;
   gap: var(--global-dimension-size-100);
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
-  border: 1px solid var(--global-border-color-default);
   color: var(--global-text-color-500);
   font-size: var(--global-font-size-xs);
 
@@ -171,31 +193,48 @@ const annotationEntryListCSS = css`
 `;
 
 const annotationEntryCSS = css`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--global-dimension-size-100);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-50);
   padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
 
   & + & {
     border-top: 1px solid var(--global-border-color-default);
   }
 
+  .annotation-entry__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--global-dimension-size-100);
+    min-width: 0;
+  }
+
+  .annotation-entry__value {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-200);
+    min-width: 0;
+    white-space: nowrap;
+  }
+
   .annotation-entry__actions {
     display: flex;
-    gap: var(--global-dimension-size-50);
-    opacity: 0;
+    flex: none;
+    gap: var(--global-dimension-size-25);
   }
 
-  &:hover .annotation-entry__actions,
-  &:focus-within .annotation-entry__actions {
-    opacity: 1;
+  .annotation-entry__actions--deleting {
+    gap: var(--global-dimension-size-100);
   }
 
-  @media (hover: none) {
-    .annotation-entry__actions {
-      opacity: 1;
-    }
+  .annotation-entry__explanation {
+    width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .annotation-entry__explanation--deleting {
+    opacity: 0.2;
   }
 `;
 
@@ -234,6 +273,44 @@ const categoricalOptionsCSS = css`
   }
 `;
 
+const quickCreatePopoverCSS = css`
+  width: min(320px, calc(100vw - var(--global-dimension-size-400)));
+  max-height: min(620px, calc(100vh - var(--global-dimension-size-800)));
+  overflow: auto;
+`;
+
+const categoricalQuickCreateCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-menu-item-gap);
+  margin: 0;
+  padding: var(--global-menu-item-gap);
+  list-style: none;
+
+  .categorical-quick-create__option {
+    display: flex;
+    align-items: center;
+    gap: var(--global-menu-item-gap);
+    padding: var(--global-menu-item-gap);
+    border-radius: var(--global-rounding-small);
+  }
+
+  .categorical-quick-create__option:hover,
+  .categorical-quick-create__option:focus-within {
+    background-color: var(--global-menu-item-background-color-hover);
+  }
+
+  .categorical-quick-create__value {
+    flex: 1;
+    min-width: 0;
+    justify-content: space-between;
+  }
+
+  .categorical-quick-create__value[data-variant="quiet"]:hover:not([disabled]) {
+    background-color: transparent;
+  }
+`;
+
 const inlinePromptCSS = css`
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -241,22 +318,97 @@ const inlinePromptCSS = css`
   align-items: end;
 `;
 
-const configListCSS = css`
-  list-style: none;
-  margin: 0;
-  padding: 0;
+const annotationValueFieldsCSS = css`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--global-dimension-size-1200);
+  gap: var(--global-dimension-size-100);
+  align-items: start;
+`;
 
-  li + li {
-    border-top: 1px solid var(--global-border-color-default);
+const annotationValueEditorCSS = css`
+  .annotation-value-editor__explanation {
+    width: 100%;
+    flex: none;
+  }
+
+  .annotation-value-editor__explanation > .text-field {
+    width: 100%;
+  }
+
+  .annotation-value-editor__explanation .react-aria-TextArea {
+    display: block;
+    width: 100%;
+    resize: none;
   }
 `;
 
-const configListItemCSS = css`
+const annotationFormFieldCSS = css`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
+`;
+
+const annotationFormLabelCSS = css`
+  display: inline-block;
+  padding: 5px 0;
+  font-size: var(--global-font-size-xs);
+  line-height: var(--global-line-height-xs);
+  font-weight: var(--font-weight-heavy);
+`;
+
+const annotationAdvancedFieldsCSS = css`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--global-dimension-size-200) var(--global-dimension-size-100);
+
+  .annotation-value-editor__select {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .annotation-value-editor__select select {
+    width: 100%;
+    height: var(--global-input-height-m);
+    padding: 0 var(--global-dimension-size-125);
+    border: var(--global-border-size-thin) solid
+      var(--global-input-field-border-color);
+    border-radius: var(--global-rounding-small);
+    color: var(--global-text-color-900);
+    background-color: var(--global-input-field-background-color);
+  }
+
+  .annotation-value-editor__metadata {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+`;
+
+const annotationValueEditorFooterExtraCSS = css`
+  margin-right: auto;
+`;
+
+const annotationConfigActionsCSS = css`
+  border-top: 1px solid var(--global-border-color-default);
+`;
+
+const annotationConfigListCSS = css`
+  list-style: none;
+  margin: 0;
+  padding: var(--global-menu-item-gap);
+
+  li + li {
+    margin-top: var(--global-menu-item-gap);
+  }
+`;
+
+const annotationConfigListItemCSS = css`
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
+  gap: var(--global-menu-item-gap);
 
   & > button:first-of-type {
     justify-content: flex-start;
@@ -266,23 +418,38 @@ const configListItemCSS = css`
 
 function getValueDraft({
   annotation,
-  config,
+  annotationType,
 }: {
   annotation?: Annotation;
-  config: AnnotationConfig;
+  annotationType?: AnnotationConfig["annotationType"];
 }): AnnotationValueDraft {
   const isLegacyFreeformValue =
-    config.annotationType === "FREEFORM" &&
+    annotationType === "FREEFORM" &&
+    annotation?.score == null &&
     !annotation?.label &&
     Boolean(annotation?.explanation);
   return {
+    annotatorKind: annotation?.annotatorKind ?? "HUMAN",
     label:
-      config.annotationType === "FREEFORM" && isLegacyFreeformValue
+      annotationType === "FREEFORM" && isLegacyFreeformValue
         ? (annotation?.explanation ?? "")
         : (annotation?.label ?? null),
     score: annotation?.score ?? null,
     explanation: isLegacyFreeformValue ? "" : (annotation?.explanation ?? ""),
+    metadata: annotation?.metadata ?? {},
+    source: annotation?.source ?? "APP",
   };
+}
+
+function parseAnnotationMetadata(
+  metadataText: string
+): Record<string, unknown> | null {
+  try {
+    const metadata: unknown = JSON.parse(metadataText);
+    return isPlainObject(metadata) ? metadata : null;
+  } catch {
+    return null;
+  }
 }
 
 function isMutationFailure(
@@ -359,6 +526,12 @@ export function DetailPanelAnnotationBar({
 
 type SharedAnnotationBarProps = Omit<DetailPanelAnnotationBarProps, "rows">;
 
+type AnnotationBarConfigState = {
+  config: AnnotationConfig | null;
+  id: string;
+  name: string;
+};
+
 function AnnotationTargetRow({
   allAnnotationConfigs,
   projectAnnotationConfigs,
@@ -368,23 +541,25 @@ function AnnotationTargetRow({
   const annotationsByName = groupAnnotationsByName({
     annotations: target.annotations,
   });
-  const rowConfigs = [...projectAnnotationConfigs];
+  const rowConfigs: AnnotationBarConfigState[] = projectAnnotationConfigs.map(
+    (config) => ({
+      config,
+      id: config.id,
+      name: config.name,
+    })
+  );
   for (const annotationName of Object.keys(annotationsByName)) {
-    if (rowConfigs.some((config) => config.name === annotationName)) {
+    if (rowConfigs.some(({ name }) => name === annotationName)) {
       continue;
     }
     const existingConfig = allAnnotationConfigs.find(
       (config) => config.name === annotationName
     );
-    rowConfigs.push(
-      existingConfig ?? {
-        id: `unconfigured-${annotationName}`,
-        name: annotationName,
-        description: "This annotation no longer has a saved configuration.",
-        annotationType: "FREEFORM",
-        optimizationDirection: "NONE",
-      }
-    );
+    rowConfigs.push({
+      config: existingConfig ?? null,
+      id: existingConfig?.id ?? `unconfigured-${annotationName}`,
+      name: annotationName,
+    });
   }
   return (
     <div css={annotationRowCSS} data-annotation-target={target.kind}>
@@ -392,11 +567,12 @@ function AnnotationTargetRow({
         {target.label}
       </Text>
       <div css={annotationLabelsCSS}>
-        {rowConfigs.map((config) => {
-          const annotations = annotationsByName[config.name] ?? [];
+        {rowConfigs.map(({ config, id, name }) => {
+          const annotations = annotationsByName[name] ?? [];
           return (
             <AnnotationValuePopover
-              key={`${target.id}-${config.id}`}
+              key={`${target.id}-${id}`}
+              annotationName={name}
               annotations={annotations}
               config={config}
               target={target}
@@ -415,12 +591,14 @@ function AnnotationTargetRow({
   );
 }
 
-type AnnotationPopoverView = "config" | "summary" | "value";
+type AnnotationPopoverView = "config" | "quick-create" | "summary" | "value";
 
 function AnnotationValuePopover({
+  annotationName,
   annotations,
   config,
   onCreateAnnotation,
+  onCreateAnnotationConfig,
   onDeleteAnnotation,
   onUpdateAnnotation,
   onUpdateAnnotationConfig,
@@ -428,16 +606,32 @@ function AnnotationValuePopover({
 }: Pick<
   SharedAnnotationBarProps,
   | "onCreateAnnotation"
+  | "onCreateAnnotationConfig"
   | "onDeleteAnnotation"
   | "onUpdateAnnotation"
   | "onUpdateAnnotationConfig"
 > & {
+  annotationName: string;
   annotations: readonly Annotation[];
-  config: AnnotationConfig;
+  config: AnnotationConfig | null;
   target: AnnotationBarTarget;
 }) {
-  const hasAnnotations = annotations.length > 0;
-  const initialView = hasAnnotations ? "summary" : "value";
+  const [createdAnnotation, setCreatedAnnotation] = useState<Annotation | null>(
+    null
+  );
+  const isCreatedAnnotationInProps =
+    createdAnnotation?.id != null &&
+    annotations.some(({ id }) => id === createdAnnotation.id);
+  const displayedAnnotations =
+    createdAnnotation && !isCreatedAnnotationInProps
+      ? [...annotations, createdAnnotation]
+      : annotations;
+  const hasAnnotations = displayedAnnotations.length > 0;
+  const initialView = hasAnnotations
+    ? "summary"
+    : config?.annotationType === "CATEGORICAL"
+      ? "quick-create"
+      : "value";
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -448,25 +642,42 @@ function AnnotationValuePopover({
     null
   );
   const [valueDraft, setValueDraft] = useState<AnnotationValueDraft>(() =>
-    getValueDraft({ config })
+    getValueDraft({ annotationType: config?.annotationType })
   );
   const [configDraft, setConfigDraft] = useState<AnnotationConfigDraft>(() =>
-    getAnnotationConfigDraft({ config })
+    config
+      ? getAnnotationConfigDraft({ config })
+      : getInferredAnnotationConfigDraft({
+          name: annotationName,
+          annotations,
+        })
   );
   const [deletingAnnotationId, setDeletingAnnotationId] = useState<
     string | null
   >(null);
   const [error, setError] = useState<string | null>(null);
-  const aggregate = getAnnotationAggregate({ annotations });
+  const [shouldFocusExplanation, setShouldFocusExplanation] = useState(false);
+  const aggregate = getAnnotationAggregate({
+    annotations: displayedAnnotations,
+  });
+  const isShowingQuickCreate = view === "quick-create";
   const resetPopover = useCallback(() => {
     setView(initialView);
     setReturnView(initialView);
     setEditingAnnotation(null);
-    setValueDraft(getValueDraft({ config }));
-    setConfigDraft(getAnnotationConfigDraft({ config }));
+    setValueDraft(getValueDraft({ annotationType: config?.annotationType }));
+    setConfigDraft(
+      config
+        ? getAnnotationConfigDraft({ config })
+        : getInferredAnnotationConfigDraft({
+            name: annotationName,
+            annotations,
+          })
+    );
     setDeletingAnnotationId(null);
+    setShouldFocusExplanation(false);
     setError(null);
-  }, [config, initialView]);
+  }, [annotationName, annotations, config, initialView]);
   const handleOpenChange = useCallback(
     (nextIsOpen: boolean) => {
       if (!nextIsOpen || !isOpen) {
@@ -502,13 +713,29 @@ function AnnotationValuePopover({
   });
 
   const openConfigEditor = () => {
-    setConfigDraft(getAnnotationConfigDraft({ config }));
+    setConfigDraft(
+      config
+        ? getAnnotationConfigDraft({ config })
+        : getInferredAnnotationConfigDraft({
+            name: annotationName,
+            annotations,
+          })
+    );
     setReturnView(view);
     setView("config");
   };
   const openValueEditor = (annotation?: Annotation) => {
+    setShouldFocusExplanation(false);
     setEditingAnnotation(annotation ?? null);
-    setValueDraft(getValueDraft({ annotation, config }));
+    setValueDraft(
+      getValueDraft({ annotation, annotationType: config?.annotationType })
+    );
+    setView("value");
+  };
+  const openExplanationEditor = (draft: AnnotationValueDraft) => {
+    setShouldFocusExplanation(true);
+    setEditingAnnotation(null);
+    setValueDraft(draft);
     setView("value");
   };
 
@@ -517,7 +744,7 @@ function AnnotationValuePopover({
       <AnnotationLabel
         ref={triggerRef}
         annotation={{
-          name: config.name,
+          name: annotationName,
           label: aggregate.label,
           score: aggregate.score,
         }}
@@ -546,7 +773,9 @@ function AnnotationValuePopover({
       <Popover
         ref={popoverRef}
         placement="bottom start"
-        css={annotationPopoverCSS}
+        css={
+          isShowingQuickCreate ? quickCreatePopoverCSS : annotationPopoverCSS
+        }
         isNonModal
         isKeyboardDismissDisabled={false}
         shouldCloseOnInteractOutside={(element) =>
@@ -554,7 +783,7 @@ function AnnotationValuePopover({
         }
       >
         <PopoverArrow />
-        <Dialog aria-label={`${config.name} annotation`}>
+        <Dialog aria-label={`${annotationName} annotation`}>
           {error ? (
             <View padding="size-100">
               <Alert variant="danger">{error}</Alert>
@@ -563,14 +792,17 @@ function AnnotationValuePopover({
           {view === "config" ? (
             <AnnotationConfigEditor
               draft={configDraft}
-              mode="edit"
+              mode={config ? "edit" : "create"}
               onDraftChange={setConfigDraft}
               onCancel={() => setView(returnView)}
               onSave={async () => {
                 setError(null);
-                const result = await onUpdateAnnotationConfig(
-                  getAnnotationConfigFromDraft({ draft: configDraft })
-                );
+                const nextConfig = getAnnotationConfigFromDraft({
+                  draft: configDraft,
+                });
+                const result = config
+                  ? await onUpdateAnnotationConfig(nextConfig)
+                  : await onCreateAnnotationConfig(nextConfig);
                 if (isMutationFailure(result)) {
                   setError(result.error);
                   return;
@@ -578,78 +810,123 @@ function AnnotationValuePopover({
                 setView(returnView);
               }}
             />
+          ) : isShowingQuickCreate ? (
+            <CategoricalQuickCreate
+              annotationName={annotationName}
+              config={config}
+              onCreate={async ({ shouldExplain, value }) => {
+                setError(null);
+                if (shouldExplain) {
+                  openExplanationEditor(value);
+                  return;
+                }
+                const result = await onCreateAnnotation({
+                  annotationName,
+                  target,
+                  value,
+                });
+                if (isMutationFailure(result)) {
+                  setError(result.error);
+                  return;
+                }
+                setCreatedAnnotation(result.annotation);
+                handleOpenChange(false);
+              }}
+            />
+          ) : view === "value" ? (
+            <AnnotationValueEditor
+              annotation={editingAnnotation}
+              annotationName={annotationName}
+              config={config}
+              draft={valueDraft}
+              shouldFocusExplanation={shouldFocusExplanation}
+              onDraftChange={setValueDraft}
+              onCancel={() => {
+                if (view !== initialView) {
+                  resetPopover();
+                } else {
+                  handleOpenChange(false);
+                }
+              }}
+              onSubmit={async () => {
+                setError(null);
+                if (editingAnnotation) {
+                  const result = await onUpdateAnnotation({
+                    annotation: editingAnnotation,
+                    target,
+                    value: valueDraft,
+                  });
+                  if (isMutationFailure(result)) {
+                    setError(result.error);
+                    return;
+                  }
+                  if (createdAnnotation?.id === editingAnnotation.id) {
+                    setCreatedAnnotation({
+                      ...editingAnnotation,
+                      ...valueDraft,
+                    });
+                  }
+                } else {
+                  const result = await onCreateAnnotation({
+                    annotationName,
+                    target,
+                    value: valueDraft,
+                  });
+                  if (isMutationFailure(result)) {
+                    setError(result.error);
+                    return;
+                  }
+                  setCreatedAnnotation(result.annotation);
+                }
+                setEditingAnnotation(null);
+                setView("summary");
+              }}
+            />
           ) : (
             <>
               <AnnotationPopoverHeader
+                annotationName={annotationName}
                 config={config}
-                onEditConfig={openConfigEditor}
+                onCreateConfig={config ? undefined : openConfigEditor}
+                onEditConfig={config ? openConfigEditor : undefined}
               />
-              {view === "summary" ? (
-                <AnnotationSummaryList
-                  annotations={annotations}
-                  deletingAnnotationId={deletingAnnotationId}
-                  onCancelDelete={() => setDeletingAnnotationId(null)}
-                  onConfirmDelete={async (annotation) => {
-                    setError(null);
-                    const result = await onDeleteAnnotation({
-                      annotation,
-                      target,
-                    });
-                    if (isMutationFailure(result)) {
-                      setError(result.error);
-                      return;
-                    }
-                    setDeletingAnnotationId(null);
-                  }}
-                  onDelete={setDeletingAnnotationId}
-                  onEdit={openValueEditor}
-                />
-              ) : (
-                <AnnotationValueEditor
-                  config={config}
-                  draft={valueDraft}
-                  onDraftChange={setValueDraft}
-                  onCancel={() => {
-                    if (hasAnnotations) {
-                      setView("summary");
-                    } else {
-                      handleOpenChange(false);
-                    }
-                  }}
-                  onSubmit={async () => {
-                    setError(null);
-                    const result = editingAnnotation
-                      ? await onUpdateAnnotation({
-                          annotation: editingAnnotation,
-                          target,
-                          value: valueDraft,
-                        })
-                      : await onCreateAnnotation({
-                          config,
-                          target,
-                          value: valueDraft,
-                        });
-                    if (isMutationFailure(result)) {
-                      setError(result.error);
-                      return;
-                    }
-                    setEditingAnnotation(null);
-                    setView("summary");
-                  }}
-                />
-              )}
-              {view === "summary" ? (
-                <DialogFooter>
-                  <Button
-                    size="S"
-                    variant="default"
-                    leadingVisual={<Icon svg={<Icons.Plus />} />}
-                    onPress={() => openValueEditor()}
-                  >
-                    Add annotation
-                  </Button>
-                </DialogFooter>
-              ) : null}
+              <AnnotationSummaryList
+                annotations={displayedAnnotations}
+                deletingAnnotationId={deletingAnnotationId}
+                onCancelDelete={() => setDeletingAnnotationId(null)}
+                onConfirmDelete={async (annotation) => {
+                  setError(null);
+                  const isDeletingLastAnnotation =
+                    displayedAnnotations.length === 1;
+                  const result = await onDeleteAnnotation({
+                    annotation,
+                    target,
+                  });
+                  if (isMutationFailure(result)) {
+                    setError(result.error);
+                    return;
+                  }
+                  if (createdAnnotation?.id === annotation.id) {
+                    setCreatedAnnotation(null);
+                  }
+                  setDeletingAnnotationId(null);
+                  if (isDeletingLastAnnotation) {
+                    handleOpenChange(false);
+                  }
+                }}
+                onDelete={setDeletingAnnotationId}
+                onEdit={openValueEditor}
+              />
+              <DialogFooter>
+                <Button
+                  size="S"
+                  variant="default"
+                  leadingVisual={<Icon svg={<Icons.Plus />} />}
+                  onPress={() => openValueEditor()}
+                >
+                  Add annotation
+                </Button>
+              </DialogFooter>
             </>
           )}
         </Dialog>
@@ -658,39 +935,125 @@ function AnnotationValuePopover({
   );
 }
 
-function AnnotationPopoverHeader({
+function CategoricalQuickCreate({
+  annotationName,
   config,
+  onCreate,
+}: {
+  annotationName: string;
+  config: Extract<AnnotationConfig, { annotationType: "CATEGORICAL" }>;
+  onCreate: (params: {
+    shouldExplain: boolean;
+    value: AnnotationValueDraft;
+  }) => Promise<void>;
+}) {
+  const [submittingLabel, setSubmittingLabel] = useState<string | null>(null);
+  const handleCreate = async ({
+    shouldExplain,
+    value,
+  }: {
+    shouldExplain: boolean;
+    value: NonNullable<AnnotationConfig["values"]>[number];
+  }) => {
+    setSubmittingLabel(value.label);
+    await onCreate({
+      shouldExplain,
+      value: {
+        annotatorKind: "HUMAN",
+        explanation: "",
+        label: value.label,
+        metadata: {},
+        score: value.score ?? null,
+        source: "APP",
+      },
+    });
+    setSubmittingLabel(null);
+  };
+  return (
+    <ul
+      css={categoricalQuickCreateCSS}
+      aria-busy={submittingLabel != null}
+      aria-label={`${annotationName} values`}
+    >
+      {(config.values ?? []).map((value) => (
+        <li key={value.label} className="categorical-quick-create__option">
+          <Button
+            className="categorical-quick-create__value"
+            size="S"
+            variant="quiet"
+            isDisabled={submittingLabel != null}
+            aria-label={`Add ${value.label}`}
+            onPress={() => void handleCreate({ shouldExplain: false, value })}
+          >
+            <Text>{value.label}</Text>
+            <Text fontFamily="mono" color="text-500">
+              {value.score == null ? "—" : formatFloat(value.score)}
+            </Text>
+          </Button>
+          <Button
+            size="S"
+            variant="quiet"
+            isDisabled={submittingLabel != null}
+            aria-label={`Add ${value.label} and explain`}
+            onPress={() => void handleCreate({ shouldExplain: true, value })}
+          >
+            Explain
+          </Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnnotationPopoverHeader({
+  annotationName,
+  config,
+  onCreateConfig,
   onEditConfig,
 }: {
-  config: AnnotationConfig;
-  onEditConfig: () => void;
+  annotationName: string;
+  config: AnnotationConfig | null;
+  onCreateConfig?: () => void;
+  onEditConfig?: () => void;
 }) {
-  const annotationType = config.annotationType.toLocaleLowerCase();
   const optimizationDirection =
-    config.optimizationDirection === "MAXIMIZE"
+    config?.optimizationDirection === "MAXIMIZE"
       ? "maximize"
-      : config.optimizationDirection === "MINIMIZE"
+      : config?.optimizationDirection === "MINIMIZE"
         ? "minimize"
         : null;
   return (
     <DialogHeader>
       <Flex direction="row" gap="size-100" alignItems="center" wrap>
-        <DialogTitle>{config.name}</DialogTitle>
-        <Token size="S">{annotationType}</Token>
+        <DialogTitle>{annotationName}</DialogTitle>
+        {config ? (
+          <AnnotationConfigStatus annotationType={config.annotationType} />
+        ) : null}
         {optimizationDirection ? (
           <Token size="S">{optimizationDirection}</Token>
         ) : null}
       </Flex>
-      <DialogTitleExtra>
-        <Button
-          css={compactIconButtonCSS}
-          size="S"
-          variant="quiet"
-          leadingVisual={<Icon svg={<Icons.Edit />} />}
-          aria-label={`Edit ${config.name} annotation configuration`}
-          onPress={onEditConfig}
-        />
-      </DialogTitleExtra>
+      {onEditConfig || onCreateConfig ? (
+        <DialogTitleExtra>
+          {onEditConfig ? (
+            <Button
+              css={compactIconButtonCSS}
+              size="S"
+              variant="quiet"
+              leadingVisual={<Icon svg={<Icons.Options />} />}
+              aria-label={`Edit ${annotationName} annotation configuration`}
+              onPress={onEditConfig}
+            />
+          ) : (
+            <>
+              <AnnotationConfigStatus />
+              <Button size="S" variant="quiet" onPress={onCreateConfig}>
+                Create
+              </Button>
+            </>
+          )}
+        </DialogTitleExtra>
+      ) : null}
     </DialogHeader>
   );
 }
@@ -716,27 +1079,17 @@ function AnnotationSummaryList({
         const annotationKey = annotation.id ?? `annotation-${annotationIndex}`;
         const isConfirmingDelete = deletingAnnotationId === annotation.id;
         return (
-          <li key={annotationKey} css={annotationEntryCSS}>
-            {isConfirmingDelete ? (
-              <Flex direction="column" gap="size-100">
-                <Text>Delete this annotation?</Text>
-                <Flex direction="row" gap="size-100">
-                  <Button size="S" variant="default" onPress={onCancelDelete}>
-                    Cancel
-                  </Button>
-                  <Button
-                    size="S"
-                    variant="danger"
-                    onPress={() => onConfirmDelete(annotation)}
-                  >
-                    Delete
-                  </Button>
-                </Flex>
-              </Flex>
-            ) : (
-              <>
-                <Flex direction="column" gap="size-50" minWidth={0}>
-                  <Flex direction="row" gap="size-200" wrap>
+          <li
+            key={annotationKey}
+            className="annotation-entry"
+            css={annotationEntryCSS}
+          >
+            <div className="annotation-entry__header">
+              <div className="annotation-entry__value">
+                {isConfirmingDelete ? (
+                  <Text>Confirm</Text>
+                ) : (
+                  <>
                     {annotation.score != null ? (
                       <Text fontFamily="mono">
                         {formatFloat(annotation.score)}
@@ -747,33 +1100,59 @@ function AnnotationSummaryList({
                     ) : (
                       <Text color="text-500">--</Text>
                     )}
-                  </Flex>
-                  {annotation.explanation ? (
-                    <Text size="XS" color="text-500">
-                      {annotation.explanation}
-                    </Text>
-                  ) : null}
-                </Flex>
-                <div className="annotation-entry__actions">
-                  <Button
-                    css={compactIconButtonCSS}
-                    size="S"
-                    variant="quiet"
-                    leadingVisual={<Icon svg={<Icons.Edit />} />}
-                    aria-label="Edit annotation"
-                    onPress={() => onEdit(annotation)}
-                  />
-                  <Button
-                    css={compactIconButtonCSS}
-                    size="S"
-                    variant="quiet"
-                    leadingVisual={<Icon svg={<Icons.Trash />} />}
-                    aria-label="Delete annotation"
-                    onPress={() => annotation.id && onDelete(annotation.id)}
-                  />
-                </div>
-              </>
-            )}
+                  </>
+                )}
+              </div>
+              <div
+                className={classNames("annotation-entry__actions", {
+                  "annotation-entry__actions--deleting": isConfirmingDelete,
+                })}
+              >
+                {isConfirmingDelete ? (
+                  <>
+                    <Button size="S" variant="quiet" onPress={onCancelDelete}>
+                      Cancel
+                    </Button>
+                    <Button
+                      size="S"
+                      variant="quiet-danger"
+                      onPress={() => onConfirmDelete(annotation)}
+                    >
+                      Delete
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <IconButton
+                      size="S"
+                      aria-label="Edit annotation"
+                      onPress={() => onEdit(annotation)}
+                    >
+                      <Icon svg={<Icons.Edit />} />
+                    </IconButton>
+                    <IconButton
+                      size="S"
+                      variant="danger"
+                      aria-label="Delete annotation"
+                      onPress={() => annotation.id && onDelete(annotation.id)}
+                    >
+                      <Icon svg={<Icons.Trash />} />
+                    </IconButton>
+                  </>
+                )}
+              </div>
+            </div>
+            {annotation.explanation ? (
+              <Text
+                className={classNames("annotation-entry__explanation", {
+                  "annotation-entry__explanation--deleting": isConfirmingDelete,
+                })}
+                size="XS"
+                color="text-500"
+              >
+                {annotation.explanation}
+              </Text>
+            ) : null}
           </li>
         );
       })}
@@ -782,117 +1161,332 @@ function AnnotationSummaryList({
 }
 
 function AnnotationValueEditor({
+  annotation,
+  annotationName,
   config,
   draft,
   onCancel,
   onDraftChange,
   onSubmit,
+  shouldFocusExplanation = false,
 }: {
-  config: AnnotationConfig;
+  annotation: Annotation | null;
+  annotationName: string;
+  config: AnnotationConfig | null;
   draft: AnnotationValueDraft;
   onCancel: () => void;
   onDraftChange: (draft: AnnotationValueDraft) => void;
   onSubmit: () => Promise<void>;
+  shouldFocusExplanation?: boolean;
 }) {
+  const [isAdvanced, setIsAdvanced] = useState(false);
+  const selectionLabelId = useId();
+  const initialDraft = getValueDraft({
+    annotation: annotation ?? undefined,
+    annotationType: config?.annotationType,
+  });
+  const initialMetadataText = JSON.stringify(initialDraft.metadata, null, 2);
+  const [metadataText, setMetadataText] = useState(() =>
+    JSON.stringify(draft.metadata, null, 2)
+  );
+  const parsedMetadata = parseAnnotationMetadata(metadataText);
+  const metadataError = parsedMetadata
+    ? null
+    : "Metadata must be a valid JSON object.";
+  const isBasicDirty =
+    draft.explanation !== initialDraft.explanation ||
+    draft.label !== initialDraft.label ||
+    draft.score !== initialDraft.score;
+  const isAdvancedDirty =
+    draft.annotatorKind !== initialDraft.annotatorKind ||
+    draft.source !== initialDraft.source ||
+    metadataText !== initialMetadataText;
+  const isDirty = isBasicDirty || isAdvancedDirty;
+  const canSubmit = isDirty && parsedMetadata != null;
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    void onSubmit();
+    if (canSubmit) {
+      void onSubmit();
+    }
   };
+  const handleMetadataChange = (nextMetadataText: string) => {
+    setMetadataText(nextMetadataText);
+    const nextMetadata = parseAnnotationMetadata(nextMetadataText);
+    if (nextMetadata) {
+      onDraftChange({ ...draft, metadata: nextMetadata });
+    }
+  };
+  const updateBasicDraft = (nextDraft: AnnotationValueDraft) => {
+    onDraftChange(nextDraft);
+  };
+  const updateAdvancedDraft = (nextDraft: AnnotationValueDraft) => {
+    onDraftChange(nextDraft);
+  };
+  const shouldShowSave =
+    annotation != null || config?.annotationType !== "FREEFORM";
+  const username = annotation?.user?.username ?? "system";
   return (
     <form onSubmit={handleSubmit}>
+      {annotation ? (
+        <DialogHeader>
+          <DialogTitle>Edit Annotation</DialogTitle>
+        </DialogHeader>
+      ) : null}
       <View padding="size-200">
-        <Flex direction="column" gap="size-200">
-          {config.annotationType === "CATEGORICAL" ? (
-            <ul
-              css={categoricalOptionsCSS}
-              aria-label={`${config.name} values`}
+        <Flex direction="column" gap="size-200" css={annotationValueEditorCSS}>
+          {config?.annotationType === "CATEGORICAL" ? (
+            <div
+              className="annotation-value-editor__selection"
+              css={annotationFormFieldCSS}
             >
-              {(config.values ?? []).map((value) => (
-                <li key={value.label}>
-                  <button
-                    type="button"
-                    aria-pressed={draft.label === value.label}
-                    onClick={() =>
-                      onDraftChange({
-                        ...draft,
-                        label: value.label,
-                        score: value.score ?? null,
-                      })
+              <Label id={selectionLabelId} css={annotationFormLabelCSS}>
+                Selection
+              </Label>
+              <Menu
+                style={{ boxSizing: "border-box", minWidth: 0, width: "100%" }}
+                aria-labelledby={selectionLabelId}
+                selectionMode="single"
+                selectedKeys={draft.label == null ? [] : [draft.label]}
+                shouldCloseOnSelect={false}
+                onSelectionChange={(selectedKeys) => {
+                  if (selectedKeys === "all") {
+                    return;
+                  }
+                  const selectedLabel = selectedKeys.values().next().value;
+                  if (typeof selectedLabel !== "string") {
+                    return;
+                  }
+                  const selectedValue = config.values?.find(
+                    (value) => value.label === selectedLabel
+                  );
+                  if (!selectedValue) {
+                    return;
+                  }
+                  updateBasicDraft({
+                    ...draft,
+                    label: selectedValue.label,
+                    score: selectedValue.score ?? null,
+                  });
+                }}
+              >
+                {(config.values ?? []).map((value) => (
+                  <MenuItem
+                    key={value.label}
+                    id={value.label}
+                    textValue={value.label}
+                    trailingContent={
+                      <Text fontFamily="mono" color="text-500">
+                        {value.score == null ? "—" : formatFloat(value.score)}
+                      </Text>
                     }
                   >
                     <Text>{value.label}</Text>
-                    <Text fontFamily="mono" color="text-500">
-                      {value.score == null ? "—" : formatFloat(value.score)}
-                    </Text>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                  </MenuItem>
+                ))}
+              </Menu>
+            </div>
           ) : null}
-          {config.annotationType === "FREEFORM" ? (
+          {config?.annotationType === "FREEFORM" ? (
             <div css={inlinePromptCSS}>
               <TextField
                 value={draft.label ?? ""}
-                onChange={(label) => onDraftChange({ ...draft, label })}
-                aria-label={`${config.name} value`}
+                onChange={(label) => updateBasicDraft({ ...draft, label })}
+                aria-label={`${annotationName} value`}
                 autoFocus
               >
                 <Input placeholder="Enter annotation value" />
               </TextField>
-              <Button
-                css={compactIconButtonCSS}
-                type="submit"
-                size="S"
-                variant="primary"
-                leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
-                aria-label="Submit annotation"
-              />
+              {!annotation ? (
+                <Button
+                  css={compactIconButtonCSS}
+                  type="submit"
+                  size="S"
+                  variant="primary"
+                  leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
+                  aria-label="Submit annotation"
+                />
+              ) : null}
             </div>
           ) : null}
-          {config.annotationType === "CONTINUOUS" ? (
+          {config?.annotationType === "CONTINUOUS" ? (
             <Slider
-              label={config.name}
+              label={annotationName}
               minValue={config.lowerBound ?? 0}
               maxValue={config.upperBound ?? 1}
               step={0.01}
               value={draft.score ?? config.lowerBound ?? 0}
               onChange={(score) => {
                 const nextScore = Array.isArray(score) ? score[0] : score;
-                onDraftChange({ ...draft, score: nextScore ?? null });
+                updateBasicDraft({ ...draft, score: nextScore ?? null });
               }}
             >
               <SliderNumberField
-                aria-label={`${config.name} exact value`}
+                aria-label={`${annotationName} exact value`}
                 value={draft.score ?? config.lowerBound ?? 0}
-                onChange={(score) => onDraftChange({ ...draft, score })}
+                onChange={(score) => updateBasicDraft({ ...draft, score })}
               />
             </Slider>
           ) : null}
-          <TextField
-            value={draft.explanation}
-            onChange={(explanation) => onDraftChange({ ...draft, explanation })}
-          >
-            <Label>Explanation</Label>
-            <TextArea rows={2} placeholder="Why did you choose this value?" />
-          </TextField>
+          {!config ? (
+            <div
+              className="annotation-value-editor__value-row"
+              css={annotationValueFieldsCSS}
+            >
+              <TextField
+                value={draft.label ?? ""}
+                onChange={(label) => updateBasicDraft({ ...draft, label })}
+                autoFocus
+              >
+                <Label>Label</Label>
+                <Input placeholder="Enter a label" />
+              </TextField>
+              <NumberField
+                value={draft.score ?? undefined}
+                onChange={(score) =>
+                  updateBasicDraft({
+                    ...draft,
+                    score: Number.isNaN(score) ? null : score,
+                  })
+                }
+              >
+                <Label>Score</Label>
+                <Input placeholder="Enter a score" />
+              </NumberField>
+            </div>
+          ) : null}
+          <div className="annotation-value-editor__explanation">
+            <TextField
+              value={draft.explanation}
+              onChange={(explanation) =>
+                updateBasicDraft({ ...draft, explanation })
+              }
+            >
+              <Label>Explanation</Label>
+              <TextArea
+                autoFocus={shouldFocusExplanation}
+                rows={3}
+                placeholder="Why did you choose this value?"
+              />
+            </TextField>
+          </div>
+          {isAdvanced && annotation ? (
+            <div
+              className="annotation-value-editor__advanced"
+              css={annotationAdvancedFieldsCSS}
+            >
+              <label className="annotation-value-editor__select">
+                <Text size="XS" weight="heavy">
+                  Source
+                </Text>
+                <select
+                  aria-label="Annotation source"
+                  value={draft.source}
+                  onChange={(event) =>
+                    updateAdvancedDraft({
+                      ...draft,
+                      source: event.target.value === "API" ? "API" : "APP",
+                    })
+                  }
+                >
+                  <option value="APP">App</option>
+                  <option value="API">API</option>
+                </select>
+              </label>
+              <label className="annotation-value-editor__select">
+                <Text size="XS" weight="heavy">
+                  Annotator kind
+                </Text>
+                <select
+                  aria-label="Annotator kind"
+                  value={draft.annotatorKind}
+                  onChange={(event) => {
+                    const annotatorKind = event.target.value;
+                    if (
+                      annotatorKind === "CODE" ||
+                      annotatorKind === "HUMAN" ||
+                      annotatorKind === "LLM"
+                    ) {
+                      updateAdvancedDraft({ ...draft, annotatorKind });
+                    }
+                  }}
+                >
+                  <option value="HUMAN">Human</option>
+                  <option value="LLM">LLM</option>
+                  <option value="CODE">Code</option>
+                </select>
+              </label>
+              <div className="annotation-value-editor__metadata">
+                <CodeEditorFieldWrapper
+                  label="Metadata"
+                  errorMessage={metadataError}
+                  description="A JSON object containing annotation metadata."
+                >
+                  <JSONEditor
+                    value={metadataText}
+                    onChange={handleMetadataChange}
+                    height="120px"
+                    basicSetup={{ lineNumbers: false }}
+                  />
+                </CodeEditorFieldWrapper>
+              </div>
+            </div>
+          ) : null}
+          {isAdvanced && annotation ? (
+            <Flex
+              className="annotation-value-editor__identity"
+              direction="row"
+              gap="size-200"
+              alignItems="center"
+            >
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <UserPicture
+                  name={username}
+                  profilePictureUrl={annotation.user?.profilePictureUrl}
+                  size={20}
+                />
+                <Text>{username}</Text>
+              </Flex>
+              {annotation.id ? (
+                <IDBadge id={annotation.id} tooltipText="Copy Annotation ID" />
+              ) : (
+                <Text fontFamily="mono" color="text-500">
+                  --
+                </Text>
+              )}
+            </Flex>
+          ) : null}
         </Flex>
       </View>
-      {config.annotationType !== "FREEFORM" ? (
-        <DialogFooter>
-          <Button type="button" size="S" variant="default" onPress={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" size="S" variant="primary">
+      <DialogFooter>
+        {annotation ? (
+          <Flex css={annotationValueEditorFooterExtraCSS}>
+            <Button
+              type="button"
+              size="S"
+              variant="quiet"
+              isDisabled={isAdvanced && isAdvancedDirty}
+              onPress={() =>
+                setIsAdvanced((isCurrentlyAdvanced) => !isCurrentlyAdvanced)
+              }
+            >
+              {isAdvanced ? "Hide Advanced" : "Advanced"}
+            </Button>
+          </Flex>
+        ) : null}
+        <Button type="button" size="S" variant="default" onPress={onCancel}>
+          Cancel
+        </Button>
+        {shouldShowSave ? (
+          <Button
+            type="submit"
+            size="S"
+            variant={canSubmit ? "primary" : "default"}
+            isDisabled={!canSubmit}
+          >
             Save annotation
           </Button>
-        </DialogFooter>
-      ) : (
-        <DialogFooter>
-          <Button type="button" size="S" variant="default" onPress={onCancel}>
-            Cancel
-          </Button>
-        </DialogFooter>
-      )}
+        ) : null}
+      </DialogFooter>
     </form>
   );
 }
@@ -1148,9 +1742,44 @@ function AddAnnotationPopover({
     getNewAnnotationConfigDraft()
   );
   const [error, setError] = useState<string | null>(null);
+  const [previewConfig, setPreviewConfig] = useState<AnnotationConfig | null>(
+    null
+  );
+  const previewTriggerRef = useRef<Element>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const closePreview = () => setPreviewConfig(null);
+  const handlePopoverOpenChange = (nextOpen: boolean) => {
+    setIsOpen(nextOpen);
+    if (!nextOpen) {
+      closePreview();
+    }
+  };
+  const openPreview = ({
+    config,
+    trigger,
+  }: {
+    config: AnnotationConfig;
+    trigger: Element;
+  }) => {
+    previewTriggerRef.current = trigger;
+    setPreviewConfig(config);
+  };
+  useInteractOutside({
+    ref: previewRef,
+    isDisabled: previewConfig == null,
+    onInteractOutside: (event) => {
+      if (
+        previewTriggerRef.current &&
+        event.composedPath().includes(previewTriggerRef.current)
+      ) {
+        return;
+      }
+      closePreview();
+    },
+  });
   useDismissPopoverOnEscape({
     isOpen,
-    onDismiss: () => setIsOpen(false),
+    onDismiss: () => handlePopoverOpenChange(false),
   });
   const projectIds = new Set(
     projectAnnotationConfigs.map((config) => config.id)
@@ -1162,23 +1791,18 @@ function AddAnnotationPopover({
   const inactiveConfigs = allAnnotationConfigs.filter(
     (config) => !projectIds.has(config.id) && matchesSearch(config)
   );
-  const hasExactMatch = allAnnotationConfigs.some(
-    (config) => config.name.toLocaleLowerCase() === normalizedSearch
-  );
   const hasResults = activeConfigs.length > 0 || inactiveConfigs.length > 0;
 
   return (
     <>
-      <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
-        <AnnotationLabel
-          annotation={{ name: "Add annotation" }}
-          annotationDisplayPreference="none"
-          clickable
-          variant="ghost"
-        />
+      <DialogTrigger isOpen={isOpen} onOpenChange={handlePopoverOpenChange}>
+        <Button size="S" variant="quiet" aria-label="Add annotation">
+          Add annotation
+        </Button>
         <Popover
           placement="bottom end"
           css={annotationPopoverCSS}
+          layer="non-modal"
           isKeyboardDismissDisabled={false}
           shouldCloseOnInteractOutside={() => true}
         >
@@ -1216,13 +1840,12 @@ function AddAnnotationPopover({
                   <DialogTitle>Annotations</DialogTitle>
                   <DialogTitleExtra>
                     <LinkButton
-                      css={compactIconButtonCSS}
                       size="S"
                       variant="quiet"
-                      leadingVisual={<Icon svg={<Icons.Settings />} />}
-                      aria-label="Open annotation configuration settings"
                       to="/settings/annotations"
-                    />
+                    >
+                      Manage
+                    </LinkButton>
                   </DialogTitleExtra>
                 </DialogHeader>
                 <View padding="size-100">
@@ -1237,48 +1860,44 @@ function AddAnnotationPopover({
                 </View>
                 {!hasResults && normalizedSearch ? (
                   <View padding="size-200">
-                    <Flex direction="column" gap="size-100" alignItems="center">
+                    <Flex justifyContent="center">
                       <Text color="text-500">No matching annotations</Text>
-                      {!hasExactMatch ? (
-                        <Button
-                          size="S"
-                          variant="primary"
-                          onPress={() => {
-                            setConfigDraft(
-                              getNewAnnotationConfigDraft({
-                                name: searchValue.trim(),
-                              })
-                            );
-                            setIsCreatingConfig(true);
-                          }}
-                        >
-                          Add “{searchValue.trim()}”
-                        </Button>
-                      ) : null}
                     </Flex>
                   </View>
                 ) : (
                   <View maxHeight="360px" overflow="auto">
                     {activeConfigs.length > 0 ? (
-                      <AnnotationConfigMenuSection title="On this project">
-                        {activeConfigs.map((config) => (
-                          <AnnotationConfigMenuItem
-                            key={config.id}
-                            config={config}
-                            action="remove"
-                            onAction={() => setPendingRemoval(config)}
-                          />
-                        ))}
-                      </AnnotationConfigMenuSection>
+                      <AnnotationConfigListSection title="On this project">
+                        {activeConfigs.map((config) =>
+                          renderAnnotationConfigListItem({
+                            config,
+                            action: "remove",
+                            onAction: () => {
+                              closePreview();
+                              setPendingRemoval(config);
+                            },
+                            onPreviewClose: closePreview,
+                            onPreviewOpen: openPreview,
+                          })
+                        )}
+                      </AnnotationConfigListSection>
                     ) : null}
                     {inactiveConfigs.length > 0 ? (
-                      <AnnotationConfigMenuSection title="Available annotations">
-                        {inactiveConfigs.map((config) => (
-                          <AnnotationConfigMenuItem
-                            key={config.id}
-                            config={config}
-                            action="add"
-                            onAction={async () => {
+                      <AnnotationConfigListSection
+                        ariaLabel="Available annotations"
+                        title={
+                          activeConfigs.length > 0
+                            ? "Available annotations"
+                            : undefined
+                        }
+                      >
+                        {inactiveConfigs.map((config) =>
+                          renderAnnotationConfigListItem({
+                            config,
+                            action: "add",
+                            onPreviewClose: closePreview,
+                            onPreviewOpen: openPreview,
+                            onAction: async () => {
                               setError(null);
                               if (!config.id) {
                                 setError(
@@ -1291,15 +1910,62 @@ function AddAnnotationPopover({
                               if (isMutationFailure(result)) {
                                 setError(result.error);
                               }
-                            }}
-                          />
-                        ))}
-                      </AnnotationConfigMenuSection>
+                            },
+                          })
+                        )}
+                      </AnnotationConfigListSection>
                     ) : null}
                   </View>
                 )}
+                <div css={annotationConfigActionsCSS}>
+                  <ul
+                    css={annotationConfigListCSS}
+                    aria-label="Annotation config actions"
+                  >
+                    <li css={annotationConfigListItemCSS}>
+                      <Button
+                        size="S"
+                        variant="quiet"
+                        onPress={() => {
+                          setConfigDraft(
+                            getNewAnnotationConfigDraft({
+                              name: searchValue.trim(),
+                            })
+                          );
+                          setIsCreatingConfig(true);
+                        }}
+                      >
+                        New annotation config
+                      </Button>
+                    </li>
+                  </ul>
+                </div>
               </>
             )}
+            <Popover
+              ref={previewRef}
+              triggerRef={previewTriggerRef}
+              isOpen={previewConfig != null}
+              onOpenChange={(nextOpen) => {
+                if (!nextOpen) {
+                  closePreview();
+                }
+              }}
+              placement="right top"
+              trigger="SubmenuTrigger"
+              css={annotationPopoverCSS}
+              layer="non-modal"
+              isNonModal
+              shouldCloseOnInteractOutside={(element) =>
+                !previewTriggerRef.current?.contains(element)
+              }
+            >
+              {previewConfig ? (
+                <Dialog aria-label={`${previewConfig.name} annotation preview`}>
+                  <AnnotationConfigPreview config={previewConfig} />
+                </Dialog>
+              ) : null}
+            </Popover>
           </Dialog>
         </Popover>
       </DialogTrigger>
@@ -1372,101 +2038,83 @@ function AddAnnotationPopover({
   );
 }
 
-function AnnotationConfigMenuSection({
+function AnnotationConfigListSection({
+  ariaLabel,
   children,
   title,
 }: {
+  ariaLabel?: string;
   children: ReactNode;
-  title: string;
+  title?: string;
 }) {
   return (
-    <section aria-label={title}>
-      <View
-        paddingX="size-150"
-        paddingY="size-100"
-        borderTopWidth="thin"
-        borderBottomWidth="thin"
-        borderColor="default"
-      >
-        <Text size="XS" color="text-500" weight="heavy">
-          {title}
-        </Text>
-      </View>
-      <ul css={configListCSS}>{children}</ul>
+    <section aria-label={ariaLabel ?? title}>
+      {title ? (
+        <View
+          paddingX="size-150"
+          paddingY="size-100"
+          borderTopWidth="thin"
+          borderBottomWidth="thin"
+          borderColor="default"
+        >
+          <Text size="XS" color="text-500" weight="heavy">
+            {title}
+          </Text>
+        </View>
+      ) : null}
+      <ul css={annotationConfigListCSS} aria-label={ariaLabel ?? title}>
+        {children}
+      </ul>
     </section>
   );
 }
 
-function AnnotationConfigMenuItem({
+function renderAnnotationConfigListItem({
   action,
   config,
   onAction,
+  onPreviewClose,
+  onPreviewOpen,
 }: {
   action: "add" | "remove";
   config: AnnotationConfig;
   onAction: () => void | Promise<void>;
+  onPreviewClose: () => void;
+  onPreviewOpen: (params: {
+    config: AnnotationConfig;
+    trigger: Element;
+  }) => void;
 }) {
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-  useInteractOutside({
-    ref: previewRef,
-    isDisabled: !isPreviewOpen,
-    onInteractOutside: (event) => {
-      if (
-        triggerRef.current &&
-        event.composedPath().includes(triggerRef.current)
-      ) {
-        return;
-      }
-      setIsPreviewOpen(false);
-    },
-  });
   return (
-    <li css={configListItemCSS}>
-      <DialogTrigger isOpen={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <Button
-          ref={triggerRef}
-          variant="quiet"
-          size="S"
-          onHoverStart={() => setIsPreviewOpen(true)}
-          onHoverEnd={() => setIsPreviewOpen(false)}
-          onFocus={() => setIsPreviewOpen(true)}
-          onBlur={() => setIsPreviewOpen(false)}
-          onPress={() => {
-            if (action === "add") {
-              void onAction();
-            }
-          }}
-        >
-          {config.name}
-        </Button>
-        <Popover
-          ref={previewRef}
-          placement="right top"
-          css={annotationPopoverCSS}
-          isNonModal
-          shouldCloseOnInteractOutside={(element) =>
-            !triggerRef.current?.contains(element)
-          }
-        >
-          <Dialog aria-label={`${config.name} annotation preview`}>
-            <AnnotationConfigPreview config={config} />
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
+    <li key={`${action}-${config.id}`} css={annotationConfigListItemCSS}>
+      <Button
+        size="S"
+        variant="quiet"
+        leadingVisual={
+          action === "add" ? <Icon svg={<Icons.Plus />} /> : undefined
+        }
+        onPress={action === "add" ? () => void onAction() : undefined}
+        onHoverStart={(event) =>
+          onPreviewOpen({ config, trigger: event.target })
+        }
+        onHoverEnd={onPreviewClose}
+        onFocus={(event) =>
+          onPreviewOpen({ config, trigger: event.currentTarget })
+        }
+        onBlur={onPreviewClose}
+      >
+        {config.name}
+      </Button>
       {action === "remove" ? (
-        <Button
-          css={compactIconButtonCSS}
+        <IconButton
           size="S"
-          variant="quiet"
-          leadingVisual={<Icon svg={<Icons.Close />} />}
+          variant="danger"
           aria-label={`Remove ${config.name} from project`}
           onPress={() => void onAction()}
-        />
-      ) : (
-        <Icon svg={<Icons.Plus />} />
-      )}
+        >
+          <Icon svg={<Icons.Minus />} />
+        </IconButton>
+      ) : null}
     </li>
   );
 }

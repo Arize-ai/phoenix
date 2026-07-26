@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getAnnotationAggregate,
+  getInferredAnnotationConfigDraft,
   groupAnnotationsByName,
 } from "@phoenix/components/annotation/annotationBarUtils";
 
@@ -63,6 +64,54 @@ describe("groupAnnotationsByName", () => {
         { id: "1", name: "quality", score: 1 },
         { id: "3", name: "quality", score: 0 },
       ],
+    });
+  });
+});
+
+describe("getInferredAnnotationConfigDraft", () => {
+  it("infers continuous bounds from scores", () => {
+    expect(
+      getInferredAnnotationConfigDraft({
+        name: "tool_count_per_turn",
+        annotations: [{ name: "tool_count_per_turn", score: 3 }],
+      })
+    ).toMatchObject({
+      annotationType: "CONTINUOUS",
+      lowerBound: "0",
+      name: "tool_count_per_turn",
+      optimizationDirection: "NONE",
+      upperBound: "3",
+    });
+  });
+
+  it("infers categorical values from labels", () => {
+    expect(
+      getInferredAnnotationConfigDraft({
+        name: "quality",
+        annotations: [
+          { name: "quality", label: "good", score: 1 },
+          { name: "quality", label: "bad", score: 0 },
+        ],
+      })
+    ).toMatchObject({
+      annotationType: "CATEGORICAL",
+      optimizationDirection: "NONE",
+      values: [
+        { label: "good", score: "1" },
+        { label: "bad", score: "0" },
+      ],
+    });
+  });
+
+  it("infers freeform when no label or score is present", () => {
+    expect(
+      getInferredAnnotationConfigDraft({
+        name: "note",
+        annotations: [{ name: "note", explanation: "Needs review" }],
+      })
+    ).toMatchObject({
+      annotationType: "FREEFORM",
+      optimizationDirection: "NONE",
     });
   });
 });

@@ -7,6 +7,9 @@ export type {
   AnnotationConfigFreeform,
 } from "@phoenix/pages/settings/types";
 
+export type AnnotationSource = "API" | "APP";
+export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+
 export interface Annotation {
   id?: string;
   name: string;
@@ -14,7 +17,8 @@ export interface Annotation {
   score?: number | null;
   explanation?: string | null;
   metadata?: Record<string, unknown>;
-  annotatorKind?: string;
+  annotatorKind?: AnnotatorKind;
+  source?: AnnotationSource;
   createdAt?: string;
   user?: {
     username: string;

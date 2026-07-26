@@ -26,6 +26,7 @@ import type { ConnectedDetailPanelAnnotationBarUpdateSessionAnnotationMutation }
 import type { ConnectedDetailPanelAnnotationBarUpdateSpanAnnotationMutation } from "@phoenix/components/annotation/__generated__/ConnectedDetailPanelAnnotationBarUpdateSpanAnnotationMutation.graphql";
 import type { ConnectedDetailPanelAnnotationBarUpdateTraceAnnotationMutation } from "@phoenix/components/annotation/__generated__/ConnectedDetailPanelAnnotationBarUpdateTraceAnnotationMutation.graphql";
 import {
+  type AnnotationBarCreateResult,
   type AnnotationBarMutationResult,
   type AnnotationBarRow,
   type AnnotationBarTarget,
@@ -74,7 +75,9 @@ const annotationFields = graphql`
     label
     score
     explanation
+    metadata
     annotatorKind
+    source
     createdAt
     user {
       id
@@ -92,7 +95,9 @@ const traceAnnotationFields = graphql`
     label
     score
     explanation
+    metadata
     annotatorKind
+    source
     createdAt
     user {
       id
@@ -156,7 +161,9 @@ function getAnnotations(
       label: annotation.label,
       score: annotation.score,
       explanation: annotation.explanation,
+      metadata: annotation.metadata,
       annotatorKind: annotation.annotatorKind,
+      source: annotation.source,
       createdAt: annotation.createdAt,
       user: annotation.user,
     };
@@ -177,7 +184,9 @@ function getTraceAnnotations(
       label: annotation.label,
       score: annotation.score,
       explanation: annotation.explanation,
+      metadata: annotation.metadata,
       annotatorKind: annotation.annotatorKind,
+      source: annotation.source,
       createdAt: annotation.createdAt,
       user: annotation.user,
     };
@@ -637,8 +646,8 @@ function useAnnotationMutationHandlers({
         $input: CreateProjectSessionAnnotationInput!
       ) {
         createProjectSessionAnnotations(input: $input) {
-          query {
-            __typename
+          projectSessionAnnotation {
+            id
           }
         }
       }
@@ -669,43 +678,59 @@ function useAnnotationMutationHandlers({
     `);
 
   const onCreateAnnotation = ({
-    config,
+    annotationName,
     target,
     value,
   }: {
-    config: AnnotationConfig;
+    annotationName: string;
     target: AnnotationBarTarget;
     value: AnnotationValueDraft;
   }) => {
     const shared = {
-      name: config.name,
+      name: annotationName,
       label: value.label,
       score: value.score,
       explanation: value.explanation || null,
-      annotatorKind: "HUMAN" as const,
-      source: "APP" as const,
-      metadata: {},
+      annotatorKind: value.annotatorKind,
+      source: value.source,
+      metadata: value.metadata,
     };
-    return new Promise<AnnotationBarMutationResult>((resolve) => {
-      const callbacks = {
-        onCompleted: () => {
-          refresh();
-          resolve({ success: true } as const);
-        },
-        onError: (error: Error) =>
-          resolve({ success: false, error: getMutationError(error) } as const),
+    return new Promise<AnnotationBarCreateResult>((resolve) => {
+      const resolveSuccess = (annotationId: string | undefined) => {
+        if (!annotationId) {
+          resolve({
+            success: false,
+            error: "The annotation was created without an ID.",
+          });
+          return;
+        }
+        refresh();
+        resolve({
+          success: true,
+          annotation: { id: annotationId, ...shared },
+        });
       };
+      const onError = (error: Error) =>
+        resolve({ success: false, error: getMutationError(error) } as const);
       switch (target.kind) {
         case "span":
           createSpanAnnotation({
             variables: { input: { ...shared, spanId: target.id } },
-            ...callbacks,
+            onCompleted: (response) =>
+              resolveSuccess(
+                response.createSpanAnnotations.spanAnnotations[0]?.id
+              ),
+            onError,
           });
           break;
         case "trace":
           createTraceAnnotation({
             variables: { input: { ...shared, traceId: target.id } },
-            ...callbacks,
+            onCompleted: (response) =>
+              resolveSuccess(
+                response.createTraceAnnotations.traceAnnotations[0]?.id
+              ),
+            onError,
           });
           break;
         case "session":
@@ -713,7 +738,12 @@ function useAnnotationMutationHandlers({
             variables: {
               input: { ...shared, projectSessionId: target.id },
             },
-            ...callbacks,
+            onCompleted: (response) =>
+              resolveSuccess(
+                response.createProjectSessionAnnotations
+                  .projectSessionAnnotation.id
+              ),
+            onError,
           });
           break;
       }
@@ -750,8 +780,9 @@ function useAnnotationMutationHandlers({
         label: value.label,
         score: value.score,
         explanation: value.explanation || null,
-        annotatorKind: "HUMAN" as const,
-        source: "APP" as const,
+        annotatorKind: value.annotatorKind,
+        source: value.source,
+        metadata: value.metadata,
       };
       switch (target.kind) {
         case "span":
@@ -769,9 +800,9 @@ function useAnnotationMutationHandlers({
                 label: value.label,
                 score: value.score,
                 explanation: value.explanation || null,
-                annotatorKind: "HUMAN",
-                source: "APP",
-                metadata: {},
+                annotatorKind: value.annotatorKind,
+                source: value.source,
+                metadata: value.metadata,
               },
             },
             ...callbacks,

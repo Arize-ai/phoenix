@@ -140,6 +140,70 @@ export function getNewAnnotationConfigDraft({
 }
 
 /**
+ * Creates a configuration draft inferred from existing annotation values.
+ * @param params - inference inputs
+ * @param params.name - annotation name
+ * @param params.annotations - values observed for the annotation
+ */
+export function getInferredAnnotationConfigDraft({
+  name,
+  annotations,
+}: {
+  name: string;
+  annotations: readonly Annotation[];
+}): AnnotationConfigDraft {
+  const draft = getNewAnnotationConfigDraft({ name });
+  const categoricalValues = Array.from(
+    new Map(
+      annotations
+        .filter((annotation): annotation is Annotation & { label: string } =>
+          Boolean(annotation.label)
+        )
+        .map(
+          (annotation) =>
+            [
+              annotation.label,
+              {
+                label: annotation.label,
+                score:
+                  typeof annotation.score === "number"
+                    ? String(annotation.score)
+                    : "",
+              },
+            ] as const
+        )
+    ).values()
+  );
+  if (categoricalValues.length > 0) {
+    return {
+      ...draft,
+      annotationType: "CATEGORICAL",
+      optimizationDirection: "NONE",
+      values: categoricalValues,
+    };
+  }
+
+  const scores = annotations
+    .map((annotation) => annotation.score)
+    .filter((score): score is number => typeof score === "number");
+  if (scores.length > 0) {
+    return {
+      ...draft,
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "NONE",
+      lowerBound: String(Math.min(0, ...scores)),
+      upperBound: String(Math.max(1, ...scores)),
+    };
+  }
+
+  return {
+    ...draft,
+    annotationType: "FREEFORM",
+    optimizationDirection: "NONE",
+  };
+}
+
+/**
  * Converts annotation-config form state into the settings-domain union.
  * @param params - conversion inputs
  * @param params.draft - validated form draft

@@ -7,7 +7,8 @@ import { AnnotationNameAndValue } from "@phoenix/components/annotation/Annotatio
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
 export const baseAnnotationLabelCSS = css`
-  border-radius: var(--global-dimension-size-50);
+  position: relative;
+  border-radius: var(--global-rounding-small);
   border: 1px solid var(--global-border-color-default);
   padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   transition: background-color 0.2s;
@@ -16,6 +17,7 @@ export const baseAnnotationLabelCSS = css`
   gap: var(--global-dimension-size-50);
   box-sizing: border-box;
   width: fit-content;
+  min-width: 0;
   max-width: 100%;
   overflow: hidden;
   color: inherit;
@@ -24,8 +26,9 @@ export const baseAnnotationLabelCSS = css`
   text-align: left;
   &[data-clickable="true"] {
     cursor: pointer;
-    &:hover {
-      background-color: var(--global-color-gray-300);
+    &:hover,
+    &[data-hovered] {
+      background-color: var(--hover-background);
     }
 
     &:focus-visible {
@@ -34,9 +37,29 @@ export const baseAnnotationLabelCSS = css`
     }
   }
   &[data-variant="ghost"] {
-    border-style: dashed;
-    border-color: var(--global-text-color-500);
+    border-color: transparent;
     color: var(--global-text-color-300);
+  }
+  .ghost-stroke {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+
+    rect {
+      x: 0.5px;
+      y: 0.5px;
+      width: calc(100% - 1px);
+      height: calc(100% - 1px);
+      rx: calc(var(--global-rounding-small) - 0.5px);
+      fill: none;
+      stroke: var(--global-color-primary-200);
+      stroke-width: 1px;
+      stroke-dasharray: 4px 3px;
+      stroke-linecap: round;
+      vector-effect: non-scaling-stroke;
+    }
   }
   .icon-wrap {
     font-size: 12px;
@@ -81,11 +104,17 @@ export function AnnotationLabel({
   const clickable = _clickable ?? typeof onClick == "function";
   const content = (
     <>
+      {variant === "ghost" ? (
+        <svg className="ghost-stroke" aria-hidden="true" focusable="false">
+          <rect />
+        </svg>
+      ) : null}
       <AnnotationNameAndValue
         annotation={annotation}
         displayPreference={
           variant === "ghost" ? "none" : annotationDisplayPreference
         }
+        nameColor={variant === "ghost" ? "inherit" : undefined}
         showColorSwatch={false}
       />
       {variant === "default" ? children : null}
