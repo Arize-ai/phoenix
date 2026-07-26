@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c10a9f0447dac9d6484e3e3e61f68266>>
+ * @generated SignedSource<<90c0290650d7e4aac293c162d93ec575>>
  * @lightSyntaxTransform
  */
 
@@ -25,6 +25,12 @@ export type SpanHeader_span$data = {
   readonly spanKind: SpanKind;
   readonly startTime: string;
   readonly tokenCountTotal: number | null;
+  readonly trace: {
+    readonly session: {
+      readonly id: string;
+      readonly sessionId: string;
+    } | null;
+  };
   readonly " $fragmentType": "SpanHeader_span";
 };
 export type SpanHeader_span$key = {
@@ -32,19 +38,21 @@ export type SpanHeader_span$key = {
   readonly " $fragmentSpreads": FragmentRefs<"SpanHeader_span">;
 };
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
   "name": "SpanHeader_span",
   "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
-    },
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -64,6 +72,36 @@ const node: ReaderFragment = {
       "args": null,
       "kind": "ScalarField",
       "name": "spanId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Trace",
+      "kind": "LinkedField",
+      "name": "trace",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "ProjectSession",
+          "kind": "LinkedField",
+          "name": "session",
+          "plural": false,
+          "selections": [
+            (v0/*:: as any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "sessionId",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     },
     {
@@ -127,7 +165,8 @@ const node: ReaderFragment = {
   "type": "Span",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "025bebd987c2a5f53ddd66ece8cbc167";
+(node as any).hash = "a18caa609300524d312f2c6f85622025";
 
 export default node;

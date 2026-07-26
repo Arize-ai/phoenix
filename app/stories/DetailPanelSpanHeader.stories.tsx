@@ -19,6 +19,12 @@ const BASE_SPAN: SpanHeaderData = {
   spanKind: "llm",
   startTime: "2026-07-23T16:00:00.000Z",
   tokenCountTotal: 1847,
+  trace: {
+    session: {
+      id: "UHJvamVjdFNlc3Npb246c3Rvcnlib29rLXNlc3Npb24=",
+      sessionId: "support-chat-01J5QX8G6N4M2K7P",
+    },
+  },
 };
 
 const GENERAL_SPANS: SpanHeaderData[] = [
@@ -50,6 +56,7 @@ const GENERAL_SPANS: SpanHeaderData[] = [
     name: "unclassified operation",
     spanId: "13b7d9e5a2604cf8",
     spanKind: "unknown",
+    trace: { session: null },
   },
 ];
 
@@ -129,6 +136,11 @@ function SpanHeaderStoryFrame({
       <SpanHeaderContent
         span={span}
         actions={hasActions ? <SpanHeaderActions span={span} /> : undefined}
+        sessionLink={
+          span.trace.session
+            ? `/projects/project-storybook/sessions/${span.trace.session.id}`
+            : undefined
+        }
       />
     </View>
   );

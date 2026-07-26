@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4e0ba7e5ae696f6176c7526c55683964>>
+ * @generated SignedSource<<11f73fe8c87d57fe0aeed17501b4d272>>
  * @lightSyntaxTransform
  */
 
@@ -120,20 +120,8 @@ v4 = {
 v5 = {
   "alias": null,
   "args": null,
-  "concreteType": "Trace",
-  "kind": "LinkedField",
-  "name": "trace",
-  "plural": false,
-  "selections": [
-    (v3/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "traceId",
-      "storageKey": null
-    }
-  ],
+  "kind": "ScalarField",
+  "name": "traceId",
   "storageKey": null
 },
 v6 = {
@@ -391,7 +379,19 @@ return {
             "selections": [
               (v3/*:: as any*/),
               (v4/*:: as any*/),
-              (v5/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Trace",
+                "kind": "LinkedField",
+                "name": "trace",
+                "plural": false,
+                "selections": [
+                  (v3/*:: as any*/),
+                  (v5/*:: as any*/)
+                ],
+                "storageKey": null
+              },
               (v6/*:: as any*/),
               (v7/*:: as any*/),
               (v8/*:: as any*/),
@@ -479,7 +479,38 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v4/*:: as any*/),
-              (v5/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Trace",
+                "kind": "LinkedField",
+                "name": "trace",
+                "plural": false,
+                "selections": [
+                  (v3/*:: as any*/),
+                  (v5/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "ProjectSession",
+                    "kind": "LinkedField",
+                    "name": "session",
+                    "plural": false,
+                    "selections": [
+                      (v3/*:: as any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "sessionId",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
               (v6/*:: as any*/),
               (v7/*:: as any*/),
               (v8/*:: as any*/),
@@ -574,12 +605,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2d55e5f8774fc7a08489a98b7ed95656",
+    "cacheID": "50528a1233854ff8fa019f504763f09c",
     "id": null,
     "metadata": {},
     "name": "SpanDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        id\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      endTime\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        id\n        annotatorKind\n        documentPosition\n        name\n        label\n        score\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n      ...SpanHeader_span\n    }\n    id\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  code: statusCode\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
+    "text": "query SpanDetailsQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        id\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      endTime\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        id\n        annotatorKind\n        documentPosition\n        name\n        label\n        score\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n      ...SpanHeader_span\n    }\n    id\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  trace {\n    session {\n      id\n      sessionId\n    }\n    id\n  }\n  code: statusCode\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
   }
 };
 })();

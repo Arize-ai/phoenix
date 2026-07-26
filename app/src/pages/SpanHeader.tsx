@@ -1,15 +1,17 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
+import type { To } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
-import { Flex, IDBadge, Text } from "@phoenix/components";
+import { Flex, Icon, Icons, IDBadge, Text, Token } from "@phoenix/components";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
+import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
 import type { SpanHeader_span$data } from "./__generated__/SpanHeader_span.graphql";
@@ -61,8 +63,29 @@ const metaRowCSS = css`
   }
 `;
 
+const sessionLinkCSS = css`
+  display: inline-flex;
+  border-radius: var(--global-rounding-large);
+  color: inherit;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+`;
+
+const sessionTokenCSS = css`
+  cursor: pointer;
+
+  .token__text {
+    font-family: var(--global-font-family-mono);
+  }
+`;
+
 type SpanHeaderProps = {
   span: SpanHeader_span$key;
+  projectId: string;
   /**
    * Actions rendered at the trailing edge of the identity row
    */
@@ -70,11 +93,11 @@ type SpanHeaderProps = {
 };
 
 /**
- * Identifies a span: an identity row (kind, name, status) with actions at
- * the trailing edge, above a full-width meta row (id, latency, time, tokens,
- * cost) of uniformly muted mono text separated by dots.
+ * Identifies a span with identity and metadata rows, plus a session row when
+ * the span's trace belongs to a session.
  */
 export function SpanHeader(props: SpanHeaderProps) {
+  const [searchParams] = useSearchParams();
   const span = useFragment(
     graphql`
       fragment SpanHeader_span on Span {
@@ -82,6 +105,12 @@ export function SpanHeader(props: SpanHeaderProps) {
         name
         spanKind
         spanId
+        trace {
+          session {
+            id
+            sessionId
+          }
+        }
         code: statusCode
         latencyMs
         startTime
@@ -95,26 +124,59 @@ export function SpanHeader(props: SpanHeaderProps) {
     `,
     props.span
   );
+  const session = span.trace.session;
+  const sessionLink = session
+    ? `/projects/${props.projectId}/sessions/${getSessionDetailsPath({
+        sessionId: session.id,
+        searchParams,
+      })}`
+    : undefined;
 
-  return <SpanHeaderContent span={span} actions={props.actions} />;
+  return (
+    <SpanHeaderContent
+      span={span}
+      actions={props.actions}
+      sessionLink={sessionLink}
+    />
+  );
 }
 
 /** Presentational span identity header used by the details page and Storybook. */
 export function SpanHeaderContent({
   span,
   actions,
+  sessionLink,
 }: {
   span: SpanHeaderData;
   actions?: ReactNode;
+  sessionLink?: To;
 }) {
   const { fullTimeFormatter } = useTimeFormatters();
-
-  const startTime = useMemo<Date>(() => {
-    return new Date(span.startTime);
-  }, [span.startTime]);
+  const startTime = new Date(span.startTime);
+  const session = span.trace.session;
 
   return (
     <Flex direction="column" gap="size-50" width="100%">
+      {session && sessionLink ? (
+        <div className="span-header__session">
+          <Link
+            to={sessionLink}
+            aria-label={`View session ${session.sessionId}`}
+            title={session.sessionId}
+            css={sessionLinkCSS}
+          >
+            <Token
+              size="M"
+              leadingVisual={
+                <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
+              }
+              css={sessionTokenCSS}
+            >
+              {session.sessionId.slice(-8)}
+            </Token>
+          </Link>
+        </div>
+      ) : null}
       <div className="span-header__identity" css={identityRowCSS}>
         <SpanKindToken spanKind={span.spanKind} />
         <Text

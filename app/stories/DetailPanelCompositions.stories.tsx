@@ -220,6 +220,12 @@ const ROOT_SPAN: SpanHeaderData = {
   spanKind: "chain",
   startTime: "2026-07-23T16:00:00.000Z",
   tokenCountTotal: 1847,
+  trace: {
+    session: {
+      id: "UHJvamVjdFNlc3Npb246c3Rvcnlib29rLXNlc3Npb24=",
+      sessionId: "support-chat-01J5QX8G6N4M2K7P",
+    },
+  },
 };
 
 const CHILD_SPAN: SpanHeaderData = {
@@ -525,7 +531,14 @@ function SpanDetailsFixture({
         paddingEnd="size-200"
         flex="none"
       >
-        <SpanHeaderContent span={header} />
+        <SpanHeaderContent
+          span={header}
+          sessionLink={
+            header.trace.session
+              ? `/projects/project-storybook/sessions/${header.trace.session.id}`
+              : undefined
+          }
+        />
       </View>
       <nav aria-label="Span detail sections">
         <ul css={spanSectionNavigationCSS}>
