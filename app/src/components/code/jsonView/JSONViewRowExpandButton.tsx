@@ -1,10 +1,4 @@
-import {
-  Button,
-  Icon,
-  Icons,
-  Tooltip,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RowExpandToggleButton } from "@phoenix/components/table";
 
 import { useJSONView } from "./JSONViewContext";
 
@@ -21,26 +15,11 @@ export function JSONViewRowExpandButton() {
   if (!isViewable || mode !== "table") {
     return null;
   }
-  const label = areRowsExpanded ? "Collapse rows" : "Expand rows";
   return (
-    <TooltipTrigger>
-      <Button
-        size="S"
-        variant="default"
-        aria-label={label}
-        aria-pressed={areRowsExpanded}
-        leadingVisual={
-          <Icon
-            svg={areRowsExpanded ? <Icons.RowCollapse /> : <Icons.RowExpand />}
-          />
-        }
-        onPress={() => setAreRowsExpanded(!areRowsExpanded)}
-      />
-      <Tooltip offset={1}>
-        {areRowsExpanded
-          ? "Clip each row to a single line"
-          : "Wrap each row over as many lines as it needs"}
-      </Tooltip>
-    </TooltipTrigger>
+    <RowExpandToggleButton
+      size="S"
+      isExpanded={areRowsExpanded}
+      onChange={setAreRowsExpanded}
+    />
   );
 }

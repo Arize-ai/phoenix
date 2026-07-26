@@ -20,7 +20,9 @@ const cellWithControlsWrapCSS = css`
     display: flex;
     align-items: center;
   }
-  &[data-align="top"] > :not(.controls) {
+  // Top-aligned when asked for, and inside a table whose rows are expanded.
+  &[data-align="top"] > :not(.controls),
+  [data-rows="expanded"] & > :not(.controls) {
     align-items: flex-start;
   }
   .controls {
@@ -53,9 +55,10 @@ const cellControlsCSS = css`
   flex-direction: row;
   gap: var(--global-table-cell-controls-gap);
 
-  // Content that starts at the top of a taller row keeps its control beside
-  // the first line rather than letting it drift down the empty space below
-  [data-align="top"] > & {
+  // Content starting at the top of a taller row keeps its control beside the
+  // first line rather than letting it drift down the space below.
+  [data-align="top"] > &,
+  [data-rows="expanded"] & {
     top: calc(
       var(--global-table-cell-padding-y) +
         (var(--global-line-height-s) - var(--embedded-copy-button-size)) / 2
