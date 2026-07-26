@@ -3,10 +3,9 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { IDBadge } from "@phoenix/components";
 
 /**
- * A badge that displays an entity's ID and copies it to the clipboard when
- * pressed — the single, consolidated click-to-copy ID element. Clicking the
- * badge copies the ID and briefly shows a checkmark; no separate copy button
- * is needed alongside it.
+ * Displays an entity's ID as quiet metadata and copies it to the clipboard
+ * when pressed. Clicking the ID briefly shows a checkmark; no separate copy
+ * button is needed alongside it.
  */
 const meta = {
   title: "Core/IDBadge",
@@ -38,29 +37,9 @@ export const CustomTooltip: Story = {
   },
 };
 
-/**
- * The quiet variant renders bare muted mono text for blending into
- * surrounding metadata, with a background wash on hover as the invitation
- * to click-to-copy.
- */
-export const Quiet: Story = {
-  args: {
-    id: "c5b943dba87507a2",
-    variant: "quiet",
-  },
-};
-
 /** Long IDs truncate at the component's maximum width. */
 export const Long: Story = {
   args: {
     id: LONG_ID,
-  },
-};
-
-/** The quiet treatment uses the same maximum width and truncation. */
-export const LongQuiet: Story = {
-  args: {
-    id: LONG_ID,
-    variant: "quiet",
   },
 };

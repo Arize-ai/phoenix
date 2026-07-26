@@ -3,12 +3,10 @@ import copy from "copy-to-clipboard";
 import { useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
-import { Badge } from "@phoenix/components/core/badge";
 import { Text } from "@phoenix/components/core/content";
 import { Icon } from "@phoenix/components/core/icon";
 import { quietHoverCSS } from "@phoenix/components/core/styles";
 import { Tooltip, TooltipTrigger } from "@phoenix/components/core/tooltip";
-import type { ComponentSize } from "@phoenix/components/core/types";
 
 const SHOW_COPIED_TIMEOUT_MS = 2000;
 
@@ -19,11 +17,10 @@ const idBadgeCSS = css`
   min-width: 0;
   max-width: var(--global-dimension-size-5000);
   cursor: pointer;
+  align-items: center;
+  gap: var(--global-dimension-size-50);
+  ${quietHoverCSS}
 
-  & > .badge {
-    min-width: 0;
-    max-width: 100%;
-  }
   .icon-wrap {
     flex: none;
   }
@@ -46,11 +43,6 @@ const idBadgeCSS = css`
     color: var(--global-text-color-500);
     transition: color 0.2s;
   }
-  &[data-variant="quiet"] {
-    align-items: center;
-    gap: var(--global-dimension-size-50);
-    ${quietHoverCSS}
-  }
 `;
 
 interface IDBadgeProps {
@@ -59,37 +51,17 @@ interface IDBadgeProps {
    */
   id: string;
   /**
-   * The size of the badge.
-   * @default 'S'
-   */
-  size?: ComponentSize;
-  /**
    * The text to display in the copy tooltip.
    * @default "Copy ID"
    */
   tooltipText?: string;
-  /**
-   * The visual treatment of the ID.
-   * - "badge": a bordered pill with an ID icon
-   * - "quiet": bare muted mono text with only the copy icon, for blending
-   *   into surrounding metadata text; invites interaction with a background
-   *   wash on hover
-   * @default 'badge'
-   */
-  variant?: "badge" | "quiet";
 }
 
 /**
- * A badge that displays an entity's ID and copies it to the clipboard when
- * pressed — the single, consolidated click-to-copy ID element. No separate
- * copy button is needed alongside it.
+ * Displays an entity's ID as quiet metadata and copies it to the clipboard
+ * when pressed. No separate copy button is needed alongside it.
  */
-export const IDBadge = ({
-  id,
-  size = "S",
-  tooltipText = "Copy ID",
-  variant = "badge",
-}: IDBadgeProps) => {
+export const IDBadge = ({ id, tooltipText = "Copy ID" }: IDBadgeProps) => {
   const [isCopied, setIsCopied] = useState(false);
 
   const copyIcon = (
@@ -104,42 +76,24 @@ export const IDBadge = ({
     <TooltipTrigger>
       <AriaButton
         css={idBadgeCSS}
-        data-variant={variant}
         aria-label={`${tooltipText} ${id}`}
         onPress={() => {
-          copy(id);
+          void copy(id);
           setIsCopied(true);
           setTimeout(() => {
             setIsCopied(false);
           }, SHOW_COPIED_TIMEOUT_MS);
         }}
       >
-        {variant === "badge" ? (
-          <Badge size={size}>
-            <Icon svgKey="ID" />
-            <Text
-              className="id-badge__text"
-              fontFamily="mono"
-              size="S"
-              color="text-700"
-            >
-              {id}
-            </Text>
-            {copyIcon}
-          </Badge>
-        ) : (
-          <>
-            <Text
-              className="id-badge__text"
-              fontFamily="mono"
-              size="S"
-              color="text-500"
-            >
-              {id}
-            </Text>
-            {copyIcon}
-          </>
-        )}
+        <Text
+          className="id-badge__text"
+          fontFamily="mono"
+          size="S"
+          color="text-500"
+        >
+          {id}
+        </Text>
+        {copyIcon}
       </AriaButton>
       <Tooltip offset={1}>{isCopied ? "Copied" : tooltipText}</Tooltip>
     </TooltipTrigger>

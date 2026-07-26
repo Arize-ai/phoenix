@@ -20,7 +20,7 @@ export const TitleWithID = ({ title, id }: TitleWithIDProps) => {
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
       <Heading>{title}</Heading>
-      <IDBadge size="S" id={id} />
+      <IDBadge id={id} />
     </Flex>
   );
 };

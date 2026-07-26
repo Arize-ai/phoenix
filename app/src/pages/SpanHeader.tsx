@@ -130,11 +130,7 @@ export function SpanHeaderContent({
       </div>
       <div className="span-header__meta" css={metaRowCSS}>
         <span className="span-header__meta-item">
-          <IDBadge
-            id={span.spanId}
-            variant="quiet"
-            tooltipText="Copy Span ID"
-          />
+          <IDBadge id={span.spanId} tooltipText="Copy Span ID" />
         </span>
         {typeof span.latencyMs === "number" ? (
           <span className="span-header__meta-item">
