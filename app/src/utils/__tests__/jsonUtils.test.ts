@@ -1,14 +1,19 @@
 import {
   clearJSONValues,
   createEmptyJSONStructure,
+  expandStringifiedJSON,
+  filterFlatJSONEntries,
   flattenObject,
   formatContentAsString,
+  formatFlatJSONValue,
+  hasStringifiedJSON,
   isJSONObjectString,
   isPlainObject,
   jsonStringToFlatObject,
   safelyJSONStringify,
   safelyParseJSONObjectString,
   safelyParseJSONString,
+  toFlatJSONEntries,
   unnestSingleStringValue,
 } from "../jsonUtils";
 
@@ -1258,5 +1263,308 @@ describe("isPlainObject", () => {
     expect(isPlainObject(123)).toBe(false);
     expect(isPlainObject(true)).toBe(false);
     expect(isPlainObject(undefined)).toBe(false);
+  });
+});
+
+describe("expandStringifiedJSON", () => {
+  it("parses stringified objects", () => {
+    expect(expandStringifiedJSON('{"a": 1}')).toEqual({ a: 1 });
+  });
+
+  it("parses objects with string values", () => {
+    expect(expandStringifiedJSON('{"a": "b"}')).toEqual({ a: "b" });
+  });
+
+  it("parses stringified arrays", () => {
+    expect(expandStringifiedJSON("[1, 2, 3]")).toEqual([1, 2, 3]);
+  });
+
+  it("parses arrays of objects", () => {
+    expect(expandStringifiedJSON('[{"a": 1}, {"b": 2}]')).toEqual([
+      { a: 1 },
+      { b: 2 },
+    ]);
+  });
+
+  it("parses nested JSON in objects", () => {
+    expect(expandStringifiedJSON({ nested: '{"a": 1}' })).toEqual({
+      nested: { a: 1 },
+    });
+  });
+
+  it("parses nested JSON in arrays", () => {
+    expect(expandStringifiedJSON(['{"a": 1}', '{"b": 2}'])).toEqual([
+      { a: 1 },
+      { b: 2 },
+    ]);
+  });
+
+  it("parses deeply nested structures", () => {
+    expect(
+      expandStringifiedJSON({
+        key1: '{"a": 1}',
+        key2: { nested: '{"b": 2}' },
+      })
+    ).toEqual({
+      key1: { a: 1 },
+      key2: { nested: { b: 2 } },
+    });
+  });
+
+  it("handles mixed structures", () => {
+    expect(
+      expandStringifiedJSON({
+        stringified: '{"a": 1}',
+        array: ['{"b": 2}', 3],
+        nested: { deep: '["x", "y"]' },
+      })
+    ).toEqual({
+      stringified: { a: 1 },
+      array: [{ b: 2 }, 3],
+      nested: { deep: ["x", "y"] },
+    });
+  });
+
+  it("preserves non-JSON strings", () => {
+    expect(expandStringifiedJSON("not json")).toBe("not json");
+    expect(expandStringifiedJSON("123")).toBe("123");
+    expect(expandStringifiedJSON("true")).toBe("true");
+  });
+
+  it("preserves primitive values", () => {
+    expect(expandStringifiedJSON(123)).toBe(123);
+    expect(expandStringifiedJSON(true)).toBe(true);
+    expect(expandStringifiedJSON(null)).toBe(null);
+  });
+
+  it("preserves already parsed objects", () => {
+    const input = [{ a: 1 }, { b: 2 }];
+    expect(expandStringifiedJSON(input)).toEqual(input);
+  });
+});
+
+describe("hasStringifiedJSON", () => {
+  describe("returns true for", () => {
+    it("stringified objects", () => {
+      expect(hasStringifiedJSON('{"a": 1}')).toBe(true);
+    });
+
+    it("nested stringified objects", () => {
+      expect(hasStringifiedJSON('{"a": {"b": 1}}')).toBe(true);
+    });
+
+    it("stringified arrays", () => {
+      expect(hasStringifiedJSON("[1, 2, 3]")).toBe(true);
+    });
+
+    it("stringified arrays of objects", () => {
+      expect(hasStringifiedJSON('[{"a": 1}]')).toBe(true);
+    });
+
+    it("arrays containing JSON strings", () => {
+      expect(hasStringifiedJSON(['{"a": 1}'])).toBe(true);
+    });
+
+    it("arrays with mixed JSON strings", () => {
+      expect(hasStringifiedJSON([1, 2, '{"a": 1}'])).toBe(true);
+    });
+
+    it("objects with JSON string values", () => {
+      expect(hasStringifiedJSON({ key: '{"a": 1}' })).toBe(true);
+    });
+
+    it("deeply nested JSON strings", () => {
+      expect(hasStringifiedJSON({ nested: { deep: '{"a": 1}' } })).toBe(true);
+    });
+  });
+
+  describe("returns false for", () => {
+    it("non-JSON strings", () => {
+      expect(hasStringifiedJSON("plain string")).toBe(false);
+      expect(hasStringifiedJSON("123")).toBe(false);
+      expect(hasStringifiedJSON("true")).toBe(false);
+      expect(hasStringifiedJSON("null")).toBe(false);
+    });
+
+    it("primitive values", () => {
+      expect(hasStringifiedJSON(123)).toBe(false);
+      expect(hasStringifiedJSON(true)).toBe(false);
+      expect(hasStringifiedJSON(null)).toBe(false);
+    });
+
+    it("objects without stringified JSON", () => {
+      expect(hasStringifiedJSON({ a: 1 })).toBe(false);
+      expect(hasStringifiedJSON({ a: { b: 1 } })).toBe(false);
+    });
+
+    it("arrays without stringified JSON", () => {
+      expect(hasStringifiedJSON([1, 2, 3])).toBe(false);
+      expect(hasStringifiedJSON([{ a: 1 }])).toBe(false);
+    });
+
+    it("invalid or malformed JSON strings", () => {
+      expect(hasStringifiedJSON("{invalid}")).toBe(false);
+      expect(hasStringifiedJSON("[1, 2,")).toBe(false);
+    });
+  });
+});
+
+describe("toFlatJSONEntries", () => {
+  it("flattens nested objects with a dot separator", () => {
+    expect(toFlatJSONEntries({ value: { a: { b: 1 } } })).toEqual([
+      { key: "a.b", value: 1 },
+    ]);
+  });
+
+  it("addresses array items with bracket notation", () => {
+    expect(toFlatJSONEntries({ value: { a: [1, 2] } })).toEqual([
+      { key: "a[0]", value: 1 },
+      { key: "a[1]", value: 2 },
+    ]);
+  });
+
+  it("flattens objects nested in arrays", () => {
+    expect(
+      toFlatJSONEntries({ value: { messages: [{ role: "user" }] } })
+    ).toEqual([{ key: "messages[0].role", value: "user" }]);
+  });
+
+  it("preserves document order", () => {
+    expect(
+      toFlatJSONEntries({ value: { z: 1, a: 2 } }).map((entry) => entry.key)
+    ).toEqual(["z", "a"]);
+  });
+
+  it("keeps empty objects and arrays as leaves", () => {
+    expect(toFlatJSONEntries({ value: { a: {}, b: [] } })).toEqual([
+      { key: "a", value: {} },
+      { key: "b", value: [] },
+    ]);
+  });
+
+  it("keeps null values", () => {
+    expect(toFlatJSONEntries({ value: { a: null } })).toEqual([
+      { key: "a", value: null },
+    ]);
+  });
+
+  it("gives colliding keys an entry each rather than dropping one", () => {
+    // a recorded key holding the separator flattens onto a nested one; the
+    // caller keeps the list so the copy control cannot lose a row
+    expect(toFlatJSONEntries({ value: { "a.b": 1, a: { b: 2 } } })).toEqual([
+      { key: "a.b", value: 1 },
+      { key: "a.b", value: 2 },
+    ]);
+  });
+
+  it("flattens a root array", () => {
+    expect(toFlatJSONEntries({ value: [1, 2] })).toEqual([
+      { key: "[0]", value: 1 },
+      { key: "[1]", value: 2 },
+    ]);
+  });
+
+  it("returns no entries for a root that is not a container", () => {
+    expect(toFlatJSONEntries({ value: 1 })).toEqual([]);
+    expect(toFlatJSONEntries({ value: "a" })).toEqual([]);
+    expect(toFlatJSONEntries({ value: null })).toEqual([]);
+    expect(toFlatJSONEntries({ value: {} })).toEqual([]);
+  });
+
+  it("composes with expandStringifiedJSON to flatten stringified JSON", () => {
+    expect(
+      toFlatJSONEntries({
+        value: expandStringifiedJSON({
+          input: '{"messages": [{"role": "user"}]}',
+        }),
+      })
+    ).toEqual([{ key: "input.messages[0].role", value: "user" }]);
+  });
+
+  describe("dot index notation", () => {
+    it("addresses array items with a dotted index", () => {
+      expect(
+        toFlatJSONEntries({
+          value: { input: { value: { messages: [{}, { content: "hi" }] } } },
+          indexNotation: "dot",
+        })
+      ).toEqual([
+        { key: "input.value.messages.0", value: {} },
+        { key: "input.value.messages.1.content", value: "hi" },
+      ]);
+    });
+
+    it("addresses nested arrays with a dotted index", () => {
+      expect(
+        toFlatJSONEntries({
+          value: { a: [[1]] },
+          indexNotation: "dot",
+        })
+      ).toEqual([{ key: "a.0.0", value: 1 }]);
+    });
+
+    it("flattens a root array without a leading separator", () => {
+      expect(
+        toFlatJSONEntries({ value: [1, 2], indexNotation: "dot" })
+      ).toEqual([
+        { key: "0", value: 1 },
+        { key: "1", value: 2 },
+      ]);
+    });
+
+    it("separates a nested index from its parent key", () => {
+      expect(
+        toFlatJSONEntries({ value: { a: [1] }, indexNotation: "dot" })
+      ).toEqual([{ key: "a.0", value: 1 }]);
+    });
+  });
+});
+
+describe("formatFlatJSONValue", () => {
+  it("shows strings without JSON quoting", () => {
+    expect(formatFlatJSONValue("hello")).toBe("hello");
+  });
+
+  it("JSON encodes everything else", () => {
+    expect(formatFlatJSONValue(1)).toBe("1");
+    expect(formatFlatJSONValue(true)).toBe("true");
+    expect(formatFlatJSONValue(null)).toBe("null");
+    expect(formatFlatJSONValue({})).toBe("{}");
+    expect(formatFlatJSONValue([])).toBe("[]");
+  });
+});
+
+describe("filterFlatJSONEntries", () => {
+  const entries = [
+    { key: "llm.model_name", value: "gpt-4" },
+    { key: "llm.token_count.total", value: 42 },
+    { key: "output.value", value: "Hello" },
+  ];
+
+  it("returns every entry for an empty query", () => {
+    expect(filterFlatJSONEntries({ entries, query: "" })).toEqual(entries);
+    expect(filterFlatJSONEntries({ entries, query: "   " })).toEqual(entries);
+  });
+
+  it("matches on the key", () => {
+    expect(filterFlatJSONEntries({ entries, query: "token" })).toEqual([
+      entries[1],
+    ]);
+  });
+
+  it("matches on the formatted value", () => {
+    expect(filterFlatJSONEntries({ entries, query: "42" })).toEqual([
+      entries[1],
+    ]);
+  });
+
+  it("ignores case", () => {
+    expect(filterFlatJSONEntries({ entries, query: "HELLO" })).toEqual([
+      entries[2],
+    ]);
+  });
+
+  it("returns nothing when nothing matches", () => {
+    expect(filterFlatJSONEntries({ entries, query: "nope" })).toEqual([]);
   });
 });

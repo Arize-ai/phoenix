@@ -4,7 +4,7 @@ export * from "./JSONEditor";
 export * from "./CodeBlockWithCopy";
 export * from "./JSONBlock";
 export * from "./JSONBlockWithCopy";
-export * from "./AttributesJSONBlock";
+export * from "./jsonView";
 export * from "./BashBlock";
 export * from "./BashBlockWithCopy";
 export * from "./PythonBlock";

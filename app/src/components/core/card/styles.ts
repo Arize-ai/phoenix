@@ -63,6 +63,7 @@ export const cardCSS = (style?: CSSProperties) => css`
       flex-direction: row;
       align-items: center;
       height: 100%;
+      cursor: pointer;
 
       & .card__collapsible-button {
         flex: none;
@@ -103,11 +104,11 @@ export const cardCSS = (style?: CSSProperties) => css`
     line-height: var(--global-line-height-m);
   }
 
-  /* Collapsible behavior: highlight the header only when the collapse
-     trigger itself is hovered, so the affordance matches the click target
-     (with interactiveTitle only the arrow button toggles) */
+  /* Collapsible behavior: highlight the header only when a region that
+     toggles is hovered, so the affordance matches the click target */
   &[data-collapsible="true"] {
-    & > header:has(.card__collapsible-button:hover) {
+    & > header:has(.card__collapsible-button:hover),
+    & > header:has(.card__collapsible-header:hover) {
       background-color: var(--global-card-header-background-color-hover);
     }
   }
