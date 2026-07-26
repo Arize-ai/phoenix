@@ -1,14 +1,11 @@
-import debounce from "lodash/debounce";
-import { startTransition, useCallback, useMemo } from "react";
 import { Input } from "react-aria-components";
 
 import type { SearchFieldProps } from "./SearchField";
 import { SearchField, SearchIcon } from "./SearchField";
+import { useDebouncedChange } from "./useDebouncedChange";
 
-export interface DebouncedSearchProps extends Omit<
-  SearchFieldProps,
-  "value" | "onChange"
-> {
+export interface DebouncedSearchProps
+  extends Omit<SearchFieldProps, "value" | "onChange"> {
   onChange: (value: string) => void;
   /**
    * Text to show the user before typing
@@ -35,21 +32,7 @@ export function DebouncedSearch({
   placeholder,
   ...props
 }: DebouncedSearchProps) {
-  const debouncedOnChange = useMemo(
-    () =>
-      debounce((v: string) => {
-        startTransition(() => {
-          propsOnChange(v);
-        });
-      }, debounceMs),
-    [propsOnChange, debounceMs]
-  );
-  const onChange = useCallback(
-    (v: string) => {
-      debouncedOnChange(v);
-    },
-    [debouncedOnChange]
-  );
+  const onChange = useDebouncedChange(propsOnChange, debounceMs);
 
   return (
     <SearchField onChange={onChange} {...props}>

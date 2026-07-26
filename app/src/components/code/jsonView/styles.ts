@@ -61,7 +61,3 @@ export const jsonTableCSS = css(
     }
   `
 );
-
-export const jsonViewSearchCSS = css`
-  width: var(--global-dimension-size-3000);
-`;
