@@ -979,7 +979,7 @@ const menuCSS = (theme: Theme) => css`
 
     /* Menu colors and spacing */
     --global-menu-border-color: var(--global-border-color-default);
-    --global-menu-background-color: var(--global-color-gray-50);
+    --global-menu-background-color: var(--global-background-color-default);
     --global-menu-item-background-color-hover: var(--hover-background);
     --global-menu-split-item-content-gap: var(--global-dimension-size-300);
     --global-menu-item-gap: var(--global-dimension-size-50);
@@ -1001,6 +1001,16 @@ const buttonCSS = (theme: Theme) => css`
       --global-color-danger-900
     );
     --global-button-danger-border-color: var(--global-color-danger);
+    --global-button-quiet-danger-foreground-color: var(--global-color-danger);
+    --global-button-quiet-danger-background-color-hover: var(
+      --global-color-danger-100
+    );
+    --global-icon-button-danger-foreground-color-hover: var(
+      --global-color-danger
+    );
+    --global-icon-button-danger-background-color-hover: var(
+      --global-color-danger-100
+    );
     --global-button-success-background-color: var(--global-color-success-700);
     --global-button-success-background-color-hover: var(
       --global-color-success-900
@@ -1220,7 +1230,7 @@ const popoverCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
     --global-popover-border-color: var(--global-color-gray-300);
-    --global-popover-background-color: var(--global-color-gray-50);
+    --global-popover-background-color: var(--global-background-color-default);
   }
 `;
 

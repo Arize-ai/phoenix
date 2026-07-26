@@ -7,7 +7,7 @@ import type {
   Variant,
 } from "@phoenix/components/core/types";
 
-type ButtonVariant = Exclude<Variant, "info">;
+export type ButtonVariant = Exclude<Variant, "info"> | "quiet-danger";
 
 export interface ButtonProps
   extends AriaButtonProps, SizingProps, StylableProps {

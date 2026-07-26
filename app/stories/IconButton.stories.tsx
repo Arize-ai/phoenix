@@ -26,6 +26,10 @@ const meta: Meta = {
     },
   },
   argTypes: {
+    variant: {
+      control: { type: "select" },
+      options: ["default", "danger"],
+    },
     size: {
       control: { type: "select" },
       options: ["S", "M"],
@@ -56,6 +60,14 @@ export const Default = {
   args: {
     children: <Icon svg={<Search />} />,
     "aria-label": "Search",
+  },
+};
+
+export const Danger = {
+  args: {
+    children: <Icon svg={<Trash />} />,
+    variant: "danger",
+    "aria-label": "Delete",
   },
 };
 
@@ -91,7 +103,7 @@ export const DifferentIcons = () => (
     <IconButton aria-label="Settings">
       <Icon svg={<Settings />} />
     </IconButton>
-    <IconButton aria-label="Delete">
+    <IconButton variant="danger" aria-label="Delete">
       <Icon svg={<Trash />} />
     </IconButton>
     <IconButton aria-label="Edit">

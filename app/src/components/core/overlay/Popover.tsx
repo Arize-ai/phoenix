@@ -1,9 +1,15 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import type { PopoverProps } from "react-aria-components";
+import type {
+  PopoverProps as AriaPopoverProps,
+  PopoverRenderProps,
+} from "react-aria-components";
 import { Popover as AriaPopover } from "react-aria-components";
 
-import { PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
+import {
+  NON_MODAL_FLOATING_Z_INDEX,
+  PORTALED_OVERLAY_Z_INDEX,
+} from "@phoenix/components/core/zIndex";
 import { classNames } from "@phoenix/utils/classNames";
 
 const popoverCSS = css`
@@ -81,14 +87,30 @@ const popoverCSS = css`
   }
 `;
 
+type PopoverProps = AriaPopoverProps & {
+  layer?: "non-modal" | "portaled";
+};
+
 function Popover({
   ref,
+  layer = "portaled",
   ...props
 }: PopoverProps & { ref?: Ref<HTMLDivElement> }) {
+  const popoverStyle = props.style;
+  const style =
+    layer === "non-modal"
+      ? typeof popoverStyle === "function"
+        ? (renderProps: PopoverRenderProps) => ({
+            ...popoverStyle(renderProps),
+            zIndex: NON_MODAL_FLOATING_Z_INDEX,
+          })
+        : { ...popoverStyle, zIndex: NON_MODAL_FLOATING_Z_INDEX }
+      : popoverStyle;
   return (
     <AriaPopover
       {...props}
       ref={ref}
+      style={style}
       className={classNames("popover react-aria-Popover", props.className)}
       css={popoverCSS}
     />

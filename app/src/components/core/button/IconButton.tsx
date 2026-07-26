@@ -8,6 +8,8 @@ import type { ColorValue, TextColorValue } from "../types";
 import type { ComponentSize } from "../types/sizing";
 import { colorValue } from "../utils";
 
+export type IconButtonVariant = "default" | "danger";
+
 const getIconButtonColor = (color: TextColorValue): string => {
   if (color === "inherit") {
     return "inherit";
@@ -34,6 +36,12 @@ export interface IconButtonProps extends Omit<ButtonProps, "children"> {
    * @default 'text-700'
    */
   color?: TextColorValue;
+  /**
+   * The visual intent of the icon button. Danger buttons retain their regular
+   * color at rest and use semantic danger colors on hover.
+   * @default 'default'
+   */
+  variant?: IconButtonVariant;
   /**
    * Custom CSS styles
    */
@@ -89,6 +97,12 @@ const iconButtonCSS = (color: TextColorValue) => css`
     }
   }
 
+  &[data-variant="danger"]:hover:not([data-disabled]),
+  &[data-variant="danger"][data-hovered] {
+    color: var(--global-icon-button-danger-foreground-color-hover);
+    background-color: var(--global-icon-button-danger-background-color-hover);
+  }
+
   &[data-pressed] {
     background-color: var(--global-color-primary-100);
     color: var(--global-text-color-900);
@@ -108,11 +122,17 @@ const iconButtonCSS = (color: TextColorValue) => css`
 export function IconButton({
   size = "M",
   color = "text-700",
+  variant = "default",
   children,
   ...props
 }: IconButtonProps) {
   return (
-    <Button css={iconButtonCSS(color)} data-size={size} {...props}>
+    <Button
+      css={iconButtonCSS(color)}
+      data-size={size}
+      data-variant={variant}
+      {...props}
+    >
       {children}
     </Button>
   );

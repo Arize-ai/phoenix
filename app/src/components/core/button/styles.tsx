@@ -92,6 +92,18 @@ export const buttonCSS = css`
       background-color: var(--global-input-field-background-color-active);
     }
   }
+  &[data-variant="quiet-danger"] {
+    background-color: transparent;
+    --button-border-color: transparent;
+    color: var(--global-button-quiet-danger-foreground-color);
+    &:hover:not([disabled]),
+    &[data-hovered] {
+      border-color: transparent;
+      background-color: var(
+        --global-button-quiet-danger-background-color-hover
+      );
+    }
+  }
 
   kbd {
     background-color: var(--global-button-kbd-background-color);

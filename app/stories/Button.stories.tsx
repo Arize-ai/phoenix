@@ -46,6 +46,13 @@ export const Quiet = {
   },
 };
 
+export const QuietDanger = {
+  args: {
+    children: "Delete",
+    variant: "quiet-danger",
+  },
+};
+
 export const WithKeyboard = {
   args: {
     children: "With Keyboard",
