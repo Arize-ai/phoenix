@@ -495,9 +495,7 @@ test.describe("Details panel column behavior assertions", () => {
       )
       .toBe("1");
 
-    const overlaySeparator = page.getByTestId(
-      "details-panel-tree-overlay-separator"
-    );
+    const overlaySeparator = page.getByTestId("details-panel-tree-separator");
     const overlaySeparatorCenter = await getCenter(overlaySeparator);
     await page.mouse.move(overlaySeparatorCenter.x, overlaySeparatorCenter.y);
     await page.mouse.down();

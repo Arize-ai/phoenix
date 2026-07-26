@@ -3,7 +3,7 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { Suspense } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -16,13 +16,10 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import {
-  compactResizeHandleCSS,
-  diagnosticResizeHandleCSS,
-} from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
   ResizableTraceTreePanelContent,
+  ResizableTraceTreeSeparator,
   resizableTraceTreePanelStyle,
 } from "@phoenix/components/trace/ResizableTraceTreePanelContent";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
@@ -136,6 +133,7 @@ export function TraceDetails({
         elementRef={groupElementRef}
         orientation="horizontal"
         onLayoutChanged={onLayoutChanged}
+        className="details-panel-columns"
         css={css`
           flex: 1 1 auto;
           overflow: hidden;
@@ -154,11 +152,7 @@ export function TraceDetails({
           style={resizableTraceTreePanelStyle}
         >
           <TraceTreeProvider>
-            <ResizableTraceTreePanelContent
-              onResize={onOverlayResize}
-              onResizeEnd={onOverlayResizeEnd}
-              onResizeStart={onOverlayResizeStart}
-            >
+            <ResizableTraceTreePanelContent>
               <TraceTreeToolbar />
               <ConnectedTraceTree
                 trace={data.project.trace}
@@ -176,17 +170,10 @@ export function TraceDetails({
             </ResizableTraceTreePanelContent>
           </TraceTreeProvider>
         </Panel>
-        <Separator
-          id="details-panel-tree-separator"
-          aria-label="Resize trace tree"
-          css={[
-            compactResizeHandleCSS,
-            diagnosticResizeHandleCSS,
-            css`
-              position: relative;
-              z-index: var(--global-z-index-local-control);
-            `,
-          ]}
+        <ResizableTraceTreeSeparator
+          onResize={onOverlayResize}
+          onResizeEnd={onOverlayResizeEnd}
+          onResizeStart={onOverlayResizeStart}
         />
         <Panel
           id="details-panel-main-column"

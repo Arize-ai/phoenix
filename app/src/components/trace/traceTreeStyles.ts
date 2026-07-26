@@ -28,29 +28,31 @@ export const traceTreePanelContentCSS = css`
   container-type: inline-size;
   background: var(--global-background-color-default);
 
-  &[data-overlay-resizing="true"] {
+  .details-panel-columns:has(
+      .details-panel-tree-separator[data-overlay-resizing="true"]
+    )
+    & {
     z-index: var(--global-z-index-local-raised);
     width: 100%;
     border-right: var(--global-border-size-thin) solid
       var(--global-border-color-default);
     box-shadow: 4px 0 12px rgba(var(--global-color-gray-900-rgb), 0.12);
-
-    .trace-tree-panel-content__resize-handle {
-      display: block;
-    }
   }
 
   @container trace-tree-panel (width < ${TRACE_TREE_HOVER_WIDTH_PIXELS}px) {
-    &:is(:hover, :focus-within):not([data-overlay-resizing="true"]) {
+    .details-panel-columns:not(
+        :has(.details-panel-tree-separator[data-overlay-resizing="true"])
+      )
+      &:is(:hover, :focus-within),
+    .details-panel-columns:not(
+        :has(.details-panel-tree-separator[data-overlay-resizing="true"])
+      ):has(.details-panel-tree-separator:is(:hover, :focus-visible))
+      & {
       z-index: var(--global-z-index-local-raised);
       width: var(--global-dimension-size-3000);
       border-right: var(--global-border-size-thin) solid
         var(--global-border-color-default);
       box-shadow: 4px 0 12px rgba(var(--global-color-gray-900-rgb), 0.12);
-
-      .trace-tree-panel-content__resize-handle {
-        display: block;
-      }
 
       .trace-tree-toolbar__search {
         flex: 1 1 auto;
@@ -83,7 +85,14 @@ export const traceTreePanelContentCSS = css`
   }
 
   @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
-    &:is(:hover, :focus-within):not([data-overlay-resizing="true"]) {
+    .details-panel-columns:not(
+        :has(.details-panel-tree-separator[data-overlay-resizing="true"])
+      )
+      &:is(:hover, :focus-within),
+    .details-panel-columns:not(
+        :has(.details-panel-tree-separator[data-overlay-resizing="true"])
+      ):has(.details-panel-tree-separator:is(:hover, :focus-visible))
+      & {
       .trace-tree-toolbar__controls {
         width: 100%;
       }

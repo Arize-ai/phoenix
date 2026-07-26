@@ -15,7 +15,7 @@ import {
   usePaginationFragment,
   usePreloadedQuery,
 } from "react-relay";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 
 import {
@@ -32,13 +32,10 @@ import {
   EmptyStateArea,
   EmptyStateGraphic,
 } from "@phoenix/components/core/empty";
-import {
-  compactResizeHandleCSS,
-  diagnosticResizeHandleCSS,
-} from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
   ResizableTraceTreePanelContent,
+  ResizableTraceTreeSeparator,
   resizableTraceTreePanelStyle,
 } from "@phoenix/components/trace/ResizableTraceTreePanelContent";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
@@ -286,6 +283,7 @@ export function SessionDetailsTracesView({
       orientation="horizontal"
       onLayoutChanged={onLayoutChanged}
       css={viewGroupCSS}
+      className="details-panel-columns"
       data-testid="session-traces-view"
     >
       <Panel
@@ -300,12 +298,7 @@ export function SessionDetailsTracesView({
         `}
         style={resizableTraceTreePanelStyle}
       >
-        <ResizableTraceTreePanelContent
-          contentCSS={tracesListPanelCSS}
-          onResize={onOverlayResize}
-          onResizeEnd={onOverlayResizeEnd}
-          onResizeStart={onOverlayResizeStart}
-        >
+        <ResizableTraceTreePanelContent contentCSS={tracesListPanelCSS}>
           <TraceRowList
             traces={traces}
             expandedIds={expandedIds}
@@ -322,17 +315,10 @@ export function SessionDetailsTracesView({
           />
         </ResizableTraceTreePanelContent>
       </Panel>
-      <Separator
-        id="details-panel-tree-separator"
-        aria-label="Resize trace tree"
-        css={[
-          compactResizeHandleCSS,
-          diagnosticResizeHandleCSS,
-          css`
-            position: relative;
-            z-index: var(--global-z-index-local-control);
-          `,
-        ]}
+      <ResizableTraceTreeSeparator
+        onResize={onOverlayResize}
+        onResizeEnd={onOverlayResizeEnd}
+        onResizeStart={onOverlayResizeStart}
       />
       <Panel
         id="details-panel-main-column"

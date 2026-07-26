@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 export const resizeHandleCSS = css`
-  transition: 250ms linear all;
+  transition: background-color 250ms linear;
   background-color: var(--global-resize-handle-background-color);
   --resize-handle-size: 3px;
   outline: none;
@@ -37,7 +37,7 @@ export const transparentResizeHandleCSS = css`
 `;
 
 export const compactResizeHandleCSS = css`
-  transition: 250ms linear all;
+  transition: background-color 250ms linear;
   background-color: var(--global-resize-handle-background-color);
   --resize-handle-size: 1px;
   outline: none;

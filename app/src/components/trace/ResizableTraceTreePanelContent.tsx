@@ -5,9 +5,13 @@ import type {
   PointerEvent as ReactPointerEvent,
   PropsWithChildren,
 } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Separator } from "react-resizable-panels";
 
-import { diagnosticResizeHandleCSS } from "@phoenix/components/resize";
+import {
+  compactResizeHandleCSS,
+  diagnosticResizeHandleCSS,
+} from "@phoenix/components/resize";
 
 import { traceTreePanelContentCSS } from "./traceTreeStyles";
 
@@ -18,60 +22,115 @@ export const resizableTraceTreePanelStyle: CSSProperties = {
   zIndex: "var(--global-z-index-local-overlay)",
 };
 
-const overlayResizeHandleCSS = css`
+const treeSeparatorCSS = css`
+  ${compactResizeHandleCSS};
   ${diagnosticResizeHandleCSS};
-  display: none;
-  position: absolute;
+  position: relative;
   z-index: var(--global-z-index-local-control);
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: var(--global-border-size-thin);
-  padding: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  cursor: ew-resize;
-  touch-action: none;
-  transform: translateX(50%);
 `;
 
 type ResizableTraceTreePanelContentProps = PropsWithChildren<{
   contentCSS?: SerializedStyles;
-  onResizeStart: (width: number) => void;
-  onResize: (width: number) => number;
-  onResizeEnd: (didMove: boolean) => void;
 }>;
 
 /**
- * Owns the narrow trace-tree overlay and the resize edge that promotes the
- * temporary overlay width to the user's persisted column width.
+ * Owns the narrow trace-tree content that temporarily overlays the main
+ * details column when there is not enough room to render its controls.
  */
 export function ResizableTraceTreePanelContent({
   children,
   contentCSS,
+}: ResizableTraceTreePanelContentProps) {
+  return (
+    <div
+      className="trace-tree-panel-content"
+      data-testid="scrolling-panel-content"
+      css={[traceTreePanelContentCSS, contentCSS]}
+    >
+      {children}
+    </div>
+  );
+}
+
+type ResizableTraceTreeSeparatorProps = {
+  onResizeStart: (width: number) => void;
+  onResize: (width: number) => number;
+  onResizeEnd: (didMove: boolean) => void;
+};
+
+/**
+ * The single separator for the trace-tree column. When narrow content expands
+ * as an overlay, the separator follows its rendered edge. Starting a drag
+ * promotes that overlay width to the real panel before resizing continues.
+ */
+export function ResizableTraceTreeSeparator({
   onResizeStart,
   onResize,
   onResizeEnd,
-}: ResizableTraceTreePanelContentProps) {
+}: ResizableTraceTreeSeparatorProps) {
+  const separatorRef = useRef<HTMLDivElement>(null);
+  const [overlayOffset, setOverlayOffset] = useState(0);
   const [isOverlayResizing, setIsOverlayResizing] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null);
   const startPointerXRef = useRef(0);
   const startWidthRef = useRef(0);
   const didMoveRef = useRef(false);
 
+  useEffect(() => {
+    const separator = separatorRef.current;
+    const treePanel = separator?.previousElementSibling;
+    const content = treePanel?.querySelector<HTMLElement>(
+      ".trace-tree-panel-content"
+    );
+    if (!(treePanel instanceof HTMLElement) || !content) return undefined;
+
+    const updateOverlayOffset = () => {
+      const contentWidth = content.getBoundingClientRect().width;
+      const panelWidth = treePanel.getBoundingClientRect().width;
+      setOverlayOffset(Math.max(0, contentWidth - panelWidth));
+    };
+    const resizeObserver = new ResizeObserver(updateOverlayOffset);
+    resizeObserver.observe(treePanel);
+    resizeObserver.observe(content);
+    updateOverlayOffset();
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // react-resizable-panels listens at document capture. When the separator is
+  // following an overlay, reserve pointer resizing for the promotion flow
+  // below; at its normal position the library remains fully in control.
+  useEffect(() => {
+    if (overlayOffset === 0) return undefined;
+    const preventNativeResize = (event: PointerEvent) => {
+      const eventTarget = event.target;
+      if (
+        eventTarget instanceof Node &&
+        separatorRef.current?.contains(eventTarget)
+      ) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("pointerdown", preventNativeResize, true);
+    return () =>
+      window.removeEventListener("pointerdown", preventNativeResize, true);
+  }, [overlayOffset]);
+
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    const contentRect = contentRef.current?.getBoundingClientRect();
-    const handleRect = event.currentTarget.getBoundingClientRect();
-    const handleCenterX = handleRect.left + handleRect.width / 2;
-    const renderedWidth = contentRect
-      ? handleCenterX - contentRect.left
-      : handleRect.width;
+    if (overlayOffset === 0) return;
+    const separator = event.currentTarget;
+    const treePanel = separator.previousElementSibling;
+    const content = treePanel?.querySelector<HTMLElement>(
+      ".trace-tree-panel-content"
+    );
+    if (!content) return;
+
+    separator.setPointerCapture(event.pointerId);
+    const renderedWidth = content.getBoundingClientRect().width;
     startPointerXRef.current = event.clientX;
     startWidthRef.current = renderedWidth;
     didMoveRef.current = false;
     onResizeStart(renderedWidth);
+    setOverlayOffset(0);
     setIsOverlayResizing(true);
     event.preventDefault();
     event.stopPropagation();
@@ -92,28 +151,21 @@ export function ResizableTraceTreePanelContent({
   };
 
   return (
-    <div
-      className="trace-tree-panel-content"
-      data-testid="scrolling-panel-content"
+    <Separator
+      id="details-panel-tree-separator"
+      elementRef={separatorRef}
+      aria-label="Resize trace tree"
+      className="details-panel-tree-separator"
       data-overlay-resizing={isOverlayResizing || undefined}
-      css={[traceTreePanelContentCSS, contentCSS]}
-      ref={contentRef}
-    >
-      {children}
-      <div
-        data-testid="details-panel-tree-overlay-separator"
-        className="trace-tree-panel-content__resize-handle"
-        role="separator"
-        aria-label="Resize trace tree"
-        aria-orientation="vertical"
-        tabIndex={-1}
-        data-dragging={isOverlayResizing || undefined}
-        css={overlayResizeHandleCSS}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={finishResize}
-        onPointerCancel={finishResize}
-      />
-    </div>
+      css={treeSeparatorCSS}
+      style={{
+        transform:
+          overlayOffset > 0 ? `translateX(${overlayOffset}px)` : undefined,
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={finishResize}
+      onPointerCancel={finishResize}
+    />
   );
 }
