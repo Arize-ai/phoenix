@@ -16,18 +16,16 @@ import {
 import type { SegmentedControlItemProps } from "./types";
 
 /**
- * react-aria slides the shared thumb by seeding an inline `translate` with the
- * viewport delta between the outgoing and incoming segment. It measures both
- * axes, so vertical page movement between those two measurements would fling a
- * horizontal control's thumb off its track — keep the horizontal delta, drop
- * the vertical one. The indicator is a child, so its layout effect has already
- * seeded the value by the time this one runs.
+ * react-aria slides the thumb by seeding an inline `translate` with the viewport
+ * delta between the outgoing and incoming segment, measured on both axes. Drop
+ * the vertical one, or page reflow flings the thumb off its track. Takes
+ * `isSelected` as a prop so a selection change re-renders it, running this
+ * layout effect after the indicator child has seeded the value.
  */
 function SegmentedControlThumb({ isSelected }: { isSelected: boolean }) {
   const thumbRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
-    // Only the incoming thumb is seeded; every other render leaves it empty.
     const thumb = thumbRef.current;
     const translate = thumb?.style.translate;
     if (thumb && isSelected && translate) {
@@ -59,8 +57,6 @@ export function SegmentedControlItem({
       className={classNames("segmented-control__item", className)}
       css={css(segmentedControlItemCSS, cssProp)}
     >
-      {/* Render props, so the thumb re-renders when selection changes and its
-          layout effect gets a chance to correct the seeded translate. */}
       {({ isSelected }) => (
         <>
           <div
