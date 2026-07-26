@@ -154,3 +154,70 @@ export function getPositiveOptimizationFromConfig({
     optimizationDirection,
   });
 }
+
+/**
+ * Maps a score onto a signed optimization gradient.
+ *
+ * The pivot is neutral (`0`), the worst bound is `-1`, and the best bound is
+ * `1`. Values outside the configured bounds are clamped. Returns null when a
+ * direction, pivot, or both bounds are unavailable.
+ */
+export function getOptimizationGradientValue({
+  score,
+  lowerBound,
+  upperBound,
+  threshold,
+  optimizationDirection,
+}: {
+  score: number | null | undefined;
+  lowerBound: number | undefined;
+  upperBound: number | undefined;
+  threshold?: number | undefined;
+  optimizationDirection: OptimizationDirectionResult;
+}): number | null {
+  if (
+    score == null ||
+    lowerBound == null ||
+    upperBound == null ||
+    optimizationDirection == null
+  ) {
+    return null;
+  }
+
+  const pivot = threshold ?? (lowerBound + upperBound) / 2;
+  const signedDistance =
+    optimizationDirection === "MAXIMIZE" ? score - pivot : pivot - score;
+  const bestBound =
+    optimizationDirection === "MAXIMIZE" ? upperBound : lowerBound;
+  const worstBound =
+    optimizationDirection === "MAXIMIZE" ? lowerBound : upperBound;
+  const sideRange = Math.abs(
+    (signedDistance >= 0 ? bestBound : worstBound) - pivot
+  );
+
+  if (sideRange === 0) {
+    return signedDistance === 0 ? 0 : null;
+  }
+
+  return Math.max(-1, Math.min(1, signedDistance / sideRange));
+}
+
+/** Maps a score onto the configured optimization gradient. */
+export function getOptimizationGradientValueFromConfig({
+  config,
+  score,
+}: {
+  config: AnnotationConfig | undefined;
+  score: number | null | undefined;
+}): number | null {
+  const { lowerBound, upperBound, threshold, optimizationDirection } =
+    getOptimizationBounds(config);
+
+  return getOptimizationGradientValue({
+    score,
+    lowerBound,
+    upperBound,
+    threshold,
+    optimizationDirection,
+  });
+}

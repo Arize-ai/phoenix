@@ -12,6 +12,12 @@ type AnnotationScoreTextProps = Omit<TextProps, "children" | "color"> & {
    * - undefined/null: renders with inherited color
    */
   positiveOptimization?: boolean | null;
+  /**
+   * Signed normalized optimization value from -1 (worst) through 0 (neutral)
+   * to 1 (best). When provided, this takes precedence over
+   * `positiveOptimization` and renders a continuous semantic color treatment.
+   */
+  optimizationValue?: number | null;
   children: ReactNode;
 };
 
@@ -22,24 +28,64 @@ const directionCSS = css`
     border-radius: var(--global-rounding-small);
   }
   &[data-direction="positive"] {
-    color: var(--global-color-optimization-direction-positive);
+    color: var(
+      --annotation-score-foreground-color,
+      var(--global-color-optimization-direction-positive)
+    );
     background-color: var(
-      --global-color-background-optimization-direction-positive
+      --annotation-score-background-color,
+      var(--global-color-background-optimization-direction-positive)
     );
   }
   &[data-direction="negative"] {
-    color: var(--global-color-optimization-direction-negative);
+    color: var(
+      --annotation-score-foreground-color,
+      var(--global-color-optimization-direction-negative)
+    );
     background-color: var(
-      --global-color-background-optimization-direction-negative
+      --annotation-score-background-color,
+      var(--global-color-background-optimization-direction-negative)
     );
   }
+  &[data-direction="neutral"] {
+    color: var(
+      --annotation-score-foreground-color,
+      var(--global-text-color-700)
+    );
+    background-color: var(--annotation-score-background-color, transparent);
+  }
 `;
+
+function getOptimizationGradientCSS(optimizationValue: number) {
+  const strength = Math.abs(optimizationValue) * 100;
+  const foregroundColor =
+    optimizationValue >= 0
+      ? "var(--global-color-optimization-direction-positive)"
+      : "var(--global-color-optimization-direction-negative)";
+  const backgroundColor =
+    optimizationValue >= 0
+      ? "var(--global-color-background-optimization-direction-positive)"
+      : "var(--global-color-background-optimization-direction-negative)";
+  return css`
+    --annotation-score-foreground-color: color-mix(
+      in srgb,
+      var(--global-text-color-700),
+      ${foregroundColor} ${strength}%
+    );
+    --annotation-score-background-color: color-mix(
+      in srgb,
+      transparent,
+      ${backgroundColor} ${strength}%
+    );
+  `;
+}
 
 /**
  * A Text component that colors its content based on optimization direction.
  *
- * Green for positive optimization (score above midpoint for MAXIMIZE, below for MINIMIZE).
- * Red for negative optimization.
+ * A signed optimization value renders continuously from semantic red through
+ * neutral to semantic green. The boolean API retains the endpoint treatment
+ * for callers that only know positive versus negative.
  * Inherited color if optimization status cannot be determined.
  *
  * @example
@@ -51,18 +97,41 @@ const directionCSS = css`
  */
 export function AnnotationScoreText({
   positiveOptimization,
+  optimizationValue,
   children,
   ...textProps
 }: AnnotationScoreTextProps) {
+  const normalizedOptimizationValue =
+    optimizationValue != null && Number.isFinite(optimizationValue)
+      ? Math.max(-1, Math.min(1, optimizationValue))
+      : null;
   const direction =
-    positiveOptimization === true
-      ? "positive"
-      : positiveOptimization === false
-        ? "negative"
-        : undefined;
+    normalizedOptimizationValue != null
+      ? normalizedOptimizationValue > 0
+        ? "positive"
+        : normalizedOptimizationValue < 0
+          ? "negative"
+          : "neutral"
+      : positiveOptimization === true
+        ? "positive"
+        : positiveOptimization === false
+          ? "negative"
+          : undefined;
+  const scoreCSS =
+    normalizedOptimizationValue == null
+      ? directionCSS
+      : css(
+          directionCSS,
+          getOptimizationGradientCSS(normalizedOptimizationValue)
+        );
 
   return (
-    <Text {...textProps} data-direction={direction} css={directionCSS}>
+    <Text
+      {...textProps}
+      data-direction={direction}
+      data-optimization-value={normalizedOptimizationValue ?? undefined}
+      css={scoreCSS}
+    >
       {children}
     </Text>
   );

@@ -47,11 +47,11 @@ import {
 } from "@phoenix/components/annotation/annotationBarUtils";
 import { AnnotationConfigStatus } from "@phoenix/components/annotation/AnnotationConfigStatus";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
+import type { AnnotationValueDraft } from "@phoenix/components/annotation/AnnotationValueDraft";
+import { CategoricalQuickCreate } from "@phoenix/components/annotation/CategoricalQuickCreate";
 import type {
   Annotation,
   AnnotationConfig,
-  AnnotationSource,
-  AnnotatorKind,
 } from "@phoenix/components/annotation/types";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
@@ -73,14 +73,7 @@ export type AnnotationBarRow =
   | { id: string; kind: "target"; target: AnnotationBarTarget }
   | { id: string; kind: "message"; text: string };
 
-export type AnnotationValueDraft = {
-  annotatorKind: AnnotatorKind;
-  explanation: string;
-  label: string | null;
-  metadata: Record<string, unknown>;
-  score: number | null;
-  source: AnnotationSource;
-};
+export type { AnnotationValueDraft } from "@phoenix/components/annotation/AnnotationValueDraft";
 
 export type AnnotationBarMutationResult =
   | { success: true }
@@ -278,38 +271,6 @@ const quickCreatePopoverCSS = css`
   width: min(320px, calc(100vw - var(--global-dimension-size-400)));
   max-height: min(620px, calc(100vh - var(--global-dimension-size-800)));
   overflow: auto;
-`;
-
-const categoricalQuickCreateCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-menu-item-gap);
-  margin: 0;
-  padding: var(--global-menu-item-gap);
-  list-style: none;
-
-  .categorical-quick-create__option {
-    display: flex;
-    align-items: center;
-    gap: var(--global-menu-item-gap);
-    padding: var(--global-menu-item-gap);
-    border-radius: var(--global-rounding-small);
-  }
-
-  .categorical-quick-create__option:hover,
-  .categorical-quick-create__option:focus-within {
-    background-color: var(--global-menu-item-background-color-hover);
-  }
-
-  .categorical-quick-create__value {
-    flex: 1;
-    min-width: 0;
-    justify-content: space-between;
-  }
-
-  .categorical-quick-create__value[data-variant="quiet"]:hover:not([disabled]) {
-    background-color: transparent;
-  }
 `;
 
 const annotationValueFieldsCSS = css`
@@ -940,76 +901,6 @@ function AnnotationValuePopover({
         </Dialog>
       </Popover>
     </DialogTrigger>
-  );
-}
-
-function CategoricalQuickCreate({
-  annotationName,
-  config,
-  onCreate,
-}: {
-  annotationName: string;
-  config: Extract<AnnotationConfig, { annotationType: "CATEGORICAL" }>;
-  onCreate: (params: {
-    shouldExplain: boolean;
-    value: AnnotationValueDraft;
-  }) => Promise<void>;
-}) {
-  const [submittingLabel, setSubmittingLabel] = useState<string | null>(null);
-  const handleCreate = async ({
-    shouldExplain,
-    value,
-  }: {
-    shouldExplain: boolean;
-    value: NonNullable<AnnotationConfig["values"]>[number];
-  }) => {
-    setSubmittingLabel(value.label);
-    await onCreate({
-      shouldExplain,
-      value: {
-        annotatorKind: "HUMAN",
-        explanation: "",
-        label: value.label,
-        metadata: {},
-        score: value.score ?? null,
-        source: "APP",
-      },
-    });
-    setSubmittingLabel(null);
-  };
-  return (
-    <ul
-      css={categoricalQuickCreateCSS}
-      aria-busy={submittingLabel != null}
-      aria-label={`${annotationName} values`}
-    >
-      {(config.values ?? []).map((value) => (
-        <li key={value.label} className="categorical-quick-create__option">
-          <Button
-            className="categorical-quick-create__value"
-            size="S"
-            variant="quiet"
-            isDisabled={submittingLabel != null}
-            aria-label={`Add ${value.label}`}
-            onPress={() => void handleCreate({ shouldExplain: false, value })}
-          >
-            <Text>{value.label}</Text>
-            <Text fontFamily="mono" color="text-500">
-              {value.score == null ? "—" : formatFloat(value.score)}
-            </Text>
-          </Button>
-          <Button
-            size="S"
-            variant="quiet"
-            isDisabled={submittingLabel != null}
-            aria-label={`Add ${value.label} and explain`}
-            onPress={() => void handleCreate({ shouldExplain: true, value })}
-          >
-            Explain
-          </Button>
-        </li>
-      ))}
-    </ul>
   );
 }
 

@@ -326,6 +326,25 @@ describe("DetailPanelAnnotationBar", () => {
     const goodChoice = document.querySelector<HTMLButtonElement>(
       '[aria-label="Add good"]'
     );
+    const badChoice = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Add bad"]'
+    );
+    expect(
+      goodChoice?.querySelector('[data-direction="positive"]')?.textContent
+    ).toBe("1.00");
+    expect(
+      goodChoice
+        ?.querySelector('[data-direction="positive"]')
+        ?.getAttribute("data-optimization-value")
+    ).toBe("1");
+    expect(
+      badChoice?.querySelector('[data-direction="negative"]')?.textContent
+    ).toBe("0.00");
+    expect(
+      badChoice
+        ?.querySelector('[data-direction="negative"]')
+        ?.getAttribute("data-optimization-value")
+    ).toBe("-1");
     await act(async () => user.click(goodChoice!));
 
     expect(onCreateAnnotation).toHaveBeenCalledWith({
@@ -347,6 +366,47 @@ describe("DetailPanelAnnotationBar", () => {
     expect(
       document.querySelector('[aria-label="Annotation values"]')
     ).toBeNull();
+  });
+
+  it("renders the optimization midpoint as neutral and nearby scores gradually", async () => {
+    const gradientConfig: AnnotationConfig = {
+      ...config,
+      values: [
+        { label: "low", score: 0 },
+        { label: "midpoint", score: 0.5 },
+        { label: "slightly high", score: 0.51 },
+        { label: "high", score: 1 },
+      ],
+    };
+    renderAnnotationBar({
+      allAnnotationConfigs: [gradientConfig],
+      projectAnnotationConfigs: [gradientConfig],
+      annotations: [],
+    });
+    const user = userEvent.setup();
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+
+    const midpointScore = document
+      .querySelector('[aria-label="Add midpoint"]')
+      ?.querySelector('[data-direction="neutral"]');
+    const slightlyHighScore = document
+      .querySelector('[aria-label="Add slightly high"]')
+      ?.querySelector('[data-direction="positive"]');
+    expect(midpointScore?.getAttribute("data-optimization-value")).toBe("0");
+    expect(
+      Number(slightlyHighScore?.getAttribute("data-optimization-value"))
+    ).toBeCloseTo(0.02);
+    expect(
+      getComputedStyle(slightlyHighScore!).getPropertyValue(
+        "--annotation-score-foreground-color"
+      )
+    ).toContain("--global-text-color-700");
   });
 
   it("creates a freeform annotation with the standard save action", async () => {

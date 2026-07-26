@@ -1,4 +1,5 @@
 import {
+  getOptimizationGradientValueFromConfig,
   getOptimizationBounds,
   getPositiveOptimization,
   getPositiveOptimizationFromConfig,
@@ -560,5 +561,63 @@ describe("getPositiveOptimizationFromConfig", () => {
         score: 0.75,
       })
     ).toBe(false);
+  });
+});
+
+describe("getOptimizationGradientValueFromConfig", () => {
+  it("maps maximize scores from worst through neutral to best", () => {
+    expect(
+      [0, 0.25, 0.5, 0.75, 1].map((score) =>
+        getOptimizationGradientValueFromConfig({
+          config: continuousConfig,
+          score,
+        })
+      )
+    ).toEqual([-1, -0.5, 0, 0.5, 1]);
+  });
+
+  it("reverses the gradient for minimize direction", () => {
+    const minimizeConfig: AnnotationConfig = {
+      ...continuousConfig,
+      optimizationDirection: "MINIMIZE",
+    };
+    expect(
+      [0, 0.25, 0.5, 0.75, 1].map((score) =>
+        getOptimizationGradientValueFromConfig({
+          config: minimizeConfig,
+          score,
+        })
+      )
+    ).toEqual([1, 0.5, 0, -0.5, -1]);
+  });
+
+  it("clamps scores outside the configured bounds", () => {
+    expect(
+      getOptimizationGradientValueFromConfig({
+        config: continuousConfig,
+        score: 2,
+      })
+    ).toBe(1);
+    expect(
+      getOptimizationGradientValueFromConfig({
+        config: continuousConfig,
+        score: -1,
+      })
+    ).toBe(-1);
+  });
+
+  it("returns null without a direction or complete bounds", () => {
+    expect(
+      getOptimizationGradientValueFromConfig({
+        config: { ...continuousConfig, optimizationDirection: "NONE" },
+        score: 0.75,
+      })
+    ).toBeNull();
+    expect(
+      getOptimizationGradientValueFromConfig({
+        config: { ...continuousConfig, upperBound: null },
+        score: 0.75,
+      })
+    ).toBeNull();
   });
 });
