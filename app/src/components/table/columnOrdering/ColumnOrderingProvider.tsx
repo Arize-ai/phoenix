@@ -52,9 +52,11 @@ export interface ColumnOrderingProviderProps {
   onColumnOrderChange: (columnOrder: string[]) => void;
   /**
    * Called once with the final order when a drag ends (the restored original
-   * order if the drag was canceled). Wire expensive consumers (e.g. a table
-   * re-render) here and keep `onColumnOrderChange` cheap when reorders should
-   * not be applied live on every drag-over step.
+   * order if the drag was canceled). The committed value is read from the
+   * `columnOrder` prop, so intermediate `onColumnOrderChange` updates must be
+   * applied back into it synchronously. Wire expensive consumers (e.g. a
+   * table re-render) here and keep `onColumnOrderChange` cheap when reorders
+   * should not be applied live on every drag-over step.
    */
   onColumnOrderCommit?: (columnOrder: string[]) => void;
   children: ReactNode;
@@ -94,16 +96,18 @@ export function ColumnOrderingProvider({
       onDragEnd={(event) => {
         const initialColumnOrder = initialColumnOrderRef.current;
         initialColumnOrderRef.current = null;
-        // The order the user saw was already committed during the drag;
-        // re-applying move() here would shift the column a second time.
-        if (!event.canceled) {
-          onColumnOrderCommit?.(columnOrder);
-          return;
+        // The order the user saw was already committed during the drag, so a
+        // completed drag needs no change here (re-applying move() would shift
+        // the column a second time); a canceled drag restores the order from
+        // when the drag started.
+        const finalColumnOrder =
+          event.canceled && initialColumnOrder != null
+            ? initialColumnOrder
+            : columnOrder;
+        if (finalColumnOrder !== columnOrder) {
+          onColumnOrderChange(finalColumnOrder);
         }
-        if (initialColumnOrder != null) {
-          onColumnOrderChange(initialColumnOrder);
-          onColumnOrderCommit?.(initialColumnOrder);
-        }
+        onColumnOrderCommit?.(finalColumnOrder);
       }}
     >
       {children}

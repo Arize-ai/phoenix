@@ -19,7 +19,7 @@ import {
   dndHandleAppearanceCSS,
 } from "@phoenix/components/dnd";
 
-import { ColumnOrderingProvider } from "../columnOrdering";
+import { ColumnOrderingProvider, orderColumns } from "../columnOrdering";
 
 export interface ColumnSelectorColumn {
   id: string;
@@ -181,15 +181,13 @@ export function ColumnSelectorMenu({
   const [draftColumnOrder, setDraftColumnOrder] = useState<string[] | null>(
     null
   );
-  const orderedColumns = useMemo(() => {
-    if (draftColumnOrder == null) {
-      return columns;
-    }
-    const columnsById = new Map(columns.map((column) => [column.id, column]));
-    return draftColumnOrder
-      .map((columnId) => columnsById.get(columnId))
-      .filter((column) => column != null);
-  }, [columns, draftColumnOrder]);
+  const orderedColumns = useMemo(
+    () =>
+      draftColumnOrder == null
+        ? columns
+        : orderColumns({ columns, columnOrder: draftColumnOrder }),
+    [columns, draftColumnOrder]
+  );
   const filteredColumns = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) {
@@ -222,7 +220,15 @@ export function ColumnSelectorMenu({
           onColumnOrderChange={setDraftColumnOrder}
           onColumnOrderCommit={(columnOrder) => {
             setDraftColumnOrder(null);
-            onColumnOrderChange?.(columnOrder);
+            // A canceled or round-trip drag commits the order it started
+            // with; skip the parent update so consumers don't persist and
+            // re-render for an unchanged order.
+            const hasOrderChanged = columnOrder.some(
+              (columnId, index) => columns[index]?.id !== columnId
+            );
+            if (hasOrderChanged) {
+              onColumnOrderChange?.(columnOrder);
+            }
           }}
         >
           <ul css={columnListCSS}>
