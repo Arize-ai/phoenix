@@ -418,24 +418,26 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "p50 latency",
       accessorKey: "traceLatencyMsP50",
       enableSorting: false,
+      meta: { textAlign: "right" },
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return null;
         }
-        return <LatencyText latencyMs={value} />;
+        return <LatencyText latencyMs={value} size="S" />;
       },
     },
     {
       header: "p99 latency",
       accessorKey: "traceLatencyMsP99",
       enableSorting: false,
+      meta: { textAlign: "right" },
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return null;
         }
-        return <LatencyText latencyMs={value} />;
+        return <LatencyText latencyMs={value} size="S" />;
       },
     },
     {
@@ -443,6 +445,7 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "tokenCountTotal",
       enableSorting: true,
       minSize: 80,
+      meta: { textAlign: "right" },
       cell: ({ getValue, row }) => {
         const value = getValue();
         if (value == null || typeof value !== "number") {
@@ -464,13 +467,16 @@ export function SessionsTable(props: SessionsTableProps) {
       id: "costTotal",
       enableSorting: true,
       minSize: 80,
+      meta: { textAlign: "right" },
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return "--";
         }
         const session = row.original;
-        return <SessionTokenCosts totalCost={value} nodeId={session.id} />;
+        return (
+          <SessionTokenCosts totalCost={value} nodeId={session.id} size="S" />
+        );
       },
     },
     {

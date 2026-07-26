@@ -860,6 +860,7 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: "latency",
         accessorKey: "latencyMs",
+        meta: { textAlign: "right" },
         cell: ({ getValue, row }) => {
           const value = getValue();
           if (
@@ -869,13 +870,14 @@ export function TracesTable(props: TracesTableProps) {
           ) {
             return null;
           }
-          return <LatencyText latencyMs={value} />;
+          return <LatencyText latencyMs={value} size="S" />;
         },
       },
       {
         header: "total tokens",
         minSize: 80,
         accessorKey: "cumulativeTokenCountTotal",
+        meta: { textAlign: "right" },
         cell: ({ row, getValue }) => {
           if (row.original.__additionalRow) {
             return null;
@@ -888,6 +890,7 @@ export function TracesTable(props: TracesTableProps) {
             <TraceTokenCount
               tokenCountTotal={value as number}
               nodeId={row.original.trace.id}
+              size="S"
             />
           );
         },
@@ -897,6 +900,7 @@ export function TracesTable(props: TracesTableProps) {
         minSize: 80,
         accessorKey: "trace.costSummary.total.cost",
         id: "cumulativeTokenCostTotal",
+        meta: { textAlign: "right" },
         cell: ({ row, getValue }) => {
           const value = getValue();
           if (value === null || typeof value !== "number") {
