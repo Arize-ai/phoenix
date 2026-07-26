@@ -29,6 +29,7 @@ import {
   Heading,
   Icon,
   Icons,
+  OverflowRow,
   Text,
   View,
 } from "@phoenix/components";
@@ -36,7 +37,10 @@ import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  expandableSelectableTableCSS,
+  TABLE_DATA_CELL_CLASS,
+} from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
@@ -52,6 +56,8 @@ import {
   ColumnOrderingProvider,
   CopyableTextCell,
   IntCell,
+  RowExpandToggleButton,
+  useTableRowsExpanded,
   useColumnOrder,
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
@@ -71,6 +77,7 @@ import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
 import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
 import {
+  ANNOTATION_COLUMN_SIZING,
   DEFAULT_SESSION_SORT,
   getGqlSessionSort,
   makeAnnotationColumnId,
@@ -115,14 +122,12 @@ const TableBody = <T extends { id: string }>({
               return (
                 <td
                   key={cell.id}
+                  className={TABLE_DATA_CELL_CLASS}
                   style={{
                     width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                     maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                    // prevent all wrapping, just show an ellipsis and let users expand if necessary
-                    textWrap: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    // wrapping vs. single-line ellipsis is decided by the
+                    // table's data-rows state — see expandableRowsTableCSS
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -153,6 +158,11 @@ export function SessionsTable(props: SessionsTableProps) {
   // search/filter still applied. The parent query is intentionally not reloaded
   // on window slides — see the load effect in `ProjectPage` and issue #14216.
   const { timeRangeISOStrings } = useTimeRange();
+  const {
+    isExpanded: areRowsExpanded,
+    setIsExpanded: setAreRowsExpanded,
+    tableProps: rowsExpandedTableProps,
+  } = useTableRowsExpanded();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
       graphql`
@@ -342,8 +352,13 @@ export function SessionsTable(props: SessionsTableProps) {
       id: "annotations",
       accessorKey: "sessionAnnotations",
       enableSorting: false,
+      ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
-        return <SessionAnnotationSummaryGroupTokens session={row.original} />;
+        return (
+          <OverflowRow isExpanded={areRowsExpanded}>
+            <SessionAnnotationSummaryGroupTokens session={row.original} />
+          </OverflowRow>
+        );
       },
     },
     ...dynamicAnnotationColumns,
@@ -592,6 +607,10 @@ export function SessionsTable(props: SessionsTableProps) {
               columns={table.getAllColumns()}
               query={data}
             />
+            <RowExpandToggleButton
+              isExpanded={areRowsExpanded}
+              onChange={setAreRowsExpanded}
+            />
             <TableAsideToggleButton />
           </Flex>
         </View>
@@ -619,7 +638,8 @@ export function SessionsTable(props: SessionsTableProps) {
                 onColumnOrderChange={onVisibleColumnOrderChange}
               >
                 <table
-                  css={selectableTableCSS}
+                  css={expandableSelectableTableCSS}
+                  {...rowsExpandedTableProps}
                   style={{
                     ...columnSizeVars,
                     width: table.getTotalSize(),

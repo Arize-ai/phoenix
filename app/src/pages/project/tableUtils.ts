@@ -1,4 +1,4 @@
-import type { ColumnSort } from "@tanstack/react-table";
+import type { ColumnDef, ColumnSort } from "@tanstack/react-table";
 
 import type {
   ProjectSessionSort,
@@ -14,6 +14,14 @@ export const TRACE_ANNOTATIONS_COLUMN_PREFIX = "trace-annotations";
 export const ANNOTATIONS_KEY_SEPARATOR = "-";
 export const TRACE_ANNOTATIONS_COLUMN_ID = "traceAnnotations";
 export const TRACE_ANNOTATIONS_COLUMN_LABEL = "trace annotations";
+/**
+ * Sizing for the annotation columns of the tracing tables. Wide enough to leave
+ * room for a full annotation pill beside `OverflowRow`'s "+N" badge.
+ */
+export const ANNOTATION_COLUMN_SIZING = {
+  size: 250,
+  minSize: 150,
+} satisfies Partial<ColumnDef<unknown>>;
 export const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",

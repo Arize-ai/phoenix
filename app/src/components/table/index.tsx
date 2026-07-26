@@ -14,6 +14,8 @@ export * from "./CellTop";
 export * from "./LargeTextWrap";
 export * from "./JSONCell";
 export * from "./PaddedCell";
+export * from "./RowExpandToggleButton";
+export * from "./useTableRowsExpanded";
 export * from "./IndeterminateCheckboxCell";
 export * from "./UserCell";
 

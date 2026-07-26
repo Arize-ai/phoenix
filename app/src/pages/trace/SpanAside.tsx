@@ -207,7 +207,9 @@ function SpanAsideAnnotationList(props: {
           overflow="auto"
           maxHeight="100%"
         >
-          <AnnotationSummaryGroupTokens span={data} />
+          <Flex direction="row" gap="size-50" wrap="wrap">
+            <AnnotationSummaryGroupTokens span={data} />
+          </Flex>
         </View>
       </FocusScope>
     </TitledPanel>
