@@ -349,6 +349,76 @@ describe("DetailPanelAnnotationBar", () => {
     ).toBeNull();
   });
 
+  it("creates a freeform annotation with the standard save action", async () => {
+    const freeformConfig: AnnotationConfig = {
+      id: "config-observation",
+      name: "observation",
+      description: "Freeform reviewer feedback",
+      annotationType: "FREEFORM",
+      optimizationDirection: "NONE",
+    };
+    const onCreateAnnotation = vi
+      .fn<DetailPanelAnnotationBarProps["onCreateAnnotation"]>()
+      .mockResolvedValue({
+        success: true,
+        annotation: {
+          id: "annotation-created",
+          name: "observation",
+          label: "Needs a clearer conclusion",
+          score: null,
+        },
+      });
+    renderAnnotationBar({
+      allAnnotationConfigs: [freeformConfig],
+      projectAnnotationConfigs: [freeformConfig],
+      annotations: [],
+      onCreateAnnotation,
+    });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open observation annotation"]'
+        )!
+      )
+    );
+
+    const valueInput = document.querySelector<HTMLInputElement>(
+      '[aria-label="observation value"]'
+    );
+    const addTitle = document.querySelector('[data-testid="dialog-title"]');
+    const saveAnnotation = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "Save annotation");
+    expect(addTitle?.textContent).toBe("Add Annotation");
+    expect(addTitle?.getAttribute("data-level")).toBe("2");
+    expect(valueInput).not.toBeNull();
+    expect(
+      document.querySelector('[aria-label="Submit annotation"]')
+    ).toBeNull();
+    expect(saveAnnotation?.closest(".dialog__footer")).not.toBeNull();
+    expect(saveAnnotation?.disabled).toBe(true);
+
+    await act(async () => user.type(valueInput!, "Needs a clearer conclusion"));
+    expect(saveAnnotation?.disabled).toBe(false);
+    expect(saveAnnotation?.dataset.variant).toBe("primary");
+    await act(async () => user.click(saveAnnotation!));
+
+    expect(onCreateAnnotation).toHaveBeenCalledWith({
+      annotationName: "observation",
+      target: expect.objectContaining({ id: "span-1", kind: "span" }),
+      value: {
+        annotatorKind: "HUMAN",
+        explanation: "",
+        label: "Needs a clearer conclusion",
+        metadata: {},
+        score: null,
+        source: "APP",
+      },
+    });
+  });
+
   it("creates a categorical annotation and opens its explanation editor", async () => {
     const createdAnnotation: Annotation = {
       id: "annotation-created",

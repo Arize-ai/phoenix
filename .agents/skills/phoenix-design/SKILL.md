@@ -23,6 +23,5 @@ Read the relevant reference(s) based on the task:
 | Error scoping, inline alerts, input validation | `references/error-display.md` |
 | Naming CSS classes | `references/bem.md` |
 | Creating or consuming CSS design tokens | `references/tokens.md` |
-| Picking an icon for a noun (project, trace, span, file, etc.) | `references/icons.md` |
 | Displaying counts in tabs, headings, or filter buttons | `references/counters.md` |
 | Choosing or adding an `EmptyStateGraphic` variant (the per-region/topic empty-state graphics) | `references/empty-states.md` |

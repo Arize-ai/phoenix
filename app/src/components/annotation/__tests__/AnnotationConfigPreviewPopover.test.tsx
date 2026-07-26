@@ -43,6 +43,7 @@ describe("annotation config preview popover", () => {
   });
 
   async function renderAnnotationBar({
+    allAnnotationConfigs = [annotationConfig],
     projectAnnotationConfigs = [],
     rows = [
       {
@@ -57,6 +58,7 @@ describe("annotation config preview popover", () => {
       },
     ],
   }: {
+    allAnnotationConfigs?: readonly AnnotationConfig[];
     projectAnnotationConfigs?: readonly AnnotationConfig[];
     rows?: readonly AnnotationBarRow[];
   } = {}) {
@@ -77,7 +79,7 @@ describe("annotation config preview popover", () => {
           <ThemeProvider themeMode="light" disableBodyTheme>
             <DetailPanelAnnotationBar
               rows={rows}
-              allAnnotationConfigs={[annotationConfig]}
+              allAnnotationConfigs={allAnnotationConfigs}
               projectAnnotationConfigs={projectAnnotationConfigs}
               onAddAnnotationConfigToProject={successfulMutation}
               onCreateAnnotation={successfulCreateMutation}
@@ -268,6 +270,36 @@ describe("annotation config preview popover", () => {
 
     await act(async () => user.click(newConfigItem!));
     expect(document.body.textContent).toContain("Add annotation configuration");
+  });
+
+  it("previews freeform annotations with a standard save action", async () => {
+    const freeformConfig: AnnotationConfig = {
+      id: "config-observation",
+      name: "observation",
+      description: "Freeform reviewer feedback",
+      annotationType: "FREEFORM",
+      optimizationDirection: "NONE",
+    };
+    await renderAnnotationBar({ allAnnotationConfigs: [freeformConfig] });
+    const user = userEvent.setup();
+
+    await act(async () => user.click(getAddAnnotationTrigger()));
+    const freeformTrigger = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === freeformConfig.name);
+    expect(freeformTrigger).not.toBeUndefined();
+
+    await act(async () => user.hover(freeformTrigger!));
+
+    const preview = document.querySelector(
+      `[aria-label="${freeformConfig.name} annotation preview"]`
+    );
+    const saveAnnotation = Array.from(
+      preview?.querySelectorAll<HTMLButtonElement>("button") ?? []
+    ).find((button) => button.textContent === "Save annotation");
+    expect(saveAnnotation?.disabled).toBe(true);
+    expect(saveAnnotation?.querySelector("svg")).toBeNull();
+    expect(preview?.querySelector('[aria-label="Submit preview"]')).toBeNull();
   });
 
   it("uses a danger-on-hover minus button for project annotations", async () => {

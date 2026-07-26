@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa52530d8cad2e22cae05d3b5360e9f5>>
+ * @generated SignedSource<<d04134dca69d40b868ecafd88ba50f31>>
  * @lightSyntaxTransform
  */
 
@@ -17,7 +17,7 @@ export type SessionAnnotationDeleteButtonMutation$data = {
   readonly deleteProjectSessionAnnotation: {
     readonly query: {
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"SessionAnnotationSummaryGroup" | "SessionAnnotationsEditor_sessionAnnotations" | "SessionAnnotationsTable_annotations">;
+        readonly " $fragmentSpreads": FragmentRefs<"SessionAnnotationSummaryGroup" | "SessionAnnotationsTable_annotations">;
       };
     };
   };
@@ -79,14 +79,14 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "score",
+  "name": "label",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "label",
+  "name": "score",
   "storageKey": null
 };
 return {
@@ -123,11 +123,6 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      {
-                        "args": null,
-                        "kind": "FragmentSpread",
-                        "name": "SessionAnnotationsEditor_sessionAnnotations"
-                      },
                       {
                         "args": null,
                         "kind": "FragmentSpread",
@@ -200,13 +195,6 @@ return {
                         "selections": [
                           (v4/*:: as any*/),
                           (v5/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "annotatorKind",
-                            "storageKey": null
-                          },
                           (v6/*:: as any*/),
                           (v7/*:: as any*/),
                           {
@@ -220,7 +208,42 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
+                            "name": "metadata",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "annotatorKind",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "identifier",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "source",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
                             "name": "createdAt",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "updatedAt",
                             "storageKey": null
                           },
                           {
@@ -247,34 +270,6 @@ return {
                                 "storageKey": null
                               }
                             ],
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "metadata",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "identifier",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "source",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "updatedAt",
                             "storageKey": null
                           }
                         ],
@@ -348,8 +343,8 @@ return {
                                             "name": "values",
                                             "plural": true,
                                             "selections": [
-                                              (v7/*:: as any*/),
-                                              (v6/*:: as any*/)
+                                              (v6/*:: as any*/),
+                                              (v7/*:: as any*/)
                                             ],
                                             "storageKey": null
                                           }
@@ -421,7 +416,7 @@ return {
                                 "name": "fraction",
                                 "storageKey": null
                               },
-                              (v7/*:: as any*/)
+                              (v6/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -452,16 +447,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8f2806f17510bc6754e95a80e7e5ce36",
+    "cacheID": "d138a8b9a9d5042258b31de56b005362",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationDeleteButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation SessionAnnotationDeleteButtonMutation(\n  $annotationId: ID!\n  $sessionId: ID!\n) {\n  deleteProjectSessionAnnotation(id: $annotationId) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SessionAnnotationDeleteButtonMutation(\n  $annotationId: ID!\n  $sessionId: ID!\n) {\n  deleteProjectSessionAnnotation(id: $annotationId) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fcc671f32287f8bef9e6a95ed3342afb";
+(node as any).hash = "df13f6df021933aa617567aa4b257426";
 
 export default node;

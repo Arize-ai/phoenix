@@ -54,7 +54,6 @@ export function SessionAnnotationDeleteButton(
           query {
             node(id: $sessionId) {
               ... on ProjectSession {
-                ...SessionAnnotationsEditor_sessionAnnotations
                 ...SessionAnnotationsTable_annotations
                 ...SessionAnnotationSummaryGroup
               }

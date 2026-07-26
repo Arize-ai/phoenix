@@ -312,13 +312,6 @@ const categoricalQuickCreateCSS = css`
   }
 `;
 
-const inlinePromptCSS = css`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--global-dimension-size-50);
-  align-items: end;
-`;
-
 const annotationValueFieldsCSS = css`
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--global-dimension-size-1200);
@@ -1237,16 +1230,14 @@ function AnnotationValueEditor({
   const updateAdvancedDraft = (nextDraft: AnnotationValueDraft) => {
     onDraftChange(nextDraft);
   };
-  const shouldShowSave =
-    annotation != null || config?.annotationType !== "FREEFORM";
   const username = annotation?.user?.username ?? "system";
   return (
     <form onSubmit={handleSubmit}>
-      {annotation ? (
-        <DialogHeader>
-          <DialogTitle>Edit Annotation</DialogTitle>
-        </DialogHeader>
-      ) : null}
+      <DialogHeader>
+        <DialogTitle>
+          {annotation ? "Edit Annotation" : "Add Annotation"}
+        </DialogTitle>
+      </DialogHeader>
       <View padding="size-200">
         <Flex direction="column" gap="size-200" css={annotationValueEditorCSS}>
           {config?.annotationType === "CATEGORICAL" ? (
@@ -1302,26 +1293,15 @@ function AnnotationValueEditor({
             </div>
           ) : null}
           {config?.annotationType === "FREEFORM" ? (
-            <div css={inlinePromptCSS}>
-              <TextField
-                value={draft.label ?? ""}
-                onChange={(label) => updateBasicDraft({ ...draft, label })}
-                aria-label={`${annotationName} value`}
-                autoFocus
-              >
-                <Input placeholder="Enter annotation value" />
-              </TextField>
-              {!annotation ? (
-                <Button
-                  css={compactIconButtonCSS}
-                  type="submit"
-                  size="S"
-                  variant="primary"
-                  leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
-                  aria-label="Submit annotation"
-                />
-              ) : null}
-            </div>
+            <TextField
+              value={draft.label ?? ""}
+              onChange={(label) => updateBasicDraft({ ...draft, label })}
+              aria-label={`${annotationName} value`}
+              autoFocus
+              css={{ width: "100%" }}
+            >
+              <Input placeholder="Enter annotation value" />
+            </TextField>
           ) : null}
           {config?.annotationType === "CONTINUOUS" ? (
             <Slider
@@ -1491,16 +1471,14 @@ function AnnotationValueEditor({
         <Button type="button" size="S" variant="default" onPress={onCancel}>
           Cancel
         </Button>
-        {shouldShowSave ? (
-          <Button
-            type="submit"
-            size="S"
-            variant={canSubmit ? "primary" : "default"}
-            isDisabled={!canSubmit}
-          >
-            Save annotation
-          </Button>
-        ) : null}
+        <Button
+          type="submit"
+          size="S"
+          variant={canSubmit ? "primary" : "default"}
+          isDisabled={!canSubmit}
+        >
+          Save annotation
+        </Button>
       </DialogFooter>
     </form>
   );
@@ -1876,7 +1854,7 @@ function AddAnnotationPopover({
             ) : (
               <>
                 <DialogHeader>
-                  <DialogTitle>Annotations</DialogTitle>
+                  <DialogTitle>Project annotations</DialogTitle>
                   <DialogTitleExtra>
                     <LinkButton
                       size="S"
@@ -2209,17 +2187,18 @@ function AnnotationConfigPreview({ config }: { config: AnnotationConfig }) {
               <SliderNumberField isDisabled />
             </Slider>
           ) : (
-            <div css={inlinePromptCSS}>
-              <TextField isDisabled aria-label={`${config.name} preview`}>
+            <Flex direction="column" gap="size-100" alignItems="end">
+              <TextField
+                isDisabled
+                aria-label={`${config.name} preview`}
+                css={{ width: "100%" }}
+              >
                 <Input placeholder="Enter annotation value" />
               </TextField>
-              <Button
-                isDisabled
-                size="S"
-                leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
-                aria-label="Submit preview"
-              />
-            </div>
+              <Button isDisabled size="S" variant="default">
+                Save annotation
+              </Button>
+            </Flex>
           )}
         </div>
       </Flex>

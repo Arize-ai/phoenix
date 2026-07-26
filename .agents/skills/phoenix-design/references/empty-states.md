@@ -87,9 +87,8 @@ automatically receiving the appropriate icon and card size.
 The variant table is the single source of truth — the `EmptyStateGraphicVariant`
 type is derived from its keys, so adding an entry is all that's needed.
 
-1. Pick the icon using the noun→icon mapping in `rules/icons.md`. The empty
-   state's topic is the noun (e.g. a "no traces" state uses the Trace icon). If
-   the noun isn't mapped yet, add it there in the same change.
+1. Use the existing Phoenix icon for the empty state's topic (e.g. a "no
+   traces" state uses the Trace icon).
 2. Pick the size: `"large"` for top level categories, and small for their contents.
    'No datasets' on the `/datasets` endpoint is`"large"`, while an empty dataset
    displaying "No entries" would be `"small"`.
