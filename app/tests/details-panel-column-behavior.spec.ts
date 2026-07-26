@@ -225,6 +225,33 @@ async function getCenter(locator: Locator) {
   };
 }
 
+async function closeAndReopenTraceDetails({
+  page,
+  fixture,
+}: {
+  page: Page;
+  fixture: DetailsPanelFixture;
+}) {
+  const drawer = page.getByRole("complementary", { name: "Detail drawer" });
+  await page.getByTestId("dialog-close-button").click();
+  await expect(drawer).not.toBeVisible();
+  await page.waitForURL(
+    (url) => url.pathname === `/projects/${fixture.projectId}/traces`
+  );
+
+  const traceRow = page
+    .getByRole("row")
+    .filter({ hasText: "Details panel root" });
+  await expect(traceRow).toBeVisible();
+  await traceRow.click();
+  await page.waitForURL(
+    (url) =>
+      url.pathname ===
+      `/projects/${fixture.projectId}/traces/${fixture.traceId}`
+  );
+  await expect(drawer).toBeVisible();
+}
+
 test.describe("Details panel column behavior assertions", () => {
   let fixture: DetailsPanelFixture;
   const projectName = `details-panel-columns-${randomUUID().replaceAll("-", "")}`;
@@ -345,12 +372,67 @@ test.describe("Details panel column behavior assertions", () => {
         main: "940",
         tree: null,
       });
+    await closeAndReopenTraceDetails({ page, fixture });
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1309,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: 940,
+    });
     await page.reload();
     await expectColumnWidths({
       page,
       drawerWidth: 1309,
       treeWidth: FACTORY_TREE_WIDTH,
       mainWidth: 940,
+    });
+  });
+
+  test("PS-3: a constrained drawer width survives close/reopen and reload", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1000, height: 900 });
+    await page.goto(`/projects/${fixture.projectId}/traces/${fixture.traceId}`);
+    await expectColumnWidths({
+      page,
+      drawerWidth: 950,
+      treeWidth: 309,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+
+    const drawerSeparator = page.getByRole("separator", {
+      name: "Resize drawer",
+    });
+    const start = await getCenter(drawerSeparator);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await expect(drawerSeparator).toHaveAttribute("data-dragging", "true");
+    await page.mouse.move(start.x + 150, start.y);
+    await expectColumnWidths({
+      page,
+      drawerWidth: 800,
+      treeWidth: 159,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+    await page.mouse.up();
+
+    await expect
+      .poll(async () => (await getStoredPreferences(page)).main)
+      .not.toBeNull();
+    await closeAndReopenTraceDetails({ page, fixture });
+    await expectColumnWidths({
+      page,
+      drawerWidth: 800,
+      treeWidth: 159,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+
+    await page.reload();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 800,
+      treeWidth: 159,
+      mainWidth: MINIMUM_MAIN_WIDTH,
     });
   });
 
