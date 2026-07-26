@@ -36,7 +36,7 @@ export const traceTreePanelContentCSS = css`
     width: 100%;
     border-right: var(--global-border-size-thin) solid
       var(--global-border-color-default);
-    box-shadow: 4px 0 12px rgba(var(--global-color-gray-900-rgb), 0.12);
+    box-shadow: 4px 0 12px var(--global-overlay-shadow-color);
   }
 
   @container trace-tree-panel (width < ${TRACE_TREE_HOVER_WIDTH_PIXELS}px) {
@@ -67,7 +67,6 @@ export const traceTreePanelContentCSS = css`
       width: var(--global-dimension-size-3000);
       border-right: var(--global-border-size-thin) solid
         var(--global-border-color-default);
-      box-shadow: 4px 0 12px rgba(var(--global-color-gray-900-rgb), 0.12);
 
       .trace-tree-toolbar__search {
         flex: 1 1 auto;

@@ -1,4 +1,4 @@
-import { css, keyframes } from "@emotion/react";
+import { css } from "@emotion/react";
 import type { Ref } from "react";
 import type { PopoverProps } from "react-aria-components";
 import { Popover as AriaPopover } from "react-aria-components";
@@ -6,26 +6,9 @@ import { Popover as AriaPopover } from "react-aria-components";
 import { PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
 import { classNames } from "@phoenix/utils/classNames";
 
-const popoverSlideKeyframes = keyframes`
- 100% {
-  from {
-     transform: var(--origin);
-     opacity: 0;
-   }
-
-   to {
-     transform: translateY(0);
-     opacity: 1;
-   }
-  }
-`;
-
 const popoverCSS = css`
   box-sizing: border-box;
   --background-color: var(--global-popover-background-color);
-  transition:
-    transform 200ms,
-    opacity 200ms;
   border: 1px solid var(--global-popover-border-color);
   box-shadow: 0px 8px 16px var(--global-overlay-shadow-color);
   border-radius: var(--global-rounding-small);
@@ -33,12 +16,6 @@ const popoverCSS = css`
   color: var(--global-text-color-900);
   outline: none;
   z-index: ${PORTALED_OVERLAY_Z_INDEX};
-
-  &[data-entering],
-  &[data-exiting] {
-    transform: var(--origin);
-    opacity: 0;
-  }
 
   .react-aria-OverlayArrow svg {
     display: block;
@@ -93,14 +70,6 @@ const popoverCSS = css`
     .react-aria-OverlayArrow svg {
       transform: rotate(-90deg);
     }
-  }
-
-  &[data-entering] {
-    animation: ${popoverSlideKeyframes} 200ms;
-  }
-
-  &[data-exiting] {
-    animation: ${popoverSlideKeyframes} 200ms reverse ease-in;
   }
 
   .react-aria-Dialog {

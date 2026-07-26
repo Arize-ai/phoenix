@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, Ref } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
@@ -34,14 +34,9 @@ export const baseAnnotationLabelCSS = css`
     }
   }
   &[data-variant="ghost"] {
-    border-style: dotted;
-    opacity: 0.62;
-
-    &:hover,
-    &:focus-visible,
-    &[data-pressed] {
-      opacity: 1;
-    }
+    border-style: dashed;
+    border-color: var(--global-text-color-500);
+    color: var(--global-text-color-300);
   }
   .icon-wrap {
     font-size: 12px;
@@ -56,8 +51,8 @@ export function AnnotationLabel({
   children,
   clickable: _clickable,
   variant = "default",
-  onHoverStart,
   onFocus,
+  ref,
 }: PropsWithChildren<{
   annotation: Annotation;
   /**
@@ -77,33 +72,36 @@ export function AnnotationLabel({
    */
   annotationDisplayPreference?: AnnotationDisplayPreference;
   className?: string;
-  /** A subdued, dotted label for a configured annotation without a value. */
+  /** A subdued, dashed label for a configured annotation without a value. */
   variant?: "default" | "ghost";
-  onHoverStart?: () => void;
   onFocus?: () => void;
+  /** Ref applied to the underlying button when the label is clickable. */
+  ref?: Ref<HTMLButtonElement>;
 }>) {
   const clickable = _clickable ?? typeof onClick == "function";
   const content = (
     <>
       <AnnotationNameAndValue
         annotation={annotation}
-        displayPreference={annotationDisplayPreference}
+        displayPreference={
+          variant === "ghost" ? "none" : annotationDisplayPreference
+        }
         showColorSwatch={false}
       />
-      {children}
+      {variant === "default" ? children : null}
     </>
   );
 
   if (clickable) {
     return (
       <AriaButton
+        ref={ref}
         type="button"
         data-clickable="true"
         data-variant={variant}
         className={className}
         css={css(baseAnnotationLabelCSS)}
         aria-label={`Open ${annotation.name} annotation`}
-        onHoverStart={onHoverStart}
         onFocus={onFocus}
         onClick={(event) => {
           event.stopPropagation();

@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useInteractOutside } from "react-aria";
 
 import {
   Alert,
@@ -103,7 +104,11 @@ export type DetailPanelAnnotationBarProps = {
 const annotationBarCSS = css`
   position: relative;
   z-index: var(--global-z-index-local-raised);
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
   flex: none;
+  padding: var(--global-dimension-size-100);
   border-bottom: 1px solid var(--global-border-color-default);
   background: var(--global-background-color-default);
 `;
@@ -112,17 +117,15 @@ const annotationRowCSS = css`
   display: grid;
   grid-template-columns: minmax(72px, auto) minmax(0, 1fr);
   gap: var(--global-dimension-size-100);
-  align-items: start;
+  align-items: center;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
-
-  & + & {
-    border-top: 1px solid var(--global-border-color-default);
-  }
+  border: 1px solid var(--global-border-color-default);
 `;
 
 const annotationLabelsCSS = css`
   display: flex;
   flex-flow: row wrap;
+  align-items: center;
   gap: var(--global-dimension-size-50);
   min-width: 0;
 
@@ -136,8 +139,8 @@ const annotationMessageCSS = css`
   display: flex;
   align-items: center;
   gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-50) var(--global-dimension-size-200);
-  border-top: 1px solid var(--global-border-color-default);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+  border: 1px solid var(--global-border-color-default);
   color: var(--global-text-color-500);
   font-size: var(--global-font-size-xs);
 
@@ -364,7 +367,6 @@ function AnnotationTargetRow({
   const annotationsByName = groupAnnotationsByName({
     annotations: target.annotations,
   });
-  const hasAnyAnnotations = Object.keys(annotationsByName).length > 0;
   const rowConfigs = [...projectAnnotationConfigs];
   for (const annotationName of Object.keys(annotationsByName)) {
     if (rowConfigs.some((config) => config.name === annotationName)) {
@@ -383,28 +385,12 @@ function AnnotationTargetRow({
       }
     );
   }
-  const shouldShowEmptyParentMessage =
-    !hasAnyAnnotations &&
-    (target.kind === "trace" || target.label === "Session");
-
   return (
     <div css={annotationRowCSS} data-annotation-target={target.kind}>
       <Text size="XS" color="text-500" weight="heavy">
         {target.label}
       </Text>
       <div css={annotationLabelsCSS}>
-        {shouldShowEmptyParentMessage ? (
-          <Text size="XS" color="text-500">
-            No {target.kind} annotations
-          </Text>
-        ) : null}
-        {!hasAnyAnnotations &&
-        rowConfigs.length === 0 &&
-        !shouldShowEmptyParentMessage ? (
-          <Text size="XS" color="text-500">
-            No {target.kind} annotations
-          </Text>
-        ) : null}
         {rowConfigs.map((config) => {
           const annotations = annotationsByName[config.name] ?? [];
           return (
@@ -451,6 +437,8 @@ function AnnotationValuePopover({
 }) {
   const hasAnnotations = annotations.length > 0;
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<AnnotationPopoverView>(
     hasAnnotations ? "summary" : "value"
   );
@@ -475,6 +463,19 @@ function AnnotationValuePopover({
     isOpen,
     onDismiss: () => setIsOpen(false),
   });
+  useInteractOutside({
+    ref: popoverRef,
+    isDisabled: !isOpen,
+    onInteractOutside: (event) => {
+      if (
+        triggerRef.current &&
+        event.composedPath().includes(triggerRef.current)
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    },
+  });
 
   const openConfigEditor = () => {
     setConfigDraft(getAnnotationConfigDraft({ config }));
@@ -490,6 +491,7 @@ function AnnotationValuePopover({
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
       <AnnotationLabel
+        ref={triggerRef}
         annotation={{
           name: config.name,
           label: aggregate.label,
@@ -500,12 +502,6 @@ function AnnotationValuePopover({
         }
         clickable
         variant={hasAnnotations ? "default" : "ghost"}
-        onClick={() => setIsOpen(true)}
-        onHoverStart={() => {
-          if (hasAnnotations) {
-            setIsOpen(true);
-          }
-        }}
       >
         {aggregate.isMixed ? (
           <Flex direction="row" gap="size-100" minWidth={0}>
@@ -524,10 +520,14 @@ function AnnotationValuePopover({
         ) : null}
       </AnnotationLabel>
       <Popover
+        ref={popoverRef}
         placement="bottom start"
         css={annotationPopoverCSS}
+        isNonModal
         isKeyboardDismissDisabled={false}
-        shouldCloseOnInteractOutside={() => true}
+        shouldCloseOnInteractOutside={(element) =>
+          !triggerRef.current?.contains(element)
+        }
       >
         <PopoverArrow />
         <Dialog aria-label={`${config.name} annotation`}>

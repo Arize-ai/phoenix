@@ -28,11 +28,14 @@ type DetailsPanelLayout = {
   treeWidth: number;
 };
 
-async function createDetailsPanelFixture(
-  request: APIRequestContext
-): Promise<DetailsPanelFixture> {
+async function createDetailsPanelFixture({
+  request,
+  projectName,
+}: {
+  request: APIRequestContext;
+  projectName: string;
+}): Promise<DetailsPanelFixture> {
   const fixtureId = randomUUID().replaceAll("-", "");
-  const projectName = `details-panel-columns-${fixtureId}`;
   const traceId = `trace-${fixtureId}`;
   const parentSpanId = `parent-${fixtureId}`;
   const childSpanId = `child-${fixtureId}`;
@@ -224,9 +227,15 @@ async function getCenter(locator: Locator) {
 
 test.describe("Details panel column behavior assertions", () => {
   let fixture: DetailsPanelFixture;
+  const projectName = `details-panel-columns-${randomUUID().replaceAll("-", "")}`;
 
   test.beforeAll(async ({ request }) => {
-    fixture = await createDetailsPanelFixture(request);
+    fixture = await createDetailsPanelFixture({ request, projectName });
+  });
+
+  test.afterAll(async ({ request }) => {
+    const response = await request.delete(`/v1/projects/${projectName}`);
+    expect([204, 404]).toContain(response.status());
   });
 
   test.beforeEach(async ({ page }) => {
