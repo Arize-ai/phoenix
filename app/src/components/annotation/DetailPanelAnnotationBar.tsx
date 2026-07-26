@@ -529,13 +529,20 @@ function AnnotationTargetRow({
       name: annotationName,
     });
   }
+  const populatedRowConfigs = rowConfigs.filter(
+    ({ name }) => (annotationsByName[name]?.length ?? 0) > 0
+  );
+  const unpopulatedRowConfigs = rowConfigs.filter(
+    ({ name }) => (annotationsByName[name]?.length ?? 0) === 0
+  );
+  const orderedRowConfigs = [...populatedRowConfigs, ...unpopulatedRowConfigs];
   return (
     <div css={annotationRowCSS} data-annotation-target={target.kind}>
       <Text size="XS" color="text-500" weight="heavy">
         {target.label}
       </Text>
       <div css={annotationLabelsCSS}>
-        {rowConfigs.map(({ config, id, name }) => {
+        {orderedRowConfigs.map(({ config, id, name }) => {
           const annotations = annotationsByName[name] ?? [];
           return (
             <AnnotationValuePopover

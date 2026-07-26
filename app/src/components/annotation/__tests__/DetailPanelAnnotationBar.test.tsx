@@ -123,6 +123,65 @@ describe("DetailPanelAnnotationBar", () => {
     vi.unstubAllGlobals();
   });
 
+  it("renders populated annotations before unpopulated annotations", () => {
+    const helpfulnessConfig = {
+      ...config,
+      id: "config-helpfulness",
+      name: "helpfulness",
+    };
+    const correctnessConfig = {
+      ...config,
+      id: "config-correctness",
+      name: "correctness",
+    };
+    const relevanceConfig = {
+      ...config,
+      id: "config-relevance",
+      name: "relevance",
+    };
+    renderAnnotationBar({
+      allAnnotationConfigs: [
+        helpfulnessConfig,
+        correctnessConfig,
+        relevanceConfig,
+        config,
+      ],
+      projectAnnotationConfigs: [
+        helpfulnessConfig,
+        correctnessConfig,
+        relevanceConfig,
+        config,
+      ],
+      annotations: [
+        {
+          id: "annotation-correctness",
+          name: "correctness",
+          label: "good",
+          score: 1,
+        },
+        {
+          id: "annotation-quality",
+          name: "quality",
+          label: "good",
+          score: 1,
+        },
+      ],
+    });
+
+    expect(
+      Array.from(
+        container.querySelectorAll<HTMLButtonElement>(
+          'button[aria-label^="Open "][aria-label$=" annotation"]'
+        )
+      ).map((button) => button.getAttribute("aria-label"))
+    ).toEqual([
+      "Open correctness annotation",
+      "Open quality annotation",
+      "Open helpfulness annotation",
+      "Open relevance annotation",
+    ]);
+  });
+
   it.each([
     {
       name: "an outside press",
