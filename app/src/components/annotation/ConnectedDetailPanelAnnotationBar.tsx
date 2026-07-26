@@ -510,35 +510,36 @@ function SpanDetailPanelAnnotationBarContent({
   });
   const annotationHandlers = useAnnotationMutationHandlers({ refresh });
   const rows: AnnotationBarRow[] = [];
-  if (span.trace.session) {
-    rows.push({
-      id: `session-${span.trace.session.id}`,
-      kind: "target",
-      target: {
-        id: span.trace.session.id,
-        kind: "session",
-        label: "Session",
-        annotations: span.trace.session.annotations,
-      },
-    });
-  }
-  rows.push({
-    id: `trace-${span.trace.id}`,
-    kind: "target",
-    target: {
-      id: span.trace.id,
-      kind: "trace",
-      label: "Trace",
-      annotations: span.trace.annotations,
-    },
-  });
-  if (span.parentId) {
-    rows.push({
-      id: `additional-spans-${span.id}`,
-      kind: "message",
-      text: "Additional spans",
-    });
-  }
+  // Temporarily hide annotation bars for the span's parent elements.
+  // if (span.trace.session) {
+  //   rows.push({
+  //     id: `session-${span.trace.session.id}`,
+  //     kind: "target",
+  //     target: {
+  //       id: span.trace.session.id,
+  //       kind: "session",
+  //       label: "Session",
+  //       annotations: span.trace.session.annotations,
+  //     },
+  //   });
+  // }
+  // rows.push({
+  //   id: `trace-${span.trace.id}`,
+  //   kind: "target",
+  //   target: {
+  //     id: span.trace.id,
+  //     kind: "trace",
+  //     label: "Trace",
+  //     annotations: span.trace.annotations,
+  //   },
+  // });
+  // if (span.parentId) {
+  //   rows.push({
+  //     id: `additional-spans-${span.id}`,
+  //     kind: "message",
+  //     text: "Additional spans",
+  //   });
+  // }
   rows.push({
     id: `span-${span.id}`,
     kind: "target",

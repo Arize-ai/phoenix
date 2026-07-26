@@ -32,7 +32,6 @@ import type {
 import { SpanAttributesCard, SpanInfo } from "./span";
 import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
-import { SpanFeedback } from "./SpanFeedback";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
@@ -41,7 +40,6 @@ const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
 const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
 const FINAL_SCROLL_ANIMATION_DURATION_SECONDS = 0.18;
 const SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS = 0.5;
-const ANNOTATIONS_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 160;
 const ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 const EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 
@@ -264,12 +262,7 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
                 profilePictureUrl
               }
             }
-            spanAnnotations {
-              id
-              name
-            }
             ...SpanHeader_span
-            ...SpanFeedback_annotations
           }
         }
       }
@@ -289,7 +282,6 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
   const hasExceptions = span.events.some((event) => event.name === "exception");
   const spanDetailsSectionIds = {
     info: `span-details-${span.spanId}-info`,
-    annotations: `span-details-${span.spanId}-annotations`,
     attributes: `span-details-${span.spanId}-attributes`,
     events: `span-details-${span.spanId}-events`,
   } as const;
@@ -464,13 +456,6 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
             onClick={handleSectionLinkClick}
           />
           <SpanDetailSectionLink
-            label="Annotations"
-            sectionId={spanDetailsSectionIds.annotations}
-            onClick={handleSectionLinkClick}
-          >
-            <Counter>{span.spanAnnotations.length}</Counter>
-          </SpanDetailSectionLink>
-          <SpanDetailSectionLink
             label="Attributes"
             sectionId={spanDetailsSectionIds.attributes}
             onClick={handleSectionLinkClick}
@@ -495,26 +480,6 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
             <ErrorBoundary>
               <SpanInfo span={span} />
             </ErrorBoundary>
-          </section>
-          <section
-            id={spanDetailsSectionIds.annotations}
-            aria-label="Annotations"
-          >
-            <SpanDetailsSectionHeading>
-              <Flex
-                elementType="span"
-                direction="row"
-                gap="size-100"
-                alignItems="center"
-              >
-                Annotations <Counter>{span.spanAnnotations.length}</Counter>
-              </Flex>
-            </SpanDetailsSectionHeading>
-            <DeferredSpanDetailsContent
-              placeholderHeight={ANNOTATIONS_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
-            >
-              <SpanFeedback span={span} />
-            </DeferredSpanDetailsContent>
           </section>
           <section
             id={spanDetailsSectionIds.attributes}

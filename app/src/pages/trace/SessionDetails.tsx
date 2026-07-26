@@ -17,7 +17,6 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import type { SessionDetailsQuery } from "./__generated__/SessionDetailsQuery.graphql";
 import type { SessionDetailsTraceListQuery } from "./__generated__/SessionDetailsTraceListQuery.graphql";
 import type { SessionDetailsTracesViewQuery } from "./__generated__/SessionDetailsTracesViewQuery.graphql";
-import { SessionAnnotationsTable } from "./SessionAnnotationsTable";
 import {
   SessionDetailsTraceList,
   sessionDetailsTraceListQuery,
@@ -96,10 +95,6 @@ export function SessionDetails({
   >({});
 
   const loadQueryForSessionView = (view: SessionView) => {
-    // The annotations view fetches its own data when it mounts.
-    if (view === "annotations") {
-      return;
-    }
     if (loadedSessionIdsByViewRef.current[view] === sessionId) {
       return;
     }
@@ -186,25 +181,21 @@ export function SessionDetails({
           traceCount={traceCount}
         >
           <Suspense fallback={<Loading />}>
-            {sessionView === "annotations" ? (
-              <SessionAnnotationsTable sessionId={sessionId} />
-            ) : sessionView === "traces" ? (
-              tracesViewQueryRef != null && (
-                <SessionDetailsTracesView
-                  queryRef={tracesViewQueryRef}
-                  preferredTreeWidth={preferredTreeWidth}
-                  onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                />
-              )
-            ) : (
-              traceListQueryRef != null && (
-                <SessionDetailsTraceList
-                  queryRef={traceListQueryRef}
-                  preferredTreeWidth={preferredTreeWidth}
-                  onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                />
-              )
-            )}
+            {sessionView === "traces"
+              ? tracesViewQueryRef != null && (
+                  <SessionDetailsTracesView
+                    queryRef={tracesViewQueryRef}
+                    preferredTreeWidth={preferredTreeWidth}
+                    onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                  />
+                )
+              : traceListQueryRef != null && (
+                  <SessionDetailsTraceList
+                    queryRef={traceListQueryRef}
+                    preferredTreeWidth={preferredTreeWidth}
+                    onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                  />
+                )}
           </Suspense>
         </SessionViewTabs>
       </Flex>

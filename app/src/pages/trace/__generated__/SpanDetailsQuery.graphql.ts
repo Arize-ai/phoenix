@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b5f1bf646ac12952fec94441e22cf6d2>>
+ * @generated SignedSource<<4e0ba7e5ae696f6176c7526c55683964>>
  * @lightSyntaxTransform
  */
 
@@ -59,10 +59,6 @@ export type SpanDetailsQuery$data = {
       readonly value: string;
     } | null;
     readonly parentId: string | null;
-    readonly spanAnnotations: ReadonlyArray<{
-      readonly id: string;
-      readonly name: string;
-    }>;
     readonly spanId: string;
     readonly spanKind: SpanKind;
     readonly startTime: string;
@@ -73,7 +69,7 @@ export type SpanDetailsQuery$data = {
       readonly id: string;
       readonly traceId: string;
     };
-    readonly " $fragmentSpreads": FragmentRefs<"SpanFeedback_annotations" | "SpanHeader_span">;
+    readonly " $fragmentSpreads": FragmentRefs<"SpanHeader_span">;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -448,27 +444,9 @@ return {
                 "storageKey": null
               },
               {
-                "alias": null,
-                "args": null,
-                "concreteType": "SpanAnnotation",
-                "kind": "LinkedField",
-                "name": "spanAnnotations",
-                "plural": true,
-                "selections": [
-                  (v3/*:: as any*/),
-                  (v6/*:: as any*/)
-                ],
-                "storageKey": null
-              },
-              {
                 "args": null,
                 "kind": "FragmentSpread",
                 "name": "SpanHeader_span"
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "SpanFeedback_annotations"
               }
             ],
             "type": "Span",
@@ -551,60 +529,6 @@ return {
                 "storageKey": null
               },
               {
-                "alias": null,
-                "args": null,
-                "concreteType": "SpanAnnotation",
-                "kind": "LinkedField",
-                "name": "spanAnnotations",
-                "plural": true,
-                "selections": [
-                  (v3/*:: as any*/),
-                  (v6/*:: as any*/),
-                  (v23/*:: as any*/),
-                  (v24/*:: as any*/),
-                  (v25/*:: as any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "metadata",
-                    "storageKey": null
-                  },
-                  (v21/*:: as any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "identifier",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "source",
-                    "storageKey": null
-                  },
-                  (v26/*:: as any*/),
-                  (v27/*:: as any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "User",
-                    "kind": "LinkedField",
-                    "name": "user",
-                    "plural": false,
-                    "selections": [
-                      (v3/*:: as any*/),
-                      (v28/*:: as any*/),
-                      (v29/*:: as any*/)
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              },
-              {
                 "alias": "code",
                 "args": null,
                 "kind": "ScalarField",
@@ -650,16 +574,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b85cb0ecdb794243c8c75f613ca7f7f9",
+    "cacheID": "2d55e5f8774fc7a08489a98b7ed95656",
     "id": null,
     "metadata": {},
     "name": "SpanDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        id\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      endTime\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        id\n        annotatorKind\n        documentPosition\n        name\n        label\n        score\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n      spanAnnotations {\n        id\n        name\n      }\n      ...SpanHeader_span\n      ...SpanFeedback_annotations\n    }\n    id\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  code: statusCode\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
+    "text": "query SpanDetailsQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        id\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      endTime\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        id\n        annotatorKind\n        documentPosition\n        name\n        label\n        score\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n      ...SpanHeader_span\n    }\n    id\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  code: statusCode\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "15602f3093014584b2cb85ee3d86c2ee";
+(node as any).hash = "1f12d9cb58cca8464666a95f05a0ab1a";
 
 export default node;
