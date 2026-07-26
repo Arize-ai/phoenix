@@ -50,6 +50,13 @@ export interface ColumnOrderingProviderProps {
   columnOrder: string[];
   /** Called with the new order as it changes during a drag and when a canceled drag restores the original order. */
   onColumnOrderChange: (columnOrder: string[]) => void;
+  /**
+   * Called once with the final order when a drag ends (the restored original
+   * order if the drag was canceled). Wire expensive consumers (e.g. a table
+   * re-render) here and keep `onColumnOrderChange` cheap when reorders should
+   * not be applied live on every drag-over step.
+   */
+  onColumnOrderCommit?: (columnOrder: string[]) => void;
   children: ReactNode;
 }
 
@@ -60,6 +67,7 @@ export interface ColumnOrderingProviderProps {
 export function ColumnOrderingProvider({
   columnOrder,
   onColumnOrderChange,
+  onColumnOrderCommit,
   children,
 }: ColumnOrderingProviderProps) {
   // The order when the current drag started, restored if the drag is canceled
@@ -89,10 +97,12 @@ export function ColumnOrderingProvider({
         // The order the user saw was already committed during the drag;
         // re-applying move() here would shift the column a second time.
         if (!event.canceled) {
+          onColumnOrderCommit?.(columnOrder);
           return;
         }
         if (initialColumnOrder != null) {
           onColumnOrderChange(initialColumnOrder);
+          onColumnOrderCommit?.(initialColumnOrder);
         }
       }}
     >

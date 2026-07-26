@@ -175,15 +175,30 @@ export function ColumnSelectorMenu({
   children,
 }: ColumnSelectorMenuProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  // Order previewed while a drag is in flight. Reorders are applied to this
+  // local draft on every drag-over step so only the popover list re-renders;
+  // the (expensive) table column order is committed once when the drag ends.
+  const [draftColumnOrder, setDraftColumnOrder] = useState<string[] | null>(
+    null
+  );
+  const orderedColumns = useMemo(() => {
+    if (draftColumnOrder == null) {
+      return columns;
+    }
+    const columnsById = new Map(columns.map((column) => [column.id, column]));
+    return draftColumnOrder
+      .map((columnId) => columnsById.get(columnId))
+      .filter((column) => column != null);
+  }, [columns, draftColumnOrder]);
   const filteredColumns = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) {
-      return columns;
+      return orderedColumns;
     }
-    return columns.filter((column) =>
+    return orderedColumns.filter((column) =>
       column.label.toLowerCase().includes(query)
     );
-  }, [columns, searchQuery]);
+  }, [orderedColumns, searchQuery]);
 
   // Reordering a filtered list is ambiguous, so it is only enabled when the
   // full list is shown
@@ -203,10 +218,12 @@ export function ColumnSelectorMenu({
       </MenuHeader>
       <div css={columnSelectorBodyCSS}>
         <ColumnOrderingProvider
-          columnOrder={columns.map((column) => column.id)}
-          onColumnOrderChange={(columnOrder) =>
-            onColumnOrderChange?.(columnOrder)
-          }
+          columnOrder={orderedColumns.map((column) => column.id)}
+          onColumnOrderChange={setDraftColumnOrder}
+          onColumnOrderCommit={(columnOrder) => {
+            setDraftColumnOrder(null);
+            onColumnOrderChange?.(columnOrder);
+          }}
         >
           <ul css={columnListCSS}>
             {filteredColumns.map((column, index) => (
