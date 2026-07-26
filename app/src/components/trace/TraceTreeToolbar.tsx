@@ -55,14 +55,18 @@ export function TraceTreeToolbar() {
         .trace-tree-toolbar__search {
           flex: 1 1 auto;
           min-width: 0;
+          // the field fills whatever the toolbar leaves it, so it has to be
+          // free to shrink, and its insets follow the larger icon set below
+          --field-min-width: 0;
+          --searchfield-input-padding-start: calc(
+            var(--global-dimension-size-200) + var(--global-font-size-l)
+          );
+          --searchfield-input-padding-end: var(--global-dimension-size-300);
         }
         .trace-tree-toolbar__search .search-field {
           width: 100%;
         }
         .trace-tree-toolbar__search .react-aria-Input {
-          min-width: 0;
-          padding-left: var(--global-dimension-size-100) !important;
-          padding-right: var(--global-dimension-size-300) !important;
           color: var(--global-text-color-900);
           font-size: var(--global-font-size-s);
           line-height: var(--global-line-height-s);
@@ -75,11 +79,6 @@ export function TraceTreeToolbar() {
           left: var(--global-dimension-size-100);
           color: var(--global-text-color-500);
           font-size: var(--global-font-size-l);
-        }
-        .trace-tree-toolbar__search .search-field__icon ~ .react-aria-Input {
-          padding-left: calc(
-            var(--global-dimension-size-200) + var(--global-font-size-l)
-          ) !important;
         }
       `}
     >
