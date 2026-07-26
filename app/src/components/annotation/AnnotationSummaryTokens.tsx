@@ -17,7 +17,6 @@ const annotationLabelCSS = css`
   display: flex;
 `;
 
-/** The per-name summary a token renders: its latest value, or its label mix */
 type AnnotationSummary = {
   name: string;
   meanScore?: number | null;
@@ -26,9 +25,8 @@ type AnnotationSummary = {
 
 /**
  * A bare run of annotation tokens — the caller owns the layout (wrap, or
- * `OverflowRow`). Spans, traces and sessions each read their annotations from
- * their own Relay fragment but render them identically, so they share this and
- * keep only their fragment hook of their own.
+ * `OverflowRow`). Spans, traces and sessions read their annotations from
+ * different Relay fragments but render them identically, so they share this.
  */
 export function AnnotationSummaryTokens({
   summaries,
@@ -36,7 +34,6 @@ export function AnnotationSummaryTokens({
   categoricalAnnotationConfigsByName,
   showFilterActions = false,
 }: {
-  /** The summaries to render, in the order they should appear */
   summaries: readonly AnnotationSummary[];
   /** Every annotation behind a summary, newest first, keyed by summary name */
   annotationsByName: Record<string, readonly Annotation[] | undefined>;

@@ -35,8 +35,7 @@ const narrowTableCSS = css(tableCSS, expandableRowsTableCSS, {
 });
 
 /**
- * The cell takes its row height from the table it sits in: collapsed clips the
- * value to one ellipsized line, expanded wraps the whole of it. Both tables are
+ * The cell takes its row height from the table it sits in. Both tables here are
  * the same width, so the only difference is the `data-rows` state.
  */
 export const InTable: StoryObj = {

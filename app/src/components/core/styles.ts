@@ -1,10 +1,8 @@
 import { css } from "@emotion/react";
 
 /**
- * The outlined pill worn by annotation labels and the controls that stand in
- * for them (e.g. an overflow row's "+N" badge): square-ish corners, a hairline
- * border, and — when marked clickable — a washed hover invitation. One owner
- * so the pills and their stand-ins cannot drift apart.
+ * The outlined pill worn by annotation labels and the controls that stand in for
+ * them (an overflow row's "+N" badge), so the two cannot drift apart.
  */
 export const outlinedPillCSS = css`
   border-radius: var(--global-dimension-size-50);

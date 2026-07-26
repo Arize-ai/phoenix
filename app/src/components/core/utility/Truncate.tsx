@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { CSSProperties } from "react";
 import React from "react";
 
-/** Clips text to one line with an ellipsis. The single-line half of {@link Truncate}, exported so the same clip can be composed into a cell or table rule. */
+/** The single-line half of {@link Truncate}, for composing into a cell or table rule */
 export const truncateSingleCSS = css`
   text-overflow: ellipsis;
   overflow: hidden;

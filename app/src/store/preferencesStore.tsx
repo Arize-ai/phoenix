@@ -194,9 +194,7 @@ export interface PreferencesState extends PreferencesProps {
    * @param showMetricsInTraceTree
    */
   setShowMetricsInTraceTree: (showMetricsInTraceTree: boolean) => void;
-  /**
-   * Setter for whether tracing tables' rows are expanded
-   */
+  /** Setter for whether tracing tables' rows are expanded */
   setAreTableRowsExpanded: (areTableRowsExpanded: boolean) => void;
   /**
    * Setter for the model configs by provider
@@ -304,8 +302,7 @@ export const createPreferencesStore = (
         type: "setShowMetricsInTraceTree",
       });
     },
-    // Clipped to start: rows of an even height are what make a table
-    // scannable as a grid. Expanding is the deliberate second step.
+    // Clipped to start: an even row height is what makes a table scan as a grid
     areTableRowsExpanded: false,
     setAreTableRowsExpanded: (areTableRowsExpanded) => {
       set({ areTableRowsExpanded }, false, {

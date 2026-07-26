@@ -62,8 +62,8 @@ export function LatencyText({
   const latencyText = useMemo(() => latencyMsFormatter(latencyMs), [latencyMs]);
 
   return (
-    // No justify-content: an inline value would override the right-alignment
-    // a numeric table cell applies to its flex children.
+    // No justify-content: it would override the right-alignment a numeric
+    // table cell applies to its flex children.
     <Flex
       direction="row"
       alignItems="center"

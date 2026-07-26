@@ -126,8 +126,6 @@ const TableBody = <T extends { id: string }>({
                   style={{
                     width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                     maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                    // wrapping vs. single-line ellipsis is decided by the
-                    // table's data-rows state — see expandableRowsTableCSS
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

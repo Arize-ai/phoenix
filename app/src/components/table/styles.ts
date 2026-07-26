@@ -7,8 +7,7 @@ import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
 /**
  * Marks a `<td>` that holds one column's value, as opposed to the cells that
  * stand in for a whole row (empty state, load more). Table bodies put it on
- * every cell they render from a column definition, so rules about row height
- * can name the cells they mean rather than inferring them.
+ * every cell they render from a column definition.
  */
 export const TABLE_DATA_CELL_CLASS = "table__cell";
 
@@ -85,11 +84,10 @@ export const tableCSS = css`
       }
     }
   }
-  // Right-aligned columns (numbers) — driven by the column's
-  // meta.textAlign rendered as the cell's align attribute. The attribute
-  // handles inline content; the flex-row cell components (latency, token
-  // counts, costs) don't respond to text-align, so the row itself is pushed
-  // to the cell's end to keep digits on a shared right edge.
+  // Right-aligned columns (numbers), driven by the column's meta.textAlign.
+  // text-align handles inline content, but the flex-row cell components
+  // (latency, token counts, costs) don't respond to it, so the row itself is
+  // pushed to the cell's end to keep digits on a shared right edge.
   th[align="right"] {
     text-align: right;
     .sort {
@@ -166,17 +164,13 @@ export const selectableTableCSS = css(
  * top-aligned so a row's cells all start on the same line.
  */
 export const expandableRowsTableCSS = css`
-  // Only cells that hold a column's value take a row height, so a row's height
-  // is decided by the cells a body renders from the column definitions. The
-  // cells that stand in for a whole row (empty state, load more) are not data
-  // cells and lay themselves out.
+  // Only data cells take a row height; the cells that stand in for a whole row
+  // (empty state, load more) lay themselves out.
   &[data-rows="collapsed"] {
     td.${TABLE_DATA_CELL_CLASS} {
       ${truncateSingleCSS};
     }
   }
-  // Full-height cells (e.g. copyable id cells) top-align themselves under
-  // data-rows="expanded" — see CellWithControlsWrap, which owns that rule.
   &[data-rows="expanded"] {
     td.${TABLE_DATA_CELL_CLASS} {
       vertical-align: top;
@@ -189,9 +183,8 @@ export const expandableRowsTableCSS = css`
 `;
 
 /**
- * The dress every tracing table wears: selectable rows plus the row-height
- * states its toolbar toggle drives. Composed once so the three tables cannot
- * end up with different answers to the same question.
+ * Selectable rows plus the row-height states the toolbar toggle drives, composed
+ * once so the three tracing tables cannot answer the same question differently.
  */
 export const expandableSelectableTableCSS = css(
   selectableTableCSS,

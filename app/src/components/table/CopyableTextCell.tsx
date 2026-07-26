@@ -6,17 +6,16 @@ import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
 import { CellWithControlsWrap } from "./CellWithControlsWrap";
 
 const copyableTextCellCSS = css`
-  // The cell wrap lays its children out as a flex row, so the value is made a
-  // block box for the ellipsis to act on, and is let out of its content width
-  // so there is something for it to clip
+  // The cell wrap lays its children out as a flex row, so the value needs to be
+  // a block box for the ellipsis to act on, and out of its content width so
+  // there is something to clip.
   .copyable-text-cell__value {
     display: block;
     min-width: 0;
     ${truncateSingleCSS};
   }
-  // Expanded rows are the state in which a value is read rather than scanned,
-  // so the whole of it is shown. Ids carry no break opportunities of their own,
-  // so they may break anywhere rather than widen the column.
+  // Ids carry no break opportunities of their own, so they may break anywhere
+  // rather than widen the column.
   [data-rows="expanded"] & .copyable-text-cell__value {
     white-space: normal;
     overflow-wrap: anywhere;

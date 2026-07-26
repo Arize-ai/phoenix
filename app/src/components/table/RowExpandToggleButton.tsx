@@ -21,9 +21,8 @@ export function RowExpandToggleButton({
   onChange: (isExpanded: boolean) => void;
   size?: ButtonProps["size"];
 }) {
-  // Phrased as what it does to each row rather than as "expand rows", which a
-  // table that also expands a row into its descendants (TracesTable's span
-  // tree) already spends on that unrelated control.
+  // Phrased as what it does to each row rather than as "expand rows", which
+  // TracesTable already spends on its unrelated span-tree control.
   const label = isExpanded
     ? "Clip each row to a single line"
     : "Wrap each row over as many lines as it needs";

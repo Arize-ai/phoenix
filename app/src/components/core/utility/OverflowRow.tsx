@@ -13,17 +13,13 @@ import { outlinedPillCSS } from "../styles";
 import { View } from "../view";
 
 type FirstLine = {
-  /** How many items share the first line and are shown by the row itself */
   visibleCount: number;
   /** The right edge of the last visible item, where the badge is placed */
   badgeLeft: number;
-  /** The measured height of the first line, which the row clamps to */
   lineHeight: number;
 };
 
-/** What the row renders from, once the hidden items are counted */
 type OverflowState = FirstLine & {
-  /** How many items wrapped past the first line and are hidden */
   hiddenCount: number;
 };
 
@@ -38,32 +34,22 @@ const overflowRowCSS = css`
 
   &.overflow-row--collapsed {
     position: relative;
-    // Items that don't fit wrap to lines below the measured clamp and are cut
-    // off whole. They are also made inert, so nothing that the row is cutting
-    // off can take focus or reach the accessibility tree — the "+N" badge
-    // stands in for them.
+    // items that don't fit wrap to lines below the clamp and are cut off whole
     align-content: flex-start;
     overflow: clip;
   }
   &.overflow-row--overflowing {
-    // The clamp is the first line's measured height rather than a fixed
-    // dimension, so the items decide how tall the row is and are never
-    // cropped mid-pill.
     height: var(--overflow-row-line-height);
     // room for the badge, which sits out of flow at the end of the first line
     padding-right: var(--global-dimension-size-600);
   }
 
-  // The badge and its popover are the row's own output rather than items, so
-  // they are kept in a boxless slot: the measurement skips them for free, and
-  // the content observer can tell the row's own changes from its children's.
+  // Boxless, so the measurement skips the badge and the content observer can
+  // tell the row's own output from its children's.
   .overflow-row__badge-slot {
     display: contents;
   }
 
-  // The badge stands in for the pills it hides, so it wears the shared pill
-  // shell. It is an unstyled react-aria button, so the rest of its dress is
-  // declared here.
   .overflow-row__badge {
     ${outlinedPillCSS};
     position: absolute;
@@ -87,21 +73,18 @@ const overflowRowCSS = css`
   }
 `;
 
-/** What {@link measureOverflow} reads off the DOM */
 type OverflowMeasurement = FirstLine & {
   /** The child elements that render a box, in document order */
   items: HTMLElement[];
 };
 
-/** Whether an element renders a box, and so counts as an item */
 function hasBox(element: HTMLElement): boolean {
   return element.offsetWidth > 0 || element.offsetHeight > 0;
 }
 
 /**
- * Collects the container's items. Only elements that render a box are items —
- * boxless wrappers (display: contents event guards and badge slot, closed
- * popovers) are skipped.
+ * Only elements that render a box are items — boxless wrappers (the badge slot,
+ * display: contents event guards, closed popovers) are skipped.
  */
 function getItems(container: HTMLElement): HTMLElement[] {
   return Array.from(container.children).filter(
@@ -110,26 +93,22 @@ function getItems(container: HTMLElement): HTMLElement[] {
   );
 }
 
-/**
- * Measures which of the container's items fit on its first line.
- */
+/** Measures which of the container's items fit on its first line. */
 function measureOverflow(container: HTMLElement): OverflowMeasurement {
   const items = getItems(container);
   let visibleCount = 0;
   let badgeLeft = 0;
   let lineHeight = 0;
-  // `align-items: center` cross-centers the items, so items sharing a line do
-  // not share an offsetTop. Flex lines never overlap vertically though, so
-  // line membership is an overlap test against the band the first line has
-  // covered so far rather than a comparison of top edges.
+  // `align-items: center` means items on one line don't share an offsetTop, so
+  // line membership is a vertical overlap test against the band covered so far
+  // rather than a comparison of top edges.
   let lineTop = Number.POSITIVE_INFINITY;
   let lineBottom = Number.NEGATIVE_INFINITY;
   for (const item of items) {
     const top = item.offsetTop;
     const bottom = top + item.offsetHeight;
     if (visibleCount > 0 && (top >= lineBottom || bottom <= lineTop)) {
-      // Items lay out in document order, so everything after the first wrap
-      // is on a later line too.
+      // document order, so everything past the first wrap is on a later line
       break;
     }
     visibleCount += 1;
@@ -141,21 +120,16 @@ function measureOverflow(container: HTMLElement): OverflowMeasurement {
   return { items, visibleCount, badgeLeft, lineHeight };
 }
 
-/**
- * The attributes that hide a clipped item, each recorded on the element under
- * its own flag so that only the ones this row actually added are ever removed.
- */
+/** Each recorded under its own flag, so only what this row added is removed */
 const CLIPPED_ITEM_ATTRIBUTES = [
   { name: "inert", value: "", flag: "overflowRowInert" },
   { name: "aria-hidden", value: "true", flag: "overflowRowAriaHidden" },
 ] as const;
 
 /**
- * Takes the clipped items out of the tab order and the accessibility tree.
- * They are still rendered — only cut off — so without this a keyboard user
- * would focus a pill that `overflow: clip` forbids the browser from scrolling
- * into view, and a screen reader would read items the row does not show. The
- * badge's popover is the one place they are exposed.
+ * Takes the clipped items out of the tab order and the accessibility tree. They
+ * are still rendered, only cut off, so without this a keyboard user would focus
+ * a pill that `overflow: clip` forbids the browser from scrolling into view.
  */
 function setClippedItems({
   items,
@@ -171,8 +145,7 @@ function setClippedItems({
     }
     for (const { name, value, flag } of CLIPPED_ITEM_ATTRIBUTES) {
       // A child that already hides itself keeps ownership of the attribute, so
-      // restoring cannot delete state React would not put back. This is also
-      // what makes a second pass over an already-clipped item a no-op.
+      // restoring cannot delete state React would not put back.
       if (!item.hasAttribute(name)) {
         item.dataset[flag] = "true";
         item.setAttribute(name, value);
@@ -199,7 +172,6 @@ function restoreClippedItems(container: HTMLElement) {
   }
 }
 
-/** How the row watches its items for changes it cannot see as a resize */
 const CONTENT_OBSERVER_OPTIONS = {
   childList: true,
   characterData: true,
@@ -207,9 +179,8 @@ const CONTENT_OBSERVER_OPTIONS = {
 } as const satisfies MutationObserverInit;
 
 /**
- * Whether a mutation is the row's own "+N" badge appearing, leaving or
- * recounting. The badge is an output of the measurement, so re-measuring for
- * it would only ever arrive back at the same answer.
+ * The badge is an output of the measurement, so re-measuring for it would only
+ * ever arrive back at the same answer.
  */
 function isBadgeMutation(record: MutationRecord): boolean {
   const isInBadgeSlot = (node: Node) => {
@@ -235,14 +206,11 @@ function isSameOverflow(a: OverflowState | null, b: OverflowState | null) {
 }
 
 /**
- * The body of the "+N" popover: the same children the row renders, minus the
- * ones already visible in the row. The children compose through component
- * boundaries (fragments, connected components), so they cannot be sliced as a
- * React array — instead the full set renders again and the leading elements
- * that the row already shows are switched off by DOM position, using the
- * row's own first-line count. `display: none` keeps them out of the
- * accessibility tree, so together with the row's inert clipped items every
- * item is exposed exactly once.
+ * The body of the "+N" popover: the children the row is hiding. They compose
+ * through component boundaries (fragments, connected components) and so cannot
+ * be sliced as a React array — instead the full set renders again and the
+ * prefix the row already shows is switched off by DOM position. Paired with the
+ * row's inert clipped items, that exposes every item to assistive tech once.
  */
 function OverflowRowPopoverItems({
   visibleCount,
@@ -258,19 +226,14 @@ function OverflowRowPopoverItems({
       const all = Array.from(container.children).filter(
         (element): element is HTMLElement => element instanceof HTMLElement
       );
-      // Undo only the hiding this effect applied before deciding which elements
-      // are items. Clearing every child's inline display would be simpler, but
-      // some children own theirs (the display: contents event guards), and
-      // React would not restore what we wipe.
+      // Undo only this effect's own hiding: some children own their inline
+      // display (the event guards), and React would not restore what we wipe.
       for (const element of all) {
         if (element.dataset.overflowRowHidden) {
           element.style.display = "";
           delete element.dataset.overflowRowHidden;
         }
       }
-      // Only elements that render a box are items; the children also produce
-      // boxless wrappers (display: contents event guards, closed popovers) that
-      // must not throw off the position count.
       const items = all.filter(hasBox);
       items.slice(0, visibleCount).forEach((element) => {
         element.style.display = "none";
@@ -278,10 +241,9 @@ function OverflowRowPopoverItems({
       });
     };
     hideRowVisibleItems();
-    // The items can change under an open popover (a streaming refetch). Watching
-    // for that is push-based, so a parent render that changed nothing costs no
-    // reflow — and the inline display written above is an attribute, which the
-    // observer does not watch and so cannot feed back into it.
+    // The items can change under an open popover (a streaming refetch). The
+    // inline display written above is an attribute, which this does not watch
+    // and so cannot feed back into.
     const observer = new MutationObserver(hideRowVisibleItems);
     observer.observe(container, CONTENT_OBSERVER_OPTIONS);
     return () => observer.disconnect();
@@ -304,11 +266,9 @@ function OverflowRowPopoverItems({
  * doesn't fit behind a "+N" badge, which opens the hidden items in a popover.
  * When `isExpanded`, the row simply wraps instead.
  *
- * The items are measured where they render: the row lets flex wrapping push
- * items that don't fit onto clipped lines, then counts the items that left the
- * first line. Nothing is ever cut mid-item, and the measurement never has to
- * know what the items are — any composed children that render a flat run of
- * elements (fragments included) work.
+ * Items are measured where they render: flex wrapping pushes what doesn't fit
+ * onto clipped lines, and the row counts what left the first line. So nothing
+ * is cut mid-item, and the row never has to know what its children are.
  */
 export function OverflowRow({
   children,
@@ -321,17 +281,14 @@ export function OverflowRow({
   const remeasureRef = useRef<(() => void) | null>(null);
   const [overflow, setOverflow] = useState<OverflowState | null>(null);
 
-  // The observer lives for as long as the row is collapsed — it is not torn
-  // down when the items re-render, only when the row changes shape.
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (isExpanded || !container) {
       setOverflow(null);
       return undefined;
     }
-    // The row's own border-box width as of the last measurement. Seeded by the
-    // measurement itself so the observer's mandatory initial delivery, which
-    // reports the width we already measured at, costs nothing.
+    // Seeded by the measurement itself, so the resize observer's mandatory
+    // initial delivery reports a width already measured at and costs nothing.
     let lastInlineSize: number | null = null;
     const remeasure = () => {
       lastInlineSize = container.getBoundingClientRect().width;
@@ -348,10 +305,8 @@ export function OverflowRow({
     // measure synchronously so the first paint is already clamped
     remeasure();
     remeasureRef.current = remeasure;
-    // A web font swapping in re-lays the items out without changing the row's
-    // width or any of its text, so nothing else would catch it. Rows that mount
-    // once the fonts have settled — every row after the first paint — have
-    // nothing to wait for.
+    // A font swapping in re-lays the items out without changing the row's width
+    // or its text, so neither observer below would catch it.
     let isUnmounted = false;
     if (document.fonts?.status === "loading") {
       void document.fonts.ready.then(() => {
@@ -360,10 +315,9 @@ export function OverflowRow({
         }
       });
     }
-    // Only a change in the row's inline size can re-wrap the items. Ignoring
-    // the block size stops the clamp this callback applies from feeding back
-    // into the observer that watches the very element it clamps, which
-    // browsers report as a ResizeObserver loop.
+    // Only a change in inline size can re-wrap the items. Ignoring block size
+    // stops the clamp this callback applies from feeding back into the observer
+    // watching the very element it clamps, which browsers report as a loop.
     const resizeObserver = new ResizeObserver(([entry]) => {
       const inlineSize = entry?.borderBoxSize?.[0]?.inlineSize ?? null;
       if (inlineSize !== null && inlineSize === lastInlineSize) {
@@ -373,10 +327,8 @@ export function OverflowRow({
       remeasure();
     });
     resizeObserver.observe(container);
-    // The resize observer only sees the row's own width; items swapped for a
-    // same-size set (e.g. a streaming refetch) change its contents instead.
-    // Watching for that is push-based, so a render that changed nothing costs
-    // no reflow.
+    // The resize observer only sees the row's width; items swapped for a
+    // same-size set (a streaming refetch) change its contents instead.
     const contentObserver = new MutationObserver((records) => {
       if (records.every(isBadgeMutation)) {
         return;

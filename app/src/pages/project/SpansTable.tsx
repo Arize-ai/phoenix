@@ -170,8 +170,6 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
                     ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                    // wrapping vs. single-line ellipsis is decided by the
-                    // table's data-rows state — see expandableRowsTableCSS
                     userSelect:
                       cell.column.id === CHECKBOX_COLUMN_ID
                         ? "none"
