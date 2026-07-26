@@ -74,7 +74,8 @@ export const diagnosticResizeHandleCSS = css`
     bottom: 0;
     left: calc(-1 * var(--resize-handle-hit-area-left));
     right: calc(-1 * var(--resize-handle-hit-area-right));
-    background: rgb(0 255 0 / 15%);
+    /* Debug hit-area visualization, temporarily disabled. */
+    /* background: rgb(0 255 0 / 15%); */
     cursor: ew-resize;
   }
 
@@ -86,8 +87,16 @@ export const diagnosticResizeHandleCSS = css`
     bottom: 0;
     left: 0;
     width: var(--global-border-size-thin);
-    background: #ff00ff;
+    background: var(--global-resize-handle-background-color);
+    /* Debug edge visualization, temporarily disabled. */
+    /* background: #ff00ff; */
     pointer-events: none;
+  }
+
+  &:hover::after,
+  &:active::after,
+  &[data-dragging="true"]::after {
+    background: var(--global-resize-handle-indicator-color-hover);
   }
 
   &:hover,
