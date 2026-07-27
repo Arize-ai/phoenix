@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d0d0dcd0df975aeba55262083191834b>>
+ * @generated SignedSource<<757b414f9ada09225ab586933b6c9ba1>>
  * @lightSyntaxTransform
  */
 
@@ -19,6 +19,13 @@ export type TopModelsByCostQuery$variables = {
 export type TopModelsByCostQuery$data = {
   readonly project: {
     readonly topModelsByCost?: ReadonlyArray<{
+      readonly costDetailSummaryEntries: ReadonlyArray<{
+        readonly isPrompt: boolean;
+        readonly tokenType: string;
+        readonly value: {
+          readonly cost: number | null;
+        };
+      }>;
       readonly costSummary: {
         readonly completion: {
           readonly cost: number | null;
@@ -76,6 +83,14 @@ v4 = {
 },
 v5 = [
   {
+    "kind": "Variable",
+    "name": "projectId",
+    "variableName": "projectId"
+  },
+  (v2/*:: as any*/)
+],
+v6 = [
+  {
     "alias": null,
     "args": null,
     "kind": "ScalarField",
@@ -83,16 +98,9 @@ v5 = [
     "storageKey": null
   }
 ],
-v6 = {
+v7 = {
   "alias": null,
-  "args": [
-    {
-      "kind": "Variable",
-      "name": "projectId",
-      "variableName": "projectId"
-    },
-    (v2/*:: as any*/)
-  ],
+  "args": (v5/*:: as any*/),
   "concreteType": "SpanCostSummary",
   "kind": "LinkedField",
   "name": "costSummary",
@@ -105,7 +113,7 @@ v6 = {
       "kind": "LinkedField",
       "name": "prompt",
       "plural": false,
-      "selections": (v5/*:: as any*/),
+      "selections": (v6/*:: as any*/),
       "storageKey": null
     },
     {
@@ -115,7 +123,7 @@ v6 = {
       "kind": "LinkedField",
       "name": "completion",
       "plural": false,
-      "selections": (v5/*:: as any*/),
+      "selections": (v6/*:: as any*/),
       "storageKey": null
     },
     {
@@ -125,13 +133,48 @@ v6 = {
       "kind": "LinkedField",
       "name": "total",
       "plural": false,
-      "selections": (v5/*:: as any*/),
+      "selections": (v6/*:: as any*/),
       "storageKey": null
     }
   ],
   "storageKey": null
 },
-v7 = {
+v8 = {
+  "alias": null,
+  "args": (v5/*:: as any*/),
+  "concreteType": "SpanCostDetailSummaryEntry",
+  "kind": "LinkedField",
+  "name": "costDetailSummaryEntries",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "tokenType",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "isPrompt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "value",
+      "plural": false,
+      "selections": (v6/*:: as any*/),
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -165,7 +208,8 @@ return {
                 "plural": true,
                 "selections": [
                   (v4/*:: as any*/),
-                  (v6/*:: as any*/)
+                  (v7/*:: as any*/),
+                  (v8/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -213,8 +257,9 @@ return {
                 "plural": true,
                 "selections": [
                   (v4/*:: as any*/),
-                  (v6/*:: as any*/),
-                  (v7/*:: as any*/)
+                  (v7/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v9/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -222,23 +267,23 @@ return {
             "type": "Project",
             "abstractKey": null
           },
-          (v7/*:: as any*/)
+          (v9/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "414c76bdca99afd8a181b7f86f0577c2",
+    "cacheID": "2461b23a178ea4043d2111825eae396c",
     "id": null,
     "metadata": {},
     "name": "TopModelsByCostQuery",
     "operationKind": "query",
-    "text": "query TopModelsByCostQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByCost(timeRange: $timeRange) {\n        name\n        costSummary(projectId: $projectId, timeRange: $timeRange) {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TopModelsByCostQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      topModelsByCost(timeRange: $timeRange) {\n        name\n        costSummary(projectId: $projectId, timeRange: $timeRange) {\n          prompt {\n            cost\n          }\n          completion {\n            cost\n          }\n          total {\n            cost\n          }\n        }\n        costDetailSummaryEntries(projectId: $projectId, timeRange: $timeRange) {\n          tokenType\n          isPrompt\n          value {\n            cost\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2c9e10de82227b52a32ee3be700dcb2f";
+(node as any).hash = "bbbc9069dd3e137073ec4869d348c050";
 
 export default node;

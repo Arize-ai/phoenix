@@ -87,6 +87,9 @@ from .span_cost_by_span import SpanCostBySpanDataLoader
 from .span_cost_detail_summary_entries_by_generative_model import (
     SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
 )
+from .span_cost_detail_summary_entries_by_model_and_scope import (
+    SpanCostDetailSummaryEntriesByModelAndScopeDataLoader,
+)
 from .span_cost_detail_summary_entries_by_span import SpanCostDetailSummaryEntriesBySpanDataLoader
 from .span_cost_detail_summary_entries_by_trace import SpanCostDetailSummaryEntriesByTraceDataLoader
 from .span_cost_details_by_span_cost import SpanCostDetailsBySpanCostDataLoader
@@ -255,6 +258,7 @@ class DataLoaders:
     span_cost_detail_summary_entries_by_generative_model: (
         SpanCostDetailSummaryEntriesByGenerativeModelDataLoader
     )
+    span_cost_details_by_model_and_scope: SpanCostDetailSummaryEntriesByModelAndScopeDataLoader
     span_cost_detail_summary_entries_by_project_session: (
         SpanCostDetailSummaryEntriesByProjectSessionDataLoader
     )
@@ -432,6 +436,9 @@ def build_data_loaders(
         span_by_id=SpanByIdDataLoader(db),
         span_cost_by_span=SpanCostBySpanDataLoader(db),
         span_cost_detail_summary_entries_by_generative_model=SpanCostDetailSummaryEntriesByGenerativeModelDataLoader(
+            db
+        ),
+        span_cost_details_by_model_and_scope=SpanCostDetailSummaryEntriesByModelAndScopeDataLoader(
             db
         ),
         span_cost_detail_summary_entries_by_project_session=SpanCostDetailSummaryEntriesByProjectSessionDataLoader(

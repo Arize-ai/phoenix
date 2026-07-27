@@ -87,13 +87,14 @@ async def _add_span_cost_detail(
     token_type: str,
     is_prompt: bool,
     tokens: Optional[float],
+    cost: Optional[float] = None,
 ) -> models.SpanCostDetail:
     span_cost_detail = models.SpanCostDetail(
         span_cost_id=span_cost.id,
         token_type=token_type,
         is_prompt=is_prompt,
         tokens=tokens,
-        cost=None,
+        cost=cost,
         cost_per_token=None,
     )
     session.add(span_cost_detail)
@@ -470,6 +471,141 @@ class TestTopModels:
         assert not empty_cost_response.errors
         assert (empty_cost_data := empty_cost_response.data) is not None
         assert len(empty_cost_data["node"]["topModelsByCost"]) == 0
+
+    async def test_token_details_are_aggregated_by_model_project_and_time_range(
+        self,
+        _cost_data: _CostTestData,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        project = _cost_data.project
+        base_time = _cost_data.base_time
+        gpt4 = _cost_data.generative_models["gpt4"]
+        gpt4_span_costs = _cost_data.span_costs[:3]
+
+        async with db() as session:
+            for span_cost, input_tokens, cache_read_tokens, output_tokens, cost in (
+                (gpt4_span_costs[0], 700, 100, 200, 1.5),
+                (gpt4_span_costs[1], 800, 160, 240, 1.8),
+                (gpt4_span_costs[2], 900, 220, 280, 2.1),
+            ):
+                await _add_span_cost_detail(
+                    session,
+                    span_cost,
+                    token_type="input",
+                    is_prompt=True,
+                    tokens=input_tokens,
+                    cost=cost * 0.55,
+                )
+                await _add_span_cost_detail(
+                    session,
+                    span_cost,
+                    token_type="cache_read",
+                    is_prompt=True,
+                    tokens=cache_read_tokens,
+                    cost=cost * 0.20,
+                )
+                await _add_span_cost_detail(
+                    session,
+                    span_cost,
+                    token_type="output",
+                    is_prompt=False,
+                    tokens=output_tokens,
+                    cost=cost * 0.25,
+                )
+
+            other_project = await _add_project(session, name="other-cost-detail-project")
+            other_trace = await _add_trace(
+                session,
+                other_project,
+                start_time=base_time,
+                end_time=base_time + timedelta(minutes=1),
+            )
+            other_span = await _add_span(
+                session,
+                trace=other_trace,
+                start_time=other_trace.start_time,
+                end_time=other_trace.end_time,
+            )
+            other_span_cost = await _add_span_cost(
+                session,
+                span=other_span,
+                trace=other_trace,
+                model=gpt4,
+                total_cost=100,
+                total_tokens=100_000,
+                prompt_cost=100,
+                prompt_tokens=100_000,
+                completion_cost=0,
+                completion_tokens=0,
+            )
+            await _add_span_cost_detail(
+                session,
+                other_span_cost,
+                token_type="cache_read",
+                is_prompt=True,
+                tokens=100_000,
+                cost=100,
+            )
+            await session.commit()
+
+        query = """
+            query ($projectId: ID!, $timeRange: TimeRange!) {
+                node(id: $projectId) {
+                    ... on Project {
+                        topModelsByTokenCount(timeRange: $timeRange) {
+                            name
+                            costDetailSummaryEntries(
+                                projectId: $projectId
+                                timeRange: $timeRange
+                            ) {
+                                tokenType
+                                isPrompt
+                                value { tokens cost }
+                            }
+                        }
+                        topModelsByCost(timeRange: $timeRange) {
+                            name
+                            costDetailSummaryEntries(
+                                projectId: $projectId
+                                timeRange: $timeRange
+                            ) {
+                                tokenType
+                                isPrompt
+                                value { tokens cost }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        project_id = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "projectId": project_id,
+                "timeRange": {
+                    "start": base_time.isoformat(),
+                    "end": (base_time + timedelta(minutes=15)).isoformat(),
+                },
+            },
+        )
+        assert response.data is not None
+        assert not response.errors
+
+        for field_name in ("topModelsByTokenCount", "topModelsByCost"):
+            model = next(
+                model for model in response.data["node"][field_name] if model["name"] == "gpt-4"
+            )
+            details = {
+                (entry["isPrompt"], entry["tokenType"]): entry["value"]
+                for entry in model["costDetailSummaryEntries"]
+            }
+            assert details == {
+                (True, "cache_read"): {"tokens": 260, "cost": pytest.approx(0.66)},
+                (True, "input"): {"tokens": 1500, "cost": pytest.approx(1.815)},
+                (False, "output"): {"tokens": 440, "cost": pytest.approx(0.825)},
+            }
 
 
 class TestTraceTokenCountTimeSeries:

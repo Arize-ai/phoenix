@@ -12,6 +12,9 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.dataloaders.span_cost_detail_summary_entries_by_model_and_scope import (
+    GenerativeModelCostDetailScope,
+)
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
@@ -196,9 +199,28 @@ class GenerativeModel(Node, ModelInterface):
     async def cost_detail_summary_entries(
         self,
         info: Info[Context, None],
+        project_id: Optional[GlobalID] = UNSET,
+        time_range: Optional[TimeRange] = UNSET,
     ) -> list[SpanCostDetailSummaryEntry]:
-        loader = info.context.data_loaders.span_cost_detail_summary_entries_by_generative_model
-        summary = await loader.load(self.id)
+        if time_range or project_id:
+            project_rowid: Optional[int] = None
+            if project_id:
+                type_name, project_rowid = from_global_id(project_id)
+                if type_name != models.Project.__name__:
+                    raise BadRequest("Invalid Project ID")
+            summary = await info.context.data_loaders.span_cost_details_by_model_and_scope.load(
+                GenerativeModelCostDetailScope(
+                    model_id=self.id,
+                    project_id=project_rowid,
+                    start_time=time_range.start if time_range else None,
+                    end_time=time_range.end if time_range else None,
+                )
+            )
+        else:
+            unscoped_loader = (
+                info.context.data_loaders.span_cost_detail_summary_entries_by_generative_model
+            )
+            summary = await unscoped_loader.load(self.id)
         return [
             SpanCostDetailSummaryEntry(
                 token_type=entry.token_type,

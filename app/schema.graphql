@@ -2117,7 +2117,7 @@ type GenerativeModel implements Node & ModelInterface {
   startTime: DateTime
   tokenPrices: [TokenPrice!]!
   costSummary(projectId: ID, timeRange: TimeRange): SpanCostSummary!
-  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+  costDetailSummaryEntries(projectId: ID, timeRange: TimeRange): [SpanCostDetailSummaryEntry!]!
   lastUsedAt: DateTime
 }
 
