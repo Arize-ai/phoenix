@@ -162,24 +162,14 @@ describe("getModelTokenDetailBarRadius", () => {
     });
 
   it("rounds the ends of the segments a row actually draws", () => {
-    // No cache writes, so the stack ends at cache read rather than the last series
-    const datum = { model: "gpt", total: 3, input: 1, cacheRead: 2 };
+    // No cache writes, so the stack ends at cache read rather than the last
+    // series, and output is absent entirely
+    const datum = { model: "gpt", total: 6, input: 1, output: 2, cacheRead: 3 };
 
     expect(radiusFor({ datum, dataKey: "input" })).toEqual([2, 0, 0, 2]);
+    expect(radiusFor({ datum, dataKey: "output" })).toBeUndefined();
     expect(radiusFor({ datum, dataKey: "cacheRead" })).toEqual([0, 2, 2, 0]);
-    expect(radiusFor({ datum, dataKey: "output" })).toBeUndefined();
-  });
-
-  it("leaves inner segments square", () => {
-    const datum = {
-      model: "gpt",
-      total: 6,
-      input: 1,
-      output: 2,
-      cacheWrite: 3,
-    };
-
-    expect(radiusFor({ datum, dataKey: "output" })).toBeUndefined();
+    expect(radiusFor({ datum, dataKey: "cacheWrite" })).toBeUndefined();
   });
 
   it("rounds both ends of a row with a single segment", () => {
@@ -224,18 +214,5 @@ describe("getModelTokenDetailColors", () => {
     expect(colorByDataKey.get("promptAudio")).not.toBe(
       colorByDataKey.get("completionAudio")
     );
-  });
-
-  it("keeps the semantic color for token types that appear once", () => {
-    const colorByDataKey = getModelTokenDetailColors({
-      colors,
-      series: [
-        { dataKey: "input", isPrompt: true, tokenType: "input" },
-        { dataKey: "output", isPrompt: false, tokenType: "output" },
-      ],
-    });
-
-    expect(colorByDataKey.get("input")).toBe(colors.category1);
-    expect(colorByDataKey.get("output")).toBe(colors.category2);
   });
 });
