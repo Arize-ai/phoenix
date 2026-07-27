@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 1.12.0
+
+### Minor Changes
+
+- 3f5ef25: Add a case-insensitive `--name-contains` filter to `px project list`.
+
 ## 1.11.1
 
 ### Patch Changes
