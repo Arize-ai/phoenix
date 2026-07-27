@@ -1,5 +1,27 @@
 # Changelog
 
+## [19.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.7.0...arize-phoenix-v19.8.0) (2026-07-27)
+
+
+### Features
+
+* **agent:** add Claude Opus 5 to the curated model list ([#14778](https://github.com/Arize-ai/phoenix/issues/14778)) ([381dcb1](https://github.com/Arize-ai/phoenix/commit/381dcb1ef8f39119aa51187bbd035ec7671c08b9))
+* **playground:** register Claude Opus 5 ([#14777](https://github.com/Arize-ai/phoenix/issues/14777)) ([7f65b94](https://github.com/Arize-ai/phoenix/commit/7f65b94e148c0f963fb99ed567120d522f34a8fd))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#14764](https://github.com/Arize-ai/phoenix/issues/14764)) ([c269af8](https://github.com/Arize-ai/phoenix/commit/c269af8bf68077cc3db9d0a52d600051bd3f1676))
+* **deps:** exclude broken bashkit 0.14.2 to unbreak 3.14 installs ([#14785](https://github.com/Arize-ai/phoenix/issues/14785)) ([ba2c10d](https://github.com/Arize-ai/phoenix/commit/ba2c10d6fa93179a05824a4bbfb3753b637244be))
+* focus styles ([#14681](https://github.com/Arize-ai/phoenix/issues/14681)) ([0ba4c4b](https://github.com/Arize-ai/phoenix/commit/0ba4c4b823d0f710914179ea407ce743f5b8b4d4))
+* **server:** fall back to text for invalid span mime types ([#14786](https://github.com/Arize-ai/phoenix/issues/14786)) ([a6f91d5](https://github.com/Arize-ai/phoenix/commit/a6f91d53b14f228b8ba74ccec14e8fdd7c49f634)), closes [#14762](https://github.com/Arize-ai/phoenix/issues/14762)
+* **server:** surface PXI API key errors to the user ([#14649](https://github.com/Arize-ai/phoenix/issues/14649)) ([603cd14](https://github.com/Arize-ai/phoenix/commit/603cd142ef0681d2d7801b8a54213c2da8a0c97d))
+
+
+### Documentation
+
+* add encryption guide to self-hosting advanced section ([#14755](https://github.com/Arize-ai/phoenix/issues/14755)) ([14cac91](https://github.com/Arize-ai/phoenix/commit/14cac91243427da5f1cfc11913f4983232f8bab6))
+
 ## [19.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.6.0...arize-phoenix-v19.7.0) (2026-07-27)
 
 
