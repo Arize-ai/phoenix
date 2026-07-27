@@ -1,9 +1,9 @@
 """Download the task's seed database and ground truth into /data.
 
-The assets are published by evals/harbor/push_seed_assets.sh. Idempotent
+The assets are published by evals/harbor/publish_seed_assets.sh. Idempotent
 across steps: files already present are left untouched.
 
-This file is a template: prepare.sh substitutes __HARBOR_TASK_NAME__ with the
+This file is a template: stage_build_context.sh substitutes __HARBOR_TASK_NAME__ with the
 task directory name when staging it into each task's environment/. Do not edit
 the staged copies; edit this canonical version under evals/harbor/runner/.
 """
@@ -29,7 +29,7 @@ def main() -> None:
     except Exception as exc:
         raise SystemExit(
             f"error: failed to download seed assets from {BASE_URL}: {exc}; "
-            "publish them with evals/harbor/push_seed_assets.sh"
+            "publish them with evals/harbor/publish_seed_assets.sh"
         )
 
 

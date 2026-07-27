@@ -18,7 +18,7 @@ for environment in "$TASKS_DIR"/*/environment; do
   cp "$ROOT"/dist/arize_phoenix-*.whl "$environment/wheels/"
   cp "$RUNNER/run_server_agent.py" "$environment/run_server_agent.py"
   sed "s/__HARBOR_TASK_NAME__/$task/g" \
-    "$RUNNER/bootstrap_data.py" > "$environment/bootstrap_data.py"
+    "$RUNNER/fetch_seed_assets.py" > "$environment/fetch_seed_assets.py"
   staged=$((staged + 1))
 done
 

@@ -11,7 +11,7 @@
 Build Phoenix and stage the wheel and runner (from the repository root):
 
 ```bash
-./evals/harbor/prepare.sh
+./evals/harbor/stage_build_context.sh
 ```
 
 Validate with the bundled oracle:
@@ -39,5 +39,5 @@ export HARBOR_PHOENIX_PROJECT_NAME=harbor-server-agent-evals
 ## Publish seed data
 
 ```bash
-./evals/harbor/push_seed_assets.sh
+./evals/harbor/publish_seed_assets.sh
 ```

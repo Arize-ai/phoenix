@@ -458,7 +458,7 @@ endif
 UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
 
-# The runner is staged into the task's Docker build context by prepare.sh.
+# The runner is staged into the task's Docker build context by stage_build_context.sh.
 define check-harbor-prepared
 	@test -f $(HARBOR_TASK)/environment/run_server_agent.py || \
 		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-prepare' first$(NC)"; exit 1; }
@@ -466,12 +466,12 @@ endef
 
 harbor-prepare: ## Build the Phoenix wheel and stage the Harbor Docker build context
 	@echo -e "$(CYAN)Preparing Harbor build context...$(NC)"
-	./evals/harbor/prepare.sh
+	./evals/harbor/stage_build_context.sh
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 harbor-seed-push: ## Regenerate Harbor seed assets and publish to cloud storage
 	@echo -e "$(CYAN)Publishing Harbor seed assets...$(NC)"
-	./evals/harbor/push_seed_assets.sh
+	./evals/harbor/publish_seed_assets.sh
 
 harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
 	$(check-harbor-prepared)
