@@ -71,6 +71,7 @@ from phoenix.db.types.model_provider import (
 )
 from phoenix.db.types.prompts import (
     PromptAnthropicInvocationParameters,
+    PromptAnthropicInvocationParametersContent,
     PromptAnthropicOutputConfig,
     PromptAnthropicThinkingConfigAdaptive,
     PromptAnthropicThinkingConfigDisabled,
@@ -2231,6 +2232,58 @@ ANTHROPIC_EXTENDED_THINKING_MODELS = [
     "claude-3-7-sonnet-latest",
 ]
 
+# Claude Opus 5 accepts `thinking: {"type": "disabled"}` only at effort `high`
+# or below; pairing it with `xhigh` or `max` returns a 400. Opus 4.8 accepts
+# that combination, so this is keyed by model rather than by family.
+ANTHROPIC_DISABLED_THINKING_EFFORT_CEILING_MODELS = frozenset({"claude-opus-5"})
+
+_ANTHROPIC_EFFORTS_ABOVE_HIGH = frozenset({"xhigh", "max"})
+
+
+def _validate_anthropic_invocation_parameters(
+    model_name: str,
+    params: PromptAnthropicInvocationParametersContent,
+) -> None:
+    """Reject invocation parameters that Anthropic rejects with a 400.
+
+    Invocation parameters are forwarded to Anthropic verbatim, and the GraphQL
+    API is callable without the UI, so these combinations are caught here rather
+    than relying on the playground to hide the fields. Raising `BadRequest`
+    surfaces an actionable message instead of a raw provider error.
+    """
+    if model_name in ANTHROPIC_ADAPTIVE_THINKING_MODELS:
+        unsupported = [
+            name
+            for name, value in (
+                ("temperature", params.temperature),
+                ("top_p", params.top_p),
+            )
+            if isinstance(value, float)
+        ]
+        if unsupported:
+            raise BadRequest(
+                f"{model_name} does not support {' or '.join(unsupported)}. "
+                "Anthropic removed the sampling parameters on this model; "
+                "use the effort level to steer its output instead."
+            )
+        if isinstance(params.thinking, PromptAnthropicThinkingConfigEnabled):
+            raise BadRequest(
+                f"{model_name} does not support a thinking budget. "
+                "Anthropic replaced extended thinking with adaptive thinking on "
+                "this model; select adaptive thinking and set an effort level."
+            )
+    if (
+        model_name in ANTHROPIC_DISABLED_THINKING_EFFORT_CEILING_MODELS
+        and isinstance(params.thinking, PromptAnthropicThinkingConfigDisabled)
+        and isinstance(params.output_config, PromptAnthropicOutputConfig)
+        and params.output_config.effort in _ANTHROPIC_EFFORTS_ABOVE_HIGH
+    ):
+        raise BadRequest(
+            f"{model_name} only allows thinking to be disabled at effort 'high' "
+            f"or below, but the effort level is '{params.output_config.effort}'. "
+            "Lower the effort level, or use adaptive thinking."
+        )
+
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
@@ -2367,6 +2420,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         extra_body: dict[str, Any] | None = None
         if invocation_parameters:
             anthropic_params = invocation_parameters.anthropic
+            _validate_anthropic_invocation_parameters(self.model_name, anthropic_params)
             if isinstance(anthropic_params.temperature, float):
                 params["temperature"] = anthropic_params.temperature
             if isinstance(anthropic_params.stop_sequences, list):

@@ -25,6 +25,10 @@ from phoenix.db.types.model_provider import LLMClientFactory, ModelProvider
 from phoenix.db.types.prompts import (
     PromptAnthropicInvocationParameters,
     PromptAnthropicInvocationParametersContent,
+    PromptAnthropicOutputConfig,
+    PromptAnthropicThinkingConfigAdaptive,
+    PromptAnthropicThinkingConfigDisabled,
+    PromptAnthropicThinkingConfigEnabled,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
     PromptToolChoiceSpecificFunctionTool,
@@ -47,6 +51,7 @@ from phoenix.server.api.helpers.playground_clients import (
     OpenAIStreamingClient,
     _get_builtin_provider_client,
     _resolve_provider_api_key,
+    _validate_anthropic_invocation_parameters,
     get_openai_client_class,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
@@ -919,3 +924,93 @@ class TestResolveProviderApiKey:
                 credentials,
             )
         assert isinstance(client, OpenAIStreamingClient)
+
+
+class TestValidateAnthropicInvocationParameters:
+    """Anthropic rejects some parameter combinations with a 400.
+
+    These are caught server-side because invocation parameters are forwarded
+    verbatim and the GraphQL API is reachable without the playground UI.
+    """
+
+    ADAPTIVE_MODEL = "claude-opus-4-8"
+    LEGACY_MODEL = "claude-opus-4-6"
+    EFFORT_CEILING_MODEL = "claude-opus-5"
+
+    @staticmethod
+    def _content(**kwargs: Any) -> PromptAnthropicInvocationParametersContent:
+        return PromptAnthropicInvocationParametersContent(max_tokens=8192, **kwargs)
+
+    @pytest.mark.parametrize("field,value", [("temperature", 0.7), ("top_p", 0.9)])
+    def test_sampling_params_rejected_on_adaptive_thinking_models(
+        self, field: str, value: float
+    ) -> None:
+        with pytest.raises(BadRequest, match=field):
+            _validate_anthropic_invocation_parameters(
+                self.ADAPTIVE_MODEL, self._content(**{field: value})
+            )
+
+    def test_thinking_budget_rejected_on_adaptive_thinking_models(self) -> None:
+        with pytest.raises(BadRequest, match="thinking budget"):
+            _validate_anthropic_invocation_parameters(
+                self.ADAPTIVE_MODEL,
+                self._content(
+                    thinking=PromptAnthropicThinkingConfigEnabled(
+                        type="enabled", budget_tokens=2048
+                    )
+                ),
+            )
+
+    def test_adaptive_thinking_accepted(self) -> None:
+        _validate_anthropic_invocation_parameters(
+            self.ADAPTIVE_MODEL,
+            self._content(thinking=PromptAnthropicThinkingConfigAdaptive(type="adaptive")),
+        )
+
+    def test_no_parameters_accepted(self) -> None:
+        _validate_anthropic_invocation_parameters(self.ADAPTIVE_MODEL, self._content())
+
+    @pytest.mark.parametrize("effort", ["xhigh", "max"])
+    def test_disabled_thinking_rejected_above_high_effort(self, effort: str) -> None:
+        with pytest.raises(BadRequest, match="effort"):
+            _validate_anthropic_invocation_parameters(
+                self.EFFORT_CEILING_MODEL,
+                self._content(
+                    thinking=PromptAnthropicThinkingConfigDisabled(type="disabled"),
+                    output_config=PromptAnthropicOutputConfig(effort=effort),
+                ),
+            )
+
+    @pytest.mark.parametrize("effort", ["low", "medium", "high"])
+    def test_disabled_thinking_accepted_at_or_below_high_effort(self, effort: str) -> None:
+        _validate_anthropic_invocation_parameters(
+            self.EFFORT_CEILING_MODEL,
+            self._content(
+                thinking=PromptAnthropicThinkingConfigDisabled(type="disabled"),
+                output_config=PromptAnthropicOutputConfig(effort=effort),
+            ),
+        )
+
+    def test_effort_ceiling_does_not_apply_to_other_models(self) -> None:
+        """Opus 4.8 accepts disabled thinking at any effort; only Opus 5 has the ceiling."""
+        _validate_anthropic_invocation_parameters(
+            self.ADAPTIVE_MODEL,
+            self._content(
+                thinking=PromptAnthropicThinkingConfigDisabled(type="disabled"),
+                output_config=PromptAnthropicOutputConfig(effort="xhigh"),
+            ),
+        )
+
+    @pytest.mark.parametrize("field,value", [("temperature", 0.7), ("top_p", 0.9)])
+    def test_legacy_models_still_accept_sampling_params(self, field: str, value: float) -> None:
+        _validate_anthropic_invocation_parameters(
+            self.LEGACY_MODEL, self._content(**{field: value})
+        )
+
+    def test_legacy_models_still_accept_thinking_budget(self) -> None:
+        _validate_anthropic_invocation_parameters(
+            self.LEGACY_MODEL,
+            self._content(
+                thinking=PromptAnthropicThinkingConfigEnabled(type="enabled", budget_tokens=2048)
+            ),
+        )
