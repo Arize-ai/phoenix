@@ -1,3 +1,8 @@
+/**
+ * Utilities for turning model token-detail summaries into stable Recharts
+ * data keys, series metadata, labels, colors, and stacked chart data.
+ */
+
 import type { useCategoryChartColors } from "@phoenix/components/chart";
 
 const TOKEN_DETAIL_DATA_KEY_PREFIX = "tokenDetail:";
@@ -11,8 +16,10 @@ const TOKEN_DETAIL_SORT_ORDER: Partial<Record<string, number>> = {
   audio: 4,
 };
 
+/** Numeric field projected from each token-detail cost breakdown. */
 export type TokenDetailMetric = "tokens" | "cost";
 
+/** Minimal GraphQL token-detail shape consumed by the chart transformer. */
 interface TokenDetailValue {
   readonly tokenType: string;
   readonly isPrompt: boolean;
@@ -22,6 +29,7 @@ interface TokenDetailValue {
   };
 }
 
+/** Minimal GraphQL model shape consumed by the chart transformer. */
 interface ModelWithTokenDetails {
   readonly name: string;
   readonly costSummary: {
@@ -41,21 +49,45 @@ interface ModelWithTokenDetails {
   readonly costDetailSummaryEntries: ReadonlyArray<TokenDetailValue>;
 }
 
+/** Describes one token-type series rendered in a model breakdown chart. */
 export interface ModelTokenDetailSeries {
+  /** Collision-safe key used to store and render the series. */
   dataKey: string;
+  /** Whether the series belongs to prompt rather than completion usage. */
   isPrompt: boolean;
+  /** Raw token type received from the GraphQL API. */
   tokenType: string;
 }
 
+/**
+ * One model row for a token-detail chart. Token series are stored under
+ * dynamically generated data keys alongside the model name and total.
+ */
 export type ModelTokenDetailChartDatum = {
   model: string;
   total: number;
 } & Record<string, string | number>;
 
+/**
+ * Builds a collision-safe Recharts data key for a token type.
+ *
+ * @param tokenType - Raw token type received from the API.
+ * @returns An encoded data key for charts that separate prompt and completion data.
+ */
 export function getTokenDetailDataKey(tokenType: string) {
   return `${TOKEN_DETAIL_DATA_KEY_PREFIX}${encodeURIComponent(tokenType)}`;
 }
 
+/**
+ * Builds a collision-safe Recharts data key that includes the token kind.
+ * Including prompt/completion prevents token types such as audio from being
+ * merged when they occur in both groups.
+ *
+ * @param params - Token series identity.
+ * @param params.isPrompt - Whether the series contains prompt tokens.
+ * @param params.tokenType - Raw token type received from the API.
+ * @returns An encoded data key unique to the token type and kind.
+ */
 export function getModelTokenDetailDataKey({
   isPrompt,
   tokenType,
@@ -67,6 +99,12 @@ export function getModelTokenDetailDataKey({
   return `${TOKEN_DETAIL_DATA_KEY_PREFIX}${tokenKind}:${encodeURIComponent(tokenType)}`;
 }
 
+/**
+ * Converts a snake-case token type into a user-facing chart label.
+ *
+ * @param tokenType - Raw token type received from the API.
+ * @returns A title-cased label with underscores replaced by spaces.
+ */
 export function getTokenDetailLabel(tokenType: string) {
   return tokenType
     .split("_")
@@ -74,6 +112,15 @@ export function getTokenDetailLabel(tokenType: string) {
     .join(" ");
 }
 
+/**
+ * Returns an unambiguous label for a model token-detail series. The prompt or
+ * completion prefix is added only when the same token type exists in both.
+ *
+ * @param params - Label context.
+ * @param params.allSeries - Every series displayed in the chart.
+ * @param params.series - Series being labeled.
+ * @returns A human-readable, unique label for the series.
+ */
 export function getModelTokenDetailLabel({
   allSeries,
   series,
@@ -93,6 +140,14 @@ export function getModelTokenDetailLabel({
   return `${series.isPrompt ? "Prompt" : "Completion"} ${label.toLowerCase()}`;
 }
 
+/**
+ * Compares token types using the canonical chart order, then alphabetically
+ * for provider-specific types that are not in the known order.
+ *
+ * @param left - First token type.
+ * @param right - Second token type.
+ * @returns A standard array-sort comparison value.
+ */
 export function compareTokenTypes(left: string, right: string) {
   const leftOrder = TOKEN_DETAIL_SORT_ORDER[left] ?? 100;
   const rightOrder = TOKEN_DETAIL_SORT_ORDER[right] ?? 100;
@@ -102,6 +157,16 @@ export function compareTokenTypes(left: string, right: string) {
   return left.localeCompare(right);
 }
 
+/**
+ * Selects a stable color for a token type. Known semantic types retain the
+ * same color across charts; provider-specific types cycle through fallbacks.
+ *
+ * @param params - Color selection context.
+ * @param params.colors - Theme-aware categorical chart colors.
+ * @param params.index - Position of the series in display order.
+ * @param params.tokenType - Raw token type received from the API.
+ * @returns A theme-aware CSS color value.
+ */
 export function getTokenDetailColor({
   colors,
   index,
@@ -140,6 +205,13 @@ export function getTokenDetailColor({
   return fallbackColors[index % fallbackColors.length];
 }
 
+/**
+ * Orders model series by token type and prompt/completion kind.
+ *
+ * @param left - First series descriptor.
+ * @param right - Second series descriptor.
+ * @returns A standard array-sort comparison value.
+ */
 function compareTokenDetailSeries(
   left: ModelTokenDetailSeries,
   right: ModelTokenDetailSeries
@@ -151,6 +223,15 @@ function compareTokenDetailSeries(
   return Number(right.isPrompt) - Number(left.isPrompt);
 }
 
+/**
+ * Adds a positive token-detail value to its dynamic chart data key.
+ *
+ * @param params - Value and destination context.
+ * @param params.chartDatum - Mutable chart row receiving the value.
+ * @param params.isPrompt - Whether the value belongs to prompt usage.
+ * @param params.tokenType - Raw token type received from the API.
+ * @param params.value - Token count or cost to add.
+ */
 function addTokenDetailValue({
   chartDatum,
   isPrompt,
@@ -171,6 +252,18 @@ function addTokenDetailValue({
     (typeof currentValue === "number" ? currentValue : 0) + value;
 }
 
+/**
+ * Builds stacked model chart data for either token counts or costs.
+ *
+ * Detail rows refine the authoritative prompt and completion summaries but
+ * may be incomplete for historical spans. Any positive remainder is assigned
+ * to Input or Output so each rendered stack still matches its summary total.
+ *
+ * @param params - Chart transformation input.
+ * @param params.metric - Whether to project token counts or costs.
+ * @param params.models - Models and their summary/detail values from GraphQL.
+ * @returns Chart rows and the sorted series metadata needed to render them.
+ */
 export function buildModelTokenDetailChartData({
   metric,
   models,
