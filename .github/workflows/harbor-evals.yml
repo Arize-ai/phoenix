@@ -38,7 +38,7 @@ jobs:
       - name: Build the Phoenix wheel and stage the Harbor build context
         run: make harbor-prepare
 
-      # The oracle validates the environment build, seed-data download, and
+      # The oracle validates the environment build, fixture download, and
       # verifiers without spending agent tokens; it gates the real-agent run.
       - name: Run oracle trial
         run: |

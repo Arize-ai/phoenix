@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed the deterministic Phoenix database used by the Harbor regression task."""
+"""Generate the deterministic Phoenix database fixture for the Harbor regression task."""
 
 import argparse
 import asyncio

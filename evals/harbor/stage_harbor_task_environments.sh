@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build Phoenix and stage the generated build-context artifacts into every
 # task's environment/ directory: the wheel, the ServerAgent runner, and the
-# seed-download bootstrap script (with its task name templated in). These are
+# fixture-download script (with its task name templated in). These are
 # gitignored; the canonical copies live under evals/harbor/runner/.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -18,7 +18,7 @@ for environment in "$TASKS_DIR"/*/environment; do
   cp "$ROOT"/dist/arize_phoenix-*.whl "$environment/wheels/"
   cp "$RUNNER/run_server_agent.py" "$environment/run_server_agent.py"
   sed "s/__HARBOR_TASK_NAME__/$task/g" \
-    "$RUNNER/fetch_seed_assets.py" > "$environment/fetch_seed_assets.py"
+    "$RUNNER/fetch_fixtures.py" > "$environment/fetch_fixtures.py"
   staged=$((staged + 1))
 done
 

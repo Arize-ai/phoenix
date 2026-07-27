@@ -37,7 +37,7 @@ class PhoenixServerAgent(BaseAgent):
         return harbor_model_name.replace("/", ":", 1)
 
     async def setup(self, environment: BaseEnvironment) -> None:
-        # Seed data is bootstrapped by each step's workdir/setup.sh task hook.
+        # Fixtures are downloaded by each step's workdir/setup.sh task hook.
         return None
 
     async def run(

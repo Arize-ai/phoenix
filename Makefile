@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
 	gh-comment-watch \
-	harbor-prepare harbor-seed-push harbor-oracle harbor-run harbor-view \
+	harbor-prepare harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -105,7 +105,7 @@ help: ## Show this help message
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
 	@echo -e "  harbor-prepare         - Build the Phoenix wheel and stage the Docker build context"
-	@echo -e "  harbor-seed-push       - Regenerate seed assets and publish to cloud storage"
+	@echo -e "  harbor-publish-fixtures       - Regenerate fixtures and publish to cloud storage"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)         - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
 	@echo -e "  $(YELLOW)harbor-run$(NC)            - Run the real ServerAgent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
 	@echo -e "  harbor-view            - Browse Harbor job results in a local web viewer"
@@ -458,7 +458,7 @@ endif
 UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
 
-# The runner is staged into the task's Docker build context by stage_build_context.sh.
+# The runner is staged into the task's Docker build context by stage_harbor_task_environments.sh.
 define check-harbor-prepared
 	@test -f $(HARBOR_TASK)/environment/run_server_agent.py || \
 		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-prepare' first$(NC)"; exit 1; }
@@ -466,12 +466,12 @@ endef
 
 harbor-prepare: ## Build the Phoenix wheel and stage the Harbor Docker build context
 	@echo -e "$(CYAN)Preparing Harbor build context...$(NC)"
-	./evals/harbor/stage_build_context.sh
+	./evals/harbor/stage_harbor_task_environments.sh
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-harbor-seed-push: ## Regenerate Harbor seed assets and publish to cloud storage
-	@echo -e "$(CYAN)Publishing Harbor seed assets...$(NC)"
-	./evals/harbor/publish_seed_assets.sh
+harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud storage
+	@echo -e "$(CYAN)Publishing Harbor fixtures...$(NC)"
+	./evals/harbor/publish_fixtures.sh
 
 harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
 	$(check-harbor-prepared)
