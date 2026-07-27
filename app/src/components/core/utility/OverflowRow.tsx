@@ -31,6 +31,9 @@ const overflowRowCSS = css`
   gap: var(--global-dimension-size-50);
   min-width: 0;
   max-width: 100%;
+  // the badge's reserved padding comes out of the row's width rather than
+  // widening it
+  box-sizing: border-box;
 
   &.overflow-row--collapsed {
     position: relative;
@@ -42,6 +45,15 @@ const overflowRowCSS = css`
     height: var(--overflow-row-line-height);
     // room for the badge, which sits out of flow at the end of the first line
     padding-right: var(--global-dimension-size-600);
+  }
+
+  // Not even the first item fits. The items stay in flow so they can still be
+  // measured when the row is given its width back.
+  &.overflow-row--badge-only {
+    min-width: var(--global-dimension-size-600);
+    > *:not(.overflow-row__badge-slot) {
+      visibility: hidden;
+    }
   }
 
   // Boxless, so the measurement skips the badge and the content observer can
@@ -78,6 +90,13 @@ type OverflowMeasurement = FirstLine & {
   items: HTMLElement[];
 };
 
+/**
+ * `offsetLeft`, `offsetWidth` and `clientWidth` each round to a whole pixel, so
+ * the fit comparison carries up to half a pixel of error from each. An item
+ * this close still fits.
+ */
+const SUBPIXEL_TOLERANCE = 1.5;
+
 function hasBox(element: HTMLElement): boolean {
   return element.offsetWidth > 0 || element.offsetHeight > 0;
 }
@@ -93,9 +112,19 @@ function getItems(container: HTMLElement): HTMLElement[] {
   );
 }
 
+/**
+ * The right edge an item has to end within to count as shown. Excludes the
+ * padding a clamped row reserves for the badge.
+ */
+function getContentRight(container: HTMLElement): number {
+  const { paddingRight } = getComputedStyle(container);
+  return container.clientWidth - (parseFloat(paddingRight) || 0);
+}
+
 /** Measures which of the container's items fit on its first line. */
 function measureOverflow(container: HTMLElement): OverflowMeasurement {
   const items = getItems(container);
+  const contentRight = getContentRight(container);
   let visibleCount = 0;
   let badgeLeft = 0;
   let lineHeight = 0;
@@ -111,13 +140,25 @@ function measureOverflow(container: HTMLElement): OverflowMeasurement {
       // document order, so everything past the first wrap is on a later line
       break;
     }
+    const right = item.offsetLeft + item.offsetWidth;
+    // an item wider than the row still lays out on the first line, so this is
+    // what keeps it from rendering cut in half
+    if (right > contentRight + SUBPIXEL_TOLERANCE) {
+      break;
+    }
     visibleCount += 1;
     lineTop = Math.min(lineTop, top);
     lineBottom = Math.max(lineBottom, bottom);
-    badgeLeft = Math.max(badgeLeft, item.offsetLeft + item.offsetWidth);
+    badgeLeft = Math.max(badgeLeft, right);
     lineHeight = Math.max(lineHeight, item.offsetHeight);
   }
-  return { items, visibleCount, badgeLeft, lineHeight };
+  return {
+    items,
+    visibleCount,
+    badgeLeft,
+    // the badge keeps the items' height even when it has taken every one
+    lineHeight: lineHeight || (items[0]?.offsetHeight ?? 0),
+  };
 }
 
 /** Each recorded under its own flag, so only what this row added is removed */
@@ -361,6 +402,8 @@ export function OverflowRow({
       className={classNames("overflow-row", {
         "overflow-row--collapsed": !isExpanded,
         "overflow-row--overflowing": !isExpanded && overflow !== null,
+        "overflow-row--badge-only":
+          !isExpanded && overflow !== null && overflow.visibleCount === 0,
       })}
       style={
         overflow !== null

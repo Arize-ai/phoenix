@@ -1,5 +1,6 @@
 import type { Header } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
+import type { CSSProperties } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
 
@@ -29,14 +30,15 @@ const SORT_LABEL = {
  */
 export function TableColumnHeader<Data, Value>({
   header,
+  style,
 }: {
   header: Header<Data, Value>;
+  /** Merged after the resize width, so a pinned column's width wins. */
+  style?: CSSProperties;
 }) {
-  // TanStack hands back the same header object on every render — a resize or a
-  // sort mutates it in place rather than rebuilding it — so a memoized version
-  // of this component would go on reporting the width and sort direction the
-  // column was first rendered with, and a drag of the resizer would move
-  // nothing.
+  // TanStack mutates the same header object in place on resize and sort, so a
+  // memoized version of this would never see the change and the resizer would
+  // drag nothing.
   "use no memo";
   const { column } = header;
   const sorted = column.getIsSorted();
@@ -51,10 +53,12 @@ export function TableColumnHeader<Data, Value>({
   return (
     <th
       colSpan={header.colSpan}
+      // `tableCSS` reads the attribute to align the sort control with it
+      align={column.columnDef.meta?.textAlign}
       aria-sort={canSort ? (sorted ? SORT_LABEL[sorted] : "none") : undefined}
       // a resizable column is driven by the width the drag left it at; the rest
       // are left to the table's own layout
-      style={canResize ? { width: header.getSize() } : undefined}
+      style={canResize ? { width: header.getSize(), ...style } : style}
     >
       {canSort && !header.isPlaceholder ? (
         <div

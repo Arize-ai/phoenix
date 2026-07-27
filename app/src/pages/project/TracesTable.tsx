@@ -379,7 +379,6 @@ export function TracesTable(props: TracesTableProps) {
                         precision
                         hit
                       }
-                      ...TraceHeaderRootSpanAnnotationsFragment
                     }
                   }
                 }
@@ -447,6 +446,9 @@ export function TracesTable(props: TracesTableProps) {
     });
   }, [data]);
   type TableRow = (typeof tableData)[number];
+  // descendant rows do not select the trace fields the column reads
+  type RootSpanTrace =
+    (typeof data.rootSpans.edges)[number]["rootSpan"]["trace"];
   const { selectRow } = useShiftClickRowSelection<TableRow>({
     resetKey: tableData,
   });
@@ -644,11 +646,7 @@ export function TracesTable(props: TracesTableProps) {
           return (
             <OverflowRow isExpanded={areRowsExpanded}>
               <TraceAnnotationSummaryGroupTokens
-                trace={
-                  row.original.trace as Parameters<
-                    typeof TraceAnnotationSummaryGroupTokens
-                  >[0]["trace"]
-                }
+                trace={row.original.trace as RootSpanTrace}
               />
             </OverflowRow>
           );

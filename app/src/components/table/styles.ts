@@ -169,6 +169,13 @@ export const expandableRowsTableCSS = css`
   &[data-rows="collapsed"] {
     td.${TABLE_DATA_CELL_CLASS} {
       ${truncateSingleCSS};
+      // a <pre> would keep its newlines and outgrow the single line; it also
+      // overflows on its own terms, so the cell's ellipsis is repeated here
+      pre {
+        white-space: inherit;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
     }
   }
   &[data-rows="expanded"] {

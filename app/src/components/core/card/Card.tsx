@@ -13,6 +13,7 @@ function Card({
   titleExtra,
   titleSeparator = true,
   subTitle,
+  headerContent,
   children,
   collapsible = false,
   interactiveTitle = false,
@@ -52,6 +53,9 @@ function Card({
         <Heading level={4} className="card__sub-title">
           {subTitle}
         </Heading>
+      )}
+      {headerContent && (
+        <div className="card__header-content">{headerContent}</div>
       )}
     </div>
   );

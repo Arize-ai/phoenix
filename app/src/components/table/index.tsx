@@ -1,4 +1,5 @@
 export * from "./Table";
+export * from "./ResizableTable";
 export * from "./FloatCell";
 export * from "./IntCell";
 export * from "./PercentCell";

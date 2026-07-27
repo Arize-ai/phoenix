@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5a55f1ef2a78d1f4c7915236a9e31c2c>>
+ * @generated SignedSource<<5d4d386ba7180915390a7de711b24c8d>>
  * @lightSyntaxTransform
  */
 
@@ -9,17 +9,17 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type TraceHeaderRootSpanAnnotationsQuery$variables = {
-  spanId: string;
+export type SpanAnnotationsCardSummaryQuery$variables = {
+  id: string;
 };
-export type TraceHeaderRootSpanAnnotationsQuery$data = {
+export type SpanAnnotationsCardSummaryQuery$data = {
   readonly span: {
-    readonly " $fragmentSpreads": FragmentRefs<"TraceHeaderRootSpanAnnotationsFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
   };
 };
-export type TraceHeaderRootSpanAnnotationsQuery = {
-  response: TraceHeaderRootSpanAnnotationsQuery$data;
-  variables: TraceHeaderRootSpanAnnotationsQuery$variables;
+export type SpanAnnotationsCardSummaryQuery = {
+  response: SpanAnnotationsCardSummaryQuery$data;
+  variables: SpanAnnotationsCardSummaryQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -27,14 +27,14 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "spanId"
+    "name": "id"
   }
 ],
 v1 = [
   {
     "kind": "Variable",
     "name": "id",
-    "variableName": "spanId"
+    "variableName": "id"
   }
 ],
 v2 = {
@@ -77,7 +77,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "TraceHeaderRootSpanAnnotationsQuery",
+    "name": "SpanAnnotationsCardSummaryQuery",
     "selections": [
       {
         "alias": "span",
@@ -88,16 +88,9 @@ return {
         "plural": false,
         "selections": [
           {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "TraceHeaderRootSpanAnnotationsFragment"
-              }
-            ],
-            "type": "Span",
-            "abstractKey": null
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "AnnotationSummaryGroup"
           }
         ],
         "storageKey": null
@@ -110,7 +103,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "TraceHeaderRootSpanAnnotationsQuery",
+    "name": "SpanAnnotationsCardSummaryQuery",
     "selections": [
       {
         "alias": "span",
@@ -346,16 +339,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "94764e62df730b8d9bef8e6452af61ae",
+    "cacheID": "b2670c2bf98672ae5406135bf86e643d",
     "id": null,
     "metadata": {},
-    "name": "TraceHeaderRootSpanAnnotationsQuery",
+    "name": "SpanAnnotationsCardSummaryQuery",
     "operationKind": "query",
-    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      ...TraceHeaderRootSpanAnnotationsFragment\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  ...AnnotationSummaryGroup\n}\n"
+    "text": "query SpanAnnotationsCardSummaryQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ...AnnotationSummaryGroup\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1b00ac674154cf26ad588b2f17f82305";
+(node as any).hash = "14cc0037b118d2a045d1f80d66eac638";
 
 export default node;

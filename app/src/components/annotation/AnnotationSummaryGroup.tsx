@@ -156,13 +156,19 @@ export const AnnotationSummaryGroupTokens = ({
     categoricalAnnotationConfigsByName,
   } = useAnnotationSummaryGroup(span);
 
-  if (sortedSummariesByName.length === 0 && renderEmptyState) {
+  // a summary of explanation-only annotations has no label or score to render a
+  // token from, so counting it would leave the caller a blank run of tokens
+  const summariesWithTokens = sortedSummariesByName.filter(
+    (summary) => annotationsByName[summary.name]?.[0] != null
+  );
+
+  if (summariesWithTokens.length === 0 && renderEmptyState) {
     return renderEmptyState();
   }
 
   return (
     <AnnotationSummaryTokens
-      summaries={sortedSummariesByName}
+      summaries={summariesWithTokens}
       annotationsByName={annotationsByName}
       categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
       showFilterActions={showFilterActions}
