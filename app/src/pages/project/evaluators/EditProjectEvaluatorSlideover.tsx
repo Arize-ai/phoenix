@@ -23,7 +23,10 @@ import {
 import type { EditProjectEvaluatorSlideoverQuery } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverQuery.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateCodeMutation.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
-import { DiscardEvaluatorChangesDialog } from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
+import {
+  DiscardEvaluatorChangesDialog,
+  isModalUnderlay,
+} from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
@@ -80,7 +83,12 @@ export function EditProjectEvaluatorSlideover({
       <ModalOverlay
         {...props}
         isDismissable
-        shouldCloseOnInteractOutside={() => {
+        shouldCloseOnInteractOutside={(element) => {
+          // Portalled popovers/menus inside the form also register as
+          // "outside" the modal — only a genuine backdrop click may dismiss.
+          if (!isModalUnderlay(element)) {
+            return false;
+          }
           if (dirtyCheckRef.current()) {
             setIsDiscardConfirmOpen(true);
             return false;

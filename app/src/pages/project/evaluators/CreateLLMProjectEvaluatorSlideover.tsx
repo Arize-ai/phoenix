@@ -25,7 +25,10 @@ import {
 import type { CreateLLMProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateLLMProjectEvaluatorSlideoverAddCodeMutation.graphql";
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
-import { DiscardEvaluatorChangesDialog } from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
+import {
+  DiscardEvaluatorChangesDialog,
+  isModalUnderlay,
+} from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
@@ -106,7 +109,12 @@ export const CreateLLMProjectEvaluatorSlideover = ({
       <ModalOverlay
         {...props}
         isDismissable
-        shouldCloseOnInteractOutside={() => {
+        shouldCloseOnInteractOutside={(element) => {
+          // Portalled popovers/menus inside the form also register as
+          // "outside" the modal — only a genuine backdrop click may dismiss.
+          if (!isModalUnderlay(element)) {
+            return false;
+          }
           if (dirtyCheckRef.current()) {
             setIsDiscardConfirmOpen(true);
             return false;
