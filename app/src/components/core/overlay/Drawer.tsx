@@ -116,7 +116,8 @@ export type DrawerProps = {
  * page while the drawer is open.
  *
  * ```tsx
- * const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+ * const { defaultSize, onSizeChange, onSizeChangeEnd } =
+ *   useDefaultDrawerSize({
  *   id: "trace-details",
  * });
  *
@@ -126,6 +127,7 @@ export type DrawerProps = {
  *   defaultSize={defaultSize}
  *   minSize={DRAWER_DEFAULT_MIN_SIZE}
  *   onResize={onSizeChange}
+ *   onResizeEnd={onSizeChangeEnd}
  * >
  *   <Dialog>
  *     {({ close }) => ( ... )}
@@ -178,6 +180,8 @@ export function Drawer({
     return clampPercent((initialPx / window.innerWidth) * 100);
   });
   const [isDragging, setIsDragging] = useState(false);
+  const currentSizeRef = useRef(size);
+  const hasUserResizedSinceOpenRef = useRef(false);
 
   // Drag-session refs are the source of truth during a drag. Using refs
   // instead of state bypasses React batching (so pointermove handlers never
@@ -199,6 +203,7 @@ export function Drawer({
     normalizeSize((getSizePixels(value) / window.innerWidth) * 100);
 
   const commitResize = (nextSize: number) => {
+    currentSizeRef.current = nextSize;
     setSize(nextSize);
     onResize?.(getSizePercent(nextSize), getSizePixels(nextSize));
   };
@@ -236,6 +241,9 @@ export function Drawer({
       : clampPercent(
           startSizeRef.current - (deltaPixels / window.innerWidth) * 100
         );
+    if (dragSizeRef.current !== startSizeRef.current) {
+      hasUserResizedSinceOpenRef.current = true;
+    }
     pendingSizeRef.current = dragSizeRef.current;
     if (rafIdRef.current == null) {
       rafIdRef.current = requestAnimationFrame(flushPendingSize);
@@ -275,6 +283,7 @@ export function Drawer({
       : normalizeSize((clampedPixels / window.innerWidth) * 100);
     const currentSize = isPixelBased ? getSizePixels(size) : clampPercent(size);
     if (nextSize !== currentSize) {
+      hasUserResizedSinceOpenRef.current = true;
       commitResize(nextSize);
       notifyResizeEnd(nextSize);
     }
@@ -282,11 +291,11 @@ export function Drawer({
 
   const resizeFromDescendant = (nextPixels: number) => {
     const clampedPixels = clampPixels(nextPixels);
-    setSize(
-      isPixelBased
-        ? clampedPixels
-        : normalizeSize((clampedPixels / window.innerWidth) * 100)
-    );
+    const nextSize = isPixelBased
+      ? clampedPixels
+      : normalizeSize((clampedPixels / window.innerWidth) * 100);
+    currentSizeRef.current = nextSize;
+    setSize(nextSize);
     return clampedPixels;
   };
 
@@ -317,9 +326,30 @@ export function Drawer({
     }
   };
 
+  const closeDrawer = () => {
+    // Close is the persistence barrier. A completed pointer release already
+    // commits through onResizeEnd, but closing repeats that commit from the
+    // Drawer's own synchronous size ref. This makes close/reopen independent
+    // of pointer-delivery, React scheduling, and debounce ordering.
+    if (rafIdRef.current != null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    if (pendingSizeRef.current != null) {
+      const finalSize = pendingSizeRef.current;
+      pendingSizeRef.current = null;
+      commitResize(finalSize);
+    }
+    if (hasUserResizedSinceOpenRef.current) {
+      notifyResizeEnd(currentSizeRef.current);
+      hasUserResizedSinceOpenRef.current = false;
+    }
+    onClose?.();
+  };
+
   // Global Escape listener — works regardless of where focus is so the
   // drawer can be dismissed while interacting with the content behind it.
-  useHotkeys("Escape", () => onClose?.(), { enabled: isOpen });
+  useHotkeys("Escape", closeDrawer, { enabled: isOpen });
 
   if (!isOpen) return null;
 
@@ -346,10 +376,10 @@ export function Drawer({
   const overlayState = {
     isOpen: true as const,
     open: () => {},
-    close: () => onClose?.(),
-    toggle: () => onClose?.(),
+    close: closeDrawer,
+    toggle: closeDrawer,
     setOpen: (open: boolean) => {
-      if (!open) onClose?.();
+      if (!open) closeDrawer();
     },
   };
 

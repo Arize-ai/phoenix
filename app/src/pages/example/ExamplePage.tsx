@@ -12,7 +12,7 @@ import { ExampleDetailsDialog } from "./ExampleDetailsDialog";
 export function ExamplePage() {
   const { exampleId, datasetId } = useParams();
   const navigate = useNavigate();
-  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+  const { defaultSize, onSizeChange, onSizeChangeEnd } = useDefaultDrawerSize({
     id: "example-details",
   });
 
@@ -23,6 +23,7 @@ export function ExamplePage() {
       defaultSize={defaultSize}
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}
+      onResizeEnd={onSizeChangeEnd}
     >
       <ExampleDetailsDialog exampleId={exampleId as string} />
     </Drawer>

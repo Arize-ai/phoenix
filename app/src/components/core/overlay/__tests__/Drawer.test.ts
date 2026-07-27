@@ -1,8 +1,18 @@
-import { act, createElement } from "react";
+import { act, createElement, useContext } from "react";
+import { OverlayTriggerStateContext } from "react-aria-components";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Drawer } from "../Drawer";
+
+function CloseDrawerButton() {
+  const overlayState = useContext(OverlayTriggerStateContext);
+  return createElement(
+    "button",
+    { onClick: () => overlayState?.close() },
+    "Close drawer"
+  );
+}
 
 describe("Drawer", () => {
   let container: HTMLDivElement;
@@ -168,5 +178,53 @@ describe("Drawer", () => {
 
     expect(drawer?.style.width).toBe("900px");
     expect(onResize).toHaveBeenLastCalledWith(90, 900);
+  });
+
+  it("commits its current user-resized width again before closing", () => {
+    const closeSequence: string[] = [];
+    const onClose = vi.fn(() => closeSequence.push("close"));
+    const onResizeEnd = vi.fn(() => closeSequence.push("commit"));
+
+    act(() => {
+      root.render(
+        createElement(
+          Drawer,
+          {
+            defaultSize: "50%",
+            isOpen: true,
+            maxSize: "95%",
+            minSize: "35%",
+            onClose,
+            onResizeEnd,
+          },
+          createElement(CloseDrawerButton)
+        )
+      );
+    });
+
+    const handle = container.querySelector(
+      '[role="separator"]'
+    ) as HTMLDivElement | null;
+    const closeButton = container.querySelector("button");
+
+    act(() => {
+      handle?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          key: "ArrowLeft",
+        })
+      );
+    });
+    expect(onResizeEnd).toHaveBeenCalledTimes(1);
+    expect(onResizeEnd).toHaveBeenLastCalledWith(55, 550);
+
+    closeSequence.length = 0;
+    act(() => {
+      closeButton?.click();
+    });
+    expect(onResizeEnd).toHaveBeenCalledTimes(2);
+    expect(onResizeEnd).toHaveBeenLastCalledWith(55, 550);
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(closeSequence).toEqual(["commit", "close"]);
   });
 });

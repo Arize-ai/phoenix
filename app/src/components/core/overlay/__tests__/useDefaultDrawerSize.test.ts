@@ -68,6 +68,7 @@ describe("useDefaultDrawerSize", () => {
     expect(onRender).toHaveBeenLastCalledWith({
       defaultSize: "42%",
       onSizeChange: expect.any(Function),
+      onSizeChangeEnd: expect.any(Function),
     });
   });
 
@@ -97,6 +98,54 @@ describe("useDefaultDrawerSize", () => {
       setTimeout(resolve, PERSIST_DEBOUNCE_MS + 50)
     );
 
+    expect(storage.getItem(DRAWER_STORAGE_KEY)).toBe("60");
+  });
+
+  it("commits the released size before an immediate reopen", () => {
+    vi.useFakeTimers();
+    const storage = window.localStorage;
+    storage.clear();
+    const onRender = vi.fn();
+
+    act(() => {
+      root.render(
+        createElement(TestComponent, {
+          key: "initial",
+          storage,
+          onRender,
+        })
+      );
+    });
+
+    const initialResult = onRender.mock.calls.at(-1)![0] as ReturnType<
+      typeof useDefaultDrawerSize
+    >;
+    initialResult.onSizeChange(60);
+    expect(storage.getItem(DRAWER_STORAGE_KEY)).toBeNull();
+
+    initialResult.onSizeChangeEnd(60);
+    expect(storage.getItem(DRAWER_STORAGE_KEY)).toBe("60");
+
+    onRender.mockClear();
+    act(() => {
+      root.render(
+        createElement(TestComponent, {
+          key: "reopened",
+          storage,
+          onRender,
+        })
+      );
+    });
+
+    expect(onRender).toHaveBeenLastCalledWith({
+      defaultSize: "60%",
+      onSizeChange: expect.any(Function),
+      onSizeChangeEnd: expect.any(Function),
+    });
+
+    act(() => {
+      vi.runAllTimers();
+    });
     expect(storage.getItem(DRAWER_STORAGE_KEY)).toBe("60");
   });
 
@@ -148,6 +197,7 @@ describe("useDefaultDrawerSize", () => {
     expect(onRender.mock.calls.at(-1)![0]).toEqual({
       defaultSize: 1500,
       onSizeChange: expect.any(Function),
+      onSizeChangeEnd: expect.any(Function),
     });
   });
 
@@ -172,6 +222,7 @@ describe("useDefaultDrawerSize", () => {
     expect(onRender.mock.calls.at(-1)![0]).toEqual({
       defaultSize: 640,
       onSizeChange: expect.any(Function),
+      onSizeChangeEnd: expect.any(Function),
     });
     expect(storage.getItem(DRAWER_STORAGE_KEY)).toBe("-1");
   });

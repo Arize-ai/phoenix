@@ -43,6 +43,13 @@ export interface UseDefaultDrawerSizeResult {
    * every drag commit gets saved.
    */
   onSizeChange: (sizePercent: number, sizePixels?: number) => void;
+  /**
+   * Persist the released size synchronously. Wire into
+   * `<Drawer onResizeEnd={...} />` so closing and reopening immediately after
+   * a resize cannot restore the previous size while a debounced write is
+   * still pending.
+   */
+  onSizeChangeEnd: (sizePercent: number, sizePixels?: number) => void;
 }
 
 const resolveStorage = (override?: Storage): Storage | null => {
@@ -61,7 +68,8 @@ const resolveStorage = (override?: Storage): Storage | null => {
  * is derived from the preferred widths of their inner columns.
  *
  * ```tsx
- * const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+ * const { defaultSize, onSizeChange, onSizeChangeEnd } =
+ *   useDefaultDrawerSize({
  *   id: "span-details",
  * });
  *
@@ -70,6 +78,7 @@ const resolveStorage = (override?: Storage): Storage | null => {
  *   onClose={() => setSelectedId(null)}
  *   defaultSize={defaultSize}
  *   onResize={onSizeChange}
+ *   onResizeEnd={onSizeChangeEnd}
  * >
  *   ...
  * </Drawer>
@@ -114,6 +123,25 @@ export function useDefaultDrawerSize({
 
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const persistSize = ({
+    sizePercent,
+    sizePixels,
+  }: {
+    sizePercent: number;
+    sizePixels?: number;
+  }) => {
+    if (!resolvedStorage) return;
+    try {
+      const size =
+        persistenceUnit === "percentage"
+          ? sizePercent
+          : (sizePixels ?? (sizePercent / 100) * window.innerWidth);
+      resolvedStorage.setItem(key, String(size));
+    } catch {
+      // Quota exceeded, private mode, etc. — degrade silently.
+    }
+  };
+
   const onSizeChange = (sizePercent: number, sizePixels?: number) => {
     if (!resolvedStorage) return;
     if (pendingTimerRef.current != null) {
@@ -121,17 +149,17 @@ export function useDefaultDrawerSize({
     }
     pendingTimerRef.current = setTimeout(() => {
       pendingTimerRef.current = null;
-      try {
-        const size =
-          persistenceUnit === "percentage"
-            ? sizePercent
-            : (sizePixels ?? (sizePercent / 100) * window.innerWidth);
-        resolvedStorage.setItem(key, String(size));
-      } catch {
-        // Quota exceeded, private mode, etc. — degrade silently.
-      }
+      persistSize({ sizePercent, sizePixels });
     }, PERSIST_DEBOUNCE_MS);
   };
 
-  return { defaultSize, onSizeChange };
+  const onSizeChangeEnd = (sizePercent: number, sizePixels?: number) => {
+    if (pendingTimerRef.current != null) {
+      clearTimeout(pendingTimerRef.current);
+      pendingTimerRef.current = null;
+    }
+    persistSize({ sizePercent, sizePixels });
+  };
+
+  return { defaultSize, onSizeChange, onSizeChangeEnd };
 }

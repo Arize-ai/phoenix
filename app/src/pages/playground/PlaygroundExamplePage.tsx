@@ -39,7 +39,7 @@ function PlaygroundExampleDrawer({
   exampleId: string;
   onClose: () => void;
 }) {
-  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+  const { defaultSize, onSizeChange, onSizeChangeEnd } = useDefaultDrawerSize({
     id: "playground-example-details",
   });
 
@@ -50,6 +50,7 @@ function PlaygroundExampleDrawer({
       defaultSize={defaultSize}
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}
+      onResizeEnd={onSizeChangeEnd}
     >
       <ExampleDetailsDialog exampleId={exampleId} />
     </Drawer>

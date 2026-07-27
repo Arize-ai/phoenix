@@ -161,7 +161,7 @@ function RetentionPolicyDetailsContent({ policyId }: { policyId: string }) {
 export function RetentionPolicyDetailsDrawer() {
   const { policyId } = useParams();
   const navigate = useNavigate();
-  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+  const { defaultSize, onSizeChange, onSizeChangeEnd } = useDefaultDrawerSize({
     id: "settings-retention-policy-details",
   });
   invariant(policyId, "policyId is required");
@@ -173,6 +173,7 @@ export function RetentionPolicyDetailsDrawer() {
       defaultSize={defaultSize}
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}
+      onResizeEnd={onSizeChangeEnd}
     >
       <Suspense
         fallback={

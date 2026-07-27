@@ -142,7 +142,7 @@ export function UserDetailsDrawer() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const isAdmin = useIsAuthenticatedAdmin();
-  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+  const { defaultSize, onSizeChange, onSizeChangeEnd } = useDefaultDrawerSize({
     id: "settings-user-details",
   });
   invariant(userId, "userId is required");
@@ -158,6 +158,7 @@ export function UserDetailsDrawer() {
       defaultSize={defaultSize}
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}
+      onResizeEnd={onSizeChangeEnd}
     >
       <Suspense
         fallback={
