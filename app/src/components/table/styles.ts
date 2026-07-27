@@ -169,11 +169,8 @@ export const expandableRowsTableCSS = css`
   &[data-rows="collapsed"] {
     td.${TABLE_DATA_CELL_CLASS} {
       ${truncateSingleCSS};
-      // A preformatted cell keeps its own newlines, which would give the row
-      // more than the single line it is meant to show; inheriting the cell's
-      // white-space folds them onto that line. The cell clips its own inline
-      // content, but a block child overflows on its own terms, so the ellipsis
-      // has to be repeated here.
+      // a <pre> would keep its newlines and outgrow the single line; it also
+      // overflows on its own terms, so the cell's ellipsis is repeated here
       pre {
         white-space: inherit;
         overflow: hidden;

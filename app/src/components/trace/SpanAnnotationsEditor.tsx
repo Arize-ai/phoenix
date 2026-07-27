@@ -74,10 +74,9 @@ export type SpanAnnotationsEditorProps = {
   spanNodeId: string;
   projectId: string;
   /**
-   * The key that refetches the project's annotation configs, bumped whenever
-   * one is added. Pass it where the button that adds one sits outside this
-   * editor — the section header in the span aside — and the editor leaves the
-   * button to that caller. Left out, the editor owns both.
+   * Refetches the project's annotation configs when bumped. Pass it where the
+   * caller renders its own `NewAnnotationButton`; left out, the editor renders
+   * one and owns the key.
    */
   annotationConfigsRefetchKey?: number;
 };
@@ -142,8 +141,7 @@ export function NewAnnotationButton(props: NewAnnotationButtonProps) {
   const { projectId, spanNodeId, refetchKey, onRefetchKeyChange } = props;
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [showEditConfigDialog, setShowEditConfigDialog] = useState(false);
-  // Once a name has been chosen there is an annotation being filled in below,
-  // so the button stops offering to start another.
+  // a chosen name means an annotation is being filled in below
   const [newAnnotationName, setNewAnnotationName] = useState<string | null>(
     null
   );

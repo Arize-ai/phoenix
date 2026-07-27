@@ -47,15 +47,14 @@ export const cardCSS = (style?: CSSProperties) => css`
       white-space: nowrap;
     }
 
-    /* Responsive header content takes what the title and subtitle leave, and
-       may shrink to nothing rather than widening the header */
+    /* takes what the title and subtitle leave, down to nothing, rather than
+       widening the header */
     & .card__header-content {
       flex: 1 1 auto;
       min-width: 0;
     }
 
-    /* ...which only works if the heading itself is given the room to hand
-       over, so it grows only for the cards that ask for it */
+    /* ...which is only room to give if the heading grows too */
     & .card__heading:has(.card__header-content) {
       flex: 1 1 auto;
     }
@@ -77,9 +76,8 @@ export const cardCSS = (style?: CSSProperties) => css`
       align-items: center;
       height: 100%;
       cursor: pointer;
-      /* Without this the row is floored at the width its contents want, and
-         anything after it in the header -- the extra slot's controls -- is
-         pushed out past the card's edge rather than the row giving way */
+      /* without this the row floors at its contents' width and pushes the
+         extra slot's controls past the card's edge */
       min-width: 0;
 
       & .card__collapsible-button {

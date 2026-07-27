@@ -29,11 +29,8 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
     <Alert variant="danger">{span.statusMessage}</Alert>
   ) : null;
 
-  // Each card fetches the annotations it counts and lists, so the span itself
-  // carries nothing about them.
+  // both cards fetch their own annotations, so they render from the id alone
   const annotationsCard = <SpanAnnotationsCard spanNodeId={span.id} />;
-  // Last in the view: notes are a conversation about the span rather than a
-  // reading of it, so they sit below everything the span itself recorded.
   const notesCard = <SpanNotesCard spanNodeId={span.id} />;
 
   // Handle the case where the attributes are not a valid JSON object
@@ -97,7 +94,6 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
     <View padding="size-200">
       <Flex direction="column" gap="size-200">
         {statusDescription}
-        {/* First: how the span was judged frames everything read below it */}
         {annotationsCard}
         {content}
         {hasMetadata ? (

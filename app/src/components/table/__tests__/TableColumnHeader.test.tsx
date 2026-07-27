@@ -17,10 +17,7 @@ const columns: ColumnDef<Row>[] = [
   { id: "value", header: "Value", accessorKey: "key", enableResizing: false },
 ];
 
-/**
- * The header row on its own: no `style` prop, which is the arrangement a table
- * without pinned columns renders.
- */
+/** The header row on its own, as a table without pinned columns renders it. */
 function HeaderRow() {
   "use no memo";
   // eslint-disable-next-line react-hooks-js/incompatible-library
@@ -70,7 +67,6 @@ function query(selector: string): Element {
   return element;
 }
 
-/** The first header cell, as the element whose inline width is read below. */
 function queryHeader(): HTMLTableCellElement {
   const element = query("th");
   if (!(element instanceof HTMLTableCellElement)) {
@@ -87,8 +83,8 @@ describe("TableColumnHeader", () => {
     const header = queryHeader();
     expect(header.style.width).toBe("320px");
 
-    // TanStack hands the same header object back on every render, so a
-    // memoized header would keep reporting the width the column started at
+    // fails without "use no memo" on TableColumnHeader: TanStack mutates the
+    // same header object, so a memoized header reports the starting width
     act(() => {
       query("div.resizer").dispatchEvent(
         new MouseEvent("mousedown", { bubbles: true, clientX: 320 })

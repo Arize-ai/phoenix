@@ -22,13 +22,12 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
    */
   subTitle?: React.ReactNode;
   /**
-   * Content displayed after the title, taking the width the header's fixed
-   * parts leave and giving it back as they need it. Use for content that has
-   * to stay responsive — e.g. an `OverflowRow` of tokens — where `titleExtra`,
-   * which sits in the title's own fixed-width run, would push the header wide.
+   * Content after the title that shrinks to whatever the header's fixed parts
+   * leave it. Use over `titleExtra`, which sits in the title's own fixed-width
+   * run, for anything that has to stay responsive.
    *
-   * Set `interactiveTitle` alongside it when the content is interactive: it is
-   * rendered within the heading, which the collapse toggle otherwise wraps.
+   * Pair with `interactiveTitle` when the content is interactive — it renders
+   * inside the heading, which the collapse toggle otherwise wraps.
    */
   headerContent?: React.ReactNode;
   /**

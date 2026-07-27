@@ -28,15 +28,10 @@ import type { SpanAnnotationDeleteButtonMutation } from "./__generated__/SpanAnn
 type SpanAnnotationDeleteButtonProps = {
   annotationId: string;
   spanNodeId: string;
-  /**
-   * The annotation's name, where naming it tells the reader which one they are
-   * about to lose. Left out where every annotation on the surface has the same
-   * name — the notes table, whose rows are all named "note".
-   */
+  /** Names the annotation in the confirmation. Omit where every row shares a name. */
   annotationName?: string;
   /**
-   * What the annotation is called in the confirmation and the notification.
-   * Notes are annotations, but "delete the annotation note" reads wrong.
+   * What to call the annotation in the confirmation and the notification.
    * @default "annotation"
    */
   noun?: string;
@@ -56,16 +51,14 @@ export function SpanAnnotationDeleteButton({
   onDeleteError,
 }: SpanAnnotationDeleteButtonProps) {
   const Noun = `${noun[0].toUpperCase()}${noun.slice(1)}`;
-  // named where there is a name to give, and referred to as "this one" where
-  // the surface has already established what it is
   const target = annotationName
     ? `the ${noun} ${annotationName}`
     : `this ${noun}`;
   const [isConfirming, setIsConfirming] = useState(false);
-  // The editor in the aside reads the viewer's own annotations, so the refetch
-  // below has to ask for that same slice — the unfiltered one is stored under a
-  // different key and would leave the editor holding the deleted annotation.
-  // Unauthenticated, a null user id selects the system annotations.
+  // The refetch below has to ask for the same slice the editor in the aside
+  // reads — the unfiltered one is stored under a different key and would leave
+  // the editor holding the deleted annotation. A null id selects the system
+  // annotations, which is the unauthenticated case.
   const { viewer } = useViewer();
   const userFilter = useMemo(() => (viewer ? [viewer.id] : [null]), [viewer]);
   const [commitDelete] = useMutation<SpanAnnotationDeleteButtonMutation>(

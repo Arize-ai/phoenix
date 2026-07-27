@@ -21,22 +21,20 @@ import { TableEmpty } from "./TableEmpty";
 const containerCSS = css`
   display: flex;
   flex-direction: column;
-  // fills a flex column and is inert inside a card, whose body is a block
   flex: 1 1 auto;
-  // the scrolling happens below, so this must be free to be shorter than it
+  // the scroll wrapper below is what scrolls, so this must be free to be
+  // shorter than its content
   min-height: 0;
 `;
 
 const scrollWrapCSS = css`
   flex: 1 1 auto;
-  // the columns can be dragged wider than the container, and there can be more
-  // rows than fit, so this is the element that scrolls in both directions
+  // columns can be dragged wider than the container, so this scrolls both ways
   overflow: auto;
 `;
 
 const resizableTableCSS = css`
-  // columns are resizable, so cells take the width the drag left them at
-  // rather than sizing themselves to their content
+  // cells take the width the drag left them at, not their content's
   table-layout: fixed;
 `;
 
@@ -45,12 +43,9 @@ const resizableTableCSS = css`
  * that can be pinned to the right edge, and rows that either clip to a line or
  * open up to their full height.
  *
- * Everything above the table — an error, a toolbar — goes in `banner`, which is
- * held outside the scrolling area so it stays put while the table is scrolled.
- *
- * Styled through the emotion `css` prop, which lands on the container: the
- * cells carry {@link TABLE_DATA_CELL_CLASS}, so a caller can reach them with
- * `td.table__cell` without needing a class of its own.
+ * Takes an emotion `css` prop, which lands on the container. Cells carry
+ * {@link TABLE_DATA_CELL_CLASS}, so a caller can reach them with
+ * `td.table__cell`.
  */
 export function ResizableTable<DataRow>({
   columns,
@@ -64,14 +59,11 @@ export function ResizableTable<DataRow>({
 }: {
   columns: ColumnDef<DataRow>[];
   data: DataRow[];
-  /** How the table is sorted until the reader sorts it themselves */
   defaultSorting?: SortingState;
-  /** Columns stuck to the table's right edge as the rest scroll under them */
+  /** Columns stuck to the right edge as the rest scroll under them */
   pinnedRightColumnIds?: string[];
   /**
-   * Whether a row wraps its content over as many lines as it needs, or is
-   * clipped to a single line so the rows can be scanned down an even grid.
-   * Pair with `RowExpandToggleButton` to let the reader switch.
+   * Whether rows wrap or clip to a single line.
    * @default false
    */
   areRowsExpanded?: boolean;
@@ -108,8 +100,8 @@ export function ResizableTable<DataRow>({
       <div css={scrollWrapCSS}>
         <table
           css={[tableCSS, expandableRowsTableCSS, resizableTableCSS]}
-          // the resized columns decide the table's width; it still fills the
-          // container when they add up to less than it
+          // the resized columns decide the width; minWidth keeps the table
+          // filling the container when they add up to less than it
           style={{ width: table.getTotalSize(), minWidth: "100%" }}
           data-rows={areRowsExpanded ? "expanded" : "collapsed"}
           data-testid={dataTestId}

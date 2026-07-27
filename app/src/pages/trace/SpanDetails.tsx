@@ -69,8 +69,6 @@ export function SpanDetails({
    */
   spanNodeId: string;
 }) {
-  // the controls that open the aside sit in the header and the info tab's
-  // cards; the aside is a sibling of both
   return (
     <SpanAsideProvider>
       <SpanDetailsContent spanNodeId={spanNodeId} />
@@ -185,7 +183,6 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     throw new Error("Project ID is required to download a span");
   }
 
-  // each hotkey opens the aside on its own section
   useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside("annotations"), {
     preventDefault: true,
   });

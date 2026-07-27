@@ -74,7 +74,7 @@ export const Narrow: StoryFn = () => <Template width={160} />;
 export const FitsWithoutOverflow: StoryFn = () => <Template width={900} />;
 
 /**
- * Narrower than a single token: the row gives every item to the badge rather
- * than showing one cut off, leaving whatever sits beside it room to render.
+ * Narrower than a single token: every item goes to the badge rather than one
+ * rendering cut off.
  */
 export const BadgeOnly: StoryFn = () => <Template width={80} />;

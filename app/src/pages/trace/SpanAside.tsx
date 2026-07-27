@@ -78,8 +78,8 @@ export function SpanAside(props: SpanAsideProps) {
     props.span
   );
 
-  // the button that adds an annotation config sits in the section header, the
-  // list that shows them in the panel below, so the key they share lives here
+  // the button that adds a config is in the section header, the list that shows
+  // them is in the panel below, so the key they share lives here
   const [annotationConfigsRefetchKey, setAnnotationConfigsRefetchKey] =
     useState(0);
   const setIsAnnotatingSpans = usePreferencesContext(
@@ -87,8 +87,7 @@ export function SpanAside(props: SpanAsideProps) {
   );
   const editAnnotationsPanelRef = useRef<PanelImperativeHandle>(null);
   const notesPanelRef = useRef<PanelImperativeHandle>(null);
-  // the control that made the request made the aside visible; this component
-  // owns the section panels, so it expands the requested section
+  // this component owns the section panels, so it does the expanding
   const openRequest = useSpanAsideOpenRequest();
   useEffect(() => {
     if (openRequest == null) {
@@ -107,13 +106,11 @@ export function SpanAside(props: SpanAsideProps) {
         ref={editAnnotationsPanelRef}
         resizable
         title="Edit Annotations"
-        // the section's own controls: add an annotation, and close the aside
-        // this all sits in
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             <NewAnnotationButton
-              // some of the button's state is about the span being annotated,
-              // so it starts over when the span does
+              // the button holds state about the span, so start it over when
+              // the span changes
               key={data.id}
               projectId={data.project.id}
               spanNodeId={data.id}
@@ -148,8 +145,6 @@ export function SpanAside(props: SpanAsideProps) {
       <TitledPanel
         ref={notesPanelRef}
         resizable
-        // the hotkey is named in the tooltip of the button that opens this,
-        // the same as the annotations section above
         title="Notes"
         panelProps={{ minSize: "10%" }}
       >

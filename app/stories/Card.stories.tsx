@@ -108,11 +108,9 @@ export const WithTitleExtra = {
 };
 
 /**
- * `headerContent` sits after the title and takes the width the header's fixed
- * parts leave it, giving it back as they need it — resize the story to watch
- * the tokens clip while the title and the action keep their size. Pair it with
- * `interactiveTitle` when the content is interactive, as it is here, so the
- * collapse toggle does not wrap it.
+ * `headerContent` shrinks to whatever the header's fixed parts leave it —
+ * resize the story to watch the tokens clip while the title and the action keep
+ * their size. Paired with `interactiveTitle`, since the tokens are clickable.
  */
 export const WithHeaderContent = {
   render: Template,

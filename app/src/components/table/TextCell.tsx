@@ -27,13 +27,11 @@ export function TextCell<TData extends object, TValue>({
   return <span>{str}</span>;
 }
 
-// a stylesheet rule rather than an inline style so that a table which clips its
-// rows to a single line can override it -- an inline style would win over the
-// row-height rules and leave this the one cell that still wraps
+// a stylesheet rule rather than an inline style, which would outrank the
+// row-height rules of a table that clips its rows to a single line
 const preformattedTextCellCSS = css`
   white-space: pre-wrap;
-  // a <pre> carries a block margin of its own, which would sit the text below
-  // the line every other cell in the row starts on
+  // a <pre>'s own block margin would drop the text below the rest of the row
   margin: 0;
 `;
 

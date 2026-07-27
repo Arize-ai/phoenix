@@ -156,9 +156,8 @@ export const AnnotationSummaryGroupTokens = ({
     categoricalAnnotationConfigsByName,
   } = useAnnotationSummaryGroup(span);
 
-  // A summary whose annotations carry only an explanation has no label or score
-  // to render a token from, so it is not something to show — without this the
-  // empty state is skipped and the caller is left with a blank run of tokens.
+  // a summary of explanation-only annotations has no label or score to render a
+  // token from, so counting it would leave the caller a blank run of tokens
   const summariesWithTokens = sortedSummariesByName.filter(
     (summary) => annotationsByName[summary.name]?.[0] != null
   );

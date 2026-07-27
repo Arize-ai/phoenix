@@ -285,8 +285,6 @@ function TraceHeader({
           )}
         </Flex>
         <Suspense fallback={null}>
-          {/* the root span's own annotations show on the span itself, which the
-              trace opens on by default */}
           <Flex direction="row" alignItems="stretch" alignSelf="stretch">
             <TraceHeaderTraceAnnotations traceId={traceNodeId} />
           </Flex>

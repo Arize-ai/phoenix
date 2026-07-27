@@ -26,7 +26,6 @@ import type { SpanAnnotationsTableQuery } from "./__generated__/SpanAnnotationsT
 type SpanAnnotation =
   SpanAnnotationsTable_annotations$data["spanAnnotations"][number];
 
-/** The column the actions menu lives in, pinned to the table's right edge. */
 const ACTIONS_COLUMN_ID = "actions";
 const PINNED_RIGHT_COLUMN_IDS = [ACTIONS_COLUMN_ID];
 const DEFAULT_SORTING = [{ id: "createdAt", desc: true }];
@@ -42,7 +41,7 @@ function AnnotationsTable({
 }) {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
-  // a delete that goes through answers the failure the reader is looking at
+  // a delete that goes through clears the error banner it failed with
   const handleDeleteSuccess = useCallback(
     (notifyProps: NotificationHookParams) => {
       setError(null);
@@ -59,8 +58,6 @@ function AnnotationsTable({
         size: 120,
       },
       {
-        // "annotator kind" spends a column's width on a word the token below
-        // it already says
         header: "kind",
         accessorKey: "annotatorKind",
         size: 100,
@@ -77,7 +74,6 @@ function AnnotationsTable({
         header: "score",
         accessorKey: "score",
         size: 100,
-        // scores are digits, so they read down a shared right edge
         meta: { textAlign: "right" },
       },
       {
@@ -89,8 +85,8 @@ function AnnotationsTable({
       {
         header: "user",
         id: "user",
-        // the user is an object, which sorts by nothing at all -- the column
-        // reads as a name, so it sorts as one
+        // the user is an object, which sorts by nothing -- sort by the name
+        // the column actually shows
         accessorFn: (annotation) => annotation.user?.username ?? "",
         size: 140,
         cell: ({ row }) => <UserCell user={row.original.user} />,
@@ -109,8 +105,7 @@ function AnnotationsTable({
         header: "metadata",
         accessorKey: "metadata",
         size: 200,
-        // there is no order to put arbitrary JSON in, so the header does not
-        // offer one
+        // arbitrary JSON has no order to sort in
         enableSorting: false,
         cell: ({ row }) => {
           const metadata = row.original.metadata;
@@ -139,8 +134,6 @@ function AnnotationsTable({
         // just wide enough for the button plus the cell's own padding
         size: 44,
         enableSorting: false,
-        // a fixed-width control; a drag handle on it would only ever add empty
-        // space beside the button
         enableResizing: false,
         cell: ({ row }) => (
           <Flex direction="row" justifyContent="center">
@@ -174,9 +167,8 @@ function AnnotationsTable({
 }
 
 /**
- * Every annotation attached to a span, in a table that fetches its own data —
- * mount it with a span's node id and a `Suspense` boundary and it needs
- * nothing else from the view around it.
+ * Every annotation attached to a span. Fetches its own data, so it needs only a
+ * span's node id and a `Suspense` boundary.
  */
 export function SpanAnnotationsTable({
   spanNodeId,
@@ -184,16 +176,10 @@ export function SpanAnnotationsTable({
   areRowsExpanded = false,
 }: {
   spanNodeId: string;
-  /**
-   * Rendered in place of the table when the span has no annotations. Defaults
-   * to the table's own empty row, which suits a card or panel that has already
-   * named what is missing.
-   */
+  /** Replaces the table when the span has no annotations. */
   emptyState?: ReactNode;
   /**
-   * Whether a row wraps its content over as many lines as it needs, or is
-   * clipped to a single line so the annotations can be scanned down an even
-   * grid. Pair with `RowExpandToggleButton` to let the reader switch.
+   * Whether rows wrap or clip to a single line.
    * @default false
    */
   areRowsExpanded?: boolean;
@@ -207,9 +193,8 @@ export function SpanAnnotationsTable({
       }
     `,
     { id: spanNodeId },
-    // the card this sits in unmounts the table whenever it is collapsed or
-    // switched away from, and the annotations are written back to the store by
-    // every mutation that touches them, so what is already there is current
+    // every mutation writes annotations back to the store, so what is already
+    // there is current across the remounts collapsing the card causes
     { fetchPolicy: "store-or-network" }
   );
 
@@ -240,11 +225,9 @@ export function SpanAnnotationsTable({
     queryData.span
   );
 
-  // Notes are annotations, but they are a conversation rather than a reading
-  // of the span, and they have a table of their own. Filtered here rather than
-  // in the query because the editor in the aside writes every annotation back
-  // to this same record, and a filtered field would not pick up what it adds.
-  // Memoized so the table is not handed a new array on every render.
+  // Notes have a table of their own. Filtered here rather than in the query
+  // because the editor in the aside writes every annotation back to this same
+  // record, and a filtered field would not pick up what it adds.
   const spanAnnotations = data?.spanAnnotations;
   const annotations = useMemo(
     () =>

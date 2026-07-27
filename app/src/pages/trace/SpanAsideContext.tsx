@@ -3,29 +3,23 @@ import { createContext, useCallback, useContext, useState } from "react";
 
 import { usePreferencesContext } from "@phoenix/contexts";
 
-/**
- * A collapsible section of the span aside: the annotation composer or the note
- * composer.
- */
+/** A collapsible section of the span aside. */
 export type SpanAsideSection = "annotations" | "notes";
 
 /**
- * A request to open a section of the span aside.
- *
- * `requestId` increments per request, so repeat requests for the same section
- * are distinct values and the aside reopens a section the reader collapsed.
+ * `requestId` increments per request, so asking twice for the same section
+ * reopens it rather than reading as no change.
  */
 export type SpanAsideOpenRequest = {
   section: SpanAsideSection;
   requestId: number;
 };
 
-/** Stable across renders, so the controls that consume it never re-render. */
+/** Split from the request below so the controls never re-render on one. */
 const OpenSpanAsideContext = createContext<
   ((section: SpanAsideSection) => void) | null
 >(null);
 
-/** Changes per request. The aside is its only consumer. */
 const SpanAsideOpenRequestContext = createContext<SpanAsideOpenRequest | null>(
   null
 );
@@ -33,16 +27,12 @@ const SpanAsideOpenRequestContext = createContext<SpanAsideOpenRequest | null>(
 /**
  * Connects the controls that open the span aside to the aside itself.
  *
- * Opening the aside on a section takes two writes in two components. The
- * `isAnnotatingSpans` preference makes the aside visible, and the aside expands
- * the section, since it owns the section panels. Setting the preference alone
- * reveals an aside whose sections the reader may have collapsed.
+ * Opening on a section takes two writes: the `isAnnotatingSpans` preference
+ * makes the aside visible, and the aside expands the section, since it owns the
+ * section panels. The preference alone reveals an aside whose sections the
+ * reader may have collapsed.
  *
- * A control — a hotkey in `SpanDetails`, a button on one of the info tab's
- * cards — calls {@link useOpenSpanAside}. The provider sets the preference and
- * records the request, and the aside expands the requested section.
- *
- * Belongs above the span details view: the controls sit in the header and the
+ * Belongs above the span details view — the controls sit in the header and the
  * info tab, and the aside is a sibling of both.
  */
 export function SpanAsideProvider({ children }: PropsWithChildren) {
@@ -71,10 +61,7 @@ export function SpanAsideProvider({ children }: PropsWithChildren) {
   );
 }
 
-/**
- * Opens the span aside on one of its sections. For the controls that request
- * it; the aside itself reads {@link useSpanAsideOpenRequest}.
- */
+/** Opens the span aside on one of its sections. For the controls. */
 export function useOpenSpanAside() {
   const open = useContext(OpenSpanAsideContext);
   if (open == null) {
@@ -83,10 +70,7 @@ export function useOpenSpanAside() {
   return open;
 }
 
-/**
- * The section the aside should expand. Null until a control requests one, and a
- * new value per request.
- */
+/** The section to expand, for the aside. Null until a control requests one. */
 export function useSpanAsideOpenRequest() {
   return useContext(SpanAsideOpenRequestContext);
 }

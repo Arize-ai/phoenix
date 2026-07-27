@@ -30,7 +30,6 @@ import type { SpanAnnotationsCardSummaryQuery } from "./__generated__/SpanAnnota
 import { defaultCardProps } from "./constants";
 import { useSpanAnnotationCounts } from "./useSpanAnnotationCounts";
 
-/** Which of the card's two readings of the annotations the body shows. */
 type SpanAnnotationsView = "list" | "table";
 
 const annotationTokenListCSS = css`
@@ -43,21 +42,14 @@ const annotationTokenListCSS = css`
 `;
 
 /**
- * The span's annotations as a bare run of summary tokens — one per annotation
- * name, each opening the annotations behind it in a popover. The caller owns
- * the layout: a single clipped line in the card header, or a wrapping list in
- * the body.
+ * One summary token per annotation name, each opening the annotations behind it
+ * in a popover. Unstyled — the caller owns the layout.
  */
 function SpanAnnotationSummaryTokens({
   spanNodeId,
   renderEmptyState,
 }: {
   spanNodeId: string;
-  /**
-   * Rendered in place of the tokens when the span has nothing to summarize.
-   * Omit in the header, where an empty run of tokens is the right amount of
-   * noise for a card that already shows its count.
-   */
   renderEmptyState?: () => ReactNode;
 }) {
   const data = useLazyLoadQuery<SpanAnnotationsCardSummaryQuery>(
@@ -69,8 +61,7 @@ function SpanAnnotationSummaryTokens({
       }
     `,
     { id: spanNodeId },
-    // the span details query already pulls these summaries in for the trace
-    // header, so this usually resolves from the store without a request
+    // usually already in the store, pulled in by the span details query
     { fetchPolicy: "store-or-network" }
   );
   if (data.span == null) {
@@ -87,16 +78,10 @@ function SpanAnnotationSummaryTokens({
 /**
  * The annotations attached to a span, as a card for the span info view. The
  * table inside fetches its own data, so this only needs the span's node id.
- *
- * Closed to start: the span's own input and output are what the reader came
- * for, and how it was judged is a question they ask afterwards — the header
- * carries the summary tokens so that question is often answered without
- * opening the card at all.
  */
 export function SpanAnnotationsCard({ spanNodeId }: { spanNodeId: string }) {
-  // the count comes from the store rather than the network, so the boundary is
-  // for the case where it does not; a card that renders a moment late is
-  // better than one that claims the span has no annotations while it waits
+  // rendering a moment late beats claiming the span has no annotations while
+  // the count is still in flight
   return (
     <Suspense fallback={null}>
       <SpanAnnotationsCardContents spanNodeId={spanNodeId} />
@@ -106,9 +91,6 @@ export function SpanAnnotationsCard({ spanNodeId }: { spanNodeId: string }) {
 
 function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
   const { annotationCount } = useSpanAnnotationCounts({ spanNodeId });
-  // the preference controls the aside's visibility, so the toggle reflects it
-  // and closes with it; opening also expands a section, which SpanAsideContext
-  // handles
   const isAnnotatingSpans = usePreferencesContext(
     (state) => state.isAnnotatingSpans
   );
@@ -117,19 +99,11 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
   );
   const openSpanAside = useOpenSpanAside();
   const [isCollapsed, setIsCollapsed] = useState(true);
-  // rows start clipped so the annotations read as a grid; explanations are the
-  // long value here, and the reader opens up the rows when they want one
   const [areRowsExpanded, setAreRowsExpanded] = useState(false);
-  // the list is the same reading the header gives while the card is closed,
-  // only wrapped rather than clipped, so opening the card continues that
-  // thought rather than replacing it; the table is there for the reader who
-  // wants the scores, explanations and annotators behind those tokens
   const [view, setView] = useState<SpanAnnotationsView>("list");
   const hasAnnotations = annotationCount > 0;
-  // the compact state rather than the full one with its graphic: this is a card
-  // in a stack of cards, not a region of its own. Shared by both views -- the
-  // count includes notes, which neither view shows, so an "annotated" span can
-  // still come up empty here
+  // compact rather than the full state with its graphic: this is a card in a
+  // stack of cards, not a region of its own
   const emptyState = (
     <CompactEmptyState
       icon={<Icon svg={<Icons.Edit2 />} />}
@@ -146,12 +120,9 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
       interactiveTitle
       collapseButtonLabel="Annotations"
       headerContent={
-        // once the card is open the body carries the summary in full, and a
-        // clipped copy of it in the header would only repeat what is already
-        // on screen
+        // the open card's body carries the same summary, in full
         !hasAnnotations || !isCollapsed ? null : (
-          // no fallback: the summaries are usually already in the store, and a
-          // spinner in the header would flash for the case where they are not
+          // no fallback: a spinner here would only flash
           <Suspense fallback={null}>
             <OverflowRow>
               <SpanAnnotationSummaryTokens spanNodeId={spanNodeId} />
@@ -163,14 +134,10 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
       onCollapseChange={setIsCollapsed}
       extra={
         <Flex direction="row" gap="size-100" alignItems="center">
-          {/* nothing to switch between or expand while the body is hidden, and
-              nothing to show either way when the span has never been annotated */}
           {isCollapsed || !hasAnnotations ? null : (
             <>
-              {/* only the table has rows to give back, and it sits before the
-                  control that summoned it -- the view switch stays put next to
-                  the annotate toggle rather than sliding over when the row
-                  toggle appears */}
+              {/* before the control that summoned it, so the view switch stays
+                  put rather than sliding over when this appears */}
               {view === "table" ? (
                 <RowExpandToggleButton
                   size="S"
@@ -214,8 +181,7 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
         </Flex>
       }
     >
-      {/* both views fetch on mount, and this card sits on every span info
-          view -- hold the query until the reader opens it */}
+      {/* both views fetch on mount, so hold the query until the card is open */}
       {isCollapsed ? null : (
         <Suspense fallback={<Loading />}>
           {view === "list" ? (

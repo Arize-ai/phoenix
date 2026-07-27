@@ -31,8 +31,8 @@ const overflowRowCSS = css`
   gap: var(--global-dimension-size-50);
   min-width: 0;
   max-width: 100%;
-  // the room reserved for the badge below is taken out of the width the row is
-  // given rather than added to it, so the row never widens by overflowing
+  // the badge's reserved padding comes out of the row's width rather than
+  // widening it
   box-sizing: border-box;
 
   &.overflow-row--collapsed {
@@ -47,9 +47,8 @@ const overflowRowCSS = css`
     padding-right: var(--global-dimension-size-600);
   }
 
-  // Not even the first item fits: the row keeps only what the badge needs and
-  // hides the items rather than showing one cut in half. They stay in flow, so
-  // they can still be measured when the row is given its width back.
+  // Not even the first item fits. The items stay in flow so they can still be
+  // measured when the row is given its width back.
   &.overflow-row--badge-only {
     min-width: var(--global-dimension-size-600);
     > *:not(.overflow-row__badge-slot) {
@@ -92,12 +91,9 @@ type OverflowMeasurement = FirstLine & {
 };
 
 /**
- * Layout rounds to fractions of a pixel; an item this close still fits.
- *
- * `offsetLeft`, `offsetWidth` and `clientWidth` are each rounded to a whole
- * pixel, so the comparison below carries up to half a pixel of error from each
- * — enough for an item that fits to measure a pixel past the edge and be given
- * to the badge, leaving it hidden beside visibly empty space.
+ * `offsetLeft`, `offsetWidth` and `clientWidth` each round to a whole pixel, so
+ * the fit comparison carries up to half a pixel of error from each. An item
+ * this close still fits.
  */
 const SUBPIXEL_TOLERANCE = 1.5;
 
@@ -117,9 +113,8 @@ function getItems(container: HTMLElement): HTMLElement[] {
 }
 
 /**
- * The row's content box ends here. Where the row is already clamped, the room
- * reserved for the badge is padding, so this is the edge an item has to end
- * within to count as shown rather than cut off.
+ * The right edge an item has to end within to count as shown. Excludes the
+ * padding a clamped row reserves for the badge.
  */
 function getContentRight(container: HTMLElement): number {
   const { paddingRight } = getComputedStyle(container);
@@ -146,9 +141,8 @@ function measureOverflow(container: HTMLElement): OverflowMeasurement {
       break;
     }
     const right = item.offsetLeft + item.offsetWidth;
-    // An item wider than the row still lays out on the first line, where it
-    // would be shown cut in half. Give it to the badge instead — including
-    // when it is the only item, which leaves the badge standing alone.
+    // an item wider than the row still lays out on the first line, so this is
+    // what keeps it from rendering cut in half
     if (right > contentRight + SUBPIXEL_TOLERANCE) {
       break;
     }
@@ -162,8 +156,7 @@ function measureOverflow(container: HTMLElement): OverflowMeasurement {
     items,
     visibleCount,
     badgeLeft,
-    // the badge stands in for the items it took, so it keeps their height even
-    // where it has taken every one of them
+    // the badge keeps the items' height even when it has taken every one
     lineHeight: lineHeight || (items[0]?.offsetHeight ?? 0),
   };
 }

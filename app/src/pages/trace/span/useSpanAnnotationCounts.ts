@@ -5,15 +5,10 @@ import { NOTE_ANNOTATION_NAME } from "@phoenix/constants/annotationConstants";
 import type { useSpanAnnotationCountsQuery } from "./__generated__/useSpanAnnotationCountsQuery.graphql";
 
 /**
- * How many annotations and how many notes a span carries, for the cards that
- * show each count in their header while they are still closed.
+ * How many annotations and how many notes a span carries. Notes are annotations
+ * under a reserved name, so `annotationCount` excludes them.
  *
- * Notes are annotations under a reserved name, and each card counts only what
- * its own table shows, so the split is made here rather than at either card.
- *
- * Suspends, but rarely in practice: the span details query already pulls these
- * annotations in for the aside, so this resolves from the store without a
- * request.
+ * Suspends, but rarely: the span details query usually has these in the store.
  */
 export function useSpanAnnotationCounts({
   spanNodeId,
