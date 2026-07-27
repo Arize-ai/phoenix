@@ -47,14 +47,14 @@ export const cardCSS = (style?: CSSProperties) => css`
       white-space: nowrap;
     }
 
-    /* takes what the title and subtitle leave, down to nothing, rather than
+    /* Takes what the title and subtitle leave, down to nothing, rather than
        widening the header */
     & .card__header-content {
       flex: 1 1 auto;
       min-width: 0;
     }
 
-    /* ...which is only room to give if the heading grows too */
+    /* The heading has room to give only if it grows itself */
     & .card__heading:has(.card__header-content) {
       flex: 1 1 auto;
     }
@@ -76,7 +76,7 @@ export const cardCSS = (style?: CSSProperties) => css`
       align-items: center;
       height: 100%;
       cursor: pointer;
-      /* without this the row floors at its contents' width and pushes the
+      /* Without this the row floors at its contents' width and pushes the
          extra slot's controls past the card's edge */
       min-width: 0;
 

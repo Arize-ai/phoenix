@@ -14,7 +14,7 @@ export type SpanAsideOpenRequest = {
   requestId: number;
 };
 
-/** Split from the request below so the controls never re-render on one. */
+/** Split from the request context so a new request re-renders no control. */
 const OpenSpanAsideContext = createContext<
   ((section: SpanAsideSection) => void) | null
 >(null);
@@ -69,7 +69,7 @@ export function useOpenSpanAside() {
   return open;
 }
 
-/** The section to expand, for the aside. Null until a control requests one. */
+/** The section the aside should expand. Null until a control requests one. */
 export function useSpanAsideOpenRequest() {
   return useContext(SpanAsideOpenRequestContext);
 }
