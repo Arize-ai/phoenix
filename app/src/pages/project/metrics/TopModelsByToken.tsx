@@ -14,6 +14,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartEmptyStateOverlay,
   ChartTooltip,
+  ChartTooltipDivider,
   ChartTooltipItem,
   InteractiveLegend,
   compactChartMargin,
@@ -66,6 +67,11 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
             />
           );
         })}
+        <ChartTooltipDivider />
+        <ChartTooltipItem
+          name="Total tokens"
+          value={intFormatter(typeof total === "number" ? total : 0)}
+        />
       </ChartTooltip>
     );
   }
