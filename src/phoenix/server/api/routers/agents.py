@@ -141,10 +141,9 @@ from phoenix.server.agents.types import (
 )
 from phoenix.server.agents.ui_message_stream import (
     AgentErrorChunk,
-    UIMessageStreamError,
     create_streaming_ui_message_state,
     iter_chunks_with_error_parts,
-    process_ui_message_stream,
+    reduce_ui_message_chunk,
 )
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, is_turn_active
 from phoenix.server.api.helpers.playground_registry import (
@@ -2503,28 +2502,19 @@ def create_agents_router(
                         async for message_chunk in iter_chunks_with_error_parts(
                             message_chunk_stream
                         ):
-                            if accumulation_failed:
-                                yield message_chunk
-                                continue
-
-                            async def _single_chunk() -> AsyncIterator[BaseChunk]:
-                                yield message_chunk
-
-                            try:
-                                async for processed_chunk in process_ui_message_stream(
-                                    stream=_single_chunk(),
-                                    state=message_state,
-                                    write=lambda: None,
-                                ):
-                                    yield processed_chunk
-                            except UIMessageStreamError:
-                                accumulation_failed = True
-                                logger.exception(
-                                    "Failed to reduce the streamed assistant message for "
-                                    "session %r; persisting the last valid snapshot",
-                                    otel_session_id,
-                                )
-                                yield message_chunk
+                            if not accumulation_failed:
+                                try:
+                                    reduce_ui_message_chunk(
+                                        chunk=message_chunk, state=message_state
+                                    )
+                                except Exception:
+                                    accumulation_failed = True
+                                    logger.exception(
+                                        "Failed to reduce the streamed assistant message for "
+                                        "session %r; persisting the last valid snapshot",
+                                        otel_session_id,
+                                    )
+                            yield message_chunk
                         yield await _persist_turn()
                 except BaseException as exc:
                     stream_error = exc
