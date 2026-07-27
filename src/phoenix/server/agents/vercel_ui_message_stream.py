@@ -100,7 +100,11 @@ _TOOL_PART_TYPES = (*_STATIC_TOOL_PART_TYPES, *_DYNAMIC_TOOL_PART_TYPES)
 
 
 class UIMessageStreamError(Exception):
-    """Raised when a stream chunk refers to protocol state that does not exist."""
+    """Raised when a stream chunk refers to protocol state that does not exist.
+
+    Port of ``UIMessageStreamError``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/error/ui-message-stream-error.ts#L17
+    """
 
     def __init__(self, *, chunk_type: str, chunk_id: str, message: str) -> None:
         super().__init__(message)
@@ -110,6 +114,12 @@ class UIMessageStreamError(Exception):
 
 @dataclass
 class PartialToolCall:
+    """Streamed input text accumulated so far for one tool call.
+
+    Port of the ``partialToolCalls`` record in ``StreamingUIMessageState``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L38
+    """
+
     text: str
     tool_name: str
     dynamic: bool = False
@@ -117,6 +127,12 @@ class PartialToolCall:
 
 @dataclass
 class StreamingUIMessageState:
+    """Mutable state accumulated while reducing a UI message stream.
+
+    Port of ``StreamingUIMessageState``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L34
+    """
+
     message: UIMessage
     active_text_parts: dict[str, TextUIPart]
     active_reasoning_parts: dict[str, ReasoningUIPart]
@@ -129,7 +145,11 @@ def create_streaming_ui_message_state(
     message_id: str,
     last_message: UIMessage | None,
 ) -> StreamingUIMessageState:
-    """Create the mutable state used while reducing a UI message stream."""
+    """Create the mutable state used while reducing a UI message stream.
+
+    Port of ``createStreamingUIMessageState``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L52
+    """
     message = (
         UIMessage.model_validate(
             last_message.model_dump(
@@ -161,7 +181,11 @@ async def process_ui_message_stream(
     on_error: Callable[[Exception], None] | None = None,
     on_data: Callable[[DataUIPart], None] | None = None,
 ) -> AsyncIterator[BaseChunk]:
-    """Reduce UI-message chunks into ``state`` while yielding them unchanged."""
+    """Reduce UI-message chunks into ``state`` while yielding them unchanged.
+
+    Port of ``processUIMessageStream``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L78
+    """
     async for chunk in stream:
         reduce_ui_message_chunk(
             chunk=chunk,
@@ -181,7 +205,11 @@ def reduce_ui_message_chunk(
     on_error: Callable[[Exception], None] | None = None,
     on_data: Callable[[DataUIPart], None] | None = None,
 ) -> None:
-    """Reduce a single UI-message chunk into ``state``."""
+    """Reduce a single UI-message chunk into ``state``.
+
+    Port of the per-chunk ``switch`` inside ``processUIMessageStream``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L386
+    """
     if isinstance(chunk, TextStartChunk):
         text_part = TextUIPart(
             text="",
@@ -473,7 +501,11 @@ async def read_ui_message_stream(
     on_error: Callable[[Exception], None] | None = None,
     terminate_on_error: bool = False,
 ) -> AsyncIterator[UIMessage]:
-    """Yield a deep-copied message snapshot for every reducer write."""
+    """Yield a deep-copied message snapshot for every reducer write.
+
+    Port of ``readUIMessageStream``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui-message-stream/read-ui-message-stream.ts#L25
+    """
     state = create_streaming_ui_message_state(
         message_id=message.id if message is not None else str(uuid4()),
         last_message=message,
@@ -514,6 +546,12 @@ def _find_tool_part(
     tool_call_id: str,
     dynamic: bool | None = None,
 ) -> ToolUIPart | DynamicToolUIPart | None:
+    """Find a tool part by call ID, optionally constrained to one tool family.
+
+    Mirrors the part lookups in ``updateToolPart`` and ``updateDynamicToolPart``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L143
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L255
+    """
     for part in message.parts:
         if not isinstance(part, _TOOL_PART_TYPES):
             continue
@@ -533,6 +571,11 @@ def _get_tool_invocation(
     message: UIMessage,
     tool_call_id: str,
 ) -> ToolUIPart | DynamicToolUIPart:
+    """Look up the tool part for a chunk, raising if the call ID is unknown.
+
+    Port of ``getToolInvocation``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L107
+    """
     part = _find_tool_part(message=message, tool_call_id=tool_call_id)
     if part is None:
         raise UIMessageStreamError(
@@ -564,6 +607,12 @@ def _update_tool_part(
     preliminary: bool | None = None,
     title: str | None = None,
 ) -> None:
+    """Replace or append the tool part for a call ID in the message.
+
+    Port of ``updateToolPart`` and ``updateDynamicToolPart``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L143
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L255
+    """
     existing_part = _find_tool_part(
         message=message,
         tool_call_id=tool_call_id,
@@ -717,6 +766,9 @@ def _update_tool_part(
 
 
 def _get_tool_name(part: ToolUIPart | DynamicToolUIPart) -> str:
+    """Port of ``getToolName``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/ui-messages.ts#L598
+    """
     if isinstance(part, _DYNAMIC_TOOL_PART_TYPES):
         return part.tool_name
     if isinstance(part, _STATIC_TOOL_PART_TYPES):
@@ -725,12 +777,18 @@ def _get_tool_name(part: ToolUIPart | DynamicToolUIPart) -> str:
 
 
 def _update_message_metadata(*, message: UIMessage, metadata: Any) -> None:
+    """Port of ``updateMessageMetadata``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L363
+    """
     if metadata is None:
         return
     message.metadata = _merge_objects(message.metadata, metadata)
 
 
 def _merge_objects(base: Any, overrides: Any) -> Any:
+    """Port of ``mergeObjects``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/util/merge-objects.ts#L14
+    """
     base = _to_json_value(base)
     overrides = _to_json_value(overrides)
     if not isinstance(base, dict) or not isinstance(overrides, dict):
@@ -749,12 +807,18 @@ def _merge_objects(base: Any, overrides: Any) -> Any:
 
 
 def _to_json_value(value: Any) -> Any:
+    """Phoenix-specific helper (no upstream equivalent): upstream operates on plain
+    JSON values, so pydantic models are dumped before merging or storing.
+    """
     if isinstance(value, BaseModel):
         return value.model_dump(mode="json", by_alias=True, exclude_none=True)
     return value
 
 
 def _parse_partial_json(value: str) -> Any:
+    """Port of ``parsePartialJson``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/util/parse-partial-json.ts#L5
+    """
     try:
         return json.loads(value)
     except json.JSONDecodeError:
@@ -765,6 +829,9 @@ def _parse_partial_json(value: str) -> Any:
 
 
 def _fix_json(value: str) -> str:
+    """Port of ``fixJson``:
+    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/util/fix-json.ts#L28
+    """
     stack = ["ROOT"]
     last_valid_index = -1
     literal_start: int | None = None
