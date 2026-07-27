@@ -1,4 +1,5 @@
 import type { EvaluatorInputMapping } from "@phoenix/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 /**
@@ -46,6 +47,8 @@ export function toProjectEvaluatorGraphQLTarget(
       return "TRACE";
     case "session":
       return "SESSION";
+    default:
+      return assertUnreachable(target);
   }
 }
 
@@ -59,6 +62,8 @@ export function fromProjectEvaluatorGraphQLTarget(
       return "trace";
     case "SESSION":
       return "session";
+    default:
+      return assertUnreachable(target);
   }
 }
 

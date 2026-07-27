@@ -2,8 +2,8 @@ import type { Completion } from "@codemirror/autocomplete";
 import {
   useCallback,
   useDeferredValue,
-  useEffectEvent,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { fetchQuery, graphql } from "relay-runtime";
@@ -337,14 +337,12 @@ export function SpanFilterConditionFieldCore(
   // field's validation effect keys on its callbacks, so a parent that passes
   // a fresh closure per render would re-fire validation, reset validity,
   // re-render, and produce yet another closure — an unbounded
-  // validation-request loop. Wrap them as effect events so validation reacts
-  // only to the condition text and project.
-  const emitValidCondition = useEffectEvent((condition: string) => {
-    onValidCondition(condition);
-  });
-  const emitValidityChange = useEffectEvent((isValid: boolean) => {
-    onValidityChange?.(isValid);
-  });
+  // validation-request loop. Read the latest callbacks through refs so the
+  // handlers below keep stable identities regardless of the caller.
+  const onValidConditionRef = useRef(onValidCondition);
+  onValidConditionRef.current = onValidCondition;
+  const onValidityChangeRef = useRef(onValidityChange);
+  onValidityChangeRef.current = onValidityChange;
 
   // Stable identities: the field caches completions per loader, and its
   // validation effect keys on validateCondition — an unstable identity
@@ -382,18 +380,15 @@ export function SpanFilterConditionFieldCore(
   const handleValidCondition = useCallback(
     (condition: string) => {
       recordValidCondition(condition);
-      emitValidCondition(condition);
+      onValidConditionRef.current(condition);
     },
-    [recordValidCondition, emitValidCondition]
+    [recordValidCondition]
   );
 
-  const handleValidationStateChange = useCallback(
-    (isValid: boolean) => {
-      setIsConditionValid(isValid);
-      emitValidityChange(isValid);
-    },
-    [emitValidityChange]
-  );
+  const handleValidationStateChange = useCallback((isValid: boolean) => {
+    setIsConditionValid(isValid);
+    onValidityChangeRef.current?.(isValid);
+  }, []);
 
   // Advertise a project context that carries the current spanFilter while
   // the field is mounted. The merge in `selectActiveContexts` layers this
