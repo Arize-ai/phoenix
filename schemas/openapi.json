@@ -19585,6 +19585,8 @@
         "type": "object"
       },
       "AgentErrorData": {
+        "additionalProperties": false,
+        "description": "Payload of the durable ``data-error`` part persisted for protocol errors.",
         "properties": {
           "errorText": {
             "title": "Errortext",

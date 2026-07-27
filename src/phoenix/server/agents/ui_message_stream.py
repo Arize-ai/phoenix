@@ -1,19 +1,19 @@
-"""Phoenix-specific adapters for Vercel UI-message streams."""
+"""Phoenix-specific adapters for Vercel UI-message streams.
+
+This module exists to keep Phoenix's protocol extensions out of
+``vercel_ui_message_stream``, which is a faithful port of the AI SDK reducer
+pinned by conformance fixtures and must not accumulate Phoenix behavior.
+Extensions to the standard chunk stream live here instead — currently pairing
+transient protocol ``error`` chunks with durable ``data-error`` parts so
+errors survive in persisted transcripts.
+"""
 
 from collections.abc import AsyncIterator
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
-from pydantic.alias_generators import to_camel
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, DataChunk, ErrorChunk
 
-
-class _CamelBaseModel(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
-
-
-class AgentErrorData(_CamelBaseModel):
-    error_text: str
+from phoenix.db.types.data_stream_protocol import AgentErrorData
 
 
 class AgentErrorChunk(DataChunk):

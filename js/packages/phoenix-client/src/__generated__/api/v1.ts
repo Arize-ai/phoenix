@@ -6307,7 +6307,10 @@ export interface components {
              */
             transient?: boolean | null;
         };
-        /** AgentErrorData */
+        /**
+         * AgentErrorData
+         * @description Payload of the durable ``data-error`` part persisted for protocol errors.
+         */
         AgentErrorData: {
             /** Errortext */
             errorText: string;

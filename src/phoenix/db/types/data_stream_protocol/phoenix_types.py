@@ -7,10 +7,17 @@ from pydantic import ConfigDict, Field, StringConstraints, TypeAdapter, model_va
 
 from ._models import CamelBaseModel
 from .provider_metadata import ToolCallCallbackProviderMetadata
-from .request_types import UIMessage
+from .request_types import DataUIPart, UIMessage
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
+_AGENT_ERROR_DATA_PART_TYPE = "data-error"
 _ToolCallCallbackProviderMetadataAdapter = TypeAdapter(ToolCallCallbackProviderMetadata)
+
+
+class AgentErrorData(CamelBaseModel):
+    """Payload of the durable ``data-error`` part persisted for protocol errors."""
+
+    error_text: str
 
 
 class AssistantMessageMetadataUsageTokens(CamelBaseModel):
@@ -82,4 +89,11 @@ class PhoenixUIMessage(UIMessage):
             if phoenix_metadata is None:
                 continue
             _ToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
+        return self
+
+    @model_validator(mode="after")
+    def _validate_agent_error_data_parts(self) -> "PhoenixUIMessage":
+        for part in self.parts:
+            if isinstance(part, DataUIPart) and part.type == _AGENT_ERROR_DATA_PART_TYPE:
+                AgentErrorData.model_validate(part.data)
         return self

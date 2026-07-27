@@ -3,6 +3,7 @@
 from pydantic import TypeAdapter
 
 from .phoenix_types import (
+    AgentErrorData,
     AssistantMessageMetadata,
     AssistantMessageMetadataTraceIds,
     AssistantMessageMetadataUsage,
@@ -58,6 +59,7 @@ from .request_types import (
 PhoenixUIMessageAdapter = TypeAdapter(PhoenixUIMessage)
 
 __all__ = [
+    "AgentErrorData",
     "AssistantMessageMetadata",
     "AssistantMessageMetadataTraceIds",
     "AssistantMessageMetadataUsage",
