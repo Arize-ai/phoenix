@@ -38,8 +38,13 @@ type AgentChatRuntime = {
       eventsBridge: SessionEventsBridge;
     }) => Chat<AgentUIMessage>;
   }) => AgentSessionChatRuntime;
-  /** Attaches a mounted session surface to its event bridge. */
-  acquireSession: (sessionId: string) => void;
+  /**
+   * Attaches a mounted session surface to its event bridge. Returns false
+   * when the runtime was already disposed (e.g. the linger timer fired
+   * between render and commit), in which case the surface must re-render to
+   * recreate a fresh runtime instead of staying bound to a dead one.
+   */
+  acquireSession: (sessionId: string) => boolean;
   /** Releases a mounted surface and starts the 30-second runtime linger. */
   releaseSession: (sessionId: string) => void;
   /** Returns the resident chat for a session, if one exists. */
@@ -157,7 +162,7 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
       acquireSession: (sessionId) => {
         const entry = chatRegistry.get(sessionId);
         if (!entry) {
-          return;
+          return false;
         }
         entry.refCount += 1;
         if (entry.lingerTimer != null) {
@@ -165,6 +170,7 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
           entry.lingerTimer = null;
         }
         entry.eventsBridge.start();
+        return true;
       },
       releaseSession: (sessionId) => {
         const entry = chatRegistry.get(sessionId);

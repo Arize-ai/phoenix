@@ -55,7 +55,19 @@ import type {
  */
 
 /** Whether the app is accepting input or following an active local/remote turn. */
-type PxiStatus = "idle" | "streaming" | "remote-streaming" | "degraded";
+type PxiStatus =
+  | "idle"
+  | "streaming"
+  | "remote-streaming"
+  | "remote-awaiting-tool"
+  | "degraded";
+
+/** Statuses driven by another client's activity on the attached session. */
+const REMOTE_BUSY_STATUSES: ReadonlySet<PxiStatus> = new Set([
+  "remote-streaming",
+  "remote-awaiting-tool",
+  "degraded",
+]);
 
 function getSessionStatus({
   sessionState,
@@ -65,7 +77,67 @@ function getSessionStatus({
   if (!sessionState || sessionState.state === "idle") {
     return "idle";
   }
-  return sessionState.streamAvailable ? "remote-streaming" : "degraded";
+  if (sessionState.state === "awaiting_client_tool") {
+    return "remote-awaiting-tool";
+  }
+  // A session held by another Phoenix instance cannot stream to this process;
+  // a session on this instance can, even when its replay buffer overflowed.
+  return sessionState.ownedByThisInstance ? "remote-streaming" : "degraded";
+}
+
+/**
+ * The yellow status line under the transcript while another client owns the
+ * session, describing what is actually happening: streaming elsewhere, paused
+ * on a client tool, mutating (compaction/edit), replay overflow on this
+ * instance, or busy on a different Phoenix instance entirely.
+ */
+function getBusyStatusText({
+  status,
+  sessionState,
+}: {
+  status: PxiStatus;
+  sessionState: PxiSessionState | null;
+}): string | null {
+  switch (status) {
+    case "remote-awaiting-tool":
+      return "Waiting for a tool call to run in another client…";
+    case "degraded":
+      return "PXI is busy on another Phoenix instance; live output is unavailable.";
+    case "remote-streaming":
+      if (sessionState?.state === "mutating") {
+        return "The session is being updated in another client…";
+      }
+      if (sessionState?.streamAvailable === false) {
+        return "PXI is responding to another client; this turn is too long to replay, so output may be incomplete.";
+      }
+      return "Following PXI response from another client…";
+    default:
+      return null;
+  }
+}
+
+/** The composer footer hint for the current status. */
+function getHelperText({
+  status,
+  sessionState,
+}: {
+  status: PxiStatus;
+  sessionState: PxiSessionState | null;
+}): string {
+  switch (status) {
+    case "remote-awaiting-tool":
+      return "waiting for a tool in another client · esc stop · /new /sessions · ctrl+c exit";
+    case "degraded":
+      return "session busy on another Phoenix instance · esc stop · /new /sessions · ctrl+c exit";
+    case "remote-streaming":
+      // Stopping a mutation is not supported (the server rejects it), so
+      // don't advertise esc while the session is being updated elsewhere.
+      return sessionState?.state === "mutating"
+        ? "session updating in another client · /new /sessions · ctrl+c exit"
+        : "following another client · esc stop · /new /sessions · ctrl+c exit";
+    default:
+      return "↵ send · ⇧↵ newline · esc interrupt · /help · ctrl+c exit";
+  }
 }
 
 type SessionPickerState = {
@@ -502,11 +574,13 @@ function HighlightedDraft({
 function InputPrompt({
   draft,
   status,
+  sessionState,
   usageLine,
   modelLabel,
 }: {
   draft: DraftEditorState;
   status: PxiStatus;
+  sessionState: PxiSessionState | null;
   usageLine: string | null;
   modelLabel: string;
 }) {
@@ -517,13 +591,7 @@ function InputPrompt({
   const showHints =
     cmdName !== null && !draftValue.includes(" ") && draftValue.length > 1;
   const hints = showHints ? matchingCommands(cmdName) : [];
-  const isComposerDisabled = status !== "idle";
-  const helperText =
-    status === "remote-streaming"
-      ? "following response from another client · esc stop · ctrl+c exit"
-      : status === "degraded"
-        ? "session busy on another Phoenix instance · live stream unavailable · esc stop"
-        : "↵ send · ⇧↵ newline · esc interrupt · /help · ctrl+c exit";
+  const helperText = getHelperText({ status, sessionState });
 
   return (
     <Box flexDirection="column" marginTop={1}>
@@ -540,7 +608,10 @@ function InputPrompt({
           <HighlightedDraft
             draft={draftValue}
             cursorIndex={draft.cursorIndex}
-            isCursorVisible={!isComposerDisabled}
+            // The composer stays usable while another client owns the session
+            // (slash commands still work); only a local in-flight send hides
+            // the cursor.
+            isCursorVisible={status !== "streaming"}
           />
         </Text>
       </Box>
@@ -894,6 +965,10 @@ export function PxiApp({
     EMPTY_DRAFT_EDITOR_STATE
   );
   const [status, setStatus] = useState<PxiStatus>("idle");
+  // Render-facing mirror of `sessionStateRef` so busy-status copy re-renders
+  // on every server state chunk, not only when the coarse status changes.
+  const [remoteSessionState, setRemoteSessionState] =
+    useState<PxiSessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<PxiSessionSummary | null>(
     null
@@ -926,6 +1001,7 @@ export function PxiApp({
     const sessionId = activeSession?.id;
     const subscribe = serverSessionClient.subscribeToSessionEvents;
     sessionStateRef.current = null;
+    setRemoteSessionState(null);
     remoteTurnBaselineRef.current = null;
     if (!sessionId || !subscribe) {
       return;
@@ -960,7 +1036,9 @@ export function PxiApp({
       sessionId,
       abortSignal: eventAbortController.signal,
       onSessionState: (sessionState) => {
+        const previousSessionState = sessionStateRef.current;
         sessionStateRef.current = sessionState;
+        setRemoteSessionState(sessionState);
         const isSessionBusy = sessionState.state !== "idle";
         const isActiveLocalTurn =
           sessionState.originClientId === getPxiClientId() &&
@@ -969,21 +1047,23 @@ export function PxiApp({
           const nextStatus = getSessionStatus({ sessionState });
           statusRef.current = nextStatus;
           setStatus(nextStatus);
-          setModelPicker(null);
-          setSessionPicker(null);
           return;
         }
         if (!isSessionBusy) {
           const previousStatus = statusRef.current;
-          if (
-            previousStatus === "remote-streaming" ||
-            previousStatus === "degraded"
-          ) {
+          if (REMOTE_BUSY_STATUSES.has(previousStatus)) {
             statusRef.current = "idle";
             setStatus("idle");
           }
           remoteTurnBaselineRef.current = null;
-          if (previousStatus === "degraded") {
+          // Live output may have been missed when the session ran on another
+          // instance, or when this instance's replay buffer overflowed (a
+          // late subscriber gets no replay then); recover from the persisted
+          // transcript.
+          if (
+            previousStatus === "degraded" ||
+            previousSessionState?.streamAvailable === false
+          ) {
             refreshDegradedTranscript();
           }
         }
@@ -1127,6 +1207,7 @@ export function PxiApp({
     statusRef.current = "idle";
     setStatus("idle");
     sessionStateRef.current = null;
+    setRemoteSessionState(null);
     remoteTurnBaselineRef.current = null;
     messagesRef.current = [];
     setMessages([]);
@@ -1258,6 +1339,13 @@ export function PxiApp({
       .getSession({ sessionId: selectedSession.id })
       .then((session) => {
         if (sessionRequestIdRef.current !== requestId) return;
+        // Reset any remote-busy status carried over from the previous
+        // session; the new session's subscription re-derives it.
+        statusRef.current = "idle";
+        setStatus("idle");
+        sessionStateRef.current = null;
+        setRemoteSessionState(null);
+        remoteTurnBaselineRef.current = null;
         setActiveSession(session);
         setIsDraftTemporary(session.isTemporary);
         messagesRef.current = session.messages;
@@ -1285,11 +1373,13 @@ export function PxiApp({
 
   const submitDraft = () => {
     const text = draft.value.trim();
-    if (!text || statusRef.current !== "idle") {
+    if (!text || statusRef.current === "streaming") {
       return;
     }
 
-    // Intercept slash commands before sending to the server.
+    // Intercept slash commands before sending to the server. These stay
+    // available while another client owns the session, so a remote turn never
+    // locks the user out of /new, /sessions, etc.
     if (text.startsWith("/")) {
       setDraft(EMPTY_DRAFT_EDITOR_STATE);
       const result = runSlashCommand(text, {
@@ -1320,6 +1410,15 @@ export function PxiApp({
           `Unknown command: /${result.name}. Type /help to see available commands.`
         );
       }
+      return;
+    }
+
+    // Plain sends are rejected while the session is busy elsewhere; keep the
+    // draft so nothing typed is lost.
+    if (statusRef.current !== "idle") {
+      setError(
+        "The session is busy in another client. Press esc to stop it, or use /new or /sessions to switch."
+      );
       return;
     }
 
@@ -1406,6 +1505,13 @@ export function PxiApp({
             messagesRef.current = messages;
             setMessages(messages);
           }
+          // The send was rejected, so give the user their message back to
+          // retry once the session is free (unless they've typed since).
+          setDraft((currentDraft) =>
+            currentDraft.value
+              ? currentDraft
+              : { value: text, cursorIndex: text.length }
+          );
         }
         setError(err instanceof Error ? err.message : String(err));
       })
@@ -1426,7 +1532,9 @@ export function PxiApp({
 
   const bracketedPasteMarkerCountRef = useRef(0);
   const handleRawInput = (input: string) => {
-    if (status !== "idle") {
+    // Only a local in-flight send blocks the composer; while another client
+    // owns the session the user can still draft slash commands.
+    if (status === "streaming") {
       return;
     }
     if (isBracketedPasteMarkerInput({ input })) {
@@ -1625,7 +1733,9 @@ export function PxiApp({
       interruptStream();
       return;
     }
-    if (status !== "idle") {
+    // Only a local in-flight send blocks the composer; slash commands remain
+    // available while another client owns the session.
+    if (status === "streaming") {
       return;
     }
     if (isKeyboardProtocolResponseInput({ input })) {
@@ -1710,6 +1820,11 @@ export function PxiApp({
     }
   });
 
+  const busyStatusText = getBusyStatusText({
+    status,
+    sessionState: remoteSessionState,
+  });
+
   return (
     <Box flexDirection="column" paddingX={1}>
       <PxiBanner />
@@ -1734,15 +1849,7 @@ export function PxiApp({
         </Box>
       ) : null}
       {status === "streaming" ? <ThinkingIndicator /> : null}
-      {status === "remote-streaming" ? (
-        <Text color="yellow">Following PXI response from another client…</Text>
-      ) : null}
-      {status === "degraded" ? (
-        <Text color="yellow">
-          PXI is responding on another Phoenix instance; live output is
-          unavailable.
-        </Text>
-      ) : null}
+      {busyStatusText ? <Text color="yellow">{busyStatusText}</Text> : null}
       {modelPicker ? (
         <ModelPicker state={modelPicker} />
       ) : sessionPicker ? (
@@ -1751,6 +1858,7 @@ export function PxiApp({
         <InputPrompt
           draft={draft}
           status={status}
+          sessionState={remoteSessionState}
           usageLine={formatTokenUsageLine(getLatestAssistantUsage(messages))}
           modelLabel={activeModelSelection.modelName}
         />

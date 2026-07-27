@@ -1196,6 +1196,22 @@ export function isSessionRunBusy(
   return state != null && state !== "idle";
 }
 
+/**
+ * Whether the server-advertised bus state should gate local actions. After a
+ * prolonged connection loss the bridge marks the connection "disconnected"
+ * (while still retrying); a terminal idle/turn-end chunk may have been missed,
+ * so the stale busy state must not lock the composer indefinitely.
+ */
+export function isSessionBusBusy(
+  busState: SessionBusState | undefined
+): boolean {
+  return (
+    busState != null &&
+    busState.connection !== "disconnected" &&
+    isSessionRunBusy(busState.state)
+  );
+}
+
 /** Select whether local chat work or the server event bus owns the session. */
 export const selectIsSessionBusy =
   (sessionId: string) => (state: AgentState) => {
@@ -1203,14 +1219,18 @@ export const selectIsSessionBusy =
     return (
       chatStatus === "submitted" ||
       chatStatus === "streaming" ||
-      isSessionRunBusy(state.sessionBusStateBySessionId[sessionId]?.state)
+      isSessionBusBusy(state.sessionBusStateBySessionId[sessionId])
     );
   };
 
 /** Select whether a session still has a local or server-side response pending. */
 export const selectIsSessionResponsePending =
   (sessionId: string) => (state: AgentState) => {
-    const runState = state.sessionBusStateBySessionId[sessionId]?.state;
+    const busState = state.sessionBusStateBySessionId[sessionId];
+    const runState =
+      busState != null && busState.connection !== "disconnected"
+        ? busState.state
+        : undefined;
     return (
       (state.isResponsePendingBySessionId[sessionId] ?? false) ||
       runState === "streaming" ||

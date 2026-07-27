@@ -2005,7 +2005,10 @@ def create_agents_router(
                 if chunk is None:
                     yield b": keep-alive\n\n"
                 else:
-                    yield f"data: {chunk.encode(7)}\n\n".encode()
+                    # sdk_version 5 matches the POST /chat stream's encoding
+                    # (the VercelAIAdapter default) so both streams are
+                    # byte-identical for the same chunk.
+                    yield f"data: {chunk.encode(5)}\n\n".encode()
 
         return StreamingResponse(
             encoded_events(),
@@ -2455,6 +2458,7 @@ def create_agents_router(
         turn_is_terminal = False
         turn_interrupted: Literal["stopped", "errored"] | None = None
         stop_was_requested = False
+        run_completed = False
         bus: AgentSessionEventBus = app_state.agent_session_event_bus
         turn_id = uuid4().hex
 
@@ -2463,7 +2467,8 @@ def create_agents_router(
             stop_was_requested = True
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
-            nonlocal turn_final_output_text, turn_is_terminal
+            nonlocal turn_final_output_text, turn_is_terminal, run_completed
+            run_completed = True
             if isinstance(result.output, str):
                 turn_is_terminal = True
                 turn_final_output_text = result.output.strip() or None
@@ -2635,7 +2640,12 @@ def create_agents_router(
                     async for message_chunk in message_chunk_stream:
                         emitted_message_chunks.append(message_chunk)
                         yield message_chunk
-                    if any(isinstance(chunk, ErrorChunk) for chunk in emitted_message_chunks):
+                    # An ErrorChunk marks the turn as errored only when the
+                    # main run never completed: interleaved subagent chunks can
+                    # surface an ErrorChunk even though the turn succeeded.
+                    if not run_completed and any(
+                        isinstance(chunk, ErrorChunk) for chunk in emitted_message_chunks
+                    ):
                         turn_interrupted = "errored"
                         for resolved_chunk in _resolve_interrupted_stream(turn_interrupted):
                             emitted_message_chunks.append(resolved_chunk)

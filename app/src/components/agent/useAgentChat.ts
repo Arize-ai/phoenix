@@ -1,7 +1,7 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
 import { getToolName, isTextUIPart, isToolUIPart } from "ai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
   ConnectionHandler,
   commitLocalUpdate,
@@ -53,8 +53,9 @@ import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   DRAFT_SESSION_ID,
-  isSessionRunBusy,
+  isSessionBusBusy,
   selectIsSessionBusy,
+  type AgentStore,
   type PendingAgentMessage,
 } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -432,6 +433,25 @@ export function useAgentChat({
         onError: (error) => {
           transcriptPersistence.cancelPendingWaiters();
           turnCompletionGate.fail(error);
+          if (isAgentSessionBusyError(error)) {
+            // The server rejected the send because another client's turn is
+            // active. Return the text to the composer instead of leaving an
+            // unsent user message that the next transcript refresh would
+            // silently drop.
+            const didRestoreMessage = restoreBusyRejectedUserMessage({
+              chat,
+              sessionId: targetSessionId,
+              store,
+            });
+            setOperationError({
+              title: "Message could not be sent",
+              message: didRestoreMessage
+                ? "The assistant is already responding in another window. " +
+                  "Your message was returned to the composer."
+                : "The assistant is already responding in another window. " +
+                  "Wait for the current response to finish and try again.",
+            });
+          }
         },
         onFinish: ({ messages: finalMessages, message }) => {
           turnTraceContext.captureFromMetadata(
@@ -448,6 +468,12 @@ export function useAgentChat({
             environment: relayEnvironment,
             sessionId: targetSessionId,
           });
+          if (isRequestActive(chat.status)) {
+            // A request started while the snapshot was in flight; the live
+            // stream owns the transcript and a stale copy must not clobber
+            // the just-submitted message. The next idle refetch reconciles.
+            return;
+          }
           if (
             result?.agentSession.__typename === "AgentSession" &&
             Array.isArray(result.agentSession.messages)
@@ -467,6 +493,12 @@ export function useAgentChat({
   // runtime owns replacement semantics when the transport changes, while the
   // hook simply binds the current render surface to the selected instance.
   // Draft surfaces have no runtime until the first send creates a session.
+  // The reducer is a render trigger for the rare case where the registry
+  // disposed the runtime between render and the acquire effect.
+  const [, recreateDisposedRuntime] = useReducer(
+    (epoch: number) => epoch + 1,
+    0
+  );
   const persistedSessionId = isDraft ? null : sessionId;
   const chatApiUrl = persistedSessionId
     ? buildAgentChatApiUrl(persistedSessionId)
@@ -492,7 +524,14 @@ export function useAgentChat({
     if (!persistedSessionId || !sessionRuntime) {
       return;
     }
-    runtime.acquireSession(persistedSessionId);
+    const didAcquire = runtime.acquireSession(persistedSessionId);
+    if (!didAcquire) {
+      // The linger timer disposed this runtime between render and commit.
+      // Re-render so getOrCreateSessionRuntime builds a fresh instance; the
+      // new runtime's identity re-runs this effect and acquires it.
+      recreateDisposedRuntime();
+      return;
+    }
     return () => runtime.releaseSession(persistedSessionId);
   }, [persistedSessionId, runtime, sessionRuntime]);
 
@@ -598,6 +637,12 @@ export function useAgentChat({
           body: JSON.stringify({ turnId: turnId ?? undefined }),
         });
         if (response.status === 409) {
+          setOperationError({
+            title: "Response could not be stopped",
+            message:
+              "The response you tried to stop is no longer active. " +
+              "If a new response is running, try stopping it again.",
+          });
           return;
         }
         if (response.ok) {
@@ -697,6 +742,28 @@ export function useAgentChat({
         (persistedSessionId != null &&
           selectIsSessionBusy(persistedSessionId)(store.getState())))
     ) {
+      // Surface the rejection and give the user their message back to retry
+      // instead of silently dropping it.
+      const [blockedMessage] = args;
+      const blockedText =
+        blockedMessage != null &&
+        "text" in blockedMessage &&
+        typeof blockedMessage.text === "string"
+          ? blockedMessage.text
+          : "";
+      if (blockedText && sessionId) {
+        // Deferred: the composer clears itself right after its onSubmit
+        // returns, which would otherwise wipe the restored draft.
+        queueMicrotask(() => {
+          store.getState().setDraftInput(sessionId, blockedText);
+        });
+      }
+      setOperationError({
+        title: "Message could not be sent",
+        message:
+          "The assistant is still responding. " +
+          "Wait for the current response to finish and try again.",
+      });
       return;
     }
 
@@ -1027,7 +1094,7 @@ export function useAgentChat({
     sessionId != null && selectIsSessionBusy(sessionId)(store.getState());
   const isDegraded = sessionBusState?.degraded ?? false;
   const isBusyFromElsewhere =
-    isSessionRunBusy(sessionBusState?.state) &&
+    isSessionBusBusy(sessionBusState) &&
     (isDegraded ||
       sessionBusState?.originClientId !== sessionRuntime?.clientId);
 
@@ -1113,6 +1180,47 @@ export function getRemovedUserMessageText(
 
 function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
+}
+
+/**
+ * The chat endpoint rejects sends with a 409 whose body carries this code
+ * while another client's turn holds the session. `DefaultChatTransport`
+ * surfaces non-ok responses as an `Error` whose message is the body text.
+ */
+const AGENT_SESSION_BUSY_ERROR_CODE = "agent_session_busy";
+
+function isAgentSessionBusyError(error: Error): boolean {
+  return error.message.includes(AGENT_SESSION_BUSY_ERROR_CODE);
+}
+
+/**
+ * Removes the trailing user message that a busy-rejected send left behind and
+ * restores its text to the session's composer draft. Returns whether a
+ * message was restored (busy-rejected continuations trail an assistant
+ * message and have nothing to restore).
+ */
+function restoreBusyRejectedUserMessage({
+  chat,
+  sessionId,
+  store,
+}: {
+  chat: Chat<AgentUIMessage>;
+  sessionId: string;
+  store: AgentStore;
+}): boolean {
+  const lastMessage = chat.messages.at(-1);
+  if (lastMessage?.role !== "user") {
+    return false;
+  }
+  const text = lastMessage.parts
+    .filter(isTextUIPart)
+    .map((part) => part.text)
+    .join("\n");
+  chat.messages = chat.messages.slice(0, -1);
+  if (text) {
+    store.getState().setDraftInput(sessionId, text);
+  }
+  return true;
 }
 
 function isResolvedToolCall({

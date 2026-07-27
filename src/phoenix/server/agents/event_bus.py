@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import aclosing, asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -31,9 +32,12 @@ if TYPE_CHECKING:
     from phoenix.server.agents.turn_runner import TurnRunner
 
 
+logger = logging.getLogger(__name__)
+
 _INSTANCE_ID = uuid4().hex
 _MAX_REPLAY_CHUNKS = 100_000
 _HEARTBEAT_INTERVAL_SECONDS = 10
+_STALE_AFTER_SECONDS = 30
 _REMOTE_STATE_POLL_INTERVAL_SECONDS = 5
 _KEEP_ALIVE_INTERVAL_SECONDS = 15
 
@@ -180,7 +184,11 @@ class SessionChannel:
         self.state = state
         self._broadcast(self.state_chunk())
 
-    async def publish(self, chunk: BaseChunk) -> None:
+    def publish(self, chunk: BaseChunk) -> None:
+        # Deliberately synchronous: the turn runner's consume loop must have no
+        # suspension points other than the stream's __anext__, so that a stop
+        # cancellation is always delivered *inside* the stream generator (whose
+        # except/finally blocks perform the partial persist and trace flush).
         if self.stream_available:
             if len(self.turn_log) < _MAX_REPLAY_CHUNKS:
                 self.turn_log.append(chunk)
@@ -351,22 +359,31 @@ class AgentSessionEventBus(DaemonTask):
         next_state = (
             SessionRunState.AWAITING_CLIENT_TOOL if awaiting_client_tool else SessionRunState.IDLE
         )
-        async with self._db() as session:
-            if awaiting_client_tool:
-                await transition_run(
-                    session,
-                    agent_session_id=agent_session_id,
-                    instance_id=self.instance_id,
-                    turn_id=turn_id,
-                    state=next_state.value,
-                )
-            else:
-                await release_run(
-                    session,
-                    agent_session_id=agent_session_id,
-                    instance_id=self.instance_id,
-                    turn_id=turn_id,
-                )
+        try:
+            async with self._db() as session:
+                if awaiting_client_tool:
+                    await transition_run(
+                        session,
+                        agent_session_id=agent_session_id,
+                        instance_id=self.instance_id,
+                        turn_id=turn_id,
+                        state=next_state.value,
+                    )
+                else:
+                    await release_run(
+                        session,
+                        agent_session_id=agent_session_id,
+                        instance_id=self.instance_id,
+                        turn_id=turn_id,
+                    )
+        except Exception:
+            # Always finish the channel locally so the session can't get stuck
+            # busy in memory; the heartbeat reconciles the orphaned DB lease.
+            logger.exception(
+                "Failed to update the agent session lease at turn completion; "
+                "the heartbeat will reconcile it"
+            )
+            next_state = SessionRunState.IDLE
         if channel := self._channels.get(agent_session_id):
             channel.finish_turn(state=next_state)
             self._discard_idle_channel(channel)
@@ -400,18 +417,26 @@ class AgentSessionEventBus(DaemonTask):
         try:
             yield
         finally:
-            async with self._db() as session:
-                await release_run(
-                    session,
-                    agent_session_id=agent_session_id,
-                    instance_id=self.instance_id,
-                    turn_id=turn_id,
+            try:
+                async with self._db() as session:
+                    await release_run(
+                        session,
+                        agent_session_id=agent_session_id,
+                        instance_id=self.instance_id,
+                        turn_id=turn_id,
+                    )
+            except Exception:
+                logger.exception(
+                    "Failed to release the agent session mutation lease; "
+                    "the heartbeat will reconcile it"
                 )
             channel.finish_turn(state=SessionRunState.IDLE)
             self._discard_idle_channel(channel)
 
     async def get_run(self, *, agent_session_id: int) -> SessionRun | None:
-        async with self._db.read() as session:
+        # Lease reads must hit the primary: stop/busy decisions acting on a
+        # lagging read replica could miss or resurrect a lease.
+        async with self._db() as session:
             return await get_run(session, agent_session_id=agent_session_id)
 
     async def request_stop(
@@ -451,10 +476,30 @@ class AgentSessionEventBus(DaemonTask):
             channel.finish_turn(state=SessionRunState.IDLE)
             self._discard_idle_channel(channel)
 
+    def _get_fresh_remote_run(self, run: SessionRun | None) -> SessionRun | None:
+        """Return the run if it is live on another instance, else None."""
+        if run is None or run.instance_id == self.instance_id:
+            return None
+        is_stale = run.heartbeat_at < datetime.now(timezone.utc) - timedelta(
+            seconds=_STALE_AFTER_SECONDS
+        )
+        return None if is_stale else run
+
     async def session_events(self, *, agent_session_id: int) -> AsyncIterator[BaseChunk | None]:
         last_remote_state: SessionStateData | None = None
         while True:
-            if channel := self._channels.get(agent_session_id):
+            remote_run = self._get_fresh_remote_run(
+                await self.get_run(agent_session_id=agent_session_id)
+            )
+            if remote_run is None:
+                # This instance owns the session (or nobody does): subscribe to
+                # the local channel, creating an idle one if needed so future
+                # local turns surface. While idle, re-poll the lease so a turn
+                # started on another instance still surfaces as a remote state
+                # change.
+                channel = self._channels.setdefault(
+                    agent_session_id, SessionChannel(agent_session_id=agent_session_id)
+                )
                 keep_alive_elapsed_seconds = 0
                 async with aclosing(channel.subscribe_session()) as subscription:
                     async for event in subscription:
@@ -464,7 +509,7 @@ class AgentSessionEventBus(DaemonTask):
                             continue
                         if channel.state is SessionRunState.IDLE:
                             run = await self.get_run(agent_session_id=agent_session_id)
-                            if run is not None and run.instance_id != self.instance_id:
+                            if self._get_fresh_remote_run(run) is not None:
                                 break
                         keep_alive_elapsed_seconds += _REMOTE_STATE_POLL_INTERVAL_SECONDS
                         if keep_alive_elapsed_seconds >= _KEEP_ALIVE_INTERVAL_SECONDS:
@@ -472,30 +517,20 @@ class AgentSessionEventBus(DaemonTask):
                             yield None
                     else:
                         return
-                if channel.state is SessionRunState.IDLE:
-                    self._channels.pop(agent_session_id, None)
+                self._discard_idle_channel(channel)
                 continue
-            run = await self.get_run(agent_session_id=agent_session_id)
-            if run is None:
-                channel = self._channels.setdefault(
-                    agent_session_id, SessionChannel(agent_session_id=agent_session_id)
-                )
-                async for event in channel.subscribe_session():
-                    yield event
-                return
-            is_stale = run.heartbeat_at < datetime.now(timezone.utc) - timedelta(seconds=30)
             remote_state = SessionStateData(
-                state=SessionRunState.IDLE if is_stale else SessionRunState(run.state),
-                turn_id=None if is_stale else run.turn_id,
-                assistant_message_id=None if is_stale else run.assistant_message_id,
-                origin_client_id=None if is_stale else run.origin_client_id,
+                state=SessionRunState(remote_run.state),
+                turn_id=remote_run.turn_id,
+                assistant_message_id=remote_run.assistant_message_id,
+                origin_client_id=remote_run.origin_client_id,
                 owned_by_this_instance=False,
                 stream_available=False,
             )
             if remote_state != last_remote_state:
                 yield SessionStateChunk(data=remote_state)
                 last_remote_state = remote_state
-            await asyncio.sleep(5)
+            await asyncio.sleep(_REMOTE_STATE_POLL_INTERVAL_SECONDS)
 
     async def _run(self) -> None:
         while self._running:
@@ -505,9 +540,7 @@ class AgentSessionEventBus(DaemonTask):
             except asyncio.CancelledError:
                 raise
             except Exception:
-                import logging
-
-                logging.getLogger(__name__).exception("Agent session event-bus heartbeat failed")
+                logger.exception("Agent session event-bus heartbeat failed")
 
     async def _heartbeat_and_sweep(self) -> None:
         async with self._db() as session:
@@ -520,12 +553,47 @@ class AgentSessionEventBus(DaemonTask):
                 continue
             run = owned_by_session_id.get(agent_session_id)
             if run is None:
-                channel.request_stop()
-                channel.finish_turn(state=SessionRunState.IDLE)
-                self._discard_idle_channel(channel)
-                continue
+                # The lease may have been claimed after the heartbeat UPDATE
+                # snapshot (a turn that started mid-heartbeat); re-check before
+                # declaring the lock lost, or a fresh turn gets killed.
+                run = await self.get_run(agent_session_id=agent_session_id)
+                if run is None or run.instance_id != self.instance_id:
+                    channel.request_stop()
+                    channel.finish_turn(state=SessionRunState.IDLE)
+                    self._discard_idle_channel(channel)
+                    continue
             if run.stop_requested_at is not None:
                 channel.request_stop()
+        # Release zombie leases: rows we own whose channel is gone or idle
+        # (e.g. a turn whose completion-time DB update failed). Without this,
+        # the heartbeat renews the row forever and the session stays locked.
+        reconcile_before = datetime.now(timezone.utc) - timedelta(
+            seconds=_HEARTBEAT_INTERVAL_SECONDS
+        )
+        for agent_session_id, run in owned_by_session_id.items():
+            owned_channel = self._channels.get(agent_session_id)
+            if owned_channel is not None and owned_channel.state is not SessionRunState.IDLE:
+                continue
+            if run.started_at > reconcile_before:
+                # A lease claimed moments ago may not have its channel set up
+                # yet (begin_turn suspends between the DB claim and the channel
+                # transition); give it a full interval before reconciling.
+                continue
+            logger.warning(
+                "Releasing orphaned agent session lease for session %d (state=%s)",
+                agent_session_id,
+                run.state,
+            )
+            try:
+                async with self._db() as session:
+                    await release_run(
+                        session,
+                        agent_session_id=agent_session_id,
+                        instance_id=self.instance_id,
+                        turn_id=run.turn_id,
+                    )
+            except Exception:
+                logger.exception("Failed to release orphaned agent session lease")
 
     def _discard_idle_channel(self, channel: SessionChannel) -> None:
         if channel.state is SessionRunState.IDLE and not channel.subscribers:

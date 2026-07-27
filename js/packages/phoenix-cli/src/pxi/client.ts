@@ -14,6 +14,7 @@ import {
 import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
 import { createPhoenixClient } from "../client";
 import type { PhoenixConfig } from "../config";
+import { AuthRequiredError } from "../exitCodes";
 import { parsePxiBusyError } from "./errors";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
@@ -201,6 +202,41 @@ type SubscribeToSessionEventsOptions = {
   fetchImpl?: typeof globalThis.fetch;
 } & PxiSessionEventHandlers;
 
+const INITIAL_RECONNECT_DELAY_MS = 500;
+const MAX_RECONNECT_DELAY_MS = 8_000;
+/**
+ * HTTP statuses that will not get better by retrying: the endpoint does not
+ * exist on this server (pre-event-bus Phoenix), the session is gone, or the
+ * caller is not allowed to follow it.
+ */
+const FATAL_SUBSCRIBE_STATUSES: ReadonlySet<number> = new Set([401, 403, 404]);
+
+/** A non-OK response from the session-events endpoint. */
+class SessionEventsRequestError extends Error {
+  readonly status: number;
+
+  constructor({ message, status }: { message: string; status: number }) {
+    super(message);
+    this.name = "SessionEventsRequestError";
+    this.status = status;
+  }
+}
+
+/**
+ * Whether a subscription failure is permanent for this session (missing
+ * endpoint, deleted session, auth failure) rather than a transient network
+ * blip worth reconnecting through.
+ */
+function isFatalSubscribeError(error: unknown): boolean {
+  if (error instanceof AuthRequiredError) {
+    return true;
+  }
+  return (
+    error instanceof SessionEventsRequestError &&
+    FATAL_SUBSCRIBE_STATUSES.has(error.status)
+  );
+}
+
 async function subscribeToSessionEventsOnce({
   config,
   agentSessionId,
@@ -211,7 +247,10 @@ async function subscribeToSessionEventsOnce({
   onAssistantMessage,
   onSessionTitle,
   onError,
-}: SubscribeToSessionEventsOptions): Promise<void> {
+  onStreamEstablished,
+}: SubscribeToSessionEventsOptions & {
+  onStreamEstablished?: () => void;
+}): Promise<void> {
   const endpoint = config.endpoint;
   if (!endpoint) {
     throw new Error("Phoenix endpoint not configured.");
@@ -233,9 +272,10 @@ async function subscribeToSessionEventsOnce({
   );
   if (!response.ok) {
     const detail = await readErrorDetail({ response });
-    throw new Error(
-      `Could not follow the PXI session: HTTP ${response.status} ${response.statusText}.${detail ? ` ${detail}` : ""}`
-    );
+    throw new SessionEventsRequestError({
+      message: `Could not follow the PXI session: HTTP ${response.status} ${response.statusText}.${detail ? ` ${detail}` : ""}`,
+      status: response.status,
+    });
   }
   if (!response.body) {
     throw new Error(
@@ -268,6 +308,7 @@ async function subscribeToSessionEventsOnce({
     }
   };
 
+  let hasReceivedEvent = false;
   try {
     const parsedEvents = parseJsonEventStream({
       stream: response.body,
@@ -276,6 +317,10 @@ async function subscribeToSessionEventsOnce({
     for await (const parsedEvent of parsedEvents) {
       if (!parsedEvent.success) {
         throw parsedEvent.error;
+      }
+      if (!hasReceivedEvent) {
+        hasReceivedEvent = true;
+        onStreamEstablished?.();
       }
       const chunk = parsedEvent.value;
       if (isSessionStateChunk(chunk)) {
@@ -291,9 +336,13 @@ async function subscribeToSessionEventsOnce({
       }
       if (isTurnStartedChunk(chunk)) {
         await closeActiveTurn();
+        // `awaiting_client_tool` counts as in flight: attaching to a session
+        // paused on a client tool replays the partial turn so the pending
+        // tool call is visible.
         const isTurnInFlight =
           currentSessionState?.state === "streaming" ||
-          currentSessionState?.state === "persisting";
+          currentSessionState?.state === "persisting" ||
+          currentSessionState?.state === "awaiting_client_tool";
         if (!isTurnInFlight || currentSessionState?.streamAvailable === false) {
           continue;
         }
@@ -323,7 +372,16 @@ async function subscribeToSessionEventsOnce({
         continue;
       }
       if (activeTurn) {
-        await activeTurn.writer.write(chunk);
+        try {
+          await activeTurn.writer.write(chunk);
+        } catch {
+          // The per-turn consumer failed or was cancelled (its own error is
+          // reported through the turn's completion promise). Stop forwarding
+          // this turn's chunks but keep the events connection alive.
+          const failedTurn = activeTurn;
+          activeTurn = undefined;
+          void failedTurn.writer.abort().catch(() => undefined);
+        }
       }
     }
   } finally {
@@ -335,30 +393,46 @@ async function subscribeToSessionEventsOnce({
  * Subscribe to current and future turns for a session. Session-control chunks
  * are demultiplexed from the AI SDK protocol, while each turn's content is fed
  * through the same assistant-message accumulator used by the POST response.
- * Full-replay reconnects make transient connection failures self-healing.
+ *
+ * Transient failures (dropped connections, server restarts, proxy timeouts)
+ * reconnect silently with backoff — the server replays the in-flight turn from
+ * its start, so blips self-heal without surfacing to the UI. Permanent
+ * failures (endpoint missing on an older Phoenix server, deleted session, auth
+ * failure) are surfaced once through `onError` and end the subscription; the
+ * rest of the CLI keeps working without live following.
  */
 export async function subscribeToSessionEvents(
   options: SubscribeToSessionEventsOptions
 ): Promise<void> {
-  let reconnectDelayMs = 500;
+  let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
   while (!options.abortSignal?.aborted) {
     try {
-      await subscribeToSessionEventsOnce(options);
-      if (options.abortSignal?.aborted) {
-        return;
-      }
-      throw new Error("PXI session event stream ended unexpectedly.");
+      await subscribeToSessionEventsOnce({
+        ...options,
+        onStreamEstablished: () => {
+          reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
+        },
+      });
+      // The server closed the stream; treat it like any transient drop and
+      // reconnect silently.
     } catch (error) {
       if (options.abortSignal?.aborted) {
         return;
       }
-      options.onError?.(error);
-      await waitForAbortableDelay({
-        delayMs: reconnectDelayMs,
-        signal: options.abortSignal,
-      });
-      reconnectDelayMs = Math.min(reconnectDelayMs * 2, 8_000);
+      if (isFatalSubscribeError(error)) {
+        options.onError?.(error);
+        return;
+      }
+      // Transient failure — reconnect silently.
     }
+    if (options.abortSignal?.aborted) {
+      return;
+    }
+    await waitForAbortableDelay({
+      delayMs: reconnectDelayMs,
+      signal: options.abortSignal,
+    });
+    reconnectDelayMs = Math.min(reconnectDelayMs * 2, MAX_RECONNECT_DELAY_MS);
   }
 }
 

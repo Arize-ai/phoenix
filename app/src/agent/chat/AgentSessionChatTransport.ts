@@ -44,7 +44,11 @@ export class AgentSessionChatTransport extends DefaultChatTransport<AgentUIMessa
             }
             controller.enqueue(result.value);
           } catch (error) {
-            endLocalPost(true);
+            // A user abort must not re-attach to the turn it just stopped;
+            // only an unexpected mid-stream failure resumes through the bus.
+            const isAbortError =
+              error instanceof Error && error.name === "AbortError";
+            endLocalPost({ shouldResume: !isAbortError });
             controller.error(error);
           }
         },
@@ -54,7 +58,9 @@ export class AgentSessionChatTransport extends DefaultChatTransport<AgentUIMessa
         },
       });
     } catch (error) {
-      endLocalPost();
+      // The POST failed before a stream existed (e.g. 409 busy), so no turn
+      // was claimed by this client.
+      endLocalPost({ wasTurnClaimed: false });
       throw error;
     }
   }

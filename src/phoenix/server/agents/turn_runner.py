@@ -137,8 +137,13 @@ class TurnRunner:
         stream_failed = False
 
         async def consume() -> None:
+            # INVARIANT: the only suspension points in this loop must be the
+            # stream's __anext__ awaits. That guarantees a stop cancellation is
+            # thrown *inside* the stream generator, whose except/finally blocks
+            # perform the partial persist and trace flush. Publishing is
+            # synchronous on purpose — do not add awaits here.
             async for chunk in self._prepared_turn.stream():
-                await self._channel.publish(chunk)
+                self._channel.publish(chunk)
 
         self._consume_task = asyncio.create_task(consume())
         try:
@@ -151,12 +156,15 @@ class TurnRunner:
             stream_failed = True
             logger.exception("Agent-session turn failed")
         finally:
-            await self._bus.complete_turn(
-                agent_session_id=self._prepared_turn.agent_session_id,
-                turn_id=self._prepared_turn.turn_id,
-                awaiting_client_tool=(
-                    not self._stop_requested
-                    and not stream_failed
-                    and self._prepared_turn.is_awaiting_client_tool()
-                ),
-            )
+            try:
+                await self._bus.complete_turn(
+                    agent_session_id=self._prepared_turn.agent_session_id,
+                    turn_id=self._prepared_turn.turn_id,
+                    awaiting_client_tool=(
+                        not self._stop_requested
+                        and not stream_failed
+                        and self._prepared_turn.is_awaiting_client_tool()
+                    ),
+                )
+            except Exception:
+                logger.exception("Failed to complete agent-session turn bookkeeping")

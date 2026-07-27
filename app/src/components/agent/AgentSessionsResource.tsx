@@ -25,7 +25,7 @@ import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   DRAFT_SESSION_ID,
-  isSessionRunBusy,
+  isSessionBusBusy,
   type AgentPosition,
 } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -177,7 +177,7 @@ function AgentSessionsContent({
       isDeleteDisabled:
         chatStatusBySessionId[node.id] === "submitted" ||
         chatStatusBySessionId[node.id] === "streaming" ||
-        isSessionRunBusy(sessionBusStateBySessionId[node.id]?.state),
+        isSessionBusBusy(sessionBusStateBySessionId[node.id]),
     })
   );
   const draftSession: AgentSessionListItem | null =

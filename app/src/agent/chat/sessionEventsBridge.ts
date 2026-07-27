@@ -35,6 +35,8 @@ type SessionEventsBridgeBinding = {
 const INITIAL_RECONNECT_DELAY_MS = 500;
 const MAX_RECONNECT_DELAY_MS = 8_000;
 const DEGRADED_REFETCH_INTERVAL_MS = 4_000;
+/** After this much continuous downtime the advertised bus state is stale. */
+const STALE_DISCONNECT_THRESHOLD_MS = 30_000;
 
 /**
  * Owns the authenticated session event subscription and exposes one replay
@@ -54,6 +56,14 @@ export class SessionEventsBridge {
   private hasOriginatedActiveTurn = false;
   private resumeQueue: Promise<void> = Promise.resolve();
   private degradedRefetchTimer: ReturnType<typeof setInterval> | null = null;
+  /** The reader of the live event connection, cancellable to force a re-subscribe. */
+  private eventStreamReader: ReadableStreamDefaultReader<unknown> | null = null;
+  /** Set when a re-subscribe was requested to obtain a full turn replay. */
+  private isReplayReconnectRequested = false;
+  /** Set after a connection loss so the next idle state triggers a catch-up refetch. */
+  private shouldRefetchAfterReconnect = false;
+  /** The window the queued resume task handed to the transport. */
+  private pendingResumeWindow: TurnWindow | null = null;
 
   constructor({
     sessionId,
@@ -99,24 +109,51 @@ export class SessionEventsBridge {
   }
 
   /** Marks a POST response as authoritative so its duplicate bus replay is ignored. */
-  beginLocalPost(): (shouldResume?: boolean) => void {
+  beginLocalPost(): (options?: {
+    shouldResume?: boolean;
+    wasTurnClaimed?: boolean;
+  }) => void {
     this.localPostCount += 1;
     this.hasOriginatedActiveTurn = true;
     let hasEnded = false;
-    return (shouldResume = false) => {
+    return ({ shouldResume = false, wasTurnClaimed = true } = {}) => {
       if (hasEnded) {
         return;
       }
       hasEnded = true;
       this.localPostCount = Math.max(0, this.localPostCount - 1);
-      if (
-        shouldResume &&
-        this.localPostCount === 0 &&
-        this.currentTurnStarted != null
-      ) {
-        this.openReplayWindow(this.currentTurnStarted);
+      if (!wasTurnClaimed && this.localPostCount === 0) {
+        // The POST never claimed a turn (e.g. a 409-busy rejection), so fall
+        // back to what the server last advertised instead of keeping the
+        // optimistic originator flag set at POST start.
+        this.hasOriginatedActiveTurn =
+          this.currentSessionState != null &&
+          this.currentSessionState.state !== "idle" &&
+          this.currentSessionState.originClientId === this.clientId;
+      }
+      if (shouldResume && this.localPostCount === 0) {
+        // While the POST stream was live the bridge discarded bus chunks, so
+        // a window opened now would start mid-turn. Re-subscribe instead: the
+        // server replays the in-flight turn from its start and the replayed
+        // turn-started chunk opens a complete window to resume from.
+        this.requestReplayReconnect();
       }
     };
+  }
+
+  /**
+   * Cancels the live event connection so the loop re-subscribes immediately,
+   * making the server replay the active turn from its first chunk.
+   */
+  private requestReplayReconnect(): void {
+    const reader = this.eventStreamReader;
+    if (this.abortController == null || reader == null) {
+      // Not currently connected; the reconnect loop already replays in full
+      // on its next successful attempt.
+      return;
+    }
+    this.isReplayReconnectRequested = true;
+    void reader.cancel();
   }
 
   /** Whether this resident runtime owns client-tool execution for the active turn. */
@@ -129,11 +166,18 @@ export class SessionEventsBridge {
   }
 
   getReconnectStream(): ReadableStream<UIMessageChunk> | null {
-    if (this.localPostCount > 0) {
-      return null;
-    }
-    const turnWindow = this.currentTurnWindow;
-    if (turnWindow == null || turnWindow.isClaimed || turnWindow.isSuperseded) {
+    // Consume the window staged by the resume task that triggered this
+    // reconnect, not the bridge's current window: a fast turn may already
+    // have closed (and detached) its window, whose buffered replay must
+    // still be delivered rather than dropped.
+    const turnWindow = this.pendingResumeWindow;
+    this.pendingResumeWindow = null;
+    if (
+      turnWindow == null ||
+      turnWindow.isClaimed ||
+      turnWindow.isSuperseded ||
+      this.localPostCount > 0
+    ) {
       return null;
     }
     turnWindow.isClaimed = true;
@@ -142,6 +186,7 @@ export class SessionEventsBridge {
 
   private async runConnectionLoop(signal: AbortSignal): Promise<void> {
     let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
+    let disconnectedSinceMs: number | null = null;
     while (!signal.aborted) {
       try {
         const response = await authFetch(this.eventsApiUrl, {
@@ -157,8 +202,15 @@ export class SessionEventsBridge {
           throw new Error("Session events response body is empty");
         }
         reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
+        disconnectedSinceMs = null;
         this.setConnection("connected");
         await this.consumeEventStream(response.body, signal);
+        if (this.isReplayReconnectRequested) {
+          // An intentional re-subscribe for a full turn replay: reconnect
+          // immediately without failing the current window or backing off.
+          this.isReplayReconnectRequested = false;
+          continue;
+        }
         if (!signal.aborted) {
           throw new Error("Session events stream ended unexpectedly");
         }
@@ -166,12 +218,22 @@ export class SessionEventsBridge {
         if (signal.aborted) {
           break;
         }
+        // A requested replay reconnect that raced a real failure is moot: the
+        // failure path below reconnects (with full replay) anyway.
+        this.isReplayReconnectRequested = false;
+        // A turn may end while we are down; refetch at the next idle state.
+        this.shouldRefetchAfterReconnect = true;
         this.failCurrentTurn(
           error instanceof Error
             ? error
             : new Error("Session events connection failed")
         );
-        this.setConnection("reconnecting");
+        disconnectedSinceMs ??= Date.now();
+        const isBusStateStale =
+          Date.now() - disconnectedSinceMs >= STALE_DISCONNECT_THRESHOLD_MS;
+        // After prolonged downtime advertise "disconnected" (while still
+        // retrying) so busy gating stops trusting the stale bus state.
+        this.setConnection(isBusStateStale ? "disconnected" : "reconnecting");
         await waitForDelay({ delayMs: reconnectDelayMs, signal });
         reconnectDelayMs = Math.min(
           reconnectDelayMs * 2,
@@ -192,6 +254,7 @@ export class SessionEventsBridge {
       stream,
       schema: uiMessageChunkSchema,
     }).getReader();
+    this.eventStreamReader = reader;
     const abortReader = () => {
       void reader.cancel(signal.reason);
     };
@@ -210,6 +273,9 @@ export class SessionEventsBridge {
     } finally {
       signal.removeEventListener("abort", abortReader);
       reader.releaseLock();
+      if (this.eventStreamReader === reader) {
+        this.eventStreamReader = null;
+      }
     }
   }
 
@@ -274,10 +340,15 @@ export class SessionEventsBridge {
       this.agentStore
         .getState()
         .setSessionResponsePending(this.sessionId, false);
-      if (
-        previousState?.state !== "idle" ||
-        previousState?.streamAvailable === false
-      ) {
+      // Refetch only when a turn actually ended (or a connection loss may
+      // have hidden one) — never on the first state chunk of a fresh bridge,
+      // whose chat was just seeded from the same server transcript.
+      const hasLeftNonIdleState =
+        previousState != null &&
+        (previousState.state !== "idle" ||
+          previousState.streamAvailable === false);
+      if (hasLeftNonIdleState || this.shouldRefetchAfterReconnect) {
+        this.shouldRefetchAfterReconnect = false;
         void this.refetchTranscript();
       }
     }
@@ -319,14 +390,28 @@ export class SessionEventsBridge {
     this.resumeQueue = this.resumeQueue
       .catch(() => undefined)
       .then(async () => {
-        if (turnWindow.isSuperseded || this.binding == null) {
+        if (
+          turnWindow.isSuperseded ||
+          this.localPostCount > 0 ||
+          this.binding == null
+        ) {
           return;
         }
         restoreSubmittedMessageBaseline({
           chat: this.binding.chat,
           submittedMessage,
         });
-        await this.binding.chat.resumeStream();
+        // Stage this task's own window for the transport: even if the turn
+        // completed and the bridge already moved on, the closed window still
+        // delivers its buffered replay before finishing cleanly.
+        this.pendingResumeWindow = turnWindow;
+        try {
+          await this.binding.chat.resumeStream();
+        } finally {
+          if (this.pendingResumeWindow === turnWindow) {
+            this.pendingResumeWindow = null;
+          }
+        }
       });
   }
 
@@ -394,6 +479,11 @@ export class SessionEventsBridge {
   }
 
   private async refetchTranscript(): Promise<void> {
+    if (this.localPostCount > 0) {
+      // The live POST stream owns the transcript; a snapshot fetched now
+      // would clobber the in-flight messages when it lands.
+      return;
+    }
     try {
       await this.binding?.refetchTranscript();
     } catch {

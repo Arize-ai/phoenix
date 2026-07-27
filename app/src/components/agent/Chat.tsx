@@ -862,7 +862,10 @@ export function ChatView({
                     onRewind={onRewindRequest}
                   />
                 ) : null}
-                {error && !isSessionBusy && (
+                {/* While the bus owns the session, hide transient replay
+                    errors — but keep failed-send errors (trailing user
+                    message) visible so a rejected send is never silent. */}
+                {error && (!isSessionBusy || latestMessage?.role === "user") && (
                   <ChatErrorMessage
                     error={error}
                     latestUserMessageId={getLatestMessageId({
