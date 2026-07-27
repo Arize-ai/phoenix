@@ -9,7 +9,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { TraceDetails } from "@phoenix/pages/trace";
-import { useDetailsPanelSizing } from "@phoenix/pages/trace/useDetailsPanelSizing";
+import { useSharedTreePreference } from "@phoenix/pages/trace/useDetailsPanelSizing";
 
 export function PlaygroundRunTraceDetailsDialog({
   traceId,
@@ -21,7 +21,7 @@ export function PlaygroundRunTraceDetailsDialog({
   title: string;
 }) {
   const { onPreferredTreeWidthChange, preferredTreeWidth } =
-    useDetailsPanelSizing();
+    useSharedTreePreference();
 
   return (
     <Dialog>

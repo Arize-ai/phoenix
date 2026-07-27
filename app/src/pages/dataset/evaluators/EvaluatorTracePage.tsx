@@ -31,6 +31,7 @@ export function EvaluatorTracePage() {
   const projectId = loaderData?.projectId;
   const {
     defaultDrawerSize,
+    onDrawerResize,
     onDrawerSizeChange,
     onPreferredTreeWidthChange,
     preferredTreeWidth,
@@ -49,6 +50,7 @@ export function EvaluatorTracePage() {
       }
       defaultSize={defaultDrawerSize}
       minSize={TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS}
+      onResize={onDrawerResize}
       onResizeEnd={onDrawerSizeChange}
     >
       <Dialog>

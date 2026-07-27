@@ -5,7 +5,6 @@ import {
   SPAN_DETAILS_MIN_WIDTH_PIXELS,
   TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS,
   TRACE_TREE_DEFAULT_WIDTH_PIXELS,
-  TRACE_TREE_MIN_WIDTH_PIXELS,
 } from "@phoenix/constants";
 
 import {
@@ -83,8 +82,6 @@ describe("details panel sizing", () => {
     expect(
       getTreeDividerDragLayout({
         maximumDrawerWidth: 1900,
-        minimumMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
-        minimumTreeWidth: TRACE_TREE_MIN_WIDTH_PIXELS,
         requestedTreeWidth: 568,
         startDrawerWidth: 1329,
         startMainWidth: 960,
@@ -95,8 +92,6 @@ describe("details panel sizing", () => {
     expect(
       getTreeDividerDragLayout({
         maximumDrawerWidth: 1900,
-        minimumMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
-        minimumTreeWidth: TRACE_TREE_MIN_WIDTH_PIXELS,
         requestedTreeWidth: 868,
         startDrawerWidth: 1329,
         startMainWidth: 960,
@@ -109,8 +104,6 @@ describe("details panel sizing", () => {
     expect(
       getTreeDividerDragLayout({
         maximumDrawerWidth: 1400,
-        minimumMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
-        minimumTreeWidth: TRACE_TREE_MIN_WIDTH_PIXELS,
         requestedTreeWidth: 468,
         startDrawerWidth: 1009,
         startMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
@@ -122,8 +115,6 @@ describe("details panel sizing", () => {
   it("clamps a tree drag at both the tree minimum and drawer maximum", () => {
     const commonOptions = {
       maximumDrawerWidth: 1400,
-      minimumMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
-      minimumTreeWidth: TRACE_TREE_MIN_WIDTH_PIXELS,
       startDrawerWidth: 1329,
       startMainWidth: SPAN_DETAILS_MIN_WIDTH_PIXELS,
       startTreeWidth: 688,

@@ -45,6 +45,7 @@ export function TracePage() {
   });
   const {
     defaultDrawerSize,
+    onDrawerResize,
     onDrawerSizeChange,
     onPreferredTreeWidthChange,
     preferredTreeWidth,
@@ -66,6 +67,7 @@ export function TracePage() {
       }
       defaultSize={defaultDrawerSize}
       minSize={TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS}
+      onResize={onDrawerResize}
       onResizeEnd={onDrawerSizeChange}
     >
       <Dialog>
