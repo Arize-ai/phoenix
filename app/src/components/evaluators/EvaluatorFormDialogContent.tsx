@@ -5,7 +5,9 @@ import { Alert } from "@phoenix/components/core/alert";
 import { Button } from "@phoenix/components/core/button";
 import { Text } from "@phoenix/components/core/content";
 import {
+  DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
@@ -14,8 +16,9 @@ import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 
 /**
  * The shared chrome every evaluator create/edit dialog body renders through:
- * header (title + Cancel/submit buttons), a scrollable fieldset with an error
- * alert, and the two-panel {@link EvaluatorForm}. Evaluator-kind-specific
+ * header (title + close button), a scrollable fieldset with an error alert,
+ * the two-panel {@link EvaluatorForm}, and a footer with the Cancel/submit
+ * buttons. Evaluator-kind-specific
  * concerns (input-variables provider, extra banners, submit test ids) are
  * supplied by the caller so this shell stays kind-agnostic.
  */
@@ -70,23 +73,7 @@ export const EvaluatorFormDialogContent = ({
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <DialogTitleExtra>
-          {submitHint ? (
-            <Text size="S" color="text-500">
-              {submitHint}
-            </Text>
-          ) : null}
-          <Button slot="close" isDisabled={isSubmitting}>
-            {cancelLabel}
-          </Button>
-          <Button
-            {...submitButtonProps}
-            variant={submitHint ? "default" : "primary"}
-            isPending={isSubmitting}
-            isDisabled={isSubmitting || isSubmitDisabled}
-            onPress={onSubmit}
-          >
-            {submitLabel}
-          </Button>
+          <DialogCloseButton isDisabled={isSubmitting} />
         </DialogTitleExtra>
       </DialogHeader>
       <fieldset
@@ -109,6 +96,25 @@ export const EvaluatorFormDialogContent = ({
         ) : null}
         {renderInputVariables(<EvaluatorForm left={left} right={right} />)}
       </fieldset>
+      <DialogFooter>
+        {submitHint ? (
+          <Text size="S" color="text-500">
+            {submitHint}
+          </Text>
+        ) : null}
+        <Button slot="close" isDisabled={isSubmitting}>
+          {cancelLabel}
+        </Button>
+        <Button
+          {...submitButtonProps}
+          variant={submitHint ? "default" : "primary"}
+          isPending={isSubmitting}
+          isDisabled={isSubmitting || isSubmitDisabled}
+          onPress={onSubmit}
+        >
+          {submitLabel}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 };

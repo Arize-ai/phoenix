@@ -53,7 +53,9 @@ import {
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import {
+  DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
@@ -501,22 +503,13 @@ export const EditCodeEvaluatorDialogContent = ({
         </DialogTitle>
         <DialogTitleExtra>
           {onCancel ? (
-            <Button isDisabled={isSubmitting} onPress={handleCancel}>
-              Cancel
-            </Button>
+            <DialogCloseButton
+              isDisabled={isSubmitting}
+              onPress={handleCancel}
+            />
           ) : (
-            <Button slot="close" isDisabled={isSubmitting}>
-              Cancel
-            </Button>
+            <DialogCloseButton isDisabled={isSubmitting} />
           )}
-          <Button
-            variant="primary"
-            isDisabled={isSubmitting}
-            isPending={isSubmitting}
-            onPress={handleSubmit}
-          >
-            {mode === "create" ? "Create" : "Update"}
-          </Button>
         </DialogTitleExtra>
       </DialogHeader>
 
@@ -620,6 +613,25 @@ export const EditCodeEvaluatorDialogContent = ({
           </Group>
         </CodeEvaluatorInputVariablesProvider>
       </fieldset>
+      <DialogFooter>
+        {onCancel ? (
+          <Button isDisabled={isSubmitting} onPress={handleCancel}>
+            Cancel
+          </Button>
+        ) : (
+          <Button slot="close" isDisabled={isSubmitting}>
+            Cancel
+          </Button>
+        )}
+        <Button
+          variant="primary"
+          isDisabled={isSubmitting}
+          isPending={isSubmitting}
+          onPress={handleSubmit}
+        >
+          {mode === "create" ? "Create" : "Update"}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 };
