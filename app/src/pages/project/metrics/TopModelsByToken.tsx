@@ -37,6 +37,7 @@ import {
 import type { TopModelsByTokenQuery } from "./__generated__/TopModelsByTokenQuery.graphql";
 import {
   buildModelTokenDetailChartData,
+  getModelTokenDetailBarRadius,
   getModelTokenDetailLabel,
   getTokenDetailColor,
 } from "./tokenDetails";
@@ -185,13 +186,10 @@ export function TopModelsByToken({
                 allSeries: series,
                 series: tokenSeries,
               })}
-              radius={
-                index === 0
-                  ? [2, 0, 0, 2]
-                  : index === series.length - 1
-                    ? [0, 2, 2, 0]
-                    : undefined
-              }
+              radius={getModelTokenDetailBarRadius({
+                index,
+                seriesCount: series.length,
+              })}
             />
           ))}
           <InteractiveLegend

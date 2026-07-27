@@ -206,6 +206,34 @@ export function getTokenDetailColor({
 }
 
 /**
+ * Rounds the exposed edge of the first and last bars in a horizontal stack.
+ *
+ * @param params - Position of the bar within the stack.
+ * @param params.index - Zero-based position of the bar series.
+ * @param params.seriesCount - Number of bar series in the stack.
+ * @returns Corner radii for an outer bar, or undefined for an inner bar.
+ */
+export function getModelTokenDetailBarRadius({
+  index,
+  seriesCount,
+}: {
+  index: number;
+  seriesCount: number;
+}): [number, number, number, number] | undefined {
+  const isFirstSeries = index === 0;
+  if (isFirstSeries) {
+    return [2, 0, 0, 2];
+  }
+
+  const isLastSeries = index === seriesCount - 1;
+  if (isLastSeries) {
+    return [0, 2, 2, 0];
+  }
+
+  return undefined;
+}
+
+/**
  * Orders model series by token type and prompt/completion kind.
  *
  * @param left - First series descriptor.
@@ -224,22 +252,26 @@ function compareTokenDetailSeries(
 }
 
 /**
- * Adds a positive token-detail value to its dynamic chart data key.
+ * Records a positive token-detail value in a chart row and registers its
+ * series metadata for rendering.
  *
  * @param params - Value and destination context.
  * @param params.chartDatum - Mutable chart row receiving the value.
  * @param params.isPrompt - Whether the value belongs to prompt usage.
+ * @param params.seriesByDataKey - Mutable collection of chart series.
  * @param params.tokenType - Raw token type received from the API.
  * @param params.value - Token count or cost to add.
  */
-function addTokenDetailValue({
+function recordTokenDetailValue({
   chartDatum,
   isPrompt,
+  seriesByDataKey,
   tokenType,
   value,
 }: {
   chartDatum: ModelTokenDetailChartDatum;
   isPrompt: boolean;
+  seriesByDataKey: Map<string, ModelTokenDetailSeries>;
   tokenType: string;
   value: number;
 }) {
@@ -250,6 +282,7 @@ function addTokenDetailValue({
   const currentValue = chartDatum[dataKey];
   chartDatum[dataKey] =
     (typeof currentValue === "number" ? currentValue : 0) + value;
+  seriesByDataKey.set(dataKey, { dataKey, isPrompt, tokenType });
 }
 
 /**
@@ -283,40 +316,33 @@ export function buildModelTokenDetailChartData({
       const value = detail.value[metric] ?? 0;
       const tokenKind = detail.isPrompt ? "prompt" : "completion";
       detailTotals[tokenKind] += value;
-      addTokenDetailValue({
+      recordTokenDetailValue({
         chartDatum,
         isPrompt: detail.isPrompt,
+        seriesByDataKey,
         tokenType: detail.tokenType,
         value,
       });
-      if (value > TOKEN_DETAIL_EPSILON) {
-        const dataKey = getModelTokenDetailDataKey(detail);
-        seriesByDataKey.set(dataKey, {
-          dataKey,
-          isPrompt: detail.isPrompt,
-          tokenType: detail.tokenType,
-        });
-      }
     });
 
-    (
-      [
-        { isPrompt: true, tokenKind: "prompt", tokenType: "input" },
-        { isPrompt: false, tokenKind: "completion", tokenType: "output" },
-      ] as const
-    ).forEach(({ isPrompt, tokenKind, tokenType }) => {
-      const remainder =
-        (model.costSummary[tokenKind][metric] ?? 0) - detailTotals[tokenKind];
-      if (remainder > TOKEN_DETAIL_EPSILON) {
-        const dataKey = getModelTokenDetailDataKey({ isPrompt, tokenType });
-        addTokenDetailValue({
-          chartDatum,
-          isPrompt,
-          tokenType,
-          value: remainder,
-        });
-        seriesByDataKey.set(dataKey, { dataKey, isPrompt, tokenType });
-      }
+    const missingInputValue =
+      (model.costSummary.prompt[metric] ?? 0) - detailTotals.prompt;
+    recordTokenDetailValue({
+      chartDatum,
+      isPrompt: true,
+      seriesByDataKey,
+      tokenType: "input",
+      value: missingInputValue,
+    });
+
+    const missingOutputValue =
+      (model.costSummary.completion[metric] ?? 0) - detailTotals.completion;
+    recordTokenDetailValue({
+      chartDatum,
+      isPrompt: false,
+      seriesByDataKey,
+      tokenType: "output",
+      value: missingOutputValue,
     });
 
     return chartDatum;
