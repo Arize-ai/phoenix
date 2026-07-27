@@ -8,10 +8,10 @@
 
 ## Run
 
-Build Phoenix and stage the wheel and runner (from the repository root):
+Build Phoenix and stage the wheel and container assets (from the repository root):
 
 ```bash
-./evals/harbor/stage_harbor_task_environments.sh
+./evals/harbor/scripts/stage_harbor_task_environments.sh
 ```
 
 Validate with the bundled oracle:
@@ -39,5 +39,5 @@ export HARBOR_PHOENIX_PROJECT_NAME=harbor-server-agent-evals
 ## Publish fixtures
 
 ```bash
-./evals/harbor/publish_fixtures.sh
+./evals/harbor/scripts/publish_fixtures.sh
 ```

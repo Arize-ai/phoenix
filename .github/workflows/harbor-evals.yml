@@ -43,14 +43,14 @@ jobs:
       - name: Run oracle trial
         run: |
           make harbor-oracle
-          python3 evals/harbor/check_job_reward.py --min-reward 1.0
+          python3 evals/harbor/scripts/check_job_reward.py --min-reward 1.0
 
       # The agent is nondeterministic; require 3 of 4 steps rather than
       # perfection so CI isn't flaky. Tighten once there's a pass-rate history.
       - name: Run ServerAgent trial
         run: |
           make harbor-run
-          python3 evals/harbor/check_job_reward.py --min-reward 0.75
+          python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.75
 
       - name: Upload job results
         if: always()

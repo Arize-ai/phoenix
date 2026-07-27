@@ -14,7 +14,7 @@ if ! command -v gcloud >/dev/null; then
   exit 1
 fi
 
-ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 TASKS_DIR="$ROOT/evals/harbor/tasks"
 STAGING=$(mktemp -d)
 trap 'rm -rf "$STAGING"' EXIT

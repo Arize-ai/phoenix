@@ -466,12 +466,12 @@ endef
 
 harbor-stage-environments: ## Build the Phoenix wheel and stage each Harbor task environment
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
-	./evals/harbor/stage_harbor_task_environments.sh
+	./evals/harbor/scripts/stage_harbor_task_environments.sh
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud storage
 	@echo -e "$(CYAN)Publishing Harbor fixtures...$(NC)"
-	./evals/harbor/publish_fixtures.sh
+	./evals/harbor/scripts/publish_fixtures.sh
 
 harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
 	$(check-harbor-staged)

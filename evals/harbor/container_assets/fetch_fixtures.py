@@ -1,7 +1,7 @@
 """Download a task's fixtures into /data.
 
 Fetches every object published under the task's GCS prefix by
-evals/harbor/publish_fixtures.sh. Idempotent across steps: files already
+evals/harbor/scripts/publish_fixtures.sh. Idempotent across steps: files already
 present are left untouched.
 """
 
@@ -55,7 +55,7 @@ def main() -> None:
     except Exception as exc:
         raise SystemExit(
             f"error: failed to download fixtures from {base_url}: {exc}; "
-            "publish them with evals/harbor/publish_fixtures.sh"
+            "publish them with evals/harbor/scripts/publish_fixtures.sh"
         )
 
 
