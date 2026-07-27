@@ -134,7 +134,7 @@ type NestedSpanTableRow<TSpan extends IAdditionalSpansRow> = TSpan & {
 
 const TableBody = <
   T extends TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"] &
-    IAdditionalSpansRow,
+    IAdditionalSpansRow
 >({
   table,
 }: {
@@ -379,7 +379,6 @@ export function TracesTable(props: TracesTableProps) {
                         precision
                         hit
                       }
-                      ...TraceHeaderRootSpanAnnotationsFragment
                     }
                   }
                 }
@@ -447,6 +446,10 @@ export function TracesTable(props: TracesTableProps) {
     });
   }, [data]);
   type TableRow = (typeof tableData)[number];
+  // rows are root spans and their descendants, and only the root span selects
+  // the trace fields that back the trace annotations column
+  type RootSpanTrace =
+    (typeof data.rootSpans.edges)[number]["rootSpan"]["trace"];
   const { selectRow } = useShiftClickRowSelection<TableRow>({
     resetKey: tableData,
   });
@@ -644,11 +647,7 @@ export function TracesTable(props: TracesTableProps) {
           return (
             <OverflowRow isExpanded={areRowsExpanded}>
               <TraceAnnotationSummaryGroupTokens
-                trace={
-                  row.original.trace as Parameters<
-                    typeof TraceAnnotationSummaryGroupTokens
-                  >[0]["trace"]
-                }
+                trace={row.original.trace as RootSpanTrace}
               />
             </OverflowRow>
           );

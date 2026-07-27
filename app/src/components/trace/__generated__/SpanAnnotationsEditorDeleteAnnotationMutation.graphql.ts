@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<316f7d9915e4ca576cc5f533b0071eed>>
+ * @generated SignedSource<<7ad9263a6e73bbc9c6801cdaa4744c07>>
  * @lightSyntaxTransform
  */
 
@@ -24,7 +24,7 @@ export type SpanAnnotationsEditorDeleteAnnotationMutation$data = {
   readonly deleteSpanAnnotations: {
     readonly query: {
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "SpanAnnotationsEditor_spanAnnotations" | "SpanAnnotationsTable_annotations" | "TraceHeaderRootSpanAnnotationsFragment">;
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "SpanAnnotationsEditor_spanAnnotations" | "SpanAnnotationsTable_annotations">;
       };
       readonly project: {
         readonly " $fragmentSpreads": FragmentRefs<"ProjectStats_project">;
@@ -230,11 +230,6 @@ return {
                         "args": null,
                         "kind": "FragmentSpread",
                         "name": "AnnotationSummaryGroup"
-                      },
-                      {
-                        "args": null,
-                        "kind": "FragmentSpread",
-                        "name": "TraceHeaderRootSpanAnnotationsFragment"
                       },
                       {
                         "args": [
@@ -709,16 +704,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a12253b9f541d8ec1937cac6143bea5d",
+    "cacheID": "60a91c09f9b139117b64638abdf17e60",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationsEditorDeleteAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationsEditorDeleteAnnotationMutation(\n  $spanId: ID!\n  $annotationIds: [ID!]!\n  $timeRange: TimeRange!\n  $projectId: ID!\n  $filterUserIds: [ID]\n) {\n  deleteSpanAnnotations(input: {annotationIds: $annotationIds}) {\n    query {\n      project: node(id: $projectId) {\n        __typename\n        ... on Project {\n          ...ProjectStats_project\n        }\n        id\n      }\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...AnnotationSummaryGroup\n          ...TraceHeaderRootSpanAnnotationsFragment\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAnnotationsTable_annotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectStats_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAnnotationsTable_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  ...AnnotationSummaryGroup\n}\n"
+    "text": "mutation SpanAnnotationsEditorDeleteAnnotationMutation(\n  $spanId: ID!\n  $annotationIds: [ID!]!\n  $timeRange: TimeRange!\n  $projectId: ID!\n  $filterUserIds: [ID]\n) {\n  deleteSpanAnnotations(input: {annotationIds: $annotationIds}) {\n    query {\n      project: node(id: $projectId) {\n        __typename\n        ... on Project {\n          ...ProjectStats_project\n        }\n        id\n      }\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...AnnotationSummaryGroup\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAnnotationsTable_annotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectStats_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAnnotationsTable_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "26b9fa6b3b6ff259a8eec812927c5884";
+(node as any).hash = "5b2ff93cc55b5bda5aafd7c9b1dcd93a";
 
 export default node;

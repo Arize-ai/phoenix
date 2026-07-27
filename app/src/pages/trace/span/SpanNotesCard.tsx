@@ -15,7 +15,7 @@ import {
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { RowExpandToggleButton } from "@phoenix/components/table";
 
-import { useOpenSpanAnnotationEditor } from "../SpanAnnotationEditorContext";
+import { useOpenSpanAside } from "../SpanAsideContext";
 import { NOTE_HOTKEY } from "../SpanNotesEditor";
 import { SpanNotesTable } from "../SpanNotesTable";
 import { defaultCardProps } from "./constants";
@@ -43,9 +43,8 @@ function SpanNotesCardContents({ spanNodeId }: { spanNodeId: string }) {
   // rows start clipped so the notes read as a grid, and open up when the
   // reader wants to read one in full
   const [areRowsExpanded, setAreRowsExpanded] = useState(false);
-  // writing a note happens in the aside; this opens it on the notes section,
-  // which the reader may have collapsed there
-  const openSpanAnnotationEditor = useOpenSpanAnnotationEditor();
+  // notes are written in the aside, on its notes section
+  const openSpanAside = useOpenSpanAside();
   return (
     <Card
       {...defaultCardProps}
@@ -68,8 +67,8 @@ function SpanNotesCardContents({ spanNodeId }: { spanNodeId: string }) {
             <Button
               size="S"
               aria-label="Add a note"
-              leadingVisual={<Icon svg={<Icons.MessageCircle />} />}
-              onPress={() => openSpanAnnotationEditor("notes")}
+              leadingVisual={<Icon svg={<Icons.MessageCirclePlus />} />}
+              onPress={() => openSpanAside("notes")}
             />
             <Tooltip offset={1}>
               <Flex direction="row" gap="size-100" alignItems="center">

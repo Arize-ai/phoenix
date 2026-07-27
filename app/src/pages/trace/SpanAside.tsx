@@ -20,7 +20,7 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts";
 
 import type { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
-import { useSpanAnnotationEditorOpenRequest } from "./SpanAnnotationEditorContext";
+import { useSpanAsideOpenRequest } from "./SpanAsideContext";
 import { SpanNotesEditor, SpanNotesEditorSkeleton } from "./SpanNotesEditor";
 
 type SpanAsideProps = {
@@ -73,7 +73,6 @@ export function SpanAside(props: SpanAsideProps) {
         startTime
         endTime
         tokenCountTotal
-        ...TraceHeaderRootSpanAnnotationsFragment
       }
     `,
     props.span
@@ -88,10 +87,9 @@ export function SpanAside(props: SpanAsideProps) {
   );
   const editAnnotationsPanelRef = useRef<PanelImperativeHandle>(null);
   const notesPanelRef = useRef<PanelImperativeHandle>(null);
-  // Whoever asked for a section — a hotkey, a button in one of the info cards —
-  // opened the aside by setting the preference. Only the aside can open the
-  // section itself, so a reader who had collapsed it still lands on a composer.
-  const openRequest = useSpanAnnotationEditorOpenRequest();
+  // the control that made the request made the aside visible; this component
+  // owns the section panels, so it expands the requested section
+  const openRequest = useSpanAsideOpenRequest();
   useEffect(() => {
     if (openRequest == null) {
       return;

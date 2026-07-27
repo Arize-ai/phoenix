@@ -83,7 +83,6 @@ export function SpanAnnotationDeleteButton({
                 # without them a delete leaves a mean score behind that the
                 # table beside it no longer has the annotations to support
                 ...AnnotationSummaryGroup
-                ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
                 ...SpanAnnotationsTable_annotations
@@ -106,7 +105,9 @@ export function SpanAnnotationDeleteButton({
         onCompleted: () => {
           onDeleteSuccess({
             title: `${Noun} Deleted`,
-            message: `${annotationName ? `${Noun} ${annotationName}` : Noun} has been deleted.`,
+            message: `${
+              annotationName ? `${Noun} ${annotationName}` : Noun
+            } has been deleted.`,
           });
           setIsConfirming(false);
         },

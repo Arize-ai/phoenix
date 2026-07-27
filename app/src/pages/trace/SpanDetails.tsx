@@ -40,10 +40,7 @@ import type {
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanAttributesCard, SpanInfo } from "./span";
-import {
-  SpanAnnotationEditorProvider,
-  useOpenSpanAnnotationEditor,
-} from "./SpanAnnotationEditorContext";
+import { SpanAsideProvider, useOpenSpanAside } from "./SpanAsideContext";
 import { SpanAside } from "./SpanAside";
 import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
@@ -72,12 +69,12 @@ export function SpanDetails({
    */
   spanNodeId: string;
 }) {
-  // the controls that open the annotation aside are spread across the header
-  // and the info tab's cards, and the aside they open is a sibling of both
+  // the controls that open the aside sit in the header and the info tab's
+  // cards; the aside is a sibling of both
   return (
-    <SpanAnnotationEditorProvider>
+    <SpanAsideProvider>
       <SpanDetailsContent spanNodeId={spanNodeId} />
-    </SpanAnnotationEditorProvider>
+    </SpanAsideProvider>
   );
 }
 
@@ -89,7 +86,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const setIsAnnotatingSpans = usePreferencesContext(
     (state) => state.setIsAnnotatingSpans
   );
-  const openSpanAnnotationEditor = useOpenSpanAnnotationEditor();
+  const openSpanAside = useOpenSpanAside();
 
   const asidePanelRef = useRef<PanelImperativeHandle>(null);
   // Sync the aside panel collapsed state with the isAnnotatingSpans preference.
@@ -188,14 +185,11 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     throw new Error("Project ID is required to download a span");
   }
 
-  // both hotkeys open the aside on the section they are for; the aside expands
-  // that section itself, and the effect above slides the aside out
-  useHotkeys(
-    EDIT_ANNOTATION_HOTKEY,
-    () => openSpanAnnotationEditor("annotations"),
-    { preventDefault: true }
-  );
-  useHotkeys(NOTE_HOTKEY, () => openSpanAnnotationEditor("notes"), {
+  // each hotkey opens the aside on its own section
+  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside("annotations"), {
+    preventDefault: true,
+  });
+  useHotkeys(NOTE_HOTKEY, () => openSpanAside("notes"), {
     preventDefault: true,
   });
 

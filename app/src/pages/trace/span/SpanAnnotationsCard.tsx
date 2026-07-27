@@ -24,7 +24,7 @@ import { RowExpandToggleButton } from "@phoenix/components/table";
 import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { usePreferencesContext } from "@phoenix/contexts";
 
-import { useOpenSpanAnnotationEditor } from "../SpanAnnotationEditorContext";
+import { useOpenSpanAside } from "../SpanAsideContext";
 import { SpanAnnotationsTable } from "../SpanAnnotationsTable";
 import type { SpanAnnotationsCardSummaryQuery } from "./__generated__/SpanAnnotationsCardSummaryQuery.graphql";
 import { defaultCardProps } from "./constants";
@@ -106,16 +106,16 @@ export function SpanAnnotationsCard({ spanNodeId }: { spanNodeId: string }) {
 
 function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
   const { annotationCount } = useSpanAnnotationCounts({ spanNodeId });
-  // the aside's editor is driven by this preference, and the toggle reads its
-  // selected state from it; opening it is more than the preference, so that
-  // goes through the span details view
+  // the preference controls the aside's visibility, so the toggle reflects it
+  // and closes with it; opening also expands a section, which SpanAsideContext
+  // handles
   const isAnnotatingSpans = usePreferencesContext(
     (state) => state.isAnnotatingSpans
   );
   const setIsAnnotatingSpans = usePreferencesContext(
     (state) => state.setIsAnnotatingSpans
   );
-  const openSpanAnnotationEditor = useOpenSpanAnnotationEditor();
+  const openSpanAside = useOpenSpanAside();
   const [isCollapsed, setIsCollapsed] = useState(true);
   // rows start clipped so the annotations read as a grid; explanations are the
   // long value here, and the reader opens up the rows when they want one
@@ -198,7 +198,7 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
               isSelected={isAnnotatingSpans}
               onChange={(isSelected) => {
                 if (isSelected) {
-                  openSpanAnnotationEditor("annotations");
+                  openSpanAside("annotations");
                 } else {
                   setIsAnnotatingSpans(false);
                 }
