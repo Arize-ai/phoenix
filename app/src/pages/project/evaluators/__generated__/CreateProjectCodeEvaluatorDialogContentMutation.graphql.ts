@@ -1,7 +1,6 @@
 /**
- * @generated SignedSource<<e8701288eb4187dea48170f7cb7003e1>>
+ * @generated SignedSource<<39906df732141204b08074d2ff6440a8>>
  * @lightSyntaxTransform
- * @nogrep
  */
 
 /* tslint:disable */
@@ -33,9 +32,17 @@ export type EvaluatorInputMappingInput = {
   pathMapping: any;
 };
 export type AnnotationConfigInput = {
-  categorical?: CategoricalAnnotationConfigInput | null;
-  continuous?: ContinuousAnnotationConfigInput | null;
-  freeform?: FreeformAnnotationConfigInput | null;
+  categorical: CategoricalAnnotationConfigInput;
+  continuous?: never;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous: ContinuousAnnotationConfigInput;
+  freeform?: never;
+} | {
+  categorical?: never;
+  continuous?: never;
+  freeform: FreeformAnnotationConfigInput;
 };
 export type CategoricalAnnotationConfigInput = {
   description?: string | null;
@@ -156,8 +163,8 @@ v9 = {
 return {
   "fragment": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -165,7 +172,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "createProjectCodeEvaluator",
@@ -179,12 +186,12 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/),
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -193,7 +200,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v9/*: any*/)
+                  (v9/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -210,15 +217,15 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "CreateProjectCodeEvaluatorDialogContentMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "createProjectCodeEvaluator",
@@ -232,12 +239,12 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/),
+              (v3/*:: as any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -253,8 +260,8 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v9/*: any*/),
-                  (v3/*: any*/)
+                  (v9/*:: as any*/),
+                  (v3/*:: as any*/)
                 ],
                 "storageKey": null
               }
