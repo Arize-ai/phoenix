@@ -119,6 +119,28 @@ async def test_mcp_code_mode_replaces_tool_surface(
             )
             assert "data" in result.content[0].text
 
+            # Code that faults the sandbox interpreter must not take the server
+            # with it. Running the sandbox in this process makes this request
+            # kill Phoenix outright, so the assertion that matters is that the
+            # server is still answering afterwards.
+            with pytest.raises(Exception):
+                await client.call_tool(
+                    "execute",
+                    {
+                        "code": (
+                            "import json\n"
+                            "x = [1]\n"
+                            "i = 0\n"
+                            "while i < 30000:\n"
+                            "    x = [x]\n"
+                            "    i = i + 1\n"
+                            "return json.dumps(x)\n"
+                        )
+                    },
+                )
+            survived = await client.call_tool("execute", {"code": "return 123 * 456"})
+            assert "56088" in survived.content[0].text
+
 
 async def test_mcp_server_mounts_and_lifespan_starts(
     db: DbSessionFactory,
