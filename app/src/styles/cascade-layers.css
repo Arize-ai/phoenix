@@ -1,6 +1,10 @@
-/* Normalize is imported into phoenix-normalize; GlobalStyles.tsx declares focus
-   defaults in phoenix-focus-defaults. Keep this order (and these names) so focus
-   defaults beat Normalize while unlayered component styles can override them. */
-@layer phoenix-normalize, phoenix-focus-defaults;
+/* Layer order, weakest first. Anything NOT in a layer beats everything that
+   is, so component styles win by default and never have to out-specify these.
+     reset -- third-party normalization (normalize.css)
+     base  -- our own app-wide element defaults (GlobalStyles.tsx)
+   Declared here, and imported first in index.tsx, because layer precedence is
+   set by first mention and Emotion injects its <style> tags in an order we
+   don't control. */
+@layer reset, base;
 
-@import "normalize.css" layer(phoenix-normalize);
+@import "normalize.css" layer(reset);

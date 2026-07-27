@@ -1397,9 +1397,10 @@ const appGlobalStylesCSS = css`
     initial-value: 45deg;
   }
 
-  /* Keep global focus defaults above Normalize but below unlayered component
-     styles so components can move or suppress their own focus indicators. */
-  @layer phoenix-focus-defaults {
+  /* The base layer (see styles/cascade-layers.css) puts the global focus ring
+     above the reset but below unlayered component styles, so components can
+     move or suppress their own focus indicators without out-specifying it. */
+  @layer base {
     .theme :where(:focus-visible) {
       outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
       outline-offset: var(--focus-ring-offset);
