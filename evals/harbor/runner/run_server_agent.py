@@ -48,6 +48,15 @@ def _build_tracer_provider() -> TracerProvider | None:
     )
 
 
+def _resolve_allow_mutations(args: argparse.Namespace) -> bool:
+    if args.allow_mutations:
+        return True
+    if args.step_config is not None and args.step_config.is_file():
+        config = json.loads(args.step_config.read_text())
+        return bool(config.get("allow_mutations", False))
+    return False
+
+
 def _load_or_create_session_id(session_id_file: Path | None) -> str:
     if session_id_file is not None and session_id_file.is_file():
         if session_id := session_id_file.read_text().strip():
@@ -220,7 +229,7 @@ async def run(args: argparse.Namespace) -> None:
                 build_graphql_context=lambda: app.state.build_graphql_context(None),
                 db=db,
                 event_queue=app.state.build_graphql_context(None).event_queue,
-                allow_mutations=args.allow_mutations,
+                allow_mutations=_resolve_allow_mutations(args),
                 tracer_provider=tracer_provider,
             )
             trace_context = (
@@ -263,6 +272,17 @@ async def run(args: argparse.Namespace) -> None:
     args.out_dir.joinpath("usage.json").write_text(
         json.dumps(usage_payload, indent=2, default=str) + "\n"
     )
+    if args.history_file is not None:
+        # Persist the full conversation so the next step resumes where this one
+        # left off. The history file lives outside /logs/agent, which Harbor
+        # empties between steps.
+        args.history_file.parent.mkdir(parents=True, exist_ok=True)
+        args.history_file.write_bytes(ModelMessagesTypeAdapter.dump_json(result.all_messages()))
+    if args.latest_symlink is not None:
+        # Step verifiers locate this step's outputs via this stable symlink.
+        args.latest_symlink.parent.mkdir(parents=True, exist_ok=True)
+        args.latest_symlink.unlink(missing_ok=True)
+        args.latest_symlink.symlink_to(args.out_dir)
     if args.trajectory_file:
         trajectory = build_trajectory(
             result.all_messages(),
@@ -286,6 +306,8 @@ def main() -> None:
     parser.add_argument("--history-file", type=Path, default=None)
     parser.add_argument("--trajectory-file", type=Path, default=None)
     parser.add_argument("--session-id-file", type=Path, default=None)
+    parser.add_argument("--step-config", type=Path, default=None)
+    parser.add_argument("--latest-symlink", type=Path, default=None)
     parser.add_argument("--allow-mutations", action="store_true")
     asyncio.run(run(parser.parse_args()))
 

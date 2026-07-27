@@ -1,14 +1,28 @@
 """Harbor adapter for Phoenix's in-process ServerAgent."""
 
 import shlex
+import tempfile
+from pathlib import Path
 
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
+# Trial-wide state (conversation history, trajectory session id) must survive
+# across steps, but Harbor empties /logs/agent between steps, so it lives on
+# the container filesystem instead.
+_STATE_DIR = "/var/lib/phoenix-eval"
+_STEPS_DIR = "/logs/agent/steps"
+_LATEST_LINK = "/logs/agent/latest"
+_INSTRUCTION_PATH = "/tmp/instruction.md"
+
 
 class PhoenixServerAgent(BaseAgent):
     SUPPORTS_ATIF: bool = True
+
+    # Harbor reuses the same agent instance for every step of a trial, so the
+    # step counter can live here instead of in the container.
+    _step: int = 0
 
     @staticmethod
     def name() -> str:
@@ -17,18 +31,23 @@ class PhoenixServerAgent(BaseAgent):
     def version(self) -> str | None:
         return None
 
-    async def setup(self, environment: BaseEnvironment) -> None:
-        return None
-
     @staticmethod
     def _to_pydantic_ai_model_name(harbor_model_name: str) -> str:
         """Convert a Harbor ``provider/model`` string to pydantic-ai's ``provider:model``."""
         return harbor_model_name.replace("/", ":", 1)
 
+    async def setup(self, environment: BaseEnvironment) -> None:
+        result = await environment.exec("sh /opt/phoenix-eval/bootstrap_data.sh")
+        if result.return_code != 0:
+            raise RuntimeError(
+                result.stderr
+                or result.stdout
+                or f"bootstrap_data.sh failed with code {result.return_code}"
+            )
+
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
     ) -> None:
-        encoded = shlex.quote(instruction)
         harbor_model_name = self.model_name
         if not harbor_model_name:
             raise ValueError(
@@ -36,24 +55,34 @@ class PhoenixServerAgent(BaseAgent):
                 "e.g. -m anthropic/claude-sonnet-4-5."
             )
         model_name = self._to_pydantic_ai_model_name(harbor_model_name)
-        task_name = shlex.quote(environment.environment_name)
-        # Harbor archives /logs/agent into a per-step directory after every
-        # step, so trial-wide state (step counter, conversation history) must
-        # live on the container filesystem instead. step-config.json is
-        # uploaded from the step's workdir into the exec working directory.
-        command = f"""sh /opt/phoenix-eval/bootstrap_data.sh
-printf %s {encoded} > /tmp/instruction.md
-config=$(cat step-config.json 2>/dev/null || printf '%s' '{{\"allow_mutations\": false}}')
-state=/var/lib/phoenix-eval
-mkdir -p "$state" /logs/agent/steps
-n=$(($(cat "$state/step_counter" 2>/dev/null || printf 0) + 1))
-printf %s "$n" > "$state/step_counter"
-mutation_flag=""
-if printf %s "$config" | grep -q '"allow_mutations"[[:space:]]*:[[:space:]]*true'; then mutation_flag="--allow-mutations"; fi
-python /opt/phoenix-eval/run_server_agent.py --db-path /data/phoenix.db --instruction-file /tmp/instruction.md --model {shlex.quote(model_name)} --task-name {task_name} --out-dir "/logs/agent/steps/$n" --history-file "$state/messages.json" --trajectory-file /logs/agent/trajectory.json --session-id-file "$state/trajectory_session_id" $mutation_flag
-ln -sfn "/logs/agent/steps/$n" /logs/agent/latest
-cp "/logs/agent/steps/$n/messages.json" "$state/messages.json"
-cat /logs/agent/latest/answer.md"""
+        self._step += 1
+        out_dir = f"{_STEPS_DIR}/{self._step}"
+
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as file:
+            file.write(instruction)
+            instruction_file = Path(file.name)
+        try:
+            await environment.upload_file(instruction_file, _INSTRUCTION_PATH)
+        finally:
+            instruction_file.unlink()
+
+        # step-config.json is uploaded by Harbor from the step's workdir into
+        # the exec working directory.
+        command = " ".join(
+            [
+                "python /opt/phoenix-eval/run_server_agent.py",
+                "--db-path /data/phoenix.db",
+                f"--instruction-file {_INSTRUCTION_PATH}",
+                f"--model {shlex.quote(model_name)}",
+                f"--task-name {shlex.quote(environment.environment_name)}",
+                "--step-config step-config.json",
+                f"--out-dir {out_dir}",
+                f"--history-file {_STATE_DIR}/messages.json",
+                "--trajectory-file /logs/agent/trajectory.json",
+                f"--session-id-file {_STATE_DIR}/trajectory_session_id",
+                f"--latest-symlink {_LATEST_LINK}",
+            ]
+        )
         result = await environment.exec(command)
         if result.return_code != 0:
             raise RuntimeError(
@@ -61,4 +90,9 @@ cat /logs/agent/latest/answer.md"""
                 or result.stdout
                 or f"Phoenix ServerAgent runner failed with code {result.return_code}"
             )
-        context.metadata = {"answer": result.stdout or ""}
+        answer = await environment.exec(f"cat {out_dir}/answer.md")
+        if answer.return_code != 0:
+            raise RuntimeError(
+                answer.stderr or f"Runner succeeded but {out_dir}/answer.md is missing"
+            )
+        context.metadata = {"answer": answer.stdout or ""}
