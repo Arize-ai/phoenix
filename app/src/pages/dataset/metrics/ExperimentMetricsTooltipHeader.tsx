@@ -1,4 +1,4 @@
-import { Flex, Text } from "@phoenix/components";
+import { Flex, Text, Truncate } from "@phoenix/components";
 import { BaselineExperimentBadge } from "@phoenix/components/experiment";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 
@@ -16,11 +16,11 @@ export function ExperimentMetricsTooltipHeader({
   isBaseline?: boolean;
 }) {
   return (
-    <Flex direction="row" alignItems="center" gap="size-100">
+    <Flex direction="row" alignItems="center" gap="size-100" maxWidth="100%">
       <SequenceNumberToken sequenceNumber={sequenceNumber} />
       {name != null && (
-        <Text weight="heavy" size="S">
-          {name}
+        <Text weight="heavy" size="S" minWidth={0}>
+          <Truncate maxWidth="100%">{name}</Truncate>
         </Text>
       )}
       {isBaseline ? <BaselineExperimentBadge /> : null}

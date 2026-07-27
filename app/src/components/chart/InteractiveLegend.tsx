@@ -10,6 +10,8 @@ import type {
 } from "recharts";
 import { Legend, Surface, Symbols } from "recharts";
 
+import { Truncate } from "@phoenix/components/core";
+
 /**
  * InteractiveLegend is intentionally larger than a thin `<Legend />` wrapper.
  *
@@ -97,6 +99,7 @@ const rightAlignedLegendCSS = css`
 const legendItemCSS = css`
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
 `;
 
 const legendButtonCSS = css`
@@ -108,6 +111,7 @@ const legendButtonCSS = css`
   display: inline-flex;
   align-items: center;
   gap: var(--global-dimension-size-50);
+  max-width: 100%;
   min-height: var(--global-dimension-size-200);
   padding: 0 var(--global-dimension-size-25);
   font: inherit;
@@ -133,9 +137,15 @@ const legendStaticItemCSS = css`
   display: inline-flex;
   align-items: center;
   gap: var(--global-dimension-size-50);
+  max-width: 100%;
   min-height: var(--global-dimension-size-200);
   padding: 0 var(--global-dimension-size-25);
   line-height: var(--global-line-height-xs);
+`;
+
+const legendTextCSS = css`
+  color: var(--chart-legend-text-color);
+  max-width: 100%;
 `;
 
 function getInteractiveDataKey(
@@ -281,6 +291,7 @@ function LegendIcon({
         height: LEGEND_ICON_VIEW_BOX_SIZE,
       }}
       width={iconSize}
+      css={{ flexShrink: 0 }}
     >
       {icon}
     </Surface>
@@ -410,9 +421,14 @@ function DefaultInteractiveLegendContent({
                   iconType={iconType}
                   inactiveColor={inactiveColor}
                 />
-                <span className="recharts-legend-item-text">
-                  {renderedLabel}
-                </span>
+                <Truncate maxWidth="100%">
+                  <span
+                    className="recharts-legend-item-text"
+                    css={legendTextCSS}
+                  >
+                    {renderedLabel}
+                  </span>
+                </Truncate>
               </span>
             ) : (
               <button
@@ -442,8 +458,8 @@ function DefaultInteractiveLegendContent({
                   iconType={iconType}
                   inactiveColor={inactiveColor}
                 />
-                <span className="recharts-legend-item-text">
-                  {renderedLabel}
+                <span className="recharts-legend-item-text" css={legendTextCSS}>
+                  <Truncate maxWidth="100%">{renderedLabel}</Truncate>
                 </span>
               </button>
             )}
