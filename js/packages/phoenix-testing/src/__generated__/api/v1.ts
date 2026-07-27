@@ -1748,6 +1748,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Is Temporary */
+            is_temporary: boolean;
         };
         /**
          * AgentSpanContext

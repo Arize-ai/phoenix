@@ -8507,6 +8507,10 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "is_temporary": {
+            "type": "boolean",
+            "title": "Is Temporary"
           }
         },
         "type": "object",
@@ -8514,7 +8518,8 @@
           "id",
           "title",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "is_temporary"
         ],
         "title": "AgentSessionSummary"
       },

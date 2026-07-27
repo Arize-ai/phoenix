@@ -1170,11 +1170,13 @@ describe("PXI app", () => {
           id: "session-1",
           title: "First session",
           updatedAt: "2026-07-24T13:00:00Z",
+          isTemporary: false,
         },
         {
           id: "session-2",
           title: "Second session",
           updatedAt: "2026-07-24T12:00:00Z",
+          isTemporary: false,
         },
       ],
       getSession,

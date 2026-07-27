@@ -158,10 +158,11 @@ export function createPxiSessionClient({
         );
       }
       return payload.data.map(
-        ({ id, title, updated_at }): PxiSessionSummary => ({
+        ({ id, title, updated_at, is_temporary }): PxiSessionSummary => ({
           id,
           title,
           updatedAt: updated_at,
+          isTemporary: is_temporary,
         })
       );
     },

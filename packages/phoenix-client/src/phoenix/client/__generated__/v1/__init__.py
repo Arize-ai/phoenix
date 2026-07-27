@@ -17,6 +17,7 @@ class AgentSessionSummary(TypedDict):
     title: str
     created_at: str
     updated_at: str
+    is_temporary: bool
 
 
 class AgentSpanContext(TypedDict):

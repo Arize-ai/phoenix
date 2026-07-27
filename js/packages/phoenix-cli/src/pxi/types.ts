@@ -104,11 +104,11 @@ export type PxiSessionSummary = {
   id: string;
   title: string;
   updatedAt: string;
+  isTemporary: boolean;
 };
 
 /** A session and its canonical persisted transcript. */
 export type PxiSession = PxiSessionSummary & {
-  isTemporary: boolean;
   messages: PxiMessage[];
 };
 

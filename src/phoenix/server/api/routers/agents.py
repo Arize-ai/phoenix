@@ -352,10 +352,10 @@ class AgentSessionSummary(V1RoutesBaseModel):
     title: str
     created_at: datetime
     updated_at: datetime
+    is_temporary: bool
 
 
 class AgentSessionData(AgentSessionSummary):
-    is_temporary: bool
     messages: list[PhoenixUIMessage]
 
 
@@ -1617,6 +1617,7 @@ def _to_agent_session_summary(agent_session: models.AgentSession) -> AgentSessio
         title=agent_session.title,
         created_at=agent_session.created_at,
         updated_at=agent_session.updated_at,
+        is_temporary=agent_session.expires_at is not None,
     )
 
 
@@ -1675,7 +1676,6 @@ def create_agents_router(
     @router.get(
         "/agents/{agent_id}/sessions",
         operation_id="listAgentSessions",
-        response_model=ListAgentSessionsResponseBody,
         response_model_by_alias=True,
         response_model_exclude_unset=True,
         response_model_exclude_defaults=True,
@@ -1730,7 +1730,6 @@ def create_agents_router(
     @router.get(
         "/agents/{agent_id}/sessions/{session_id}",
         operation_id="getAgentSession",
-        response_model=GetAgentSessionResponseBody,
         response_model_by_alias=True,
         response_model_exclude_unset=True,
         # AI SDK part types and tool states are required on the wire but modeled as defaults.
@@ -1775,7 +1774,6 @@ def create_agents_router(
         return GetAgentSessionResponseBody(
             data=AgentSessionData(
                 **summary.model_dump(),
-                is_temporary=agent_session.expires_at is not None,
                 messages=[message.message for message in agent_session.messages],
             )
         )

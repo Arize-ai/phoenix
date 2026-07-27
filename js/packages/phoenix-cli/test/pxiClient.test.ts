@@ -212,6 +212,7 @@ describe("PXI client", () => {
                 title: "Investigate traces",
                 created_at: "2026-07-24T11:00:00Z",
                 updated_at: "2026-07-24T12:00:00Z",
+                is_temporary: false,
               },
             ],
             next_cursor: null,
@@ -253,6 +254,7 @@ describe("PXI client", () => {
         id: "session-1",
         title: "Investigate traces",
         updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
       },
     ]);
     expect(session.messages).toEqual([
