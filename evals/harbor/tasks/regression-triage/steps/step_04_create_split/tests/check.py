@@ -18,7 +18,9 @@ async def get_split_example_keys(
     dataset_name: str,
     split_name: str,
 ) -> set[str]:
-    engine = create_engine(f"sqlite:///{db_path}", migrate=False)
+    # Migrate here too: the published fixture predates any migration added since it
+    # was generated, and only the agent path would otherwise bring it up to date.
+    engine = create_engine(f"sqlite:///{db_path}", migrate=True, log_migrations=False)
     db = DbSessionFactory(db=_db(engine), dialect="sqlite")
     app = create_app(db=db, authentication_enabled=False, serve_ui=False)
     try:

@@ -6,11 +6,15 @@ ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 CONTAINER_ASSETS="$ROOT/evals/harbor/container_assets"
 TASKS_DIR="$ROOT/evals/harbor/tasks"
 
+# Clear stale wheels first: `uv pip install /wheels/*.whl` in the task Dockerfile
+# would otherwise see the previous version alongside the new one.
+rm -f "$ROOT"/dist/arize_phoenix-*.whl
 uv build --wheel
 
 staged=0
 for environment in "$TASKS_DIR"/*/environment; do
   [ -d "$environment" ] || continue
+  rm -rf "$environment/wheels"
   mkdir -p "$environment/wheels"
   cp "$ROOT"/dist/arize_phoenix-*.whl "$environment/wheels/"
   cp "$CONTAINER_ASSETS/run_server_agent.py" "$CONTAINER_ASSETS/fetch_fixtures.py" "$environment/"

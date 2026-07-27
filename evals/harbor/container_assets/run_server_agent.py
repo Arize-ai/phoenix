@@ -20,6 +20,7 @@ from pydantic_ai.models import infer_model
 from pydantic_ai.models.test import TestModel
 
 from phoenix.db.engines import create_engine
+from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.app import _db, create_app
@@ -229,6 +230,9 @@ async def run(args: argparse.Namespace) -> None:
                 build_graphql_context=lambda: app.state.build_graphql_context(None),
                 db=db,
                 event_queue=app.state.build_graphql_context(None).event_queue,
+                # Mirror the /agents route so the eval exercises the same base
+                # prompt production serves, not build_server_agent's default.
+                prompts=ServerAgentPrompts(base=AgentPrompts().base),
                 allow_mutations=_resolve_allow_mutations(args),
                 tracer_provider=tracer_provider,
             )

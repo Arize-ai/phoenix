@@ -225,6 +225,11 @@ async def seed(db_path: Path, ground_truth_out: Path) -> None:
                                 **{
                                     **SPAN_DEFAULTS,
                                     "events": events,
+                                    # Phoenix's error rollups read this column rather than
+                                    # recomputing from status_code. Both spans in this chain are
+                                    # ancestor-or-self of the errored `translate_query` span, so
+                                    # both carry the single error in their subtree.
+                                    "cumulative_error_count": 1 if failed else 0,
                                     "status_code": "ERROR" if error else "OK",
                                     "status_message": (
                                         "UnsupportedLocaleError: locale 'es' is not enabled for translation"
