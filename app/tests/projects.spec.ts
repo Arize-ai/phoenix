@@ -233,9 +233,11 @@ test.describe.serial("Projects", () => {
       evaluatorRow.getByRole("cell", { name: "100%" })
     ).toBeVisible();
 
+    // Row actions live behind an overflow menu since the slideover rebuild.
     await evaluatorRow
-      .getByRole("button", { name: `Edit ${evaluatorName}` })
+      .getByRole("button", { name: "Evaluator actions" })
       .click();
+    await page.getByRole("menuitem", { name: "Edit" }).click();
     const editDialog = page.getByRole("dialog", {
       name: "Edit project evaluator",
     });
@@ -248,9 +250,8 @@ test.describe.serial("Projects", () => {
       .getByRole("row")
       .filter({ hasText: updatedEvaluatorName });
     await expect(updatedRow).toBeVisible();
-    await updatedRow
-      .getByRole("button", { name: `Delete ${updatedEvaluatorName}` })
-      .click();
+    await updatedRow.getByRole("button", { name: "Evaluator actions" }).click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
     const deleteDialog = page.getByRole("dialog").filter({
       has: page.getByRole("heading", { name: "Delete evaluator" }),
     });
