@@ -16,14 +16,17 @@ import {
   getNeighbors,
   useTracePagination,
 } from "@phoenix/pages/trace/TracePaginationContext";
+import { classNames } from "@phoenix/utils/classNames";
 
 export const NEXT_TRACE_HOTKEY = "j";
 export const PREVIOUS_TRACE_HOTKEY = "k";
 
 export const TraceDetailsPaginator = ({
   currentId,
+  className,
 }: {
   currentId?: string;
+  className?: string;
 }) => {
   const pagination = useTracePagination();
 
@@ -53,6 +56,7 @@ export const TraceDetailsPaginator = ({
 
   return (
     <Flex
+      className={classNames("trace-details-paginator", className)}
       gap="size-50"
       css={css`
         button {
@@ -62,7 +66,11 @@ export const TraceDetailsPaginator = ({
         }
       `}
     >
-      <Flex direction="row" gap="size-50" alignItems="center">
+      <Flex
+        className="trace-details-paginator__buttons"
+        gap="size-50"
+        alignItems="center"
+      >
         <TooltipTrigger delay={100}>
           <Button
             size="S"

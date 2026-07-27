@@ -11,8 +11,8 @@ export const SELECTED_SPAN_NODE_ID_PARAM = "selectedSpanNodeId";
 export const SESSION_VIEW_PARAM = "sessionView";
 
 /**
- * The search param that contains the selected trace id within a session
- * details view. Used to preserve and restore the selected turn across
+ * The search param that contains the selected trace id within trace or session
+ * details views. Used to preserve and restore trace-level selection across
  * navigation.
  */
 export const SELECTED_TRACE_ID_PARAM = "selectedTraceId";

@@ -335,12 +335,12 @@ export const appRouteObjects = createRoutesFromElements(
               >
                 <Route
                   path=":traceId"
-                  element={<TracePage />}
+                  element={<TracePage defaultToTrace />}
                   handle={{
                     agentRoute: {
                       label: "Trace Details",
                       description:
-                        "Inspect the span tree, spans, and trace view details for a single trace. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
+                        "Inspect a trace, its trace annotations, and its span tree. The trace itself is selected by default; selecting a span uses selectedSpanNodeId. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id.",
                     },
                   }}
                 />
@@ -363,7 +363,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Trace Details",
                       description:
-                        "Inspect the span tree, spans, and trace view details for a single trace. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
+                        "Inspect a trace and its span tree from the spans table. Supports independently selecting the trace or a span and viewing their annotations. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id.",
                     },
                   }}
                 />

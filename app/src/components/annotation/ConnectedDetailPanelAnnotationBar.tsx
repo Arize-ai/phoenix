@@ -21,6 +21,7 @@ import type { ConnectedDetailPanelAnnotationBarRemoveConfigFromProjectMutation }
 import type { ConnectedDetailPanelAnnotationBarSessionQuery } from "@phoenix/components/annotation/__generated__/ConnectedDetailPanelAnnotationBarSessionQuery.graphql";
 import type { ConnectedDetailPanelAnnotationBarSpanQuery } from "@phoenix/components/annotation/__generated__/ConnectedDetailPanelAnnotationBarSpanQuery.graphql";
 import type { ConnectedDetailPanelAnnotationBarTraceAnnotationFields$key } from "@phoenix/components/annotation/__generated__/ConnectedDetailPanelAnnotationBarTraceAnnotationFields.graphql";
+import type { ConnectedDetailPanelAnnotationBarTraceQuery } from "@phoenix/components/annotation/__generated__/ConnectedDetailPanelAnnotationBarTraceQuery.graphql";
 import type { ConnectedDetailPanelAnnotationBarUpdateConfigMutation } from "@phoenix/components/annotation/__generated__/ConnectedDetailPanelAnnotationBarUpdateConfigMutation.graphql";
 import type { ConnectedDetailPanelAnnotationBarUpdateSessionAnnotationMutation } from "@phoenix/components/annotation/__generated__/ConnectedDetailPanelAnnotationBarUpdateSessionAnnotationMutation.graphql";
 import type { ConnectedDetailPanelAnnotationBarUpdateSpanAnnotationMutation } from "@phoenix/components/annotation/__generated__/ConnectedDetailPanelAnnotationBarUpdateSpanAnnotationMutation.graphql";
@@ -850,6 +851,108 @@ function useAnnotationMutationHandlers({
     });
   };
   return { onCreateAnnotation, onUpdateAnnotation, onDeleteAnnotation };
+}
+
+export function TraceDetailPanelAnnotationBar({
+  traceNodeId,
+}: {
+  traceNodeId: string;
+}) {
+  const [fetchKey, setFetchKey] = useState(0);
+  const data = useLazyLoadQuery<ConnectedDetailPanelAnnotationBarTraceQuery>(
+    graphql`
+      query ConnectedDetailPanelAnnotationBarTraceQuery($id: ID!) {
+        allAnnotationConfigs: annotationConfigs {
+          edges {
+            node {
+              ...ConnectedDetailPanelAnnotationBarConfigFields
+            }
+          }
+        }
+        trace: node(id: $id) {
+          __typename
+          ... on Trace {
+            id
+            project {
+              id
+              annotationConfigs {
+                edges {
+                  node {
+                    ...ConnectedDetailPanelAnnotationBarConfigFields
+                  }
+                }
+              }
+            }
+            traceAnnotations {
+              ...ConnectedDetailPanelAnnotationBarTraceAnnotationFields
+            }
+          }
+        }
+      }
+    `,
+    { id: traceNodeId },
+    { fetchKey, fetchPolicy: "store-and-network" }
+  );
+  if (data.trace.__typename !== "Trace") {
+    return null;
+  }
+  const refresh = () => setFetchKey((currentFetchKey) => currentFetchKey + 1);
+  return (
+    <TraceDetailPanelAnnotationBarContent
+      allAnnotationConfigs={data.allAnnotationConfigs.edges.map(({ node }) =>
+        getAnnotationConfig(node)
+      )}
+      projectAnnotationConfigs={data.trace.project.annotationConfigs.edges.map(
+        ({ node }) => getAnnotationConfig(node)
+      )}
+      projectId={data.trace.project.id}
+      refresh={refresh}
+      trace={{
+        id: data.trace.id,
+        annotations: getTraceAnnotations(data.trace.traceAnnotations),
+      }}
+    />
+  );
+}
+
+function TraceDetailPanelAnnotationBarContent({
+  allAnnotationConfigs,
+  projectAnnotationConfigs,
+  projectId,
+  refresh,
+  trace,
+}: {
+  allAnnotationConfigs: readonly AnnotationConfig[];
+  projectAnnotationConfigs: readonly AnnotationConfig[];
+  projectId: string;
+  refresh: () => void;
+  trace: { annotations: Annotation[]; id: string };
+}) {
+  const configHandlers = useAnnotationConfigMutationHandlers({
+    projectId,
+    refresh,
+  });
+  const annotationHandlers = useAnnotationMutationHandlers({ refresh });
+  return (
+    <DetailPanelAnnotationBar
+      allAnnotationConfigs={allAnnotationConfigs}
+      projectAnnotationConfigs={projectAnnotationConfigs}
+      rows={[
+        {
+          id: `trace-${trace.id}`,
+          kind: "target",
+          target: {
+            id: trace.id,
+            kind: "trace",
+            label: "This trace",
+            annotations: trace.annotations,
+          },
+        },
+      ]}
+      {...configHandlers}
+      {...annotationHandlers}
+    />
+  );
 }
 
 export function SessionDetailPanelAnnotationBar({

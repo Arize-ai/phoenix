@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { TraceDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
   ResizableTraceTreePanelContent,
@@ -30,8 +31,12 @@ import {
   SPAN_DETAILS_MIN_WIDTH_PIXELS,
   TRACE_TREE_MIN_WIDTH_PIXELS,
 } from "@phoenix/constants";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+} from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
 import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 import type {
@@ -53,20 +58,24 @@ export type TraceHeaderCostSummary = {
 };
 
 export type TraceDetailsProps = {
+  defaultToTrace?: boolean;
   traceId: string;
   projectId: string;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
+  treeHeader?: ReactNode;
 };
 
 /**
  * A component that shows the details of a trace (e.g. a collection of spans)
  */
 export function TraceDetails({
+  defaultToTrace = false,
   traceId,
   projectId,
   preferredTreeWidth,
   onPreferredTreeWidthChange,
+  treeHeader,
 }: TraceDetailsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<TraceDetailsQuery>(
@@ -76,6 +85,11 @@ export function TraceDetails({
           ... on Project {
             trace(traceId: $traceId) {
               id
+              traceId
+              session {
+                id
+                sessionId
+              }
               ...ConnectedTraceTree
               rootSpans: spans(
                 first: 1
@@ -95,7 +109,7 @@ export function TraceDetails({
         }
       }
     `,
-    { traceId: traceId as string, id: projectId as string },
+    { traceId, id: projectId },
     {
       fetchPolicy: "store-and-network",
     }
@@ -104,9 +118,24 @@ export function TraceDetails({
   const gqlSpans = data.project.trace?.rootSpans.edges || [];
   const rootSpans: RootSpan[] = gqlSpans.map((node) => node.span);
   const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const urlTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
   invariant(rootSpans.length > 0, "At least one root must be resolvable");
   const rootSpan = rootSpans[0];
-  const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
+  const isTraceSelected =
+    urlSpanNodeId == null &&
+    (defaultToTrace || urlTraceId === data.project.trace.traceId);
+  const selectedSpanNodeId =
+    urlSpanNodeId ?? (isTraceSelected ? null : rootSpan.id);
+  const session = data.project.trace.session;
+  const treeSession = session
+    ? {
+        sessionId: session.sessionId,
+        to: `/projects/${projectId}/sessions/${getSessionDetailsPath({
+          sessionId: session.id,
+          searchParams,
+        })}`,
+      }
+    : undefined;
 
   const {
     groupElementRef,
@@ -153,13 +182,33 @@ export function TraceDetails({
         >
           <TraceTreeProvider>
             <ResizableTraceTreePanelContent>
+              {treeHeader}
               <TraceTreeToolbar />
               <ConnectedTraceTree
                 trace={data.project.trace}
-                selectedSpanNodeId={selectedSpanNodeId}
+                session={treeSession}
+                selectedSpanNodeId={selectedSpanNodeId ?? ""}
+                traceSelection={{
+                  isSelected: isTraceSelected,
+                  onSelect: () => {
+                    setSearchParams(
+                      (searchParams) => {
+                        searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                        searchParams.set(
+                          SELECTED_TRACE_ID_PARAM,
+                          data.project.trace.traceId
+                        );
+                        return searchParams;
+                      },
+                      { replace: true }
+                    );
+                  },
+                  traceId: data.project.trace.traceId,
+                }}
                 onSpanClick={(span) => {
                   setSearchParams(
                     (searchParams) => {
+                      searchParams.delete(SELECTED_TRACE_ID_PARAM);
                       searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
                       return searchParams;
                     },
@@ -180,7 +229,13 @@ export function TraceDetails({
           minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
         >
           <SpanDetailsWrapper>
-            {selectedSpanNodeId ? (
+            {isTraceSelected ? (
+              <Suspense fallback={<Loading />}>
+                <TraceDetailPanelAnnotationBar
+                  traceNodeId={data.project.trace.id}
+                />
+              </Suspense>
+            ) : selectedSpanNodeId ? (
               <Suspense fallback={<Loading />}>
                 <SpanDetails spanNodeId={selectedSpanNodeId} />
               </Suspense>

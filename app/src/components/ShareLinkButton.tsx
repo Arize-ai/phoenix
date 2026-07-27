@@ -21,8 +21,10 @@ export const ShareLinkButton = ({
   return (
     <TooltipTrigger delay={200}>
       <Button
+        className="share-link-button"
         size="S"
         leadingVisual={<Icon svg={<Icons.Share />} />}
+        aria-label={buttonText ?? tooltipText}
         onPress={() => {
           const url = new URL(
             prependBasename(location.pathname),
@@ -31,14 +33,16 @@ export const ShareLinkButton = ({
           if (preserveSearchParams) {
             url.search = location.search;
           }
-          navigator.clipboard.writeText(url.toString());
+          void navigator.clipboard.writeText(url.toString());
           notifySuccess({
             title: successText ?? "Link copied to clipboard",
             expireMs: 1000,
           });
         }}
       >
-        {buttonText}
+        {buttonText ? (
+          <span className="share-link-button__label">{buttonText}</span>
+        ) : null}
       </Button>
       <Tooltip offset={10}>
         <View

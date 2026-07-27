@@ -146,7 +146,7 @@ export function TraceTreeToolbar() {
             aria-label="Search trace tree"
             defaultValue={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Search trace"
+            placeholder="Search"
             size="S"
             variant="quiet"
           />

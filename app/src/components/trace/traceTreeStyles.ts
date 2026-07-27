@@ -27,6 +27,7 @@ export const traceTreePanelContentCSS = css`
   overflow: hidden;
   container-type: inline-size;
   background: var(--global-background-color-default);
+  --trace-tree-overflow-y: auto;
 
   .details-panel-columns:has(
       .details-panel-tree-separator[data-overlay-resizing="true"]
@@ -40,6 +41,8 @@ export const traceTreePanelContentCSS = css`
   }
 
   @container trace-tree-panel (width < ${TRACE_TREE_HOVER_WIDTH_PIXELS}px) {
+    --trace-tree-overflow-y: hidden;
+
     .details-panel-columns:not(
         :has(
           .details-panel-tree-separator:is(
@@ -67,6 +70,7 @@ export const traceTreePanelContentCSS = css`
       & {
       z-index: var(--global-z-index-local-raised);
       width: var(--global-dimension-size-3000);
+      --trace-tree-overflow-y: auto;
       border-right: var(--global-border-size-thin) solid
         var(--global-border-color-default);
 

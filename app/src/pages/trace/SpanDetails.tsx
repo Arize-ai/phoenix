@@ -442,7 +442,6 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
       >
         <SpanHeader
           span={span}
-          projectId={projectId}
           actions={
             <>
               <LinkButton

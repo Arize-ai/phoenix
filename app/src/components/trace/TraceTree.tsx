@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
+import type { To } from "react-router";
+import { Link } from "react-router";
 
 import {
   DisclosureArrow,
@@ -10,6 +12,7 @@ import {
   Icons,
   Text,
 } from "@phoenix/components";
+import { IDBadge } from "@phoenix/components/core/id";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -28,6 +31,15 @@ import { createSpanTree, filterSpanTree } from "./utils";
 
 export type TraceTreeProps = {
   spans: ISpanItem[];
+  session?: {
+    sessionId: string;
+    to: To;
+  };
+  traceSelection?: {
+    isSelected: boolean;
+    onSelect: () => void;
+    traceId: string;
+  };
   onSpanClick?: (span: ISpanItem) => void;
   selectedSpanNodeId: string;
   scrollSelectedSpanIntoView?: boolean;
@@ -38,6 +50,8 @@ export { TraceTreeProvider } from "./TraceTreeContext";
 export function TraceTree(props: TraceTreeProps) {
   const {
     spans,
+    session,
+    traceSelection,
     onSpanClick,
     selectedSpanNodeId,
     scrollSelectedSpanIntoView = true,
@@ -68,11 +82,22 @@ export function TraceTree(props: TraceTreeProps) {
         css={[
           traceTreeListCSS,
           css`
-            overflow: auto;
+            overflow-x: auto;
+            overflow-y: var(--trace-tree-overflow-y, auto);
           `,
         ]}
         data-testid="trace-tree"
       >
+        {session ? (
+          <li>
+            <SessionTreeItem sessionId={session.sessionId} to={session.to} />
+          </li>
+        ) : null}
+        {traceSelection ? (
+          <li>
+            <TraceTreeItem {...traceSelection} />
+          </li>
+        ) : null}
         {noSearchResults ? (
           <li aria-live="polite">
             <TraceTreeSearchEmpty searchQuery={searchQuery} />
@@ -94,6 +119,105 @@ export function TraceTree(props: TraceTreeProps) {
           />
         ))}
       </ul>
+    </div>
+  );
+}
+
+const entityTreeItemCSS = css`
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100);
+  padding-left: var(--global-dimension-size-200);
+  border-left: 4px solid transparent;
+
+  &:hover {
+    background-color: var(--global-color-gray-75);
+  }
+
+  &[data-selected="true"] {
+    background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
+    border-left-color: var(--global-color-gray-300);
+  }
+
+  .trace-tree-entity-item__action {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .trace-tree-entity-item__action:focus-visible {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
+  }
+
+  .trace-tree-entity-item__id {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: flex-end;
+    max-width: 120px;
+    margin-left: auto;
+    min-width: 0;
+  }
+
+  .trace-tree-entity-item__id > button {
+    max-width: 100%;
+  }
+
+  .icon-wrap {
+    flex: none;
+    color: var(--global-text-color-700);
+  }
+`;
+
+function SessionTreeItem({ sessionId, to }: { sessionId: string; to: To }) {
+  return (
+    <div css={entityTreeItemCSS}>
+      <Link
+        className="trace-tree-entity-item__action"
+        to={to}
+        aria-label={`View session ${sessionId}`}
+      />
+      <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
+      <Text size="S">Session</Text>
+      <div className="trace-tree-entity-item__id">
+        <IDBadge id={sessionId} tooltipText="Copy Session ID" />
+      </div>
+    </div>
+  );
+}
+
+function TraceTreeItem({
+  isSelected,
+  onSelect,
+  traceId,
+}: {
+  isSelected: boolean;
+  onSelect: () => void;
+  traceId: string;
+}) {
+  return (
+    <div css={entityTreeItemCSS} data-selected={isSelected}>
+      <button
+        type="button"
+        className="trace-tree-entity-item__action"
+        aria-label={`View trace ${traceId}`}
+        aria-pressed={isSelected}
+        onClick={onSelect}
+      />
+      <Icon aria-hidden="true" svg={<Icons.Trace />} />
+      <Text size="S">Trace</Text>
+      <div className="trace-tree-entity-item__id">
+        <IDBadge id={traceId} tooltipText="Copy Trace ID" />
+      </div>
     </div>
   );
 }
