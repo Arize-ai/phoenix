@@ -20,20 +20,18 @@ export function ProjectEvaluatorEnabledSwitch({
   enabled: boolean;
 }) {
   const [commit, isInFlight] =
-    useMutation<ProjectEvaluatorEnabledSwitchMutation>(
-      graphql`
-        mutation ProjectEvaluatorEnabledSwitchMutation(
-          $input: SetProjectEvaluatorEnabledInput!
-        ) {
-          setProjectEvaluatorEnabled(input: $input) {
-            evaluator {
-              id
-              enabled
-            }
+    useMutation<ProjectEvaluatorEnabledSwitchMutation>(graphql`
+      mutation ProjectEvaluatorEnabledSwitchMutation(
+        $input: SetProjectEvaluatorEnabledInput!
+      ) {
+        setProjectEvaluatorEnabled(input: $input) {
+          evaluator {
+            id
+            enabled
           }
         }
-      `
-    );
+      }
+    `);
 
   const label = `${enabled ? "Disable" : "Enable"} ${name}`;
 
