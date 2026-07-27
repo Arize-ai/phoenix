@@ -9,7 +9,7 @@ import pytest
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, DataChunk
 
 from phoenix.db.types.data_stream_protocol import UIMessage
-from phoenix.server.agents.ui_message_stream import (
+from phoenix.server.agents.vercel_ui_message_stream import (
     UIMessageStreamError,
     read_ui_message_stream,
 )

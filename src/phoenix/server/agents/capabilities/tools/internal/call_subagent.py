@@ -27,10 +27,8 @@ from phoenix.db.types.data_stream_protocol import (
     UIMessage,
 )
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
-from phoenix.server.agents.ui_message_stream import (
-    iter_chunks_with_error_parts,
-    read_ui_message_stream,
-)
+from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
+from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
 Delegate a natural-language task to the Phoenix GraphQL server agent, which queries \

@@ -41,10 +41,8 @@ from phoenix.db.types.data_stream_protocol import (
     ToolOutputDeniedPart,
     UIMessage,
 )
-from phoenix.server.agents.ui_message_stream import (
-    iter_chunks_with_error_parts,
-    read_ui_message_stream,
-)
+from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
+from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 
 
 async def _iter_chunks(chunks: Sequence[BaseChunk]) -> AsyncIterator[BaseChunk]:

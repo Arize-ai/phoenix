@@ -51,10 +51,8 @@ from phoenix.db.types.data_stream_protocol import (
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
-from phoenix.server.agents.ui_message_stream import (
-    iter_chunks_with_error_parts,
-    read_ui_message_stream,
-)
+from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
+from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS
 from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
