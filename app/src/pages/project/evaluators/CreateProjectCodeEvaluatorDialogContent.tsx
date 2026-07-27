@@ -1,5 +1,4 @@
 import { type ReactNode, useMemo, useState } from "react";
-import type { Key } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import { Alert, Flex, LinkButton } from "@phoenix/components";
@@ -47,16 +46,12 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   projectId,
   scope,
   onScopeChange,
-  expandedKeys,
-  onExpandedChange,
   updateConnectionIds,
   onSuccess,
 }: {
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
-  expandedKeys: Set<Key>;
-  onExpandedChange: (keys: Set<Key>) => void;
   updateConnectionIds?: string[];
   onSuccess: () => void;
 }) => {
@@ -267,8 +262,6 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          expandedKeys={expandedKeys}
-          onExpandedChange={onExpandedChange}
           definitionKind="newCode"
           onFilterValidityChange={setIsFilterValid}
           codeDefinition={

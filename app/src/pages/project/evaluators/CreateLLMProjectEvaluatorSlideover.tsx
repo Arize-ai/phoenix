@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useMemo, useState } from "react";
-import type { Key, ModalOverlayProps } from "react-aria-components";
+import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 import invariant from "tiny-invariant";
 
@@ -137,13 +137,6 @@ const CreateProjectEvaluatorDialog = ({
     filterCondition: "",
     samplingRatePercent: 100,
   });
-  const [expandedKeys, setExpandedKeys] = useState<Set<Key>>(() =>
-    // Code authoring opens with the definition section expanded so the editor
-    // is visible; other modes stay scope-first.
-    creationMode.kind === "newCode"
-      ? new Set(["scope", "definition"])
-      : new Set(["scope"])
-  );
   const [addCodeEvaluator, isAddingCodeEvaluator] =
     useMutation<CreateLLMProjectEvaluatorSlideoverAddCodeMutation>(graphql`
       mutation CreateLLMProjectEvaluatorSlideoverAddCodeMutation(
@@ -312,8 +305,6 @@ const CreateProjectEvaluatorDialog = ({
             projectId={projectId}
             scope={scope}
             onScopeChange={setScope}
-            expandedKeys={expandedKeys}
-            onExpandedChange={setExpandedKeys}
             updateConnectionIds={updateConnectionIds}
             onSuccess={finishCreation}
           />
@@ -325,8 +316,6 @@ const CreateProjectEvaluatorDialog = ({
             variables={creationMode.variables}
             scope={scope}
             onScopeChange={setScope}
-            expandedKeys={expandedKeys}
-            onExpandedChange={setExpandedKeys}
             isSubmitting={isAddingCodeEvaluator}
             error={error}
             onSubmit={() => {
@@ -374,8 +363,6 @@ const CreateProjectEvaluatorDialog = ({
                 projectId={projectId}
                 scope={scope}
                 onScopeChange={setScope}
-                expandedKeys={expandedKeys}
-                onExpandedChange={setExpandedKeys}
                 definitionKind="llm"
                 onFilterValidityChange={setIsFilterValid}
               />

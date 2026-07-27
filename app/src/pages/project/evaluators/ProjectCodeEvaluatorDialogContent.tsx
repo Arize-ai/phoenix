@@ -1,5 +1,4 @@
 import { useState } from "react";
-import type { Key } from "react-aria-components";
 
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
@@ -14,8 +13,6 @@ export const ProjectCodeEvaluatorDialogContent = ({
   variables,
   scope,
   onScopeChange,
-  expandedKeys,
-  onExpandedChange,
   onSubmit,
   isSubmitting,
   error,
@@ -28,8 +25,6 @@ export const ProjectCodeEvaluatorDialogContent = ({
   variables: string[];
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
-  expandedKeys: Set<Key>;
-  onExpandedChange: (keys: Set<Key>) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
   error?: string;
@@ -60,8 +55,6 @@ export const ProjectCodeEvaluatorDialogContent = ({
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          expandedKeys={expandedKeys}
-          onExpandedChange={onExpandedChange}
           definitionKind="code"
           codeEvaluatorName={evaluatorName}
           onFilterValidityChange={setIsFilterValid}

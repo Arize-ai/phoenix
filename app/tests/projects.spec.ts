@@ -211,9 +211,8 @@ test.describe.serial("Projects", () => {
       name: "Create project evaluator",
     });
     await expect(createDialog).toBeVisible();
-    await createDialog
-      .getByRole("button", { name: "Create an unfiltered evaluator" })
-      .click();
+    // The evaluator definition is always visible — an unfiltered evaluator
+    // needs no extra step, only a name.
     await createDialog.getByLabel("Name").fill(evaluatorName);
     await createDialog.getByRole("button", { name: "Create" }).click();
     await expect(createDialog).not.toBeVisible();

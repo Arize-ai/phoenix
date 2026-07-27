@@ -1,5 +1,5 @@
 import { Suspense, useState } from "react";
-import type { Key, ModalOverlayProps } from "react-aria-components";
+import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
@@ -299,9 +299,6 @@ function EditLlmProjectEvaluatorContent({
   const [error, setError] = useState<string>();
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [isFilterValid, setIsFilterValid] = useState(true);
-  const [expandedKeys, setExpandedKeys] = useState<Set<Key>>(
-    () => new Set(["scope", "definition"])
-  );
   const [commitUpdate, isUpdating] =
     useMutation<EditProjectEvaluatorSlideoverUpdateLlmMutation>(graphql`
       mutation EditProjectEvaluatorSlideoverUpdateLlmMutation(
@@ -419,8 +416,6 @@ function EditLlmProjectEvaluatorContent({
               projectId={evaluator.project.id}
               scope={scope}
               onScopeChange={setScope}
-              expandedKeys={expandedKeys}
-              onExpandedChange={setExpandedKeys}
               definitionKind="llm"
               onFilterValidityChange={setIsFilterValid}
             />
@@ -454,9 +449,6 @@ function EditCodeProjectEvaluator({
   // (omit=preserve) rather than pinning an otherwise-inherited setting.
   const initialInputMappingJson = JSON.stringify(evaluator.inputMapping);
   const [scope, setScope] = useState(() => getScope(evaluator));
-  const [expandedKeys, setExpandedKeys] = useState<Set<Key>>(
-    () => new Set(["scope", "advanced"])
-  );
   const [error, setError] = useState<string>();
   const notifySuccess = useNotifySuccess();
   const [commitUpdate, isUpdating] =
@@ -508,8 +500,6 @@ function EditCodeProjectEvaluator({
             variables={variables}
             scope={scope}
             onScopeChange={setScope}
-            expandedKeys={expandedKeys}
-            onExpandedChange={setExpandedKeys}
             isSubmitting={isUpdating}
             error={error}
             onSubmit={() => {

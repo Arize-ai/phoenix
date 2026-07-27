@@ -117,6 +117,9 @@ export const EvaluatorForm = ({
           flex-direction: column;
           padding: var(--global-dimension-size-100)
             var(--global-dimension-size-200);
+          /* End-of-scroll breathing room so the last section doesn't sit
+             flush against the panel edge when scrolled to the bottom. */
+          padding-bottom: var(--global-dimension-size-600);
           box-sizing: border-box;
         `}
       >
