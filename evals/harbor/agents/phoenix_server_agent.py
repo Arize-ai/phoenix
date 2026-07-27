@@ -37,13 +37,8 @@ class PhoenixServerAgent(BaseAgent):
         return harbor_model_name.replace("/", ":", 1)
 
     async def setup(self, environment: BaseEnvironment) -> None:
-        result = await environment.exec("sh /opt/phoenix-eval/bootstrap_data.sh")
-        if result.return_code != 0:
-            raise RuntimeError(
-                result.stderr
-                or result.stdout
-                or f"bootstrap_data.sh failed with code {result.return_code}"
-            )
+        # Seed data is bootstrapped by each step's workdir/setup.sh task hook.
+        return None
 
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
