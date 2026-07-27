@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import type { useCategoryChartColors } from "@phoenix/components/chart";
+
+import type { ModelTokenDetailChartDatum } from "../tokenDetails";
 import {
   buildModelTokenDetailChartData,
+  getModelTokenDetailBarRadius,
+  getModelTokenDetailColors,
   getModelTokenDetailDataKey,
 } from "../tokenDetails";
 
@@ -74,12 +79,15 @@ describe("buildModelTokenDetailChartData", () => {
         })]: 5,
       },
     ]);
-    expect(series.map(({ tokenType }) => tokenType)).toEqual([
-      "input",
-      "output",
-      "cache_read",
-      "cache_write",
-      "reasoning",
+    // Prompt series first, then completion, each in canonical token order
+    expect(
+      series.map(({ isPrompt, tokenType }) => [tokenType, isPrompt])
+    ).toEqual([
+      ["input", true],
+      ["cache_read", true],
+      ["cache_write", true],
+      ["output", false],
+      ["reasoning", false],
     ]);
   });
 
@@ -126,5 +134,108 @@ describe("buildModelTokenDetailChartData", () => {
         tokenType: "output",
       })]: 0.2,
     });
+  });
+});
+
+describe("getModelTokenDetailBarRadius", () => {
+  const allSeries = [
+    { dataKey: "input", isPrompt: true, tokenType: "input" },
+    { dataKey: "output", isPrompt: false, tokenType: "output" },
+    { dataKey: "cacheRead", isPrompt: true, tokenType: "cache_read" },
+    { dataKey: "cacheWrite", isPrompt: true, tokenType: "cache_write" },
+  ];
+  const noneHidden = () => false;
+  const radiusFor = ({
+    datum,
+    dataKey,
+    isDataKeyHidden = noneHidden,
+  }: {
+    datum: ModelTokenDetailChartDatum;
+    dataKey: string;
+    isDataKeyHidden?: (dataKey: string) => boolean;
+  }) =>
+    getModelTokenDetailBarRadius({
+      allSeries,
+      datum,
+      isDataKeyHidden,
+      series: allSeries.find((series) => series.dataKey === dataKey)!,
+    });
+
+  it("rounds the ends of the segments a row actually draws", () => {
+    // No cache writes, so the stack ends at cache read rather than the last series
+    const datum = { model: "gpt", total: 3, input: 1, cacheRead: 2 };
+
+    expect(radiusFor({ datum, dataKey: "input" })).toEqual([2, 0, 0, 2]);
+    expect(radiusFor({ datum, dataKey: "cacheRead" })).toEqual([0, 2, 2, 0]);
+    expect(radiusFor({ datum, dataKey: "output" })).toBeUndefined();
+  });
+
+  it("leaves inner segments square", () => {
+    const datum = {
+      model: "gpt",
+      total: 6,
+      input: 1,
+      output: 2,
+      cacheWrite: 3,
+    };
+
+    expect(radiusFor({ datum, dataKey: "output" })).toBeUndefined();
+  });
+
+  it("rounds both ends of a row with a single segment", () => {
+    const datum = { model: "gpt", total: 4, cacheWrite: 4 };
+
+    expect(radiusFor({ datum, dataKey: "cacheWrite" })).toEqual([2, 2, 2, 2]);
+  });
+
+  it("ignores series the legend is hiding", () => {
+    const datum = {
+      model: "gpt",
+      total: 6,
+      input: 1,
+      output: 2,
+      cacheWrite: 3,
+    };
+    const isDataKeyHidden = (dataKey: string) => dataKey === "input";
+
+    expect(radiusFor({ datum, dataKey: "output", isDataKeyHidden })).toEqual([
+      2, 0, 0, 2,
+    ]);
+  });
+});
+
+describe("getModelTokenDetailColors", () => {
+  const colors = Object.fromEntries(
+    Array.from({ length: 12 }, (_, index) => [
+      `category${index + 1}`,
+      `color-${index + 1}`,
+    ])
+  ) as ReturnType<typeof useCategoryChartColors>;
+
+  it("gives prompt and completion usage of one token type different colors", () => {
+    const colorByDataKey = getModelTokenDetailColors({
+      colors,
+      series: [
+        { dataKey: "promptAudio", isPrompt: true, tokenType: "audio" },
+        { dataKey: "completionAudio", isPrompt: false, tokenType: "audio" },
+      ],
+    });
+
+    expect(colorByDataKey.get("promptAudio")).not.toBe(
+      colorByDataKey.get("completionAudio")
+    );
+  });
+
+  it("keeps the semantic color for token types that appear once", () => {
+    const colorByDataKey = getModelTokenDetailColors({
+      colors,
+      series: [
+        { dataKey: "input", isPrompt: true, tokenType: "input" },
+        { dataKey: "output", isPrompt: false, tokenType: "output" },
+      ],
+    });
+
+    expect(colorByDataKey.get("input")).toBe(colors.category1);
+    expect(colorByDataKey.get("output")).toBe(colors.category2);
   });
 });

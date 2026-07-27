@@ -19,28 +19,24 @@ from phoenix.server.types import DbSessionFactory
 
 
 @dataclass(frozen=True)
-class _CostDetailSummaryScope:
-    project_id: Optional[int]
-    start_time: Optional[datetime]
-    end_time: Optional[datetime]
+class CostDetailSummaryScope:
+    """Optional project and time filters narrowing a token-detail summary.
 
+    Every key carrying the same scope is answered by a single query, so the
+    scope is what the loader batches on. The default scope is unfiltered.
+    """
 
-@dataclass(frozen=True)
-class GenerativeModelCostDetailSummaryKey:
-    """Identifies one model's token details within optional project and time filters."""
-
-    model_id: int
     project_id: Optional[int] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
 
-    @property
-    def scope(self) -> _CostDetailSummaryScope:
-        return _CostDetailSummaryScope(
-            project_id=self.project_id,
-            start_time=self.start_time,
-            end_time=self.end_time,
-        )
+
+@dataclass(frozen=True)
+class GenerativeModelCostDetailSummaryKey:
+    """Identifies one model's token details within a scope."""
+
+    model_id: int
+    scope: CostDetailSummaryScope = CostDetailSummaryScope()
 
 
 CostDetailSummaryEntries: TypeAlias = list[SpanCostDetailSummaryEntry]
@@ -58,24 +54,20 @@ class SpanCostDetailSummaryEntriesByModelAndScopeDataLoader(
     async def _load_fn(
         self, keys: list[GenerativeModelCostDetailSummaryKey]
     ) -> list[CostDetailSummaryEntries]:
-        summaries_by_key: defaultdict[
-            GenerativeModelCostDetailSummaryKey, CostDetailSummaryEntries
-        ] = defaultdict(list)
-        model_ids_by_scope = _group_model_ids_by_scope(keys)
+        model_ids_by_scope: defaultdict[CostDetailSummaryScope, set[int]] = defaultdict(set)
+        for key in keys:
+            model_ids_by_scope[key.scope].add(key.model_id)
 
+        summaries: defaultdict[tuple[CostDetailSummaryScope, int], CostDetailSummaryEntries] = (
+            defaultdict(list)
+        )
         async with self._db.read() as session:
             for scope, model_ids in model_ids_by_scope.items():
                 rows = await session.stream(
                     _build_cost_detail_summary_statement(model_ids=model_ids, scope=scope)
                 )
                 async for model_id, token_type, is_prompt, cost, tokens in rows:
-                    result_key = GenerativeModelCostDetailSummaryKey(
-                        model_id=model_id,
-                        project_id=scope.project_id,
-                        start_time=scope.start_time,
-                        end_time=scope.end_time,
-                    )
-                    summaries_by_key[result_key].append(
+                    summaries[(scope, model_id)].append(
                         SpanCostDetailSummaryEntry(
                             token_type=token_type,
                             is_prompt=is_prompt,
@@ -83,22 +75,13 @@ class SpanCostDetailSummaryEntriesByModelAndScopeDataLoader(
                         )
                     )
 
-        return [summaries_by_key[key] for key in keys]
-
-
-def _group_model_ids_by_scope(
-    keys: list[GenerativeModelCostDetailSummaryKey],
-) -> dict[_CostDetailSummaryScope, set[int]]:
-    model_ids_by_scope: defaultdict[_CostDetailSummaryScope, set[int]] = defaultdict(set)
-    for key in keys:
-        model_ids_by_scope[key.scope].add(key.model_id)
-    return model_ids_by_scope
+        return [summaries[(key.scope, key.model_id)] for key in keys]
 
 
 def _build_cost_detail_summary_statement(
     *,
     model_ids: set[int],
-    scope: _CostDetailSummaryScope,
+    scope: CostDetailSummaryScope,
 ) -> Select[tuple[Optional[int], str, bool, Optional[float], Optional[float]]]:
     """Aggregate token counts and costs by model, token type, and prompt kind."""
     statement = (

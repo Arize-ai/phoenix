@@ -25,7 +25,7 @@ export function ChartTooltip(props: ChartTooltipProps) {
         display: flex;
         flex-direction: column;
         gap: var(--global-dimension-size-50);
-        min-width: var(--global-dimension-size-3000);
+        min-width: 200px;
         box-shadow: 0 8px 8px rgba(0, 0, 0, 0.1);
       `}
     >

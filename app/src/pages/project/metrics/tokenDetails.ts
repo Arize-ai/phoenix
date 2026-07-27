@@ -7,6 +7,7 @@ import type { useCategoryChartColors } from "@phoenix/components/chart";
 
 const TOKEN_DETAIL_DATA_KEY_PREFIX = "tokenDetail:";
 const TOKEN_DETAIL_EPSILON = 1e-9;
+const TOKEN_DETAIL_BAR_RADIUS = 2;
 const TOKEN_DETAIL_SORT_ORDER: Partial<Record<string, number>> = {
   input: 0,
   output: 0,
@@ -102,14 +103,15 @@ export function getModelTokenDetailDataKey({
 /**
  * Converts a snake-case token type into a user-facing chart label.
  *
+ * Sentence case rather than title case, so that a label reads the same whether
+ * or not `getModelTokenDetailLabel` prefixes it with its prompt/completion kind.
+ *
  * @param tokenType - Raw token type received from the API.
- * @returns A title-cased label with underscores replaced by spaces.
+ * @returns A sentence-cased label with underscores replaced by spaces.
  */
 export function getTokenDetailLabel(tokenType: string) {
-  return tokenType
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+  const words = tokenType.split("_").join(" ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 /**
@@ -194,7 +196,20 @@ export function getTokenDetailColor({
   if (tokenType === "audio") {
     return colors.category3;
   }
-  const fallbackColors = [
+  const fallbackColors = getTokenDetailFallbackColors(colors);
+  return fallbackColors[index % fallbackColors.length];
+}
+
+/**
+ * The colors used for token types with no semantic color of their own.
+ *
+ * @param colors - Theme-aware categorical chart colors.
+ * @returns Fallback colors in assignment order.
+ */
+function getTokenDetailFallbackColors(
+  colors: ReturnType<typeof useCategoryChartColors>
+) {
+  return [
     colors.category5,
     colors.category6,
     colors.category8,
@@ -202,39 +217,124 @@ export function getTokenDetailColor({
     colors.category11,
     colors.category12,
   ];
-  return fallbackColors[index % fallbackColors.length];
 }
 
 /**
- * Rounds the exposed edge of the first and last bars in a horizontal stack.
+ * Assigns every series in a model chart a distinct color.
  *
- * @param params - Position of the bar within the stack.
- * @param params.index - Zero-based position of the bar series.
- * @param params.seriesCount - Number of bar series in the stack.
- * @returns Corner radii for an outer bar, or undefined for an inner bar.
+ * A token type carries one semantic color, but prompt and completion usage of
+ * that type are separate series here, so the second one has to give up the
+ * semantic color; sharing it would render the two as a single continuous block
+ * with indistinguishable legend swatches.
+ *
+ * @param params - Color assignment context.
+ * @param params.colors - Theme-aware categorical chart colors.
+ * @param params.series - Every series in the chart, in stacking order.
+ * @returns A color for each series, keyed by data key.
+ */
+export function getModelTokenDetailColors({
+  colors,
+  series,
+}: {
+  colors: ReturnType<typeof useCategoryChartColors>;
+  series: ReadonlyArray<ModelTokenDetailSeries>;
+}) {
+  const fallbackColors = getTokenDetailFallbackColors(colors);
+  const takenColors = new Set<string>();
+  const claimColor = (preferredColor: string) => {
+    const color = takenColors.has(preferredColor)
+      ? (fallbackColors.find((candidate) => !takenColors.has(candidate)) ??
+        preferredColor)
+      : preferredColor;
+    takenColors.add(color);
+    return color;
+  };
+
+  return new Map(
+    series.map((candidate, index) => [
+      candidate.dataKey,
+      claimColor(
+        getTokenDetailColor({ colors, index, tokenType: candidate.tokenType })
+      ),
+    ])
+  );
+}
+
+/**
+ * Lists the series a single row actually draws, in stacking order.
+ *
+ * @param params - Row context.
+ * @param params.allSeries - Every series in the chart, in stacking order.
+ * @param params.datum - Row being rendered.
+ * @param params.isDataKeyHidden - Whether the legend currently hides a series.
+ * @returns The subset of series contributing a segment to this row.
+ */
+function getStackedSeries({
+  allSeries,
+  datum,
+  isDataKeyHidden,
+}: {
+  allSeries: ReadonlyArray<ModelTokenDetailSeries>;
+  datum: ModelTokenDetailChartDatum;
+  isDataKeyHidden: (dataKey: string) => boolean;
+}) {
+  return allSeries.filter((series) => {
+    const value = datum[series.dataKey];
+    return (
+      !isDataKeyHidden(series.dataKey) && typeof value === "number" && value > 0
+    );
+  });
+}
+
+/**
+ * Rounds the exposed ends of a horizontal stack.
+ *
+ * The rounded segments have to be picked per row rather than per series: a
+ * model without cache writes, or a series the legend is hiding, leaves the
+ * stack starting or ending somewhere other than the outermost series, and
+ * rounding by series position alone would leave that row with square ends.
+ *
+ * @param params - Position of the bar within one row's stack.
+ * @param params.allSeries - Every series in the chart, in stacking order.
+ * @param params.datum - Row being rendered.
+ * @param params.isDataKeyHidden - Whether the legend currently hides a series.
+ * @param params.series - Series being rendered.
+ * @returns Corner radii for an outermost segment, or undefined for an inner one.
  */
 export function getModelTokenDetailBarRadius({
-  index,
-  seriesCount,
+  allSeries,
+  datum,
+  isDataKeyHidden,
+  series,
 }: {
-  index: number;
-  seriesCount: number;
+  allSeries: ReadonlyArray<ModelTokenDetailSeries>;
+  datum: ModelTokenDetailChartDatum;
+  isDataKeyHidden: (dataKey: string) => boolean;
+  series: ModelTokenDetailSeries;
 }): [number, number, number, number] | undefined {
-  const isFirstSeries = index === 0;
-  if (isFirstSeries) {
-    return [2, 0, 0, 2];
-  }
+  const stackedSeries = getStackedSeries({ allSeries, datum, isDataKeyHidden });
+  const radius = TOKEN_DETAIL_BAR_RADIUS;
+  const isStackStart = stackedSeries.at(0)?.dataKey === series.dataKey;
+  const isStackEnd = stackedSeries.at(-1)?.dataKey === series.dataKey;
 
-  const isLastSeries = index === seriesCount - 1;
-  if (isLastSeries) {
-    return [0, 2, 2, 0];
+  if (isStackStart && isStackEnd) {
+    return [radius, radius, radius, radius];
   }
-
+  if (isStackStart) {
+    return [radius, 0, 0, radius];
+  }
+  if (isStackEnd) {
+    return [0, radius, radius, 0];
+  }
   return undefined;
 }
 
 /**
- * Orders model series by token type and prompt/completion kind.
+ * Orders model series by prompt/completion kind first, then by token type.
+ *
+ * Kind takes precedence so that a stack reads as prompt usage followed by
+ * completion usage, the same split the chart showed before it was broken down
+ * by token type; ordering by token type first would interleave the two.
  *
  * @param left - First series descriptor.
  * @param right - Second series descriptor.
@@ -244,11 +344,10 @@ function compareTokenDetailSeries(
   left: ModelTokenDetailSeries,
   right: ModelTokenDetailSeries
 ) {
-  const tokenTypeOrder = compareTokenTypes(left.tokenType, right.tokenType);
-  if (tokenTypeOrder !== 0) {
-    return tokenTypeOrder;
+  if (left.isPrompt !== right.isPrompt) {
+    return Number(right.isPrompt) - Number(left.isPrompt);
   }
-  return Number(right.isPrompt) - Number(left.isPrompt);
+  return compareTokenTypes(left.tokenType, right.tokenType);
 }
 
 /**

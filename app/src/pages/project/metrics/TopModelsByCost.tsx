@@ -1,5 +1,4 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
-import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -10,12 +9,8 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text } from "@phoenix/components";
 import {
   ChartEmptyStateOverlay,
-  ChartTooltip,
-  ChartTooltipDivider,
-  ChartTooltipItem,
   InteractiveLegend,
   compactChartMargin,
   defaultCartesianGridProps,
@@ -29,56 +24,16 @@ import {
 } from "@phoenix/components/chart";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
-import {
-  costFormatter,
-  percentFormatter,
-} from "@phoenix/utils/numberFormatUtils";
+import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TopModelsByCostQuery } from "./__generated__/TopModelsByCostQuery.graphql";
+import { ModelTokenDetailBarShape } from "./ModelTokenDetailBarShape";
+import { ModelTokenDetailTooltipContent } from "./ModelTokenDetailTooltipContent";
 import {
   buildModelTokenDetailChartData,
-  getModelTokenDetailBarRadius,
+  getModelTokenDetailColors,
   getModelTokenDetailLabel,
-  getTokenDetailColor,
 } from "./tokenDetails";
-
-function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  if (active && payload && payload.length) {
-    const total = payload[0]?.payload?.total;
-    return (
-      <ChartTooltip>
-        {label && (
-          <Text weight="heavy" size="S">
-            {String(label)}
-          </Text>
-        )}
-        {payload.map((entry) => {
-          const value = Number(entry.value);
-          const share =
-            typeof total === "number" && total > 0
-              ? ` (${percentFormatter((value / total) * 100)})`
-              : "";
-          return (
-            <ChartTooltipItem
-              color={entry.color ?? "transparent"}
-              key={String(entry.dataKey ?? entry.name)}
-              shape="circle"
-              name={String(entry.name ?? entry.dataKey ?? "unknown")}
-              value={`${costFormatter(value)}${share}`}
-            />
-          );
-        })}
-        <ChartTooltipDivider />
-        <ChartTooltipItem
-          name="Total cost"
-          value={costFormatter(typeof total === "number" ? total : 0)}
-        />
-      </ChartTooltip>
-    );
-  }
-
-  return null;
-}
 
 export function TopModelsByCost({
   projectId,
@@ -135,7 +90,10 @@ export function TopModelsByCost({
     metric: "cost",
     models: data.project.topModelsByCost ?? [],
   });
-  const hasData = chartData.length > 0;
+  const colorByDataKey = getModelTokenDetailColors({ colors, series });
+  // A model with no measured usage contributes no series, and a chart with no
+  // series has nothing to draw, so it counts as empty however many rows it has.
+  const hasData = series.length > 0;
 
   return (
     <ChartEmptyStateOverlay
@@ -151,7 +109,15 @@ export function TopModelsByCost({
           barSize={10}
         >
           <CartesianGrid {...defaultCartesianGridProps} />
-          <Tooltip content={TooltipContent} {...defaultTooltipProps} />
+          <Tooltip
+            content={
+              <ModelTokenDetailTooltipContent
+                totalLabel="Total cost"
+                valueFormatter={costFormatter}
+              />
+            }
+            {...defaultTooltipProps}
+          />
           <XAxis
             {...defaultXAxisProps}
             type="number"
@@ -168,25 +134,24 @@ export function TopModelsByCost({
             tickMargin={4}
             tickFormatter={truncateModelName}
           />
-          {series.map((tokenSeries, index) => (
+          {series.map((tokenSeries) => (
             <Bar
               dataKey={tokenSeries.dataKey}
-              fill={getTokenDetailColor({
-                colors,
-                index,
-                tokenType: tokenSeries.tokenType,
-              })}
+              fill={colorByDataKey.get(tokenSeries.dataKey)}
               hide={isDataKeyHidden(tokenSeries.dataKey)}
               key={tokenSeries.dataKey}
               name={getModelTokenDetailLabel({
                 allSeries: series,
                 series: tokenSeries,
               })}
+              shape={
+                <ModelTokenDetailBarShape
+                  allSeries={series}
+                  isDataKeyHidden={isDataKeyHidden}
+                  series={tokenSeries}
+                />
+              }
               stackId="a"
-              radius={getModelTokenDetailBarRadius({
-                index,
-                seriesCount: series.length,
-              })}
             />
           ))}
           <InteractiveLegend
