@@ -5,19 +5,10 @@
 export const SELECTED_SPAN_NODE_ID_PARAM = "selectedSpanNodeId";
 
 /**
- * The applied span filter DSL condition, persisted to the URL so a filtered
- * spans/traces view is shareable and survives reload. Reflects the last *valid*
- * condition, not in-progress edits.
- *
- * Absent and empty mean different things: absent is "nothing applied here", so
- * the view seeds its default, while empty is a filter the user deliberately
- * cleared and must survive a reload as such.
- *
- * This is the only filter param: root-span scoping is expressed inside the
- * condition itself (`parent_span is None`), so there is no separate flag that
- * could disagree with it.
+ * The applied span filter DSL condition. Absent means no condition was applied
+ * here, which lets the view seed its own default.
  */
-export const SPAN_FILTER_CONDITION_PARAM = "filter";
+export const SPAN_FILTER_CONDITION_PARAM = "spanFilterCondition";
 
 /**
  * The search param that contains the selected session details sub-view.
