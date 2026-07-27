@@ -6,7 +6,7 @@ import type {
 } from "@codemirror/autocomplete";
 import { autocompletion } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
-import { css } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 import type { EditorView } from "@uiw/react-codemirror";
 import CodeMirror, {
   type BasicSetupOptions,
@@ -18,9 +18,11 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
+  useId,
   useRef,
   useState,
 } from "react";
+import { Pressable } from "react-aria";
 
 import {
   Flex,
@@ -29,6 +31,7 @@ import {
   Text,
   Tooltip,
   TooltipTrigger,
+  VisuallyHidden,
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
@@ -49,6 +52,15 @@ export const filterConditionCodeMirrorCSS = css`
   }
   .cm-selectionLayer .cm-selectionBackground {
     background: var(--global-color-cyan-400) !important;
+  }
+`;
+
+const statusBadgeIn = keyframes`
+  from {
+    opacity: 0;
+    max-width: 0;
+    padding-left: 0;
+    padding-right: 0;
   }
 `;
 
@@ -75,6 +87,47 @@ export const filterConditionFieldCSS = css`
   }
   .filter-condition-field__filter-icon {
     margin-left: var(--global-dimension-static-size-100);
+  }
+  .filter-condition-field__status-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+    max-width: 200px;
+    overflow: hidden;
+    padding: 2px var(--global-dimension-size-65);
+    margin-right: var(--global-dimension-size-50);
+    border-radius: var(--global-rounding-small);
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+    white-space: nowrap;
+    cursor: default;
+    animation: ${statusBadgeIn} 0.25s ease-out;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+    &[data-severity="danger"] {
+      background-color: var(--global-color-danger-100);
+      color: var(--global-color-danger);
+    }
+    &[data-severity="warning"] {
+      background-color: color-mix(
+        in srgb,
+        var(--global-color-warning) 10%,
+        transparent
+      );
+      color: var(--global-color-warning);
+    }
+    .icon-wrap {
+      flex-shrink: 0;
+    }
+    &:focus-visible {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
+  }
+  .filter-condition-field__status-badge-message {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 `;
 
@@ -189,7 +242,8 @@ export function FilterConditionField(props: FilterConditionFieldProps) {
   const deferredValue = useDeferredValue(value);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
-  const fieldRef = useRef<HTMLDivElement>(null);
+  const editorViewRef = useRef<EditorView | null>(null);
+  const statusId = useId();
 
   const runValidation = useEffectEvent((condition: string) =>
     validateCondition(condition)
@@ -261,6 +315,21 @@ export function FilterConditionField(props: FilterConditionFieldProps) {
   const hasWarnings = warnings.length > 0;
   const hasCondition = value !== "";
 
+  // Validity attributes are applied directly to the contenteditable so
+  // toggling them doesn't force a CodeMirror reconfigure
+  useEffect(() => {
+    const content = editorViewRef.current?.contentDOM;
+    if (!content) {
+      return;
+    }
+    content.setAttribute("aria-invalid", hasError ? "true" : "false");
+    if (hasError || hasWarnings) {
+      content.setAttribute("aria-describedby", statusId);
+    } else {
+      content.removeAttribute("aria-describedby");
+    }
+  }, [hasError, hasWarnings, statusId]);
+
   return (
     <div
       data-is-focused={isFocused}
@@ -268,7 +337,6 @@ export function FilterConditionField(props: FilterConditionFieldProps) {
       data-is-warning={!hasError && hasWarnings}
       className={classNames("filter-condition-field", className)}
       css={filterConditionFieldCSS}
-      ref={fieldRef}
     >
       <Flex direction="row" alignItems="center" width="100%">
         <Icon
@@ -280,6 +348,9 @@ export function FilterConditionField(props: FilterConditionFieldProps) {
           css={filterConditionCodeMirrorCSS}
           indentWithTab={false}
           basicSetup={{ ...basicSetupOptions, ...basicSetupOverrides }}
+          onCreateEditor={(editorView) => {
+            editorViewRef.current = editorView;
+          }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           value={value}
@@ -290,6 +361,49 @@ export function FilterConditionField(props: FilterConditionFieldProps) {
           placeholder={placeholder}
           extensions={extensions}
         />
+        {hasError || hasWarnings ? (
+          <TooltipTrigger delay={0}>
+            <Pressable>
+              <div
+                role="button"
+                tabIndex={0}
+                className="filter-condition-field__status-badge"
+                data-severity={hasError ? "danger" : "warning"}
+                aria-label={
+                  hasError
+                    ? "Filter condition error"
+                    : "Filter condition warning"
+                }
+              >
+                <Icon
+                  svg={<Icons.AlertCircle />}
+                  color={hasError ? "danger" : "warning"}
+                />
+                <span className="filter-condition-field__status-badge-message">
+                  {hasError
+                    ? errorMessage || "Invalid filter condition"
+                    : warnings[0]}
+                </span>
+              </div>
+            </Pressable>
+            <Tooltip placement="bottom">
+              {hasError ? (
+                <Text color="danger">{errorMessage}</Text>
+              ) : (
+                <ul
+                  className="filter-condition-field__warning-list"
+                  css={warningListCSS}
+                >
+                  {warnings.map((warning, index) => (
+                    <li key={`${warning}-${index}`}>
+                      <Text color="warning">{warning}</Text>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Tooltip>
+          </TooltipTrigger>
+        ) : null}
         <button
           aria-label={clearAriaLabel}
           css={clearButtonCSS}
@@ -301,24 +415,13 @@ export function FilterConditionField(props: FilterConditionFieldProps) {
         </button>
         {extras}
       </Flex>
-      <TooltipTrigger isOpen={(hasError || hasWarnings) && isFocused}>
-        <Tooltip placement="bottom" triggerRef={fieldRef}>
-          {hasError ? (
-            <Text color="danger">{errorMessage}</Text>
-          ) : (
-            <ul
-              className="filter-condition-field__warning-list"
-              css={warningListCSS}
-            >
-              {warnings.map((warning, index) => (
-                <li key={`${warning}-${index}`}>
-                  <Text color="warning">{warning}</Text>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Tooltip>
-      </TooltipTrigger>
+      <VisuallyHidden>
+        <span id={statusId} role="status">
+          {hasError
+            ? `Invalid filter condition. ${errorMessage}`.trim()
+            : warnings.join(" ")}
+        </span>
+      </VisuallyHidden>
     </div>
   );
 }
