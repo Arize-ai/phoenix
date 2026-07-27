@@ -1572,13 +1572,37 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Sessions
+         * @description List the viewer's persisted sessions, most recently active first.
+         */
+        get: operations["listAgentSessions"];
         put?: never;
         /**
          * Create Session
          * @description Create a persisted agent session owned by the requesting user.
          */
         post: operations["create_session_agents__agent_id__sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/{agent_id}/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Session
+         * @description Retrieve an owned session and its persisted transcript.
+         */
+        get: operations["getAgentSession"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1686,6 +1710,46 @@ export interface components {
              * @description The session's GlobalID — the ``session_id`` the chat route expects.
              */
             id: string;
+        };
+        /** AgentSessionData */
+        AgentSessionData: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Is Temporary */
+            is_temporary: boolean;
+            /** Messages */
+            messages: components["schemas"]["PhoenixUIMessage"][];
+        };
+        /** AgentSessionSummary */
+        AgentSessionSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Is Temporary */
+            is_temporary: boolean;
         };
         /**
          * AgentSpanContext
@@ -2959,6 +3023,10 @@ export interface components {
             /** Upper Bound */
             upper_bound?: number | null;
         };
+        /** GetAgentSessionResponseBody */
+        GetAgentSessionResponseBody: {
+            data: components["schemas"]["AgentSessionData"];
+        };
         /** GetAllUserApiKeysResponseBody */
         GetAllUserApiKeysResponseBody: {
             /** Data */
@@ -3331,6 +3399,13 @@ export interface components {
             model: components["schemas"]["AgentModelSelection"];
         } & {
             [key: string]: unknown;
+        };
+        /** ListAgentSessionsResponseBody */
+        ListAgentSessionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["AgentSessionSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {
@@ -11073,6 +11148,41 @@ export interface operations {
             };
         };
     };
+    listAgentSessions: {
+        parameters: {
+            query?: {
+                /** @description Opaque pagination cursor. */
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListAgentSessionsResponseBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_session_agents__agent_id__sessions_post: {
         parameters: {
             query?: never;
@@ -11095,6 +11205,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateAgentSessionResponseBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getAgentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAgentSessionResponseBody"];
                 };
             };
             /** @description Validation Error */

@@ -23,8 +23,14 @@ type SchemasV1 = componentsV1["schemas"];
  */
 export type AssistantMessageMetadata = SchemasV1["AssistantMessageMetadata"];
 
+/** Transient data chunks streamed alongside assistant message content. */
+type PxiDataTypes = {
+  "session-summary": SchemasV1["SessionSummaryChunk"]["data"];
+  "transcript-persisted": SchemasV1["TranscriptPersistedChunk"]["data"];
+};
+
 /** A chat message (user or assistant) carrying PXI-specific metadata. */
-export type PxiMessage = UIMessage<AssistantMessageMetadata>;
+export type PxiMessage = UIMessage<AssistantMessageMetadata, PxiDataTypes>;
 
 export type BuiltInProvider = SchemasV1["ModelProvider"];
 
@@ -93,6 +99,26 @@ export type PxiRuntimeOptions = {
   attachUserId: boolean;
 };
 
+/** A persisted server-side chat session shown in the session picker. */
+export type PxiSessionSummary = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  isTemporary: boolean;
+};
+
+/** A session and its canonical persisted transcript. */
+export type PxiSession = PxiSessionSummary & {
+  messages: PxiMessage[];
+};
+
+/** Server-side session operations used by the chat UI. */
+export type PxiSessionClient = {
+  createSession: (options: { temporary: boolean }) => Promise<PxiSession>;
+  listSessions: () => Promise<PxiSessionSummary[]>;
+  getSession: (options: { sessionId: string }) => Promise<PxiSession>;
+};
+
 /**
  * The interface the UI uses to talk to PXI. `sendMessage` streams an assistant
  * reply: `onAssistantMessage` fires on every incremental update so the UI can
@@ -105,6 +131,7 @@ export type PxiChatClient = {
     messages: PxiMessage[];
     abortSignal?: AbortSignal;
     onAssistantMessage: (message: PxiMessage) => void;
+    onSessionTitle?: (title: string) => void;
   }) => Promise<PxiMessage | null>;
 };
 

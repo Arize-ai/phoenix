@@ -207,6 +207,11 @@ codegen-ts-client: ## Generate TypeScript client types from OpenAPI
 	@cd $(JS_DIR)/packages/phoenix-client && $(PNPM) run --silent generate
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
+codegen-ts-testing: ## Generate phoenix-testing TypeScript types from OpenAPI
+	@echo -e "$(CYAN)Generating phoenix-testing TypeScript types...$(NC)"
+	@cd $(JS_DIR)/packages/phoenix-testing && $(PNPM) run --silent generate
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
 codegen-ts-app: ## Generate TypeScript OpenAPI types for app/
 	@echo -e "$(CYAN)Generating TypeScript OpenAPI types for app...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent generate:openapi
@@ -217,7 +222,7 @@ schema-generative-ui: ## Generate generative UI catalog schema artifacts
 	@cd $(APP_DIR) && $(PNPM) run --silent generate:generative-ui-catalog
 	@echo -e "$(GREEN)✓ src/phoenix/server/generative_ui$(NC)"
 
-openapi: schema-openapi codegen-python-client codegen-ts-client codegen-ts-app ## Generate OpenAPI schema and all clients (full workflow)
+openapi: schema-openapi codegen-python-client codegen-ts-client codegen-ts-testing codegen-ts-app ## Generate OpenAPI schema and all clients (full workflow)
 	@echo -e "$(GREEN)✓ OpenAPI schema workflow complete$(NC)"
 
 #=============================================================================

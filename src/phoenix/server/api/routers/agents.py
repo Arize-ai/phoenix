@@ -1,4 +1,5 @@
 import asyncio
+import binascii
 import hashlib
 import json
 import logging
@@ -17,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, TypeVar
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from openinference.instrumentation import using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry import trace as trace_api
@@ -63,10 +64,11 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from sqlalchemy import Insert, exists, func, or_, select, update
+from sqlalchemy import Insert, exists, func, or_, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 from starlette.responses import Response
 from strawberry.relay import GlobalID
@@ -146,8 +148,13 @@ from phoenix.server.api.helpers.playground_registry import (
 )
 from phoenix.server.api.openapi.registry import register_openapi_schema
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
-from phoenix.server.api.routers.v1.utils import ResponseBody
+from phoenix.server.api.routers.v1.utils import PaginatedResponseBody, ResponseBody
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+)
 from phoenix.server.api.types.SandboxConfig import (
     SandboxBackendStatus,
     get_sandbox_backend_info,
@@ -337,6 +344,26 @@ class AgentSession(V1RoutesBaseModel):
 
 
 class CreateAgentSessionResponseBody(ResponseBody[AgentSession]):
+    pass
+
+
+class AgentSessionSummary(V1RoutesBaseModel):
+    id: str
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    is_temporary: bool
+
+
+class AgentSessionData(AgentSessionSummary):
+    messages: list[PhoenixUIMessage]
+
+
+class ListAgentSessionsResponseBody(PaginatedResponseBody[AgentSessionSummary]):
+    pass
+
+
+class GetAgentSessionResponseBody(ResponseBody[AgentSessionData]):
     pass
 
 
@@ -1560,6 +1587,40 @@ def _build_compaction_message(*, message_id: str, summary: str) -> PhoenixUIMess
     )
 
 
+def _get_request_user_id(request: Request) -> int | None:
+    if not request.app.state.authentication_enabled:
+        return None
+    user = request.user if "user" in request.scope else None
+    if not isinstance(user, PhoenixUser):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return int(user.identity)
+
+
+def _parse_agent_session_cursor(cursor: str) -> Cursor:
+    try:
+        parsed_cursor = Cursor.from_string(cursor)
+    except (binascii.Error, KeyError, UnicodeDecodeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail="Invalid cursor format") from error
+    sort_column = parsed_cursor.sort_column
+    if (
+        sort_column is None
+        or sort_column.type is not CursorSortColumnDataType.DATETIME
+        or not isinstance(sort_column.value, datetime)
+    ):
+        raise HTTPException(status_code=422, detail="Invalid cursor format")
+    return parsed_cursor
+
+
+def _to_agent_session_summary(agent_session: models.AgentSession) -> AgentSessionSummary:
+    return AgentSessionSummary(
+        id=str(GlobalID(models.AgentSession.__name__, str(agent_session.id))),
+        title=agent_session.title,
+        created_at=agent_session.created_at,
+        updated_at=agent_session.updated_at,
+        is_temporary=agent_session.expires_at is not None,
+    )
+
+
 def create_agents_router(
     authentication_enabled: bool,
 ) -> tuple[APIRouter, Callable[[str, str, Request, ChatRequest], Awaitable[Response]]]:
@@ -1609,6 +1670,111 @@ def create_agents_router(
         return CreateAgentSessionResponseBody(
             data=AgentSession(
                 id=str(GlobalID(models.AgentSession.__name__, str(agent_session_rowid)))
+            )
+        )
+
+    @router.get(
+        "/agents/{agent_id}/sessions",
+        operation_id="listAgentSessions",
+        response_model_by_alias=True,
+        response_model_exclude_unset=True,
+        response_model_exclude_defaults=True,
+    )
+    async def list_sessions(
+        agent_id: str,
+        request: Request,
+        cursor: str | None = Query(default=None, description="Opaque pagination cursor."),
+        limit: int = Query(default=20, gt=0, le=100),
+    ) -> ListAgentSessionsResponseBody:
+        """List the viewer's persisted sessions, most recently active first."""
+        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
+        statement = select(models.AgentSession).where(models.AgentSession.expires_at.is_(None))
+        if (user_id := _get_request_user_id(request)) is not None:
+            statement = statement.where(models.AgentSession.user_id == user_id)
+        if cursor is not None:
+            parsed_cursor = _parse_agent_session_cursor(cursor)
+            assert parsed_cursor.sort_column is not None
+            statement = statement.where(
+                tuple_(models.AgentSession.updated_at, models.AgentSession.id)
+                < (parsed_cursor.sort_column.value, parsed_cursor.rowid)
+            )
+        statement = statement.order_by(
+            models.AgentSession.updated_at.desc(),
+            models.AgentSession.id.desc(),
+        ).limit(limit + 1)
+        async with request.app.state.db() as session:
+            agent_sessions = list((await session.scalars(statement)).all())
+
+        has_next_page = len(agent_sessions) > limit
+        agent_sessions = agent_sessions[:limit]
+        next_cursor = None
+        if has_next_page and agent_sessions:
+            last_session = agent_sessions[-1]
+            next_cursor = str(
+                Cursor(
+                    rowid=last_session.id,
+                    sort_column=CursorSortColumn(
+                        type=CursorSortColumnDataType.DATETIME,
+                        value=last_session.updated_at,
+                    ),
+                )
+            )
+        return ListAgentSessionsResponseBody(
+            data=[_to_agent_session_summary(agent_session) for agent_session in agent_sessions],
+            next_cursor=next_cursor,
+        )
+
+    @router.get(
+        "/agents/{agent_id}/sessions/{session_id}",
+        operation_id="getAgentSession",
+        response_model_by_alias=True,
+        response_model_exclude_unset=True,
+        # AI SDK part types and tool states are required on the wire but modeled as defaults.
+        # Do not set response_model_exclude_defaults=True here.
+    )
+    async def get_session(
+        agent_id: str,
+        session_id: str,
+        request: Request,
+    ) -> GetAgentSessionResponseBody:
+        """Retrieve an owned session and its persisted transcript."""
+        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
+        try:
+            session_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(session_id), models.AgentSession.__name__
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail="Invalid agent session ID") from error
+
+        statement = (
+            select(models.AgentSession)
+            .where(
+                models.AgentSession.id == session_rowid,
+                or_(
+                    models.AgentSession.expires_at.is_(None),
+                    models.AgentSession.expires_at > datetime.now(timezone.utc),
+                ),
+            )
+            .options(selectinload(models.AgentSession.messages))
+        )
+        if (user_id := _get_request_user_id(request)) is not None:
+            statement = statement.where(models.AgentSession.user_id == user_id)
+        async with request.app.state.db() as session:
+            agent_session = await session.scalar(statement)
+        if agent_session is None:
+            raise HTTPException(status_code=404, detail="Agent session not found")
+
+        summary = _to_agent_session_summary(agent_session)
+        return GetAgentSessionResponseBody(
+            data=AgentSessionData(
+                **summary.model_dump(),
+                messages=[message.message for message in agent_session.messages],
             )
         )
 

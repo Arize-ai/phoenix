@@ -1,11 +1,12 @@
 import type { UIMessageChunk } from "ai";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildAgentSessionChatUrl,
   buildPxiChatRequest,
   buildPxiHeaders,
   createPxiChatClient,
+  createPxiSessionClient,
 } from "../src/pxi/client";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
 import type { PxiMessage, PxiTransport } from "../src/pxi/types";
@@ -165,6 +166,106 @@ describe("PXI client", () => {
     );
   });
 
+  it("creates persisted and temporary sessions with the requested lifetime", async () => {
+    const fetchImpl = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        const request =
+          _input instanceof Request ? _input : new Request(_input, init);
+        const body = (await request.json()) as { temporary: boolean };
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: body.temporary ? "temporary-session" : "persisted-session",
+            },
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    ) as typeof fetch;
+    const sessionClient = createPxiSessionClient({
+      config: { endpoint: "http://localhost:6006" },
+      fetch: fetchImpl,
+    });
+
+    const persisted = await sessionClient.createSession({ temporary: false });
+    const temporary = await sessionClient.createSession({ temporary: true });
+
+    expect(persisted).toMatchObject({
+      id: "persisted-session",
+      isTemporary: false,
+    });
+    expect(temporary).toMatchObject({
+      id: "temporary-session",
+      isTemporary: true,
+    });
+  });
+
+  it("lists persisted sessions and restores their messages", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: "session-1",
+                title: "Investigate traces",
+                created_at: "2026-07-24T11:00:00Z",
+                updated_at: "2026-07-24T12:00:00Z",
+                is_temporary: false,
+              },
+            ],
+            next_cursor: null,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: "session-1",
+              title: "Investigate traces",
+              created_at: "2026-07-24T11:00:00Z",
+              updated_at: "2026-07-24T12:00:00Z",
+              is_temporary: false,
+              messages: [
+                {
+                  id: "user-1",
+                  role: "user",
+                  parts: [{ type: "text", text: "What failed?" }],
+                },
+              ],
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      ) as typeof fetch;
+    const sessionClient = createPxiSessionClient({
+      config: { endpoint: "http://localhost:6006" },
+      fetch: fetchImpl,
+    });
+
+    const sessions = await sessionClient.listSessions();
+    const session = await sessionClient.getSession({ sessionId: "session-1" });
+
+    expect(sessions).toEqual([
+      {
+        id: "session-1",
+        title: "Investigate traces",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+      },
+    ]);
+    expect(session.messages).toEqual([
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "What failed?" }],
+      },
+    ]);
+  });
+
   it("streams assistant text updates", async () => {
     const options = createRuntimeOptions();
     const transport: PxiTransport = {
@@ -195,6 +296,36 @@ describe("PXI client", () => {
       },
     ]);
     expect(updates.at(-1)).toEqual(finalMessage);
+  });
+
+  it("reports transient session summary chunks", async () => {
+    const options = createRuntimeOptions();
+    const transport: PxiTransport = {
+      sendMessages: async () =>
+        createChunkStream([
+          { type: "start", messageId: "assistant-1" },
+          {
+            type: "data-session-summary",
+            data: "Investigate missing spans",
+            transient: true,
+          },
+          { type: "text-start", id: "text-1" },
+          { type: "text-delta", id: "text-1", delta: "Hello" },
+          { type: "text-end", id: "text-1" },
+          { type: "finish", finishReason: "stop" },
+        ]),
+      reconnectToStream: async () => null,
+    };
+    const sessionTitles: string[] = [];
+    const client = createPxiChatClient({ options, transport });
+
+    await client.sendMessage({
+      messages: [userMessage("hello")],
+      onAssistantMessage: () => undefined,
+      onSessionTitle: (title) => sessionTitles.push(title),
+    });
+
+    expect(sessionTitles).toEqual(["Investigate missing spans"]);
   });
 
   it("streams tool progress into assistant message parts", async () => {
