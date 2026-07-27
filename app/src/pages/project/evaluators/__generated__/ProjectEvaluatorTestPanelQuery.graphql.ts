@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6f197551b34b4f32b8138fc8ae4a6135>>
+ * @generated SignedSource<<15ad5da6cfa9ac7964302744acbec2b8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,7 @@ export type ProjectEvaluatorTestPanelQuery$data = {
           readonly evaluationContext: any;
           readonly id: string;
           readonly name: string;
+          readonly startTime: string;
         };
       }>;
     };
@@ -129,6 +130,13 @@ v5 = {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "startTime",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "evaluationContext",
                   "storageKey": null
                 }
@@ -205,16 +213,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f0d1935cebb0410b4fd4cadeb8e65644",
+    "cacheID": "589430f6351394e9fbab85006f43919a",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorTestPanelQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorTestPanelQuery(\n  $projectId: ID!\n  $filterCondition: String\n  $timeRange: TimeRange\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: 5, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            name\n            evaluationContext\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorTestPanelQuery(\n  $projectId: ID!\n  $filterCondition: String\n  $timeRange: TimeRange\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: 5, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            name\n            startTime\n            evaluationContext\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "779b160b1475937321476df34671303e";
+(node as any).hash = "bb38e75d9c9e6652d4fee7e4700bf5f6";
 
 export default node;
