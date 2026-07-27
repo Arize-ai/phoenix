@@ -38,11 +38,11 @@ import {
   toProjectEvaluatorSamplingFraction,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import type { PlaygroundChatTemplate } from "@phoenix/store";
 import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
+import type { PlaygroundChatTemplate } from "@phoenix/store";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
   type AnnotationConfig,

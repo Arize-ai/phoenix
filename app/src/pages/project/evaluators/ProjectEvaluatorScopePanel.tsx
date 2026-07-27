@@ -49,12 +49,12 @@ import {
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
+import type { ProjectEvaluatorScopePanelCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelCountQuery.graphql";
 import type {
   InlineCodeEvaluatorInput,
   InlineLLMEvaluatorInput,
   ProjectEvaluatorScopePanelPreviewMutation,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelPreviewMutation.graphql";
-import type { ProjectEvaluatorScopePanelCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelCountQuery.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
 import { ProjectEvaluatorTargetField } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTargetField";
 import {

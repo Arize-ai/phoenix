@@ -31,15 +31,15 @@ import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evalua
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
-  useEvaluatorFormDirtyCheck,
-  type EvaluatorFormDirtyCheck,
-} from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
-import {
   fromProjectEvaluatorGraphQLTarget,
   toProjectEvaluatorGraphQLTarget,
   toProjectEvaluatorSamplingFraction,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  useEvaluatorFormDirtyCheck,
+  type EvaluatorFormDirtyCheck,
+} from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
   type AnnotationConfig,
