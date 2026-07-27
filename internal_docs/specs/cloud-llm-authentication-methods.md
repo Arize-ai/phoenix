@@ -353,15 +353,15 @@ The `EnvProvider` in botocore reads credentials from environment variables:
 ```python
 # From botocore/credentials.py lines 1185-1194
 class EnvProvider(CredentialProvider):
-    METHOD = 'env'
-    CANONICAL_NAME = 'Environment'
-    ACCESS_KEY = 'AWS_ACCESS_KEY_ID'
-    SECRET_KEY = 'AWS_SECRET_ACCESS_KEY'
+    METHOD = "env"
+    CANONICAL_NAME = "Environment"
+    ACCESS_KEY = "AWS_ACCESS_KEY_ID"
+    SECRET_KEY = "AWS_SECRET_ACCESS_KEY"
     # The token can come from either of these env var.
     # AWS_SESSION_TOKEN is what other AWS SDKs have standardized on.
-    TOKENS = ['AWS_SECURITY_TOKEN', 'AWS_SESSION_TOKEN']
-    EXPIRY_TIME = 'AWS_CREDENTIAL_EXPIRATION'
-    ACCOUNT_ID = 'AWS_ACCOUNT_ID'
+    TOKENS = ["AWS_SECURITY_TOKEN", "AWS_SESSION_TOKEN"]
+    EXPIRY_TIME = "AWS_CREDENTIAL_EXPIRATION"
+    ACCOUNT_ID = "AWS_ACCOUNT_ID"
 ```
 
 > **Source:** [boto/botocore `credentials.py` L1185-1194](https://github.com/boto/botocore/blob/52799594121c562b4e293bc10aef49b49b037864/botocore/credentials.py#L1185-L1194)
@@ -392,9 +392,7 @@ instance_metadata_provider = InstanceMetadataProvider(
     )
 )
 
-profile_provider_builder = ProfileProviderBuilder(
-    session, cache=cache, region_name=region_name
-)
+profile_provider_builder = ProfileProviderBuilder(session, cache=cache, region_name=region_name)
 assume_role_provider = AssumeRoleProvider(
     load_config=lambda: session.full_config,
     client_creator=_get_client_creator(session, region_name),
@@ -432,9 +430,9 @@ For cross-account access or role chaining:
 ```python
 # From botocore/credentials.py lines 1535-1548
 class AssumeRoleProvider(CredentialProvider):
-    METHOD = 'assume-role'
-    ROLE_CONFIG_VAR = 'role_arn'
-    WEB_IDENTITY_TOKE_FILE_VAR = 'web_identity_token_file'
+    METHOD = "assume-role"
+    ROLE_CONFIG_VAR = "role_arn"
+    WEB_IDENTITY_TOKE_FILE_VAR = "web_identity_token_file"
     # Credentials are considered expired (and will be refreshed) once the total
     # remaining time left until the credentials expires is less than the
     # EXPIRY_WINDOW.
@@ -515,7 +513,7 @@ The `get_auth_token()` method uses a token provider chain with only two provider
 def create_token_resolver(session):
     providers = [
         ScopedEnvTokenProvider(session),  # Reads AWS_BEARER_TOKEN_BEDROCK
-        SSOTokenProvider(session),         # Reads from SSO cache files
+        SSOTokenProvider(session),  # Reads from SSO cache files
     ]
     return TokenProviderChain(providers=providers)
 ```
@@ -537,7 +535,7 @@ def get_token_from_environment(signing_name, environ=None):
 
 
 def _get_bearer_env_var_name(signing_name):
-    bearer_name = signing_name.replace('-', '_').replace(' ', '_').upper()
+    bearer_name = signing_name.replace("-", "_").replace(" ", "_").upper()
     return f"AWS_BEARER_TOKEN_{bearer_name}"
 ```
 
@@ -585,6 +583,7 @@ class AuthenticationMethodDefaultCredentials(BaseModel):
     For AWS: boto3 credential chain (IAM role, env vars, ~/.aws/credentials)
     For Azure: DefaultAzureCredential (Managed Identity, Azure CLI, env vars)
     """
+
     model_config = ConfigDict(frozen=True)
     type: Literal["default_credentials"] = "default_credentials"
 ```
@@ -697,8 +696,7 @@ The current `default_credentials` relies on profile configuration for assume-rol
 ```python
 # Would require STS client and role ARN:
 sts_client.assume_role(
-    RoleArn="arn:aws:iam::ACCOUNT:role/RoleName",
-    RoleSessionName="phoenix-session"
+    RoleArn="arn:aws:iam::ACCOUNT:role/RoleName", RoleSessionName="phoenix-session"
 )
 ```
 

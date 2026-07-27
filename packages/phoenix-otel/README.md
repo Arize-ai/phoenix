@@ -67,8 +67,8 @@ from phoenix.otel import register
 # Recommended: Automatic instrumentation + production settings
 tracer_provider = register(
     auto_instrument=True,  # Auto-trace OpenAI, LangChain, LlamaIndex, etc.
-    batch=True,           # Production-ready batching
-    project_name="my-app" # Organize your traces
+    batch=True,  # Production-ready batching
+    project_name="my-app",  # Organize your traces
 )
 ```
 
@@ -111,7 +111,7 @@ export PHOENIX_PROJECT_NAME="my-project"
 ```python
 tracer_provider = register(
     endpoint="http://localhost:6006/v1/traces",  # HTTP endpoint
-    protocol="grpc"  # Or force gRPC protocol
+    protocol="grpc",  # Or force gRPC protocol
 )
 ```
 
@@ -131,10 +131,10 @@ tracer_provider = register(auto_instrument=True)
 ```python
 tracer_provider = register(
     project_name="my-production-app",
-    auto_instrument=True,      # Auto-trace AI/ML libraries
-    batch=True,               # Background batching for performance
-    api_key="your-api-key",   # Authentication
-    endpoint="https://app.phoenix.arize.com/s/your-space"
+    auto_instrument=True,  # Auto-trace AI/ML libraries
+    batch=True,  # Background batching for performance
+    api_key="your-api-key",  # Authentication
+    endpoint="https://app.phoenix.arize.com/s/your-space",
 )
 ```
 
@@ -161,9 +161,11 @@ tracer_provider = register()
 # Get a tracer for manual instrumentation
 tracer = tracer_provider.get_tracer(__name__)
 
+
 @tracer.chain
 def process_data(data):
     return data + " processed"
+
 
 @tracer.tool
 def weather(location):

@@ -20,7 +20,7 @@ print(ast.dump(ast.parse("'xyz'", mode="eval").body, indent=4))
 ```python
 Constant(value=None)
 Constant(value=1)
-Constant(value='xyz')
+Constant(value="xyz")
 ```
 
 # Name
@@ -31,7 +31,7 @@ print(ast.dump(ast.parse("xyz", mode="eval").body, indent=4))
 ```
 ### Output
 ```python
-Name(id='xyz', ctx=Load())
+Name(id="xyz", ctx=Load())
 ```
 
 # Compilation and Evaluation
@@ -57,31 +57,32 @@ print(ast.dump(ast.parse("llm.token_count.completion", mode="eval").body, indent
 ### Output
 ```python
 Attribute(
-    value=Attribute(
-        value=Name(id='llm', ctx=Load()),
-        attr='token_count',
-        ctx=Load()),
-    attr='completion',
-    ctx=Load())
+    value=Attribute(value=Name(id="llm", ctx=Load()), attr="token_count", ctx=Load()),
+    attr="completion",
+    ctx=Load(),
+)
 ```
 
 # Subscript
 https://docs.python.org/3/library/ast.html#ast.Subscript
 
 ```python
-print(ast.dump(ast.parse("attributes[['llm', 'token_count', 'completion']]", mode="eval").body, indent=4))
+print(
+    ast.dump(
+        ast.parse("attributes[['llm', 'token_count', 'completion']]", mode="eval").body, indent=4
+    )
+)
 ```
 ### Output
 ```python
 Subscript(
-    value=Name(id='attributes', ctx=Load()),
+    value=Name(id="attributes", ctx=Load()),
     slice=List(
-        elts=[
-            Constant(value='llm'),
-            Constant(value='token_count'),
-            Constant(value='completion')],
-        ctx=Load()),
-    ctx=Load())
+        elts=[Constant(value="llm"), Constant(value="token_count"), Constant(value="completion")],
+        ctx=Load(),
+    ),
+    ctx=Load(),
+)
 ```
 
 # Translation of Attribute to Subscript
@@ -98,7 +99,7 @@ class Translator(ast.NodeTransformer):
                 path.append(node.id)
                 break
         return ast.Subscript(
-            value=ast.Name(id='attributes', ctx=ast.Load()),
+            value=ast.Name(id="attributes", ctx=ast.Load()),
             slice=ast.List(
                 elts=[ast.Constant(value=p) for p in reversed(path)],
                 ctx=ast.Load(),
@@ -106,11 +107,12 @@ class Translator(ast.NodeTransformer):
             ctx=ast.Load(),
         )
 
+
 parsed = ast.parse("llm.token_count.completion", mode="eval")
 translated = Translator().visit(parsed)
 print(ast.unparse(translated))
 ```
 ### Output
 ```python
-attributes[['llm', 'token_count', 'completion']]
+attributes[["llm", "token_count", "completion"]]
 ```
