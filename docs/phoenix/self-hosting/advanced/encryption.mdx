@@ -7,11 +7,11 @@ description: Encryption in transit (TLS/HTTPS), at rest, and application-level e
 
 This guide covers the three layers of encryption relevant to a production Phoenix deployment:
 
-1. **[Encryption in transit](#encryption-in-transit-tls-https)** — TLS/HTTPS between clients and Phoenix, and between Phoenix and its database
-2. **[Encryption at rest](#encryption-at-rest)** — encrypting the database and storage that hold your data
-3. **[Application-level encryption](#application-level-encryption)** — how Phoenix hashes and encrypts sensitive values before they reach the database
+1. **[Encryption in transit](#encryption-in-transit-tls-https)**: TLS/HTTPS between clients and Phoenix, and between Phoenix and its database
+2. **[Encryption at rest](#encryption-at-rest)**: encrypting the database and storage that hold your data
+3. **[Application-level encryption](#application-level-encryption)**: how Phoenix hashes and encrypts sensitive values before they reach the database
 
-It is assumed you are familiar with the [Phoenix architecture](/docs/phoenix/self-hosting/architecture): a single server container backed by a PostgreSQL database.
+If you haven't already, take a look at the [Phoenix architecture](/docs/phoenix/self-hosting/architecture): a single server container backed by a PostgreSQL database.
 
 ## Encryption in Transit (TLS / HTTPS)
 
@@ -21,12 +21,12 @@ Phoenix serves its UI, REST/GraphQL APIs, and OTLP trace collection over HTTP (p
 
 TLS is terminated at a load balancer or ingress controller (e.g., AWS ALB, NGINX Ingress), which forwards decrypted traffic to the Phoenix container over HTTP.
 
-- **Pros:** Certificate management is typically handled by the cloud provider; the most common and straightforward setup.
+- **Pros:** Certificate management is typically handled by the cloud provider. This is the most common and straightforward setup.
 - **Cons:** Traffic between the load balancer and the Phoenix container is unencrypted (though usually confined to a private network).
 
 ### Option 2: Native TLS on the Phoenix Server
 
-Phoenix can terminate TLS itself — no reverse proxy required:
+Phoenix can terminate TLS itself, with no reverse proxy required:
 
 ```bash
 export PHOENIX_TLS_ENABLED=true
@@ -52,7 +52,7 @@ Remember to point clients at `https://` (and configure them with the CA certific
 In Kubernetes environments, a service mesh (e.g., Istio, Linkerd) can transparently encrypt all pod-to-pod traffic with mutual TLS.
 
 - **Pros:** End-to-end encryption inside the cluster without application configuration.
-- **Cons:** Adds operational complexity; requires familiarity with service mesh concepts.
+- **Cons:** Adds operational complexity and requires familiarity with service mesh concepts.
 
 ### Encrypting the Database Connection
 
@@ -74,11 +74,11 @@ When using [AWS RDS IAM authentication](/docs/phoenix/self-hosting/configuration
 
 ## Encryption at Rest
 
-All Phoenix application data — traces, datasets, experiments, prompts, annotations, users, and settings — lives in your database, so encrypting that storage is the main concern.
+All Phoenix application data (traces, datasets, experiments, prompts, annotations, users, and settings) lives in your database, so encrypting that storage is the main concern.
 
-For production deployments we recommend a managed PostgreSQL service (e.g., Amazon RDS/Aurora, Google Cloud SQL, Azure Database for PostgreSQL), which offer built-in encryption at rest — verify that storage encryption is enabled on the instance and that backups and snapshots are encrypted. For self-managed PostgreSQL, use disk or volume-level encryption (e.g., LUKS, encrypted EBS volumes, encrypted Kubernetes persistent volumes) on the data directory.
+For production deployments we recommend a managed PostgreSQL service such as Amazon RDS/Aurora, Google Cloud SQL, or Azure Database for PostgreSQL. These offer built-in encryption at rest; verify that storage encryption is enabled on the instance and that backups and snapshots are encrypted. For self-managed PostgreSQL, use disk or volume-level encryption (e.g., LUKS, encrypted EBS volumes, encrypted Kubernetes persistent volumes) on the data directory.
 
-Database dumps, snapshots, and exported data inherit the same sensitivity and should be stored on encrypted media.
+Database dumps, snapshots, and exported data are just as sensitive as the database itself and should be stored on encrypted media.
 
 ## Application-Level Encryption
 
@@ -90,7 +90,7 @@ Beyond transport and storage encryption, Phoenix hashes or encrypts sensitive va
 | API keys and session tokens                         | Issued as JWTs signed with `PHOENIX_SECRET`; the token itself is never stored in the database          |
 | AI provider credentials (custom providers, secrets) | Encrypted with Fernet (AES-128-CBC + HMAC-SHA256) using a key derived from `PHOENIX_SECRET` via PBKDF2 |
 
-The `PHOENIX_SECRET` environment variable is the root of trust for these protections. It must be at least 32 characters and include at least one digit and one lowercase letter:
+All of these protections are anchored by the `PHOENIX_SECRET` environment variable. It must be at least 32 characters and include at least one digit and one lowercase letter:
 
 ```bash
 export PHOENIX_ENABLE_AUTH=true
@@ -100,8 +100,8 @@ export PHOENIX_SECRET=a-secret-of-at-least-32-characters-with-digits-1
 <Warning>
 Treat `PHOENIX_SECRET` like a master key:
 
-- Use a long, random value and store it in a secrets manager (e.g., Kubernetes Secrets, AWS Secrets Manager, HashiCorp Vault) — never in plaintext configuration or images, and never alongside database backups.
-- Changing `PHOENIX_SECRET` invalidates existing sessions and API keys, and makes previously encrypted credentials (e.g., stored AI provider API keys) undecryptable — they must be re-entered after rotation.
+- Use a long, random value and store it in a secrets manager (e.g., Kubernetes Secrets, AWS Secrets Manager, HashiCorp Vault). Never keep it in plaintext configuration or images, and never alongside database backups.
+- Changing `PHOENIX_SECRET` invalidates existing sessions and API keys, and makes previously encrypted credentials (e.g., stored AI provider API keys) undecryptable. They must be re-entered after rotation.
 </Warning>
 
 <Note>
