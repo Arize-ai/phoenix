@@ -19,7 +19,6 @@ import {
   Flex,
   Icon,
   Icons,
-  Keyboard,
   LazyTabPanel,
   LinkButton,
   Loading,
@@ -28,7 +27,6 @@ import {
   Tab,
   TabList,
   Tabs,
-  ToggleButton,
   View,
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
@@ -42,10 +40,14 @@ import type {
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanAttributesCard, SpanInfo } from "./span";
+import {
+  SpanAnnotationEditorProvider,
+  useOpenSpanAnnotationEditor,
+} from "./SpanAnnotationEditorContext";
 import { SpanAside } from "./SpanAside";
 import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
-import { SpanFeedback } from "./SpanFeedback";
+import { NOTE_HOTKEY } from "./SpanNotesEditor";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
@@ -70,6 +72,16 @@ export function SpanDetails({
    */
   spanNodeId: string;
 }) {
+  // the controls that open the annotation aside are spread across the header
+  // and the info tab's cards, and the aside they open is a sibling of both
+  return (
+    <SpanAnnotationEditorProvider>
+      <SpanDetailsContent spanNodeId={spanNodeId} />
+    </SpanAnnotationEditorProvider>
+  );
+}
+
+function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const { projectId } = useParams();
   const isAnnotatingSpans = usePreferencesContext(
     (state) => state.isAnnotatingSpans
@@ -77,6 +89,7 @@ export function SpanDetails({
   const setIsAnnotatingSpans = usePreferencesContext(
     (state) => state.setIsAnnotatingSpans
   );
+  const openSpanAnnotationEditor = useOpenSpanAnnotationEditor();
 
   const asidePanelRef = useRef<PanelImperativeHandle>(null);
   // Sync the aside panel collapsed state with the isAnnotatingSpans preference.
@@ -155,12 +168,12 @@ export function SpanDetails({
                 profilePictureUrl
               }
             }
+            # only the counts are read, for the annotations and notes cards
             spanAnnotations {
               id
               name
             }
             ...SpanHeader_span
-            ...SpanFeedback_annotations
             ...SpanAside_span
           }
         }
@@ -180,16 +193,16 @@ export function SpanDetails({
     throw new Error("Project ID is required to download a span");
   }
 
+  // both hotkeys open the aside on the section they are for; the aside expands
+  // that section itself, and the effect above slides the aside out
   useHotkeys(
     EDIT_ANNOTATION_HOTKEY,
-    () => {
-      if (!isAnnotatingSpans) {
-        setIsAnnotatingSpans(true);
-        asidePanelRef.current?.expand();
-      }
-    },
+    () => openSpanAnnotationEditor("annotations"),
     { preventDefault: true }
   );
+  useHotkeys(NOTE_HOTKEY, () => openSpanAnnotationEditor("notes"), {
+    preventDefault: true,
+  });
 
   const hasExceptions = spanHasException(span);
 
@@ -234,31 +247,6 @@ export function SpanDetails({
                     traceId={span.trace.traceId}
                     buttonText={isCondensedView ? null : "Download"}
                   />
-                  <ToggleButton
-                    size="S"
-                    isSelected={isAnnotatingSpans}
-                    onPress={() => {
-                      const next = !isAnnotatingSpans;
-                      setIsAnnotatingSpans(next);
-                      const asidePanel = asidePanelRef.current;
-                      if (asidePanel) {
-                        if (next) {
-                          asidePanel.expand();
-                        } else {
-                          asidePanel.collapse();
-                        }
-                      }
-                    }}
-                    leadingVisual={<Icon svg={<Icons.Edit2 />} />}
-                    trailingVisual={
-                      !isCondensedView &&
-                      !isAnnotatingSpans && (
-                        <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
-                      )
-                    }
-                  >
-                    {isCondensedView ? null : "Annotate"}
-                  </ToggleButton>
                 </>
               }
             />
@@ -266,9 +254,6 @@ export function SpanDetails({
           <Tabs>
             <TabList>
               <Tab id="info">Info</Tab>
-              <Tab id="annotations">
-                Annotations <Counter>{span.spanAnnotations.length}</Counter>
-              </Tab>
               <Tab id="attributes">Attributes</Tab>
               <Tab id="events">
                 Events{" "}
@@ -285,9 +270,6 @@ export function SpanDetails({
                   </ErrorBoundary>
                 </SpanInfoWrap>
               </Flex>
-            </LazyTabPanel>
-            <LazyTabPanel id="annotations">
-              <SpanFeedback span={span} />
             </LazyTabPanel>
             <LazyTabPanel id="attributes">
               <View

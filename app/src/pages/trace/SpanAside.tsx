@@ -1,26 +1,27 @@
-import { Suspense, useRef } from "react";
-import { FocusScope } from "react-aria";
-import { useHotkeys } from "react-hotkeys-hook";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { Group } from "react-resizable-panels";
 
-import { Flex, KeyboardToken, View } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { FocusHotkey } from "@phoenix/components/FocusHotkey";
+import {
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  Tooltip,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
-import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotationsEditor";
-import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
-import type { SpanAsideAnnotationList_span$key } from "@phoenix/pages/trace/__generated__/SpanAsideAnnotationList_span.graphql";
+import {
+  NewAnnotationButton,
+  SpanAnnotationsEditor,
+} from "@phoenix/components/trace/SpanAnnotationsEditor";
+import { usePreferencesContext } from "@phoenix/contexts";
 
 import type { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
-import {
-  NOTE_HOTKEY,
-  SpanNotesEditor,
-  SpanNotesEditorSkeleton,
-} from "./SpanNotesEditor";
-
-const SPAN_ANNOTATION_LIST_HOTKEY = "s";
+import { useSpanAnnotationEditorOpenRequest } from "./SpanAnnotationEditorContext";
+import { SpanNotesEditor, SpanNotesEditorSkeleton } from "./SpanNotesEditor";
 
 type SpanAsideProps = {
   span: SpanAside_span$key;
@@ -73,43 +74,64 @@ export function SpanAside(props: SpanAsideProps) {
         endTime
         tokenCountTotal
         ...TraceHeaderRootSpanAnnotationsFragment
-        ...SpanAsideAnnotationList_span
-        ...AnnotationSummaryGroup
       }
     `,
     props.span
   );
 
+  // the button that adds an annotation config sits in the section header, the
+  // list that shows them in the panel below, so the key they share lives here
+  const [annotationConfigsRefetchKey, setAnnotationConfigsRefetchKey] =
+    useState(0);
+  const setIsAnnotatingSpans = usePreferencesContext(
+    (state) => state.setIsAnnotatingSpans
+  );
   const editAnnotationsPanelRef = useRef<PanelImperativeHandle>(null);
   const notesPanelRef = useRef<PanelImperativeHandle>(null);
-  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => {
-    // open the span annotations editor if it is closed
-    if (
-      editAnnotationsPanelRef.current &&
-      editAnnotationsPanelRef.current.isCollapsed()
-    ) {
-      editAnnotationsPanelRef.current.expand();
+  // Whoever asked for a section — a hotkey, a button in one of the info cards —
+  // opened the aside by setting the preference. Only the aside can open the
+  // section itself, so a reader who had collapsed it still lands on a composer.
+  const openRequest = useSpanAnnotationEditorOpenRequest();
+  useEffect(() => {
+    if (openRequest == null) {
+      return;
     }
-  });
-  useHotkeys(NOTE_HOTKEY, () => {
-    // open the span notes editor if it is closed
-    if (notesPanelRef.current && notesPanelRef.current.isCollapsed()) {
-      notesPanelRef.current.expand();
+    const panelRef =
+      openRequest.section === "notes" ? notesPanelRef : editAnnotationsPanelRef;
+    if (panelRef.current?.isCollapsed()) {
+      panelRef.current.expand();
     }
-  });
+  }, [openRequest]);
 
   return (
     <Group orientation="vertical">
-      <Suspense>
-        <SpanAsideAnnotationList span={data} />
-      </Suspense>
       <TitledPanel
         ref={editAnnotationsPanelRef}
         resizable
-        title={
-          <Flex direction={"row"} gap="size-100" alignItems={"center"}>
-            <span>Edit Annotations</span>
-            <KeyboardToken>{EDIT_ANNOTATION_HOTKEY}</KeyboardToken>
+        title="Edit Annotations"
+        // the section's own controls: add an annotation, and close the aside
+        // this all sits in
+        extra={
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <NewAnnotationButton
+              // some of the button's state is about the span being annotated,
+              // so it starts over when the span does
+              key={data.id}
+              projectId={data.project.id}
+              spanNodeId={data.id}
+              refetchKey={annotationConfigsRefetchKey}
+              onRefetchKeyChange={setAnnotationConfigsRefetchKey}
+            />
+            <TooltipTrigger>
+              <Button
+                size="S"
+                variant="quiet"
+                aria-label="Close annotations"
+                leadingVisual={<Icon svg={<Icons.Close />} />}
+                onPress={() => setIsAnnotatingSpans(false)}
+              />
+              <Tooltip offset={1}>Close annotations</Tooltip>
+            </TooltipTrigger>
           </Flex>
         }
         panelProps={{ minSize: "10%" }}
@@ -121,18 +143,16 @@ export function SpanAside(props: SpanAsideProps) {
             key={data.id}
             projectId={data.project.id}
             spanNodeId={data.id}
+            annotationConfigsRefetchKey={annotationConfigsRefetchKey}
           />
         </View>
       </TitledPanel>
       <TitledPanel
         ref={notesPanelRef}
         resizable
-        title={
-          <Flex direction={"row"} gap="size-100" alignItems={"center"}>
-            <span>Notes</span>
-            <KeyboardToken>{NOTE_HOTKEY}</KeyboardToken>
-          </Flex>
-        }
+        // the hotkey is named in the tooltip of the button that opens this,
+        // the same as the annotations section above
+        title="Notes"
         panelProps={{ minSize: "10%" }}
       >
         <View height="100%" maxHeight="100%" padding="size-100">
@@ -142,76 +162,5 @@ export function SpanAside(props: SpanAsideProps) {
         </View>
       </TitledPanel>
     </Group>
-  );
-}
-
-function SpanAsideAnnotationList(props: {
-  span: SpanAsideAnnotationList_span$key;
-}) {
-  const data = useFragment<SpanAsideAnnotationList_span$key>(
-    graphql`
-      fragment SpanAsideAnnotationList_span on Span {
-        project {
-          id
-          annotationConfigs {
-            configs: edges {
-              config: node {
-                ... on Node {
-                  id
-                }
-                ... on AnnotationConfigBase {
-                  name
-                }
-              }
-            }
-          }
-        }
-        spanAnnotations {
-          id
-        }
-        ...AnnotationSummaryGroup
-      }
-    `,
-    props.span
-  );
-  const annotationListPanelRef = useRef<PanelImperativeHandle>(null);
-  useHotkeys(SPAN_ANNOTATION_LIST_HOTKEY, () => {
-    if (
-      annotationListPanelRef.current &&
-      annotationListPanelRef.current.isCollapsed()
-    ) {
-      annotationListPanelRef.current.expand();
-    }
-  });
-  const hasAnnotations = data.spanAnnotations.length > 0;
-  return (
-    <TitledPanel
-      ref={annotationListPanelRef}
-      title={
-        <Flex direction={"row"} gap="size-100" alignItems={"center"}>
-          <span>Annotation Summary</span>
-          <KeyboardToken>{SPAN_ANNOTATION_LIST_HOTKEY}</KeyboardToken>
-        </Flex>
-      }
-      disabled={!hasAnnotations}
-      panelProps={{
-        defaultSize: hasAnnotations ? "20%" : "0%",
-        minSize: hasAnnotations ? "20%" : "0%",
-      }}
-    >
-      <FocusScope>
-        <FocusHotkey hotkey={SPAN_ANNOTATION_LIST_HOTKEY} />
-        <View
-          paddingY="size-200"
-          paddingX="size-200"
-          overflow="auto"
-          maxHeight="100%"
-        >
-          <Flex direction="row" gap="size-50" wrap="wrap">
-            <AnnotationSummaryGroupTokens span={data} />
-          </Flex>
-        </View>
-      </FocusScope>
-    </TitledPanel>
   );
 }

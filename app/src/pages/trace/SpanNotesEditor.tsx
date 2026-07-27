@@ -59,7 +59,7 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
                 profilePictureUrl
               }
             }
-            ...SpanFeedback_annotations
+            ...SpanAnnotationsTable_annotations
           }
         }
       }
@@ -103,7 +103,7 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
 
   const notes = annotations.filter(
     // we do this on the client side because one of our query fragments requires all annotations
-    // if we filtered here, we would not refresh the spanfeedback query when a note is added
+    // if we filtered here, we would not refresh the annotations table when a note is added
     (annotation) => annotation.name === "note"
   );
 

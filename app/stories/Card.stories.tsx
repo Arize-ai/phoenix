@@ -1,6 +1,13 @@
 import type { Meta, StoryFn } from "@storybook/react";
 
-import { Button, Card, Text, Token } from "@phoenix/components";
+import {
+  Button,
+  Card,
+  Counter,
+  OverflowRow,
+  Text,
+  Token,
+} from "@phoenix/components";
 
 const meta: Meta = {
   title: "Core/Layout/Card",
@@ -97,6 +104,35 @@ export const WithTitleExtra = {
       </Token>
     ),
     width: "400px",
+  },
+};
+
+/**
+ * `headerContent` sits after the title and takes the width the header's fixed
+ * parts leave it, giving it back as they need it — resize the story to watch
+ * the tokens clip while the title and the action keep their size. Pair it with
+ * `interactiveTitle` when the content is interactive, as it is here, so the
+ * collapse toggle does not wrap it.
+ */
+export const WithHeaderContent = {
+  render: Template,
+
+  args: {
+    title: "Annotations",
+    titleExtra: <Counter variant="quiet">4</Counter>,
+    collapsible: true,
+    interactiveTitle: true,
+    collapseButtonLabel: "Annotations",
+    headerContent: (
+      <OverflowRow>
+        <Token size="S">hallucination</Token>
+        <Token size="S">correctness</Token>
+        <Token size="S">relevance</Token>
+        <Token size="S">toxicity</Token>
+      </OverflowRow>
+    ),
+    extra: <Button size="S">Action</Button>,
+    width: "480px",
   },
 };
 

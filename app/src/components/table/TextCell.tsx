@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import type { CellContext } from "@tanstack/react-table";
 
 const MAX_LENGTH = 100;
@@ -26,6 +27,16 @@ export function TextCell<TData extends object, TValue>({
   return <span>{str}</span>;
 }
 
+// a stylesheet rule rather than an inline style so that a table which clips its
+// rows to a single line can override it -- an inline style would win over the
+// row-height rules and leave this the one cell that still wraps
+const preformattedTextCellCSS = css`
+  white-space: pre-wrap;
+  // a <pre> carries a block margin of its own, which would sit the text below
+  // the line every other cell in the row starts on
+  margin: 0;
+`;
+
 /**
  * A table cell that shows pre-formatted text.
  */
@@ -34,5 +45,5 @@ export function PreformattedTextCell<TData extends object, TValue>({
 }: CellContext<TData, TValue>) {
   const value = getValue();
   const str = value != null && typeof value === "string" ? value : "--";
-  return <pre style={{ whiteSpace: "pre-wrap" }}>{str}</pre>;
+  return <pre css={preformattedTextCellCSS}>{str}</pre>;
 }

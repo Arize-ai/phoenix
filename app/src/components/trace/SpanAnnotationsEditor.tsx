@@ -73,42 +73,48 @@ const EMPTY_TIME_RANGE_ISO_STRINGS = {
 export type SpanAnnotationsEditorProps = {
   spanNodeId: string;
   projectId: string;
+  /**
+   * The key that refetches the project's annotation configs, bumped whenever
+   * one is added. Pass it where the button that adds one sits outside this
+   * editor — the section header in the span aside — and the editor leaves the
+   * button to that caller. Left out, the editor owns both.
+   */
+  annotationConfigsRefetchKey?: number;
 };
 
 export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
-  const { projectId, spanNodeId } = props;
-  const [newAnnotationName, setNewAnnotationName] = useState<string | null>(
-    null
-  );
-  const [refetchKey, setRefetchKey] = useState(0);
+  const { projectId, spanNodeId, annotationConfigsRefetchKey } = props;
+  const ownsAddButton = annotationConfigsRefetchKey === undefined;
+  const [ownRefetchKey, setOwnRefetchKey] = useState(0);
+  const refetchKey = annotationConfigsRefetchKey ?? ownRefetchKey;
 
   return (
     <View height="100%" maxHeight="100%" overflow="auto">
       <Flex direction="column" height="100%">
-        <View
-          paddingY="size-100"
-          paddingX="size-100"
-          borderBottomWidth="thin"
-          borderColor="default"
-          width="100%"
-          flex="none"
-        >
-          <Flex
-            direction="row"
-            alignItems="center"
-            justifyContent="end"
+        {ownsAddButton ? (
+          <View
+            paddingY="size-100"
+            paddingX="size-100"
+            borderBottomWidth="thin"
+            borderColor="default"
             width="100%"
+            flex="none"
           >
-            <NewAnnotationButton
-              projectId={projectId}
-              spanNodeId={spanNodeId}
-              disabled={newAnnotationName !== null}
-              onAnnotationNameSelect={setNewAnnotationName}
-              refetchKey={refetchKey}
-              onRefetchKeyChange={setRefetchKey}
-            />
-          </Flex>
-        </View>
+            <Flex
+              direction="row"
+              alignItems="center"
+              justifyContent="end"
+              width="100%"
+            >
+              <NewAnnotationButton
+                projectId={projectId}
+                spanNodeId={spanNodeId}
+                refetchKey={refetchKey}
+                onRefetchKeyChange={setOwnRefetchKey}
+              />
+            </Flex>
+          </View>
+        ) : null}
         <Suspense>
           <SpanAnnotationsList
             spanId={spanNodeId}
@@ -121,26 +127,27 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
   );
 }
 
-type NewAnnotationButtonProps = {
+export type NewAnnotationButtonProps = {
   projectId: string;
   spanNodeId: string;
-  disabled?: boolean;
-  onAnnotationNameSelect: (name: string) => void;
   refetchKey: number;
   onRefetchKeyChange: (updater: (prev: number) => number) => void;
 };
 
-function NewAnnotationButton(props: NewAnnotationButtonProps) {
-  const {
-    projectId,
-    disabled = false,
-    spanNodeId,
-    onAnnotationNameSelect,
-    refetchKey,
-    onRefetchKeyChange,
-  } = props;
+/**
+ * Adds an annotation to the span: picks one of the project's annotation
+ * configs, or creates a config that does not exist yet.
+ */
+export function NewAnnotationButton(props: NewAnnotationButtonProps) {
+  const { projectId, spanNodeId, refetchKey, onRefetchKeyChange } = props;
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [showEditConfigDialog, setShowEditConfigDialog] = useState(false);
+  // Once a name has been chosen there is an annotation being filled in below,
+  // so the button stops offering to start another.
+  const [newAnnotationName, setNewAnnotationName] = useState<string | null>(
+    null
+  );
+  const disabled = newAnnotationName !== null;
 
   const { viewer } = useViewer();
   const userFilter = useMemo(() => (viewer ? [viewer.id] : [null]), [viewer]);
@@ -298,9 +305,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
               <AnnotationList
                 projectId={projectId}
                 spanNodeId={spanNodeId}
-                onAnnotationNameSelect={(name) => {
-                  onAnnotationNameSelect(name);
-                }}
+                onAnnotationNameSelect={setNewAnnotationName}
                 onOpenEditConfigDialog={() => {
                   setIsPopoverOpen(false);
                   setShowEditConfigDialog(true);
@@ -517,8 +522,7 @@ function SpanAnnotationsList(props: {
                 ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
-                ...SpanAsideAnnotationList_span
-                ...SpanFeedback_annotations
+                ...SpanAnnotationsTable_annotations
               }
             }
           }
@@ -605,8 +609,7 @@ function SpanAnnotationsList(props: {
                 ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
-                ...SpanAsideAnnotationList_span
-                ...SpanFeedback_annotations
+                ...SpanAnnotationsTable_annotations
               }
             }
           }
@@ -677,8 +680,7 @@ function SpanAnnotationsList(props: {
                 ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
-                ...SpanAsideAnnotationList_span
-                ...SpanFeedback_annotations
+                ...SpanAnnotationsTable_annotations
               }
             }
           }

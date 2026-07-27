@@ -13,3 +13,10 @@ export const ANNOTATOR_KINDS = [
  * Hotkey that focuses the annotation editor.
  */
 export const EDIT_ANNOTATION_HOTKEY = "e";
+
+/**
+ * The annotation name a note is recorded under. Notes are annotations, but
+ * they carry a comment rather than a judgement, so the views that show one
+ * leave out the other.
+ */
+export const NOTE_ANNOTATION_NAME = "note";

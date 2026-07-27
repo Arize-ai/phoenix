@@ -72,4 +72,13 @@ export type SpanInfoData = {
   readonly output: SpanIOValue | null;
   readonly documentRetrievalMetrics: ReadonlyArray<RetrievalMetric>;
   readonly documentEvaluations: ReadonlyArray<DocumentEvaluation>;
+  /**
+   * The span's annotations. Only the counts are read here — for the header of
+   * the annotations card and, for those named "note", of the notes card. Both
+   * cards fetch the annotations themselves when they are opened.
+   */
+  readonly spanAnnotations: ReadonlyArray<{
+    readonly id: string;
+    readonly name: string;
+  }>;
 };

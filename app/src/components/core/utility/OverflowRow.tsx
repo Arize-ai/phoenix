@@ -31,6 +31,9 @@ const overflowRowCSS = css`
   gap: var(--global-dimension-size-50);
   min-width: 0;
   max-width: 100%;
+  // the room reserved for the badge below is taken out of the width the row is
+  // given rather than added to it, so the row never widens by overflowing
+  box-sizing: border-box;
 
   &.overflow-row--collapsed {
     position: relative;
@@ -42,6 +45,16 @@ const overflowRowCSS = css`
     height: var(--overflow-row-line-height);
     // room for the badge, which sits out of flow at the end of the first line
     padding-right: var(--global-dimension-size-600);
+  }
+
+  // Not even the first item fits: the row keeps only what the badge needs and
+  // hides the items rather than showing one cut in half. They stay in flow, so
+  // they can still be measured when the row is given its width back.
+  &.overflow-row--badge-only {
+    min-width: var(--global-dimension-size-600);
+    > *:not(.overflow-row__badge-slot) {
+      visibility: hidden;
+    }
   }
 
   // Boxless, so the measurement skips the badge and the content observer can
@@ -78,6 +91,16 @@ type OverflowMeasurement = FirstLine & {
   items: HTMLElement[];
 };
 
+/**
+ * Layout rounds to fractions of a pixel; an item this close still fits.
+ *
+ * `offsetLeft`, `offsetWidth` and `clientWidth` are each rounded to a whole
+ * pixel, so the comparison below carries up to half a pixel of error from each
+ * — enough for an item that fits to measure a pixel past the edge and be given
+ * to the badge, leaving it hidden beside visibly empty space.
+ */
+const SUBPIXEL_TOLERANCE = 1.5;
+
 function hasBox(element: HTMLElement): boolean {
   return element.offsetWidth > 0 || element.offsetHeight > 0;
 }
@@ -93,9 +116,20 @@ function getItems(container: HTMLElement): HTMLElement[] {
   );
 }
 
+/**
+ * The row's content box ends here. Where the row is already clamped, the room
+ * reserved for the badge is padding, so this is the edge an item has to end
+ * within to count as shown rather than cut off.
+ */
+function getContentRight(container: HTMLElement): number {
+  const { paddingRight } = getComputedStyle(container);
+  return container.clientWidth - (parseFloat(paddingRight) || 0);
+}
+
 /** Measures which of the container's items fit on its first line. */
 function measureOverflow(container: HTMLElement): OverflowMeasurement {
   const items = getItems(container);
+  const contentRight = getContentRight(container);
   let visibleCount = 0;
   let badgeLeft = 0;
   let lineHeight = 0;
@@ -111,13 +145,27 @@ function measureOverflow(container: HTMLElement): OverflowMeasurement {
       // document order, so everything past the first wrap is on a later line
       break;
     }
+    const right = item.offsetLeft + item.offsetWidth;
+    // An item wider than the row still lays out on the first line, where it
+    // would be shown cut in half. Give it to the badge instead — including
+    // when it is the only item, which leaves the badge standing alone.
+    if (right > contentRight + SUBPIXEL_TOLERANCE) {
+      break;
+    }
     visibleCount += 1;
     lineTop = Math.min(lineTop, top);
     lineBottom = Math.max(lineBottom, bottom);
-    badgeLeft = Math.max(badgeLeft, item.offsetLeft + item.offsetWidth);
+    badgeLeft = Math.max(badgeLeft, right);
     lineHeight = Math.max(lineHeight, item.offsetHeight);
   }
-  return { items, visibleCount, badgeLeft, lineHeight };
+  return {
+    items,
+    visibleCount,
+    badgeLeft,
+    // the badge stands in for the items it took, so it keeps their height even
+    // where it has taken every one of them
+    lineHeight: lineHeight || (items[0]?.offsetHeight ?? 0),
+  };
 }
 
 /** Each recorded under its own flag, so only what this row added is removed */
@@ -361,6 +409,8 @@ export function OverflowRow({
       className={classNames("overflow-row", {
         "overflow-row--collapsed": !isExpanded,
         "overflow-row--overflowing": !isExpanded && overflow !== null,
+        "overflow-row--badge-only":
+          !isExpanded && overflow !== null && overflow.visibleCount === 0,
       })}
       style={
         overflow !== null
