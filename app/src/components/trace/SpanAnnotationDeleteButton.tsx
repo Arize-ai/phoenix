@@ -39,9 +39,7 @@ type SpanAnnotationDeleteButtonProps = {
   onDeleteError: (error: Error) => void;
 };
 
-/**
- * Deletes a single span annotation, confirming with the user first.
- */
+/** Deletes a single span annotation, confirming with the user first. */
 export function SpanAnnotationDeleteButton({
   annotationId,
   spanNodeId,

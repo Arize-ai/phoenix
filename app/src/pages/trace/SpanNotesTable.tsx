@@ -45,7 +45,6 @@ function NotesTable({
 }) {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
-  // a delete that goes through clears the error banner it failed with
   const handleDeleteSuccess = useCallback(
     (notifyProps: NotificationHookParams) => {
       setError(null);
@@ -157,8 +156,8 @@ export function SpanNotesTable({
       }
     `,
     { spanNodeId },
-    // every mutation writes notes back to the store, so what is already there
-    // is current across the remounts collapsing the card causes
+    // every mutation writes notes back to the store, so the card can remount
+    // as often as it collapses without refetching
     { fetchPolicy: "store-or-network" }
   );
 

@@ -26,7 +26,7 @@ import { useSpanAnnotationCounts } from "./useSpanAnnotationCounts";
  * fetches its own data, so this only needs the span's node id.
  */
 export function SpanNotesCard({ spanNodeId }: { spanNodeId: string }) {
-  // rendering a moment late beats claiming the span has no notes while the
+  // better a card that renders late than one that reads "no notes" while the
   // count is still in flight
   return (
     <Suspense fallback={null}>

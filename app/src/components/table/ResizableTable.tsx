@@ -22,14 +22,12 @@ const containerCSS = css`
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  // the scroll wrapper below is what scrolls, so this must be free to be
-  // shorter than its content
+  // lets the scroll wrapper below be shorter than its content
   min-height: 0;
 `;
 
 const scrollWrapCSS = css`
   flex: 1 1 auto;
-  // columns can be dragged wider than the container, so this scrolls both ways
   overflow: auto;
 `;
 
@@ -60,14 +58,10 @@ export function ResizableTable<DataRow>({
   columns: ColumnDef<DataRow>[];
   data: DataRow[];
   defaultSorting?: SortingState;
-  /** Columns stuck to the right edge as the rest scroll under them */
   pinnedRightColumnIds?: string[];
-  /**
-   * Whether rows wrap or clip to a single line.
-   * @default false
-   */
+  /** @default false */
   areRowsExpanded?: boolean;
-  /** Rendered above the table, outside the part of it that scrolls */
+  /** Rendered above the table, outside the part that scrolls */
   banner?: ReactNode;
   className?: string;
   "data-testid"?: string;

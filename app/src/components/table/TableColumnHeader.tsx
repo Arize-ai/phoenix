@@ -53,8 +53,7 @@ export function TableColumnHeader<Data, Value>({
   return (
     <th
       colSpan={header.colSpan}
-      // `tableCSS` reads the attribute to align the header and its sort control
-      // with the cells below, which take the same alignment
+      // `tableCSS` reads the attribute to align the sort control with it
       align={column.columnDef.meta?.textAlign}
       aria-sort={canSort ? (sorted ? SORT_LABEL[sorted] : "none") : undefined}
       // a resizable column is driven by the width the drag left it at; the rest

@@ -78,8 +78,8 @@ export function SpanAside(props: SpanAsideProps) {
     props.span
   );
 
-  // the button that adds a config is in the section header, the list that shows
-  // them is in the panel below, so the key they share lives here
+  // the button that adds a config and the list that shows them are in
+  // different subtrees, so the key they share lives above both
   const [annotationConfigsRefetchKey, setAnnotationConfigsRefetchKey] =
     useState(0);
   const setIsAnnotatingSpans = usePreferencesContext(

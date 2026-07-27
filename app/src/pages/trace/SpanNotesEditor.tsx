@@ -102,8 +102,8 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
   const annotations = data.span?.spanAnnotations || [];
 
   const notes = annotations.filter(
-    // we do this on the client side because one of our query fragments requires all annotations
-    // if we filtered here, we would not refresh the annotations table when a note is added
+    // filtered here rather than in the query: a fragment above needs every
+    // annotation, and a filtered field would not pick up a note added there
     (annotation) => annotation.name === "note"
   );
 

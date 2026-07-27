@@ -41,7 +41,6 @@ function AnnotationsTable({
 }) {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
-  // a delete that goes through clears the error banner it failed with
   const handleDeleteSuccess = useCallback(
     (notifyProps: NotificationHookParams) => {
       setError(null);
@@ -193,8 +192,8 @@ export function SpanAnnotationsTable({
       }
     `,
     { id: spanNodeId },
-    // every mutation writes annotations back to the store, so what is already
-    // there is current across the remounts collapsing the card causes
+    // every mutation writes annotations back to the store, so the card can
+    // remount as often as it collapses without refetching
     { fetchPolicy: "store-or-network" }
   );
 
@@ -225,9 +224,9 @@ export function SpanAnnotationsTable({
     queryData.span
   );
 
-  // Notes have a table of their own. Filtered here rather than in the query
-  // because the editor in the aside writes every annotation back to this same
-  // record, and a filtered field would not pick up what it adds.
+  // Notes have a table of their own. Filtered here rather than in the query:
+  // the editor in the aside writes every annotation back to this same record,
+  // and a filtered field would not pick up what it adds.
   const spanAnnotations = data?.spanAnnotations;
   const annotations = useMemo(
     () =>

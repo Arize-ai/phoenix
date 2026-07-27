@@ -3,7 +3,6 @@ import { createContext, useCallback, useContext, useState } from "react";
 
 import { usePreferencesContext } from "@phoenix/contexts";
 
-/** A collapsible section of the span aside. */
 export type SpanAsideSection = "annotations" | "notes";
 
 /**
@@ -61,7 +60,7 @@ export function SpanAsideProvider({ children }: PropsWithChildren) {
   );
 }
 
-/** Opens the span aside on one of its sections. For the controls. */
+/** Opens the span aside on one of its sections. */
 export function useOpenSpanAside() {
   const open = useContext(OpenSpanAsideContext);
   if (open == null) {

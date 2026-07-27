@@ -17,7 +17,6 @@ const columns: ColumnDef<Row>[] = [
   { id: "value", header: "Value", accessorKey: "key", enableResizing: false },
 ];
 
-/** The header row on its own, as a table without pinned columns renders it. */
 function HeaderRow() {
   "use no memo";
   // eslint-disable-next-line react-hooks-js/incompatible-library

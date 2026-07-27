@@ -29,7 +29,6 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
     <Alert variant="danger">{span.statusMessage}</Alert>
   ) : null;
 
-  // both cards fetch their own annotations, so they render from the id alone
   const annotationsCard = <SpanAnnotationsCard spanNodeId={span.id} />;
   const notesCard = <SpanNotesCard spanNodeId={span.id} />;
 

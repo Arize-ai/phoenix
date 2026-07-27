@@ -80,7 +80,7 @@ function SpanAnnotationSummaryTokens({
  * table inside fetches its own data, so this only needs the span's node id.
  */
 export function SpanAnnotationsCard({ spanNodeId }: { spanNodeId: string }) {
-  // rendering a moment late beats claiming the span has no annotations while
+  // better a card that renders late than one that reads "no annotations" while
   // the count is still in flight
   return (
     <Suspense fallback={null}>
@@ -102,8 +102,6 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
   const [areRowsExpanded, setAreRowsExpanded] = useState(false);
   const [view, setView] = useState<SpanAnnotationsView>("list");
   const hasAnnotations = annotationCount > 0;
-  // compact rather than the full state with its graphic: this is a card in a
-  // stack of cards, not a region of its own
   const emptyState = (
     <CompactEmptyState
       icon={<Icon svg={<Icons.Edit2 />} />}
@@ -136,8 +134,6 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
         <Flex direction="row" gap="size-100" alignItems="center">
           {isCollapsed || !hasAnnotations ? null : (
             <>
-              {/* before the control that summoned it, so the view switch stays
-                  put rather than sliding over when this appears */}
               {view === "table" ? (
                 <RowExpandToggleButton
                   size="S"
