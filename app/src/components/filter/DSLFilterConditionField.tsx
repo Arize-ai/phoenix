@@ -101,6 +101,13 @@ export function createLoadedCompletionSection(name: string): CompletionSection {
 const MAX_BROWSE_SUGGESTIONS = 5;
 const MAX_BROWSE_FIELDS = 20;
 
+/**
+ * How long a typed condition must sit still before it is validated. Tuned by
+ * feel: long enough that a phrase being typed does not flash red, short enough
+ * that a finished one applies without a wait.
+ */
+const VALIDATION_DEBOUNCE_MS = 250;
+
 const defaultSnippets: DSLFilterSnippet[] = [];
 const defaultCompletionSources: CompletionSource[] = [];
 
@@ -377,7 +384,7 @@ export function DSLFilterConditionField<
     // at mount was not typed -- it arrives from a URL or a caller's default --
     // so it is validated at once, which is also what any consumer waiting on
     // the result to render is waiting for.
-    const delay = hasSettled.current ? 250 : 0;
+    const delay = hasSettled.current ? VALIDATION_DEBOUNCE_MS : 0;
     hasSettled.current = true;
     const timeout = setTimeout(() => {
       validateCondition(value)
