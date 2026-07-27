@@ -32,6 +32,12 @@ export function TableColumnHeader<Data, Value>({
 }: {
   header: Header<Data, Value>;
 }) {
+  // TanStack hands back the same header object on every render — a resize or a
+  // sort mutates it in place rather than rebuilding it — so a memoized version
+  // of this component would go on reporting the width and sort direction the
+  // column was first rendered with, and a drag of the resizer would move
+  // nothing.
+  "use no memo";
   const { column } = header;
   const sorted = column.getIsSorted();
   const canSort = column.getCanSort();
