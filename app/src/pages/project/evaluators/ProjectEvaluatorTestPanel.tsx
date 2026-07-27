@@ -39,6 +39,7 @@ import type {
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorTestPanelMutation.graphql";
 import type { ProjectEvaluatorTestPanelQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorTestPanelQuery.graphql";
 import { getProjectEvaluatorMappingDiagnostics } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import type {
   CodeEvaluatorLanguage,
   EvaluatorMappingSource,
@@ -144,17 +145,25 @@ function ProjectEvaluatorTestPanelContent({
   const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null);
   const selectedSpan =
     spans.find(({ id }) => id === selectedSpanId) ?? spans[0] ?? null;
-  const activeContext = selectedSpan?.evaluationContext;
+  // With no matching spans, fall back to a semantic-convention sample so the
+  // full authoring loop — mapping source, diagnostics, and test runs — still
+  // works before matching traffic exists. Deriving it from the (possibly
+  // widened) query result means real spans replace it automatically.
+  const sample =
+    spans.length === 0 ? getSampleSpanEvaluationContext(filterCondition) : null;
+  const isSampleContext = selectedSpan == null && sample != null;
+  const activeContext = selectedSpan?.evaluationContext ?? sample?.context;
   const evaluatorStore = useEvaluatorStoreInstance();
   const pathMapping = useEvaluatorStore(
     (state) => state.evaluator.inputMapping.pathMapping
   );
   // `selectedSpan` is a fresh object every render (rebuilt from the query's
   // edges), so keying this sync on its identity would rewrite the store each
-  // render. Key on the resolved span id (a primitive) and read the context
-  // through an effect event so the mapping source is pushed only when the
-  // active context actually changes.
-  const resolvedSpanId = selectedSpan?.id ?? null;
+  // render. Key on the resolved span id (a primitive, with a sentinel for the
+  // sample fallback) and read the context through an effect event so the
+  // mapping source is pushed only when the active context actually changes.
+  const resolvedSpanId =
+    selectedSpan?.id ?? (isSampleContext ? "__sample__" : null);
   const syncMappingSource = useEffectEvent(() => {
     if (activeContext && isSpanEvaluatorMappingSource(activeContext)) {
       evaluatorStore.getState().setEvaluatorMappingSource(activeContext);
@@ -226,13 +235,29 @@ function ProjectEvaluatorTestPanelContent({
             })}
           </div>
         ) : (
-          <Empty
-            message={
-              searchAllTime
-                ? "No spans match this scope"
-                : "No spans match this scope in the page time range"
-            }
-          />
+          <Flex direction="column" gap="size-100">
+            <Empty
+              message={
+                searchAllTime
+                  ? "No spans match this scope"
+                  : "No spans match this scope in the page time range"
+              }
+            />
+            {sample ? (
+              <div css={sampleCardCSS}>
+                <Flex direction="row" alignItems="center" gap="size-100">
+                  <Icon svg={<Icons.Workflow />} />
+                  <Heading level={3}>Sample {sample.spanKind} span</Heading>
+                  <span className="sample-card__badge">Sample</span>
+                </Flex>
+                <Text size="S" color="text-500">
+                  A stand-in span shaped by the OpenInference semantic
+                  conventions, so you can author and test this evaluator before
+                  matching spans arrive. Real spans replace it automatically.
+                </Text>
+              </div>
+            ) : null}
+          </Flex>
         )}
         {activeContext != null ? (
           <Tabs defaultSelectedKey="context">
@@ -264,6 +289,7 @@ function ProjectEvaluatorTestPanelContent({
               <BindingDiagnostics
                 diagnostics={diagnostics}
                 hasExplicitMappings={Object.keys(pathMapping).length > 0}
+                isSampleContext={isSampleContext}
               />
             </TabPanel>
           </Tabs>
@@ -274,6 +300,7 @@ function ProjectEvaluatorTestPanelContent({
           codeEvaluatorId={codeEvaluatorId}
           inlineCode={inlineCode}
           spanContext={activeContext}
+          isSampleContext={isSampleContext}
         />
       ) : null}
     </div>
@@ -347,6 +374,26 @@ const rowCSS = css`
   }
 `;
 
+const sampleCardCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-75);
+  padding: var(--global-dimension-size-150);
+  border-radius: var(--global-rounding-small);
+  border: 1px dashed var(--global-border-color-default);
+  .sample-card__badge {
+    margin-left: auto;
+    font-size: var(--global-font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--global-text-color-500);
+    border: 1px solid var(--global-border-color-default);
+    border-radius: var(--global-rounding-small);
+    padding: 0 var(--global-dimension-size-75);
+  }
+`;
+
 const contextViewerCSS = css`
   margin-top: var(--global-dimension-size-100);
   border: 1px solid var(--global-border-color-default);
@@ -394,13 +441,24 @@ function getContextSnippet(context: unknown): string {
 function BindingDiagnostics({
   diagnostics,
   hasExplicitMappings,
+  isSampleContext,
 }: {
   diagnostics: ReturnType<typeof getProjectEvaluatorMappingDiagnostics>;
   hasExplicitMappings: boolean;
+  isSampleContext: boolean;
 }) {
+  // Diagnostics against the sample prove the mapping's shape, not that it
+  // resolves on this project's real spans — flag that before the results.
+  const sampleNotice = isSampleContext ? (
+    <Alert variant="info" title="Checked against a sample span">
+      These results reflect the sample's structure, not real project data —
+      re-check them once matching spans arrive.
+    </Alert>
+  ) : null;
   if (!hasExplicitMappings) {
     return (
       <Flex direction="column" gap="size-100" marginTop="size-100">
+        {sampleNotice}
         <Text size="S" color="text-700">
           input, output, and metadata bind automatically from the span context —
           there are no explicit mappings to check.
@@ -410,6 +468,7 @@ function BindingDiagnostics({
   }
   return (
     <Flex direction="column" gap="size-100" marginTop="size-100">
+      {sampleNotice}
       {diagnostics.map(({ variable, path, status }) =>
         status === "missing" ? (
           <Alert
@@ -458,10 +517,12 @@ function ProjectEvaluatorTestBar({
   codeEvaluatorId,
   inlineCode,
   spanContext,
+  isSampleContext,
 }: {
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
   spanContext: unknown;
+  isSampleContext: boolean;
 }) {
   const evaluatorStore = useEvaluatorStoreInstance();
   const playgroundStore = usePlaygroundStore();
@@ -567,7 +628,7 @@ function ProjectEvaluatorTestBar({
     <div css={testBarCSS}>
       <Flex direction="row" alignItems="center" gap="size-150">
         <Button variant="primary" isPending={isPending} onPress={onTest}>
-          Test on selected span
+          {isSampleContext ? "Test on sample span" : "Test on selected span"}
         </Button>
         {results?.map((result, index) =>
           result.error ? null : (
