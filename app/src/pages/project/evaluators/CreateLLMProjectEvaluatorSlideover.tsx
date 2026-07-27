@@ -9,6 +9,7 @@ import { Loading } from "@phoenix/components/core/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
 import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
+import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
   createLLMEvaluatorPayload,
@@ -77,10 +78,15 @@ export const CreateLLMProjectEvaluatorSlideover = ({
   updateConnectionIds?: string[];
 } & ModalOverlayProps) => {
   const defaultMessages = useMemo(() => {
-    if (creationMode.kind !== "copy") {
-      return undefined;
+    if (creationMode.kind === "copy") {
+      return creationMode.initialState.defaultMessages;
     }
-    return creationMode.initialState.defaultMessages;
+    if (creationMode.kind === "scratch") {
+      // Span-grain defaults: only variables that exist in the span evaluation
+      // context, so the template binds zero-config on real spans.
+      return getSpanEvaluatorDefaultMessages();
+    }
+    return undefined;
   }, [creationMode]);
   const templateFormat =
     creationMode.kind === "copy"
