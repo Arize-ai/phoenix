@@ -26,6 +26,7 @@ import { usePreferencesContext } from "@phoenix/contexts";
 
 import { SpanAnnotationsTable } from "../SpanAnnotationsTable";
 import { useOpenSpanAside } from "../SpanAsideContext";
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import type { SpanAnnotationsCardSummaryQuery } from "./__generated__/SpanAnnotationsCardSummaryQuery.graphql";
 import { defaultCardProps } from "./constants";
 import { useSpanAnnotationCounts } from "./useSpanAnnotationCounts";
@@ -101,6 +102,7 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [areRowsExpanded, setAreRowsExpanded] = useState(false);
   const [view, setView] = useState<SpanAnnotationsView>("list");
+  const cardProps = useSpanInfoCardProps("annotations");
   const hasAnnotations = annotationCount > 0;
   const emptyState = (
     <CompactEmptyState
@@ -111,6 +113,7 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
   return (
     <Card
       {...defaultCardProps}
+      {...cardProps}
       title="Annotations"
       titleExtra={<Counter variant="quiet">{annotationCount}</Counter>}
       // the summary tokens are clickable, so the collapse toggle is a

@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import type { CardProps } from "@phoenix/components";
 import {
   Card,
   ContextualHelp,
@@ -39,7 +40,10 @@ const attributesContextualHelp = (
  * The card body and header, inside the provider so both can read the same
  * view state — the header needs the attribute count, the body the entries.
  */
-function AttributesCardContents({ defaultOpen }: { defaultOpen: boolean }) {
+function AttributesCardContents({
+  defaultOpen,
+  ...collapseProps
+}: { defaultOpen: boolean } & SpanAttributesCardCollapseProps) {
   // Every flattened key, not the rows currently listed: the count describes
   // the span, so it should not drop as the user narrows the search
   const { entries, isViewable } = useJSONView();
@@ -47,6 +51,7 @@ function AttributesCardContents({ defaultOpen }: { defaultOpen: boolean }) {
   return (
     <Card
       {...defaultCardProps}
+      {...collapseProps}
       title="Attributes"
       defaultOpen={defaultOpen}
       titleExtra={
@@ -81,6 +86,16 @@ function AttributesCardContents({ defaultOpen }: { defaultOpen: boolean }) {
 }
 
 /**
+ * The card's open state, when the caller owns it. The info tab passes these so
+ * its expand/collapse control reaches the card; the attributes tab, where the
+ * card is the whole view, leaves them unset.
+ */
+type SpanAttributesCardCollapseProps = Pick<
+  CardProps,
+  "isOpen" | "onOpenChange"
+>;
+
+/**
  * A card that displays all the attributes of a span, either as a searchable
  * table of the flattened attribute keys or as the JSON document itself.
  *
@@ -90,6 +105,7 @@ function AttributesCardContents({ defaultOpen }: { defaultOpen: boolean }) {
 export function SpanAttributesCard({
   attributes,
   defaultOpen = true,
+  ...collapseProps
 }: {
   attributes: string;
   /**
@@ -99,7 +115,7 @@ export function SpanAttributesCard({
    * @default true
    */
   defaultOpen?: boolean;
-}) {
+} & SpanAttributesCardCollapseProps) {
   return (
     // OpenTelemetry addresses list items with a dotted index
     // (`llm.input_messages.0.message.content`), so the keys read exactly as
@@ -109,7 +125,7 @@ export function SpanAttributesCard({
       defaultMode="table"
       indexNotation="dot"
     >
-      <AttributesCardContents defaultOpen={defaultOpen} />
+      <AttributesCardContents defaultOpen={defaultOpen} {...collapseProps} />
     </JSONViewProvider>
   );
 }

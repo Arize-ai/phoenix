@@ -19,16 +19,19 @@ function Card({
   interactiveTitle = false,
   collapseButtonLabel,
   defaultOpen = true,
+  isOpen,
   scrollBody = false,
   extra,
   onCollapseChange,
+  onOpenChange,
   testId,
   ...otherProps
 }: CardProps & { ref?: Ref<HTMLElement> }) {
   const { styleProps } = useStyleProps(otherProps, viewStyleProps);
-  const [isCollapsed, setIsCollapsed] = useState(
+  const [uncontrolledIsCollapsed, setUncontrolledIsCollapsed] = useState(
     collapsible ? !defaultOpen : false
   );
+  const isCollapsed = isOpen == null ? uncontrolledIsCollapsed : !isOpen;
 
   const headerId = useId();
   const collapseButtonId = useId();
@@ -60,8 +63,11 @@ function Card({
     </div>
   );
 
+  // The local state is kept in step even while `isOpen` controls the card, so a
+  // card that later drops back to uncontrolled resumes where the reader left it.
   const toggleCollapsed = () => {
-    setIsCollapsed(!isCollapsed);
+    setUncontrolledIsCollapsed(!isCollapsed);
+    onOpenChange?.(isCollapsed);
   };
 
   // With `interactiveTitle` the toggle itself is only the arrow, so the rest of

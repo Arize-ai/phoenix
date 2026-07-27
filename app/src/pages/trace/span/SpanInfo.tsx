@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { Alert, Flex, View } from "@phoenix/components";
 
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { EmbeddingSpanInfo } from "./EmbeddingSpanInfo";
 import { LLMSpanInfo } from "./LLMSpanInfo";
 import { RerankerSpanInfo } from "./RerankerSpanInfo";
@@ -24,6 +25,10 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
   // Parse the attributes once
   const { json: attributesObject, parseError } =
     parseSpanAttributes(attributes);
+  // The other cards reach the tab's expand/collapse control from inside their
+  // own components; this one also renders in the attributes tab, where it is
+  // the whole view and has nothing to collapse alongside.
+  const attributesCardProps = useSpanInfoCardProps("attributes");
 
   const statusDescription = span.statusMessage ? (
     <Alert variant="danger">{span.statusMessage}</Alert>
@@ -44,7 +49,10 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
           </Alert>
           {/* open here, unlike below: with nothing parsed to render above it,
               the raw attributes are all there is to look at */}
-          <SpanAttributesCard attributes={attributes} />
+          <SpanAttributesCard
+            attributes={attributes}
+            {...attributesCardProps}
+          />
           {notesCard}
         </Flex>
       </View>
@@ -105,6 +113,7 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
         <SpanAttributesCard
           attributes={attributes}
           defaultOpen={!hasContentAboveAttributes && !hasMetadata}
+          {...attributesCardProps}
         />
         {notesCard}
       </Flex>
