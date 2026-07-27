@@ -11,6 +11,7 @@ describe("SLASH_COMMANDS", () => {
   it("includes session lifecycle commands", () => {
     const names = SLASH_COMMANDS.map((c) => c.name);
     expect(names).toContain("clear");
+    expect(names).toContain("model");
     expect(names).toContain("new");
     expect(names).toContain("sessions");
     expect(names).toContain("temporary");
@@ -23,6 +24,7 @@ describe("runSlashCommand", () => {
   function createContext() {
     return {
       startNewSession: vi.fn(),
+      openModelPicker: vi.fn(),
       openSessionPicker: vi.fn(),
       exit: vi.fn(),
     };
@@ -51,6 +53,12 @@ describe("runSlashCommand", () => {
     const context = createContext();
     runSlashCommand("/sessions", context);
     expect(context.openSessionPicker).toHaveBeenCalledOnce();
+  });
+
+  it("opens the model picker for /model", () => {
+    const context = createContext();
+    runSlashCommand("/model", context);
+    expect(context.openModelPicker).toHaveBeenCalledOnce();
   });
 
   it("calls exit for /exit", () => {

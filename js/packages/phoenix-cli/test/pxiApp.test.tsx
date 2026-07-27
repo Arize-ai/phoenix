@@ -5,8 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import { PxiApp, ThinkingIndicator } from "../src/pxi/App";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
 import type {
+  ModelSelection,
   PxiChatClient,
   PxiMessage,
+  PxiRuntimeOptions,
   PxiSessionClient,
 } from "../src/pxi/types";
 
@@ -1203,6 +1205,121 @@ describe("PXI app", () => {
     expect(getSession).toHaveBeenCalledWith({ sessionId: "session-2" });
     expect(stripAnsi(lastFrame() ?? "")).toContain("restored conversation");
     expect(stripAnsi(lastFrame() ?? "")).toContain("session: Second session");
+    unmount();
+  });
+
+  it("switches the active session model for the next request", async () => {
+    const existingMessage: PxiMessage = {
+      id: "existing-user",
+      role: "user",
+      parts: [{ type: "text", text: "keep this conversation" }],
+    };
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => ({
+        id: "session-1",
+        title: "Existing session",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+        messages: [],
+      }),
+      listSessions: async () => [],
+      getSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const modelLoader = vi.fn(
+      async (): Promise<ModelSelection[]> => [
+        {
+          providerType: "builtin",
+          provider: "OPENAI",
+          modelName: "gpt-5.4",
+        },
+        {
+          providerType: "builtin",
+          provider: "GOOGLE",
+          modelName: "gemini-3.5-flash",
+        },
+      ]
+    );
+    const clientFactory = vi.fn(
+      ({
+        options,
+      }: {
+        options: PxiRuntimeOptions;
+        agentSessionId: string;
+      }): PxiChatClient => ({
+        sendMessage: async () => {
+          expect(options.modelSelection).toEqual({
+            providerType: "builtin",
+            provider: "GOOGLE",
+            modelName: "gemini-3.5-flash",
+          });
+          return null;
+        },
+      })
+    );
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        clientFactory={clientFactory}
+        modelLoader={modelLoader}
+        sessionClient={sessionClient}
+        initialMessages={[existingMessage]}
+      />
+    );
+
+    await writeInput({ stdin, input: "/model" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    expect(stripAnsi(lastFrame() ?? "")).toContain("Recommended models");
+    expect(stripAnsi(lastFrame() ?? "")).toContain("GOOGLE/gemini-3.5-flash");
+
+    await writeInput({ stdin, input: DOWN_ARROW });
+    await writeInput({ stdin, input: "\r" });
+
+    const selectedFrame = stripAnsi(lastFrame() ?? "");
+    expect(selectedFrame).toContain("model: GOOGLE/gemini-3.5-flash");
+    expect(selectedFrame).toContain("keep this conversation");
+
+    await writeInput({ stdin, input: "continue" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+
+    expect(clientFactory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          modelSelection: {
+            providerType: "builtin",
+            provider: "GOOGLE",
+            modelName: "gemini-3.5-flash",
+          },
+        }),
+        agentSessionId: "session-1",
+      })
+    );
+    unmount();
+  });
+
+  it("keeps model loading errors visible until the picker is retried", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        modelLoader={async () => {
+          throw new Error("Could not load models");
+        }}
+      />
+    );
+
+    await writeInput({ stdin, input: "/model" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    await writeInput({ stdin, input: "ignored filter" });
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("Could not load models");
+    expect(frame).toContain("esc close and retry");
     unmount();
   });
 
