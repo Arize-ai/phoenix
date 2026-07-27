@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
 	gh-comment-watch \
-	harbor-prepare harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
+	harbor-stage-environments harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -104,11 +104,11 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  harbor-prepare         - Build the Phoenix wheel and stage the Docker build context"
-	@echo -e "  harbor-publish-fixtures       - Regenerate fixtures and publish to cloud storage"
-	@echo -e "  $(YELLOW)harbor-oracle$(NC)         - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
-	@echo -e "  $(YELLOW)harbor-run$(NC)            - Run the real ServerAgent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
-	@echo -e "  harbor-view            - Browse Harbor job results in a local web viewer"
+	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
+	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
+	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
+	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real ServerAgent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
+	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
@@ -459,13 +459,13 @@ UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
 
 # The runner is staged into the task's Docker build context by stage_harbor_task_environments.sh.
-define check-harbor-prepared
+define check-harbor-staged
 	@test -f $(HARBOR_TASK)/environment/run_server_agent.py || \
-		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-prepare' first$(NC)"; exit 1; }
+		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
 endef
 
-harbor-prepare: ## Build the Phoenix wheel and stage the Harbor Docker build context
-	@echo -e "$(CYAN)Preparing Harbor build context...$(NC)"
+harbor-stage-environments: ## Build the Phoenix wheel and stage each Harbor task environment
+	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
 	./evals/harbor/stage_harbor_task_environments.sh
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
@@ -474,12 +474,12 @@ harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud stor
 	./evals/harbor/publish_fixtures.sh
 
 harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
-	$(check-harbor-prepared)
+	$(check-harbor-staged)
 	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
 	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
 harbor-run: ## Run the real ServerAgent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
-	$(check-harbor-prepared)
+	$(check-harbor-staged)
 	@echo -e "$(CYAN)Running Harbor ServerAgent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
 		-a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
