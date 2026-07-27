@@ -1,8 +1,6 @@
 #!/bin/bash
 # Build Phoenix and stage the generated build-context artifacts into every
-# task's environment/ directory: the wheel, the ServerAgent runner, and the
-# fixture-download script. These are gitignored; the canonical copies live
-# under evals/harbor/container_assets/.
+# task's environment/ directory.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 CONTAINER_ASSETS="$ROOT/evals/harbor/container_assets"
