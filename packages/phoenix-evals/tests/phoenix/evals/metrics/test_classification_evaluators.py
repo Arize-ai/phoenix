@@ -19,6 +19,7 @@ from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
 from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
 from phoenix.evals.metrics.hallucination import HallucinationEvaluator
 from phoenix.evals.metrics.refusal import RefusalEvaluator
+from phoenix.evals.metrics.retrieval_relevance import RetrievalRelevanceEvaluator
 from phoenix.evals.metrics.tool_invocation import ToolInvocationEvaluator
 from phoenix.evals.metrics.tool_response_handling import ToolResponseHandlingEvaluator
 from phoenix.evals.metrics.tool_selection import ToolSelectionEvaluator
@@ -59,6 +60,11 @@ ALL_EVALUATORS = [
         FaithfulnessEvaluator,
         {"input": "Q", "output": "A", "context": "C"},
         id="FaithfulnessEvaluator",
+    ),
+    pytest.param(
+        RetrievalRelevanceEvaluator,
+        {"input": "Q", "retrieved_context": "C"},
+        id="RetrievalRelevanceEvaluator",
     ),
     pytest.param(
         ConcisenessEvaluator,

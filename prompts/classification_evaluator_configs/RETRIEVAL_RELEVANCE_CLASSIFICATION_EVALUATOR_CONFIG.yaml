@@ -1,0 +1,47 @@
+name: retrieval_relevance
+description: Determine whether the external information retrieved during a step is relevant to the request it was serving, regardless of the source (vector search, tool call, MCP server, or web search).
+labels: []
+optimization_direction: maximize
+messages:
+  - role: user
+    content: |-
+      You are an expert evaluator judging whether the external information retrieved during a single step is RELEVANT to the request it was meant to serve.
+
+      The retrieved information may come from any source: a vector-database / semantic search, a tool or function call, an MCP server, a web search, or a database query. Treat them all the same way — you are judging the retrieved information as a whole against the request.
+
+      <rubric>
+
+      RELEVANT - The retrieved information contains content that materially helps address the request. This includes when it:
+
+      - Directly answers the request, or
+      - Provides facts, data, or context needed to answer the request, or
+      - Is on-topic and useful even if it only partially covers the request, or is mixed with some unrelated material.
+
+      If ANY meaningful part of the retrieved information helps address the request, label it RELEVANT.
+
+      IRRELEVANT - The retrieved information does NOT contain content that helps address the request. For example when it:
+
+      - Is about a different topic, entity, or time period than the request, or
+      - Is only superficially or tangentially related and does not help answer the request, or
+      - Is empty, an error, or contains no usable information.
+
+      </rubric>
+
+      You are judging ONLY whether the retrieved information is relevant to the request. Do NOT judge whether any final answer is correct, whether an answer is faithful to this information, how complete or well-written it is, or the trustworthiness of the source. Consider only whether the retrieved information bears on the request.
+
+      <data>
+
+      <request>
+      {{input}}
+      </request>
+
+      <retrieved_information>
+      {{retrieved_context}}
+      </retrieved_information>
+
+      </data>
+
+      Carefully reason about whether the retrieved information helps address the request before deciding. Is the retrieved information relevant or irrelevant?
+choices:
+  relevant: 1.0
+  irrelevant: 0.0
