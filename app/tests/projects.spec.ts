@@ -213,7 +213,9 @@ test.describe.serial("Projects", () => {
     await expect(createDialog).toBeVisible();
     // The evaluator definition is always visible — an unfiltered evaluator
     // needs no extra step, only a name.
-    await createDialog.getByLabel("Name").fill(evaluatorName);
+    // The always-visible definition also exposes the annotation output's
+    // "Name" field — the evaluator's own name is the first (autofocused) one.
+    await createDialog.getByLabel("Name").first().fill(evaluatorName);
     await createDialog.getByRole("button", { name: "Create" }).click();
     await expect(createDialog).not.toBeVisible();
 
@@ -236,7 +238,7 @@ test.describe.serial("Projects", () => {
       name: "Edit project evaluator",
     });
     await expect(editDialog).toBeVisible();
-    await editDialog.getByLabel("Name").fill(updatedEvaluatorName);
+    await editDialog.getByLabel("Name").first().fill(updatedEvaluatorName);
     await editDialog.getByRole("button", { name: "Update" }).click();
     await expect(editDialog).not.toBeVisible();
 
