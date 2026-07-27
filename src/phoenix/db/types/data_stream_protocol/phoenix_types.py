@@ -22,11 +22,7 @@ class AgentErrorData(CamelBaseModel):
 _DATA_PART_PAYLOAD_TYPES: dict[str, type[CamelBaseModel]] = {
     "data-error": AgentErrorData,
 }
-"""Payload schemas for the data part types allowed in persisted messages.
-
-Transient data chunks (``data-session-summary``, ``data-transcript-persisted``)
-never become message parts, so every durable data part type must be listed here.
-"""
+"""Payload schemas for the data part types allowed in persisted messages."""
 
 
 class AssistantMessageMetadataUsageTokens(CamelBaseModel):
