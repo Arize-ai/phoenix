@@ -46,6 +46,25 @@ export function useSpanFilters() {
   return context;
 }
 
+/**
+ * The condition a span filter starts from: the one carried in the URL, so a
+ * shared or reloaded link restores the filtered view, falling back to the
+ * caller's default when the URL carries none. Read once at mount, since later
+ * writes to the param come from the applied filter itself and must not re-seed
+ * it.
+ *
+ * Split out from the provider so a call site that owns its own filter state can
+ * seed it the same way.
+ */
+export function useInitialSpanFilterCondition(defaultFilterCondition = "") {
+  const [searchParams] = useSearchParams();
+  const [initialCondition] = useState<string>(
+    () =>
+      searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? defaultFilterCondition
+  );
+  return initialCondition;
+}
+
 export function SpanFiltersProvider(
   props: PropsWithChildren<{
     /**
@@ -56,16 +75,13 @@ export function SpanFiltersProvider(
     defaultFilterCondition?: string;
   }>
 ) {
-  // Initialize from the URL so a shared/reloaded link restores the filtered
-  // view, falling back to the caller's default. Writes back to the URL happen
-  // where the state is applied (SpansTable) so only valid conditions are
-  // persisted.
-  const { defaultFilterCondition = "" } = props;
-  const [searchParams] = useSearchParams();
-  const [filterCondition, _setFilterCondition] = useState<string>(
-    () =>
-      searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? defaultFilterCondition
+  // Writes back to the URL happen where the state is applied (SpansTable), so
+  // only valid conditions are persisted.
+  const initialCondition = useInitialSpanFilterCondition(
+    props.defaultFilterCondition
   );
+  const [filterCondition, _setFilterCondition] =
+    useState<string>(initialCondition);
 
   const setFilterCondition = useCallback((condition: string) => {
     startTransition(() => {
