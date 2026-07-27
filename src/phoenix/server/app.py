@@ -698,13 +698,20 @@ def _lifespan(
                         "Failed to initialize docs MCP server; continuing without docs capability.",
                         exc_info=True,
                     )
+            # The code-mode sandbox spawns worker subprocesses on first use, which
+            # the pool would otherwise keep alive past server shutdown. Registered
+            # before the MCP lifespan so the stack unwinds in the opposite order:
+            # the MCP server stops accepting and drains its in-flight `execute`
+            # calls first, and only then are the workers running them torn down.
+            if (sandbox := getattr(app.state, "mcp_code_mode_sandbox", None)) is not None:
+                stack.push_async_callback(sandbox.aclose)
+                # Surfaces a broken sandbox install at boot instead of leaving it
+                # for the first caller. Code mode is one feature, so a failure is
+                # logged and startup continues rather than taking the server down.
+                await sandbox.validate()
             # Start the mounted MCP server's session manager (set in create_app).
             if (mcp_http_app := getattr(app.state, "mcp_http_app", None)) is not None:
                 await stack.enter_async_context(mcp_http_app.lifespan(app))
-            # The code-mode sandbox spawns worker subprocesses on first use, which
-            # the pool would otherwise keep alive past server shutdown.
-            if (sandbox := getattr(app.state, "mcp_code_mode_sandbox", None)) is not None:
-                stack.push_async_callback(sandbox.aclose)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,

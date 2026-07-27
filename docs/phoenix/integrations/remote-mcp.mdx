@@ -282,7 +282,7 @@ The browser-login flow is served by Phoenix's built-in OAuth2 authorization serv
 ## Security notes
 
 - **Authentication** is the same as the rest of Phoenix: OAuth access tokens are audience-scoped to `/mcp` and cannot be replayed against other endpoints, and API keys carry the permissions of the user who created them.
-- **Code execution is sandboxed**: Monty is an interpreter with no filesystem, network, or import access, capped at 30 seconds, 100 MB of memory, and 50 operation calls per `execute` block. If your security policy forbids executing agent-written code on the server regardless, set `PHOENIX_ENABLE_MCP_CODE_MODE=false`.
+- **Code execution is sandboxed**: Monty is an interpreter with no filesystem or network access, running in worker subprocesses rather than in the Phoenix process. Code may import a restricted standard library (`json`, `re`, `datetime`, and similar) but not `subprocess`, `socket`, `importlib`, or any third-party package. Each `execute` block is capped at 30 seconds of code execution, 100 MB of memory, 50 operation calls, and 5 minutes end to end including the time those operations take. If your security policy forbids executing agent-written code on the server regardless, set `PHOENIX_ENABLE_MCP_CODE_MODE=false`.
 - **Treat query results as data, not instructions.** Traces and spans contain whatever your application logged, including untrusted user input. Agents should not follow directives found inside telemetry returned by these tools.
 
 ## Inspecting the server with MCP Inspector

@@ -7,6 +7,7 @@ during app startup, and its tool surface must mirror the ``/v1`` routes.
 
 from __future__ import annotations
 
+import contextlib
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
@@ -34,6 +35,64 @@ from tests.unit.conftest import (
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+
+async def test_code_mode_sandbox_is_torn_down_after_the_mcp_server_drains(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Workers must outlive the MCP server, not the other way round.
+
+    The MCP session manager is what owns in-flight ``execute`` calls, so closing
+    the sandbox first would pull the workers out from under requests that are
+    still running. Shutdown has to unwind MCP first, then the sandbox.
+    """
+    monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
+    order: list[str] = []
+
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=db,
+            authentication_enabled=False,
+            serve_ui=False,
+            bulk_inserter_factory=TestBulkInserter,
+        )
+
+        real_mcp_app = app.state.mcp_http_app
+        real_sandbox = app.state.mcp_code_mode_sandbox
+        assert real_sandbox is not None, "code mode should have built a sandbox provider"
+
+        class _RecordingMcpApp:
+            """Wraps the MCP app so its lifespan exit is observable."""
+
+            def __init__(self, inner: Any) -> None:
+                self._inner = inner
+
+            @contextlib.asynccontextmanager
+            async def lifespan(self, scope_app: Any) -> AsyncIterator[None]:
+                async with self._inner.lifespan(scope_app):
+                    yield
+                order.append("mcp_lifespan_exited")
+
+        class _RecordingSandbox:
+            async def validate(self) -> bool:
+                return True
+
+            async def aclose(self) -> None:
+                order.append("sandbox_closed")
+                await real_sandbox.aclose()
+
+        app.state.mcp_http_app = _RecordingMcpApp(real_mcp_app)
+        app.state.mcp_code_mode_sandbox = _RecordingSandbox()
+
+        await stack.enter_async_context(LifespanManager(app))
+
+    assert order == ["mcp_lifespan_exited", "sandbox_closed"], (
+        f"sandbox must close after the MCP server drains, got {order}"
+    )
 
 
 async def test_mcp_server_not_mounted_by_default(

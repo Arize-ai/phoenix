@@ -32,7 +32,6 @@ members = [
 ]
 overrides = [
     { name = "openai", specifier = ">=2.30.0" },
-    { name = "pydantic-monty", specifier = "==0.0.19" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
 ]
 
@@ -493,7 +492,7 @@ dependencies = [
     { name = "cachetools" },
     { name = "email-validator" },
     { name = "fastapi" },
-    { name = "fastmcp-slim", extra = ["client", "code-mode", "server"] },
+    { name = "fastmcp-slim", extra = ["client", "server"] },
     { name = "grpc-interceptor" },
     { name = "grpcio" },
     { name = "httpx", extra = ["http2"] },
@@ -519,6 +518,7 @@ dependencies = [
     { name = "pyarrow" },
     { name = "pydantic" },
     { name = "pydantic-ai-slim", extra = ["anthropic", "bedrock", "google", "mcp", "openai", "ui"] },
+    { name = "pydantic-monty" },
     { name = "pystache" },
     { name = "python-dateutil" },
     { name = "python-multipart" },
@@ -721,7 +721,7 @@ requires-dist = [
     { name = "e2b-code-interpreter", marker = "extra == 'e2b'", specifier = ">=0.0.12" },
     { name = "email-validator" },
     { name = "fastapi", specifier = ">=0.137.0" },
-    { name = "fastmcp-slim", extras = ["client", "code-mode", "server"], specifier = ">=3.4.2" },
+    { name = "fastmcp-slim", extras = ["client", "server"], specifier = ">=3.4.2" },
     { name = "google-genai", marker = "python_full_version >= '3.10' and extra == 'container'", specifier = ">=1.50.0" },
     { name = "google-genai", marker = "python_full_version < '3.10' and extra == 'container'" },
     { name = "grpc-interceptor" },
@@ -759,6 +759,7 @@ requires-dist = [
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=2.1.0" },
     { name = "pydantic-ai-slim", extras = ["anthropic", "bedrock", "google", "mcp", "openai", "ui"], specifier = ">=2.0.0,<3" },
+    { name = "pydantic-monty", specifier = "==0.0.19" },
     { name = "pystache" },
     { name = "python-dateutil" },
     { name = "python-multipart" },
@@ -2239,9 +2240,6 @@ client = [
     { name = "opentelemetry-api" },
     { name = "py-key-value-aio", extra = ["filetree", "keyring", "memory"] },
     { name = "starlette" },
-]
-code-mode = [
-    { name = "pydantic-monty" },
 ]
 server = [
     { name = "authlib" },

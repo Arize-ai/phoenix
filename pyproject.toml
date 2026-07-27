@@ -60,7 +60,9 @@ dependencies = [
   "arize-phoenix-evals>=3.3.0",
   "arize-phoenix-otel>=0.16.1",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
-  "fastmcp-slim[client,server,code-mode]>=3.4.2",  # client powers pydantic-ai's MCPToolset used by the agent assistant; server powers the in-process MCP server mounted at /mcp; code-mode provides the pydantic-monty sandbox for PHOENIX_ENABLE_MCP_CODE_MODE
+  "fastmcp-slim[client,server]>=3.4.2",  # client powers pydantic-ai's MCPToolset used by the agent assistant; server powers the in-process MCP server mounted at /mcp
+  # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose ==0.0.17 pin conflicts and would ship in wheel metadata.
+  "pydantic-monty==0.0.19",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.0.0,<3",
   "bashkit>=0.10.0",
@@ -428,8 +430,6 @@ exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-p
 override-dependencies = [
   "openai>=2.30.0",
   "python-dotenv>=1.1.0",
-  # Override fastmcp-slim[code-mode]'s ==0.0.17 pin: 0.0.19 sandboxes in subprocesses, so guest code cannot crash the server.
-  "pydantic-monty==0.0.19",
 ]
 
 [tool.uv.workspace]
