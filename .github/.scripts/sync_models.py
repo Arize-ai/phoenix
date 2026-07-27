@@ -13,6 +13,60 @@ class TokenPrice(BaseModel):
     base_rate: float
     is_prompt: bool
     token_type: str
+    customization: dict[str, Any] | None = None
+
+
+# LiteLLM publishes whole-prompt tier rates alongside the flat rates, e.g.
+# `input_cost_per_token_above_200k_tokens`. Once the prompt strictly exceeds the
+# threshold the tier rate replaces the base rate outright, so a model priced at
+# 1.25e-6 below 200K and 2.5e-6 above it is under-billed 2x on long prompts if the
+# tier is ignored.
+ABOVE_TIER_PATTERN = re.compile(r"^(?P<base>.+)_above_(?P<thousands>\d+)k_tokens$")
+
+# Tier thresholds are measured against the prompt length, not the token type being
+# priced, so output and cache rates key off the prompt count too.
+PROMPT_TOKEN_COUNT_KEY = "llm.token_count.prompt"
+
+
+def extract_threshold_customization(
+    model_info: dict[str, Any],
+    base_field: str,
+) -> dict[str, Any] | None:
+    """Build a threshold_based customization from LiteLLM's `_above_NNNk_tokens` fields.
+
+    Returns None when the model publishes no tier rate for `base_field`. When more than
+    one tier is published, the lowest threshold wins: `ThresholdBasedTokenPriceCustomization`
+    holds a single breakpoint, and the lowest one is the point at which billing first
+    diverges from the base rate.
+    """
+    tiers: list[tuple[int, float]] = []
+    for key, value in model_info.items():
+        match = ABOVE_TIER_PATTERN.match(key)
+        if not match or match.group("base") != base_field:
+            continue
+        try:
+            new_rate = float(value)
+        except (TypeError, ValueError):
+            continue
+        if not new_rate:
+            continue
+        tiers.append((int(match.group("thousands")) * 1000, new_rate))
+
+    if not tiers:
+        return None
+    tiers.sort()
+    if len(tiers) > 1:
+        print(
+            f"  ! {base_field}: {len(tiers)} tiers published "
+            f"({', '.join(str(t) for t, _ in tiers)}); using {tiers[0][0]}"
+        )
+    threshold, new_rate = tiers[0]
+    return {
+        "type": "threshold_based",
+        "key": PROMPT_TOKEN_COUNT_KEY,
+        "threshold": threshold,
+        "new_rate": new_rate,
+    }
 
 
 def validate_regular_expression(value: str) -> str:
@@ -163,6 +217,9 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="input",
                     base_rate=input_cost,
                     is_prompt=True,
+                    customization=extract_threshold_customization(
+                        model_info, "input_cost_per_token"
+                    ),
                 )
             )
 
@@ -172,6 +229,9 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="output",
                     base_rate=output_cost,
                     is_prompt=False,
+                    customization=extract_threshold_customization(
+                        model_info, "output_cost_per_token"
+                    ),
                 )
             )
 
@@ -181,6 +241,9 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="cache_read",
                     base_rate=cache_read_cost,
                     is_prompt=True,
+                    customization=extract_threshold_customization(
+                        model_info, "cache_read_input_token_cost"
+                    ),
                 )
             )
 
@@ -190,6 +253,9 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="cache_write",
                     base_rate=cache_creation_cost,
                     is_prompt=True,
+                    customization=extract_threshold_customization(
+                        model_info, "cache_creation_input_token_cost"
+                    ),
                 )
             )
 
@@ -199,6 +265,9 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="audio",
                     base_rate=input_audio_cost,
                     is_prompt=True,
+                    customization=extract_threshold_customization(
+                        model_info, "input_cost_per_audio_token"
+                    ),
                 )
             )
 
@@ -208,6 +277,9 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="audio",
                     base_rate=output_audio_cost,
                     is_prompt=False,
+                    customization=extract_threshold_customization(
+                        model_info, "output_cost_per_audio_token"
+                    ),
                 )
             )
 
