@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 import invariant from "tiny-invariant";
@@ -25,16 +25,21 @@ import {
 import type { CreateLLMProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateLLMProjectEvaluatorSlideoverAddCodeMutation.graphql";
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
+import { DiscardEvaluatorChangesDialog } from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
-import { ProjectEvaluatorTestPanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestPanel";
 import {
   toProjectEvaluatorGraphQLTarget,
   toProjectEvaluatorSamplingFraction,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
+import {
+  useEvaluatorFormDirtyCheck,
+  type EvaluatorFormDirtyCheck,
+} from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
   type AnnotationConfig,
@@ -92,30 +97,55 @@ export const CreateLLMProjectEvaluatorSlideover = ({
     creationMode.kind === "copy"
       ? creationMode.initialState.templateFormat
       : undefined;
+  // Backdrop clicks close an untouched form immediately; once there are
+  // edits, the click asks for confirmation instead of silently dropping work.
+  const dirtyCheckRef = useRef<EvaluatorFormDirtyCheck>(() => false);
+  const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
   return (
-    // Disable backdrop-click dismissal so an accidental outside click cannot
-    // discard the form; Cancel, the close button, and Esc still close it.
-    <ModalOverlay {...props} isDismissable={false}>
-      <Modal variant="slideover" size="fullscreen">
-        <Dialog aria-label="Create project evaluator">
-          {({ close }) => (
-            <Suspense fallback={<Loading />}>
-              <EvaluatorPlaygroundProvider
-                defaultMessages={defaultMessages}
-                templateFormat={templateFormat}
-              >
-                <CreateProjectEvaluatorDialog
-                  onClose={close}
-                  projectId={projectId}
-                  creationMode={creationMode}
-                  updateConnectionIds={updateConnectionIds}
-                />
-              </EvaluatorPlaygroundProvider>
-            </Suspense>
-          )}
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+    <>
+      <ModalOverlay
+        {...props}
+        isDismissable
+        shouldCloseOnInteractOutside={() => {
+          if (dirtyCheckRef.current()) {
+            setIsDiscardConfirmOpen(true);
+            return false;
+          }
+          return true;
+        }}
+      >
+        <Modal variant="slideover" size="fullscreen">
+          <Dialog aria-label="Create project evaluator">
+            {({ close }) => (
+              <Suspense fallback={<Loading />}>
+                <EvaluatorPlaygroundProvider
+                  defaultMessages={defaultMessages}
+                  templateFormat={templateFormat}
+                >
+                  <CreateProjectEvaluatorDialog
+                    onClose={close}
+                    projectId={projectId}
+                    creationMode={creationMode}
+                    updateConnectionIds={updateConnectionIds}
+                    registerDirtyCheck={(check) => {
+                      dirtyCheckRef.current = check;
+                    }}
+                  />
+                </EvaluatorPlaygroundProvider>
+              </Suspense>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+      <DiscardEvaluatorChangesDialog
+        isOpen={isDiscardConfirmOpen}
+        onKeepEditing={() => setIsDiscardConfirmOpen(false)}
+        onDiscard={() => {
+          setIsDiscardConfirmOpen(false);
+          props.onOpenChange?.(false);
+        }}
+      />
+    </>
   );
 };
 
@@ -124,11 +154,13 @@ const CreateProjectEvaluatorDialog = ({
   projectId,
   creationMode,
   updateConnectionIds,
+  registerDirtyCheck,
 }: {
   onClose: () => void;
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
   updateConnectionIds?: string[];
+  registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) => {
   const notifySuccess = useNotifySuccess();
   const environment = useRelayEnvironment();
@@ -143,6 +175,14 @@ const CreateProjectEvaluatorDialog = ({
     targetType: "span",
     filterCondition: "",
     samplingRatePercent: 100,
+  });
+  const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
+    registerDirtyCheck,
+    scope,
+    playgroundStore,
+    // The code source editor keeps its draft in local state this check cannot
+    // observe, so treat the new-code form as always worth confirming.
+    alwaysDirty: creationMode.kind === "newCode",
   });
   const [addCodeEvaluator, isAddingCodeEvaluator] =
     useMutation<CreateLLMProjectEvaluatorSlideoverAddCodeMutation>(graphql`
@@ -306,8 +346,9 @@ const CreateProjectEvaluatorDialog = ({
 
   return (
     <EvaluatorStoreProvider initialState={initialState}>
-      {({ store }) =>
-        creationMode.kind === "newCode" ? (
+      {({ store }) => {
+        trackStoreForDirtyCheck(store);
+        return creationMode.kind === "newCode" ? (
           <CreateProjectCodeEvaluatorDialogContent
             projectId={projectId}
             scope={scope}
@@ -368,8 +409,8 @@ const CreateProjectEvaluatorDialog = ({
             isSubmitting={isSubmittingLlm}
             error={error}
           />
-        )
-      }
+        );
+      }}
     </EvaluatorStoreProvider>
   );
 };
@@ -406,19 +447,15 @@ const ScratchLlmDialogContent = ({
       submitHint={submitHint}
       mode="create"
       error={error}
-      formLeftPanel={
-        <ProjectEvaluatorFormSections
+      formLeftPanel={<ProjectEvaluatorFormSections definitionKind="llm" />}
+      formRightPanel={
+        <ProjectEvaluatorScopePanel
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          definitionKind="llm"
           onFilterValidityChange={onFilterValidityChange}
-        />
-      }
-      formRightPanel={
-        <ProjectEvaluatorTestPanel
-          projectId={projectId}
-          filterCondition={scope.filterCondition}
+          mode="create"
+          showAnnotationTemplate
         />
       }
     />

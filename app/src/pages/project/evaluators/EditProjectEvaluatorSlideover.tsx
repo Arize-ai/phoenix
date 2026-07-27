@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
@@ -23,9 +23,14 @@ import {
 import type { EditProjectEvaluatorSlideoverQuery } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverQuery.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateCodeMutation.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
+import { DiscardEvaluatorChangesDialog } from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
-import { ProjectEvaluatorTestPanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestPanel";
+import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
+import {
+  useEvaluatorFormDirtyCheck,
+  type EvaluatorFormDirtyCheck,
+} from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 import {
   fromProjectEvaluatorGraphQLTarget,
   toProjectEvaluatorGraphQLTarget,
@@ -63,30 +68,57 @@ export function EditProjectEvaluatorSlideover({
   projectEvaluatorId: string;
   evaluatorKind: "LLM" | "CODE";
 } & ModalOverlayProps) {
+  // Backdrop clicks close an untouched form immediately; once there are
+  // edits, the click asks for confirmation instead of silently dropping work.
+  const dirtyCheckRef = useRef<EvaluatorFormDirtyCheck>(() => false);
+  const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
+  const registerDirtyCheck = (check: EvaluatorFormDirtyCheck) => {
+    dirtyCheckRef.current = check;
+  };
   return (
-    // Disable backdrop-click dismissal so an accidental outside click cannot
-    // discard edits; Cancel, the close button, and Esc still close it.
-    <ModalOverlay {...props} isDismissable={false}>
-      <Modal variant="slideover" size="fullscreen">
-        <Dialog aria-label="Edit project evaluator">
-          {({ close }) => (
-            <Suspense fallback={<Loading />}>
-              {evaluatorKind === "LLM" ? (
-                <EditLlmProjectEvaluator
-                  projectEvaluatorId={projectEvaluatorId}
-                  onClose={close}
-                />
-              ) : evaluatorKind === "CODE" ? (
-                <EditCodeProjectEvaluator
-                  projectEvaluatorId={projectEvaluatorId}
-                  onClose={close}
-                />
-              ) : null}
-            </Suspense>
-          )}
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+    <>
+      <ModalOverlay
+        {...props}
+        isDismissable
+        shouldCloseOnInteractOutside={() => {
+          if (dirtyCheckRef.current()) {
+            setIsDiscardConfirmOpen(true);
+            return false;
+          }
+          return true;
+        }}
+      >
+        <Modal variant="slideover" size="fullscreen">
+          <Dialog aria-label="Edit project evaluator">
+            {({ close }) => (
+              <Suspense fallback={<Loading />}>
+                {evaluatorKind === "LLM" ? (
+                  <EditLlmProjectEvaluator
+                    projectEvaluatorId={projectEvaluatorId}
+                    onClose={close}
+                    registerDirtyCheck={registerDirtyCheck}
+                  />
+                ) : evaluatorKind === "CODE" ? (
+                  <EditCodeProjectEvaluator
+                    projectEvaluatorId={projectEvaluatorId}
+                    onClose={close}
+                    registerDirtyCheck={registerDirtyCheck}
+                  />
+                ) : null}
+              </Suspense>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+      <DiscardEvaluatorChangesDialog
+        isOpen={isDiscardConfirmOpen}
+        onKeepEditing={() => setIsDiscardConfirmOpen(false)}
+        onDiscard={() => {
+          setIsDiscardConfirmOpen(false);
+          props.onOpenChange?.(false);
+        }}
+      />
+    </>
   );
 }
 
@@ -266,9 +298,11 @@ function getScope(
 function EditLlmProjectEvaluator({
   projectEvaluatorId,
   onClose,
+  registerDirtyCheck,
 }: {
   projectEvaluatorId: string;
   onClose: () => void;
+  registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
   const evaluator = useProjectEvaluator(projectEvaluatorId);
   invariant(evaluator.evaluator.kind === "LLM", "expected LLM evaluator");
@@ -280,7 +314,11 @@ function EditLlmProjectEvaluator({
       promptVersionTag={evaluator.evaluator.promptVersionTag?.name}
       templateFormat={evaluator.evaluator.promptVersion?.templateFormat}
     >
-      <EditLlmProjectEvaluatorContent evaluator={evaluator} onClose={onClose} />
+      <EditLlmProjectEvaluatorContent
+        evaluator={evaluator}
+        onClose={onClose}
+        registerDirtyCheck={registerDirtyCheck}
+      />
     </EvaluatorPlaygroundProvider>
   );
 }
@@ -288,9 +326,11 @@ function EditLlmProjectEvaluator({
 function EditLlmProjectEvaluatorContent({
   evaluator,
   onClose,
+  registerDirtyCheck,
 }: {
   evaluator: ReturnType<typeof useProjectEvaluator>;
   onClose: () => void;
+  registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
   const notifySuccess = useNotifySuccess();
   const playgroundStore = usePlaygroundStore();
@@ -299,6 +339,11 @@ function EditLlmProjectEvaluatorContent({
   const [error, setError] = useState<string>();
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [isFilterValid, setIsFilterValid] = useState(true);
+  const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
+    registerDirtyCheck,
+    scope,
+    playgroundStore,
+  });
   const [commitUpdate, isUpdating] =
     useMutation<EditProjectEvaluatorSlideoverUpdateLlmMutation>(graphql`
       mutation EditProjectEvaluatorSlideoverUpdateLlmMutation(
@@ -401,33 +446,34 @@ function EditLlmProjectEvaluatorContent({
   };
   return (
     <EvaluatorStoreProvider initialState={initialState}>
-      {({ store }) => (
-        <EditLLMEvaluatorDialogContent
-          title="Edit project evaluator"
-          onClose={onClose}
-          onSubmit={() => submit(store)}
-          isSubmitting={isUpdating}
-          isSubmitDisabled={!isFilterValid}
-          mode="update"
-          error={error}
-          evaluatorNodeId={evaluator.id}
-          formLeftPanel={
-            <ProjectEvaluatorFormSections
-              projectId={evaluator.project.id}
-              scope={scope}
-              onScopeChange={setScope}
-              definitionKind="llm"
-              onFilterValidityChange={setIsFilterValid}
-            />
-          }
-          formRightPanel={
-            <ProjectEvaluatorTestPanel
-              projectId={evaluator.project.id}
-              filterCondition={scope.filterCondition}
-            />
-          }
-        />
-      )}
+      {({ store }) => {
+        trackStoreForDirtyCheck(store);
+        return (
+          <EditLLMEvaluatorDialogContent
+            title="Edit project evaluator"
+            onClose={onClose}
+            onSubmit={() => submit(store)}
+            isSubmitting={isUpdating}
+            isSubmitDisabled={!isFilterValid}
+            mode="update"
+            error={error}
+            evaluatorNodeId={evaluator.id}
+            formLeftPanel={
+              <ProjectEvaluatorFormSections definitionKind="llm" />
+            }
+            formRightPanel={
+              <ProjectEvaluatorScopePanel
+                projectId={evaluator.project.id}
+                scope={scope}
+                onScopeChange={setScope}
+                onFilterValidityChange={setIsFilterValid}
+                mode="edit"
+                showAnnotationTemplate
+              />
+            }
+          />
+        );
+      }}
     </EvaluatorStoreProvider>
   );
 }
@@ -435,9 +481,11 @@ function EditLlmProjectEvaluatorContent({
 function EditCodeProjectEvaluator({
   projectEvaluatorId,
   onClose,
+  registerDirtyCheck,
 }: {
   projectEvaluatorId: string;
   onClose: () => void;
+  registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
   const evaluator = useProjectEvaluator(projectEvaluatorId);
   invariant(evaluator.evaluator.kind === "CODE", "expected code evaluator");
@@ -450,6 +498,12 @@ function EditCodeProjectEvaluator({
   const initialInputMappingJson = JSON.stringify(evaluator.inputMapping);
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [error, setError] = useState<string>();
+  // The attached-code form's editable state is the store (mapping, output
+  // configs) plus scope — there is no prompt template to track.
+  const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
+    registerDirtyCheck,
+    scope,
+  });
   const notifySuccess = useNotifySuccess();
   const [commitUpdate, isUpdating] =
     useMutation<EditProjectEvaluatorSlideoverUpdateCodeMutation>(graphql`
@@ -491,61 +545,66 @@ function EditCodeProjectEvaluator({
   return (
     <EvaluatorPlaygroundProvider>
       <EvaluatorStoreProvider initialState={initialState}>
-        {({ store }) => (
-          <ProjectCodeEvaluatorDialogContent
-            mode="update"
-            projectId={evaluator.project.id}
-            evaluatorId={evaluator.evaluator.id}
-            evaluatorName={evaluator.name}
-            variables={variables}
-            scope={scope}
-            onScopeChange={setScope}
-            isSubmitting={isUpdating}
-            error={error}
-            onSubmit={() => {
-              setError(undefined);
-              const state = store.getState();
-              // Only override the project's CODE mapping when the user actually
-              // edited it; omitting preserves whatever is currently in effect.
-              const inputMappingChanged =
-                JSON.stringify(state.evaluator.inputMapping) !==
-                initialInputMappingJson;
-              commitUpdate({
-                variables: {
-                  input: {
-                    projectEvaluatorId: evaluator.id,
-                    name: state.evaluator.globalName,
-                    description: state.evaluator.description || null,
-                    evaluatorInputMapping: evaluator.evaluator
-                      .inputMapping as EvaluatorInputMapping,
-                    ...(inputMappingChanged
-                      ? { inputMapping: state.evaluator.inputMapping }
-                      : {}),
-                    outputConfigs: buildOutputConfigsInput(state.outputConfigs),
-                    samplingRate: toProjectEvaluatorSamplingFraction(
-                      scope.samplingRatePercent
-                    ),
-                    evaluationTarget: toProjectEvaluatorGraphQLTarget(
-                      scope.targetType
-                    ),
-                    filterCondition: scope.filterCondition,
-                    enabled: evaluator.enabled,
+        {({ store }) => {
+          trackStoreForDirtyCheck(store);
+          return (
+            <ProjectCodeEvaluatorDialogContent
+              mode="update"
+              projectId={evaluator.project.id}
+              evaluatorId={evaluator.evaluator.id}
+              evaluatorName={evaluator.name}
+              variables={variables}
+              scope={scope}
+              onScopeChange={setScope}
+              isSubmitting={isUpdating}
+              error={error}
+              onSubmit={() => {
+                setError(undefined);
+                const state = store.getState();
+                // Only override the project's CODE mapping when the user actually
+                // edited it; omitting preserves whatever is currently in effect.
+                const inputMappingChanged =
+                  JSON.stringify(state.evaluator.inputMapping) !==
+                  initialInputMappingJson;
+                commitUpdate({
+                  variables: {
+                    input: {
+                      projectEvaluatorId: evaluator.id,
+                      name: state.evaluator.globalName,
+                      description: state.evaluator.description || null,
+                      evaluatorInputMapping: evaluator.evaluator
+                        .inputMapping as EvaluatorInputMapping,
+                      ...(inputMappingChanged
+                        ? { inputMapping: state.evaluator.inputMapping }
+                        : {}),
+                      outputConfigs: buildOutputConfigsInput(
+                        state.outputConfigs
+                      ),
+                      samplingRate: toProjectEvaluatorSamplingFraction(
+                        scope.samplingRatePercent
+                      ),
+                      evaluationTarget: toProjectEvaluatorGraphQLTarget(
+                        scope.targetType
+                      ),
+                      filterCondition: scope.filterCondition,
+                      enabled: evaluator.enabled,
+                    },
                   },
-                },
-                onCompleted: () => {
-                  notifySuccess({ title: "Evaluator updated" });
-                  onClose();
-                },
-                onError: (mutationError) =>
-                  setError(
-                    getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                      "\n"
-                    ) ?? mutationError.message
-                  ),
-              });
-            }}
-          />
-        )}
+                  onCompleted: () => {
+                    notifySuccess({ title: "Evaluator updated" });
+                    onClose();
+                  },
+                  onError: (mutationError) =>
+                    setError(
+                      getErrorMessagesFromRelayMutationError(
+                        mutationError
+                      )?.join("\n") ?? mutationError.message
+                    ),
+                });
+              }}
+            />
+          );
+        }}
       </EvaluatorStoreProvider>
     </EvaluatorPlaygroundProvider>
   );

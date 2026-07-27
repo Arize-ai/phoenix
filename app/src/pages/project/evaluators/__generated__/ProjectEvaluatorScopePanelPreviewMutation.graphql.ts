@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5668ef59a701e5e8eb88df248ae9c604>>
+ * @generated SignedSource<<ec977106186de514d7de8e4f7563750d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -221,10 +221,10 @@ export type GenerativeCredentialInput = {
   envVarName: string;
   value: string;
 };
-export type ProjectEvaluatorTestPanelMutation$variables = {
+export type ProjectEvaluatorScopePanelPreviewMutation$variables = {
   input: EvaluatorPreviewsInput;
 };
-export type ProjectEvaluatorTestPanelMutation$data = {
+export type ProjectEvaluatorScopePanelPreviewMutation$data = {
   readonly evaluatorPreviews: {
     readonly results: ReadonlyArray<{
       readonly annotation: {
@@ -238,9 +238,9 @@ export type ProjectEvaluatorTestPanelMutation$data = {
     }>;
   };
 };
-export type ProjectEvaluatorTestPanelMutation = {
-  response: ProjectEvaluatorTestPanelMutation$data;
-  variables: ProjectEvaluatorTestPanelMutation$variables;
+export type ProjectEvaluatorScopePanelPreviewMutation = {
+  response: ProjectEvaluatorScopePanelPreviewMutation$data;
+  variables: ProjectEvaluatorScopePanelPreviewMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -305,7 +305,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectEvaluatorTestPanelMutation",
+    "name": "ProjectEvaluatorScopePanelPreviewMutation",
     "selections": [
       {
         "alias": null,
@@ -354,7 +354,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ProjectEvaluatorTestPanelMutation",
+    "name": "ProjectEvaluatorScopePanelPreviewMutation",
     "selections": [
       {
         "alias": null,
@@ -405,16 +405,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b614c11a7730ff3f3cf9adcfe8bccea8",
+    "cacheID": "673843a8001914f07a9d3731de4e21a2",
     "id": null,
     "metadata": {},
-    "name": "ProjectEvaluatorTestPanelMutation",
+    "name": "ProjectEvaluatorScopePanelPreviewMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectEvaluatorTestPanelMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      evaluatorName\n      annotation {\n        name\n        label\n        score\n        explanation\n        id\n      }\n      error\n    }\n  }\n}\n"
+    "text": "mutation ProjectEvaluatorScopePanelPreviewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      evaluatorName\n      annotation {\n        name\n        label\n        score\n        explanation\n        id\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f3b13ae8852a65d3c2364535034c40eb";
+(node as any).hash = "6bed2f6739b42055417e32c2e5f23233";
 
 export default node;

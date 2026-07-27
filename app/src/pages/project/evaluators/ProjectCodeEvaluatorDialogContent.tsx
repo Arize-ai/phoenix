@@ -3,7 +3,7 @@ import { useState } from "react";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
-import { ProjectEvaluatorTestPanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestPanel";
+import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export const ProjectCodeEvaluatorDialogContent = ({
@@ -52,18 +52,17 @@ export const ProjectCodeEvaluatorDialogContent = ({
       )}
       left={
         <ProjectEvaluatorFormSections
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
           definitionKind="code"
           codeEvaluatorName={evaluatorName}
-          onFilterValidityChange={setIsFilterValid}
         />
       }
       right={
-        <ProjectEvaluatorTestPanel
+        <ProjectEvaluatorScopePanel
           projectId={projectId}
-          filterCondition={scope.filterCondition}
+          scope={scope}
+          onScopeChange={onScopeChange}
+          onFilterValidityChange={setIsFilterValid}
+          mode={mode === "update" ? "edit" : "create"}
           codeEvaluatorId={evaluatorId}
         />
       }

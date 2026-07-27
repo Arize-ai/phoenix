@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15ad5da6cfa9ac7964302744acbec2b8>>
+ * @generated SignedSource<<7e740107adcbe15fb8cd88f160f743c5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,12 +13,12 @@ export type TimeRange = {
   end?: string | null;
   start?: string | null;
 };
-export type ProjectEvaluatorTestPanelQuery$variables = {
+export type ProjectEvaluatorScopePanelSpansQuery$variables = {
   filterCondition?: string | null;
   projectId: string;
   timeRange?: TimeRange | null;
 };
-export type ProjectEvaluatorTestPanelQuery$data = {
+export type ProjectEvaluatorScopePanelSpansQuery$data = {
   readonly project: {
     readonly spans?: {
       readonly edges: ReadonlyArray<{
@@ -32,9 +32,9 @@ export type ProjectEvaluatorTestPanelQuery$data = {
     };
   };
 };
-export type ProjectEvaluatorTestPanelQuery = {
-  response: ProjectEvaluatorTestPanelQuery$data;
-  variables: ProjectEvaluatorTestPanelQuery$variables;
+export type ProjectEvaluatorScopePanelSpansQuery = {
+  response: ProjectEvaluatorScopePanelSpansQuery$data;
+  variables: ProjectEvaluatorScopePanelSpansQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -162,7 +162,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectEvaluatorTestPanelQuery",
+    "name": "ProjectEvaluatorScopePanelSpansQuery",
     "selections": [
       {
         "alias": "project",
@@ -188,7 +188,7 @@ return {
       (v2/*: any*/)
     ],
     "kind": "Operation",
-    "name": "ProjectEvaluatorTestPanelQuery",
+    "name": "ProjectEvaluatorScopePanelSpansQuery",
     "selections": [
       {
         "alias": "project",
@@ -213,16 +213,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "589430f6351394e9fbab85006f43919a",
+    "cacheID": "1a77debd9b939de95c348c1ed53e2ce9",
     "id": null,
     "metadata": {},
-    "name": "ProjectEvaluatorTestPanelQuery",
+    "name": "ProjectEvaluatorScopePanelSpansQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorTestPanelQuery(\n  $projectId: ID!\n  $filterCondition: String\n  $timeRange: TimeRange\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: 5, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            name\n            startTime\n            evaluationContext\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorScopePanelSpansQuery(\n  $projectId: ID!\n  $filterCondition: String\n  $timeRange: TimeRange\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: 5, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            name\n            startTime\n            evaluationContext\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bb38e75d9c9e6652d4fee7e4700bf5f6";
+(node as any).hash = "ca0f3dfd023a6d71eb30b87d8a31edbb";
 
 export default node;

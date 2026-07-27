@@ -11,8 +11,14 @@ import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateForm
 
 export const LLMEvaluatorForm = ({
   showInputMapping = true,
+  showAnnotationConfig = true,
 }: {
   showInputMapping?: boolean;
+  /**
+   * Hide the annotation section when the surrounding flow renders it
+   * elsewhere (e.g. the project-evaluator scope panel).
+   */
+  showAnnotationConfig?: boolean;
 }) => {
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   if (evaluatorKind !== "LLM") {
@@ -60,19 +66,21 @@ export const LLMEvaluatorForm = ({
           <EvaluatorChatTemplate />
         )}
       </Flex>
-      <View marginBottom="size-200" flex="none">
-        <Flex direction="column" gap="size-100">
-          <Heading level={2} weight="heavy">
-            Evaluator Annotation
-          </Heading>
-          <Text color="text-500">
-            Define the annotation that your evaluator will create.
-          </Text>
-          {isCategoricalAnnotationConfig ? (
-            <EvaluatorCategoricalChoiceConfig />
-          ) : null}
-        </Flex>
-      </View>
+      {showAnnotationConfig ? (
+        <View marginBottom="size-200" flex="none">
+          <Flex direction="column" gap="size-100">
+            <Heading level={2} weight="heavy">
+              Evaluator Annotation
+            </Heading>
+            <Text color="text-500">
+              Define the annotation that your evaluator will create.
+            </Text>
+            {isCategoricalAnnotationConfig ? (
+              <EvaluatorCategoricalChoiceConfig />
+            ) : null}
+          </Flex>
+        </View>
+      ) : null}
       {showInputMapping ? (
         <Flex direction="column" gap="size-100">
           <Heading level={2} weight="heavy">

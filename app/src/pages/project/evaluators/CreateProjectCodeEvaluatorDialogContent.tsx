@@ -27,7 +27,7 @@ import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import type { CreateProjectCodeEvaluatorDialogContentMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectCodeEvaluatorDialogContentMutation.graphql";
 import type { CreateProjectCodeEvaluatorDialogContentQuery } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectCodeEvaluatorDialogContentQuery.graphql";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
-import { ProjectEvaluatorTestPanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestPanel";
+import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
   toProjectEvaluatorGraphQLTarget,
   toProjectEvaluatorSamplingFraction,
@@ -37,9 +37,9 @@ import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
 /**
  * Authors a brand-new code evaluator and binds it to the project in a single
- * `createProjectCodeEvaluator` mutation. Reuses the scope-first
+ * `createProjectCodeEvaluator` mutation. Reuses the definition-focused
  * {@link ProjectEvaluatorFormSections} on the left (with code-authoring fields
- * in the definition section) and the shared {@link ProjectEvaluatorTestPanel}
+ * in the definition section) and the shared {@link ProjectEvaluatorScopePanel}
  * on the right, previewing the unsaved source through the inline-code path.
  */
 export const CreateProjectCodeEvaluatorDialogContent = ({
@@ -259,11 +259,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
       )}
       left={
         <ProjectEvaluatorFormSections
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
           definitionKind="newCode"
-          onFilterValidityChange={setIsFilterValid}
           codeDefinition={
             <CodeAuthoringFields
               language={language}
@@ -278,9 +274,12 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
         />
       }
       right={
-        <ProjectEvaluatorTestPanel
+        <ProjectEvaluatorScopePanel
           projectId={projectId}
-          filterCondition={scope.filterCondition}
+          scope={scope}
+          onScopeChange={onScopeChange}
+          onFilterValidityChange={setIsFilterValid}
+          mode="create"
           inlineCode={{
             language,
             sourceCode,
