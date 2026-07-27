@@ -203,7 +203,9 @@ test.describe.serial("Projects", () => {
     await page.getByRole("tab", { name: "Evaluators" }).click();
     await expect(page).toHaveURL(/\/projects\/.+\/evaluators/);
     await page.getByRole("button", { name: "Add evaluator" }).click();
-    await page.getByRole("menuitem", { name: "Create from scratch" }).click();
+    await page
+      .getByRole("menuitem", { name: "Create new LLM evaluator" })
+      .click();
 
     const createDialog = page.getByRole("dialog", {
       name: "Create project evaluator",
