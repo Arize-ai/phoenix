@@ -224,8 +224,10 @@ test.describe.serial("Projects", () => {
       .getByRole("row")
       .filter({ hasText: evaluatorName });
     await expect(evaluatorRow).toBeVisible();
+    // Exact match: the row's name and action cells all contain "span" as a
+    // substring of the generated evaluator name.
     await expect(
-      evaluatorRow.getByRole("cell", { name: "Span" })
+      evaluatorRow.getByRole("cell", { name: "Span", exact: true })
     ).toBeVisible();
     await expect(
       evaluatorRow.getByRole("cell", { name: "100%" })
