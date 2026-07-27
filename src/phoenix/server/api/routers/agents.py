@@ -93,6 +93,7 @@ from phoenix.server.agents.context import (
     ResolvedContexts,
     resolve_contexts,
 )
+from phoenix.server.agents.data_stream_protocol import build_stream_error_chunk
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
@@ -1270,6 +1271,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                     emitted_at=datetime.now(timezone.utc),
                                 )
                             yield chunk
+            except Exception as exc:
+                # Surface the failure to the client as an error chunk (e.g. a
+                # rejected API key) instead of letting the connection close
+                # silently, which leaves the agent appearing to hang.
+                logger.exception("Server agent chat stream failed for session %s", session_id)
+                yield build_stream_error_chunk(exc)
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
@@ -1574,7 +1581,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
                     ):
                         yield message_chunk
+            except Exception as exc:
+                # Surface the failure to the client as an error chunk (e.g. a
+                # rejected API key) instead of letting the connection close
+                # silently, which leaves the agent appearing to hang.
+                stream_error = exc
+                logger.exception("Agent chat stream failed for session %s", session_id)
+                yield build_stream_error_chunk(exc)
             except BaseException as exc:
+                # Cancellation and other non-``Exception`` failures propagate so
+                # client disconnects are not misreported as agent errors.
                 stream_error = exc
                 raise
             finally:
