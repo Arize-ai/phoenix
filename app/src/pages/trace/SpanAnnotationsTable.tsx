@@ -177,10 +177,7 @@ export function SpanAnnotationsTable({
   spanNodeId: string;
   /** Replaces the table when the span has no annotations. */
   emptyState?: ReactNode;
-  /**
-   * Whether rows wrap or clip to a single line.
-   * @default false
-   */
+  /** @default false */
   areRowsExpanded?: boolean;
 }) {
   const queryData = useLazyLoadQuery<SpanAnnotationsTableQuery>(

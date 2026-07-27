@@ -128,10 +128,7 @@ export function SpanNotesTable({
   spanNodeId: string;
   /** Replaces the table when the span has no notes. */
   emptyState?: ReactNode;
-  /**
-   * Whether rows wrap or clip to a single line.
-   * @default false
-   */
+  /** @default false */
   areRowsExpanded?: boolean;
 }) {
   const data = useLazyLoadQuery<SpanNotesTableQuery>(

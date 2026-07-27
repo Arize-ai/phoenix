@@ -1452,6 +1452,7 @@ export const MessageCircle = () => (
   </svg>
 );
 
+// @src: lucide message-circle-plus
 export const MessageCirclePlus = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
