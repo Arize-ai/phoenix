@@ -15,12 +15,14 @@ type AgentMessageMetadata = NonNullable<
 type SessionSummaryChunk = components["schemas"]["SessionSummaryChunk"];
 type TranscriptPersistedChunk =
   components["schemas"]["TranscriptPersistedChunk"];
+type AgentErrorChunk = components["schemas"]["AgentErrorChunk"];
 
 /**
  * Payloads of the custom `data-*` chunks the backend chat route streams
  * alongside the message. Keys are the chunk type without the `data-` prefix.
  */
 type AgentUIDataTypes = {
+  error: AgentErrorChunk["data"];
   "session-summary": SessionSummaryChunk["data"];
   "transcript-persisted": TranscriptPersistedChunk["data"];
 };

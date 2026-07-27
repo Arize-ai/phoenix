@@ -2711,46 +2711,6 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
-         * DynamicToolOutputAvailablePart
-         * @description Dynamic tool part in output-available state.
-         */
-        DynamicToolOutputAvailablePart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-available
-             * @constant
-             */
-            state?: "output-available";
-            /** Input */
-            input: unknown;
-            /** Output */
-            output: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Preliminary */
-            preliminary?: boolean | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
          * DynamicToolOutputDeniedPart
          * @description Dynamic tool part in output-denied state (tool was denied, terminal state).
          */
@@ -2775,44 +2735,6 @@ export interface components {
             state?: "output-denied";
             /** Input */
             input: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * DynamicToolOutputErrorPart
-         * @description Dynamic tool part in output-error state.
-         */
-        DynamicToolOutputErrorPart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-error
-             * @constant
-             */
-            state?: "output-error";
-            /** Input */
-            input: unknown;
-            /** Errortext */
-            errorText: string;
             /** Providerexecuted */
             providerExecuted?: boolean | null;
             /** Callprovidermetadata */
@@ -3307,7 +3229,7 @@ export interface components {
             role: "system" | "user" | "assistant";
             metadata?: components["schemas"]["AssistantMessageMetadata"] | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * LegacyChatRegenerateMessage
@@ -3814,7 +3736,7 @@ export interface components {
             /** Metadata */
             metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * PlaygroundBuiltinModelContext
@@ -5576,40 +5498,6 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
-         * ToolOutputAvailablePart
-         * @description Tool part in output-available state.
-         */
-        ToolOutputAvailablePart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-available
-             * @constant
-             */
-            state?: "output-available";
-            /** Input */
-            input?: unknown | null;
-            /** Output */
-            output?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Preliminary */
-            preliminary?: boolean | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
          * ToolOutputDeniedPart
          * @description Tool part in output-denied state (tool was denied, terminal state).
          */
@@ -5628,40 +5516,6 @@ export interface components {
             state?: "output-denied";
             /** Input */
             input?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * ToolOutputErrorPart
-         * @description Tool part in output-error state.
-         */
-        ToolOutputErrorPart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-error
-             * @constant
-             */
-            state?: "output-error";
-            /** Input */
-            input?: unknown | null;
-            /** Rawinput */
-            rawInput?: unknown | null;
-            /** Errortext */
-            errorText: string;
             /** Providerexecuted */
             providerExecuted?: boolean | null;
             /** Callprovidermetadata */
@@ -6113,6 +5967,350 @@ export interface components {
             type: "web_access";
             /** Enabled */
             enabled: boolean;
+        };
+        /**
+         * DynamicToolOutputAvailablePart
+         * @description Dynamic tool part in output-available state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input: unknown;
+            /** Output */
+            output: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputErrorPart
+         * @description Dynamic tool part in output-error state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input: unknown;
+            /** Errortext */
+            errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputAvailablePart
+         * @description Tool part in output-available state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input?: unknown | null;
+            /** Output */
+            output?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputErrorPart
+         * @description Tool part in output-error state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input?: unknown | null;
+            /** Rawinput */
+            rawInput?: unknown | null;
+            /** Errortext */
+            errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputAvailablePart
+         * @description Dynamic tool part in output-available state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input: unknown;
+            /** Output */
+            output: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputErrorPart
+         * @description Dynamic tool part in output-error state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input: unknown;
+            /** Errortext */
+            errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputAvailablePart
+         * @description Tool part in output-available state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input?: unknown | null;
+            /** Output */
+            output?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputErrorPart
+         * @description Tool part in output-error state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input?: unknown | null;
+            /** Rawinput */
+            rawInput?: unknown | null;
+            /** Errortext */
+            errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * AgentErrorChunk
+         * @description Durable data part paired with a standard protocol error chunk.
+         */
+        AgentErrorChunk: {
+            /**
+             * Type
+             * @default data-error
+             * @constant
+             */
+            type?: "data-error";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            data: components["schemas"]["AgentErrorData"];
+            /**
+             * Transient
+             * @default null
+             */
+            transient?: boolean | null;
+        };
+        /** AgentErrorData */
+        AgentErrorData: {
+            /** Errortext */
+            errorText: string;
         };
         /**
          * SessionSummaryChunk

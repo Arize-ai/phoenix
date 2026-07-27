@@ -886,38 +886,12 @@ class ToolInputStreamingPart(TypedDict):
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
-class ToolOutputAvailablePart(TypedDict):
-    type: str
-    toolCallId: str
-    title: NotRequired[str]
-    state: NotRequired[str]
-    input: NotRequired[Any]
-    output: NotRequired[Any]
-    providerExecuted: NotRequired[bool]
-    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-    preliminary: NotRequired[bool]
-    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
 class ToolOutputDeniedPart(TypedDict):
     type: str
     toolCallId: str
     title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
-    providerExecuted: NotRequired[bool]
-    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
-class ToolOutputErrorPart(TypedDict):
-    type: str
-    toolCallId: str
-    errorText: str
-    title: NotRequired[str]
-    state: NotRequired[str]
-    input: NotRequired[Any]
-    rawInput: NotRequired[Any]
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1078,6 +1052,120 @@ class ValidationError(TypedDict):
 class WebAccessContext(TypedDict):
     type: Literal["web_access"]
     enabled: bool
+
+
+class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    output: Any
+    title: NotRequired[str]
+    state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    preliminary: NotRequired[bool]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    errorText: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart(TypedDict):
+    type: str
+    toolCallId: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    output: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    preliminary: NotRequired[bool]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart(TypedDict):
+    type: str
+    toolCallId: str
+    errorText: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    rawInput: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    resultProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PydanticAiUiVercelAiRequestTypesDynamicToolOutputAvailablePart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    output: Any
+    title: NotRequired[str]
+    state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    preliminary: NotRequired[bool]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PydanticAiUiVercelAiRequestTypesDynamicToolOutputErrorPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    errorText: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PydanticAiUiVercelAiRequestTypesToolOutputAvailablePart(TypedDict):
+    type: str
+    toolCallId: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    output: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    preliminary: NotRequired[bool]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PydanticAiUiVercelAiRequestTypesToolOutputErrorPart(TypedDict):
+    type: str
+    toolCallId: str
+    errorText: str
+    title: NotRequired[str]
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    rawInput: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class AgentErrorData(TypedDict):
+    errorText: str
 
 
 class SessionSummaryChunk(TypedDict):
@@ -1313,38 +1401,11 @@ class DynamicToolInputStreamingPart(TypedDict):
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
-class DynamicToolOutputAvailablePart(TypedDict):
-    type: Literal["dynamic-tool"]
-    toolName: str
-    toolCallId: str
-    input: Any
-    output: Any
-    title: NotRequired[str]
-    state: NotRequired[str]
-    providerExecuted: NotRequired[bool]
-    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-    preliminary: NotRequired[bool]
-    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
 class DynamicToolOutputDeniedPart(TypedDict):
     type: Literal["dynamic-tool"]
     toolName: str
     toolCallId: str
     input: Any
-    title: NotRequired[str]
-    state: NotRequired[str]
-    providerExecuted: NotRequired[bool]
-    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
-
-
-class DynamicToolOutputErrorPart(TypedDict):
-    type: Literal["dynamic-tool"]
-    toolName: str
-    toolCallId: str
-    input: Any
-    errorText: str
     title: NotRequired[str]
     state: NotRequired[str]
     providerExecuted: NotRequired[bool]
@@ -1649,6 +1710,13 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
 
 
+class AgentErrorChunk(TypedDict):
+    type: Literal["data-error"]
+    data: AgentErrorData
+    id: NotRequired[str]
+    transient: NotRequired[bool]
+
+
 class TranscriptPersistedChunk(TypedDict):
     type: Literal["data-transcript-persisted"]
     data: TranscriptPersistedData
@@ -1717,15 +1785,15 @@ class LegacyAssistantMetadataUIMessage(TypedDict):
             ReasoningUIPart,
             ToolInputStreamingPart,
             ToolInputAvailablePart,
-            ToolOutputAvailablePart,
-            ToolOutputErrorPart,
+            PydanticAiUiVercelAiRequestTypesToolOutputAvailablePart,
+            PydanticAiUiVercelAiRequestTypesToolOutputErrorPart,
             ToolApprovalRequestedPart,
             ToolApprovalRespondedPart,
             ToolOutputDeniedPart,
             DynamicToolInputStreamingPart,
             DynamicToolInputAvailablePart,
-            DynamicToolOutputAvailablePart,
-            DynamicToolOutputErrorPart,
+            PydanticAiUiVercelAiRequestTypesDynamicToolOutputAvailablePart,
+            PydanticAiUiVercelAiRequestTypesDynamicToolOutputErrorPart,
             DynamicToolApprovalRequestedPart,
             DynamicToolApprovalRespondedPart,
             DynamicToolOutputDeniedPart,
@@ -1813,15 +1881,15 @@ class PhoenixUIMessage(TypedDict):
             ReasoningUIPart,
             ToolInputStreamingPart,
             ToolInputAvailablePart,
-            ToolOutputAvailablePart,
-            ToolOutputErrorPart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
             ToolApprovalRequestedPart,
             ToolApprovalRespondedPart,
             ToolOutputDeniedPart,
             DynamicToolInputStreamingPart,
             DynamicToolInputAvailablePart,
-            DynamicToolOutputAvailablePart,
-            DynamicToolOutputErrorPart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
             DynamicToolApprovalRequestedPart,
             DynamicToolApprovalRespondedPart,
             DynamicToolOutputDeniedPart,

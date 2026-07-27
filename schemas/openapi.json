@@ -10929,108 +10929,6 @@
         "title": "DynamicToolInputStreamingPart",
         "description": "Dynamic tool part in input-streaming state."
       },
-      "DynamicToolOutputAvailablePart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "dynamic-tool",
-            "title": "Type",
-            "default": "dynamic-tool"
-          },
-          "toolName": {
-            "type": "string",
-            "title": "Toolname"
-          },
-          "toolCallId": {
-            "type": "string",
-            "title": "Toolcallid"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "state": {
-            "type": "string",
-            "const": "output-available",
-            "title": "State",
-            "default": "output-available"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "output": {
-            "title": "Output"
-          },
-          "providerExecuted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerexecuted"
-          },
-          "callProviderMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Callprovidermetadata"
-          },
-          "preliminary": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Preliminary"
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolApprovalRequested"
-              },
-              {
-                "$ref": "#/components/schemas/ToolApprovalResponded"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approval"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "toolName",
-          "toolCallId",
-          "input",
-          "output"
-        ],
-        "title": "DynamicToolOutputAvailablePart",
-        "description": "Dynamic tool part in output-available state."
-      },
       "DynamicToolOutputDeniedPart": {
         "properties": {
           "type": {
@@ -11117,98 +11015,6 @@
         ],
         "title": "DynamicToolOutputDeniedPart",
         "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
-      },
-      "DynamicToolOutputErrorPart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "dynamic-tool",
-            "title": "Type",
-            "default": "dynamic-tool"
-          },
-          "toolName": {
-            "type": "string",
-            "title": "Toolname"
-          },
-          "toolCallId": {
-            "type": "string",
-            "title": "Toolcallid"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "state": {
-            "type": "string",
-            "const": "output-error",
-            "title": "State",
-            "default": "output-error"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "errorText": {
-            "type": "string",
-            "title": "Errortext"
-          },
-          "providerExecuted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerexecuted"
-          },
-          "callProviderMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Callprovidermetadata"
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolApprovalRequested"
-              },
-              {
-                "$ref": "#/components/schemas/ToolApprovalResponded"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approval"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "toolName",
-          "toolCallId",
-          "input",
-          "errorText"
-        ],
-        "title": "DynamicToolOutputErrorPart",
-        "description": "Dynamic tool part in output-error state."
       },
       "Experiment": {
         "properties": {
@@ -12498,10 +12304,10 @@
                   "$ref": "#/components/schemas/ToolInputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"
                 },
                 {
                   "$ref": "#/components/schemas/ToolApprovalRequestedPart"
@@ -12519,10 +12325,10 @@
                   "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"
                 },
                 {
                   "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
@@ -13772,10 +13578,10 @@
                   "$ref": "#/components/schemas/ToolInputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"
                 },
                 {
                   "$ref": "#/components/schemas/ToolApprovalRequestedPart"
@@ -13793,10 +13599,10 @@
                   "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"
                 },
                 {
                   "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
@@ -17819,113 +17625,6 @@
         "title": "ToolInputStreamingPart",
         "description": "Tool part in input-streaming state."
       },
-      "ToolOutputAvailablePart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "pattern": "^tool-",
-            "title": "Type"
-          },
-          "toolCallId": {
-            "type": "string",
-            "title": "Toolcallid"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "state": {
-            "type": "string",
-            "const": "output-available",
-            "title": "State",
-            "default": "output-available"
-          },
-          "input": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Input"
-          },
-          "output": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Output"
-          },
-          "providerExecuted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerexecuted"
-          },
-          "callProviderMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Callprovidermetadata"
-          },
-          "preliminary": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Preliminary"
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolApprovalRequested"
-              },
-              {
-                "$ref": "#/components/schemas/ToolApprovalResponded"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approval"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "toolCallId"
-        ],
-        "title": "ToolOutputAvailablePart",
-        "description": "Tool part in output-available state."
-      },
       "ToolOutputDeniedPart": {
         "properties": {
           "type": {
@@ -18012,107 +17711,6 @@
         ],
         "title": "ToolOutputDeniedPart",
         "description": "Tool part in output-denied state (tool was denied, terminal state)."
-      },
-      "ToolOutputErrorPart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "pattern": "^tool-",
-            "title": "Type"
-          },
-          "toolCallId": {
-            "type": "string",
-            "title": "Toolcallid"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "state": {
-            "type": "string",
-            "const": "output-error",
-            "title": "State",
-            "default": "output-error"
-          },
-          "input": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Input"
-          },
-          "rawInput": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rawinput"
-          },
-          "errorText": {
-            "type": "string",
-            "title": "Errortext"
-          },
-          "providerExecuted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerexecuted"
-          },
-          "callProviderMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Callprovidermetadata"
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolApprovalRequested"
-              },
-              {
-                "$ref": "#/components/schemas/ToolApprovalResponded"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approval"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "toolCallId",
-          "errorText"
-        ],
-        "title": "ToolOutputErrorPart",
-        "description": "Tool part in output-error state."
       },
       "ToolResultContentPart": {
         "properties": {
@@ -19077,6 +18675,927 @@
         ],
         "title": "WebAccessContext",
         "description": "User's per-turn request to expose web search / fetch tools."
+      },
+      "phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "output": {
+            "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "resultProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "output"
+        ],
+        "title": "DynamicToolOutputAvailablePart",
+        "description": "Dynamic tool part in output-available state."
+      },
+      "phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "resultProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "errorText"
+        ],
+        "title": "DynamicToolOutputErrorPart",
+        "description": "Dynamic tool part in output-error state."
+      },
+      "phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "resultProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolOutputAvailablePart",
+        "description": "Tool part in output-available state."
+      },
+      "phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "rawInput": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawinput"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "resultProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId",
+          "errorText"
+        ],
+        "title": "ToolOutputErrorPart",
+        "description": "Tool part in output-error state."
+      },
+      "pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "output": {
+            "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "output"
+        ],
+        "title": "DynamicToolOutputAvailablePart",
+        "description": "Dynamic tool part in output-available state."
+      },
+      "pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "errorText"
+        ],
+        "title": "DynamicToolOutputErrorPart",
+        "description": "Dynamic tool part in output-error state."
+      },
+      "pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolOutputAvailablePart",
+        "description": "Tool part in output-available state."
+      },
+      "pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "rawInput": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawinput"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId",
+          "errorText"
+        ],
+        "title": "ToolOutputErrorPart",
+        "description": "Tool part in output-error state."
+      },
+      "AgentErrorChunk": {
+        "additionalProperties": false,
+        "description": "Durable data part paired with a standard protocol error chunk.",
+        "properties": {
+          "type": {
+            "const": "data-error",
+            "default": "data-error",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentErrorData"
+          },
+          "transient": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Transient"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "AgentErrorChunk",
+        "type": "object"
+      },
+      "AgentErrorData": {
+        "properties": {
+          "errorText": {
+            "title": "Errortext",
+            "type": "string"
+          }
+        },
+        "required": [
+          "errorText"
+        ],
+        "title": "AgentErrorData",
+        "type": "object"
       },
       "SessionSummaryChunk": {
         "additionalProperties": false,

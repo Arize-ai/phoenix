@@ -41,8 +41,9 @@ from phoenix.db.types.data_stream_protocol import (
     ToolOutputDeniedPart,
     UIMessage,
 )
-from phoenix.server.agents.data_stream_protocol import (
-    accumulate_ui_message_chunks_to_ui_messages,
+from phoenix.server.agents.ui_message_stream import (
+    iter_chunks_with_error_parts,
+    read_ui_message_stream,
 )
 
 
@@ -54,7 +55,9 @@ async def _iter_chunks(chunks: Sequence[BaseChunk]) -> AsyncIterator[BaseChunk]:
 async def _collect_messages(chunks: Sequence[BaseChunk]) -> list[UIMessage]:
     return [
         message
-        async for message in accumulate_ui_message_chunks_to_ui_messages(_iter_chunks(chunks))
+        async for message in read_ui_message_stream(
+            stream=iter_chunks_with_error_parts(_iter_chunks(chunks))
+        )
     ]
 
 
@@ -65,14 +68,14 @@ async def _collect_messages_with_initial(
 ) -> list[UIMessage]:
     return [
         message
-        async for message in accumulate_ui_message_chunks_to_ui_messages(
-            _iter_chunks(chunks),
-            initial_message=initial_message,
+        async for message in read_ui_message_stream(
+            stream=iter_chunks_with_error_parts(_iter_chunks(chunks)),
+            message=initial_message,
         )
     ]
 
 
-class TestAccumulateUIMessageChunksToUIMessages:
+class TestReadUIMessageStream:
     async def test_mints_a_unique_uuid_without_a_start_chunk(self) -> None:
         first = await _collect_messages([TextStartChunk(id="text-1")])
         second = await _collect_messages([TextStartChunk(id="text-2")])

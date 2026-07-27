@@ -27,8 +27,9 @@ from phoenix.db.types.data_stream_protocol import (
     UIMessage,
 )
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
-from phoenix.server.agents.data_stream_protocol import (
-    accumulate_ui_message_chunks_to_ui_messages,
+from phoenix.server.agents.ui_message_stream import (
+    iter_chunks_with_error_parts,
+    read_ui_message_stream,
 )
 
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
@@ -86,7 +87,9 @@ class CallSubAgentToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
                 usage=ctx.usage,
             ) as stream:
                 chunks = event_stream.transform_stream(stream, on_complete=_on_complete)
-                async for message in accumulate_ui_message_chunks_to_ui_messages(chunks):
+                async for message in read_ui_message_stream(
+                    stream=iter_chunks_with_error_parts(chunks)
+                ):
                     latest_message = message
                     if not _has_renderable_ui_message_parts(message):
                         continue

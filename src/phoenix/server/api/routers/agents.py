@@ -113,9 +113,6 @@ from phoenix.server.agents.context import (
     ResolvedContexts,
     resolve_contexts,
 )
-from phoenix.server.agents.data_stream_protocol import (
-    accumulate_ui_message_chunks_to_ui_messages,
-)
 from phoenix.server.agents.exceptions import AgentError, CompactionError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
@@ -141,6 +138,13 @@ from phoenix.server.agents.types import (
     AgentOutput,
     ModelProviderAvailability,
     SandboxAvailability,
+)
+from phoenix.server.agents.ui_message_stream import (
+    AgentErrorChunk,
+    UIMessageStreamError,
+    create_streaming_ui_message_state,
+    iter_chunks_with_error_parts,
+    process_ui_message_stream,
 )
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, is_turn_active
 from phoenix.server.api.helpers.playground_registry import (
@@ -183,6 +187,7 @@ _PXI_INSTRUMENTATION_SCOPE = InstrumentationScope("phoenix.server.pxi")
 
 register_openapi_schema(ToolCallProviderMetadata)
 register_openapi_schema(ToolCallCallbackProviderMetadata)
+register_openapi_schema(AgentErrorChunk)
 
 
 def _get_updated_provider_metadata(
@@ -1625,39 +1630,6 @@ async def _load_bash_snapshot(
     )
 
 
-async def _build_generated_assistant_message(
-    *,
-    message_chunks: Sequence[BaseChunk],
-    session_id: str,
-    initial_message: PhoenixUIMessage | None = None,
-) -> PhoenixUIMessage | None:
-    """Assemble the generated assistant message from chunks sent to the client."""
-    latest_assistant_message: UIMessage | None = None
-
-    async def _iter_message_chunks() -> AsyncIterator[BaseChunk]:
-        for chunk in message_chunks:
-            yield chunk
-
-    try:
-        async for message in accumulate_ui_message_chunks_to_ui_messages(
-            _iter_message_chunks(),
-            initial_message=initial_message,
-        ):
-            latest_assistant_message = message
-        if latest_assistant_message is None:
-            return initial_message.model_copy(deep=True) if initial_message is not None else None
-        return PhoenixUIMessage.model_validate(
-            latest_assistant_message.model_dump(mode="json", by_alias=True, exclude_none=True)
-        )
-    except Exception:
-        logger.exception(
-            "Failed to accumulate the turn's streamed messages for session %r; "
-            "persisting the incoming message only",
-            session_id,
-        )
-        return None
-
-
 async def _load_agent_session_history(
     session: AsyncSession,
     *,
@@ -2414,7 +2386,10 @@ def create_agents_router(
                 )
                 stream_error: BaseException | None = None
                 summary_task: asyncio.Task[str | None] | None = None
-                emitted_message_chunks: list[BaseChunk] = []
+                message_state = create_streaming_ui_message_state(
+                    message_id=server_message_id,
+                    last_message=body.message if body.message.role == "assistant" else None,
+                )
 
                 async def _persist_turn() -> TranscriptPersistedChunk:
                     session_title = (
@@ -2424,15 +2399,13 @@ def create_agents_router(
                         and not summary_task.cancelled()
                         else None
                     )
-                    generated_assistant_message = await _build_generated_assistant_message(
-                        message_chunks=emitted_message_chunks,
-                        session_id=otel_session_id,
-                        initial_message=(
-                            body.message if body.message.role == "assistant" else None
-                        ),
+                    generated_assistant_message = PhoenixUIMessage.model_validate(
+                        message_state.message.model_dump(
+                            mode="json",
+                            by_alias=True,
+                            exclude_none=True,
+                        )
                     )
-                    if generated_assistant_message is None:
-                        raise RuntimeError("Failed to assemble the streamed assistant message")
                     if body.message.role == "assistant":
                         # Continue the submitted assistant message with the generated response.
                         turn_messages = [generated_assistant_message]
@@ -2526,9 +2499,32 @@ def create_agents_router(
                                 message_chunks=message_chunk_stream,
                                 summary_task=summary_task,
                             )
-                        async for message_chunk in message_chunk_stream:
-                            emitted_message_chunks.append(message_chunk)
-                            yield message_chunk
+                        accumulation_failed = False
+                        async for message_chunk in iter_chunks_with_error_parts(
+                            message_chunk_stream
+                        ):
+                            if accumulation_failed:
+                                yield message_chunk
+                                continue
+
+                            async def _single_chunk() -> AsyncIterator[BaseChunk]:
+                                yield message_chunk
+
+                            try:
+                                async for processed_chunk in process_ui_message_stream(
+                                    stream=_single_chunk(),
+                                    state=message_state,
+                                    write=lambda: None,
+                                ):
+                                    yield processed_chunk
+                            except UIMessageStreamError:
+                                accumulation_failed = True
+                                logger.exception(
+                                    "Failed to reduce the streamed assistant message for "
+                                    "session %r; persisting the last valid snapshot",
+                                    otel_session_id,
+                                )
+                                yield message_chunk
                         yield await _persist_turn()
                 except BaseException as exc:
                     stream_error = exc
