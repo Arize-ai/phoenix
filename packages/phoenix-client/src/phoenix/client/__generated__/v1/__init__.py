@@ -820,6 +820,18 @@ class StepStartUIPart(TypedDict):
     type: Literal["step-start"]
 
 
+class StopAgentSessionRequest(TypedDict):
+    turnId: NotRequired[str]
+
+
+class StopAgentSessionResponseData(TypedDict):
+    turnId: NotRequired[str]
+    state: NotRequired[
+        Literal["idle", "streaming", "persisting", "awaiting_client_tool", "mutating"]
+    ]
+    remote: NotRequired[bool]
+
+
 class SubagentsContext(TypedDict):
     type: Literal["subagents"]
     enabled: bool
@@ -1080,6 +1092,15 @@ class WebAccessContext(TypedDict):
     enabled: bool
 
 
+class SessionStateData(TypedDict):
+    state: Literal["idle", "streaming", "persisting", "awaiting_client_tool", "mutating"]
+    ownedByThisInstance: bool
+    streamAvailable: bool
+    turnId: NotRequired[str]
+    assistantMessageId: NotRequired[str]
+    originClientId: NotRequired[str]
+
+
 class SessionSummaryChunk(TypedDict):
     type: Literal["data-session-summary"]
     data: str
@@ -1105,6 +1126,14 @@ class TranscriptPersistedData(TypedDict):
 
 class AddDatasetLabelToDatasetResponseBody(TypedDict):
     data: DatasetLabel
+
+
+class AgentSessionBusyErrorBody(TypedDict):
+    state: Literal["idle", "streaming", "persisting", "awaiting_client_tool", "mutating"]
+    turnId: str
+    ownedByThisInstance: bool
+    code: NotRequired[str]
+    assistantMessageId: NotRequired[str]
 
 
 class AnnotateSessionsRequestBody(TypedDict):
@@ -1612,6 +1641,10 @@ class SpansResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class StopAgentSessionResponse(TypedDict):
+    data: StopAgentSessionResponseData
+
+
 class ToolApprovalRequestedPart(TypedDict):
     type: str
     toolCallId: str
@@ -1649,6 +1682,13 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
 
 
+class SessionStateChunk(TypedDict):
+    type: Literal["data-session-state"]
+    data: SessionStateData
+    id: NotRequired[str]
+    transient: NotRequired[bool]
+
+
 class TranscriptPersistedChunk(TypedDict):
     type: Literal["data-transcript-persisted"]
     data: TranscriptPersistedData
@@ -1666,6 +1706,7 @@ class AssistantMessageMetadata(TypedDict):
     trace: NotRequired[AssistantMessageMetadataTraceIds]
     turnTraceContext: NotRequired[TurnTraceContext]
     usage: NotRequired[AssistantMessageMetadataUsage]
+    interrupted: NotRequired[Literal["stopped", "errored"]]
 
 
 class CompactAgentSessionRequest(TypedDict):
@@ -1852,6 +1893,11 @@ class PromptMessage(TypedDict):
     ]
 
 
+class SessionTurnStartedData(TypedDict):
+    turnId: str
+    message: PhoenixUIMessage
+
+
 class AgentSessionData(TypedDict):
     id: str
     title: str
@@ -1891,6 +1937,7 @@ class ChatRequest(TypedDict):
     editPermission: NotRequired[Literal["manual", "bypass"]]
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
+    clientId: NotRequired[str]
     trigger: NotRequired[str]
 
 
@@ -1952,6 +1999,13 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
+
+
+class SessionTurnStartedChunk(TypedDict):
+    type: Literal["data-turn-started"]
+    data: SessionTurnStartedData
+    id: NotRequired[str]
+    transient: NotRequired[bool]
 
 
 class CompactAgentSessionResponse(TypedDict):

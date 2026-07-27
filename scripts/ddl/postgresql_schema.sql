@@ -462,6 +462,29 @@ CREATE INDEX ix_agent_sessions_user_id_updated_at ON public.agent_sessions
     USING btree (user_id, updated_at DESC);
 
 
+-- Table: agent_session_runs
+-- -------------------------
+CREATE TABLE public.agent_session_runs (
+    agent_session_id BIGINT NOT NULL,
+    turn_id VARCHAR NOT NULL,
+    state VARCHAR NOT NULL,
+    assistant_message_id VARCHAR,
+    origin_client_id VARCHAR,
+    instance_id VARCHAR NOT NULL,
+    stop_requested_at TIMESTAMP WITH TIME ZONE,
+    started_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    heartbeat_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT pk_agent_session_runs PRIMARY KEY (agent_session_id),
+    CONSTRAINT fk_agent_session_runs_agent_session_id_agent_sessions
+        FOREIGN KEY (agent_session_id)
+        REFERENCES public.agent_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_agent_session_runs_heartbeat_at ON public.agent_session_runs
+    USING btree (heartbeat_at);
+
+
 -- Table: agent_session_messages
 -- -----------------------------
 CREATE TABLE public.agent_session_messages (

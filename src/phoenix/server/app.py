@@ -90,6 +90,7 @@ from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
+from phoenix.server.agents.event_bus import AgentSessionEventBus, SessionBusyError
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
@@ -623,6 +624,7 @@ def _lifespan(
     dml_event_handler: DmlEventHandler,
     trace_data_sweeper: Optional[TraceDataSweeper],
     agent_session_sweeper: AgentSessionSweeper,
+    agent_session_event_bus: AgentSessionEventBus,
     experiment_sweeper: ExperimentSweeper,
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
@@ -678,6 +680,7 @@ def _lifespan(
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(agent_session_sweeper)
+            await stack.enter_async_context(agent_session_event_bus)
             await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
@@ -757,6 +760,7 @@ def create_graphql_router(
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
+    agent_session_event_bus: AgentSessionEventBus,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
@@ -794,6 +798,7 @@ def create_graphql_router(
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
+            agent_session_event_bus=agent_session_event_bus,
             encrypt=encrypt,
             decrypt=decrypt,
             cache_for_dataloaders=cache_for_dataloaders,
@@ -853,6 +858,13 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     if not is_body_allowed_for_status_code(exc.status_code):
         return Response(status_code=exc.status_code, headers=headers)
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
+
+
+async def agent_session_busy_exception_handler(request: Request, exc: SessionBusyError) -> Response:
+    return JSONResponse(
+        exc.body.model_dump(mode="json", by_alias=True),
+        status_code=409,
+    )
 
 
 class _HasDbStatus(Protocol):
@@ -989,6 +1001,7 @@ def create_app(
     )
     system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
+    agent_session_event_bus = AgentSessionEventBus(db)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
     span_cost_calculator = SpanCostCalculator(db, generative_model_store)
@@ -1049,6 +1062,7 @@ def create_app(
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
         sandbox_session_manager=sandbox_session_manager,
+        agent_session_event_bus=agent_session_event_bus,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
     )
@@ -1075,6 +1089,7 @@ def create_app(
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
             agent_session_sweeper=agent_session_sweeper,
+            agent_session_event_bus=agent_session_event_bus,
             experiment_sweeper=experiment_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
@@ -1095,6 +1110,7 @@ def create_app(
         middleware=middlewares,
         exception_handlers={
             HTTPException: plain_text_http_exception_handler,
+            SessionBusyError: agent_session_busy_exception_handler,
         },
         debug=debug,
         swagger_ui_parameters={
@@ -1283,6 +1299,7 @@ def create_app(
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
+    app.state.agent_session_event_bus = agent_session_event_bus
     app.state.graphql_schema = graphql_schema
     app.state.build_graphql_context = _get_build_graphql_context_function(
         db=db,
@@ -1290,6 +1307,7 @@ def create_app(
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
         sandbox_session_manager=sandbox_session_manager,
+        agent_session_event_bus=agent_session_event_bus,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
         cache_for_dataloaders=cache_for_dataloaders,
@@ -1392,6 +1410,7 @@ def _get_build_graphql_context_function(
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
+    agent_session_event_bus: AgentSessionEventBus,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders],
@@ -1419,6 +1438,7 @@ def _get_build_graphql_context_function(
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
+            agent_session_event_bus=agent_session_event_bus,
             encrypt=encrypt,
             decrypt=decrypt,
             cache_for_dataloaders=cache_for_dataloaders,

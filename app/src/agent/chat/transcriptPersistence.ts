@@ -59,3 +59,7 @@ export function createTranscriptPersistenceCoordinator() {
     waitForMessage,
   };
 }
+
+export type TranscriptPersistenceCoordinator = ReturnType<
+  typeof createTranscriptPersistenceCoordinator
+>;

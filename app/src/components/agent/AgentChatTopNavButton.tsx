@@ -4,6 +4,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { TooltipTrigger } from "@phoenix/components";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { selectIsSessionBusy } from "@phoenix/store/agentStore";
 
 import { AgentChatWidgetTooltip, OPEN_AGENT_HOTKEY } from "./AgentChatWidget";
 import { PxiButton } from "./PxiButton";
@@ -37,7 +38,8 @@ export function AgentChatTopNavButton() {
   const [shouldFlashOnReturnHome, setShouldFlashOnReturnHome] = useState(false);
   const isResponsePending = useAgentContext((state) =>
     activeSessionId
-      ? (state.isResponsePendingBySessionId[activeSessionId] ?? false)
+      ? selectIsSessionBusy(activeSessionId)(state) ||
+        (state.isResponsePendingBySessionId[activeSessionId] ?? false)
       : false
   );
   useEffect(() => {
@@ -56,7 +58,8 @@ export function AgentChatTopNavButton() {
       // disarms here.
       const isActiveResponsePending =
         state.activeSessionId != null &&
-        (state.isResponsePendingBySessionId[state.activeSessionId] ?? false);
+        (selectIsSessionBusy(state.activeSessionId)(state) ||
+          (state.isResponsePendingBySessionId[state.activeSessionId] ?? false));
       const prefersReducedMotion =
         typeof window.matchMedia === "function" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;

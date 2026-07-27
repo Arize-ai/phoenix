@@ -1626,6 +1626,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/{agent_id}/sessions/{session_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Subscribe To Session Events
+         * @description Follow current and future turns for an owned agent session.
+         */
+        get: operations["subscribeToAgentSessionEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/{agent_id}/sessions/{session_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop Agent Session
+         * @description Request cancellation of the active turn for an owned agent session.
+         */
+        post: operations["stopAgentSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agents/{agent_id}/sessions/{session_id}/chat": {
         parameters: {
             query?: never;
@@ -1710,6 +1750,22 @@ export interface components {
              * @description The session's GlobalID — the ``session_id`` the chat route expects.
              */
             id: string;
+        };
+        /** AgentSessionBusyErrorBody */
+        AgentSessionBusyErrorBody: {
+            /**
+             * Code
+             * @default agent_session_busy
+             * @constant
+             */
+            code?: "agent_session_busy";
+            state: components["schemas"]["SessionRunState"];
+            /** Turnid */
+            turnId: string;
+            /** Assistantmessageid */
+            assistantMessageId?: string | null;
+            /** Ownedbythisinstance */
+            ownedByThisInstance: boolean;
         };
         /** AgentSessionData */
         AgentSessionData: {
@@ -1919,6 +1975,8 @@ export interface components {
             trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
             usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+            /** Interrupted */
+            interrupted?: ("stopped" | "errored") | null;
         } & {
             [key: string]: unknown;
         };
@@ -2055,6 +2113,8 @@ export interface components {
             requestedSkills?: string[];
             model: components["schemas"]["AgentModelSelection"];
             turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
+            /** Clientid */
+            clientId?: string | null;
             /**
              * Trigger
              * @default submit-message
@@ -4960,6 +5020,11 @@ export interface components {
              */
             identifier?: string;
         };
+        /**
+         * SessionRunState
+         * @enum {string}
+         */
+        SessionRunState: "idle" | "streaming" | "persisting" | "awaiting_client_tool" | "mutating";
         /** SessionTraceData */
         SessionTraceData: {
             /** Id */
@@ -5355,6 +5420,27 @@ export interface components {
              * @constant
              */
             type?: "step-start";
+        };
+        /** StopAgentSessionRequest */
+        StopAgentSessionRequest: {
+            /** Turnid */
+            turnId?: string | null;
+        };
+        /** StopAgentSessionResponse */
+        StopAgentSessionResponse: {
+            data: components["schemas"]["StopAgentSessionResponseData"];
+        };
+        /** StopAgentSessionResponseData */
+        StopAgentSessionResponseData: {
+            /** Turnid */
+            turnId?: string | null;
+            /** @default idle */
+            state?: components["schemas"]["SessionRunState"];
+            /**
+             * Remote
+             * @default false
+             */
+            remote?: boolean;
         };
         /**
          * SubagentsContext
@@ -6104,6 +6190,50 @@ export interface components {
             /** Enabled */
             enabled: boolean;
         };
+        /** SessionStateChunk */
+        SessionStateChunk: {
+            /**
+             * Type
+             * @default data-session-state
+             * @constant
+             */
+            type?: "data-session-state";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            data: components["schemas"]["SessionStateData"];
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
+        };
+        /** SessionStateData */
+        SessionStateData: {
+            state: components["schemas"]["SessionRunState"];
+            /**
+             * Turnid
+             * @default null
+             */
+            turnId?: string | null;
+            /**
+             * Assistantmessageid
+             * @default null
+             */
+            assistantMessageId?: string | null;
+            /**
+             * Originclientid
+             * @default null
+             */
+            originClientId?: string | null;
+            /** Ownedbythisinstance */
+            ownedByThisInstance: boolean;
+            /** Streamavailable */
+            streamAvailable: boolean;
+        };
         /**
          * SessionSummaryChunk
          * @description Transient ``data-session-summary`` stream chunk: the LLM-generated
@@ -6135,6 +6265,33 @@ export interface components {
              * @constant
              */
             transient?: true;
+        };
+        /** SessionTurnStartedChunk */
+        SessionTurnStartedChunk: {
+            /**
+             * Type
+             * @default data-turn-started
+             * @constant
+             */
+            type?: "data-turn-started";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            data: components["schemas"]["SessionTurnStartedData"];
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
+        };
+        /** SessionTurnStartedData */
+        SessionTurnStartedData: {
+            /** Turnid */
+            turnId: string;
+            message: components["schemas"]["PhoenixUIMessage"];
         };
         /**
          * ToolCallCallbackProviderMetadata
@@ -11275,6 +11432,90 @@ export interface operations {
                     "application/json": components["schemas"]["CompactAgentSessionResponse"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionBusyErrorBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subscribeToAgentSessionEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stopAgentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StopAgentSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StopAgentSessionResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionBusyErrorBody"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11309,6 +11550,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionBusyErrorBody"];
                 };
             };
             /** @description Validation Error */

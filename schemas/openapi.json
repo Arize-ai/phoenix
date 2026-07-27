@@ -8279,6 +8279,133 @@
               }
             }
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionBusyErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/{agent_id}/sessions/{session_id}/events": {
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Subscribe To Session Events",
+        "description": "Follow current and future turns for an owned agent session.",
+        "operationId": "subscribeToAgentSessionEvents",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/{agent_id}/sessions/{session_id}/stop": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Stop Agent Session",
+        "description": "Request cancellation of the active turn for an owned agent session.",
+        "operationId": "stopAgentSession",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StopAgentSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StopAgentSessionResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionBusyErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -8337,6 +8464,16 @@
                 "schema": {}
               }
             }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionBusyErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "description": "Validation Error",
@@ -8444,6 +8581,45 @@
           "id"
         ],
         "title": "AgentSession"
+      },
+      "AgentSessionBusyErrorBody": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "const": "agent_session_busy",
+            "title": "Code",
+            "default": "agent_session_busy"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SessionRunState"
+          },
+          "turnId": {
+            "type": "string",
+            "title": "Turnid"
+          },
+          "assistantMessageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistantmessageid"
+          },
+          "ownedByThisInstance": {
+            "type": "boolean",
+            "title": "Ownedbythisinstance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "turnId",
+          "ownedByThisInstance"
+        ],
+        "title": "AgentSessionBusyErrorBody"
       },
       "AgentSessionData": {
         "properties": {
@@ -8969,6 +9145,21 @@
                 "type": "null"
               }
             ]
+          },
+          "interrupted": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stopped",
+                  "errored"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interrupted"
           }
         },
         "additionalProperties": true,
@@ -9331,6 +9522,17 @@
                 "type": "null"
               }
             ]
+          },
+          "clientId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clientid"
           },
           "trigger": {
             "type": "string",
@@ -16534,6 +16736,17 @@
         ],
         "title": "SessionNoteData"
       },
+      "SessionRunState": {
+        "type": "string",
+        "enum": [
+          "idle",
+          "streaming",
+          "persisting",
+          "awaiting_client_tool",
+          "mutating"
+        ],
+        "title": "SessionRunState"
+      },
       "SessionTraceData": {
         "properties": {
           "id": {
@@ -17255,6 +17468,61 @@
         "type": "object",
         "title": "StepStartUIPart",
         "description": "A step boundary part of a message."
+      },
+      "StopAgentSessionRequest": {
+        "properties": {
+          "turnId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnid"
+          }
+        },
+        "type": "object",
+        "title": "StopAgentSessionRequest"
+      },
+      "StopAgentSessionResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StopAgentSessionResponseData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "StopAgentSessionResponse"
+      },
+      "StopAgentSessionResponseData": {
+        "properties": {
+          "turnId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnid"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SessionRunState",
+            "default": "idle"
+          },
+          "remote": {
+            "type": "boolean",
+            "title": "Remote",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "StopAgentSessionResponseData"
       },
       "SubagentsContext": {
         "properties": {
@@ -19060,6 +19328,101 @@
         "title": "WebAccessContext",
         "description": "User's per-turn request to expose web search / fetch tools."
       },
+      "SessionStateChunk": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "data-session-state",
+            "default": "data-session-state",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SessionStateData"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SessionStateChunk",
+        "type": "object"
+      },
+      "SessionStateData": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/SessionRunState"
+          },
+          "turnId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Turnid"
+          },
+          "assistantMessageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Assistantmessageid"
+          },
+          "originClientId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Originclientid"
+          },
+          "ownedByThisInstance": {
+            "title": "Ownedbythisinstance",
+            "type": "boolean"
+          },
+          "streamAvailable": {
+            "title": "Streamavailable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "state",
+          "ownedByThisInstance",
+          "streamAvailable"
+        ],
+        "title": "SessionStateData",
+        "type": "object"
+      },
       "SessionSummaryChunk": {
         "additionalProperties": false,
         "description": "Transient ``data-session-summary`` stream chunk: the LLM-generated\nsession title, emitted on any turn that starts with the session still\nuntitled. Being transient, it reaches the client's ``onData`` callback\nbut is never appended to the message parts.\n\nSee the Vercel AI SDK data stream protocol:\n    - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts\n    - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral",
@@ -19097,6 +19460,60 @@
           "data"
         ],
         "title": "SessionSummaryChunk",
+        "type": "object"
+      },
+      "SessionTurnStartedChunk": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "data-turn-started",
+            "default": "data-turn-started",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SessionTurnStartedData"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SessionTurnStartedChunk",
+        "type": "object"
+      },
+      "SessionTurnStartedData": {
+        "properties": {
+          "turnId": {
+            "title": "Turnid",
+            "type": "string"
+          },
+          "message": {
+            "$ref": "#/components/schemas/PhoenixUIMessage"
+          }
+        },
+        "required": [
+          "turnId",
+          "message"
+        ],
+        "title": "SessionTurnStartedData",
         "type": "object"
       },
       "ToolCallCallbackProviderMetadata": {

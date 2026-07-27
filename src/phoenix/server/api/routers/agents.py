@@ -57,6 +57,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     DataChunk,
+    ErrorChunk,
     FinishChunk,
     MessageMetadataChunk,
     StartChunk,
@@ -70,7 +71,7 @@ from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response, StreamingResponse
 from strawberry.relay import GlobalID
 from typing_extensions import TypeIs, assert_never
 
@@ -116,6 +117,13 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
+from phoenix.server.agents.event_bus import (
+    AgentSessionBusyErrorBody,
+    AgentSessionEventBus,
+    SessionBusyError,
+    SessionRunState,
+    TurnIdMismatchError,
+)
 from phoenix.server.agents.exceptions import AgentError, CompactionError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
@@ -135,6 +143,12 @@ from phoenix.server.agents.skills import get_skills_for_contexts
 from phoenix.server.agents.summarization import (
     summarize_messages,
     summarize_messages_for_compaction,
+)
+from phoenix.server.agents.turn_runner import (
+    PreparedTurn,
+    TurnRunner,
+    resolve_dangling_chunks,
+    resolve_dangling_message,
 )
 from phoenix.server.agents.types import (
     AgentDependencies,
@@ -303,6 +317,7 @@ class _ChatRequestMixin(_ObservabilityMixin):
     )
     model: AgentModelSelection
     turn_trace_context: TurnTraceContext | None = None
+    client_id: str | None = None
 
 
 class ChatSubmitMessage(_ChatRequestMixin):
@@ -381,6 +396,20 @@ class CompactAgentSessionResponseData(V1RoutesBaseModel):
 
 
 class CompactAgentSessionResponse(ResponseBody[CompactAgentSessionResponseData]):
+    pass
+
+
+class StopAgentSessionRequest(_CamelBaseModel):
+    turn_id: str | None = None
+
+
+class StopAgentSessionResponseData(_CamelBaseModel):
+    turn_id: str | None = None
+    state: SessionRunState = SessionRunState.IDLE
+    remote: bool = False
+
+
+class StopAgentSessionResponse(ResponseBody[StopAgentSessionResponseData]):
     pass
 
 
@@ -1347,6 +1376,40 @@ async def _refresh_and_load_agent_session(
     return refreshed_agent_session
 
 
+async def _load_agent_session_without_refresh(
+    session: AsyncSession,
+    *,
+    agent_session_id: str,
+    user_id: int | None,
+) -> models.AgentSession:
+    """Load an owner-qualified session without extending its activity window."""
+    try:
+        agent_session_rowid = from_global_id_with_expected_type(
+            GlobalID.from_id(agent_session_id),
+            models.AgentSession.__name__,
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Session not found") from None
+    owner_filter = (
+        models.AgentSession.user_id.is_(None)
+        if user_id is None
+        else models.AgentSession.user_id == user_id
+    )
+    agent_session = await session.scalar(
+        select(models.AgentSession).where(
+            models.AgentSession.id == agent_session_rowid,
+            owner_filter,
+            or_(
+                models.AgentSession.expires_at.is_(None),
+                models.AgentSession.expires_at > datetime.now(timezone.utc),
+            ),
+        )
+    )
+    if agent_session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return agent_session
+
+
 async def _update_agent_session(
     session: AsyncSession,
     *,
@@ -1596,6 +1659,22 @@ def _get_request_user_id(request: Request) -> int | None:
     return int(user.identity)
 
 
+async def _hold_agent_session_mutation(
+    session_id: str,
+    request: Request,
+) -> AsyncIterator[None]:
+    async with request.app.state.db.read() as session:
+        agent_session = await _load_agent_session_without_refresh(
+            session,
+            agent_session_id=session_id,
+            user_id=_get_request_user_id(request),
+        )
+        agent_session_rowid = agent_session.id
+    bus: AgentSessionEventBus = request.app.state.agent_session_event_bus
+    async with bus.hold_mutation(agent_session_id=agent_session_rowid):
+        yield
+
+
 def _parse_agent_session_cursor(cursor: str) -> Cursor:
     try:
         parsed_cursor = Cursor.from_string(cursor)
@@ -1782,6 +1861,8 @@ def create_agents_router(
         "/agents/{agent_id}/sessions/{session_id}/compact",
         response_model=CompactAgentSessionResponse,
         response_model_exclude_none=True,
+        dependencies=[Depends(_hold_agent_session_mutation)],
+        responses={409: {"model": AgentSessionBusyErrorBody}},
     )
     async def compact_agent_session(
         agent_id: str,
@@ -1895,7 +1976,159 @@ def create_agents_router(
             ),
         )
 
-    @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
+    @router.get(
+        "/agents/{agent_id}/sessions/{session_id}/events",
+        operation_id="subscribeToAgentSessionEvents",
+        response_class=StreamingResponse,
+    )
+    async def subscribe_to_session_events(
+        agent_id: str,
+        session_id: str,
+        request: Request,
+    ) -> StreamingResponse:
+        """Follow current and future turns for an owned agent session."""
+        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
+        async with request.app.state.db.read() as session:
+            agent_session = await _load_agent_session_without_refresh(
+                session,
+                agent_session_id=session_id,
+                user_id=_get_request_user_id(request),
+            )
+            agent_session_rowid = agent_session.id
+        bus: AgentSessionEventBus = request.app.state.agent_session_event_bus
+
+        async def encoded_events() -> AsyncIterator[bytes]:
+            async for chunk in bus.session_events(agent_session_id=agent_session_rowid):
+                if chunk is None:
+                    yield b": keep-alive\n\n"
+                else:
+                    yield f"data: {chunk.encode(7)}\n\n".encode()
+
+        return StreamingResponse(
+            encoded_events(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "x-vercel-ai-ui-message-stream": "v1",
+            },
+        )
+
+    @router.post(
+        "/agents/{agent_id}/sessions/{session_id}/stop",
+        operation_id="stopAgentSession",
+        response_model=StopAgentSessionResponse,
+        responses={409: {"model": AgentSessionBusyErrorBody}},
+    )
+    async def stop_agent_session(
+        agent_id: str,
+        session_id: str,
+        request: Request,
+        request_body: StopAgentSessionRequest,
+    ) -> Response:
+        """Request cancellation of the active turn for an owned agent session."""
+        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
+        async with request.app.state.db.read() as session:
+            agent_session = await _load_agent_session_without_refresh(
+                session,
+                agent_session_id=session_id,
+                user_id=_get_request_user_id(request),
+            )
+            agent_session_rowid = agent_session.id
+        bus: AgentSessionEventBus = request.app.state.agent_session_event_bus
+        run = await bus.get_run(agent_session_id=agent_session_rowid)
+        if run is None:
+            return JSONResponse(
+                StopAgentSessionResponse(data=StopAgentSessionResponseData()).model_dump(
+                    mode="json", by_alias=True
+                ),
+                status_code=200,
+            )
+        if request_body.turn_id is not None and request_body.turn_id != run.turn_id:
+            return JSONResponse(
+                AgentSessionBusyErrorBody(
+                    state=SessionRunState(run.state),
+                    turn_id=run.turn_id,
+                    assistant_message_id=run.assistant_message_id,
+                    owned_by_this_instance=run.instance_id == bus.instance_id,
+                ).model_dump(mode="json", by_alias=True),
+                status_code=409,
+            )
+        if run.heartbeat_at < datetime.now(timezone.utc) - timedelta(seconds=30):
+            await bus.release_awaiting_turn(run=run)
+            return JSONResponse(
+                StopAgentSessionResponse(
+                    data=StopAgentSessionResponseData(turn_id=run.turn_id)
+                ).model_dump(mode="json", by_alias=True),
+                status_code=200,
+            )
+        if run.state == SessionRunState.AWAITING_CLIENT_TOOL.value:
+            async with request.app.state.db() as session:
+                trailing_message = await session.scalar(
+                    select(models.AgentSessionMessage)
+                    .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+                    .order_by(models.AgentSessionMessage.position.desc())
+                    .limit(1)
+                )
+                if trailing_message is not None and trailing_message.message.role == "assistant":
+                    trailing_message.message = resolve_dangling_message(
+                        trailing_message.message,
+                        interrupted="stopped",
+                        error_text="Tool execution was interrupted by the user.",
+                    )
+            await bus.release_awaiting_turn(run=run)
+            return JSONResponse(
+                StopAgentSessionResponse(
+                    data=StopAgentSessionResponseData(turn_id=run.turn_id)
+                ).model_dump(mode="json", by_alias=True),
+                status_code=200,
+            )
+        if run.state == SessionRunState.MUTATING.value:
+            return JSONResponse(
+                AgentSessionBusyErrorBody(
+                    state=SessionRunState.MUTATING,
+                    turn_id=run.turn_id,
+                    assistant_message_id=run.assistant_message_id,
+                    owned_by_this_instance=run.instance_id == bus.instance_id,
+                ).model_dump(mode="json", by_alias=True),
+                status_code=409,
+            )
+        try:
+            _, is_local = await bus.request_stop(
+                agent_session_id=agent_session_rowid,
+                turn_id=request_body.turn_id,
+            )
+        except TurnIdMismatchError as exc:
+            return JSONResponse(
+                AgentSessionBusyErrorBody(
+                    state=SessionRunState(exc.run.state),
+                    turn_id=exc.run.turn_id,
+                    assistant_message_id=exc.run.assistant_message_id,
+                    owned_by_this_instance=exc.run.instance_id == bus.instance_id,
+                ).model_dump(mode="json", by_alias=True),
+                status_code=409,
+            )
+        return JSONResponse(
+            StopAgentSessionResponse(
+                data=StopAgentSessionResponseData(
+                    turn_id=run.turn_id,
+                    state=SessionRunState(run.state),
+                    remote=not is_local,
+                )
+            ).model_dump(mode="json", by_alias=True),
+            status_code=202,
+        )
+
+    @router.post(
+        "/agents/{agent_id}/sessions/{session_id}/chat",
+        responses={409: {"model": AgentSessionBusyErrorBody}},
+    )
     async def chat(
         agent_id: str,
         session_id: str,
@@ -1906,10 +2139,13 @@ def create_agents_router(
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
+        app_state = request.app.state
+        event_queue = request.state.event_queue
+        accept_header = request.headers.get("accept")
         body = request_body
         request_received_at = datetime.now(timezone.utc)
         attach_user_id = _resolve_attach_user_id(body.attach_user_id)
-        recording = request.app.state.system_settings.agent_trace_recording
+        recording = app_state.system_settings.agent_trace_recording
         ingest_traces, export_remote_traces = _resolve_trace_recording(
             ingest_traces=body.ingest_traces,
             export_remote_traces=body.export_remote_traces,
@@ -1928,7 +2164,7 @@ def create_agents_router(
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
         try:
-            async with request.app.state.db() as session:
+            async with app_state.db() as session:
                 agent_session = await _refresh_and_load_agent_session(
                     session,
                     agent_session_id=session_id,
@@ -1945,7 +2181,7 @@ def create_agents_router(
                 project_name = agent_session.project_name
                 tracer = (
                     Tracer(
-                        span_cost_calculator=request.app.state.span_cost_calculator,
+                        span_cost_calculator=app_state.span_cost_calculator,
                         enable_remote_export=export_remote_traces,
                         project_name=project_name,
                     )
@@ -1960,7 +2196,7 @@ def create_agents_router(
                 model = await build_model(
                     body.model,
                     session=session,
-                    decrypt=request.app.state.decrypt,
+                    decrypt=app_state.decrypt,
                     tracer_provider=tracer_provider,
                 )
                 sandbox_availability = SandboxAvailability()
@@ -1970,7 +2206,7 @@ def create_agents_router(
                     if _contexts_need_sandbox_availability(resolved_contexts):
                         available_backend_types = await _load_available_sandbox_backend_types(
                             session=session,
-                            decrypt=request.app.state.decrypt,
+                            decrypt=app_state.decrypt,
                         )
                         sandbox_availability = await _load_sandbox_availability(
                             session,
@@ -2033,16 +2269,16 @@ def create_agents_router(
         if agent_id == _SERVER_AGENT_ID:
             server_agent = build_server_agent(
                 model=model,
-                schema=request.app.state.graphql_schema,
-                build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
-                db=request.app.state.db,
-                event_queue=request.state.event_queue,
+                schema=app_state.graphql_schema,
+                build_graphql_context=lambda: app_state.build_graphql_context(phoenix_user),
+                db=app_state.db,
+                event_queue=event_queue,
                 prompts=ServerAgentPrompts(base=agent_prompts.base),
-                docs_mcp_server=request.app.state.docs_mcp_server,
+                docs_mcp_server=app_state.docs_mcp_server,
                 enable_web_access=web_access_enabled,
                 allow_mutations=graphql_mutations_enabled,
-                read_only=request.app.state.read_only,
-                auth_enabled=request.app.state.authentication_enabled,
+                read_only=app_state.read_only,
+                auth_enabled=app_state.authentication_enabled,
                 user_id=request_user_id,
                 is_viewer=is_viewer,
                 tracer_provider=tracer_provider,
@@ -2053,7 +2289,7 @@ def create_agents_router(
             server_agent_adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
                 agent=server_agent,
                 run_input=_to_pydantic_ai_request_data(body, messages=model_transcript_messages),
-                accept=request.headers.get("accept"),
+                accept=accept_header,
                 server_message_id=server_message_id,
             )
 
@@ -2072,17 +2308,15 @@ def create_agents_router(
             subagent = (
                 build_server_agent(
                     model=model,
-                    schema=request.app.state.graphql_schema,
-                    build_graphql_context=lambda: request.app.state.build_graphql_context(
-                        phoenix_user
-                    ),
-                    db=request.app.state.db,
-                    event_queue=request.state.event_queue,
-                    docs_mcp_server=request.app.state.docs_mcp_server,
+                    schema=app_state.graphql_schema,
+                    build_graphql_context=lambda: app_state.build_graphql_context(phoenix_user),
+                    db=app_state.db,
+                    event_queue=event_queue,
+                    docs_mcp_server=app_state.docs_mcp_server,
                     enable_web_access=web_access_enabled,
                     allow_mutations=graphql_mutations_enabled,
-                    read_only=request.app.state.read_only,
-                    auth_enabled=request.app.state.authentication_enabled,
+                    read_only=app_state.read_only,
+                    auth_enabled=app_state.authentication_enabled,
                     user_id=request_user_id,
                     is_viewer=is_viewer,
                     tracer_provider=tracer_provider,
@@ -2115,21 +2349,21 @@ def create_agents_router(
 
             agent = build_agent(
                 model=model,
-                docs_mcp_server=request.app.state.docs_mcp_server,
+                docs_mcp_server=app_state.docs_mcp_server,
                 enable_web_access=web_access_enabled,
                 tracer_provider=tracer_provider,
                 server_agent=subagent,
                 publish_subagent_message_chunk=publish_subagent_message_chunk,
                 set_subagent_final_tool_output=set_subagent_final_tool_output,
-                db=request.app.state.db,
-                event_queue=request.state.event_queue,
-                read_only=request.app.state.read_only,
-                auth_enabled=request.app.state.authentication_enabled,
+                db=app_state.db,
+                event_queue=event_queue,
+                read_only=app_state.read_only,
+                auth_enabled=app_state.authentication_enabled,
                 user_id=request_user_id,
                 is_viewer=is_viewer,
-                schema=request.app.state.graphql_schema if bash_enabled else None,
+                schema=app_state.graphql_schema if bash_enabled else None,
                 build_graphql_context=(
-                    (lambda: request.app.state.build_graphql_context(phoenix_user))
+                    (lambda: app_state.build_graphql_context(phoenix_user))
                     if bash_enabled
                     else None
                 ),
@@ -2155,7 +2389,7 @@ def create_agents_router(
             assistant_adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
                 agent=agent,
                 run_input=_to_pydantic_ai_request_data(body, messages=model_transcript_messages),
-                accept=request.headers.get("accept"),
+                accept=accept_header,
                 server_message_id=server_message_id,
             )
             deps = AgentDependencies(
@@ -2210,7 +2444,7 @@ def create_agents_router(
                 return None
             if summary is not None:
                 await _persist_agent_session_title(
-                    request.app.state.db,
+                    app_state.db,
                     agent_session_rowid=agent_session_rowid,
                     user_id=request_user_id,
                     title=summary,
@@ -2219,6 +2453,14 @@ def create_agents_router(
 
         turn_final_output_text: str | None = None
         turn_is_terminal = False
+        turn_interrupted: Literal["stopped", "errored"] | None = None
+        stop_was_requested = False
+        bus: AgentSessionEventBus = app_state.agent_session_event_bus
+        turn_id = uuid4().hex
+
+        def _mark_stopped() -> None:
+            nonlocal stop_was_requested
+            stop_was_requested = True
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             nonlocal turn_final_output_text, turn_is_terminal
@@ -2243,11 +2485,19 @@ def create_agents_router(
             )
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
+            nonlocal turn_interrupted
             stream_error: BaseException | None = None
             summary_task: asyncio.Task[str | None] | None = None
             emitted_message_chunks: list[BaseChunk] = []
+            persistence_started = False
 
             async def _persist_turn() -> TranscriptPersistedChunk:
+                nonlocal persistence_started
+                persistence_started = True
+                await bus.mark_persisting(
+                    agent_session_id=agent_session_rowid,
+                    turn_id=turn_id,
+                )
                 session_title = (
                     summary_task.result()
                     if summary_task is not None
@@ -2269,7 +2519,7 @@ def create_agents_router(
                     # Persist the submitted user message and its generated response.
                     turn_messages = [body.message, generated_assistant_message]
                 await _persist_agent_session_turn(
-                    request.app.state.db,
+                    app_state.db,
                     agent_session_rowid=agent_session_rowid,
                     user_id=request_user_id,
                     new_messages=turn_messages,
@@ -2279,6 +2529,33 @@ def create_agents_router(
                 return TranscriptPersistedChunk(
                     data=TranscriptPersistedData(message_id=turn_messages[-1].id)
                 )
+
+            def _resolve_interrupted_stream(
+                interrupted: Literal["stopped", "errored"],
+            ) -> list[BaseChunk]:
+                error_text = (
+                    "Tool execution was interrupted by the user."
+                    if interrupted == "stopped"
+                    else "Tool execution was interrupted because the response failed."
+                )
+                resolved_chunks: list[BaseChunk] = []
+                if not any(isinstance(chunk, StartChunk) for chunk in emitted_message_chunks):
+                    resolved_chunks.append(StartChunk(message_id=server_message_id))
+                resolved_chunks.extend(
+                    resolve_dangling_chunks(
+                        emitted_message_chunks,
+                        error_text=error_text,
+                    )
+                )
+                resolved_chunks.append(
+                    MessageMetadataChunk(
+                        message_metadata=AssistantMessageMetadata(
+                            session_id=otel_session_id,
+                            interrupted=interrupted,
+                        )
+                    )
+                )
+                return resolved_chunks
 
             try:
                 if tracer is not None and body.turn_trace_context is not None:
@@ -2358,9 +2635,26 @@ def create_agents_router(
                     async for message_chunk in message_chunk_stream:
                         emitted_message_chunks.append(message_chunk)
                         yield message_chunk
+                    if any(isinstance(chunk, ErrorChunk) for chunk in emitted_message_chunks):
+                        turn_interrupted = "errored"
+                        for resolved_chunk in _resolve_interrupted_stream(turn_interrupted):
+                            emitted_message_chunks.append(resolved_chunk)
+                            yield resolved_chunk
                     yield await _persist_turn()
             except BaseException as exc:
                 stream_error = exc
+                if not persistence_started:
+                    turn_interrupted = "stopped" if stop_was_requested else "errored"
+                    try:
+                        for resolved_chunk in _resolve_interrupted_stream(turn_interrupted):
+                            emitted_message_chunks.append(resolved_chunk)
+                            yield resolved_chunk
+                        yield await _persist_turn()
+                    except BaseException:
+                        logger.exception(
+                            "Failed to persist interrupted agent turn for session %r",
+                            session_id,
+                        )
                 raise
             finally:
                 if summary_task is not None:
@@ -2384,17 +2678,43 @@ def create_agents_router(
                         )
                     tracer.tracer_provider.force_flush()
                     if ingest_traces:
-                        project_id = await _ensure_project_exists(
-                            request.app.state.db, project_name
-                        )
+                        project_id = await _ensure_project_exists(app_state.db, project_name)
                         db_traces = tracer.get_db_traces(project_id=project_id)
                         await _persist_db_traces_and_emit_event(
-                            db=request.app.state.db,
-                            event_queue=request.state.event_queue,
+                            db=app_state.db,
+                            event_queue=event_queue,
                             db_traces=db_traces,
                         )
                     tracer.tracer_provider.shutdown()
 
-        return adapter.streaming_response(_stream_with_session())
+        try:
+            channel = await bus.begin_turn(
+                agent_session_id=agent_session_rowid,
+                turn_id=turn_id,
+                assistant_message_id=server_message_id,
+                origin_client_id=body.client_id,
+                submitted_message=body.message,
+                is_continuation=body.message.role == "assistant",
+            )
+        except SessionBusyError as exc:
+            if tracer is not None:
+                tracer.tracer_provider.shutdown()
+            return JSONResponse(
+                exc.body.model_dump(mode="json", by_alias=True),
+                status_code=409,
+            )
+        runner = TurnRunner(
+            bus=bus,
+            channel=channel,
+            prepared_turn=PreparedTurn(
+                agent_session_id=agent_session_rowid,
+                turn_id=turn_id,
+                stream=_stream_with_session,
+                is_awaiting_client_tool=lambda: not turn_is_terminal and turn_interrupted is None,
+                mark_stopped=_mark_stopped,
+            ),
+        )
+        bus.start_runner(channel, runner)
+        return adapter.streaming_response(channel.subscribe_turn(turn_id=turn_id))
 
     return router, chat

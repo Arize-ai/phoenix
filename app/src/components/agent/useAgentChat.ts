@@ -1,12 +1,7 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import {
-  DefaultChatTransport,
-  getToolName,
-  isTextUIPart,
-  isToolUIPart,
-} from "ai";
-import { useCallback, useRef, useState } from "react";
+import { getToolName, isTextUIPart, isToolUIPart } from "ai";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ConnectionHandler,
   commitLocalUpdate,
@@ -15,6 +10,7 @@ import {
   useRelayEnvironment,
 } from "react-relay";
 
+import { AgentSessionChatTransport } from "@phoenix/agent/chat/AgentSessionChatTransport";
 import {
   buildAgentChatRequestBody,
   type AgentChatRequestBodyPatch,
@@ -22,6 +18,7 @@ import {
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
+import type { SessionEventsBridge } from "@phoenix/agent/chat/sessionEventsBridge";
 import {
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
@@ -56,6 +53,8 @@ import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   DRAFT_SESSION_ID,
+  isSessionRunBusy,
+  selectIsSessionBusy,
   type PendingAgentMessage,
 } from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -90,6 +89,10 @@ const CHAT_PATH_TEMPLATE =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
 const COMPACT_PATH_TEMPLATE =
   "/agents/{agent_id}/sessions/{session_id}/compact" satisfies keyof paths;
+const EVENTS_PATH_TEMPLATE =
+  "/agents/{agent_id}/sessions/{session_id}/events" satisfies keyof paths;
+const STOP_PATH_TEMPLATE =
+  "/agents/{agent_id}/sessions/{session_id}/stop" satisfies keyof paths;
 const ASSISTANT_AGENT_ID = "assistant";
 
 function buildAgentChatApiUrl(sessionId: string): string {
@@ -104,6 +107,24 @@ function buildAgentChatApiUrl(sessionId: string): string {
 function buildAgentCompactApiUrl(sessionId: string): string {
   return prependBasename(
     COMPACT_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
+      "{session_id}",
+      encodeURIComponent(sessionId)
+    )
+  );
+}
+
+function buildAgentEventsApiUrl(sessionId: string): string {
+  return prependBasename(
+    EVENTS_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
+      "{session_id}",
+      encodeURIComponent(sessionId)
+    )
+  );
+}
+
+function buildAgentStopApiUrl(sessionId: string): string {
+  return prependBasename(
+    STOP_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
       "{session_id}",
       encodeURIComponent(sessionId)
     )
@@ -236,6 +257,9 @@ export function useAgentChat({
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
+  const sessionBusState = useAgentContext((state) =>
+    sessionId ? state.sessionBusStateBySessionId[sessionId] : undefined
+  );
 
   const [commitCreateAgentSession] =
     useMutation<useAgentChatCreateAgentSessionMutation>(
@@ -267,14 +291,22 @@ export function useAgentChat({
    * builds a chat after the create-session mutation returns one.
    */
   const createChatForSession = useCallback(
-    (
-      targetSessionId: string,
-      seedMessages: AgentUIMessage[]
-    ): Chat<AgentUIMessage> => {
+    ({
+      targetSessionId,
+      seedMessages,
+      clientId,
+      eventsBridge,
+    }: {
+      targetSessionId: string;
+      seedMessages: AgentUIMessage[];
+      clientId: string;
+      eventsBridge: SessionEventsBridge;
+    }): Chat<AgentUIMessage> => {
       const chatApiUrl = buildAgentChatApiUrl(targetSessionId);
       const turnTraceContext = createTurnTraceContextManager();
       const toolTimings = createClientToolTimingRecorder();
       const transcriptPersistence = createTranscriptPersistenceCoordinator();
+      const handledClientToolCallIds = new Set<string>();
       const turnCompletionGate = createTurnCompletionGate({
         endTurn: async () => {
           store.getState().setSessionResponsePending(targetSessionId, false);
@@ -295,7 +327,8 @@ export function useAgentChat({
         id: targetSessionId,
         messages: seedMessages,
         generateId: () => crypto.randomUUID(),
-        transport: new DefaultChatTransport({
+        transport: new AgentSessionChatTransport({
+          eventsBridge,
           api: chatApiUrl,
           fetch: authFetch,
           prepareSendMessagesRequest: ({ body, id, messages }) => {
@@ -319,6 +352,7 @@ export function useAgentChat({
                 modelSelection: selectAgentModel(store.getState()),
                 turnTraceContext: turnTraceContext.getActive(),
                 toolTimings,
+                clientId,
               }),
             };
           },
@@ -335,7 +369,19 @@ export function useAgentChat({
           const isServerExecuted =
             isRecord(phoenixMetadata) &&
             phoenixMetadata.toolExecutionEnvironment === "server";
+          if (
+            !isServerExecuted &&
+            (!eventsBridge.canExecuteClientTools() ||
+              handledClientToolCallIds.has(toolCall.toolCallId) ||
+              isResolvedToolCall({
+                messages: chat.messages,
+                toolCallId: toolCall.toolCallId,
+              }))
+          ) {
+            return;
+          }
           if (!isServerExecuted) {
+            handledClientToolCallIds.add(toolCall.toolCallId);
             toolTimings.recordStart(toolCall.toolCallId);
           }
           void handleAgentToolCall({
@@ -367,6 +413,9 @@ export function useAgentChat({
           }
         },
         sendAutomaticallyWhen: async ({ messages }) => {
+          if (!eventsBridge.canExecuteClientTools()) {
+            return false;
+          }
           const shouldSendAutomatically =
             await turnCompletionGate.handleSendAutomaticallyWhen({ messages });
           if (!shouldSendAutomatically) {
@@ -391,6 +440,23 @@ export function useAgentChat({
           turnCompletionGate.handleFinish({ finalMessages, message });
         },
       });
+      eventsBridge.bind({
+        chat,
+        transcriptPersistence,
+        refetchTranscript: async () => {
+          const result = await refetchAgentSession({
+            environment: relayEnvironment,
+            sessionId: targetSessionId,
+          });
+          if (
+            result?.agentSession.__typename === "AgentSession" &&
+            Array.isArray(result.agentSession.messages)
+          ) {
+            chat.messages = result.agentSession.messages as AgentUIMessage[];
+            chat.clearError();
+          }
+        },
+      });
       turnClientStateByChat.set(chat, { turnTraceContext, toolTimings });
       return chat;
     },
@@ -405,18 +471,30 @@ export function useAgentChat({
   const chatApiUrl = persistedSessionId
     ? buildAgentChatApiUrl(persistedSessionId)
     : null;
-  const chatInstance =
+  const sessionRuntime =
     chatApiUrl && persistedSessionId
-      ? runtime.getOrCreateChat({
+      ? runtime.getOrCreateSessionRuntime({
           sessionId: persistedSessionId,
           chatApiUrl,
-          createChat: (previousMessages) =>
-            createChatForSession(
-              persistedSessionId,
-              previousMessages ?? initialMessages ?? []
-            ),
+          eventsApiUrl: buildAgentEventsApiUrl(persistedSessionId),
+          createChat: ({ previousMessages, clientId, eventsBridge }) =>
+            createChatForSession({
+              targetSessionId: persistedSessionId,
+              seedMessages: previousMessages ?? initialMessages ?? [],
+              clientId,
+              eventsBridge,
+            }),
         })
       : null;
+  const chatInstance = sessionRuntime?.chat ?? null;
+
+  useEffect(() => {
+    if (!persistedSessionId || !sessionRuntime) {
+      return;
+    }
+    runtime.acquireSession(persistedSessionId);
+    return () => runtime.releaseSession(persistedSessionId);
+  }, [persistedSessionId, runtime, sessionRuntime]);
 
   // `useChat` subscribes the current React tree to the already-created runtime
   // instance. Draft surfaces expose an inert chat shape until the first send.
@@ -491,7 +569,7 @@ export function useAgentChat({
     );
   };
 
-  const handleStopWithToolCleanup = async () => {
+  const stopLocallyWithToolCleanup = async () => {
     await stop();
     if (sessionId) {
       store.getState().setSessionResponsePending(sessionId, false);
@@ -507,6 +585,39 @@ export function useAgentChat({
       turnClientState?.toolTimings.clear();
     }
     setMessages(removeInterruptedToolInputParts);
+  };
+
+  const handleStopWithToolCleanup = async () => {
+    if (!isDraft && sessionId) {
+      try {
+        const turnId =
+          store.getState().sessionBusStateBySessionId[sessionId]?.turnId;
+        const response = await authFetch(buildAgentStopApiUrl(sessionId), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ turnId: turnId ?? undefined }),
+        });
+        if (response.status === 409) {
+          return;
+        }
+        if (response.ok) {
+          const responseBody: unknown = await response.json().catch(() => null);
+          const stoppedTurnId =
+            isRecord(responseBody) && isRecord(responseBody.data)
+              ? responseBody.data.turnId
+              : null;
+          const didStopClaimedTurn = typeof stoppedTurnId === "string";
+          const isLocalRequestStillPreparing =
+            chatInstance != null && isRequestActive(chatInstance.status);
+          if (didStopClaimedTurn || !isLocalRequestStillPreparing) {
+            return;
+          }
+        }
+      } catch {
+        // Fall through to the legacy client-side abort and tool cleanup.
+      }
+    }
+    await stopLocallyWithToolCleanup();
   };
 
   /**
@@ -539,13 +650,19 @@ export function useAgentChat({
         isCreatingSessionRef.current = false;
         const newSessionId = response.createAgentSession.agentSession.id;
         const newChatApiUrl = buildAgentChatApiUrl(newSessionId);
-        const newChat = runtime.getOrCreateChat({
+        const newRuntime = runtime.getOrCreateSessionRuntime({
           sessionId: newSessionId,
           chatApiUrl: newChatApiUrl,
-          createChat: (previousMessages) =>
-            createChatForSession(newSessionId, previousMessages ?? []),
+          eventsApiUrl: buildAgentEventsApiUrl(newSessionId),
+          createChat: ({ previousMessages, clientId, eventsBridge }) =>
+            createChatForSession({
+              targetSessionId: newSessionId,
+              seedMessages: previousMessages ?? [],
+              clientId,
+              eventsBridge,
+            }),
         });
-        void newChat.sendMessage(
+        void newRuntime.chat.sendMessage(
           { text, metadata: buildUserMessageMetadata() },
           options
         );
@@ -574,7 +691,12 @@ export function useAgentChat({
       createSessionAndSendMessage(...args);
       return;
     }
-    if (chatInstance && isRequestActive(chatInstance.status)) {
+    if (
+      chatInstance &&
+      (isRequestActive(chatInstance.status) ||
+        (persistedSessionId != null &&
+          selectIsSessionBusy(persistedSessionId)(store.getState())))
+    ) {
       return;
     }
 
@@ -610,7 +732,10 @@ export function useAgentChat({
       });
       return;
     }
-    if (isRequestActive(chatInstance.status)) {
+    if (
+      isRequestActive(chatInstance.status) ||
+      selectIsSessionBusy(sessionId)(store.getState())
+    ) {
       restorePendingMessage();
       setOperationError({
         title: "Conversation could not be compacted",
@@ -778,7 +903,7 @@ export function useAgentChat({
         isDraft ||
         !sessionId ||
         !chatInstance ||
-        isRequestActive(chatInstance.status)
+        selectIsSessionBusy(sessionId)(store.getState())
       ) {
         return Promise.resolve(null);
       }
@@ -820,6 +945,7 @@ export function useAgentChat({
       isDraft,
       sessionId,
       setMessages,
+      store,
     ]
   );
 
@@ -829,7 +955,12 @@ export function useAgentChat({
   // runtime chat from the returned transcript and activates it.
   const forkFromMessage = useCallback(
     (messageId: string): Promise<void> => {
-      if (isDraft || !sessionId || !chatInstance) {
+      if (
+        isDraft ||
+        !sessionId ||
+        !chatInstance ||
+        selectIsSessionBusy(sessionId)(store.getState())
+      ) {
         return Promise.resolve();
       }
       clearError();
@@ -852,14 +983,17 @@ export function useAgentChat({
             const branchMessages = Array.isArray(payload.agentSession.messages)
               ? (payload.agentSession.messages as AgentUIMessage[])
               : [];
-            runtime.getOrCreateChat({
+            runtime.getOrCreateSessionRuntime({
               sessionId: branchSessionId,
               chatApiUrl: branchChatApiUrl,
-              createChat: (previousMessages) =>
-                createChatForSession(
-                  branchSessionId,
-                  previousMessages ?? branchMessages
-                ),
+              eventsApiUrl: buildAgentEventsApiUrl(branchSessionId),
+              createChat: ({ previousMessages, clientId, eventsBridge }) =>
+                createChatForSession({
+                  targetSessionId: branchSessionId,
+                  seedMessages: previousMessages ?? branchMessages,
+                  clientId,
+                  eventsBridge,
+                }),
             });
             const state = store.getState();
             if (restoredInput) {
@@ -889,6 +1023,14 @@ export function useAgentChat({
     ]
   );
 
+  const isSessionBusy =
+    sessionId != null && selectIsSessionBusy(sessionId)(store.getState());
+  const isDegraded = sessionBusState?.degraded ?? false;
+  const isBusyFromElsewhere =
+    isSessionRunBusy(sessionBusState?.state) &&
+    (isDegraded ||
+      sessionBusState?.originClientId !== sessionRuntime?.clientId);
+
   return {
     messages,
     sendMessage: handleSendMessage,
@@ -905,6 +1047,9 @@ export function useAgentChat({
     clearOperationError: () => setOperationError(null),
     rewindToMessage,
     forkFromMessage,
+    isSessionBusy,
+    isBusyFromElsewhere,
+    isDegraded,
   } as {
     messages: AgentUIMessage[];
     sendMessage: (
@@ -924,6 +1069,9 @@ export function useAgentChat({
     clearOperationError: () => void;
     rewindToMessage: (messageId: string) => Promise<string | null>;
     forkFromMessage: (messageId: string) => Promise<void>;
+    isSessionBusy: boolean;
+    isBusyFromElsewhere: boolean;
+    isDegraded: boolean;
   };
 }
 
@@ -965,6 +1113,25 @@ export function getRemovedUserMessageText(
 
 function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
+}
+
+function isResolvedToolCall({
+  messages,
+  toolCallId,
+}: {
+  messages: AgentUIMessage[];
+  toolCallId: string;
+}): boolean {
+  return messages.some((message) =>
+    message.parts.some(
+      (part) =>
+        isToolUIPart(part) &&
+        part.toolCallId === toolCallId &&
+        (part.state === "output-available" ||
+          part.state === "output-error" ||
+          part.state === "output-denied")
+    )
+  );
 }
 
 async function getAgentCompactErrorMessage(

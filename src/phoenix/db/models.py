@@ -3303,6 +3303,25 @@ class AgentSession(HasId):
     )
 
 
+class AgentSessionRun(Base):
+    """Ephemeral ownership and state for an in-flight agent session operation."""
+
+    __tablename__ = "agent_session_runs"
+    agent_session_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    turn_id: Mapped[str] = mapped_column(String, nullable=False)
+    state: Mapped[str] = mapped_column(String, nullable=False)
+    assistant_message_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    origin_client_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    instance_id: Mapped[str] = mapped_column(String, nullable=False)
+    stop_requested_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    heartbeat_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    __table_args__ = (Index("ix_agent_session_runs_heartbeat_at", "heartbeat_at"),)
+
+
 class AgentSessionMessage(HasId):
     __tablename__ = "agent_session_messages"
     agent_session_id: Mapped[int] = mapped_column(

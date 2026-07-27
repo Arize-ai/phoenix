@@ -25,12 +25,26 @@ export type AssistantMessageMetadata = SchemasV1["AssistantMessageMetadata"];
 
 /** Transient data chunks streamed alongside assistant message content. */
 type PxiDataTypes = {
+  "session-state": SchemasV1["SessionStateChunk"]["data"];
   "session-summary": SchemasV1["SessionSummaryChunk"]["data"];
   "transcript-persisted": SchemasV1["TranscriptPersistedChunk"]["data"];
+  "turn-started": SchemasV1["SessionTurnStartedChunk"]["data"];
 };
 
 /** A chat message (user or assistant) carrying PXI-specific metadata. */
 export type PxiMessage = UIMessage<AssistantMessageMetadata, PxiDataTypes>;
+
+/** Current server-side ownership and streaming state for an agent session. */
+export type PxiSessionState = SchemasV1["SessionStateData"];
+
+/** The submitted user message that establishes a remote turn's replay baseline. */
+export type PxiTurnStarted = Omit<PxiDataTypes["turn-started"], "message"> & {
+  message: PxiMessage;
+};
+
+/** Result returned after requesting that Phoenix stop an active session turn. */
+export type PxiStopSessionResult =
+  SchemasV1["StopAgentSessionResponse"]["data"];
 
 export type BuiltInProvider = SchemasV1["ModelProvider"];
 
@@ -113,10 +127,32 @@ export type PxiSession = PxiSessionSummary & {
 };
 
 /** Server-side session operations used by the chat UI. */
+export type PxiSessionEventHandlers = {
+  onSessionState: (state: PxiSessionState) => void;
+  onTurnStarted: (turn: PxiTurnStarted) => void;
+  onAssistantMessage: (options: {
+    turnId: string;
+    message: PxiMessage;
+  }) => void;
+  onSessionTitle?: (title: string) => void;
+  onError?: (error: unknown) => void;
+};
+
+/** Server-side session operations used by the chat UI. */
 export type PxiSessionClient = {
   createSession: (options: { temporary: boolean }) => Promise<PxiSession>;
   listSessions: () => Promise<PxiSessionSummary[]>;
   getSession: (options: { sessionId: string }) => Promise<PxiSession>;
+  subscribeToSessionEvents?: (
+    options: {
+      sessionId: string;
+      abortSignal?: AbortSignal;
+    } & PxiSessionEventHandlers
+  ) => Promise<void>;
+  stopSession?: (options: {
+    sessionId: string;
+    turnId?: string;
+  }) => Promise<PxiStopSessionResult>;
 };
 
 /**

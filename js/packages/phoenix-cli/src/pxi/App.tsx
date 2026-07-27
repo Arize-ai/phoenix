@@ -6,6 +6,7 @@ import {
   createPxiChatClient,
   createPxiSessionClient,
   createUserMessage,
+  getPxiClientId,
 } from "./client";
 import {
   getSlashCommandName,
@@ -24,6 +25,7 @@ import {
   moveDraftCursorVertically,
   type DraftEditorState,
 } from "./draftEditor";
+import { PxiBusyError } from "./errors";
 import { Markdown } from "./inkMarkdown";
 import { fetchRecommendedPxiModels } from "./preflight";
 import { formatTokenUsageLine, getLatestAssistantUsage } from "./tokenUsage";
@@ -38,7 +40,9 @@ import type {
   PxiMessage,
   PxiRuntimeOptions,
   PxiSessionClient,
+  PxiSessionState,
   PxiSessionSummary,
+  PxiTurnStarted,
 } from "./types";
 
 /**
@@ -50,8 +54,20 @@ import type {
  * owns the conversation state and drives the {@link PxiChatClient}.
  */
 
-/** Whether the app is waiting on input (`idle`) or streaming a reply. */
-type PxiStatus = "idle" | "streaming";
+/** Whether the app is accepting input or following an active local/remote turn. */
+type PxiStatus = "idle" | "streaming" | "remote-streaming" | "degraded";
+
+function getSessionStatus({
+  sessionState,
+}: {
+  sessionState: PxiSessionState | null;
+}): Exclude<PxiStatus, "streaming"> {
+  if (!sessionState || sessionState.state === "idle") {
+    return "idle";
+  }
+  return sessionState.streamAvailable ? "remote-streaming" : "degraded";
+}
+
 type SessionPickerState = {
   status: "loading" | "ready" | "restoring" | "error";
   sessions: PxiSessionSummary[];
@@ -501,6 +517,13 @@ function InputPrompt({
   const showHints =
     cmdName !== null && !draftValue.includes(" ") && draftValue.length > 1;
   const hints = showHints ? matchingCommands(cmdName) : [];
+  const isComposerDisabled = status !== "idle";
+  const helperText =
+    status === "remote-streaming"
+      ? "following response from another client · esc stop · ctrl+c exit"
+      : status === "degraded"
+        ? "session busy on another Phoenix instance · live stream unavailable · esc stop"
+        : "↵ send · ⇧↵ newline · esc interrupt · /help · ctrl+c exit";
 
   return (
     <Box flexDirection="column" marginTop={1}>
@@ -517,7 +540,7 @@ function InputPrompt({
           <HighlightedDraft
             draft={draftValue}
             cursorIndex={draft.cursorIndex}
-            isCursorVisible={status !== "streaming"}
+            isCursorVisible={!isComposerDisabled}
           />
         </Text>
       </Box>
@@ -542,9 +565,7 @@ function InputPrompt({
             ))}
           </Box>
         ) : (
-          <Text dimColor>
-            ↵ send · ⇧↵ newline · esc interrupt · /help · ctrl+c exit
-          </Text>
+          <Text dimColor>{helperText}</Text>
         )}
         <Box flexShrink={0} marginLeft={2}>
           <Text>
@@ -796,6 +817,37 @@ function markMessageInterrupted({
   };
 }
 
+type RemoteTurnBaseline = {
+  turnId: string;
+  messages: PxiMessage[];
+};
+
+function buildRemoteTurnBaseline({
+  messages,
+  turn,
+  assistantMessageId,
+}: {
+  messages: PxiMessage[];
+  turn: PxiTurnStarted;
+  assistantMessageId?: string | null;
+}): PxiMessage[] {
+  const submittedMessageIndex = messages.findIndex(
+    (message) => message.id === turn.message.id
+  );
+  if (submittedMessageIndex >= 0) {
+    return [...messages.slice(0, submittedMessageIndex), turn.message];
+  }
+  const trailingMessage = messages.at(-1);
+  const hasReplayedAssistant =
+    trailingMessage?.role === "assistant" &&
+    Boolean(assistantMessageId) &&
+    trailingMessage.id === assistantMessageId;
+  const persistedBaseline = hasReplayedAssistant
+    ? messages.slice(0, -1)
+    : messages;
+  return [...persistedBaseline, turn.message];
+}
+
 /** Animated "PXI is thinking…" indicator shown while a reply is streaming. */
 export function ThinkingIndicator() {
   const [frameIndex, setFrameIndex] = useState(0);
@@ -855,22 +907,161 @@ export function PxiApp({
   );
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
+  const statusRef = useRef<PxiStatus>(status);
+  const messagesRef = useRef<PxiMessage[]>(messages);
+  const sessionStateRef = useRef<PxiSessionState | null>(null);
+  const remoteTurnBaselineRef = useRef<RemoteTurnBaseline | null>(null);
+  const pendingLocalTurnBaselineRef = useRef<PxiMessage[] | null>(null);
+  const isStoppingRef = useRef(false);
   const modelRequestIdRef = useRef(0);
   const sessionRequestIdRef = useRef(0);
+  statusRef.current = status;
+  messagesRef.current = messages;
   const serverSessionClient = useMemo(
     () => sessionClient ?? createPxiSessionClient({ config: options.config }),
     [options.config, sessionClient]
   );
+
+  useEffect(() => {
+    const sessionId = activeSession?.id;
+    const subscribe = serverSessionClient.subscribeToSessionEvents;
+    sessionStateRef.current = null;
+    remoteTurnBaselineRef.current = null;
+    if (!sessionId || !subscribe) {
+      return;
+    }
+
+    const eventAbortController = new AbortController();
+    let isCurrentSession = true;
+    const refreshDegradedTranscript = () => {
+      void serverSessionClient
+        .getSession({ sessionId })
+        .then((session) => {
+          if (!isCurrentSession || sessionStateRef.current?.state !== "idle") {
+            return;
+          }
+          setActiveSession(session);
+          messagesRef.current = session.messages;
+          setMessages(session.messages);
+        })
+        .catch((sessionError: unknown) => {
+          if (!isCurrentSession) {
+            return;
+          }
+          setError(
+            sessionError instanceof Error
+              ? sessionError.message
+              : String(sessionError)
+          );
+        });
+    };
+
+    void subscribe({
+      sessionId,
+      abortSignal: eventAbortController.signal,
+      onSessionState: (sessionState) => {
+        sessionStateRef.current = sessionState;
+        const isSessionBusy = sessionState.state !== "idle";
+        const isActiveLocalTurn =
+          sessionState.originClientId === getPxiClientId() &&
+          statusRef.current === "streaming";
+        if (isSessionBusy && !isActiveLocalTurn) {
+          const nextStatus = getSessionStatus({ sessionState });
+          statusRef.current = nextStatus;
+          setStatus(nextStatus);
+          setModelPicker(null);
+          setSessionPicker(null);
+          return;
+        }
+        if (!isSessionBusy) {
+          const previousStatus = statusRef.current;
+          if (
+            previousStatus === "remote-streaming" ||
+            previousStatus === "degraded"
+          ) {
+            statusRef.current = "idle";
+            setStatus("idle");
+          }
+          remoteTurnBaselineRef.current = null;
+          if (previousStatus === "degraded") {
+            refreshDegradedTranscript();
+          }
+        }
+      },
+      onTurnStarted: (turn) => {
+        const sessionState = sessionStateRef.current;
+        const isActiveLocalTurn =
+          sessionState?.originClientId === getPxiClientId() &&
+          statusRef.current === "streaming";
+        const previousBaseline = remoteTurnBaselineRef.current;
+        const baseline =
+          previousBaseline && previousBaseline.turnId === turn.turnId
+            ? previousBaseline.messages
+            : buildRemoteTurnBaseline({
+                messages:
+                  pendingLocalTurnBaselineRef.current ?? messagesRef.current,
+                turn,
+                assistantMessageId: sessionState?.assistantMessageId,
+              });
+        remoteTurnBaselineRef.current = {
+          turnId: turn.turnId,
+          messages: baseline,
+        };
+        if (isActiveLocalTurn) {
+          return;
+        }
+        messagesRef.current = baseline;
+        setMessages(baseline);
+      },
+      onAssistantMessage: ({ turnId, message }) => {
+        const sessionState = sessionStateRef.current;
+        const isActiveLocalTurn =
+          sessionState?.originClientId === getPxiClientId() &&
+          statusRef.current === "streaming";
+        const baseline = remoteTurnBaselineRef.current;
+        if (isActiveLocalTurn || baseline?.turnId !== turnId) {
+          return;
+        }
+        const nextMessages = [...baseline.messages, message];
+        messagesRef.current = nextMessages;
+        setMessages(nextMessages);
+      },
+      onSessionTitle: (title) => {
+        setActiveSession((currentSession) =>
+          currentSession ? { ...currentSession, title } : currentSession
+        );
+      },
+      onError: (sessionError) => {
+        if (!eventAbortController.signal.aborted) {
+          setError(
+            sessionError instanceof Error
+              ? sessionError.message
+              : String(sessionError)
+          );
+        }
+      },
+    }).catch((sessionError: unknown) => {
+      if (!eventAbortController.signal.aborted) {
+        setError(
+          sessionError instanceof Error
+            ? sessionError.message
+            : String(sessionError)
+        );
+      }
+    });
+
+    return () => {
+      isCurrentSession = false;
+      eventAbortController.abort();
+    };
+  }, [activeSession?.id, serverSessionClient]);
 
   const handleExit = () => {
     abortControllerRef.current?.abort();
     exit();
   };
 
-  const interruptStream = () => {
-    if (status !== "streaming") {
-      return;
-    }
+  const interruptLocally = () => {
     abortControllerRef.current?.abort();
     const assistantMessage = streamingAssistantMessageRef.current;
     if (assistantMessage) {
@@ -880,13 +1071,50 @@ export function PxiApp({
       streamingAssistantMessageRef.current = interruptedMessage;
       setMessages((currentMessages) => {
         const lastMessage = currentMessages.at(-1);
-        if (lastMessage?.id === assistantMessage.id) {
-          return [...currentMessages.slice(0, -1), interruptedMessage];
-        }
-        return [...currentMessages, interruptedMessage];
+        const nextMessages =
+          lastMessage?.id === assistantMessage.id
+            ? [...currentMessages.slice(0, -1), interruptedMessage]
+            : [...currentMessages, interruptedMessage];
+        messagesRef.current = nextMessages;
+        return nextMessages;
       });
     }
-    setStatus("idle");
+    const nextStatus = getSessionStatus({
+      sessionState: sessionStateRef.current,
+    });
+    statusRef.current = nextStatus;
+    setStatus(nextStatus);
+  };
+
+  const interruptStream = () => {
+    if (statusRef.current === "idle" || isStoppingRef.current) {
+      return;
+    }
+    const sessionId = activeSession?.id;
+    const stop = serverSessionClient.stopSession;
+    if (!sessionId || !stop) {
+      if (statusRef.current === "streaming") {
+        interruptLocally();
+      }
+      return;
+    }
+    isStoppingRef.current = true;
+    const interruptedStatus = statusRef.current;
+    void stop({
+      sessionId,
+      turnId: sessionStateRef.current?.turnId ?? undefined,
+    })
+      .catch((stopError: unknown) => {
+        setError(
+          stopError instanceof Error ? stopError.message : String(stopError)
+        );
+        if (interruptedStatus === "streaming") {
+          interruptLocally();
+        }
+      })
+      .finally(() => {
+        isStoppingRef.current = false;
+      });
   };
 
   const startNewSession = ({ temporary }: { temporary: boolean }) => {
@@ -896,6 +1124,11 @@ export function PxiApp({
     setIsDraftTemporary(temporary);
     setModelPicker(null);
     setSessionPicker(null);
+    statusRef.current = "idle";
+    setStatus("idle");
+    sessionStateRef.current = null;
+    remoteTurnBaselineRef.current = null;
+    messagesRef.current = [];
     setMessages([]);
     setError(null);
     setDraft(EMPTY_DRAFT_EDITOR_STATE);
@@ -1027,6 +1260,7 @@ export function PxiApp({
         if (sessionRequestIdRef.current !== requestId) return;
         setActiveSession(session);
         setIsDraftTemporary(session.isTemporary);
+        messagesRef.current = session.messages;
         setMessages(session.messages);
         setError(null);
         setDraft(EMPTY_DRAFT_EDITOR_STATE);
@@ -1051,7 +1285,7 @@ export function PxiApp({
 
   const submitDraft = () => {
     const text = draft.value.trim();
-    if (!text || status === "streaming") {
+    if (!text || statusRef.current !== "idle") {
       return;
     }
 
@@ -1096,7 +1330,10 @@ export function PxiApp({
     streamingAssistantMessageRef.current = null;
     setDraft(EMPTY_DRAFT_EDITOR_STATE);
     setError(null);
+    pendingLocalTurnBaselineRef.current = messages;
+    statusRef.current = "streaming";
     setStatus("streaming");
+    messagesRef.current = nextMessages;
     setMessages(nextMessages);
     void (async () => {
       let resolvedClient = client;
@@ -1130,7 +1367,9 @@ export function PxiApp({
         abortSignal: abortController.signal,
         onAssistantMessage: (assistantMessage) => {
           streamingAssistantMessageRef.current = assistantMessage;
-          setMessages([...nextMessages, assistantMessage]);
+          const streamedMessages = [...nextMessages, assistantMessage];
+          messagesRef.current = streamedMessages;
+          setMessages(streamedMessages);
         },
         onSessionTitle: (title) => {
           setActiveSession((currentSession) =>
@@ -1144,12 +1383,29 @@ export function PxiApp({
           return;
         }
         if (assistantMessage) {
-          setMessages([...nextMessages, assistantMessage]);
+          const finalMessages = [...nextMessages, assistantMessage];
+          messagesRef.current = finalMessages;
+          setMessages(finalMessages);
         }
       })
       .catch((err: unknown) => {
         if (abortController.signal.aborted) {
           return;
+        }
+        if (err instanceof PxiBusyError) {
+          const observedSessionState = sessionStateRef.current;
+          const nextStatus =
+            observedSessionState?.turnId === err.turnId
+              ? getSessionStatus({ sessionState: observedSessionState })
+              : err.ownedByThisInstance
+                ? "remote-streaming"
+                : "degraded";
+          statusRef.current = nextStatus;
+          setStatus(nextStatus);
+          if (!remoteTurnBaselineRef.current) {
+            messagesRef.current = messages;
+            setMessages(messages);
+          }
         }
         setError(err instanceof Error ? err.message : String(err));
       })
@@ -1157,13 +1413,20 @@ export function PxiApp({
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }
-        setStatus("idle");
+        pendingLocalTurnBaselineRef.current = null;
+        if (statusRef.current === "streaming") {
+          const nextStatus = getSessionStatus({
+            sessionState: sessionStateRef.current,
+          });
+          statusRef.current = nextStatus;
+          setStatus(nextStatus);
+        }
       });
   };
 
   const bracketedPasteMarkerCountRef = useRef(0);
   const handleRawInput = (input: string) => {
-    if (status === "streaming") {
+    if (status !== "idle") {
       return;
     }
     if (isBracketedPasteMarkerInput({ input })) {
@@ -1362,7 +1625,7 @@ export function PxiApp({
       interruptStream();
       return;
     }
-    if (status === "streaming") {
+    if (status !== "idle") {
       return;
     }
     if (isKeyboardProtocolResponseInput({ input })) {
@@ -1471,6 +1734,15 @@ export function PxiApp({
         </Box>
       ) : null}
       {status === "streaming" ? <ThinkingIndicator /> : null}
+      {status === "remote-streaming" ? (
+        <Text color="yellow">Following PXI response from another client…</Text>
+      ) : null}
+      {status === "degraded" ? (
+        <Text color="yellow">
+          PXI is responding on another Phoenix instance; live output is
+          unavailable.
+        </Text>
+      ) : null}
       {modelPicker ? (
         <ModelPicker state={modelPicker} />
       ) : sessionPicker ? (

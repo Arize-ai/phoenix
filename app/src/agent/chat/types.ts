@@ -13,6 +13,8 @@ type AgentMessageMetadata = NonNullable<
 
 /** Wire schema of the transient `data-session-summary` stream chunk. */
 type SessionSummaryChunk = components["schemas"]["SessionSummaryChunk"];
+type SessionStateChunk = components["schemas"]["SessionStateChunk"];
+type SessionTurnStartedChunk = components["schemas"]["SessionTurnStartedChunk"];
 type TranscriptPersistedChunk =
   components["schemas"]["TranscriptPersistedChunk"];
 
@@ -21,7 +23,9 @@ type TranscriptPersistedChunk =
  * alongside the message. Keys are the chunk type without the `data-` prefix.
  */
 type AgentUIDataTypes = {
+  "session-state": SessionStateChunk["data"];
   "session-summary": SessionSummaryChunk["data"];
+  "turn-started": SessionTurnStartedChunk["data"];
   "transcript-persisted": TranscriptPersistedChunk["data"];
 };
 

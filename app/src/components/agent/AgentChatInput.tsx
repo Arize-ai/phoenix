@@ -69,6 +69,7 @@ export type AgentChatInputProps = {
   onModelChange: (model: ModelMenuValue) => void;
   isInputDisabled?: boolean;
   isSubmitDisabled?: boolean;
+  placeholder?: string;
   onStop: () => void;
 };
 
@@ -96,6 +97,7 @@ export function AgentChatInput({
   onModelChange,
   isInputDisabled,
   isSubmitDisabled,
+  placeholder = "Send a message...",
   onStop,
 }: AgentChatInputProps) {
   const [slashMenuLayer, setSlashMenuLayer] = useState<HTMLDivElement | null>(
@@ -144,7 +146,7 @@ export function AgentChatInput({
           <AgentContextPills />
           <PromptInputBody>
             <SkillPromptInputBoundary
-              placeholder="Send a message..."
+              placeholder={placeholder}
               commands={PROMPT_COMMANDS}
               onSkillsChange={setAvailableSkills}
               textareaRef={textareaRef}

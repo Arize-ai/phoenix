@@ -26,6 +26,7 @@ import type {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
+import type { components } from "@phoenix/api/__generated__/v1";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 
 import type { ModelConfig } from "./playground/types";
@@ -118,6 +119,22 @@ export type AgentPermissions = {
 export type PendingAgentMessage = {
   text: string;
   requestedSkills: string[];
+};
+
+export type SessionBusConnection =
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "disconnected";
+
+/** Latest server-advertised execution state for one agent session. */
+export type SessionBusState = {
+  state: components["schemas"]["SessionRunState"];
+  turnId: string | null;
+  assistantMessageId: string | null;
+  originClientId: string | null;
+  degraded: boolean;
+  connection: SessionBusConnection;
 };
 
 /**
@@ -319,6 +336,9 @@ export interface AgentState extends AgentProps {
   ) => void;
   chatStatusBySessionId: Record<string, ChatStatus>;
   setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
+  sessionBusStateBySessionId: Partial<Record<string, SessionBusState>>;
+  setSessionBusState: (sessionId: string, state: SessionBusState) => void;
+  clearSessionBusState: (sessionId: string) => void;
   /** Whether a logical PXI turn is still awaiting its terminal response. */
   isResponsePendingBySessionId: Partial<Record<string, boolean>>;
   setSessionResponsePending: (sessionId: string, isPending: boolean) => void;
@@ -655,6 +675,10 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           delete newPendingElicitationBySessionId[sessionId];
           const newChatStatusBySessionId = { ...state.chatStatusBySessionId };
           delete newChatStatusBySessionId[sessionId];
+          const newSessionBusStateBySessionId = {
+            ...state.sessionBusStateBySessionId,
+          };
+          delete newSessionBusStateBySessionId[sessionId];
           const newIsResponsePendingBySessionId = {
             ...state.isResponsePendingBySessionId,
           };
@@ -677,6 +701,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           return {
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
             chatStatusBySessionId: newChatStatusBySessionId,
+            sessionBusStateBySessionId: newSessionBusStateBySessionId,
             isResponsePendingBySessionId: newIsResponsePendingBySessionId,
             isCompactionPendingBySessionId: newIsCompactionPendingBySessionId,
             draftInputBySessionId: newDraftInputBySessionId,
@@ -826,6 +851,33 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         }),
         false,
         { type: "setSessionChatStatus" }
+      );
+    },
+    sessionBusStateBySessionId: {},
+    setSessionBusState: (sessionId, sessionBusState) => {
+      set(
+        (state) => ({
+          sessionBusStateBySessionId: {
+            ...state.sessionBusStateBySessionId,
+            [sessionId]: sessionBusState,
+          },
+        }),
+        false,
+        { type: "setSessionBusState" }
+      );
+    },
+    clearSessionBusState: (sessionId) => {
+      set(
+        (state) => {
+          if (!(sessionId in state.sessionBusStateBySessionId)) {
+            return state;
+          }
+          const next = { ...state.sessionBusStateBySessionId };
+          delete next[sessionId];
+          return { sessionBusStateBySessionId: next };
+        },
+        false,
+        { type: "clearSessionBusState" }
       );
     },
     isResponsePendingBySessionId: {},
@@ -1137,6 +1189,51 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
 };
 
 export type AgentStore = ReturnType<typeof createAgentStore>;
+
+export function isSessionRunBusy(
+  state: components["schemas"]["SessionRunState"] | undefined
+): boolean {
+  return state != null && state !== "idle";
+}
+
+/** Select whether local chat work or the server event bus owns the session. */
+export const selectIsSessionBusy =
+  (sessionId: string) => (state: AgentState) => {
+    const chatStatus = state.chatStatusBySessionId[sessionId];
+    return (
+      chatStatus === "submitted" ||
+      chatStatus === "streaming" ||
+      isSessionRunBusy(state.sessionBusStateBySessionId[sessionId]?.state)
+    );
+  };
+
+/** Select whether a session still has a local or server-side response pending. */
+export const selectIsSessionResponsePending =
+  (sessionId: string) => (state: AgentState) => {
+    const runState = state.sessionBusStateBySessionId[sessionId]?.state;
+    return (
+      (state.isResponsePendingBySessionId[sessionId] ?? false) ||
+      runState === "streaming" ||
+      runState === "persisting" ||
+      runState === "awaiting_client_tool"
+    );
+  };
+
+/** Select whether any resident session is locally or remotely busy. */
+export const selectIsAnySessionBusy = (state: AgentState): boolean => {
+  const sessionIds = new Set([
+    ...Object.keys(state.chatStatusBySessionId),
+    ...Object.keys(state.sessionBusStateBySessionId),
+  ]);
+  return Array.from(sessionIds).some((sessionId) =>
+    selectIsSessionBusy(sessionId)(state)
+  );
+};
+
+/** Select whether a session is in read-only cross-instance degraded mode. */
+export const selectIsSessionDegraded =
+  (sessionId: string) => (state: AgentState) =>
+    state.sessionBusStateBySessionId[sessionId]?.degraded ?? false;
 
 export async function waitForRegisteredClientActions({
   agentStore,

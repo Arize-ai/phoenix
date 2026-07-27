@@ -85,7 +85,8 @@ export interface PromptInputProps
    */
   status?: PromptInputStatus;
   /**
-   * When true, disables the textarea, submit button, and all tool buttons.
+   * When true, disables the textarea and tool buttons. The active stop action
+   * remains available for submitted/streaming inputs.
    * @default false
    */
   isDisabled?: boolean;

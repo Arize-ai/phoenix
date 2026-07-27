@@ -1,5 +1,8 @@
 """Mutations for persisted assistant chat sessions."""
 
+import json
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -16,6 +19,7 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
+from phoenix.server.agents.event_bus import SessionBusyError
 from phoenix.server.agents.session_titles import (
     truncate_agent_session_title,
     validate_agent_session_title,
@@ -23,7 +27,7 @@ from phoenix.server.agents.session_titles import (
 from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import IsAgentAssistantEnabled, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -156,7 +160,13 @@ class AgentSessionMutationMixin:
             )
         except ValueError as exc:
             raise BadRequest(str(exc)) from exc
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
+            await _load_owned_agent_session(
+                session,
+                info=info,
+                agent_session_rowid=agent_session_rowid,
+            )
+        async with _hold_session_mutation(info, agent_session_rowid), info.context.db() as session:
             agent_session = await _load_owned_agent_session(
                 session,
                 info=info,
@@ -209,7 +219,13 @@ class AgentSessionMutationMixin:
             )
         except ValueError as exc:
             raise BadRequest(str(exc)) from exc
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
+            await _load_owned_agent_session(
+                session,
+                info=info,
+                agent_session_rowid=agent_session_rowid,
+            )
+        async with _hold_session_mutation(info, agent_session_rowid), info.context.db() as session:
             source_session = await _load_owned_agent_session(
                 session,
                 info=info,
@@ -308,14 +324,14 @@ class AgentSessionMutationMixin:
         )
         if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
             lookup_stmt = lookup_stmt.where(owner_filter)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             agent_session_id = await session.scalar(lookup_stmt)
-            if agent_session_id is not None:
-                await session.execute(
-                    delete(models.AgentSession).where(models.AgentSession.id == agent_session_id)
-                )
         if agent_session_id is None:
             raise NotFound(f"No agent session found for ID '{input.id}'")
+        async with _hold_session_mutation(info, agent_session_rowid), info.context.db() as session:
+            await session.execute(
+                delete(models.AgentSession).where(models.AgentSession.id == agent_session_id)
+            )
         return DeleteAgentSessionMutationPayload(
             deleted_agent_session_id=GlobalID(AgentSession.__name__, str(agent_session_id)),
             query=Query(),
@@ -345,6 +361,20 @@ async def _load_owned_agent_session(
     ):
         raise NotFound(f"No agent session found for row ID '{agent_session_rowid}'")
     return agent_session
+
+
+@asynccontextmanager
+async def _hold_session_mutation(
+    info: Info[Context, None],
+    agent_session_rowid: int,
+) -> AsyncIterator[None]:
+    try:
+        async with info.context.agent_session_event_bus.hold_mutation(
+            agent_session_id=agent_session_rowid
+        ):
+            yield
+    except SessionBusyError as exc:
+        raise Conflict(json.dumps(exc.body.model_dump(mode="json", by_alias=True))) from exc
 
 
 async def _load_session_message_prefix(

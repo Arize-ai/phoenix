@@ -50,6 +50,7 @@ class AssistantMessageMetadata(CamelBaseModel):
     trace: AssistantMessageMetadataTraceIds | None = None
     turn_trace_context: TurnTraceContext | None = None
     usage: AssistantMessageMetadataUsage | None = None
+    interrupted: Literal["stopped", "errored"] | None = None
 
 
 class UserMessageMetadata(CamelBaseModel):

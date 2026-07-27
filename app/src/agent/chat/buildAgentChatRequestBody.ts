@@ -45,6 +45,8 @@ type BuildAgentChatRequestBodyOptions = {
   turnTraceContext?: TurnTraceContext | null;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
+  /** Stable identifier for the resident browser runtime that owns this turn. */
+  clientId?: string;
 };
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
@@ -117,6 +119,7 @@ export function buildAgentChatRequestBody({
   modelSelection,
   turnTraceContext = null,
   toolTimings = null,
+  clientId,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const traceRecording = getEffectiveTraceRecordingSettings({
     agentsConfig,
@@ -138,6 +141,7 @@ export function buildAgentChatRequestBody({
     contexts: requestContexts,
     model: modelSelection,
     turnTraceContext: turnTraceContext ?? undefined,
+    ...(clientId ? { clientId } : {}),
   };
   const [message] = toServerSafeUIMessages(
     enrichMessagesWithClientToolTimings({

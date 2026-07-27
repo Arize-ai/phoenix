@@ -40,7 +40,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/react": "^4.0.34",
+    "@ai-sdk/react": "4.0.34",
     "@apollo/client": "^4.2.7",
     "@arizeai/openinference-semantic-conventions": "^2.5.0",
     "@codemirror/autocomplete": "6.20.3",
@@ -72,7 +72,7 @@
     "@tanstack/react-virtual": "^3.14.6",
     "@uiw/codemirror-themes": "^4.25.11",
     "@uiw/react-codemirror": "^4.25.11",
-    "ai": "^7.0.31",
+    "ai": "7.0.31",
     "clsx": "^2.1.1",
     "codemirror-json-schema": "^0.8.1",
     "copy-to-clipboard": "^4.0.2",

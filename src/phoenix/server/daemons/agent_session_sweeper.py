@@ -18,6 +18,14 @@ _JITTER_SECONDS = 60
 _DELETE_BATCH_SIZE = 100
 
 
+def _has_active_run() -> sa.ColumnElement[bool]:
+    return sa.exists(
+        sa.select(models.AgentSessionRun.agent_session_id).where(
+            models.AgentSessionRun.agent_session_id == models.AgentSession.id
+        )
+    )
+
+
 class AgentSessionSweeper(DaemonTask):
     """Periodically delete expired agent sessions."""
 
@@ -47,6 +55,7 @@ class AgentSessionSweeper(DaemonTask):
             sa.delete(models.AgentSession)
             .where(models.AgentSession.expires_at.is_not(None))
             .where(models.AgentSession.expires_at < datetime.now(timezone.utc))
+            .where(~_has_active_run())
             .returning(models.AgentSession.id)
         )
         async with self._db() as session:
@@ -71,6 +80,7 @@ class AgentSessionSweeper(DaemonTask):
                 sa.delete(models.AgentSession)
                 .where(models.AgentSession.expires_at.is_(None))
                 .where(models.AgentSession.updated_at < cutoff)
+                .where(~_has_active_run())
                 .where(models.AgentSession.id.in_(batch))
             )
             async with self._db() as session:
@@ -104,11 +114,12 @@ class AgentSessionSweeper(DaemonTask):
         # row recheck fail for a session whose updated_at moved after the
         # ranking snapshot.
         stmt = sa.delete(models.AgentSession).where(
+            ~_has_active_run(),
             sa.tuple_(models.AgentSession.id, models.AgentSession.updated_at).in_(
                 sa.select(ranked.c.id, ranked.c.updated_at).where(
                     ranked.c.rank > max_count_per_user
                 )
-            )
+            ),
         )
         async with self._db() as session:
             result = await session.execute(stmt)

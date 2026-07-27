@@ -468,7 +468,7 @@ importers:
         specifier: ^1.7.0
         version: 1.7.0
       ai:
-        specifier: ^7.0.0
+        specifier: 7.0.31
         version: 7.0.31(zod@4.4.3)
       commander:
         specifier: ^15.0.0

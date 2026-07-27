@@ -17,6 +17,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import UserId
 
 if TYPE_CHECKING:
+    from phoenix.server.agents.event_bus import AgentSessionEventBus
     from phoenix.server.daemons.experiment_runner import ExperimentRunner
     from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
     from phoenix.server.daemons.system_settings import SystemSettings
@@ -45,6 +46,7 @@ class Context(BaseContext):
     span_cost_calculator: SpanCostCalculator
     experiment_runner: ExperimentRunner
     sandbox_session_manager: SandboxSessionManager
+    agent_session_event_bus: AgentSessionEventBus
     encrypt: Callable[[bytes], bytes]
     decrypt: Callable[[bytes], bytes]
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
@@ -121,6 +123,7 @@ def build_context(
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
+    agent_session_event_bus: AgentSessionEventBus,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
@@ -144,6 +147,7 @@ def build_context(
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
         sandbox_session_manager=sandbox_session_manager,
+        agent_session_event_bus=agent_session_event_bus,
         encrypt=encrypt,
         decrypt=decrypt,
         last_updated_at=last_updated_at,

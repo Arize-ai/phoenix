@@ -1,6 +1,7 @@
 import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { InvalidArgumentError } from "../exitCodes";
+import { PxiBusyError } from "./errors";
 import type {
   BuiltInProvider,
   ModelSelection,
@@ -464,6 +465,9 @@ export function formatPxiRuntimeError({
   error: unknown;
   modelSelection: ModelSelection;
 }): Error {
+  if (error instanceof PxiBusyError) {
+    return error;
+  }
   const message = error instanceof Error ? error.message : String(error);
   const nextAction =
     modelSelection.providerType === "custom"

@@ -1,9 +1,16 @@
 import type { Chat } from "@ai-sdk/react";
 import type { PropsWithChildren } from "react";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
+import { SessionEventsBridge } from "@phoenix/agent/chat/sessionEventsBridge";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
+
+export type AgentSessionChatRuntime = {
+  chat: Chat<AgentUIMessage>;
+  clientId: string;
+  eventsBridge: SessionEventsBridge;
+};
 
 type AgentChatRuntime = {
   /**
@@ -16,17 +23,25 @@ type AgentChatRuntime = {
    * variants alive; the replacement is seeded with the previous instance's
    * messages so the visible conversation carries over.
    */
-  getOrCreateChat: ({
+  getOrCreateSessionRuntime: ({
     sessionId,
     chatApiUrl,
+    eventsApiUrl,
     createChat,
   }: {
     sessionId: string;
     chatApiUrl: string;
-    createChat: (
-      previousMessages: AgentUIMessage[] | null
-    ) => Chat<AgentUIMessage>;
-  }) => Chat<AgentUIMessage>;
+    eventsApiUrl: string;
+    createChat: (options: {
+      previousMessages: AgentUIMessage[] | null;
+      clientId: string;
+      eventsBridge: SessionEventsBridge;
+    }) => Chat<AgentUIMessage>;
+  }) => AgentSessionChatRuntime;
+  /** Attaches a mounted session surface to its event bridge. */
+  acquireSession: (sessionId: string) => void;
+  /** Releases a mounted surface and starts the 30-second runtime linger. */
+  releaseSession: (sessionId: string) => void;
   /** Returns the resident chat for a session, if one exists. */
   getChat: (sessionId: string) => Chat<AgentUIMessage> | null;
   /**
@@ -34,6 +49,8 @@ type AgentChatRuntime = {
    * transcript's durable copy lives on the server.
    */
   evictChat: (sessionId: string) => void;
+  /** Disposes every runtime when the authenticated app root unmounts. */
+  dispose: () => void;
 };
 
 const AgentChatRuntimeContext = createContext<AgentChatRuntime | null>(null);
@@ -48,62 +65,144 @@ const AgentChatRuntimeContext = createContext<AgentChatRuntime | null>(null);
  *
  * A chat is created the first time a session's surface binds to it — seeded
  * from the Relay-fetched transcript — and stays resident until the session is
- * deleted, so requests continue while the visible surface moves between
- * layouts and unsent local state (e.g. an unsent branch) is not lost when the
- * user switches sessions.
+ * released. A short linger keeps requests and unsent state alive while the
+ * visible surface moves between layouts, after which the detached server turn
+ * remains recoverable through the session event stream.
  */
 export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
   const store = useAgentStore();
+  const disposeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [runtime] = useState<AgentChatRuntime>(() => {
     const chatRegistry = new Map<
       string,
       {
         chatApiUrl: string;
         chat: Chat<AgentUIMessage>;
+        clientId: string;
+        eventsBridge: SessionEventsBridge;
+        refCount: number;
+        lingerTimer: ReturnType<typeof setTimeout> | null;
         unsubscribe: () => void;
       }
     >();
 
+    const destroyEntry = (sessionId: string) => {
+      const entry = chatRegistry.get(sessionId);
+      if (!entry) {
+        return;
+      }
+      if (entry.lingerTimer != null) {
+        clearTimeout(entry.lingerTimer);
+      }
+      entry.unsubscribe();
+      entry.eventsBridge.dispose();
+      chatRegistry.delete(sessionId);
+      store.getState().setSessionChatStatus(sessionId, "ready");
+    };
+
     return {
-      getOrCreateChat: ({ sessionId, chatApiUrl, createChat }) => {
+      getOrCreateSessionRuntime: ({
+        sessionId,
+        chatApiUrl,
+        eventsApiUrl,
+        createChat,
+      }) => {
         const existingEntry = chatRegistry.get(sessionId);
         if (existingEntry && existingEntry.chatApiUrl === chatApiUrl) {
-          return existingEntry.chat;
+          return existingEntry;
         }
 
         // A model/transport swap replaces the runtime for this session. We do
         // not keep multiple chat variants per session alive; the replacement
         // inherits the previous instance's messages.
         if (existingEntry) {
-          existingEntry.unsubscribe();
+          destroyEntry(sessionId);
         }
 
-        const chat = createChat(existingEntry?.chat.messages ?? null);
+        const clientId = crypto.randomUUID();
+        const eventsBridge = new SessionEventsBridge({
+          sessionId,
+          eventsApiUrl,
+          clientId,
+          agentStore: store,
+        });
+        const chat = createChat({
+          previousMessages: existingEntry?.chat.messages ?? null,
+          clientId,
+          eventsBridge,
+        });
         // Mirror transient AI SDK status into the store so other surfaces
         // (session list, FAB) can react without holding a direct reference to
         // the runtime instance.
         const unsubscribe = chat["~registerStatusCallback"](() => {
           store.getState().setSessionChatStatus(sessionId, chat.status);
         });
-        chatRegistry.set(sessionId, { chatApiUrl, chat, unsubscribe });
+        const entry = {
+          chatApiUrl,
+          chat,
+          clientId,
+          eventsBridge,
+          refCount: 0,
+          lingerTimer: null,
+          unsubscribe,
+        };
+        chatRegistry.set(sessionId, entry);
         // Defer initial status sync to avoid updating state during render,
         // which triggers React warnings and can break component lifecycles.
         queueMicrotask(() => {
           store.getState().setSessionChatStatus(sessionId, chat.status);
         });
-        return chat;
+        return entry;
       },
-      getChat: (sessionId) => chatRegistry.get(sessionId)?.chat ?? null,
-      evictChat: (sessionId) => {
+      acquireSession: (sessionId) => {
         const entry = chatRegistry.get(sessionId);
         if (!entry) {
           return;
         }
-        entry.unsubscribe();
-        chatRegistry.delete(sessionId);
+        entry.refCount += 1;
+        if (entry.lingerTimer != null) {
+          clearTimeout(entry.lingerTimer);
+          entry.lingerTimer = null;
+        }
+        entry.eventsBridge.start();
+      },
+      releaseSession: (sessionId) => {
+        const entry = chatRegistry.get(sessionId);
+        if (!entry) {
+          return;
+        }
+        entry.refCount = Math.max(0, entry.refCount - 1);
+        if (entry.refCount > 0 || entry.lingerTimer != null) {
+          return;
+        }
+        entry.lingerTimer = setTimeout(() => {
+          const currentEntry = chatRegistry.get(sessionId);
+          if (currentEntry === entry && entry.refCount === 0) {
+            destroyEntry(sessionId);
+          }
+        }, 30_000);
+      },
+      getChat: (sessionId) => chatRegistry.get(sessionId)?.chat ?? null,
+      evictChat: (sessionId) => {
+        destroyEntry(sessionId);
+      },
+      dispose: () => {
+        for (const sessionId of chatRegistry.keys()) {
+          destroyEntry(sessionId);
+        }
       },
     };
   });
+
+  useEffect(() => {
+    if (disposeTimerRef.current != null) {
+      clearTimeout(disposeTimerRef.current);
+      disposeTimerRef.current = null;
+    }
+    return () => {
+      disposeTimerRef.current = setTimeout(() => runtime.dispose(), 0);
+    };
+  }, [runtime]);
 
   return (
     <AgentChatRuntimeContext.Provider value={runtime}>

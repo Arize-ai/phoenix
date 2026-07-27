@@ -302,6 +302,16 @@ const chatCSS = css`
     margin-bottom: var(--global-dimension-size-100);
   }
 
+  .chat__bus-alert {
+    margin-bottom: var(--global-dimension-size-100);
+  }
+
+  .chat__bus-status {
+    margin-bottom: var(--global-dimension-size-50);
+    color: var(--global-text-color-300);
+    font-size: var(--global-font-size-xs);
+  }
+
   /* Elicitation-style surfaces (consent gate, rewind confirmation, question
      carousel) can be taller than the panel; let the input region shrink and
      scroll internally instead of clipping at the panel edge. */
@@ -452,6 +462,9 @@ export function ChatView({
   clearOperationError,
   rewindToMessage,
   forkFromMessage,
+  isSessionBusy = false,
+  isBusyFromElsewhere = false,
+  isDegraded = false,
   modelMenuValue,
   onModelChange,
   children,
@@ -484,6 +497,12 @@ export function ChatView({
   rewindToMessage?: (messageId: string) => Promise<string | null>;
   /** Branches a new session from a message; absent hides the branch control. */
   forkFromMessage?: (messageId: string) => Promise<void>;
+  /** Whether local chat state or the server bus currently owns the session. */
+  isSessionBusy?: boolean;
+  /** Whether another browser/client owns the active turn. */
+  isBusyFromElsewhere?: boolean;
+  /** Whether live replay is unavailable because another server owns the turn. */
+  isDegraded?: boolean;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
@@ -546,7 +565,7 @@ export function ChatView({
   // the previous session) as soon as the view mounts. Consuming is atomic, so
   // re-runs and concurrent views are no-ops after the first send.
   useEffect(() => {
-    if (!sessionId) {
+    if (!sessionId || isSessionBusy) {
       return;
     }
     const pending = store.getState().consumePendingMessage(sessionId);
@@ -559,7 +578,7 @@ export function ChatView({
         ? { body: { requestedSkills: pending.requestedSkills } }
         : undefined
     );
-  }, [sessionId, sendMessage, store]);
+  }, [isSessionBusy, sessionId, sendMessage, store]);
 
   const showsEmptyState = messages.length === 0;
   const chatClassName = showsEmptyState ? "chat--empty" : "";
@@ -570,12 +589,22 @@ export function ChatView({
   const isSendDisabledForMissingCredentials =
     !isWaitingForAssistant && Boolean(missingCredentialsProvider);
   const isSubmitDisabled = isSendDisabledForMissingCredentials || isCompacting;
+  const inputStatus =
+    isBusyFromElsewhere && status !== "submitted" && status !== "streaming"
+      ? "submitted"
+      : status;
+  const composerPlaceholder = isDegraded
+    ? "Response is running on another server. Waiting for transcript…"
+    : isBusyFromElsewhere
+      ? "Responding in another window…"
+      : "Send a message...";
   const showThinkingIndicator = shouldShowThinkingIndicator({
     status,
     messages,
   });
   const latestMessage = messages.at(-1);
   const shouldShowInterruptedMessage =
+    !isSessionBusy &&
     status === "ready" &&
     !error &&
     latestMessage?.role === "user" &&
@@ -636,7 +665,8 @@ export function ChatView({
 
   // Rewind/branch changes finalized history, so these actions are only offered
   // once the chat has settled — never mid-request.
-  const hasChatSettled = status === "ready" || status === "error";
+  const hasChatSettled =
+    !isSessionBusy && (status === "ready" || status === "error");
 
   const onRewindRequest = useMemo<MessageRewindRequest | undefined>(() => {
     if (!hasChatSettled || !rewindToMessage) {
@@ -832,7 +862,7 @@ export function ChatView({
                     onRewind={onRewindRequest}
                   />
                 ) : null}
-                {error && (
+                {error && !isSessionBusy && (
                   <ChatErrorMessage
                     error={error}
                     latestUserMessageId={getLatestMessageId({
@@ -851,6 +881,19 @@ export function ChatView({
           </div>
         </ChatScrollContext.Provider>
         <div className="chat__input">
+          {isDegraded && isSessionBusy ? (
+            <div className="chat__bus-alert">
+              <Alert variant="info" title="Live updates unavailable">
+                This response is running on another server. The transcript will
+                refresh automatically when it finishes.
+              </Alert>
+            </div>
+          ) : null}
+          {isBusyFromElsewhere && !isDegraded ? (
+            <div className="chat__bus-status" role="status" aria-live="polite">
+              Responding in another window…
+            </div>
+          ) : null}
           {(operationError || (!rewindRequest && historyActionError)) && (
             <div className="chat__operation-error" role="alert">
               <Alert
@@ -866,11 +909,11 @@ export function ChatView({
               </Alert>
             </div>
           )}
-          {!hasAcknowledgedConsent ? (
+          {!hasAcknowledgedConsent && !isBusyFromElsewhere ? (
             <PromptInput status={status} isDisabled mode="elicitation">
               <AgentConsentGate />
             </PromptInput>
-          ) : rewindRequest ? (
+          ) : rewindRequest && !isBusyFromElsewhere ? (
             <PromptInput status={status} isDisabled mode="elicitation">
               <MessageRewindConfirmation
                 mode={rewindRequest.mode}
@@ -884,7 +927,7 @@ export function ChatView({
                 }}
               />
             </PromptInput>
-          ) : pendingElicitation ? (
+          ) : pendingElicitation && !isBusyFromElsewhere ? (
             <PromptInput status={status} isDisabled mode="elicitation">
               <ElicitationCarousel
                 key={pendingElicitation.toolCallId}
@@ -916,7 +959,7 @@ export function ChatView({
             </PromptInput>
           ) : (
             <AgentChatInput
-              status={status}
+              status={inputStatus}
               value={draftInput}
               onValueChange={setSessionDraftInput}
               onSubmit={({ text, requestedSkills, commandNames }) => {
@@ -950,8 +993,9 @@ export function ChatView({
               textareaRef={textareaRef}
               modelMenuValue={modelMenuValue}
               onModelChange={onModelChange}
-              isInputDisabled={isCompacting}
-              isSubmitDisabled={isSubmitDisabled}
+              isInputDisabled={isCompacting || isBusyFromElsewhere}
+              isSubmitDisabled={isBusyFromElsewhere ? false : isSubmitDisabled}
+              placeholder={composerPlaceholder}
               onStop={() => {
                 void stop();
               }}

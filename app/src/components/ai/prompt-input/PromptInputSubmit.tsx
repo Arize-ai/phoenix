@@ -12,6 +12,7 @@ import type { PromptInputSubmitProps } from "./types";
  * - **submitted / streaming** — stop icon; pressing stops generation.
  *
  * Automatically disables when `status` is `"ready"` and the textarea is empty.
+ * A disabled composer keeps the stop action available while generation is active.
  */
 export function PromptInputSubmit({
   ref,
@@ -46,7 +47,7 @@ export function PromptInputSubmit({
       ref={ref}
       css={promptInputSubmitCSS}
       className={className}
-      isDisabled={computedDisabled || context.isDisabled}
+      isDisabled={computedDisabled || (context.isDisabled && !isStreaming)}
       onPress={handlePress}
       aria-label={computedAriaLabel}
     >

@@ -5,13 +5,16 @@ import {
 } from "@arizeai/phoenix-client";
 import {
   DefaultChatTransport,
+  parseJsonEventStream,
   readUIMessageStream,
   type UIMessageChunk,
+  uiMessageChunkSchema,
 } from "ai";
 
 import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
 import { createPhoenixClient } from "../client";
 import type { PhoenixConfig } from "../config";
+import { parsePxiBusyError } from "./errors";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
   PxiChatClient,
@@ -21,13 +24,24 @@ import type {
   PxiRuntimeOptions,
   PxiSession,
   PxiSessionClient,
+  PxiSessionEventHandlers,
+  PxiSessionState,
   PxiSessionSummary,
+  PxiStopSessionResult,
   PxiTransport,
+  PxiTurnStarted,
 } from "./types";
+
+export { PxiBusyError } from "./errors";
 
 const AGENT_SESSION_CHAT_PATH =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof pathsV1;
+const AGENT_SESSION_EVENTS_PATH =
+  "/agents/{agent_id}/sessions/{session_id}/events" satisfies keyof pathsV1;
+const AGENT_SESSION_STOP_PATH =
+  "/agents/{agent_id}/sessions/{session_id}/stop" satisfies keyof pathsV1;
 const SERVER_AGENT_ID = "server";
+const PXI_CLIENT_ID = crypto.randomUUID();
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
@@ -56,6 +70,21 @@ function toLocalISOWithOffset(date: Date): string {
   return `${localIso}${sign}${offsetHours}:${offsetRemainderMinutes}`;
 }
 
+function buildAgentSessionUrl({
+  endpoint,
+  agentSessionId,
+  path,
+}: {
+  endpoint: string;
+  agentSessionId: string;
+  path: string;
+}): string {
+  const resolvedPath = path
+    .replace("{agent_id}", SERVER_AGENT_ID)
+    .replace("{session_id}", encodeURIComponent(agentSessionId));
+  return `${trimTrailingSlash(endpoint)}${resolvedPath}`;
+}
+
 /** Build the agent-session chat URL. */
 export function buildAgentSessionChatUrl({
   endpoint,
@@ -64,11 +93,16 @@ export function buildAgentSessionChatUrl({
   endpoint: string;
   agentSessionId: string;
 }): string {
-  const path = AGENT_SESSION_CHAT_PATH.replace(
-    "{agent_id}",
-    SERVER_AGENT_ID
-  ).replace("{session_id}", encodeURIComponent(agentSessionId));
-  return `${trimTrailingSlash(endpoint)}${path}`;
+  return buildAgentSessionUrl({
+    endpoint,
+    agentSessionId,
+    path: AGENT_SESSION_CHAT_PATH,
+  });
+}
+
+/** Return the process-stable identity sent with every PXI turn. */
+export function getPxiClientId(): string {
+  return PXI_CLIENT_ID;
 }
 
 /** Pull a printable error message out of an error response body, if any. */
@@ -82,6 +116,320 @@ async function readErrorDetail({
   } catch {
     return null;
   }
+}
+
+function getPxiFetch({
+  config,
+  fetchImpl,
+}: {
+  config: PhoenixConfig;
+  fetchImpl?: typeof globalThis.fetch;
+}): typeof globalThis.fetch {
+  return (
+    fetchImpl ??
+    (hasOAuthCredentials(config)
+      ? createOAuthFetch({ config })
+      : (input, init) => globalThis.fetch(input, init))
+  );
+}
+
+function withBusyErrorParsing({
+  fetchImpl,
+}: {
+  fetchImpl: typeof globalThis.fetch;
+}): typeof globalThis.fetch {
+  return async (input, init) => {
+    const response = await fetchImpl(input, init);
+    const busyError = await parsePxiBusyError({ response });
+    if (busyError) {
+      throw busyError;
+    }
+    return response;
+  };
+}
+
+function isSessionStateChunk(chunk: UIMessageChunk): chunk is UIMessageChunk & {
+  type: "data-session-state";
+  data: PxiSessionState;
+} {
+  if (chunk.type !== "data-session-state") {
+    return false;
+  }
+  const data = chunk.data;
+  return (
+    data !== null &&
+    typeof data === "object" &&
+    "state" in data &&
+    typeof data.state === "string" &&
+    "ownedByThisInstance" in data &&
+    typeof data.ownedByThisInstance === "boolean" &&
+    "streamAvailable" in data &&
+    typeof data.streamAvailable === "boolean"
+  );
+}
+
+function isTurnStartedChunk(chunk: UIMessageChunk): chunk is UIMessageChunk & {
+  type: "data-turn-started";
+  data: PxiTurnStarted;
+} {
+  if (chunk.type !== "data-turn-started") {
+    return false;
+  }
+  const data = chunk.data;
+  if (!data || typeof data !== "object") {
+    return false;
+  }
+  const message = "message" in data ? data.message : null;
+  return (
+    "turnId" in data &&
+    typeof data.turnId === "string" &&
+    message !== null &&
+    typeof message === "object" &&
+    "id" in message &&
+    typeof message.id === "string" &&
+    "role" in message &&
+    typeof message.role === "string" &&
+    "parts" in message &&
+    Array.isArray(message.parts)
+  );
+}
+
+type SubscribeToSessionEventsOptions = {
+  config: PhoenixConfig;
+  agentSessionId: string;
+  abortSignal?: AbortSignal;
+  fetchImpl?: typeof globalThis.fetch;
+} & PxiSessionEventHandlers;
+
+async function subscribeToSessionEventsOnce({
+  config,
+  agentSessionId,
+  abortSignal,
+  fetchImpl,
+  onSessionState,
+  onTurnStarted,
+  onAssistantMessage,
+  onSessionTitle,
+  onError,
+}: SubscribeToSessionEventsOptions): Promise<void> {
+  const endpoint = config.endpoint;
+  if (!endpoint) {
+    throw new Error("Phoenix endpoint not configured.");
+  }
+  const response = await getPxiFetch({ config, fetchImpl })(
+    buildAgentSessionUrl({
+      endpoint,
+      agentSessionId,
+      path: AGENT_SESSION_EVENTS_PATH,
+    }),
+    {
+      method: "GET",
+      headers: {
+        Accept: "text/event-stream",
+        ...buildPxiHeaders({ config }),
+      },
+      signal: abortSignal,
+    }
+  );
+  if (!response.ok) {
+    const detail = await readErrorDetail({ response });
+    throw new Error(
+      `Could not follow the PXI session: HTTP ${response.status} ${response.statusText}.${detail ? ` ${detail}` : ""}`
+    );
+  }
+  if (!response.body) {
+    throw new Error(
+      "Could not follow the PXI session because the response body is empty."
+    );
+  }
+
+  let currentSessionState: PxiSessionState | undefined;
+  let activeTurn:
+    | {
+        turnId: string;
+        writer: WritableStreamDefaultWriter<UIMessageChunk>;
+        completion: Promise<void>;
+      }
+    | undefined;
+
+  const closeActiveTurn = async () => {
+    const turn = activeTurn;
+    activeTurn = undefined;
+    if (!turn) {
+      return;
+    }
+    try {
+      await turn.writer.close();
+      await turn.completion;
+    } catch (error) {
+      if (!abortSignal?.aborted) {
+        onError?.(error);
+      }
+    }
+  };
+
+  try {
+    const parsedEvents = parseJsonEventStream({
+      stream: response.body,
+      schema: uiMessageChunkSchema,
+    });
+    for await (const parsedEvent of parsedEvents) {
+      if (!parsedEvent.success) {
+        throw parsedEvent.error;
+      }
+      const chunk = parsedEvent.value;
+      if (isSessionStateChunk(chunk)) {
+        currentSessionState = chunk.data;
+        if (
+          chunk.data.state === "idle" ||
+          chunk.data.state === "awaiting_client_tool"
+        ) {
+          await closeActiveTurn();
+        }
+        onSessionState(chunk.data);
+        continue;
+      }
+      if (isTurnStartedChunk(chunk)) {
+        await closeActiveTurn();
+        const isTurnInFlight =
+          currentSessionState?.state === "streaming" ||
+          currentSessionState?.state === "persisting";
+        if (!isTurnInFlight || currentSessionState?.streamAvailable === false) {
+          continue;
+        }
+        onTurnStarted(chunk.data);
+        const turnStream = new TransformStream<
+          UIMessageChunk,
+          UIMessageChunk
+        >();
+        const turnId = chunk.data.turnId;
+        const completion = streamAssistantMessage({
+          stream: turnStream.readable,
+          onAssistantMessage: (message) =>
+            onAssistantMessage({ turnId, message }),
+          onSessionTitle,
+        })
+          .then(() => undefined)
+          .catch((error: unknown) => {
+            if (!abortSignal?.aborted) {
+              onError?.(error);
+            }
+          });
+        activeTurn = {
+          turnId,
+          writer: turnStream.writable.getWriter(),
+          completion,
+        };
+        continue;
+      }
+      if (activeTurn) {
+        await activeTurn.writer.write(chunk);
+      }
+    }
+  } finally {
+    await closeActiveTurn();
+  }
+}
+
+/**
+ * Subscribe to current and future turns for a session. Session-control chunks
+ * are demultiplexed from the AI SDK protocol, while each turn's content is fed
+ * through the same assistant-message accumulator used by the POST response.
+ * Full-replay reconnects make transient connection failures self-healing.
+ */
+export async function subscribeToSessionEvents(
+  options: SubscribeToSessionEventsOptions
+): Promise<void> {
+  let reconnectDelayMs = 500;
+  while (!options.abortSignal?.aborted) {
+    try {
+      await subscribeToSessionEventsOnce(options);
+      if (options.abortSignal?.aborted) {
+        return;
+      }
+      throw new Error("PXI session event stream ended unexpectedly.");
+    } catch (error) {
+      if (options.abortSignal?.aborted) {
+        return;
+      }
+      options.onError?.(error);
+      await waitForAbortableDelay({
+        delayMs: reconnectDelayMs,
+        signal: options.abortSignal,
+      });
+      reconnectDelayMs = Math.min(reconnectDelayMs * 2, 8_000);
+    }
+  }
+}
+
+async function waitForAbortableDelay({
+  delayMs,
+  signal,
+}: {
+  delayMs: number;
+  signal?: AbortSignal;
+}): Promise<void> {
+  if (signal?.aborted) {
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    const handleAbort = () => {
+      clearTimeout(timeoutId);
+      resolve();
+    };
+    const timeoutId = setTimeout(() => {
+      signal?.removeEventListener("abort", handleAbort);
+      resolve();
+    }, delayMs);
+    signal?.addEventListener("abort", handleAbort, { once: true });
+  });
+}
+
+/** Request server-side interruption of a PXI session turn. */
+export async function stopSession({
+  config,
+  agentSessionId,
+  turnId,
+  fetchImpl,
+}: {
+  config: PhoenixConfig;
+  agentSessionId: string;
+  turnId?: string;
+  fetchImpl?: typeof globalThis.fetch;
+}): Promise<PxiStopSessionResult> {
+  const endpoint = config.endpoint;
+  if (!endpoint) {
+    throw new Error("Phoenix endpoint not configured.");
+  }
+  const response = await getPxiFetch({ config, fetchImpl })(
+    buildAgentSessionUrl({
+      endpoint,
+      agentSessionId,
+      path: AGENT_SESSION_STOP_PATH,
+    }),
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildPxiHeaders({ config }),
+      },
+      body: JSON.stringify(turnId ? { turnId } : {}),
+    }
+  );
+  const busyError = await parsePxiBusyError({ response });
+  if (busyError) {
+    throw busyError;
+  }
+  if (!response.ok) {
+    const detail = await readErrorDetail({ response });
+    throw new Error(
+      `Could not stop the PXI session: HTTP ${response.status} ${response.statusText}.${detail ? ` ${detail}` : ""}`
+    );
+  }
+  const payload = (await response.json()) as {
+    data: PxiStopSessionResult;
+  };
+  return payload.data;
 }
 
 /** Create an `AgentSession`. */
@@ -133,11 +481,7 @@ export function createPxiSessionClient({
   config: PhoenixConfig;
   fetch?: typeof globalThis.fetch;
 }): PxiSessionClient {
-  const fetchImpl =
-    fetchOverride ??
-    (hasOAuthCredentials(config)
-      ? createOAuthFetch({ config })
-      : globalThis.fetch);
+  const fetchImpl = getPxiFetch({ config, fetchImpl: fetchOverride });
   return {
     createSession: ({ temporary }) =>
       createAgentSession({ config, temporary, fetchImpl }),
@@ -190,6 +534,20 @@ export function createPxiSessionClient({
         messages: session.messages as PxiMessage[],
       };
     },
+    subscribeToSessionEvents: ({ sessionId, ...handlers }) =>
+      subscribeToSessionEvents({
+        config,
+        agentSessionId: sessionId,
+        fetchImpl,
+        ...handlers,
+      }),
+    stopSession: ({ sessionId, turnId }) =>
+      stopSession({
+        config,
+        agentSessionId: sessionId,
+        turnId,
+        fetchImpl,
+      }),
   };
 }
 
@@ -268,6 +626,7 @@ function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
       enableGraphqlMutations: options.enableGraphqlMutations,
     }),
     model: options.modelSelection,
+    clientId: PXI_CLIENT_ID,
   };
 }
 
@@ -304,11 +663,9 @@ export function createServerAgentTransport({
     throw new Error("Phoenix endpoint not configured.");
   }
 
-  const transportFetch =
-    fetch ??
-    (hasOAuthCredentials(options.config)
-      ? createOAuthFetch({ config: options.config })
-      : undefined);
+  const transportFetch = withBusyErrorParsing({
+    fetchImpl: getPxiFetch({ config: options.config, fetchImpl: fetch }),
+  });
 
   // The server session is created lazily on the first send and reused for the
   // rest of the chat. A failed creation clears the cached promise so the next

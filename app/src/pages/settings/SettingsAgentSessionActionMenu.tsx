@@ -32,7 +32,10 @@ import {
 import { EditAgentSessionTitleDialog } from "@phoenix/components/agent/EditAgentSessionTitleDialog";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
-import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
+import {
+  DRAFT_SESSION_ID,
+  selectIsSessionBusy,
+} from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SettingsAgentSessionActionMenuDeleteMutation } from "./__generated__/SettingsAgentSessionActionMenuDeleteMutation.graphql";
@@ -75,15 +78,12 @@ export function SettingsAgentSessionActionMenu({
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const chatStatus = useAgentContext(
-    (state) => state.chatStatusBySessionId[sessionId]
-  );
+  const isSessionBusy = useAgentContext(selectIsSessionBusy(sessionId));
   const setActiveSession = useAgentContext((state) => state.setActiveSession);
   const clearSessionEphemeralState = useAgentContext(
     (state) => state.clearSessionEphemeralState
   );
-  const isDeleteDisabled =
-    chatStatus === "submitted" || chatStatus === "streaming";
+  const isDeleteDisabled = isSessionBusy;
   const connectionIds = [
     ConnectionHandler.getConnectionID(
       "client:root",

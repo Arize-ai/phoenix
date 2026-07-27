@@ -18,6 +18,7 @@ import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
+import { selectIsSessionBusy } from "@phoenix/store/agentStore";
 
 import { AgentFabPositioner } from "./AgentFabPositioner";
 import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
@@ -375,7 +376,8 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const hasOpenModal = activeModalPortalContainer !== null;
   const isResponsePending = useAgentContext((state) =>
     activeSessionId
-      ? (state.isResponsePendingBySessionId[activeSessionId] ?? false)
+      ? selectIsSessionBusy(activeSessionId)(state) ||
+        (state.isResponsePendingBySessionId[activeSessionId] ?? false)
       : false
   );
 

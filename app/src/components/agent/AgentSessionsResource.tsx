@@ -23,8 +23,11 @@ import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
-import type { AgentPosition } from "@phoenix/store/agentStore";
-import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
+import {
+  DRAFT_SESSION_ID,
+  isSessionRunBusy,
+  type AgentPosition,
+} from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { agentSessionRelaySessionQuery } from "./__generated__/agentSessionRelaySessionQuery.graphql";
@@ -140,6 +143,9 @@ function AgentSessionsContent({
   const chatStatusBySessionId = useAgentContext(
     (state) => state.chatStatusBySessionId
   );
+  const sessionBusStateBySessionId = useAgentContext(
+    (state) => state.sessionBusStateBySessionId
+  );
   const setActiveSession = useAgentContext((state) => state.setActiveSession);
   const clearSessionEphemeralState = useAgentContext(
     (state) => state.clearSessionEphemeralState
@@ -170,7 +176,8 @@ function AgentSessionsContent({
       createdAt: Date.parse(node.createdAt as string),
       isDeleteDisabled:
         chatStatusBySessionId[node.id] === "submitted" ||
-        chatStatusBySessionId[node.id] === "streaming",
+        chatStatusBySessionId[node.id] === "streaming" ||
+        isSessionRunBusy(sessionBusStateBySessionId[node.id]?.state),
     })
   );
   const draftSession: AgentSessionListItem | null =
@@ -426,6 +433,9 @@ function AgentChatController({
     clearOperationError,
     rewindToMessage,
     forkFromMessage,
+    isSessionBusy,
+    isBusyFromElsewhere,
+    isDegraded,
   } = useAgentChat({
     sessionId,
     initialMessages,
@@ -450,6 +460,9 @@ function AgentChatController({
       clearOperationError={clearOperationError}
       rewindToMessage={rewindToMessage}
       forkFromMessage={forkFromMessage}
+      isSessionBusy={isSessionBusy}
+      isBusyFromElsewhere={isBusyFromElsewhere}
+      isDegraded={isDegraded}
       modelMenuValue={menuValue}
       onModelChange={handleModelChange}
       autoFocusInput
