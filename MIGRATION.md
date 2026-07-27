@@ -52,14 +52,8 @@ Operators who do not want the MCP surface exposed can disable it with:
 By default the `/mcp` endpoint now presents FastMCP's **code-mode** tool surface: instead of the `/v1`-derived tool
 list, clients see discovery meta-tools (`search`, `get_schema`, `tags`, `list_tools`) and an `execute` tool that runs
 model-written Python in a `pydantic-monty` sandbox where `call_tool(name, params)` is the only function in scope. The
-`execute` tool can only invoke tools the caller is already authorized for.
-
-That sandbox runs in worker subprocesses rather than in the Phoenix process, because guest code can fault the native
-interpreter in ways no `try`/`except` can catch — in-process, one `execute` call could terminate the server. Phoenix
-starts these workers on the first `execute` call (none are started if the tool is never used) and stops them on
-shutdown. Each block is bounded by 30s of sandbox execution, 100 MB of memory, at most 50 `call_tool` invocations, and
-a 180s ceiling on the whole call including the time its tool calls take; at most 4 `execute` calls run concurrently.
-To restore the previous group-gated progressive-disclosure tool list instead, set:
+`execute` tool can only invoke tools the caller is already authorized for, and runs it in sandbox worker subprocesses
+that Phoenix starts on first use. To restore the previous group-gated progressive-disclosure tool list instead, set:
 
 - `PHOENIX_ENABLE_MCP_CODE_MODE` (default `true`). When set to `false`, `/mcp` presents the group-gated tool surface. Has no
   effect unless `PHOENIX_ENABLE_MCP_SERVER` is also set.

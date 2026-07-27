@@ -428,15 +428,7 @@ exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-p
 override-dependencies = [
   "openai>=2.30.0",
   "python-dotenv>=1.1.0",
-  # fastmcp-slim[code-mode] hard-pins pydantic-monty==0.0.17, which runs the code-mode
-  # sandbox inside the Phoenix process. Guest code can fault the native interpreter
-  # (stack overflow, allocator abort) with a signal no try/except on either side of the
-  # FFI boundary can catch, so one `execute` call kills the whole server. 0.0.19 moves
-  # execution into worker subprocesses: a fault kills only its worker, surfaces as a
-  # catchable MontyCrashedError, and the worker is replaced. Phoenix drives that pool
-  # through its own provider (`phoenix.server.mcp_code_mode`) because 0.0.19 replaced the
-  # in-process entry point fastmcp still calls. Override fastmcp's exact pin until a
-  # fastmcp-slim release adopts 0.0.19.
+  # Override fastmcp-slim[code-mode]'s ==0.0.17 pin: 0.0.19 sandboxes in subprocesses, so guest code cannot crash the server.
   "pydantic-monty==0.0.19",
 ]
 

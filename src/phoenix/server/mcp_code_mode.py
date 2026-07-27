@@ -1,38 +1,3 @@
-"""Out-of-process sandbox for the MCP code-mode ``execute`` tool.
-
-``execute`` runs model-written Python with ``call_tool`` in scope. That code is
-untrusted input, and the interpreter running it is a native extension: a guest
-program can drive the Rust interpreter into a native stack overflow or an
-allocator abort. Those faults are signals, not exceptions — no ``try``/``except``
-on either side of the FFI boundary can catch them, so an interpreter embedded in
-the Phoenix process takes the whole server down with it, dropping every connected
-user's requests, not just the caller's.
-
-The sandbox therefore never runs in this process. Guest code executes in pool
-worker subprocesses; a worker that dies takes only itself down, surfaces as a
-catchable :class:`MontyCrashedError`, and is replaced transparently. Process
-isolation is what makes the crash class containable at all: it bounds faults
-nobody has enumerated yet, which no in-process check can do.
-
-This module adapts that pool to the ``SandboxProvider`` interface FastMCP's
-``CodeMode`` transform calls. The interface is a single ``run`` coroutine with no
-setup or teardown hook, while a worker pool is a long-lived resource that must
-outlive any one call and be shut down with the server — so the provider owns the
-pool's lifecycle itself: started on first use, closed by :meth:`aclose`.
-
-Two independent bounds apply to each ``execute``, and they measure different
-things:
-
-- ``limits["max_duration_secs"]`` bounds *guest* execution and raises a catchable
-  error inside the session. It does not advance while the guest is blocked
-  awaiting a host callback, so it does not bound a block that spends its time in
-  ``call_tool`` round-trips.
-- ``request_timeout`` bounds the *whole turn*, host callbacks included, by killing
-  the worker. It is the only wall-clock bound on a block that mostly waits on
-  tools, so it is set to cover a full chain of ``call_tool`` calls rather than to
-  express a latency target.
-"""
-
 from __future__ import annotations
 
 import asyncio
