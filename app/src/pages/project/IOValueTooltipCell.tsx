@@ -239,7 +239,10 @@ function IOValueTooltipCell({
       >
         <span>{previewText}</span>
       </TriggerWrap>
-      <RichTooltip placement="bottom start" width="auto" css={tooltipCSS}>
+      {/* Side placement keeps the tooltip out of the column's vertical mouse
+          path so users can scan values by moving down the column; react-aria
+          flips it to the other side when there is no room. */}
+      <RichTooltip placement="end top" offset={3} width="auto" css={tooltipCSS}>
         <div css={tooltipContentCSS}>
           <div css={[scrollFadeCSS, scrollFadeTopCSS]} aria-hidden />
           <ErrorBoundary fallback={TextErrorBoundaryFallback}>

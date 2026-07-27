@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d5e580830033c0de80bbdf145da7c210>>
+ * @generated SignedSource<<76913078a9c1126585e8d4d7085056f8>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ReaderFragment } from 'relay-runtime';
 export type AnnotationSource = "API" | "APP";
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
-export type SpanFeedback_annotations$data = {
+export type SpanAnnotationsTable_annotations$data = {
   readonly id: string;
   readonly spanAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
@@ -31,11 +31,11 @@ export type SpanFeedback_annotations$data = {
       readonly username: string;
     } | null;
   }>;
-  readonly " $fragmentType": "SpanFeedback_annotations";
+  readonly " $fragmentType": "SpanAnnotationsTable_annotations";
 };
-export type SpanFeedback_annotations$key = {
-  readonly " $data"?: SpanFeedback_annotations$data;
-  readonly " $fragmentSpreads": FragmentRefs<"SpanFeedback_annotations">;
+export type SpanAnnotationsTable_annotations$key = {
+  readonly " $data"?: SpanAnnotationsTable_annotations$data;
+  readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationsTable_annotations">;
 };
 
 const node: ReaderFragment = (function(){
@@ -50,7 +50,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "SpanFeedback_annotations",
+  "name": "SpanAnnotationsTable_annotations",
   "selections": [
     (v0/*:: as any*/),
     {
@@ -167,6 +167,6 @@ return {
 };
 })();
 
-(node as any).hash = "9a73b57370acadba7a0398c1439e9893";
+(node as any).hash = "eee0b3448a076fdeb8e3731174f59cf2";
 
 export default node;

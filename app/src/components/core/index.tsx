@@ -46,6 +46,7 @@ export * from "./switch";
 export * from "./menu";
 export * from "./dropzone";
 export * from "./utility/LineClamp";
+export * from "./utility/OverflowRow";
 export * from "./utility/Truncate";
 export * from "./datetime/Calendar";
 export * from "./datetime/CalendarContent";

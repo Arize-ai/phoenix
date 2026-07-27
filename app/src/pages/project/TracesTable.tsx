@@ -33,6 +33,7 @@ import {
   Icon,
   Icons,
   Link,
+  OverflowRow,
   Text,
   View,
 } from "@phoenix/components";
@@ -47,6 +48,8 @@ import {
   ColumnOrderingProvider,
   CopyableTextCell,
   createRowSelectionColumn,
+  RowExpandToggleButton,
+  useTableRowsExpanded,
   useColumnOrder,
 } from "@phoenix/components/table";
 import {
@@ -54,8 +57,9 @@ import {
   CHECKBOX_COLUMN_PINNING,
 } from "@phoenix/components/table/constants";
 import {
+  expandableSelectableTableCSS,
+  TABLE_DATA_CELL_CLASS,
   getCommonPinningStyles,
-  selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -95,6 +99,7 @@ import { spansTableCSS } from "./styles";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
 import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
 import {
+  ANNOTATION_COLUMN_SIZING,
   DEFAULT_SORT,
   getGqlSort,
   makeAnnotationColumnId,
@@ -163,15 +168,11 @@ const TableBody = <
               return (
                 <td
                   key={cell.id}
+                  className={TABLE_DATA_CELL_CLASS}
                   style={{
                     ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                    // prevent all wrapping, just show an ellipsis and let users expand if necessary
-                    textWrap: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                     userSelect:
                       cell.column.id === CHECKBOX_COLUMN_ID
                         ? "none"
@@ -245,6 +246,11 @@ export function TracesTable(props: TracesTableProps) {
   // still applied. The parent query is intentionally not reloaded on window
   // slides — see the load effect in `ProjectPage` and issue #14216.
   const { timeRangeISOStrings } = useTimeRange();
+  const {
+    isExpanded: areRowsExpanded,
+    setIsExpanded: setAreRowsExpanded,
+    tableProps: rowsExpandedTableProps,
+  } = useTableRowsExpanded();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -373,7 +379,6 @@ export function TracesTable(props: TracesTableProps) {
                         precision
                         hit
                       }
-                      ...TraceHeaderRootSpanAnnotationsFragment
                     }
                   }
                 }
@@ -441,6 +446,9 @@ export function TracesTable(props: TracesTableProps) {
     });
   }, [data]);
   type TableRow = (typeof tableData)[number];
+  // descendant rows do not select the trace fields the column reads
+  type RootSpanTrace =
+    (typeof data.rootSpans.edges)[number]["rootSpan"]["trace"];
   const { selectRow } = useShiftClickRowSelection<TableRow>({
     resetKey: tableData,
   });
@@ -571,6 +579,7 @@ export function TracesTable(props: TracesTableProps) {
         id: "annotations",
         accessorKey: "spanAnnotations",
         enableSorting: false,
+        ...ANNOTATION_COLUMN_SIZING,
         cell: ({ row }) => {
           if (row.original.__additionalRow) {
             return null;
@@ -579,7 +588,7 @@ export function TracesTable(props: TracesTableProps) {
             row.original.spanAnnotations.length === 0 &&
             row.original.documentRetrievalMetrics.length === 0;
           return (
-            <Flex direction="row" gap="size-50" wrap="wrap">
+            <OverflowRow isExpanded={areRowsExpanded}>
               <AnnotationSummaryGroupTokens
                 span={row.original}
                 showFilterActions
@@ -609,7 +618,7 @@ export function TracesTable(props: TracesTableProps) {
                 );
               })}
               {hasNoFeedback ? "--" : null}
-            </Flex>
+            </OverflowRow>
           );
         },
       },
@@ -629,27 +638,24 @@ export function TracesTable(props: TracesTableProps) {
         ),
         id: TRACE_ANNOTATIONS_COLUMN_ID,
         enableSorting: false,
+        ...ANNOTATION_COLUMN_SIZING,
         cell: ({ row }) => {
           if (row.depth !== 0 || row.original.__additionalRow) {
             return null;
           }
           return (
-            <Flex direction="row" gap="size-50" wrap="wrap">
+            <OverflowRow isExpanded={areRowsExpanded}>
               <TraceAnnotationSummaryGroupTokens
-                trace={
-                  row.original.trace as Parameters<
-                    typeof TraceAnnotationSummaryGroupTokens
-                  >[0]["trace"]
-                }
+                trace={row.original.trace as RootSpanTrace}
               />
-            </Flex>
+            </OverflowRow>
           );
         },
       },
       ...dynamicAnnotationColumns,
       ...dynamicTraceAnnotationColumns,
     ],
-    [dynamicAnnotationColumns, dynamicTraceAnnotationColumns]
+    [areRowsExpanded, dynamicAnnotationColumns, dynamicTraceAnnotationColumns]
   );
 
   const columns: ColumnDef<TableRow>[] = useMemo(
@@ -852,6 +858,7 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: "latency",
         accessorKey: "latencyMs",
+        meta: { textAlign: "right" },
         cell: ({ getValue, row }) => {
           const value = getValue();
           if (
@@ -861,13 +868,14 @@ export function TracesTable(props: TracesTableProps) {
           ) {
             return null;
           }
-          return <LatencyText latencyMs={value} />;
+          return <LatencyText latencyMs={value} size="S" />;
         },
       },
       {
         header: "total tokens",
         minSize: 80,
         accessorKey: "cumulativeTokenCountTotal",
+        meta: { textAlign: "right" },
         cell: ({ row, getValue }) => {
           if (row.original.__additionalRow) {
             return null;
@@ -880,6 +888,7 @@ export function TracesTable(props: TracesTableProps) {
             <TraceTokenCount
               tokenCountTotal={value as number}
               nodeId={row.original.trace.id}
+              size="S"
             />
           );
         },
@@ -889,6 +898,7 @@ export function TracesTable(props: TracesTableProps) {
         minSize: 80,
         accessorKey: "trace.costSummary.total.cost",
         id: "cumulativeTokenCostTotal",
+        meta: { textAlign: "right" },
         cell: ({ row, getValue }) => {
           const value = getValue();
           if (value === null || typeof value !== "number") {
@@ -1071,6 +1081,10 @@ export function TracesTable(props: TracesTableProps) {
             <SpanFilterConditionField onValidCondition={setFilterCondition} />
             <TableMetricsChartSelector view="traces" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
+            <RowExpandToggleButton
+              isExpanded={areRowsExpanded}
+              onChange={setAreRowsExpanded}
+            />
           </Flex>
         </View>
         <div
@@ -1086,7 +1100,8 @@ export function TracesTable(props: TracesTableProps) {
             onColumnOrderChange={onVisibleColumnOrderChange}
           >
             <table
-              css={selectableTableCSS}
+              css={expandableSelectableTableCSS}
+              {...rowsExpandedTableProps}
               style={{
                 ...columnSizeVars,
                 width: table.getTotalSize(),

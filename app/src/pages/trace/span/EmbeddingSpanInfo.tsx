@@ -24,11 +24,7 @@ export function EmbeddingSpanInfo({
       {hasEmbeddings ? (
         <EmbeddingInput embeddings={embeddings} />
       ) : (
-        <SpanIO
-          input={span.input}
-          output={span.output}
-          attributes={span.attributes}
-        />
+        <SpanIO input={span.input} output={span.output} />
       )}
     </Flex>
   );

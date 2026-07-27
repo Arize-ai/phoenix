@@ -97,6 +97,12 @@ export interface PreferencesProps {
    */
   showMetricsInTraceTree: boolean;
   /**
+   * Whether tracing tables' rows wrap their content or clip it to a single
+   * line. A reading preference, so it spans projects and tabs.
+   * @default false
+   */
+  areTableRowsExpanded: boolean;
+  /**
    * {@link ModelConfig|ModelConfigs} for llm providers will be used as the default parameters for the provider
    */
   modelConfigByProvider: ModelConfigByProvider;
@@ -188,6 +194,8 @@ export interface PreferencesState extends PreferencesProps {
    * @param showMetricsInTraceTree
    */
   setShowMetricsInTraceTree: (showMetricsInTraceTree: boolean) => void;
+  /** Setter for whether tracing tables' rows are expanded */
+  setAreTableRowsExpanded: (areTableRowsExpanded: boolean) => void;
   /**
    * Setter for the model configs by provider
    */
@@ -292,6 +300,13 @@ export const createPreferencesStore = (
     setShowMetricsInTraceTree: (showMetricsInTraceTree) => {
       set({ showMetricsInTraceTree }, false, {
         type: "setShowMetricsInTraceTree",
+      });
+    },
+    // Clipped to start: an even row height is what makes a table scan as a grid
+    areTableRowsExpanded: false,
+    setAreTableRowsExpanded: (areTableRowsExpanded) => {
+      set({ areTableRowsExpanded }, false, {
+        type: "setAreTableRowsExpanded",
       });
     },
     modelConfigByProvider: {},

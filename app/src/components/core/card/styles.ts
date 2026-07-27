@@ -47,6 +47,18 @@ export const cardCSS = (style?: CSSProperties) => css`
       white-space: nowrap;
     }
 
+    /* Takes what the title and subtitle leave, down to nothing, rather than
+       widening the header */
+    & .card__header-content {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    /* The heading has room to give only if it grows itself */
+    & .card__heading:has(.card__header-content) {
+      flex: 1 1 auto;
+    }
+
     /* The subtitle truncates rather than wrapping the fixed-height header */
     & .card__sub-title {
       color: var(--global-text-color-700);
@@ -63,6 +75,10 @@ export const cardCSS = (style?: CSSProperties) => css`
       flex-direction: row;
       align-items: center;
       height: 100%;
+      cursor: pointer;
+      /* Without this the row floors at its contents' width and pushes the
+         extra slot's controls past the card's edge */
+      min-width: 0;
 
       & .card__collapsible-button {
         flex: none;
@@ -103,11 +119,11 @@ export const cardCSS = (style?: CSSProperties) => css`
     line-height: var(--global-line-height-m);
   }
 
-  /* Collapsible behavior: highlight the header only when the collapse
-     trigger itself is hovered, so the affordance matches the click target
-     (with interactiveTitle only the arrow button toggles) */
+  /* Collapsible behavior: highlight the header only when a region that
+     toggles is hovered, so the affordance matches the click target */
   &[data-collapsible="true"] {
-    & > header:has(.card__collapsible-button:hover) {
+    & > header:has(.card__collapsible-button:hover),
+    & > header:has(.card__collapsible-header:hover) {
       background-color: var(--global-card-header-background-color-hover);
     }
   }

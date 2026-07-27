@@ -41,7 +41,6 @@ import type {
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
-import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
 import { TraceHeaderTraceAnnotations } from "./TraceHeaderTraceAnnotations";
 
 type RootSpan = NonNullable<
@@ -286,15 +285,7 @@ function TraceHeader({
           )}
         </Flex>
         <Suspense fallback={null}>
-          <Flex
-            direction="row"
-            gap="size-400"
-            alignItems="stretch"
-            alignSelf="stretch"
-          >
-            {rootSpan ? (
-              <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
-            ) : null}
+          <Flex direction="row" alignItems="stretch" alignSelf="stretch">
             <TraceHeaderTraceAnnotations traceId={traceNodeId} />
           </Flex>
         </Suspense>
