@@ -1,31 +1,38 @@
 # Phoenix ServerAgent Harbor evaluation
 
-## Prerequisites
-
-- Docker
-- `uv tool install harbor`
-- An API key for the provider you pass via `-m` (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`)
-
 ## Run
 
 Build Phoenix and stage the wheel and container assets (from the repository root):
 
 ```bash
-./evals/harbor/scripts/stage_harbor_task_environments.sh
+make harbor-stage-environments
 ```
 
 Validate with the bundled oracle:
 
 ```bash
-harbor run -p evals/harbor/tasks/regression-triage -a oracle
+make harbor-oracle
 ```
 
 Run the real ServerAgent adapter:
 
 ```bash
-PYTHONPATH=. harbor run -p evals/harbor/tasks/regression-triage \
-  -a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
-  -m anthropic/claude-sonnet-4-5
+make harbor-run
+```
+
+Both trial targets accept overrides, e.g.:
+
+```bash
+make harbor-run HARBOR_TASK=evals/harbor/tasks/regression-triage \
+  HARBOR_MODEL=anthropic/claude-sonnet-4-5 \
+  HARBOR_ENV=docker \
+  HARBOR_ATTEMPTS=1
+```
+
+Browse job results in a local web viewer:
+
+```bash
+make harbor-view
 ```
 
 Optionally export traces to a remote Phoenix instance:
@@ -39,5 +46,5 @@ export HARBOR_PHOENIX_PROJECT_NAME=harbor-server-agent-evals
 ## Publish fixtures
 
 ```bash
-./evals/harbor/scripts/publish_fixtures.sh
+make harbor-publish-fixtures
 ```
