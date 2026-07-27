@@ -386,6 +386,12 @@ exclude = [
   "docs/",
   "src/phoenix/trace/v1/evaluation_pb2.py*",
   "src/phoenix/vendor/json_canonicalization_scheme",
+  ".agents/**/*.md",
+  ".claude/**/*.md",
+  ".cursor/**/*.md",
+  ".github/**/*.md",
+  "AGENTS.md",
+  "CLAUDE.md",
 ]
 line-length = 100
 target-version = "py310"
