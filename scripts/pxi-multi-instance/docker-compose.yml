@@ -1,0 +1,51 @@
+name: pxi-multi-instance
+
+# Two Phoenix instances sharing one Postgres database, on non-default host
+# ports so the stack never collides with a local dev instance (6006/5432).
+# Used by run.sh to smoke-test PXI's multi-instance session event bus:
+# a turn streamed on instance A must surface as a degraded read-only session
+# on instance B, and both must converge on the persisted transcript.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    # No volume on purpose: every run starts from a clean database so the
+    # Playwright spec can assume exactly one agent session exists.
+
+  phoenix-a:
+    image: phoenix-pxi-multi-instance:local
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ${PHOENIX_MI_BASE_IMAGE:-gcr.io/distroless/python3-debian13:nonroot}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "16006:6006"
+    environment: &phoenix-env
+      PHOENIX_SQL_DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required for the PXI assistant}
+
+  # Started by run.sh only after phoenix-a is healthy, so database migrations
+  # never run concurrently on both instances.
+  phoenix-b:
+    image: phoenix-pxi-multi-instance:local
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "16007:6006"
+    environment: *phoenix-env
