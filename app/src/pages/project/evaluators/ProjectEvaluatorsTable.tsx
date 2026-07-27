@@ -136,8 +136,22 @@ export function ProjectEvaluatorsTable({
   const rows = table.getRowModel().rows;
   return (
     <>
-      <View padding="size-100" flex="none">
-        <Flex direction="row" justifyContent="end">
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        borderBottomColor="default"
+        borderBottomWidth="thin"
+        flex="none"
+      >
+        <Flex
+          direction="row"
+          gap="size-100"
+          width="100%"
+          alignItems="center"
+          justifyContent="end"
+        >
           <AddProjectEvaluatorMenu
             size="M"
             projectId={projectId}

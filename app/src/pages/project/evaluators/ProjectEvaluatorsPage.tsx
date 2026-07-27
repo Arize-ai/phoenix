@@ -50,7 +50,15 @@ function ProjectEvaluatorsPageContent({ projectId }: { projectId: string }) {
 function ProjectEvaluatorsPageSkeleton() {
   return (
     <>
-      <View padding="size-100" flex="none">
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        borderBottomColor="default"
+        borderBottomWidth="thin"
+        flex="none"
+      >
         <Flex direction="row" justifyContent="end">
           <Skeleton width={130} height={32} />
         </Flex>
