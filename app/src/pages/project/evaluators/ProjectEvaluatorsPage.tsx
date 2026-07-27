@@ -4,7 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Skeleton, View } from "@phoenix/components";
+import { Skeleton, View } from "@phoenix/components";
 import type { ProjectEvaluatorsPageQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsPageQuery.graphql";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 
@@ -50,19 +50,6 @@ function ProjectEvaluatorsPageContent({ projectId }: { projectId: string }) {
 function ProjectEvaluatorsPageSkeleton() {
   return (
     <>
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        borderBottomColor="default"
-        borderBottomWidth="thin"
-        flex="none"
-      >
-        <Flex direction="row" justifyContent="end">
-          <Skeleton width={130} height={32} />
-        </Flex>
-      </View>
       <View padding="size-100">
         <Skeleton width="100%" height={180} animation="wave" />
       </View>

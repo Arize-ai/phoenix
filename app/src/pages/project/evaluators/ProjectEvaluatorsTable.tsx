@@ -12,7 +12,6 @@ import { Flex, LoadMoreButton, Text, View } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
-import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorsEmptyGallery } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyGallery";
@@ -136,29 +135,6 @@ export function ProjectEvaluatorsTable({
   const rows = table.getRowModel().rows;
   return (
     <>
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        borderBottomColor="default"
-        borderBottomWidth="thin"
-        flex="none"
-      >
-        <Flex
-          direction="row"
-          gap="size-100"
-          width="100%"
-          alignItems="center"
-          justifyContent="end"
-        >
-          <AddProjectEvaluatorMenu
-            size="M"
-            projectId={projectId}
-            updateConnectionIds={connectionIds}
-          />
-        </Flex>
-      </View>
       <div
         css={css`
           flex: 1 1 auto;

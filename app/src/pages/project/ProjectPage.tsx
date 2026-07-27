@@ -9,6 +9,7 @@ import {
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useLocation, useNavigate, useParams } from "react-router";
+import { ConnectionHandler } from "relay-runtime";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -20,6 +21,7 @@ import { TopNavActions } from "@phoenix/components/nav";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
@@ -46,7 +48,10 @@ const mainCSS = css`
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    div[role="tablist"] {
+    /* Direct child only: the tab bar row wrapper owns vertical sizing, and
+       the tablist inside it must grow horizontally to push actions to the
+       row's end. */
+    > div[role="tablist"] {
       flex: none;
     }
     .tabs__pane-container {
@@ -62,6 +67,33 @@ const mainCSS = css`
       }
     }
   }
+`;
+
+/**
+ * Lays tab-scoped actions on the same row as the tab headers: the shared
+ * bottom border moves from the TabList to this wrapper so the actions sit on
+ * the tab bar rather than in a row of their own.
+ */
+const tabBarRowCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex: none;
+  border-bottom: 1px solid var(--tab-border-color);
+  .project-tab-bar__actions {
+    flex: none;
+    padding-right: var(--global-dimension-size-100);
+  }
+`;
+
+/**
+ * Applied via the TabList's own css prop so it wins the merge against the
+ * component's base styles: the list grows to push the actions to the row's
+ * end, and the row border above replaces the list's own.
+ */
+const tabBarTabListCSS = css`
+  flex: 1 1 auto;
+  border-bottom: none;
 `;
 
 export function ProjectPage() {
@@ -256,14 +288,33 @@ function ProjectPageContentBody({
           }}
           selectedKey={tab}
         >
-          <TabList>
-            <Tab id="spans">Spans</Tab>
-            <Tab id="traces">Traces</Tab>
-            <Tab id="sessions">Sessions</Tab>
-            <Tab id="metrics">Metrics</Tab>
-            <Tab id="evaluators">Evaluators</Tab>
-            <Tab id="config">Config</Tab>
-          </TabList>
+          <div css={tabBarRowCSS}>
+            <TabList css={tabBarTabListCSS}>
+              <Tab id="spans">Spans</Tab>
+              <Tab id="traces">Traces</Tab>
+              <Tab id="sessions">Sessions</Tab>
+              <Tab id="metrics">Metrics</Tab>
+              <Tab id="evaluators">Evaluators</Tab>
+              <Tab id="config">Config</Tab>
+            </TabList>
+            {tab === "evaluators" ? (
+              <div className="project-tab-bar__actions">
+                <AddProjectEvaluatorMenu
+                  size="S"
+                  projectId={projectId}
+                  updateConnectionIds={[
+                    // The table registers this connection when it mounts; the
+                    // id is deterministic, so the tab-bar action can append to
+                    // it without the table threading it up.
+                    ConnectionHandler.getConnectionID(
+                      projectId,
+                      "ProjectEvaluatorsTable_evaluators"
+                    ),
+                  ]}
+                />
+              </div>
+            ) : null}
+          </div>
           <LazyTabPanel padded={false} id="spans">
             <Outlet />
           </LazyTabPanel>
