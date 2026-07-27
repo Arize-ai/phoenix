@@ -28,6 +28,7 @@ import { useOpenSpanAnnotationEditor } from "../SpanAnnotationEditorContext";
 import { SpanAnnotationsTable } from "../SpanAnnotationsTable";
 import type { SpanAnnotationsCardSummaryQuery } from "./__generated__/SpanAnnotationsCardSummaryQuery.graphql";
 import { defaultCardProps } from "./constants";
+import { useSpanAnnotationCounts } from "./useSpanAnnotationCounts";
 
 /** Which of the card's two readings of the annotations the body shows. */
 type SpanAnnotationsView = "list" | "table";
@@ -92,17 +93,19 @@ function SpanAnnotationSummaryTokens({
  * carries the summary tokens so that question is often answered without
  * opening the card at all.
  */
-export function SpanAnnotationsCard({
-  spanNodeId,
-  annotationCount,
-}: {
-  spanNodeId: string;
-  /**
-   * How many annotations the span has. Read from the span itself so the count
-   * is there to read while the card is still closed.
-   */
-  annotationCount: number;
-}) {
+export function SpanAnnotationsCard({ spanNodeId }: { spanNodeId: string }) {
+  // the count comes from the store rather than the network, so the boundary is
+  // for the case where it does not; a card that renders a moment late is
+  // better than one that claims the span has no annotations while it waits
+  return (
+    <Suspense fallback={null}>
+      <SpanAnnotationsCardContents spanNodeId={spanNodeId} />
+    </Suspense>
+  );
+}
+
+function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
+  const { annotationCount } = useSpanAnnotationCounts({ spanNodeId });
   // the aside's editor is driven by this preference, and the toggle reads its
   // selected state from it; opening it is more than the preference, so that
   // goes through the span details view

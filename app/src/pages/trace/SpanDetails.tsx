@@ -168,11 +168,6 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
                 profilePictureUrl
               }
             }
-            # only the counts are read, for the annotations and notes cards
-            spanAnnotations {
-              id
-              name
-            }
             ...SpanHeader_span
             ...SpanAside_span
           }

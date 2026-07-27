@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { Alert, Flex, View } from "@phoenix/components";
-import { NOTE_ANNOTATION_NAME } from "@phoenix/constants/annotationConstants";
 
 import { EmbeddingSpanInfo } from "./EmbeddingSpanInfo";
 import { LLMSpanInfo } from "./LLMSpanInfo";
@@ -30,24 +29,12 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
     <Alert variant="danger">{span.statusMessage}</Alert>
   ) : null;
 
-  // Notes are annotations, but each card counts only what its own table
-  // shows — a note left on the span belongs to the one at the bottom.
-  const noteCount = span.spanAnnotations.filter(
-    (annotation) => annotation.name === NOTE_ANNOTATION_NAME
-  ).length;
-  const annotationCount = span.spanAnnotations.length - noteCount;
-
-  const annotationsCard = (
-    <SpanAnnotationsCard
-      spanNodeId={span.id}
-      annotationCount={annotationCount}
-    />
-  );
+  // Each card fetches the annotations it counts and lists, so the span itself
+  // carries nothing about them.
+  const annotationsCard = <SpanAnnotationsCard spanNodeId={span.id} />;
   // Last in the view: notes are a conversation about the span rather than a
   // reading of it, so they sit below everything the span itself recorded.
-  const notesCard = (
-    <SpanNotesCard spanNodeId={span.id} noteCount={noteCount} />
-  );
+  const notesCard = <SpanNotesCard spanNodeId={span.id} />;
 
   // Handle the case where the attributes are not a valid JSON object
   if (parseError || !attributesObject) {

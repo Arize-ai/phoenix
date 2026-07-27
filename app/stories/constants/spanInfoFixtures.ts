@@ -18,7 +18,6 @@ export type SpanInfoFixture = SpanInfoData & {
  * an assistant output message, and invocation parameters.
  */
 export const llmChatSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjo2OTMy",
   name: "OpenAI.chat",
   spanKind: "llm",
@@ -94,7 +93,6 @@ export const llmChatSpan: SpanInfoFixture = {
  * output messages.
  */
 export const llmToolDefinitionsSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3BhbjozMjc=",
   name: "InteractionsResource.create",
   spanKind: "llm",
@@ -186,7 +184,6 @@ export const llmToolDefinitionsSpan: SpanInfoFixture = {
  * tool roles and an output message containing tool calls.
  */
 export const llmToolCallsSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjo1NDQ3",
   name: "OpenAI.achat",
   spanKind: "llm",
@@ -294,7 +291,6 @@ export const llmToolCallsSpan: SpanInfoFixture = {
  * of chat messages.
  */
 export const llmPromptTemplateSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjo2OTQ4",
   name: "LLM.predict",
   spanKind: "llm",
@@ -346,7 +342,6 @@ export const llmPromptTemplateSpan: SpanInfoFixture = {
  * messages, and no output.
  */
 export const llmErrorSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3BhbjozMTc=",
   name: "gpt-5.4",
   spanKind: "llm",
@@ -418,7 +413,6 @@ export const llmErrorSpan: SpanInfoFixture = {
  * and LLM document evaluations (annotations).
  */
 export const retrieverSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjo2OTQz",
   name: "BaseRetriever.retrieve",
   spanKind: "retriever",
@@ -597,7 +591,6 @@ export const retrieverSpan: SpanInfoFixture = {
  * output documents.
  */
 export const rerankerSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjo2OTI5",
   name: "CohereRerank._postprocess_nodes",
   spanKind: "reranker",
@@ -731,7 +724,6 @@ export const rerankerSpan: SpanInfoFixture = {
  * An embedding span with embedded text and a model name.
  */
 export const embeddingSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjo2OTQx",
   name: "BaseEmbedding.get_query_embedding",
   spanKind: "embedding",
@@ -772,7 +764,6 @@ export const embeddingSpan: SpanInfoFixture = {
  * generic input / output view.
  */
 export const embeddingWithoutEmbeddingsSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjo2OTQw",
   name: "OpenAIEmbedding._get_query_embedding",
   spanKind: "embedding",
@@ -805,7 +796,6 @@ export const embeddingWithoutEmbeddingsSpan: SpanInfoFixture = {
  * metadata attribute.
  */
 export const toolSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3BhbjozNTM0",
   name: "generate_and_run_sql_query",
   spanKind: "tool",
@@ -855,7 +845,6 @@ export const toolSpan: SpanInfoFixture = {
  * input and output.
  */
 export const toolBashSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjo3OTM1",
   name: "Bash",
   spanKind: "tool",
@@ -911,7 +900,6 @@ export const toolBashSpan: SpanInfoFixture = {
  * A chain span with plain-text input and output — the generic span view.
  */
 export const chainTextIOSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjo2OTUw",
   name: "Refine.get_response",
   spanKind: "chain",
@@ -946,7 +934,6 @@ export const chainTextIOSpan: SpanInfoFixture = {
  * JSON blocks.
  */
 export const chainJsonIOSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjo2OTQ5",
   name: "DefaultRefineProgram.__call__",
   spanKind: "chain",
@@ -996,7 +983,6 @@ const sampleImageDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(
  * message_contents convention.
  */
 export const llmMultiModalSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3BhbjptdWx0aW1vZGFs",
   name: "OpenAI.chat",
   spanKind: "llm",
@@ -1077,7 +1063,6 @@ export const llmMultiModalSpan: SpanInfoFixture = {
  * the span's attributes.
  */
 export const spanWithoutIOSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3Bhbjpuby1pbw==",
   name: "Workflow.step",
   spanKind: "chain",
@@ -1101,7 +1086,6 @@ export const spanWithoutIOSpan: SpanInfoFixture = {
  * un-parsable attributes warning.
  */
 export const unparsableAttributesSpan: SpanInfoFixture = {
-  spanAnnotations: [],
   id: "U3BhbjpiYWQtYXR0cnM=",
   name: "custom_span",
   spanKind: "chain",

@@ -19,23 +19,26 @@ import { useOpenSpanAnnotationEditor } from "../SpanAnnotationEditorContext";
 import { NOTE_HOTKEY } from "../SpanNotesEditor";
 import { SpanNotesTable } from "../SpanNotesTable";
 import { defaultCardProps } from "./constants";
+import { useSpanAnnotationCounts } from "./useSpanAnnotationCounts";
 
 /**
  * The notes left on a span, as a card for the span info view. Notes are
  * annotations, but they read as a conversation rather than a judgement, so
  * they sit at the bottom of the view with a card of their own.
  */
-export function SpanNotesCard({
-  spanNodeId,
-  noteCount,
-}: {
-  spanNodeId: string;
-  /**
-   * How many notes the span has. Read from the span itself so the count is
-   * there to read while the card is still closed.
-   */
-  noteCount: number;
-}) {
+export function SpanNotesCard({ spanNodeId }: { spanNodeId: string }) {
+  // the count comes from the store rather than the network, so the boundary is
+  // for the case where it does not; a card that renders a moment late is
+  // better than one that claims the span has no notes while it waits
+  return (
+    <Suspense fallback={null}>
+      <SpanNotesCardContents spanNodeId={spanNodeId} />
+    </Suspense>
+  );
+}
+
+function SpanNotesCardContents({ spanNodeId }: { spanNodeId: string }) {
+  const { noteCount } = useSpanAnnotationCounts({ spanNodeId });
   const [isCollapsed, setIsCollapsed] = useState(true);
   // rows start clipped so the notes read as a grid, and open up when the
   // reader wants to read one in full
