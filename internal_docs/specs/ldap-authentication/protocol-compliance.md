@@ -101,6 +101,7 @@ def _validate_dn(self, dn: str) -> bool:
     except LDAPInvalidDnError:
         return False
 
+
 # In search handler:
 if not self._validate_dn(search_base):
     self._send_search_done(message_id, result_code=34, matched_count=0)
@@ -227,9 +228,9 @@ conn.search(
     search_base=self.config.user_search_base,
     search_filter=user_filter,
     search_scope=SUBTREE,
-    size_limit=10,   # Max results
-    time_limit=10,   # Timeout (seconds)
-    attributes=[...]
+    size_limit=10,  # Max results
+    time_limit=10,  # Timeout (seconds)
+    attributes=[...],
 )
 ```
 
@@ -348,8 +349,8 @@ conn = Connection(server, user=dn, password=pwd, auto_bind=True)
 ```python
 # Method 1: Use AUTO_BIND_TLS_BEFORE_BIND constant
 from ldap3 import AUTO_BIND_TLS_BEFORE_BIND
-conn = Connection(server, user=dn, password=pwd, 
-                  auto_bind=AUTO_BIND_TLS_BEFORE_BIND)
+
+conn = Connection(server, user=dn, password=pwd, auto_bind=AUTO_BIND_TLS_BEFORE_BIND)
 # Calls start_tls() before sending bind credentials
 
 # Method 2: Manual sequencing
@@ -373,12 +374,16 @@ def _establish_connection(self, server: Server) -> Connection:
         auto_bind_mode = AUTO_BIND_TLS_BEFORE_BIND
     else:
         auto_bind_mode = True  # AUTO_BIND_NO_TLS for LDAPS or plaintext
-    
+
     if self.config.bind_dn and self.config.bind_password:
-        return Connection(server, user=self.config.bind_dn, 
-                         password=self.config.bind_password,
-                         auto_bind=auto_bind_mode, raise_exceptions=True)
-    
+        return Connection(
+            server,
+            user=self.config.bind_dn,
+            password=self.config.bind_password,
+            auto_bind=auto_bind_mode,
+            raise_exceptions=True,
+        )
+
     # Anonymous bind case
     conn = Connection(server, auto_bind=False, raise_exceptions=True)
     conn.open()
@@ -390,8 +395,9 @@ def _establish_connection(self, server: Server) -> Connection:
 **User Password Verification** (`_verify_user_password()`):
 ```python
 def _verify_user_password(self, server: Server, user_dn: str, password: str) -> bool:
-    user_conn = Connection(server, user=user_dn, password=password, 
-                           auto_bind=False, raise_exceptions=True)
+    user_conn = Connection(
+        server, user=user_dn, password=password, auto_bind=False, raise_exceptions=True
+    )
     try:
         user_conn.open()
         # CRITICAL: Upgrade to TLS BEFORE sending password

@@ -285,9 +285,7 @@ The concept formerly called "evaluations" is now called "annotations" throughout
 ```python
 from phoenix.trace import SpanEvaluations
 
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
-)
+px.Client().log_evaluations(SpanEvaluations(eval_name="Hallucination", dataframe=results_df))
 ```
 
 **After:**
@@ -364,9 +362,7 @@ The old `GET /v1/evaluations` only returned span annotations. Its replacement is
 from phoenix.trace import SpanEvaluations
 import phoenix as px
 
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
-)
+px.Client().log_evaluations(SpanEvaluations(eval_name="Hallucination", dataframe=results_df))
 ```
 
 **After (span annotations):**
@@ -668,7 +664,6 @@ from phoenix.experimental.evals import OpenAIModel
 from phoenix.experimental.evals import llm_classify
 
 model = OpenAIModel()
-
 ```
 
 #### New
@@ -688,7 +683,7 @@ from phoenix.evals import llm_classify
 
 ```python
 from phoenix.experimental.evals import OpenAIModel
-from phoenix.experimental.evals import processing # no longer supported in phoenix.evals
+from phoenix.experimental.evals import processing  # no longer supported in phoenix.evals
 
 model = OpenAIModel()
 model.max_context_size  # no longer supported in phoenix.evals
