@@ -692,10 +692,10 @@
 
 - [Migrations](https://arize.com/docs/phoenix/self-hosting/upgrade/migrations): Database migration guide
 - [Privacy](https://arize.com/docs/phoenix/self-hosting/security/privacy): Privacy and data protection
+- [Network Security](https://arize.com/docs/phoenix/self-hosting/security/network-security): Restrict outbound requests, configure network policies, and enable CSRF protection
+- [Encryption](https://arize.com/docs/phoenix/self-hosting/advanced/encryption): Configure TLS/HTTPS, encryption at rest, and application-level encryption of secrets
 - [Self-Hosting FAQs](https://arize.com/docs/phoenix/self-hosting/misc/frequently-asked-questions): Troubleshoot common self-hosting issues
 
-
-- [Network Security](https://arize.com/docs/phoenix/self-hosting/security/network-security): Understanding outbound network requests and how to secure your self-hosted Phoenix deployment
 ## Cookbooks
 
 - [Cookbook Index](https://arize.com/docs/phoenix/cookbook): All examples — agents, evaluation, tracing, prompt engineering, datasets

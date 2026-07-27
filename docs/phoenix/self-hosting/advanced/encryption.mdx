@@ -1,0 +1,156 @@
+---
+title: "Encryption"
+description: Encryption in transit (TLS/HTTPS), at rest (database and storage), and application-level encryption for self-hosted Phoenix deployments
+---
+
+## Overview
+
+Phoenix is designed to be self-hosted securely. This guide covers the three layers of encryption relevant to a production deployment:
+
+1. **[Encryption in transit](#encryption-in-transit-tls-https)** — TLS/HTTPS between clients and Phoenix, and between Phoenix and its database
+2. **[Encryption at rest](#encryption-at-rest)** — encrypting the database and storage volumes that hold your data
+3. **[Application-level encryption](#application-level-encryption)** — how Phoenix hashes and encrypts sensitive values (passwords, API keys, stored provider credentials) before they reach the database
+
+It is assumed you are familiar with the [Phoenix architecture](/docs/phoenix/self-hosting/architecture): a single server container backed by a PostgreSQL (or SQLite) database.
+
+## Encryption in Transit (TLS / HTTPS)
+
+Phoenix serves its UI, REST/GraphQL APIs, and OTLP trace collection over HTTP (port `6006`) and optionally OTLP over gRPC (port `4317`). In production, this traffic should always be encrypted. There are three common approaches.
+
+### Option 1: Load Balancer / Ingress Termination
+
+TLS is terminated at a load balancer or ingress controller (e.g., AWS ALB, GCP Load Balancer, NGINX Ingress), which forwards decrypted traffic to the Phoenix container over HTTP.
+
+- **Pros:** Certificate management is typically fully managed by the cloud provider; offloads TLS overhead from the application; the most common and straightforward setup.
+- **Cons:** Traffic between the load balancer and the Phoenix container is unencrypted (though usually confined to a private network).
+
+<Note>
+If you terminate TLS for gRPC traffic at a load balancer, make sure it supports HTTP/2 end-to-end — OTLP over gRPC requires it.
+</Note>
+
+### Option 2: Native TLS on the Phoenix Server
+
+Unlike many web applications, Phoenix can terminate TLS itself — no reverse proxy required. This encrypts traffic all the way to the container, which is useful for simple deployments or environments where a load balancer is not available.
+
+```bash
+# Enable TLS for both HTTP and gRPC
+export PHOENIX_TLS_ENABLED=true
+export PHOENIX_TLS_CERT_FILE=/etc/ssl/certs/phoenix.crt
+export PHOENIX_TLS_KEY_FILE=/etc/ssl/private/phoenix.key
+
+# Optional: password for an encrypted private key
+export PHOENIX_TLS_KEY_FILE_PASSWORD=your-key-password
+```
+
+TLS can also be enabled selectively per protocol:
+
+| Environment Variable            | Description                                                          |
+| :------------------------------ | :------------------------------------------------------------------- |
+| `PHOENIX_TLS_ENABLED`           | Enable TLS for both the HTTP and gRPC servers                        |
+| `PHOENIX_TLS_ENABLED_FOR_HTTP`  | Enable TLS for the HTTP server only (overrides `PHOENIX_TLS_ENABLED`) |
+| `PHOENIX_TLS_ENABLED_FOR_GRPC`  | Enable TLS for the gRPC server only (overrides `PHOENIX_TLS_ENABLED`) |
+| `PHOENIX_TLS_CERT_FILE`         | Path to the TLS certificate file (PEM)                               |
+| `PHOENIX_TLS_KEY_FILE`          | Path to the TLS private key file (PEM)                               |
+| `PHOENIX_TLS_KEY_FILE_PASSWORD` | Password for the private key file, if encrypted                      |
+| `PHOENIX_TLS_CA_FILE`           | Path to the CA certificate used to verify client certificates        |
+| `PHOENIX_TLS_VERIFY_CLIENT`     | Require and verify client certificates (mutual TLS)                  |
+
+For mutual TLS (mTLS), where Phoenix also verifies the certificates of connecting clients:
+
+```bash
+export PHOENIX_TLS_VERIFY_CLIENT=true
+export PHOENIX_TLS_CA_FILE=/etc/ssl/certs/ca.crt
+```
+
+Remember to point clients at `https://` (and configure them with the CA certificate if you use a private CA).
+
+### Option 3: Service Mesh Sidecar
+
+In Kubernetes environments, a service mesh (e.g., Istio, Linkerd, Cilium mTLS) can transparently encrypt all pod-to-pod traffic with mutual TLS via sidecar or node-level proxies.
+
+- **Pros:** End-to-end encryption inside the cluster without application configuration; adds traffic management and observability.
+- **Cons:** Adds operational complexity; requires familiarity with service mesh concepts.
+
+### Encrypting the Database Connection
+
+Traffic between Phoenix and PostgreSQL should also be encrypted, especially when the database runs outside the Phoenix host or cluster. Phoenix supports standard PostgreSQL SSL parameters in the connection string:
+
+```bash
+# Require an encrypted connection and verify the server certificate
+export PHOENIX_SQL_DATABASE_URL="postgresql://user:password@db.example.com:5432/phoenix?sslmode=verify-full&sslrootcert=/etc/ssl/certs/rds-ca.pem"
+```
+
+Supported parameters include `sslmode`, `sslrootcert`, `sslcert`, `sslkey`, and `sslpassword` (for client-certificate authentication).
+
+<Note>
+When using [AWS RDS IAM authentication](/docs/phoenix/self-hosting/configuration/using-amazon-aurora) or [Azure Managed Identity](/docs/phoenix/self-hosting/configuration/using-azure-managed-identity), SSL is enforced automatically and cannot be disabled.
+</Note>
+
+### Other Encrypted Connections
+
+- **LDAP:** When using LDAP authentication, always use `PHOENIX_LDAP_TLS_MODE=starttls` or `ldaps` in production. See [Authentication](/docs/phoenix/self-hosting/features/authentication) for the full set of LDAP TLS options, including custom CAs and client certificates.
+- **SMTP:** Phoenix connects to your mail server with STARTTLS and validates certificates by default (`PHOENIX_SMTP_VALIDATE_CERTS=true`). See [Email](/docs/phoenix/self-hosting/features/email).
+- **Outbound LLM provider calls:** Requests from the Playground and evaluations to AI provider APIs use HTTPS. To control which endpoints Phoenix can reach, see [Network Security](/docs/phoenix/self-hosting/security/network-security).
+
+## Encryption at Rest
+
+All Phoenix application data — traces, datasets, experiments, prompts, annotations, users, and settings — lives in your database. Encrypting that storage is strongly recommended for production deployments.
+
+### PostgreSQL
+
+For production deployments we recommend a managed PostgreSQL service (e.g., Amazon RDS/Aurora, Google Cloud SQL, Azure Database for PostgreSQL), all of which offer built-in encryption at rest (typically AES-256), often enabled by default or with a single setting. Verify that:
+
+- Storage encryption is enabled on the instance
+- Automated backups and snapshots are encrypted (this usually follows from instance encryption)
+- Encryption keys are managed appropriately for your compliance needs (e.g., customer-managed keys via KMS)
+
+For self-managed PostgreSQL, use full-disk or volume-level encryption (e.g., LUKS, encrypted EBS volumes, encrypted Kubernetes persistent volumes) on the data directory, and refer to the PostgreSQL documentation for options such as `pgcrypto` if you need finer-grained control.
+
+### SQLite
+
+When Phoenix runs without PostgreSQL, data is stored as SQLite files in the Phoenix working directory (`PHOENIX_WORKING_DIR`). Place the working directory on an encrypted volume or filesystem. SQLite-backed deployments are best suited for development and small teams; use PostgreSQL for production.
+
+### Backups and Exports
+
+Anything derived from the database inherits its sensitivity: database dumps, snapshots, and exported datasets should be stored on encrypted media and transferred over encrypted channels.
+
+## Application-Level Encryption
+
+Beyond transport and storage encryption, Phoenix hashes or encrypts sensitive values at the application layer before persisting them, so they are not readable in plaintext even with direct database access.
+
+| Data                                                | Protection                                                                                             |
+| :-------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| User passwords                                      | Salted and hashed with PBKDF2-HMAC-SHA256 (per-user salt); never stored or recoverable in plaintext     |
+| API keys and session tokens                         | Issued as JWTs signed with a key derived from `PHOENIX_SECRET`; only the token identifier is stored     |
+| AI provider credentials (custom providers, secrets) | Encrypted with Fernet (AES-128-CBC + HMAC-SHA256) using a key derived from `PHOENIX_SECRET` via PBKDF2  |
+
+The `PHOENIX_SECRET` environment variable is the root of trust for application-level protection:
+
+```bash
+export PHOENIX_ENABLE_AUTH=true
+export PHOENIX_SECRET=a-secret-of-at-least-32-characters-with-digits-1
+```
+
+<Warning>
+Treat `PHOENIX_SECRET` like a master key:
+
+- Use a long, random value (at least 32 characters, including digits and lowercase letters) generated by a secrets manager — never a dictionary word or a value reused from another system.
+- Store it in a secrets manager (e.g., Kubernetes Secrets, AWS Secrets Manager, HashiCorp Vault), not in plaintext configuration or images.
+- Changing `PHOENIX_SECRET` invalidates existing sessions and makes previously encrypted credentials (e.g., stored AI provider API keys) undecryptable — they must be re-entered after rotation.
+</Warning>
+
+<Note>
+Application-level encryption protects against exposure of database backups and dumps. It does not protect against an attacker who obtains both the database **and** `PHOENIX_SECRET` — keep the secret separate from database backups.
+</Note>
+
+## Summary
+
+| Layer                | Recommendation                                                                                          |
+| :------------------- | :------------------------------------------------------------------------------------------------------ |
+| Client ↔ Phoenix     | Terminate TLS at a load balancer, enable native TLS (`PHOENIX_TLS_*`), or use a service mesh             |
+| Phoenix ↔ PostgreSQL | Set `sslmode=verify-full` (or at least `require`) with a trusted root certificate                         |
+| Data at rest         | Use a managed database with encryption at rest, or encrypted volumes for self-managed databases/SQLite   |
+| Secrets in the app   | Set a strong `PHOENIX_SECRET`; passwords are hashed and stored credentials are encrypted with it          |
+| Backups              | Store dumps, snapshots, and exports on encrypted media, separately from `PHOENIX_SECRET`                 |
+
+For related hardening guidance, see [Network Security](/docs/phoenix/self-hosting/security/network-security), [Authentication](/docs/phoenix/self-hosting/features/authentication), and [Access Control (RBAC)](/docs/phoenix/settings/access-control-rbac).
