@@ -10,7 +10,6 @@ from .provider_metadata import ToolCallCallbackProviderMetadata
 from .request_types import DataUIPart, UIMessage
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
-_AGENT_ERROR_DATA_PART_TYPE = "data-error"
 _ToolCallCallbackProviderMetadataAdapter = TypeAdapter(ToolCallCallbackProviderMetadata)
 
 
@@ -18,6 +17,16 @@ class AgentErrorData(CamelBaseModel):
     """Payload of the durable ``data-error`` part persisted for protocol errors."""
 
     error_text: str
+
+
+_DATA_PART_PAYLOAD_TYPES: dict[str, type[CamelBaseModel]] = {
+    "data-error": AgentErrorData,
+}
+"""Payload schemas for the data part types allowed in persisted messages.
+
+Transient data chunks (``data-session-summary``, ``data-transcript-persisted``)
+never become message parts, so every durable data part type must be listed here.
+"""
 
 
 class AssistantMessageMetadataUsageTokens(CamelBaseModel):
@@ -92,8 +101,12 @@ class PhoenixUIMessage(UIMessage):
         return self
 
     @model_validator(mode="after")
-    def _validate_agent_error_data_parts(self) -> "PhoenixUIMessage":
+    def _validate_data_parts(self) -> "PhoenixUIMessage":
         for part in self.parts:
-            if isinstance(part, DataUIPart) and part.type == _AGENT_ERROR_DATA_PART_TYPE:
-                AgentErrorData.model_validate(part.data)
+            if not isinstance(part, DataUIPart):
+                continue
+            payload_type = _DATA_PART_PAYLOAD_TYPES.get(part.type)
+            if payload_type is None:
+                raise ValueError(f"Unsupported data part type: {part.type!r}")
+            payload_type.model_validate(part.data)
         return self
