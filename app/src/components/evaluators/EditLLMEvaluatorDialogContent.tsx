@@ -15,6 +15,7 @@ export const EditLLMEvaluatorDialogContent = ({
   onSubmit,
   isSubmitting,
   isSubmitDisabled = false,
+  submitHint,
   mode,
   error,
   evaluatorNodeId,
@@ -28,6 +29,8 @@ export const EditLLMEvaluatorDialogContent = ({
   isSubmitting: boolean;
   /** Disables submit while some external form state (e.g. a filter) is invalid. */
   isSubmitDisabled?: boolean;
+  /** Names the one thing still missing before submit; see {@link EvaluatorFormDialogContent}. */
+  submitHint?: ReactNode;
   mode: "create" | "update";
   error?: string;
   evaluatorNodeId?: string | null;
@@ -87,6 +90,7 @@ export const EditLLMEvaluatorDialogContent = ({
       onSubmit={handleSubmit}
       isSubmitting={isSubmitting}
       isSubmitDisabled={isSubmitDisabled}
+      submitHint={submitHint}
       error={error}
       errorTitle={
         mode === "create"

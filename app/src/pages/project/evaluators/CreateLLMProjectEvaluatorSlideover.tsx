@@ -26,6 +26,7 @@ import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import { ProjectEvaluatorTestPanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestPanel";
 import {
   toProjectEvaluatorGraphQLTarget,
@@ -350,32 +351,70 @@ const CreateProjectEvaluatorDialog = ({
             }}
           />
         ) : (
-          <EditLLMEvaluatorDialogContent
-            title="Create project evaluator"
+          <ScratchLlmDialogContent
+            projectId={projectId}
+            scope={scope}
+            onScopeChange={setScope}
+            isFilterValid={isFilterValid}
+            onFilterValidityChange={setIsFilterValid}
             onClose={onClose}
             onSubmit={() => submitLlm(store)}
             isSubmitting={isSubmittingLlm}
-            isSubmitDisabled={!isFilterValid}
-            mode="create"
             error={error}
-            formLeftPanel={
-              <ProjectEvaluatorFormSections
-                projectId={projectId}
-                scope={scope}
-                onScopeChange={setScope}
-                definitionKind="llm"
-                onFilterValidityChange={setIsFilterValid}
-              />
-            }
-            formRightPanel={
-              <ProjectEvaluatorTestPanel
-                projectId={projectId}
-                filterCondition={scope.filterCondition}
-              />
-            }
           />
         )
       }
     </EvaluatorStoreProvider>
+  );
+};
+
+const ScratchLlmDialogContent = ({
+  projectId,
+  scope,
+  onScopeChange,
+  isFilterValid,
+  onFilterValidityChange,
+  onClose,
+  onSubmit,
+  isSubmitting,
+  error,
+}: {
+  projectId: string;
+  scope: ProjectEvaluatorScope;
+  onScopeChange: (scope: ProjectEvaluatorScope) => void;
+  isFilterValid: boolean;
+  onFilterValidityChange: (isValid: boolean) => void;
+  onClose: () => void;
+  onSubmit: () => Promise<EvaluatorSubmitResult>;
+  isSubmitting: boolean;
+  error?: string;
+}) => {
+  const submitHint = useProjectEvaluatorSubmitHint({ isFilterValid });
+  return (
+    <EditLLMEvaluatorDialogContent
+      title="Create project evaluator"
+      onClose={onClose}
+      onSubmit={onSubmit}
+      isSubmitting={isSubmitting}
+      isSubmitDisabled={!isFilterValid}
+      submitHint={submitHint}
+      mode="create"
+      error={error}
+      formLeftPanel={
+        <ProjectEvaluatorFormSections
+          projectId={projectId}
+          scope={scope}
+          onScopeChange={onScopeChange}
+          definitionKind="llm"
+          onFilterValidityChange={onFilterValidityChange}
+        />
+      }
+      formRightPanel={
+        <ProjectEvaluatorTestPanel
+          projectId={projectId}
+          filterCondition={scope.filterCondition}
+        />
+      }
+    />
   );
 };

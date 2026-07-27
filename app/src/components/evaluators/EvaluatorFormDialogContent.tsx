@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { Alert } from "@phoenix/components/core/alert";
 import { Button } from "@phoenix/components/core/button";
+import { Text } from "@phoenix/components/core/content";
 import {
   DialogContent,
   DialogHeader,
@@ -25,6 +26,7 @@ export const EvaluatorFormDialogContent = ({
   onSubmit,
   isSubmitting,
   isSubmitDisabled = false,
+  submitHint,
   error,
   errorTitle,
   banner,
@@ -41,6 +43,12 @@ export const EvaluatorFormDialogContent = ({
   isSubmitting: boolean;
   /** Disables submit while some external form state (e.g. a filter) is invalid. */
   isSubmitDisabled?: boolean;
+  /**
+   * Names the one thing still missing before submit (e.g. "Name your evaluator
+   * to create"). While present, the submit button keeps the default variant so
+   * primary emphasis is earned by a completable form.
+   */
+  submitHint?: ReactNode;
   error?: string;
   /** Title of the submission-error alert. */
   errorTitle: string;
@@ -62,12 +70,17 @@ export const EvaluatorFormDialogContent = ({
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <DialogTitleExtra>
+          {submitHint ? (
+            <Text size="S" color="text-500">
+              {submitHint}
+            </Text>
+          ) : null}
           <Button slot="close" isDisabled={isSubmitting}>
             {cancelLabel}
           </Button>
           <Button
             {...submitButtonProps}
-            variant="primary"
+            variant={submitHint ? "default" : "primary"}
             isPending={isSubmitting}
             isDisabled={isSubmitting || isSubmitDisabled}
             onPress={onSubmit}
