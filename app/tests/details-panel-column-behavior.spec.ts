@@ -388,51 +388,77 @@ test.describe("Details panel column behavior assertions", () => {
     });
   });
 
-  test("PS-3: a constrained drawer width survives close/reopen and reload", async ({
+  test("PS-3: a max-width drawer reopens at its released narrower width", async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 1000, height: 900 });
+    await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto(`/projects/${fixture.projectId}/traces/${fixture.traceId}`);
     await expectColumnWidths({
       page,
-      drawerWidth: 950,
-      treeWidth: 309,
-      mainWidth: MINIMUM_MAIN_WIDTH,
+      drawerWidth: FACTORY_DRAWER_WIDTH,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: FACTORY_MAIN_WIDTH,
     });
 
     const drawerSeparator = page.getByRole("separator", {
       name: "Resize drawer",
     });
-    const start = await getCenter(drawerSeparator);
-    await page.mouse.move(start.x, start.y);
+    const factoryStart = await getCenter(drawerSeparator);
+    await page.mouse.move(factoryStart.x, factoryStart.y);
     await page.mouse.down();
     await expect(drawerSeparator).toHaveAttribute("data-dragging", "true");
-    await page.mouse.move(start.x + 150, start.y);
+    await page.mouse.move(0, factoryStart.y);
+    await page.mouse.up();
     await expectColumnWidths({
       page,
-      drawerWidth: 800,
-      treeWidth: 159,
-      mainWidth: MINIMUM_MAIN_WIDTH,
+      drawerWidth: 1520,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: 1151,
     });
-    await page.mouse.up();
+    expect(await getStoredPreferences(page)).toEqual({
+      main: "1151",
+      tree: null,
+    });
 
-    await expect
-      .poll(async () => (await getStoredPreferences(page)).main)
-      .not.toBeNull();
     await closeAndReopenTraceDetails({ page, fixture });
     await expectColumnWidths({
       page,
-      drawerWidth: 800,
-      treeWidth: 159,
-      mainWidth: MINIMUM_MAIN_WIDTH,
+      drawerWidth: 1520,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: 1151,
+    });
+
+    const maximumStart = await getCenter(drawerSeparator);
+    await page.mouse.move(maximumStart.x, maximumStart.y);
+    await page.mouse.down();
+    await expect(drawerSeparator).toHaveAttribute("data-dragging", "true");
+    await page.mouse.move(maximumStart.x + 200, maximumStart.y);
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1320,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: 951,
+    });
+
+    expect(await getStoredPreferences(page)).toEqual({
+      main: "951",
+      tree: null,
+    });
+    await closeAndReopenTraceDetails({ page, fixture });
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1320,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: 951,
     });
 
     await page.reload();
     await expectColumnWidths({
       page,
-      drawerWidth: 800,
-      treeWidth: 159,
-      mainWidth: MINIMUM_MAIN_WIDTH,
+      drawerWidth: 1320,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: 951,
     });
   });
 
@@ -589,9 +615,14 @@ test.describe("Details panel column behavior assertions", () => {
     await page.mouse.down();
     await expect(drawerSeparator).toHaveAttribute("data-dragging", "true");
 
+    // Scope toolbar actions to the tree panel: the span-details tab bar has
+    // its own "Collapse all" control with the same accessible name.
+    const treeContent = page.getByTestId("scrolling-panel-content");
     const search = page.getByRole("searchbox", { name: "Search trace tree" });
-    const collapseButton = page.getByRole("button", { name: "Collapse all" });
-    const timingButton = page.getByRole("button", {
+    const collapseButton = treeContent.getByRole("button", {
+      name: "Collapse all",
+    });
+    const timingButton = treeContent.getByRole("button", {
       name: /metrics in trace tree/,
     });
 
@@ -658,15 +689,17 @@ test.describe("Details panel column behavior assertions", () => {
     await page.mouse.up();
 
     const mainBeforeOverlay = await getDetailsPanelLayout(page);
-    const content = page.getByTestId("scrolling-panel-content");
+    const content = treeContent;
     await content.hover();
     await expect
       .poll(async () => Math.round((await content.boundingBox())?.width ?? 0))
       .toBe(240);
     const mainDuringOverlay = await getDetailsPanelLayout(page);
     expect(mainDuringOverlay).toEqual(mainBeforeOverlay);
-    await expect(page.getByText("Collapse all", { exact: true })).toBeVisible();
-    await expect(page.getByText(/^(Show|Hide) timing$/)).toBeVisible();
+    await expect(
+      content.getByText("Collapse all", { exact: true })
+    ).toBeVisible();
+    await expect(content.getByText(/^(Show|Hide) timing$/)).toBeVisible();
     await expect
       .poll(() =>
         search.evaluate((element) => getComputedStyle(element).opacity)
