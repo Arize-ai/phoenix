@@ -40,8 +40,8 @@ import type {
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanAttributesCard, SpanInfo } from "./span";
-import { SpanAsideProvider, useOpenSpanAside } from "./SpanAsideContext";
 import { SpanAside } from "./SpanAside";
+import { SpanAsideProvider, useOpenSpanAside } from "./SpanAsideContext";
 import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
 import { NOTE_HOTKEY } from "./SpanNotesEditor";

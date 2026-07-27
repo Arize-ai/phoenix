@@ -24,8 +24,8 @@ import { RowExpandToggleButton } from "@phoenix/components/table";
 import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { usePreferencesContext } from "@phoenix/contexts";
 
-import { useOpenSpanAside } from "../SpanAsideContext";
 import { SpanAnnotationsTable } from "../SpanAnnotationsTable";
+import { useOpenSpanAside } from "../SpanAsideContext";
 import type { SpanAnnotationsCardSummaryQuery } from "./__generated__/SpanAnnotationsCardSummaryQuery.graphql";
 import { defaultCardProps } from "./constants";
 import { useSpanAnnotationCounts } from "./useSpanAnnotationCounts";

@@ -134,7 +134,7 @@ type NestedSpanTableRow<TSpan extends IAdditionalSpansRow> = TSpan & {
 
 const TableBody = <
   T extends TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"] &
-    IAdditionalSpansRow
+    IAdditionalSpansRow,
 >({
   table,
 }: {
