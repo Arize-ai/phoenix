@@ -16,10 +16,10 @@ import {
   Icons,
   Label,
   Popover,
+  SegmentedControl,
+  SegmentedControlItem,
   Skeleton,
   Text,
-  ToggleButton,
-  ToggleButtonGroup,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
@@ -81,27 +81,23 @@ export function PlaygroundCredentialsDropdown() {
                     <Heading level={2} weight="heavy">
                       API Keys
                     </Heading>
-                    <ToggleButtonGroup
-                      selectedKeys={[credentialView]}
+                    <SegmentedControl
+                      selectedKey={credentialView}
                       size="S"
                       aria-label="Credential Source"
-                      onSelectionChange={(v) => {
-                        if (v.size === 0) {
-                          return;
-                        }
-                        const view = v.keys().next().value;
+                      onSelectionChange={(view) => {
                         if (view === "local" || view === "server") {
                           setCredentialView(view);
                         }
                       }}
                     >
-                      <ToggleButton aria-label="Local" id="local">
+                      <SegmentedControlItem aria-label="Local" id="local">
                         Local
-                      </ToggleButton>
-                      <ToggleButton aria-label="Server" id="server">
+                      </SegmentedControlItem>
+                      <SegmentedControlItem aria-label="Server" id="server">
                         Server
-                      </ToggleButton>
-                    </ToggleButtonGroup>
+                      </SegmentedControlItem>
+                    </SegmentedControl>
                   </Flex>
                   {credentialView === "local" ? (
                     <LocalCredentialsView providers={currentProviders} />
