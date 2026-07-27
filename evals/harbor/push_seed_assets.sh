@@ -1,7 +1,7 @@
 #!/bin/bash
 # Generate every Harbor task's seed artifacts and publish them to
 # gs://arize-phoenix-assets/evals/harbor/<task-name>/, where each task's
-# environment/bootstrap_data.sh downloads them at the start of the first step.
+# environment/bootstrap_data.py downloads them at the start of the first step.
 #
 # Clears everything under the evals/harbor prefix before uploading, so the
 # bucket always mirrors the tasks in this checkout.

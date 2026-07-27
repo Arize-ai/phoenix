@@ -18,8 +18,7 @@ for environment in "$TASKS_DIR"/*/environment; do
   cp "$ROOT"/dist/arize_phoenix-*.whl "$environment/wheels/"
   cp "$RUNNER/run_server_agent.py" "$environment/run_server_agent.py"
   sed "s/__HARBOR_TASK_NAME__/$task/g" \
-    "$RUNNER/bootstrap_data.sh" > "$environment/bootstrap_data.sh"
-  chmod +x "$environment/bootstrap_data.sh"
+    "$RUNNER/bootstrap_data.py" > "$environment/bootstrap_data.py"
   staged=$((staged + 1))
 done
 
