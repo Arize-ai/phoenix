@@ -19,7 +19,7 @@ import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import {
   ORPHAN_AWARE_ROOT_SPANS_CONDITION,
   STRICT_ROOT_SPANS_CONDITION,
-} from "./spanFilterRootScope";
+} from "./spanFilterRootScopeConstants";
 import { useSpanFilters } from "./SpanFiltersContext";
 import {
   openInferenceAttributeCompletions,

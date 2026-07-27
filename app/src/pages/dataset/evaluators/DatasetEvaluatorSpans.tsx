@@ -5,7 +5,7 @@ import { ProjectProvider } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
 import type { DatasetEvaluatorSpansQuery } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorSpansQuery.graphql";
-import { ORPHAN_AWARE_ROOT_SPANS_CONDITION } from "@phoenix/pages/project/spanFilterRootScope";
+import { ORPHAN_AWARE_ROOT_SPANS_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 

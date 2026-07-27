@@ -4,7 +4,7 @@ import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
 import { Loading } from "@phoenix/components";
-import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScope";
+import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
