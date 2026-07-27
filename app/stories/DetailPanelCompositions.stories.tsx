@@ -31,6 +31,7 @@ import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import {
   TraceTree,
+  type TraceTreeProps,
   TraceTreeProvider,
 } from "@phoenix/components/trace/TraceTree";
 import { traceTreePanelContentCSS } from "@phoenix/components/trace/traceTreeStyles";
@@ -220,12 +221,6 @@ const ROOT_SPAN: SpanHeaderData = {
   spanKind: "chain",
   startTime: "2026-07-23T16:00:00.000Z",
   tokenCountTotal: 1847,
-  trace: {
-    session: {
-      id: "UHJvamVjdFNlc3Npb246c3Rvcnlib29rLXNlc3Npb24=",
-      sessionId: "support-chat-01J5QX8G6N4M2K7P",
-    },
-  },
 };
 
 const CHILD_SPAN: SpanHeaderData = {
@@ -447,11 +442,13 @@ function TraceTreeFixture({
   spans = TRACE_TREE_SPANS,
   hasToolbar = true,
   onSpanClick,
+  session,
 }: {
   selectedSpanNodeId: string;
   spans?: ISpanItem[];
   hasToolbar?: boolean;
   onSpanClick?: (span: ISpanItem) => void;
+  session?: TraceTreeProps["session"];
 }) {
   return (
     <TraceTreeProvider>
@@ -459,6 +456,7 @@ function TraceTreeFixture({
         {hasToolbar ? <TraceTreeToolbar /> : null}
         <TraceTree
           spans={spans}
+          session={session}
           selectedSpanNodeId={selectedSpanNodeId}
           scrollSelectedSpanIntoView={false}
           onSpanClick={onSpanClick}
@@ -531,14 +529,7 @@ function SpanDetailsFixture({
         paddingEnd="size-200"
         flex="none"
       >
-        <SpanHeaderContent
-          span={header}
-          sessionLink={
-            header.trace.session
-              ? `/projects/project-storybook/sessions/${header.trace.session.id}`
-              : undefined
-          }
-        />
+        <SpanHeaderContent span={header} />
       </View>
       <nav aria-label="Span detail sections">
         <ul css={spanSectionNavigationCSS}>
@@ -688,6 +679,10 @@ function TracePanelComposition({
         >
           <TraceTreeFixture
             selectedSpanNodeId={selectedSpanNodeId}
+            session={{
+              sessionId: "support-chat-01J5QX8G6N4M2K7P",
+              to: "/projects/project-storybook/sessions/storybook-session",
+            }}
             onSpanClick={(span) => setActiveSpan(getSelectedSpan(span.id))}
           />
         </Panel>
