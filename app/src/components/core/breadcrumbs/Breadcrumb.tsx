@@ -13,6 +13,7 @@ const breadcrumbCSS = css`
 
   a {
     color: var(--global-text-color-700);
+    border-radius: var(--global-rounding-small);
     text-decoration: none;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -53,7 +53,10 @@ const iconButtonCSS = (color: TextColorValue) => css`
   color: ${getIconButtonColor(color)};
   background-color: transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease;
   position: relative;
   padding: 0;
 

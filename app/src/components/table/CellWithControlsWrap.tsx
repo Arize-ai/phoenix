@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 
 import { embeddedCopyButtonSizeCSS } from "@phoenix/components/core/copy/styles";
+import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 
 const cellWithControlsWrapCSS = css`
   position: relative;
@@ -26,8 +27,8 @@ const cellWithControlsWrapCSS = css`
     align-items: flex-start;
   }
   .controls {
+    ${revealOnHoverCSS}
     transition: opacity 0.1s ease-in-out;
-    opacity: 0;
     z-index: 1;
   }
   // Revealed on focus as well as hover: the control is reachable by keyboard,

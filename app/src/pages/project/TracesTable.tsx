@@ -753,7 +753,7 @@ export function TracesTable(props: TracesTableProps) {
                 searchParams,
               })}
             >
-              {getValue() as string}
+              <Truncate maxWidth="100%">{getValue() as string}</Truncate>
             </Link>
           );
         },

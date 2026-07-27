@@ -592,7 +592,7 @@ export function SpansTable(props: SpansTableProps) {
               searchParams,
             })}
           >
-            {getValue() as string}
+            <Truncate maxWidth="100%">{getValue() as string}</Truncate>
           </Link>
         );
       },
