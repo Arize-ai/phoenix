@@ -1,5 +1,11 @@
 import type { Completion } from "@codemirror/autocomplete";
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffectEvent,
+  useMemo,
+  useState,
+} from "react";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
@@ -327,6 +333,18 @@ export function SpanFilterConditionFieldCore(
   } = props;
   const [isConditionValid, setIsConditionValid] = useState<boolean>(true);
   const deferredFilterCondition = useDeferredValue(filterCondition);
+  // The callback props are event handlers, not reactive inputs: the DSL
+  // field's validation effect keys on its callbacks, so a parent that passes
+  // a fresh closure per render would re-fire validation, reset validity,
+  // re-render, and produce yet another closure — an unbounded
+  // validation-request loop. Wrap them as effect events so validation reacts
+  // only to the condition text and project.
+  const emitValidCondition = useEffectEvent((condition: string) => {
+    onValidCondition(condition);
+  });
+  const emitValidityChange = useEffectEvent((isValid: boolean) => {
+    onValidityChange?.(isValid);
+  });
 
   // Stable identities: the field caches completions per loader, and its
   // validation effect keys on validateCondition — an unstable identity
@@ -364,17 +382,17 @@ export function SpanFilterConditionFieldCore(
   const handleValidCondition = useCallback(
     (condition: string) => {
       recordValidCondition(condition);
-      onValidCondition(condition);
+      emitValidCondition(condition);
     },
-    [recordValidCondition, onValidCondition]
+    [recordValidCondition, emitValidCondition]
   );
 
   const handleValidationStateChange = useCallback(
     (isValid: boolean) => {
       setIsConditionValid(isValid);
-      onValidityChange?.(isValid);
+      emitValidityChange(isValid);
     },
-    [onValidityChange]
+    [emitValidityChange]
   );
 
   // Advertise a project context that carries the current spanFilter while
