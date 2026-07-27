@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { interactionRevealCSS } from "@phoenix/components/core/styles";
+import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 
 /**
  * Shared drag feedback for dnd-kit sortables: shadow on the dragged copy,
@@ -27,7 +27,7 @@ export const dndDragFeedbackCSS = css`
  * handle's own layout CSS (size, position).
  */
 export const dndHandleAppearanceCSS = css`
-  ${interactionRevealCSS}
+  ${revealOnHoverCSS}
   border: none;
   background: none;
   padding: 0;

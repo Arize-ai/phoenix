@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
-import { interactionRevealCSS } from "@phoenix/components/core/styles";
+import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import { classNames } from "@phoenix/utils/classNames";
 
 type SpanImageProps = {
@@ -35,7 +35,7 @@ const imageContainerCSS = css`
     width 0.1s ease-in-out,
     height 0.1s ease-in-out opacity 0.1s ease-in-out;
   button {
-    ${interactionRevealCSS}
+    ${revealOnHoverCSS}
     position: absolute;
     right: var(--global-dimension-size-100);
     top: var(--global-dimension-size-100);

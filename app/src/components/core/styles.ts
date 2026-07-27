@@ -19,11 +19,17 @@ export const quietHoverCSS = css`
 `;
 
 /**
- * Keeps an interaction-revealed control reachable across input modalities.
- * Compose this into the hidden control (or a wrapper around its controls),
- * then let the consumer reveal it when the larger hover target is hovered.
+ * The hidden half of a reveal-on-hover pair. Compose this into the control
+ * itself (or a wrapper around a set of controls); the consumer supplies the
+ * trigger, e.g. `&:hover .controls { opacity: 1 }` on the larger hover target.
+ *
+ * Hides via opacity rather than display/visibility so the control keeps its
+ * box (nothing shifts when it appears) and stays focusable, then keeps it
+ * reachable off the pointer: it also reveals on focus (WCAG 2.1 SC 1.4.13,
+ * Content on Hover or Focus) and never hides at all where hover is
+ * unavailable, since a touch device has no pre-tap state to reveal it in.
  */
-export const interactionRevealCSS = css`
+export const revealOnHoverCSS = css`
   opacity: 0;
 
   &:hover,
