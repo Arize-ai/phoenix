@@ -128,7 +128,8 @@ export interface PreferencesProps {
    */
   lastSelectedDashboardProjectId?: string;
   /**
-   * Whether the side nav is open or closed
+   * Whether the user prefers the side nav to be open or closed. Responsive
+   * layout constraints can temporarily override this preference.
    * @default true
    */
   isSideNavExpanded: boolean;
@@ -227,7 +228,7 @@ export interface PreferencesState extends PreferencesProps {
    */
   setLastSelectedDashboardProjectId: (projectId: string) => void;
   /**
-   * Setter for the side nav open state
+   * Setter for the user's preferred side nav open state
    */
   setIsSideNavExpanded: (isSideNavExpanded: boolean) => void;
   /**
