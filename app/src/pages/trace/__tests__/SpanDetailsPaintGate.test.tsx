@@ -60,11 +60,26 @@ describe("SpanDetailsPaintGate", () => {
     act(() => callback(0));
   }
 
+  function getSkeleton() {
+    const skeleton = container.querySelector<HTMLElement>(
+      "[data-span-details-skeleton]"
+    );
+    if (!skeleton) throw new Error("Expected the details skeleton to exist");
+    return skeleton;
+  }
+
+  function getRetainedDetails() {
+    return container.querySelector<HTMLElement>(
+      "[data-span-details-retained-id]"
+    );
+  }
+
   it("paints the skeleton for a frame before hydrating cached details", () => {
     act(() => {
       root.render(<SpanDetailsPaintGate spanNodeId="span-a" />);
     });
-    expect(container.textContent).toBe("Loading span details");
+    expect(getSkeleton().hidden).toBe(false);
+    expect(getRetainedDetails()).toBeNull();
     expect(
       container
         .querySelector("[data-span-details-state]")
@@ -72,10 +87,11 @@ describe("SpanDetailsPaintGate", () => {
     ).toBe("dehydrated");
 
     runNextFrame();
-    expect(container.textContent).toBe("Loading span details");
+    expect(getSkeleton().hidden).toBe(false);
 
     runNextFrame();
-    expect(container.textContent).toBe("Hydrated span-a");
+    expect(getSkeleton().hidden).toBe(true);
+    expect(getRetainedDetails()?.textContent).toBe("Hydrated span-a");
     expect(
       container
         .querySelector("[data-span-details-state]")
@@ -85,13 +101,17 @@ describe("SpanDetailsPaintGate", () => {
     act(() => {
       root.render(<SpanDetailsPaintGate spanNodeId="span-b" />);
     });
-    expect(container.textContent).toBe("Loading span details");
+    expect(getSkeleton().hidden).toBe(false);
+    expect(getRetainedDetails()).toHaveProperty("hidden", true);
+    expect(getRetainedDetails()?.textContent).toBe("Hydrated span-a");
 
     runNextFrame();
-    expect(container.textContent).toBe("Loading span details");
+    expect(getSkeleton().hidden).toBe(false);
+    expect(getRetainedDetails()).toHaveProperty("hidden", true);
 
     runNextFrame();
-    expect(container.textContent).toBe("Hydrated span-b");
+    expect(getSkeleton().hidden).toBe(true);
+    expect(getRetainedDetails()?.textContent).toBe("Hydrated span-b");
   });
 
   it("cancels stale hydration when the target changes rapidly", () => {
@@ -107,6 +127,7 @@ describe("SpanDetailsPaintGate", () => {
 
     runNextFrame();
     runNextFrame();
-    expect(container.textContent).toBe("Hydrated span-b");
+    expect(getSkeleton().hidden).toBe(true);
+    expect(getRetainedDetails()?.textContent).toBe("Hydrated span-b");
   });
 });

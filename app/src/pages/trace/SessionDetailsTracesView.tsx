@@ -54,7 +54,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { DetailsPanel } from "./DetailsPanel";
-import { SpanDetails } from "./SpanDetails";
+import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 
 const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
@@ -600,9 +600,7 @@ function SpanDetailsPanel({
   }
   return (
     <div css={spanDetailsContainerCSS} data-testid="session-span-details">
-      <Suspense fallback={<Loading />}>
-        <SpanDetails key={selectedSpanNodeId} spanNodeId={selectedSpanNodeId} />
-      </Suspense>
+      <SpanDetailsPaintGate spanNodeId={selectedSpanNodeId} />
     </div>
   );
 }

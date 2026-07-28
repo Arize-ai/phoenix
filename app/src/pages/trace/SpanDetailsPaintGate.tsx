@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { startTransition, Suspense, useEffect, useState } from "react";
+import { startTransition, Suspense, useEffect, useMemo, useState } from "react";
 
 import { SpanDetails } from "./SpanDetails";
 import { SpanDetailsSkeleton } from "./TraceDetailsSkeleton";
@@ -35,6 +35,18 @@ export function SpanDetailsPaintGate({ spanNodeId }: { spanNodeId: string }) {
 
   const isHydrationPending =
     hydratedSpanNodeId == null || hydratedSpanNodeId !== spanNodeId;
+  const hydratedDetails = useMemo(
+    () =>
+      hydratedSpanNodeId == null ? null : (
+        <Suspense fallback={<SpanDetailsSkeleton />}>
+          <SpanDetails
+            key={hydratedSpanNodeId}
+            spanNodeId={hydratedSpanNodeId}
+          />
+        </Suspense>
+      ),
+    [hydratedSpanNodeId]
+  );
 
   return (
     <div
@@ -46,15 +58,27 @@ export function SpanDetailsPaintGate({ spanNodeId }: { spanNodeId: string }) {
         overflow: hidden;
       `}
     >
-      {isHydrationPending ? (
+      <div
+        data-span-details-skeleton
+        hidden={!isHydrationPending}
+        css={css`
+          width: 100%;
+          height: 100%;
+        `}
+      >
         <SpanDetailsSkeleton />
-      ) : (
-        <Suspense fallback={<SpanDetailsSkeleton />}>
-          <SpanDetails
-            key={hydratedSpanNodeId}
-            spanNodeId={hydratedSpanNodeId}
-          />
-        </Suspense>
+      </div>
+      {hydratedDetails == null ? null : (
+        <div
+          data-span-details-retained-id={hydratedSpanNodeId}
+          hidden={isHydrationPending}
+          css={css`
+            width: 100%;
+            height: 100%;
+          `}
+        >
+          {hydratedDetails}
+        </div>
       )}
     </div>
   );

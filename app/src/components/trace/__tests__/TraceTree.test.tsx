@@ -22,6 +22,14 @@ const ROOT_SPAN: ISpanItem = {
   spanId: "span-id",
 };
 
+const CHILD_SPAN: ISpanItem = {
+  ...ROOT_SPAN,
+  id: "child-span-node-id",
+  name: "child span",
+  parentId: ROOT_SPAN.spanId,
+  spanId: "child-span-id",
+};
+
 describe("TraceTree", () => {
   installTestMatchMedia();
 
@@ -38,6 +46,7 @@ describe("TraceTree", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    vi.unstubAllGlobals();
   });
 
   it("renders the session, trace, and root span in order", () => {
@@ -144,5 +153,76 @@ describe("TraceTree", () => {
     act(() => traceButton?.click());
 
     expect(onTraceSelect).toHaveBeenCalledOnce();
+  });
+
+  it("paints an optimistic span selection before starting navigation", () => {
+    const scheduledFrames = new Map<number, FrameRequestCallback>();
+    let nextFrameId = 1;
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn((callback: FrameRequestCallback) => {
+        const frameId = nextFrameId;
+        nextFrameId += 1;
+        scheduledFrames.set(frameId, callback);
+        return frameId;
+      })
+    );
+    vi.stubGlobal(
+      "cancelAnimationFrame",
+      vi.fn((frameId: number) => scheduledFrames.delete(frameId))
+    );
+    const onSpanClick = vi.fn();
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ThemeProvider>
+            <PreferencesProvider>
+              <TraceTreeProvider>
+                <TraceTree
+                  spans={[ROOT_SPAN, CHILD_SPAN]}
+                  selectedSpanNodeId={ROOT_SPAN.id}
+                  scrollSelectedSpanIntoView={false}
+                  onSpanClick={onSpanClick}
+                />
+              </TraceTreeProvider>
+            </PreferencesProvider>
+          </ThemeProvider>
+        </MemoryRouter>
+      );
+    });
+
+    const rootSpan = container.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+    );
+    const childSpan = container.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${CHILD_SPAN.id}"]`
+    );
+    const rootTrigger = rootSpan?.parentElement;
+    const childTrigger = childSpan?.parentElement;
+    expect(childTrigger?.getAttribute("role")).toBe("button");
+
+    act(() => childTrigger?.click());
+    expect(rootSpan?.dataset.selected).toBe("false");
+    expect(childSpan?.dataset.selected).toBe("true");
+    expect(onSpanClick).not.toHaveBeenCalled();
+
+    act(() => rootTrigger?.click());
+    expect(rootSpan?.dataset.selected).toBe("true");
+    expect(childSpan?.dataset.selected).toBe("false");
+    expect(scheduledFrames.size).toBe(1);
+
+    const runNextFrame = () => {
+      const nextFrame = scheduledFrames.entries().next().value;
+      if (!nextFrame) throw new Error("Expected a scheduled animation frame");
+      const [frameId, callback] = nextFrame;
+      scheduledFrames.delete(frameId);
+      act(() => callback(0));
+    };
+    runNextFrame();
+    expect(onSpanClick).not.toHaveBeenCalled();
+    runNextFrame();
+    expect(onSpanClick).toHaveBeenCalledOnce();
+    expect(onSpanClick).toHaveBeenCalledWith(ROOT_SPAN);
   });
 });

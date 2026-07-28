@@ -48,6 +48,77 @@ export type TraceTreeProps = {
 
 export { TraceTreeProvider } from "./TraceTreeContext";
 
+const pendingSpanNavigationFrames = new WeakMap<
+  Element,
+  { first: number; second?: number }
+>();
+
+function beginOptimisticSpanNavigation({
+  onNavigate,
+  spanNodeId,
+  trigger,
+}: {
+  onNavigate: () => void;
+  spanNodeId: string;
+  trigger: HTMLElement;
+}) {
+  const tree = trigger.closest('[data-testid="trace-tree"]');
+  if (!tree) {
+    onNavigate();
+    return;
+  }
+
+  tree
+    .querySelectorAll<HTMLElement>(
+      '[data-trace-tree-span-node-id][data-selected="true"]'
+    )
+    .forEach((node) => {
+      node.dataset.selected = "false";
+      node.classList.remove("is-selected");
+    });
+  const targetNode = trigger.querySelector<HTMLElement>(
+    `[data-trace-tree-span-node-id="${CSS.escape(spanNodeId)}"]`
+  );
+  if (targetNode) {
+    targetNode.dataset.selected = "true";
+    targetNode.classList.add("is-selected");
+  }
+
+  const navigationScope =
+    tree.closest('[data-testid="session-traces-view"]') ??
+    tree.closest("main") ??
+    document;
+  const detailsGate = navigationScope.querySelector<HTMLElement>(
+    "[data-span-details-state]"
+  );
+  if (detailsGate) {
+    detailsGate.dataset.spanDetailsState = "dehydrated";
+    detailsGate.dataset.spanDetailsTargetId = spanNodeId;
+    detailsGate
+      .querySelector<HTMLElement>("[data-span-details-skeleton]")
+      ?.removeAttribute("hidden");
+    detailsGate
+      .querySelector<HTMLElement>("[data-span-details-retained-id]")
+      ?.setAttribute("hidden", "");
+  }
+
+  const pendingFrames = pendingSpanNavigationFrames.get(tree);
+  if (pendingFrames) {
+    cancelAnimationFrame(pendingFrames.first);
+    if (pendingFrames.second != null) {
+      cancelAnimationFrame(pendingFrames.second);
+    }
+  }
+  const nextFrames: { first: number; second?: number } = { first: 0 };
+  nextFrames.first = requestAnimationFrame(() => {
+    nextFrames.second = requestAnimationFrame(() => {
+      pendingSpanNavigationFrames.delete(tree);
+      onNavigate();
+    });
+  });
+  pendingSpanNavigationFrames.set(tree, nextFrames);
+}
+
 export function TraceTree(props: TraceTreeProps) {
   const {
     spans,
@@ -327,9 +398,13 @@ function SpanTreeItem<TSpan extends ISpanItem>(
           overflow: hidden;
           cursor: pointer;
         `}
-        onClick={() => {
+        onClick={(event) => {
           if (onSpanClick) {
-            onSpanClick(node.span);
+            beginOptimisticSpanNavigation({
+              onNavigate: () => onSpanClick(node.span),
+              spanNodeId: node.span.id,
+              trigger: event.currentTarget,
+            });
           }
         }}
       >
