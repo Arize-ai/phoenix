@@ -1,5 +1,20 @@
 # Changelog
 
+## [19.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.8.0...arize-phoenix-v19.9.0) (2026-07-28)
+
+
+### Features
+
+* **charts:** keep chart panels readable at narrow widths ([#14804](https://github.com/Arize-ai/phoenix/issues/14804)) ([1af5b91](https://github.com/Arize-ai/phoenix/commit/1af5b913498fd54d7b889a481a1de130db9f765a))
+* **trace:** expand or collapse all span info sections at once ([#14796](https://github.com/Arize-ai/phoenix/issues/14796)) ([632e2c4](https://github.com/Arize-ai/phoenix/commit/632e2c41b3767821b540f0d4d340d8d6ce92e0cf))
+
+
+### Bug Fixes
+
+* clarify empty span annotation tool input ([#13533](https://github.com/Arize-ai/phoenix/issues/13533)) ([2931734](https://github.com/Arize-ai/phoenix/commit/29317340dd09d3edaed08c06b49eb6a07a5c5a89))
+* preserve floating agent location on new chat. ([#14795](https://github.com/Arize-ai/phoenix/issues/14795)) ([6d87936](https://github.com/Arize-ai/phoenix/commit/6d87936a13561aff27dcd8a1d21ac031adada37f))
+* **server:** isolate MCP code-mode execution in subprocesses ([#14784](https://github.com/Arize-ai/phoenix/issues/14784)) ([ed25b59](https://github.com/Arize-ai/phoenix/commit/ed25b594ece87af1831b4f02eeee3d828b4f000b))
+
 ## [19.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.7.0...arize-phoenix-v19.8.0) (2026-07-27)
 
 
