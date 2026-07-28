@@ -6,7 +6,7 @@ import {
   isTextUIPart,
   isToolUIPart,
 } from "ai";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ConnectionHandler,
   commitLocalUpdate,
@@ -90,7 +90,12 @@ const CHAT_PATH_TEMPLATE =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
 const COMPACT_PATH_TEMPLATE =
   "/agents/{agent_id}/sessions/{session_id}/compact" satisfies keyof paths;
+const SESSION_PATH_TEMPLATE =
+  "/agents/{agent_id}/sessions/{session_id}" satisfies keyof paths;
 const ASSISTANT_AGENT_ID = "assistant";
+/** Error code the chat endpoint returns when another client holds the lock. */
+const SESSION_BUSY_ERROR_CODE = "agent_session_busy";
+const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
 
 function buildAgentChatApiUrl(sessionId: string): string {
   return prependBasename(
@@ -104,6 +109,15 @@ function buildAgentChatApiUrl(sessionId: string): string {
 function buildAgentCompactApiUrl(sessionId: string): string {
   return prependBasename(
     COMPACT_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
+      "{session_id}",
+      encodeURIComponent(sessionId)
+    )
+  );
+}
+
+function buildAgentSessionApiUrl(sessionId: string): string {
+  return prependBasename(
+    SESSION_PATH_TEMPLATE.replace("{agent_id}", ASSISTANT_AGENT_ID).replace(
       "{session_id}",
       encodeURIComponent(sessionId)
     )
@@ -235,6 +249,9 @@ export function useAgentChat({
   );
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
+  );
+  const isBusyElsewhere = useAgentContext((state) =>
+    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
   );
 
   const [commitCreateAgentSession] =
@@ -383,6 +400,26 @@ export function useAgentChat({
         onError: (error) => {
           transcriptPersistence.cancelPendingWaiters();
           turnCompletionGate.fail(error);
+          if (!error.message.includes(SESSION_BUSY_ERROR_CODE)) {
+            return;
+          }
+          // Another client's turn holds the session lock (HTTP 409). Withdraw
+          // the optimistic user message into the composer draft and enter
+          // busy-elsewhere mode; the poll below refreshes the transcript once
+          // the other turn completes.
+          const lastMessage = chat.messages.at(-1);
+          if (lastMessage?.role === "user") {
+            const restoredInput = getRemovedUserMessageText(
+              chat.messages,
+              lastMessage.id
+            );
+            chat.messages = chat.messages.slice(0, -1);
+            if (restoredInput) {
+              store.getState().setDraftInput(targetSessionId, restoredInput);
+            }
+          }
+          chat.clearError();
+          store.getState().setSessionBusyElsewhere(targetSessionId, true);
         },
         onFinish: ({ messages: finalMessages, message }) => {
           turnTraceContext.captureFromMetadata(
@@ -433,6 +470,67 @@ export function useAgentChat({
     setMessages,
     clearError,
   } = chat;
+
+  // Session turn-lock handling: check on open whether another client's turn
+  // holds the server lock, and while in busy-elsewhere mode poll the session
+  // until the turn completes, then swap in the persisted transcript. Transient
+  // fetch failures keep the poll alive; unmounting or switching sessions
+  // aborts it.
+  useEffect(() => {
+    if (!persistedSessionId || !chatInstance) {
+      return;
+    }
+    const abortController = new AbortController();
+    const checkTurnLock = async () => {
+      try {
+        const response = await authFetch(
+          buildAgentSessionApiUrl(persistedSessionId),
+          { signal: abortController.signal }
+        );
+        if (!response.ok) {
+          return;
+        }
+        const body: unknown = await response.json();
+        const data = isRecord(body) && isRecord(body.data) ? body.data : null;
+        if (!data || abortController.signal.aborted) {
+          return;
+        }
+        // Read loosely: the generated OpenAPI types don't carry
+        // `isTurnActive` yet, and an absent field means no lock is held.
+        const isTurnActive = data.isTurnActive === true;
+        const state = store.getState();
+        const wasBusy =
+          state.isBusyElsewhereBySessionId[persistedSessionId] === true;
+        if (isTurnActive) {
+          // Never treat this client's own in-flight turn as busy elsewhere.
+          if (!wasBusy && !isRequestActive(chatInstance.status)) {
+            state.setSessionBusyElsewhere(persistedSessionId, true);
+          }
+        } else if (wasBusy) {
+          // The other client's turn completed and its transcript persisted;
+          // mirror the rewind path by replacing the runtime chat's messages.
+          chatInstance.messages = Array.isArray(data.messages)
+            ? (data.messages as AgentUIMessage[])
+            : [];
+          state.setSessionBusyElsewhere(persistedSessionId, false);
+        }
+      } catch {
+        // Transient failure (or abort): wait for the next poll tick.
+      }
+    };
+    void checkTurnLock();
+    if (!isBusyElsewhere) {
+      return () => abortController.abort();
+    }
+    const intervalId = setInterval(
+      () => void checkTurnLock(),
+      SESSION_BUSY_POLL_INTERVAL_MS
+    );
+    return () => {
+      clearInterval(intervalId);
+      abortController.abort();
+    };
+  }, [persistedSessionId, chatInstance, isBusyElsewhere, store]);
 
   // Anthropic doesn't accept unresolved tool calls, so we resolve them by
   // marking them as error before the next request goes out.

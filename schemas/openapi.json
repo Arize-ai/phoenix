@@ -8469,6 +8469,11 @@
             "type": "boolean",
             "title": "Is Temporary"
           },
+          "isTurnActive": {
+            "type": "boolean",
+            "title": "Isturnactive",
+            "description": "Whether a turn is currently streaming on this session, i.e. its turn lock has a live (non-stale) heartbeat."
+          },
           "messages": {
             "items": {
               "$ref": "#/components/schemas/PhoenixUIMessage"
@@ -8484,6 +8489,7 @@
           "created_at",
           "updated_at",
           "is_temporary",
+          "isTurnActive",
           "messages"
         ],
         "title": "AgentSessionData"

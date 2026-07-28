@@ -316,6 +316,11 @@ const chatCSS = css`
     color: var(--global-text-color-300);
   }
 
+  .chat__busy-elsewhere {
+    color: var(--global-text-color-300);
+    font-size: var(--global-font-size-xs);
+  }
+
   .chat__edit-permissions {
     flex: none;
   }
@@ -514,6 +519,9 @@ export function ChatView({
   const draftInput = useAgentContext((state) =>
     sessionId ? (state.draftInputBySessionId[sessionId] ?? "") : ""
   );
+  const isBusyElsewhere = useAgentContext((state) =>
+    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
+  );
   const setDraftInput = useAgentContext((state) => state.setDraftInput);
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
@@ -569,7 +577,8 @@ export function ChatView({
     status === "submitted" || status === "streaming";
   const isSendDisabledForMissingCredentials =
     !isWaitingForAssistant && Boolean(missingCredentialsProvider);
-  const isSubmitDisabled = isSendDisabledForMissingCredentials || isCompacting;
+  const isSubmitDisabled =
+    isSendDisabledForMissingCredentials || isCompacting || isBusyElsewhere;
   const showThinkingIndicator = shouldShowThinkingIndicator({
     status,
     messages,
@@ -578,6 +587,7 @@ export function ChatView({
   const shouldShowInterruptedMessage =
     status === "ready" &&
     !error &&
+    !isBusyElsewhere &&
     latestMessage?.role === "user" &&
     !isCompactionMessage(latestMessage);
   const resolvedElicitationDraft =
@@ -823,7 +833,17 @@ export function ChatView({
                     {compactionStatus}
                   </ChatCompactionStatus>
                 ) : null}
-                {showThinkingIndicator && <Loading />}
+                {(showThinkingIndicator || isBusyElsewhere) && <Loading />}
+                {isBusyElsewhere ? (
+                  <div
+                    className="chat__busy-elsewhere"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Session is being used elsewhere, the chat will refresh when
+                    complete
+                  </div>
+                ) : null}
                 {shouldShowInterruptedMessage ? (
                   <InterruptedChatMessage
                     latestUserMessageId={latestMessage.id}
@@ -950,7 +970,7 @@ export function ChatView({
               textareaRef={textareaRef}
               modelMenuValue={modelMenuValue}
               onModelChange={onModelChange}
-              isInputDisabled={isCompacting}
+              isInputDisabled={isCompacting || isBusyElsewhere}
               isSubmitDisabled={isSubmitDisabled}
               onStop={() => {
                 void stop();

@@ -447,6 +447,8 @@ CREATE TABLE public.agent_sessions (
     expires_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    turn_lock_acquired_at TIMESTAMP WITH TIME ZONE,
+    turn_lock_heartbeat_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
     CONSTRAINT uq_agent_sessions_project_session_id_project_name
         UNIQUE (project_session_id, project_name),

@@ -325,6 +325,9 @@ export interface AgentState extends AgentProps {
   /** Whether a manual context compaction is in progress for a session. */
   isCompactionPendingBySessionId: Partial<Record<string, boolean>>;
   setSessionCompactionPending: (sessionId: string, isPending: boolean) => void;
+  /** Whether another client's turn currently holds the session's server lock. */
+  isBusyElsewhereBySessionId: Partial<Record<string, boolean>>;
+  setSessionBusyElsewhere: (sessionId: string, isBusy: boolean) => void;
 
   /**
    * Current unsent prompt-input draft keyed by session ID. Ephemeral and kept
@@ -663,6 +666,10 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...state.isCompactionPendingBySessionId,
           };
           delete newIsCompactionPendingBySessionId[sessionId];
+          const newIsBusyElsewhereBySessionId = {
+            ...state.isBusyElsewhereBySessionId,
+          };
+          delete newIsBusyElsewhereBySessionId[sessionId];
           const newDraftInputBySessionId = { ...state.draftInputBySessionId };
           delete newDraftInputBySessionId[sessionId];
           const newPendingMessageBySessionId = {
@@ -679,6 +686,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             chatStatusBySessionId: newChatStatusBySessionId,
             isResponsePendingBySessionId: newIsResponsePendingBySessionId,
             isCompactionPendingBySessionId: newIsCompactionPendingBySessionId,
+            isBusyElsewhereBySessionId: newIsBusyElsewhereBySessionId,
             draftInputBySessionId: newDraftInputBySessionId,
             pendingMessageBySessionId: newPendingMessageBySessionId,
             pendingPatchExperimentsByToolCallId:
@@ -858,6 +866,22 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setSessionCompactionPending" }
+      );
+    },
+    isBusyElsewhereBySessionId: {},
+    setSessionBusyElsewhere: (sessionId, isBusy) => {
+      set(
+        (state) => {
+          const next = { ...state.isBusyElsewhereBySessionId };
+          if (isBusy) {
+            next[sessionId] = true;
+          } else {
+            delete next[sessionId];
+          }
+          return { isBusyElsewhereBySessionId: next };
+        },
+        false,
+        { type: "setSessionBusyElsewhere" }
       );
     },
     // -- Page and mounted contexts (ephemeral) --
