@@ -162,6 +162,19 @@ async def _create_agent_session_row(
         return str(GlobalID("AgentSession", str(agent_session.id)))
 
 
+async def _last_stored_message_id(db: DbSessionFactory) -> str:
+    """The session's last persisted message id — what a fresh client would
+    send as ``lastMessageId`` on its next turn."""
+    async with db() as session:
+        message_id = await session.scalar(
+            select(models.AgentSessionMessage.message_id)
+            .order_by(models.AgentSessionMessage.position.desc())
+            .limit(1)
+        )
+    assert message_id is not None
+    return message_id
+
+
 async def _accumulate_streamed_assistant_message(
     chunks: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -440,6 +453,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
         json=_chat_body(
             "91919191-9191-4191-8191-919191919191",
             _user_message("Continue", message_id="user-3"),
+            lastMessageId=compaction_message["id"],
         ),
     )
 
@@ -488,6 +502,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
         json=_chat_body(
             "91919191-9191-4191-8191-919191919191",
             _user_message("Finish", message_id="user-4"),
+            lastMessageId=second_compaction_message["id"],
         ),
     )
 
@@ -615,6 +630,7 @@ async def test_chat_turn_persists_session_transcript(
         json={
             **body,
             "message": _user_message("And experiments?", message_id="msg-user-2"),
+            "lastMessageId": assistant_messages[-1]["id"],
         },
     )
     assert second_response.status_code == 200
@@ -683,6 +699,7 @@ async def test_failed_chat_turn_does_not_persist_partial_transcript(
             json=_chat_body(
                 session_id,
                 _user_message("new message", message_id="msg-user-2"),
+                lastMessageId="msg-user-1",
             ),
         )
 
@@ -731,7 +748,11 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
 
     continuation_response = await httpx_client.post(
         _chat_url(agent_session_id),
-        json=_chat_body(session_id, resolved_assistant_message),
+        json=_chat_body(
+            session_id,
+            resolved_assistant_message,
+            lastMessageId=assistant_message_id,
+        ),
     )
     assert continuation_response.status_code == 200
     continuation_chunks = _stream_chunks(continuation_response.text)
@@ -1277,6 +1298,144 @@ async def test_chat_turn_without_a_message_is_rejected(
         assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
 
 
+async def test_chat_turn_with_stale_last_message_id_is_rejected(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """``lastMessageId`` is the send's optimistic-concurrency check: it must
+    be omitted while the transcript is empty and must match the transcript's
+    last persisted message once it isn't. A mismatch means the client is
+    viewing a stale transcript and is rejected before any model work."""
+    session_id = "23232323-2323-4323-8323-232323232323"
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id=session_id,
+        title="Already titled",
+        messages=[
+            _user_message("earlier question"),
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "earlier answer"}],
+            },
+        ],
+    )
+
+    # Omitted while the transcript is non-empty.
+    omitted_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("follow-up", message_id="msg-user-2")),
+    )
+    assert omitted_response.status_code == 409
+    assert omitted_response.json() == {"code": "agent_session_stale"}
+
+    # Pointing at a message that is no longer the transcript's last.
+    stale_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("follow-up", message_id="msg-user-2"),
+            lastMessageId="msg-user-1",
+        ),
+    )
+    assert stale_response.status_code == 409
+    assert stale_response.json() == {"code": "agent_session_stale"}
+
+    # A rejected send leaves the transcript untouched and the lock free.
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        assert stored.heartbeat_at is None
+        message_count = await session.scalar(
+            select(func.count()).select_from(models.AgentSessionMessage)
+        )
+    assert message_count == 2
+
+
+async def test_chat_turn_on_an_empty_session_rejects_a_last_message_id(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Providing ``lastMessageId`` against an empty transcript is stale too:
+    the client believes messages exist that the server does not have."""
+    session_id = "24242424-2424-4424-8424-242424242424"
+    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("hello"),
+            lastMessageId="msg-user-0",
+        ),
+    )
+    assert response.status_code == 409
+    assert response.json() == {"code": "agent_session_stale"}
+
+
+async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A compaction checkpoint is a regular transcript message: when it is the
+    transcript's tail, its id is exactly what a follow-up send must present as
+    ``lastMessageId`` — and the pre-compaction tail is stale."""
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "26262626-2626-4626-8626-262626262626"
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id=session_id,
+        title="Already titled",
+        messages=[
+            _user_message("earlier question"),
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "earlier answer"}],
+            },
+            {
+                "id": "compaction-1",
+                "role": "user",
+                "metadata": {
+                    "type": "user",
+                    "currentDateTime": "2026-01-01T00:00:00Z",
+                    "timeZone": "UTC",
+                    "isCompactionMessage": True,
+                },
+                "parts": [{"type": "text", "text": "Summary of the conversation so far."}],
+            },
+        ],
+    )
+
+    # The pre-compaction tail is no longer the transcript's last message.
+    stale_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("follow-up", message_id="msg-user-2"),
+            lastMessageId="assistant-1",
+        ),
+    )
+    assert stale_response.status_code == 409
+    assert stale_response.json() == {"code": "agent_session_stale"}
+
+    # The compaction checkpoint is the valid follow-up point.
+    follow_up_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("follow-up", message_id="msg-user-2"),
+            lastMessageId="compaction-1",
+        ),
+    )
+    assert follow_up_response.status_code == 200
+
+
 async def test_chat_turn_with_unknown_agent_session_id_returns_not_found(
     httpx_client: httpx.AsyncClient,
 ) -> None:
@@ -1478,6 +1637,7 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
         json=_chat_body(
             session_id,
             _user_message("second question", message_id="msg-user-2"),
+            lastMessageId=await _last_stored_message_id(db),
         ),
     )
     assert second_response.status_code == 200
@@ -1546,6 +1706,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
         json=_chat_body(
             session_id,
             _user_message("thanks", message_id="msg-user-2"),
+            lastMessageId=await _last_stored_message_id(db),
         ),
     )
     assert second_response.status_code == 200
@@ -1561,6 +1722,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
         json=_chat_body(
             session_id,
             _user_message("read it back", message_id="msg-user-3"),
+            lastMessageId=await _last_stored_message_id(db),
         ),
     )
     assert third_response.status_code == 200
@@ -1584,7 +1746,6 @@ async def test_server_agent_chat_turn_persists_session_transcript(
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-
     async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
         return TestModel(call_tools=[])
 
@@ -1619,6 +1780,7 @@ async def test_server_agent_chat_turn_persists_session_transcript(
         json=_chat_body(
             session_id,
             _user_message("And experiments?", message_id="msg-user-2"),
+            lastMessageId=await _last_stored_message_id(db),
         ),
     )
     assert second_response.status_code == 200
@@ -1663,6 +1825,7 @@ async def test_server_agent_bash_shell_state_persists_across_chat_turns(
         json=_chat_body(
             session_id,
             _user_message("read it back", message_id="msg-user-2"),
+            lastMessageId=await _last_stored_message_id(db),
         ),
     )
     assert second_response.status_code == 200
@@ -2065,6 +2228,7 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
         json=_chat_body(
             session_request_id,
             _user_message("second question", message_id="msg-user-2"),
+            lastMessageId=await _last_stored_message_id(db),
             ingestTraces=True,
             turnTraceContext={
                 "traceId": second_trace_id,

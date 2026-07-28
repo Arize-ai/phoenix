@@ -1858,6 +1858,7 @@ class AgentSessionData(TypedDict):
     created_at: str
     updated_at: str
     is_temporary: bool
+    is_active: bool
     messages: Sequence[PhoenixUIMessage]
 
 
@@ -1892,6 +1893,7 @@ class ChatRequest(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
     trigger: NotRequired[str]
+    lastMessageId: NotRequired[str]
 
 
 class CompactAgentSessionResponseData(TypedDict):

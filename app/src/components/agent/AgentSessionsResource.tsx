@@ -398,16 +398,23 @@ function AgentSessionTranscript({
     return <Loading />;
   }
   return (
-    <AgentChatController sessionId={sessionId} initialMessages={messages} />
+    <AgentChatController
+      sessionId={sessionId}
+      initialMessages={messages}
+      isActive={agentSession.isActive}
+    />
   );
 }
 
 function AgentChatController({
   sessionId,
   initialMessages,
+  isActive,
 }: {
   sessionId: string;
   initialMessages: AgentUIMessage[];
+  /** Relay-derived: another client's turn holds the session's server lock. */
+  isActive?: boolean;
 }) {
   const { menuValue, handleModelChange } = useAgentChatPanelState();
   const {
@@ -429,6 +436,7 @@ function AgentChatController({
   } = useAgentChat({
     sessionId,
     initialMessages,
+    isActive,
   });
 
   return (

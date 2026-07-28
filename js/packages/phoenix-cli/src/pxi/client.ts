@@ -28,6 +28,32 @@ import type {
 const AGENT_SESSION_CHAT_PATH =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof pathsV1;
 const SERVER_AGENT_ID = "server";
+/**
+ * Error code the chat endpoint returns (HTTP 409) while another client's turn
+ * holds the session lock.
+ */
+const SESSION_BUSY_ERROR_CODE = "agent_session_busy";
+
+/** Whether an error is the chat endpoint's session-busy (HTTP 409) rejection. */
+export function isSessionBusyError({ error }: { error: unknown }): boolean {
+  return (
+    error instanceof Error && error.message.includes(SESSION_BUSY_ERROR_CODE)
+  );
+}
+
+/**
+ * Error code the chat endpoint returns (HTTP 409) when the send's
+ * `lastMessageId` no longer matches the persisted transcript — another client
+ * appended to the session and this client is rendering a stale transcript.
+ */
+const SESSION_STALE_ERROR_CODE = "agent_session_stale";
+
+/** Whether an error is the chat endpoint's stale-transcript (HTTP 409) rejection. */
+export function isSessionStaleError({ error }: { error: unknown }): boolean {
+  return (
+    error instanceof Error && error.message.includes(SESSION_STALE_ERROR_CODE)
+  );
+}
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
@@ -187,6 +213,10 @@ export function createPxiSessionClient({
         title: session.title,
         updatedAt: session.updated_at,
         isTemporary: session.is_temporary,
+        // Read defensively: the CLI consumes phoenix-client's built types,
+        // which may not carry `is_active` until that package rebuilds.
+        // An absent field means no lock is held.
+        isActive: (session as { is_active?: unknown }).is_active === true,
         messages: session.messages as PxiMessage[],
       };
     },
@@ -283,9 +313,17 @@ export function buildPxiChatRequest({
   if (!message) {
     throw new Error("A chat submit request requires a message to send");
   }
+  // The send's optimistic-concurrency check: the id of the last transcript
+  // message this client believes is persisted. A new user message at the tail
+  // is the turn being submitted, so the message before it is the persisted
+  // tail; a trailing assistant message (client-tool continuation) is itself
+  // the persisted tail. Null while the transcript is empty.
+  const lastMessageId =
+    (message.role === "assistant" ? message.id : messages.at(-2)?.id) ?? null;
   return {
     ...buildPxiRequestBase({ options }),
     message,
+    lastMessageId,
   };
 }
 
@@ -424,6 +462,13 @@ export function createPxiChatClient({
           onSessionTitle,
         });
       } catch (error) {
+        // Session-conflict rejections (HTTP 409: another client's turn holds
+        // the lock, or this client's transcript went stale) are not
+        // model/provider failures: rethrow them unwrapped so the UI can enter
+        // its busy state or refresh the transcript.
+        if (isSessionBusyError({ error }) || isSessionStaleError({ error })) {
+          throw error;
+        }
         throw formatPxiRuntimeError({
           error,
           modelSelection: options.modelSelection,

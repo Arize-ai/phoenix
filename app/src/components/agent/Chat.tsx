@@ -316,6 +316,12 @@ const chatCSS = css`
     color: var(--global-text-color-300);
   }
 
+  .chat__busy-elsewhere,
+  .chat__stale-refreshed {
+    color: var(--global-text-color-300);
+    font-size: var(--global-font-size-xs);
+  }
+
   .chat__edit-permissions {
     flex: none;
   }
@@ -514,6 +520,14 @@ export function ChatView({
   const draftInput = useAgentContext((state) =>
     sessionId ? (state.draftInputBySessionId[sessionId] ?? "") : ""
   );
+  const isBusyElsewhere = useAgentContext((state) =>
+    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
+  );
+  const wasRefreshedFromStale = useAgentContext((state) =>
+    sessionId
+      ? (state.wasRefreshedFromStaleBySessionId[sessionId] ?? false)
+      : false
+  );
   const setDraftInput = useAgentContext((state) => state.setDraftInput);
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
@@ -569,7 +583,8 @@ export function ChatView({
     status === "submitted" || status === "streaming";
   const isSendDisabledForMissingCredentials =
     !isWaitingForAssistant && Boolean(missingCredentialsProvider);
-  const isSubmitDisabled = isSendDisabledForMissingCredentials || isCompacting;
+  const isSubmitDisabled =
+    isSendDisabledForMissingCredentials || isCompacting || isBusyElsewhere;
   const showThinkingIndicator = shouldShowThinkingIndicator({
     status,
     messages,
@@ -578,6 +593,7 @@ export function ChatView({
   const shouldShowInterruptedMessage =
     status === "ready" &&
     !error &&
+    !isBusyElsewhere &&
     latestMessage?.role === "user" &&
     !isCompactionMessage(latestMessage);
   const resolvedElicitationDraft =
@@ -823,7 +839,27 @@ export function ChatView({
                     {compactionStatus}
                   </ChatCompactionStatus>
                 ) : null}
-                {showThinkingIndicator && <Loading />}
+                {(showThinkingIndicator || isBusyElsewhere) && <Loading />}
+                {isBusyElsewhere ? (
+                  <div
+                    className="chat__busy-elsewhere"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Session is being used elsewhere, the chat will refresh when
+                    complete.
+                  </div>
+                ) : null}
+                {wasRefreshedFromStale && !isBusyElsewhere ? (
+                  <div
+                    className="chat__stale-refreshed"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Session was updated elsewhere, the chat has been refreshed.
+                    Your unsent message is still in the input below.
+                  </div>
+                ) : null}
                 {shouldShowInterruptedMessage ? (
                   <InterruptedChatMessage
                     latestUserMessageId={latestMessage.id}
@@ -832,7 +868,10 @@ export function ChatView({
                     onRewind={onRewindRequest}
                   />
                 ) : null}
-                {error && (
+                {/* A session-conflict rejection is not a failed response:
+                    busy-elsewhere mode owns the UI until the lock clears, and
+                    a stale send resolves into the refreshed-transcript notice. */}
+                {error && !isBusyElsewhere && !wasRefreshedFromStale && (
                   <ChatErrorMessage
                     error={error}
                     latestUserMessageId={getLatestMessageId({
@@ -950,7 +989,7 @@ export function ChatView({
               textareaRef={textareaRef}
               modelMenuValue={modelMenuValue}
               onModelChange={onModelChange}
-              isInputDisabled={isCompacting}
+              isInputDisabled={isCompacting || isBusyElsewhere}
               isSubmitDisabled={isSubmitDisabled}
               onStop={() => {
                 void stop();

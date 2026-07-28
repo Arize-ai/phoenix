@@ -110,6 +110,11 @@ export type PxiSessionSummary = {
 /** A session and its canonical persisted transcript. */
 export type PxiSession = PxiSessionSummary & {
   messages: PxiMessage[];
+  /**
+   * Whether another client currently holds the session's server-side lock.
+   * Absent means no lock is held.
+   */
+  isActive?: boolean;
 };
 
 /** Server-side session operations used by the chat UI. */

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<65523203c2391ca43e3bd900a7fdab7a>>
+ * @generated SignedSource<<f911423ffcf7bfc8b59fb172854cd0d5>>
  * @lightSyntaxTransform
  */
 
@@ -17,6 +17,7 @@ export type agentSessionRelaySessionQuery$data = {
     readonly createdAt: string;
     readonly firstInput: string | null;
     readonly id: string;
+    readonly isActive: boolean;
     readonly isTemporary: boolean;
     readonly latestOutput: string | null;
     readonly messages: any;
@@ -84,45 +85,52 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "createdAt",
+  "name": "isActive",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "updatedAt",
+  "name": "createdAt",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "firstInput",
+  "name": "updatedAt",
   "storageKey": null
 },
 v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "latestOutput",
+  "name": "firstInput",
   "storageKey": null
 },
 v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "username",
+  "name": "latestOutput",
   "storageKey": null
 },
 v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "profilePictureUrl",
+  "name": "username",
   "storageKey": null
 },
 v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "profilePictureUrl",
+  "storageKey": null
+},
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -155,6 +163,7 @@ return {
               (v7/*:: as any*/),
               (v8/*:: as any*/),
               (v9/*:: as any*/),
+              (v10/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -163,12 +172,12 @@ return {
                 "name": "user",
                 "plural": false,
                 "selections": [
-                  (v10/*:: as any*/),
-                  (v11/*:: as any*/)
+                  (v11/*:: as any*/),
+                  (v12/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v12/*:: as any*/)
+              (v13/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -205,6 +214,7 @@ return {
               (v7/*:: as any*/),
               (v8/*:: as any*/),
               (v9/*:: as any*/),
+              (v10/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -213,13 +223,13 @@ return {
                 "name": "user",
                 "plural": false,
                 "selections": [
-                  (v10/*:: as any*/),
                   (v11/*:: as any*/),
+                  (v12/*:: as any*/),
                   (v3/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v12/*:: as any*/)
+              (v13/*:: as any*/)
             ],
             "type": "AgentSession",
             "abstractKey": null
@@ -230,16 +240,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8b41876a0317c4c224fe910e472b986f",
+    "cacheID": "d5db0cbad69bfa0a719d1e260e54a6b4",
     "id": null,
     "metadata": {},
     "name": "agentSessionRelaySessionQuery",
     "operationKind": "query",
-    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n    id\n  }\n}\n"
+    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary\n      isActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "51e803379d7880f54759833e4a68e71b";
+(node as any).hash = "4c69ea26b4f6bd6062b44c40c90a3b3d";
 
 export default node;

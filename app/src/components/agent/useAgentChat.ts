@@ -6,7 +6,7 @@ import {
   isTextUIPart,
   isToolUIPart,
 } from "ai";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ConnectionHandler,
   commitLocalUpdate,
@@ -91,6 +91,15 @@ const CHAT_PATH_TEMPLATE =
 const COMPACT_PATH_TEMPLATE =
   "/agents/{agent_id}/sessions/{session_id}/compact" satisfies keyof paths;
 const ASSISTANT_AGENT_ID = "assistant";
+/** Error code the chat endpoint returns when another client holds the lock. */
+const SESSION_BUSY_ERROR_CODE = "agent_session_busy";
+/**
+ * Error code the chat endpoint returns when the send's `lastMessageId` no
+ * longer matches the persisted transcript — another client appended to the
+ * session and this client is rendering a stale transcript.
+ */
+const SESSION_STALE_ERROR_CODE = "agent_session_stale";
+const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
 
 function buildAgentChatApiUrl(sessionId: string): string {
   return prependBasename(
@@ -212,6 +221,7 @@ const branchAgentSessionMutation = graphql`
 export function useAgentChat({
   sessionId,
   initialMessages,
+  isActive = false,
 }: {
   /**
    * The session's Relay node ID, or {@link DRAFT_SESSION_ID} (or null) for a
@@ -220,6 +230,12 @@ export function useAgentChat({
   sessionId: string | null;
   /** Server transcript used to seed the runtime chat on its first bind. */
   initialMessages?: AgentUIMessage[];
+  /**
+   * Relay-derived turn-lock state from the session's canonical record:
+   * another client's turn currently holds the session's server lock. Drives
+   * entry into busy-elsewhere mode; the hook then polls until the lock clears.
+   */
+  isActive?: boolean;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
@@ -235,6 +251,9 @@ export function useAgentChat({
   );
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
+  );
+  const isBusyElsewhere = useAgentContext((state) =>
+    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
   );
 
   const [commitCreateAgentSession] =
@@ -303,6 +322,10 @@ export function useAgentChat({
             // this request reads the active turn trace context.
             turnCompletionGate.beginTurn();
             store.getState().setSessionResponsePending(targetSessionId, true);
+            // A fresh send supersedes any lingering stale-refresh notice.
+            store
+              .getState()
+              .setSessionRefreshedFromStale(targetSessionId, false);
             return {
               body: buildAgentChatRequestBody({
                 body,
@@ -383,6 +406,48 @@ export function useAgentChat({
         onError: (error) => {
           transcriptPersistence.cancelPendingWaiters();
           turnCompletionGate.fail(error);
+          const isBusyRejection = error.message.includes(
+            SESSION_BUSY_ERROR_CODE
+          );
+          const isStaleRejection = error.message.includes(
+            SESSION_STALE_ERROR_CODE
+          );
+          if (!isBusyRejection && !isStaleRejection) {
+            return;
+          }
+          // A session-conflict rejection (HTTP 409): either another client's
+          // turn holds the session lock, or this client's transcript went
+          // stale because another client appended to the session. Withdraw
+          // the optimistic user message into the composer draft and enter
+          // busy-elsewhere mode; the poll below fetches the fresh transcript
+          // and swaps it in (immediately for a stale send with no live turn,
+          // or once the other client's turn completes).
+          const lastMessage = chat.messages.at(-1);
+          if (lastMessage?.role === "user") {
+            const restoredInput = getRemovedUserMessageText(
+              chat.messages,
+              lastMessage.id
+            );
+            chat.messages = chat.messages.slice(0, -1);
+            if (restoredInput) {
+              store.getState().setDraftInput(targetSessionId, restoredInput);
+            }
+          }
+          // Deferred: the SDK assigns its error state around this callback, so
+          // a synchronous clearError would be clobbered and the inline
+          // "response failed" banner would still render.
+          queueMicrotask(() => {
+            chat.clearError();
+          });
+          if (isStaleRejection) {
+            // Raise the refreshed-from-stale notice now; it renders once the
+            // poll exits busy mode with the fresh transcript in place, and
+            // clears on the next send.
+            store
+              .getState()
+              .setSessionRefreshedFromStale(targetSessionId, true);
+          }
+          store.getState().setSessionBusyElsewhere(targetSessionId, true);
         },
         onFinish: ({ messages: finalMessages, message }) => {
           turnTraceContext.captureFromMetadata(
@@ -433,6 +498,80 @@ export function useAgentChat({
     setMessages,
     clearError,
   } = chat;
+
+  // Turn-lock entry: the session's Relay record (fetched network-only when a
+  // session surface binds, and refreshed after each completed turn) is the
+  // source of truth for whether another client's turn holds the server lock.
+  // Deriving from it means opening a locked session enters busy-elsewhere mode
+  // without a separate imperative status check.
+  useEffect(() => {
+    if (!persistedSessionId || !chatInstance || !isActive) {
+      return;
+    }
+    const state = store.getState();
+    // Never treat this client's own in-flight turn as busy elsewhere.
+    if (
+      state.isBusyElsewhereBySessionId[persistedSessionId] !== true &&
+      !isRequestActive(chatInstance.status)
+    ) {
+      state.setSessionBusyElsewhere(persistedSessionId, true);
+    }
+  }, [persistedSessionId, chatInstance, isActive, store]);
+
+  // While in busy-elsewhere mode, poll the session's canonical Relay record
+  // until the other client's turn completes, then swap in the persisted
+  // transcript. Refetching through Relay (rather than the REST session read)
+  // normalizes the fresh title/timestamps/transcript into the store, so every
+  // mounted session view updates alongside the chat. Transient fetch failures
+  // keep the poll alive; unmounting or switching sessions stops it.
+  useEffect(() => {
+    if (!persistedSessionId || !chatInstance || !isBusyElsewhere) {
+      return;
+    }
+    let disposed = false;
+    const pollTurnLock = async () => {
+      try {
+        const data = await refetchAgentSession({
+          environment: relayEnvironment,
+          sessionId: persistedSessionId,
+        });
+        const agentSession =
+          data?.agentSession.__typename === "AgentSession"
+            ? data.agentSession
+            : null;
+        if (!agentSession || agentSession.isActive || disposed) {
+          return;
+        }
+        // The other client's turn completed and its transcript persisted;
+        // mirror the rewind path by replacing the runtime chat's messages.
+        // Clear any lingering 409 error first: the SDK assigns error state
+        // AFTER onError runs, so entry-time clearing is timing-fragile —
+        // this is the deterministic point where nothing can re-error.
+        chatInstance.clearError();
+        chatInstance.messages = Array.isArray(agentSession.messages)
+          ? (agentSession.messages as AgentUIMessage[])
+          : [];
+        store.getState().setSessionBusyElsewhere(persistedSessionId, false);
+      } catch {
+        // Transient failure: wait for the next poll tick.
+      }
+    };
+    void pollTurnLock();
+    const intervalId = setInterval(
+      () => void pollTurnLock(),
+      SESSION_BUSY_POLL_INTERVAL_MS
+    );
+    return () => {
+      disposed = true;
+      clearInterval(intervalId);
+    };
+  }, [
+    persistedSessionId,
+    chatInstance,
+    isBusyElsewhere,
+    relayEnvironment,
+    store,
+  ]);
 
   // Anthropic doesn't accept unresolved tool calls, so we resolve them by
   // marking them as error before the next request goes out.

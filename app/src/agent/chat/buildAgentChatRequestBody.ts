@@ -148,7 +148,32 @@ export function buildAgentChatRequestBody({
   if (!message) {
     throw new Error("A chat submit request requires a message to send");
   }
-  return { ...base, trigger: "submit-message", message };
+  return {
+    ...base,
+    trigger: "submit-message",
+    message,
+    lastMessageId: getLastPersistedMessageId(messages),
+  };
+}
+
+/**
+ * The id of the last transcript message this client believes is persisted —
+ * the send's optimistic-concurrency check. A new user message at the tail is
+ * the turn being submitted, so the message before it is the last persisted
+ * one; a trailing assistant message (the client-tool continuation path) is
+ * itself the transcript's persisted tail. Undefined (omitted on the wire)
+ * when the transcript is empty.
+ */
+function getLastPersistedMessageId(
+  messages: AgentUIMessage[]
+): string | undefined {
+  const lastMessage = messages.at(-1);
+  if (!lastMessage) {
+    return undefined;
+  }
+  return lastMessage.role === "assistant"
+    ? lastMessage.id
+    : messages.at(-2)?.id;
 }
 
 /** Return a copy of resolved tool parts annotated with complete client timings. */
