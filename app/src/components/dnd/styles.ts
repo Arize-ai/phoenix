@@ -24,7 +24,8 @@ export const dndDragFeedbackCSS = css`
  * Appearance for a hover-revealed drag handle button: hidden until the
  * containing row/header is hovered (via a sibling `&:hover .{className}`
  * rule each consumer adds) or the handle itself is focused. Compose into a
- * handle's own layout CSS (size, position).
+ * handle's own layout CSS (size, position); for a plain list row prefer
+ * {@link dndRowHandleCSS}, which already applies this.
  */
 export const dndHandleAppearanceCSS = css`
   ${revealOnHoverCSS}
@@ -48,4 +49,21 @@ export const dndHandleAppearanceCSS = css`
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
+`;
+
+/**
+ * A hover-revealed drag handle sized to sit at the end of a list row:
+ * {@link dndHandleAppearanceCSS} in a centered square box. Compose into the
+ * handle's own rule, and pair with a `&:hover .{className} { opacity: 1 }`
+ * rule on the row so hovering the row reveals it.
+ */
+export const dndRowHandleCSS = css`
+  ${dndHandleAppearanceCSS}
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--global-dimension-size-225);
+  height: var(--global-dimension-size-225);
+  font-size: var(--global-font-size-m);
 `;

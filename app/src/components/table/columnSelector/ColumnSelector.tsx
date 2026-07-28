@@ -14,10 +14,7 @@ import {
   MenuHeader,
   Popover,
 } from "@phoenix/components";
-import {
-  dndDragFeedbackCSS,
-  dndHandleAppearanceCSS,
-} from "@phoenix/components/dnd";
+import { dndDragFeedbackCSS, dndRowHandleCSS } from "@phoenix/components/dnd";
 
 import { ColumnOrderingProvider, orderColumns } from "../columnOrdering";
 
@@ -90,14 +87,7 @@ export const columnRowCSS = css`
     min-width: 0;
   }
   .column-selector-row__handle {
-    ${dndHandleAppearanceCSS}
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    width: var(--global-dimension-size-225);
-    height: var(--global-dimension-size-225);
-    font-size: var(--global-font-size-m);
+    ${dndRowHandleCSS}
   }
   &:hover {
     background-color: var(--global-color-gray-200);
