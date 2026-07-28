@@ -3,6 +3,7 @@ import re
 import sys
 import typing
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from itertools import chain
 from types import MappingProxyType
@@ -327,6 +328,7 @@ def _eval_globals(
         "Float": sqlalchemy.Float,
         "String": sqlalchemy.String,
         "TextContains": models.TextContains,
+        _DATETIME_CONVERTER: _parse_datetime_literal,
     }
 
 
@@ -621,6 +623,36 @@ class Projector:
 
 def _is_string_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, str)
+
+
+_DATETIME_CONVERTER = "__to_datetime__"
+
+
+def _parse_datetime_literal(value: str) -> datetime:
+    """Parse an ISO 8601 string comparand for a datetime-bound name; naive values read as UTC.
+
+    Without this conversion the string would reach the column's bind processor, which
+    turns non-datetime input into SQL NULL — a predicate that silently matches nothing.
+    """
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise SyntaxError(
+            f"invalid datetime literal {value!r}; use ISO 8601, "
+            "e.g. '2026-07-01' or '2026-07-01T12:00:00+00:00'"
+        ) from None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_datetime_name(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Name]:
+    return isinstance(node, ast.Name) and node.id in bindings.datetime_names
+
+
+def _as_datetime_literal(node: ast.Constant) -> ast.Call:
+    _parse_datetime_literal(typing.cast(str, node.value))  # reject malformed input early
+    return ast.Call(func=ast.Name(id=_DATETIME_CONVERTER, ctx=ast.Load()), args=[node], keywords=[])
 
 
 def _is_uppercase_name(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Name]:
@@ -1024,6 +1056,11 @@ class _FilterTranslator(_ProjectionTranslator):
             right = _convert_to_uppercase(right)
         elif _is_uppercase_name(right, self._bindings):
             left = _convert_to_uppercase(left)
+        if not isinstance(op, (ast.In, ast.NotIn)):
+            if _is_datetime_name(left, self._bindings) and _is_string_constant(right):
+                right = _as_datetime_literal(right)
+            elif _is_datetime_name(right, self._bindings) and _is_string_constant(left):
+                left = _as_datetime_literal(left)
         if _is_subscript(left, "attributes"):
             left = (
                 _as_bool_attribute(left) if _is_bool_constant(right) else _cast_as("String", left)

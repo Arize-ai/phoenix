@@ -298,6 +298,43 @@ async def test_session_filter_applies_and_returns_expected_rowids(db: DbSessionF
         assert via_subquery == {match.id}
 
 
+async def test_session_filter_datetime_literal_comparison(db: DbSessionFactory) -> None:
+    """A string comparand on a datetime name parses as ISO 8601 (naive = UTC) and selects by
+    time; a malformed literal is rejected at construction instead of matching nothing."""
+    async with db() as session:
+        project = await _add_project(session)
+        earlier = await _seed_session(
+            session,
+            project,
+            num_traces=1,
+            total_cost=0.0,
+            start_time=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        )
+        later = await _seed_session(
+            session,
+            project,
+            num_traces=1,
+            total_cost=0.0,
+            start_time=datetime(2026, 7, 3, tzinfo=timezone.utc),
+        )
+
+        subquery = SessionFilter("start_time > '2026-07-02'").as_session_rowids_subquery(
+            project_rowids=[project.id]
+        )
+        matched = set(
+            (
+                await session.scalars(
+                    select(models.ProjectSession.id).where(models.ProjectSession.id.in_(subquery))
+                )
+            ).all()
+        )
+        assert matched == {later.id}
+        assert earlier.id not in matched
+
+    with pytest.raises(SyntaxError, match="invalid datetime literal"):
+        SessionFilter("start_time > 'not-a-date'")
+
+
 async def test_session_filter_candidate_scoping(db: DbSessionFactory) -> None:
     """A candidate-rowid restriction limits the result to the candidate set (pushed into the
     aggregate SQL), never widening past it."""
