@@ -258,6 +258,20 @@ describe("cards nested in the span details view", () => {
     expect(copyButton?.nextElementSibling).toBeNull();
   });
 
+  it("shows a tool's parameter schema as the JSON it is, matching the copy", () => {
+    render(
+      <ToolMetadata
+        name="search"
+        description="Searches the web"
+        parameters='{"type":"object"}'
+      />
+    );
+    // the schema arrives as JSON text; encoding it again would render one
+    // escaped line rather than the schema
+    const block = container.querySelector("pre");
+    expect(block?.textContent).toBe('{"type":"object"}');
+  });
+
   it("puts a copy button last in each embedded text's header", () => {
     render(
       <EmbeddingInput

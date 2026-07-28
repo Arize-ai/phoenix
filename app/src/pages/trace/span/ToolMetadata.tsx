@@ -80,10 +80,14 @@ export function ToolMetadata({
                   }
                 `}
               >
+                {/* the parameter schema arrives as JSON text already, so it
+                    goes to the block as it came: encoding it again would show
+                    the reader one escaped line instead of the schema, and
+                    would not match what the card's copy button hands back */}
                 <ReadonlyJSONBlock
                   basicSetup={{ lineNumbers: false, foldGutter: false }}
                 >
-                  {JSON.stringify(parameters)}
+                  {parameters}
                 </ReadonlyJSONBlock>
               </div>
             </Flex>
