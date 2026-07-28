@@ -106,6 +106,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | deployment.affinity | object | `{}` |  |
 | deployment.nodeSelector | object | `{}` |  |
 | deployment.strategy | object | `{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"}` | Deployment strategy |
+| deployment.terminationGracePeriodSeconds | int | `90` | Seconds Kubernetes allows Phoenix to drain in-flight work during shutdown |
 | deployment.tolerations | list | `[]` | Tolerations, nodeSelector and affinity For Pod scheduling strategy on the nodes |
 | extraVolumeMounts | list | `[]` | Extra Volume Mounts |
 | extraVolumes | list | `[]` | Extra Volumes configuration |

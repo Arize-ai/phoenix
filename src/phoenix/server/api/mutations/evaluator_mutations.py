@@ -61,6 +61,7 @@ from phoenix.server.api.types.SandboxConfig import (
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
+from phoenix.server.types import DbSessionFactory
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
@@ -125,7 +126,7 @@ def _raise_on_uninferable_evaluate_signature(source_code: str, language: Languag
 
 
 async def _validate_code_evaluator_sandbox_config(
-    session: AsyncSession,
+    db: DbSessionFactory,
     *,
     sandbox_config_global_id: GlobalID,
     language: str,
@@ -136,27 +137,32 @@ async def _validate_code_evaluator_sandbox_config(
     sandbox_config_id = from_global_id_with_expected_type(
         sandbox_config_global_id, SandboxConfig.__name__
     )
-    target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
-    if target_cfg is None:
-        raise BadRequest(f"Sandbox config not found: {sandbox_config_global_id}")
-    if not target_cfg.enabled:
-        raise BadRequest(
-            f"Sandbox configuration '{target_cfg.name}' is disabled. Enable it before {action}."
-        )
+    async with db() as session:
+        target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
+        if target_cfg is None:
+            raise BadRequest(f"Sandbox config not found: {sandbox_config_global_id}")
+        if not target_cfg.enabled:
+            raise BadRequest(
+                f"Sandbox configuration '{target_cfg.name}' is disabled. Enable it before {action}."
+            )
 
-    provider = await session.get(models.SandboxProvider, target_cfg.backend_type)
-    if provider is None:
-        raise BadRequest(f"Sandbox provider for configuration '{target_cfg.name}' was not found")
-    if not provider.enabled:
-        raise BadRequest(
-            f"Sandbox provider '{provider.backend_type}' is disabled. Enable it before {action}."
-        )
+        provider = await session.get(models.SandboxProvider, target_cfg.backend_type)
+        if provider is None:
+            raise BadRequest(
+                f"Sandbox provider for configuration '{target_cfg.name}' was not found"
+            )
+        if not provider.enabled:
+            raise BadRequest(
+                f"Sandbox provider '{provider.backend_type}' is disabled. "
+                f"Enable it before {action}."
+            )
 
-    if target_cfg.language != language:
-        raise BadRequest("Evaluator language does not match sandbox config language")
+        if target_cfg.language != language:
+            raise BadRequest("Evaluator language does not match sandbox config language")
 
-    adapter = SANDBOX_ADAPTERS.get(target_cfg.backend_type)
-    if adapter is not None:
+        adapter = SANDBOX_ADAPTERS.get(target_cfg.backend_type)
+        if adapter is None:
+            return sandbox_config_id
         validated_config = adapter.config_model.model_validate(
             {
                 "backend_type": target_cfg.backend_type,
@@ -164,20 +170,23 @@ async def _validate_code_evaluator_sandbox_config(
                 **(target_cfg.config or {}),
             }
         )
-        try:
-            validation_error = await adapter.validate_code(
-                validated_config,
-                source_code,
-                runtime=sandbox_runtime,
-            )
-        except SandboxValidationUnavailable as exc:
-            raise BadRequest(
-                f"Code could not be validated by the {adapter.display_name} runtime. Retry shortly."
-            ) from exc
-        if validation_error is not None:
-            raise BadRequest(
-                f"Code is not supported by the {adapter.display_name} runtime: {validation_error}"
-            )
+
+    # Sandboxed validation can wait for worker capacity. Run it after the short
+    # metadata transaction releases SQLite's process-wide database lock.
+    try:
+        validation_error = await adapter.validate_code(
+            validated_config,
+            source_code,
+            runtime=sandbox_runtime,
+        )
+    except SandboxValidationUnavailable as exc:
+        raise BadRequest(
+            f"Code could not be validated by the {adapter.display_name} runtime. Retry shortly."
+        ) from exc
+    if validation_error is not None:
+        raise BadRequest(
+            f"Code is not supported by the {adapter.display_name} runtime: {validation_error}"
+        )
 
     return sandbox_config_id
 
@@ -1330,18 +1339,17 @@ class EvaluatorMutationMixin:
             raise BadRequest("input_mapping is required")
         input_mapping_orm = input.input_mapping.to_orm()
         _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
+        sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+            info.context.db,
+            sandbox_config_global_id=input.sandbox_config_id,
+            language=input.language.value,
+            action="creating this evaluator",
+            source_code=input.source_code,
+            sandbox_runtime=info.context.sandbox_runtime,
+        )
 
         try:
             async with info.context.db() as session:
-                sandbox_config_id = await _validate_code_evaluator_sandbox_config(
-                    session,
-                    sandbox_config_global_id=input.sandbox_config_id,
-                    language=input.language.value,
-                    action="creating this evaluator",
-                    source_code=input.source_code,
-                    sandbox_runtime=info.context.sandbox_runtime,
-                )
-
                 row = models.CodeEvaluator(
                     name=validated_name,
                     description=input.description,
@@ -1383,6 +1391,32 @@ class EvaluatorMutationMixin:
         if input.output_configs is not UNSET and input.output_configs is None:
             raise BadRequest("output_configs cannot be set to null")
 
+        validated_sandbox_config_id: Optional[int] = None
+        validated_source_code: Optional[str] = None
+        if input.sandbox_config_id is not UNSET and input.sandbox_config_id is not None:
+            async with info.context.db() as session:
+                current = await session.get(models.CodeEvaluator, evaluator_id)
+                if current is None:
+                    raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+                language = current.language
+                validated_source_code = (
+                    await session.scalar(
+                        select(models.CodeEvaluatorVersion.source_code)
+                        .where(models.CodeEvaluatorVersion.code_evaluator_id == evaluator_id)
+                        .order_by(models.CodeEvaluatorVersion.id.desc())
+                        .limit(1)
+                    )
+                    or ""
+                )
+            validated_sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+                info.context.db,
+                sandbox_config_global_id=input.sandbox_config_id,
+                language=language,
+                action="patching this evaluator",
+                source_code=validated_source_code,
+                sandbox_runtime=info.context.sandbox_runtime,
+            )
+
         try:
             async with info.context.db() as session:
                 row = await session.get(models.CodeEvaluator, evaluator_id)
@@ -1402,23 +1436,20 @@ class EvaluatorMutationMixin:
                     if input.sandbox_config_id is None:
                         row.sandbox_config_id = None
                     else:
-                        sandbox_config_id = await _validate_code_evaluator_sandbox_config(
-                            session,
-                            sandbox_config_global_id=input.sandbox_config_id,
-                            language=row.language,
-                            action="patching this evaluator",
-                            source_code=(
-                                await session.scalar(
-                                    select(models.CodeEvaluatorVersion.source_code)
-                                    .where(models.CodeEvaluatorVersion.code_evaluator_id == row.id)
-                                    .order_by(models.CodeEvaluatorVersion.id.desc())
-                                    .limit(1)
-                                )
-                                or ""
-                            ),
-                            sandbox_runtime=info.context.sandbox_runtime,
+                        latest_source_code = (
+                            await session.scalar(
+                                select(models.CodeEvaluatorVersion.source_code)
+                                .where(models.CodeEvaluatorVersion.code_evaluator_id == row.id)
+                                .order_by(models.CodeEvaluatorVersion.id.desc())
+                                .limit(1)
+                            )
+                            or ""
                         )
-                        row.sandbox_config_id = sandbox_config_id
+                        if latest_source_code != validated_source_code:
+                            raise Conflict(
+                                "The evaluator version changed during sandbox validation; retry."
+                            )
+                        row.sandbox_config_id = validated_sandbox_config_id
 
                 if input.input_mapping is not UNSET and input.input_mapping is not None:
                     row.input_mapping = input.input_mapping.to_orm()
@@ -1463,6 +1494,26 @@ class EvaluatorMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
 
+        async with info.context.db() as session:
+            current = await session.get(models.CodeEvaluator, evaluator_id)
+            if current is None:
+                raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+            validated_language = current.language
+            validated_sandbox_config_id = current.sandbox_config_id
+
+        _raise_on_uninferable_evaluate_signature(input.source_code, Language(validated_language))
+        if validated_sandbox_config_id is not None:
+            await _validate_code_evaluator_sandbox_config(
+                info.context.db,
+                sandbox_config_global_id=GlobalID(
+                    SandboxConfig.__name__, str(validated_sandbox_config_id)
+                ),
+                language=validated_language,
+                action="creating this evaluator version",
+                source_code=input.source_code,
+                sandbox_runtime=info.context.sandbox_runtime,
+            )
+
         try:
             async with info.context.db() as session:
                 code_evaluator_with_version = await code_evaluator_with_latest_version_for_update(
@@ -1471,19 +1522,11 @@ class EvaluatorMutationMixin:
                 if code_evaluator_with_version is None:
                     raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
                 row, current_version = code_evaluator_with_version
-                _raise_on_uninferable_evaluate_signature(input.source_code, Language(row.language))
-
-                if row.sandbox_config_id is not None:
-                    await _validate_code_evaluator_sandbox_config(
-                        session,
-                        sandbox_config_global_id=GlobalID(
-                            SandboxConfig.__name__, str(row.sandbox_config_id)
-                        ),
-                        language=row.language,
-                        action="creating this evaluator version",
-                        source_code=input.source_code,
-                        sandbox_runtime=info.context.sandbox_runtime,
-                    )
+                if (
+                    row.language != validated_language
+                    or row.sandbox_config_id != validated_sandbox_config_id
+                ):
+                    raise Conflict("The evaluator sandbox changed during source validation; retry.")
 
                 candidate = models.CodeEvaluatorVersion(
                     code_evaluator_id=row.id,

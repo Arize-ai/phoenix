@@ -302,6 +302,36 @@ class TestEvaluateSuccessPath:
         assert results[0]["score"] == 1.0
         assert results[0]["error"] is None
 
+    @pytest.mark.parametrize("non_finite_value", [float("nan"), float("inf"), float("-inf")])
+    async def test_monty_passes_non_finite_inputs_without_embedding_python_literals(
+        self, non_finite_value: float
+    ) -> None:
+        runtime = MontyRuntime()
+        try:
+            runner = CodeEvaluatorRunner(
+                name="monty-native-inputs",
+                description=None,
+                source_code="def evaluate(output):\n    return {'label': 'pass'}",
+                stored_output_configs=[_categorical_config()],
+                sandbox_backend=MontySandboxBackend(runtime),
+                language="PYTHON",
+                sandbox_session_manager=SandboxSessionManager(),
+                session_key="evaluator:monty-native-inputs",
+                timeout=1,
+            )
+
+            results = await runner.evaluate(
+                context={"output": {"score": non_finite_value}},
+                input_mapping=_EMPTY_MAPPING,
+                name="monty",
+                output_configs=[_categorical_config()],
+            )
+        finally:
+            await runtime.aclose()
+
+        assert results[0]["label"] == "pass"
+        assert results[0]["error"] is None
+
     async def test_returns_label_from_stdout(self) -> None:
         runner, _ = _make_runner(backend_stdout='"pass"')
         results = await runner.evaluate(

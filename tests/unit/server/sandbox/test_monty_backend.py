@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from phoenix.server.api.evaluators import _extract_fenced_result
 from phoenix.server.monty_runtime import (
     DEFAULT_GUEST_MAX_MEMORY_BYTES,
     DEFAULT_GUEST_MAX_RECURSION_DEPTH,
@@ -63,6 +64,21 @@ async def test_execute_serializes_returned_value_and_captures_stdout(
     assert json.dumps({"label": "pass", "score": 1}) in result.stdout
     assert "===PHOENIX_RESULT_BEGIN===" in result.stdout
     assert "===PHOENIX_RESULT_END===" in result.stdout
+
+
+async def test_execute_separates_result_fence_from_unterminated_stdout(
+    runtime: MontyRuntime,
+) -> None:
+    result = await MontySandboxBackend(runtime).execute(
+        "print('checking', end='')\n{'score': 1}",
+        session_key="",
+        timeout=1,
+    )
+
+    fenced_result, stdout = _extract_fenced_result(result.stdout)
+
+    assert fenced_result == '{"score": 1}'
+    assert stdout == "checking"
 
 
 async def test_validate_code_runs_in_worker(runtime: MontyRuntime) -> None:

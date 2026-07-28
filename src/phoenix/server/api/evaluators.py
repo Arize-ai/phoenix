@@ -73,6 +73,7 @@ from phoenix.server.sandbox.session_manager import (
     SessionLimitExceeded,
 )
 from phoenix.server.sandbox.types import (
+    BaseNoSessionBackend,
     ExecutionResult,
     SandboxBackend,
     SandboxRuntimeContext,
@@ -2647,8 +2648,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
             f"print('{_PHOENIX_RESULT_END}')\n"
         )
 
-    def _build_monty_harness(self, mapped_inputs: dict[str, Any]) -> str:
-        return f"{self._source_code}\n\n_inputs = {mapped_inputs!r}\nevaluate(**_inputs)\n"
+    def _build_monty_harness(self) -> str:
+        return f"{self._source_code}\n\nevaluate(**_inputs)\n"
 
     def _build_typescript_harness(self, mapped_inputs: dict[str, Any]) -> str:
         inputs_json = json.dumps(mapped_inputs)
@@ -2767,7 +2768,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
             if self._language == "PYTHON":
                 code = (
-                    self._build_monty_harness(mapped_inputs)
+                    self._build_monty_harness()
                     if self._sandbox_backend.provider == "MONTY"
                     else self._build_python_harness(mapped_inputs)
                 )
@@ -2803,13 +2804,16 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 set_status_on_exception=False,
             ) as sandbox_span:
                 try:
-                    if self._sandbox_session_manager is None:
+                    if self._sandbox_session_manager is None or isinstance(
+                        self._sandbox_backend, BaseNoSessionBackend
+                    ):
                         # Ephemeral path: backend.execute owns the sandbox
                         # lifecycle (created and torn down inside the call).
                         execution = await asyncio.wait_for(
-                            self._sandbox_backend.execute(
+                            self._sandbox_backend.execute_with_inputs(
                                 code,
                                 session_key=session_key,
+                                inputs={"_inputs": mapped_inputs},
                                 timeout=self._timeout,
                             ),
                             timeout=self._timeout,

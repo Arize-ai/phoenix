@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Annotated,
+    Any,
     ClassVar,
     Generic,
     Literal,
@@ -592,6 +593,22 @@ class SandboxBackend(ABC):
     ) -> ExecutionResult:
         """Execute code in the sandbox session. No per-call env override."""
         ...
+
+    async def execute_with_inputs(
+        self,
+        code: str,
+        session_key: str,
+        *,
+        inputs: dict[str, Any],
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        """Execute code with eagerly bound globals when the backend supports it.
+
+        Backends without a structured input channel execute ``code`` unchanged;
+        callers must embed any required fallback values in that code.
+        """
+        del inputs
+        return await self.execute(code, session_key=session_key, timeout=timeout)
 
     @abstractmethod
     async def close(self) -> None: ...

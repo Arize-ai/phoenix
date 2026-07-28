@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Mapping, Optional
 
 if TYPE_CHECKING:
     from pydantic_monty import ResourceLimits
@@ -93,6 +93,26 @@ class MontySandboxBackend(BaseNoSessionBackend):
         session_key: str,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
+        return await self._execute(code, session_key=session_key, timeout=timeout, inputs=None)
+
+    async def execute_with_inputs(
+        self,
+        code: str,
+        session_key: str,
+        *,
+        inputs: dict[str, Any],
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        return await self._execute(code, session_key=session_key, timeout=timeout, inputs=inputs)
+
+    async def _execute(
+        self,
+        code: str,
+        *,
+        session_key: str,
+        timeout: Optional[int],
+        inputs: Optional[dict[str, Any]],
+    ) -> ExecutionResult:
         del session_key
         execution_timeout = timeout if timeout is not None else _DEFAULT_TIMEOUT_SECONDS
         stdout = _BoundedTextSink()
@@ -106,6 +126,7 @@ class MontySandboxBackend(BaseNoSessionBackend):
                 code,
                 consumer="evaluator",
                 limits=_resource_limits(float(execution_timeout)),
+                inputs=inputs,
                 print_callback=capture_output,
             )
             serialized = json.dumps(result)
@@ -115,7 +136,7 @@ class MontySandboxBackend(BaseNoSessionBackend):
                 )
             fenced_result = f"{_PHOENIX_RESULT_BEGIN}\n{serialized}\n{_PHOENIX_RESULT_END}\n"
             return ExecutionResult(
-                stdout=stdout.getvalue() + fenced_result, stderr=stderr.getvalue()
+                stdout=f"{stdout.getvalue()}\n{fenced_result}", stderr=stderr.getvalue()
             )
         except MontyServiceError:
             raise

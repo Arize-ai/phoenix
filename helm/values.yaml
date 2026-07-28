@@ -8,6 +8,9 @@ replicaCount: 1
 
 # Deployment strategy
 deployment:
+  # -- Seconds Kubernetes allows Phoenix to drain in-flight work during shutdown
+  terminationGracePeriodSeconds: 90
+
   # -- Deployment strategy
   strategy:
     type: RollingUpdate
