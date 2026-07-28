@@ -382,7 +382,7 @@ export const LongLegendNames: Story = {
     const canvas = within(canvasElement);
 
     for (const label of [LONG_ERROR_SERIES_NAME, LONG_OK_SERIES_NAME]) {
-      const legendButton = canvas.getByRole("button", {
+      const legendButton = await canvas.findByRole("button", {
         name: `Hide ${label}`,
       });
       const legendText = legendButton.querySelector<HTMLElement>(
@@ -407,7 +407,9 @@ export const LongLegendNames: Story = {
       );
     }
 
-    const staticTruncatedLabel = canvas.getByTitle(LONG_STATIC_SERIES_NAME);
+    const staticTruncatedLabel = await canvas.findByTitle(
+      LONG_STATIC_SERIES_NAME
+    );
     const staticLegendText = staticTruncatedLabel.parentElement;
     const staticLegendItem = staticLegendText?.parentElement;
 

@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 
-import { ChartPanel } from "@phoenix/components/chart";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import {
   EXPERIMENT_METRIC_CHARTS,
@@ -195,12 +194,14 @@ function ExperimentMetricsChartsStory({
           }}
         >
           {chartKeys.map((chartKey) => {
-            const { name, description, Component } =
+            const { annotationName, Panel } =
               getExperimentMetricChart(chartKey);
             return (
-              <ChartPanel key={chartKey} title={name} subtitle={description}>
-                <Component datasetId={STORY_DATASET_ID} />
-              </ChartPanel>
+              <Panel
+                key={chartKey}
+                datasetId={STORY_DATASET_ID}
+                annotationName={annotationName}
+              />
             );
           })}
         </div>
