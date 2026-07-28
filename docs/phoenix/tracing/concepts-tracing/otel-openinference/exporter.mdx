@@ -68,7 +68,7 @@ otlp_exporter = OTLPSpanExporter(
 )
 ```
 
-For a Phoenix Cloud or TLS-fronted Phoenix deployment, drop `insecure=True` and pass `credentials=grpc.ssl_channel_credentials()`.
+For a TLS-fronted Phoenix deployment, drop `insecure=True` and pass `credentials=grpc.ssl_channel_credentials()`.
 
 ## OTLP/HTTP Configuration
 

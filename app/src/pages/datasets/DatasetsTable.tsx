@@ -211,9 +211,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
             <CellWithControlsWrap
               controls={<CopyToClipboardButton text={row.original.name} />}
             >
-              <Truncate>
-                <Link to={to}>{row.original.name}</Link>
-              </Truncate>
+              <Link to={to}>
+                <Truncate maxWidth="100%">{row.original.name}</Truncate>
+              </Link>
             </CellWithControlsWrap>
           );
         },

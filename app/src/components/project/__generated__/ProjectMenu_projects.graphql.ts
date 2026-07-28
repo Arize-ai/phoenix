@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6853a967dc12f5837d02e28f5c9dc13f>>
+ * @generated SignedSource<<33369ca95a80927220fb8f970e61284e>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,8 @@ export type ProjectMenu_projects$data = {
   readonly projects: {
     readonly edges: ReadonlyArray<{
       readonly project: {
+        readonly gradientEndColor: string;
+        readonly gradientStartColor: string;
         readonly id: string;
         readonly name: string;
       };
@@ -175,7 +177,21 @@ return {
               "plural": false,
               "selections": [
                 (v2/*:: as any*/),
-                (v3/*:: as any*/)
+                (v3/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "gradientStartColor",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "gradientEndColor",
+                  "storageKey": null
+                }
               ],
               "storageKey": null
             },
@@ -235,6 +251,6 @@ return {
 };
 })();
 
-(node as any).hash = "866a8551e0e16d25b8216cdddac490ff";
+(node as any).hash = "acf5af224c355e76f53d918b469f477c";
 
 export default node;

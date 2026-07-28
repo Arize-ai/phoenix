@@ -838,6 +838,59 @@ px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes    # Skip the pro
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px auth login`
+
+Log in with the browser-based OAuth flow and store tokens on the selected profile. The login URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions act with the permissions of the user who logged in, and the CLI refreshes expiring access tokens automatically for REST, GraphQL, and PXI requests.
+
+```bash
+px auth login                          # browser-based OAuth login into the active profile
+px auth login --no-browser             # print the URL instead of opening a browser
+px auth login --profile staging        # log in to a named profile
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env/profile |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--profile <name>` | Profile to store OAuth tokens in | Active profile |
+| `--no-browser` | Print the login URL without opening a browser | — |
+| `--no-input` | Do not prompt for a pasted redirect URL | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
+The command pre-flights the server's OAuth authorization server before opening a browser, so it fails cleanly when the server is unreachable or does not run the OAuth authorization server. If the target profile also has an API key, the key takes precedence over the OAuth session until it is removed.
+
+### `px auth logout`
+
+Clear OAuth tokens from the selected profile. Logout best-effort revokes the refresh token on the server (against the endpoint that issued the tokens) and leaves any configured API key untouched.
+
+```bash
+px auth logout                         # clear the stored session
+px auth logout --profile staging       # clear a named profile's session
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--profile <name>` | Profile to clear OAuth tokens from | Active profile |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
+### `px auth status`
+
+Show the current Phoenix authentication status, including the configured endpoint, credential source, identity, and OAuth access level/expiry when applicable.
+
+```bash
+px auth status                         # show the current session/identity
+px auth status --profile staging       # inspect a named profile
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--profile <name>` | Profile to use | Active profile |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
 ### `px api graphql <query>`
 
 Make authenticated GraphQL queries against the Phoenix API. Output is `{"data": {...}}` JSON — pipe with `jq '.data.<field>'` to extract values. Only queries are permitted; mutations and subscriptions are rejected before hitting the server.

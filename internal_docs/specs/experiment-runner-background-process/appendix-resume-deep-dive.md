@@ -96,7 +96,7 @@ stmt = (
     update(ExperimentExecutionConfig)
     .where(experiment_id == exp_id)
     .where(claimed_at.is_(None))  # Only if stopped
-    .values(claimed_at=now, claimed_by=replica_id, status="RUNNING", cooldown_until=now+cooldown)
+    .values(claimed_at=now, claimed_by=replica_id, status="RUNNING", cooldown_until=now + cooldown)
     .returning(ExperimentExecutionConfig)
 )
 ```
@@ -175,7 +175,7 @@ The solution is **atomic conditional update**. Instead of read-then-write:
 # WRONG: Race condition (time-of-check to time-of-use)
 config = await session.get(ExperimentExecutionConfig, exp_id)
 if config.claimed_at is None:  # Check
-    config.claimed_at = now     # Write - but someone else might have claimed!
+    config.claimed_at = now  # Write - but someone else might have claimed!
 ```
 
 We use an atomic UPDATE with WHERE clause:
@@ -405,8 +405,12 @@ stmt = (
     .where(experiment_id == exp_id)
     .where(claimed_at.is_(None))
     .where(or_(cooldown_until.is_(None), cooldown_until <= now))
-    .values(claimed_at=now, claimed_by=replica_id, status="RUNNING",
-            cooldown_until=now + EXPERIMENT_TOGGLE_COOLDOWN)
+    .values(
+        claimed_at=now,
+        claimed_by=replica_id,
+        status="RUNNING",
+        cooldown_until=now + EXPERIMENT_TOGGLE_COOLDOWN,
+    )
 )
 # If 0 rows: SELECT to diagnose (not found, already running, or cooldown active)
 ```

@@ -1,4 +1,5 @@
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import type { OutputConfigDraft } from "./types";
 
@@ -67,5 +68,7 @@ export function fromOutputConfigDraft(
         lowerBound: draft.lowerBound ?? null,
         upperBound: draft.upperBound ?? null,
       };
+    default:
+      return assertUnreachable(draft);
   }
 }

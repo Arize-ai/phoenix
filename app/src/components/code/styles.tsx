@@ -1,33 +1,6 @@
 import { css } from "@emotion/react";
 
-/**
- * The subtle embedded copy button used inside readonly copyable surfaces,
- * matching CopyInput's: a small gray square inset in the field. Apply on a
- * container holding a CopyToClipboardButton; positioning is up to the caller.
- */
-export const embeddedCopyButtonCSS = css`
-  --embedded-copy-button-size: calc(
-    var(--global-input-height-m) - 2 * var(--global-dimension-size-125) +
-      var(--global-dimension-size-50)
-  );
-  .copy-to-clipboard-button .copy-button {
-    width: var(--embedded-copy-button-size);
-    height: var(--embedded-copy-button-size);
-    min-width: 0;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--field-copy-button-background-color);
-    border: none;
-    border-radius: var(--global-rounding-small);
-    color: var(--field-copy-button-text-color);
-    transition: background-color 0.2s;
-    &:hover {
-      background-color: var(--field-copy-button-background-color-hover);
-    }
-  }
-`;
+import { embeddedCopyButtonCSS } from "@phoenix/components/core/copy/styles";
 
 /**
  * The readonly-field surface shared by copyable blocks — same background as

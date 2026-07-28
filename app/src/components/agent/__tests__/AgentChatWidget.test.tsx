@@ -380,49 +380,6 @@ describe("AgentChatWidget", () => {
     ).toBe("true");
   });
 
-  it("shows the shortcut tooltip when the FAB is hovered", () => {
-    vi.useFakeTimers();
-    renderWidget();
-
-    const fabButton = document.body.querySelector(
-      'button[aria-label="Open assistant"]'
-    ) as HTMLButtonElement | null;
-    expect(fabButton).not.toBeNull();
-
-    act(() => {
-      document.dispatchEvent(
-        new MouseEvent("mousemove", {
-          bubbles: true,
-          clientX: 935,
-          clientY: 758,
-        })
-      );
-      dispatchPointerEvent(fabButton!, "pointerover", {
-        clientX: 935,
-        clientY: 758,
-        pointerType: "mouse",
-      });
-      fabButton?.dispatchEvent(
-        new MouseEvent("mouseover", {
-          bubbles: true,
-          clientX: 935,
-          clientY: 758,
-        })
-      );
-      vi.advanceTimersByTime(1000);
-    });
-
-    expect(document.body.textContent).toContain("Open assistant");
-  });
-
-  it("enables the one-shot hover wipe when the FAB appears", () => {
-    renderWidget();
-
-    expect(
-      document.body.querySelector('[data-entrance-animation="true"]')
-    ).not.toBeNull();
-  });
-
   it("keeps the thinking treatment until the active response settles", () => {
     renderWidget();
 

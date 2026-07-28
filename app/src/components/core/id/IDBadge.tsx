@@ -17,8 +17,8 @@ const idBadgeCSS = css`
   display: inline-flex;
   cursor: pointer;
   &:focus-visible {
-    outline: 1px solid var(--global-input-field-border-color-active);
-    outline-offset: 1px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
     border-radius: var(--global-badge-border-radius);
   }
   &[data-hovered] .id-badge__copy-icon {

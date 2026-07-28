@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<619d4cd5a9fc7fc34102059993ac2bf8>>
+ * @generated SignedSource<<5120b92541d5311fdd606a4be64e8541>>
  * @lightSyntaxTransform
  */
 
@@ -179,7 +179,13 @@ return {
                     },
                     {
                       "alias": null,
-                      "args": null,
+                      "args": [
+                        {
+                          "kind": "Literal",
+                          "name": "first",
+                          "value": 1000
+                        }
+                      ],
                       "concreteType": "ProjectConnection",
                       "kind": "LinkedField",
                       "name": "projects",
@@ -202,7 +208,21 @@ return {
                               "plural": false,
                               "selections": [
                                 (v2/*:: as any*/),
-                                (v1/*:: as any*/)
+                                (v1/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "gradientStartColor",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "gradientEndColor",
+                                  "storageKey": null
+                                }
                               ],
                               "storageKey": null
                             }
@@ -210,7 +230,7 @@ return {
                           "storageKey": null
                         }
                       ],
-                      "storageKey": null
+                      "storageKey": "projects(first:1000)"
                     }
                   ],
                   "args": null,

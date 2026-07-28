@@ -1,5 +1,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
@@ -96,6 +97,36 @@ describe("TimeRangeSelector", () => {
     );
   }
 
+  it("preserves keyboard-visible focus across the portaled presets", async () => {
+    await renderSelector(() => undefined);
+    const selector = container.querySelector<HTMLElement>(
+      ".time-range-selector"
+    );
+    const trigger = container.querySelector<HTMLButtonElement>(
+      ".time-range-selector__value"
+    );
+    const nextButton = document.createElement("button");
+    document.body.appendChild(nextButton);
+    expect(selector).not.toBeNull();
+    expect(trigger).not.toBeNull();
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await act(async () => user.click(trigger!));
+
+    expect(document.activeElement?.getAttribute("type")).toBe("search");
+    expect(selector?.hasAttribute("data-focus-visible")).toBe(false);
+
+    await act(async () => {
+      nextButton.focus();
+      vi.runAllTimers();
+    });
+    await act(async () => user.tab({ shift: true }));
+
+    expect(document.activeElement?.getAttribute("type")).toBe("search");
+    expect(selector?.hasAttribute("data-focus-visible")).toBe(true);
+    nextButton.remove();
+  });
+
   it("commits a typed duration as an open last-N range", async () => {
     const onChange = vi.fn();
     await renderSelector(onChange);
@@ -139,5 +170,24 @@ describe("TimeRangeSelector", () => {
       "Last 15 Min",
       "Last 12 Hours",
     ]);
+  });
+
+  it("returns to the compact value when focus leaves the presets", async () => {
+    await renderSelector(() => undefined);
+    const searchInput = await openPresets();
+    const externalButton = document.createElement("button");
+    document.body.appendChild(externalButton);
+
+    await act(async () => {
+      externalButton.focus();
+      vi.runAllTimers();
+    });
+
+    expect(searchInput.isConnected).toBe(false);
+    expect(container.querySelector(".time-range-selector__fields")).toBeNull();
+    expect(
+      container.querySelector(".time-range-selector__value")
+    ).not.toBeNull();
+    externalButton.remove();
   });
 });

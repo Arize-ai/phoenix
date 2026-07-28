@@ -1,5 +1,7 @@
 import { css } from "@emotion/react";
 
+import { revealOnHoverCSS } from "@phoenix/components/core/styles";
+
 // ---------------------------------------------------------------------------
 // Message (root container)
 // ---------------------------------------------------------------------------
@@ -36,6 +38,7 @@ export const messageContentCSS = css`
     border-radius: var(--message-user-border-radius);
     padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
     max-width: 75%;
+    white-space: pre-wrap;
   }
 
   [data-from="assistant"] > & {
@@ -96,7 +99,7 @@ export const messageActionCSS = css`
   }
 
   &[data-focus-visible] {
-    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 
@@ -117,12 +120,12 @@ export const messageToolbarCSS = css`
   padding-top: var(--global-dimension-size-50);
   width: 100%;
 
-  /* Reveal-on-interaction: keep per-message action toolbars hidden by default
+  /* Reveal on hover: keep per-message action toolbars hidden by default
      to reduce the persistent visual noise of stacked toolbars, and reveal them
      when the message is hovered or contains keyboard focus. A message can opt
      out (always show) via [data-pin-toolbar="true"] on the Message root — used
      for the most recent assistant turn. */
-  opacity: 0;
+  ${revealOnHoverCSS}
   transition: opacity 0.12s ease;
 
   [data-from]:hover > &,
@@ -137,12 +140,6 @@ export const messageToolbarCSS = css`
      keeps aria-expanded set, so the toolbar anchoring the open menu stays put
      instead of fading out from under it. */
   &:has([aria-expanded="true"]) {
-    opacity: 1;
-  }
-
-  @media (hover: none) {
-    /* Touch devices have no hover; keep toolbars visible so the actions remain
-       reachable. */
     opacity: 1;
   }
 

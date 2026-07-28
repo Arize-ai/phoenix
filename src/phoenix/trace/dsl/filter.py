@@ -142,6 +142,27 @@ _BACKWARD_COMPATIBILITY_REPLACEMENTS: typing.Mapping[str, str] = MappingProxyTyp
     }
 )
 
+# The reserved `parent_span` keyword refers to a span's parent span (the span whose
+# `span_id` equals this span's `parent_id`). Only `parent_span is None` /
+# `parent_span is not None` are supported (root-ness by parent existence); the
+# translator rewrites those into references to the names below, which are bound
+# to correlated `EXISTS` predicates in `SpanFilter.__call__`.
+_PARENT_KEYWORD = "parent_span"
+_PARENT_IS_NULL = "__parent_is_null__"
+_PARENT_IS_NOT_NULL = "__parent_is_not_null__"
+
+_STRICT_ROOT_KEYWORD = "parent_id"
+
+
+RootSpanScope = typing.Literal["strict", "orphan_aware"]
+"""Which definition of "root span" a filter condition restricts to.
+
+The two are nested rather than alternatives, and the order matters when
+comparing them: ``"strict"`` (`parent_id is None` -- only spans with no parent
+pointer) selects a subset of ``"orphan_aware"`` (`parent_span is None` -- no
+parent pointer, or a pointer to a span absent from the table).
+"""
+
 
 @dataclass(frozen=True)
 class SpanFilter:
@@ -149,6 +170,7 @@ class SpanFilter:
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None
     translated: ast.Expression = field(init=False, repr=False)
     compiled: typing.Any = field(init=False, repr=False)
+    root_scope: typing.Optional[RootSpanScope] = field(init=False, repr=False)
     _aliased_annotation_relations: tuple[AliasedAnnotationRelation] = field(init=False, repr=False)
     _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
 
@@ -156,21 +178,37 @@ class SpanFilter:
         return bool(self.condition)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "root_scope", None)
         if not (source := self.condition):
             return
-        root = ast.parse(source, mode="eval")
-        _validate_expression(root, valid_eval_names=self.valid_eval_names)
-        source, aliased_annotation_relations = _apply_eval_aliasing(source)
-        root = ast.parse(source, mode="eval")
-        translated = _FilterTranslator(
-            reserved_keywords=(
-                alias
-                for aliased_annotation in aliased_annotation_relations
-                for alias, _ in aliased_annotation.attributes
-            ),
-        ).visit(root)
-        ast.fix_missing_locations(translated)
-        compiled = compile(translated, filename="", mode="eval")
+        try:
+            root = ast.parse(source, mode="eval")
+            _validate_expression(root, valid_eval_names=self.valid_eval_names)
+            # Derived from the tree parsed just above rather than from the source
+            # again, so a caller holding a filter is spared a parse of its own.
+            # Taken after validation so that a filter which escapes this
+            # constructor always carries the scope of a condition known to be
+            # valid, and so that invalid input is not analyzed for nothing.
+            object.__setattr__(self, "root_scope", _scope_or_none(root.body))
+            source, aliased_annotation_relations = _apply_eval_aliasing(source)
+            root = ast.parse(source, mode="eval")
+            translated = _FilterTranslator(
+                reserved_keywords=(
+                    alias
+                    for aliased_annotation in aliased_annotation_relations
+                    for alias, _ in aliased_annotation.attributes
+                ),
+            ).visit(root)
+            ast.fix_missing_locations(translated)
+            compiled = compile(translated, filename="", mode="eval")
+        except RecursionError:
+            # Input nested deeply enough to exhaust the stack, which every stage
+            # above is vulnerable to -- the parser, the translator, and
+            # `compile` all recurse. A condition arrives from the API, so this
+            # has to read as a malformed filter like any other rather than
+            # escaping as a crash from whichever stage happened to run out
+            # first.
+            raise SyntaxError("filter condition is nested too deeply") from None
         aliased_annotation_attributes = {
             alias: attribute
             for aliased_annotation in aliased_annotation_relations
@@ -184,6 +222,16 @@ class SpanFilter:
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
             return select
+        # `parent_span is None` / `parent_span is not None` select spans whose parent span does
+        # not / does exist. A correlated `NOT EXISTS` is used deliberately: it is true
+        # both when `parent_id` is NULL and when it points to a span absent from the
+        # table (an orphan), and it is the shape the existing root query uses to avoid
+        # a measured PostgreSQL regression (see `query.py`). An `OR ... parent_id IS
+        # NULL` form is intentionally NOT used here.
+        parent_span = aliased(models.Span)
+        parent_exists = (
+            sqlalchemy.select(1).where(parent_span.span_id == models.Span.parent_id).exists()
+        )
         return self._join_aliased_relations(select).where(
             eval(
                 self.compiled,
@@ -198,6 +246,8 @@ class SpanFilter:
                     "Float": sqlalchemy.Float,
                     "String": sqlalchemy.String,
                     "TextContains": models.TextContains,
+                    _PARENT_IS_NULL: ~parent_exists,
+                    _PARENT_IS_NOT_NULL: parent_exists,
                 },
             )
         )
@@ -245,6 +295,170 @@ class SpanFilter:
                 ),
             )
         return stmt
+
+
+def root_span_scope(condition: str) -> typing.Optional[RootSpanScope]:
+    """
+    The root-span restriction `condition` imposes, or ``None`` if it imposes
+    none.
+
+    The test is whether a root predicate binds every row the condition can
+    match, not where it sits in the expression. A conjunct qualifies; so does a
+    branch of an `or` when every other branch is root-scoped too, since a row
+    need satisfy only one of them; so does a predicate under `not` whose
+    negation restricts (`not (parent_id is not None)`). Where several
+    restrictions apply, conjoined ones compound to the narrowest and disjoined
+    ones union to the widest.
+
+    Recognition is deliberately incomplete: it covers the boolean structure of
+    the expression and nothing more, so equivalent-but-unrecognized rewritings
+    fall to ``None``. That is the safe direction -- see the note on soundness
+    below. An unparseable condition, an expression still being typed say, also
+    yields ``None`` rather than raising.
+
+    Soundness is the invariant that matters: a non-``None`` answer is a
+    guarantee that every matching row is a root span, never a guess.
+
+    This answers one question, from the condition alone: what does this
+    condition decide? Callers layer their own question on top. A client asking
+    "is this view root-scoped?" -- to choose between cumulative and per-span
+    metric columns, say -- only needs to know whether the answer is ``None``. A
+    query builder that also has a `root_spans_only` flag compares the two and
+    can drop its flag when this scope is at least as narrow, which is worth
+    doing because applying both means paying for two correlated subqueries
+    (and, in the orphan-aware branch, a CTE over `spans`) that select what one
+    of them already selects.
+    """
+    if not condition.strip():
+        return None
+    try:
+        body = ast.parse(condition, mode="eval").body
+    except SyntaxError:
+        return None
+    except RecursionError:
+        # Deeply nested input, e.g. a long chain of `not`. Both the parser and
+        # the walk below recurse, and this entry point takes arbitrary strings
+        # straight from the API, so exhausting the stack has to read as "cannot
+        # tell" rather than escaping to the caller.
+        return None
+    return _scope_or_none(body)
+
+
+def _scope_or_none(body: ast.expr) -> typing.Optional[RootSpanScope]:
+    """`_scope` with stack exhaustion folded into the unrecognized case."""
+    try:
+        return _scope(body, negated=False)
+    except RecursionError:
+        return None
+
+
+def _scope(node: ast.expr, *, negated: bool) -> typing.Optional[RootSpanScope]:
+    """The restriction imposed by `node`, or by ``not node`` when `negated`.
+
+    Carrying the polarity down the walk is negation-normal form applied lazily:
+    rather than rewriting every `not` toward the leaves and then traversing the
+    result, the traversal itself flips sense as it passes a `not`. Under a
+    flipped sense `and` and `or` trade places -- which is De Morgan -- so each
+    connective's rule is stated once rather than once per polarity.
+    """
+    if (scope := _leaf_scope(node, negated=negated)) is not None:
+        return scope
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        return _scope(node.operand, negated=not negated)
+    if isinstance(node, ast.Compare) and len(node.ops) > 1:
+        # A chained comparison is a conjunction of its links: `a is b is c` is
+        # `(a is b) and (b is c)`, which is how the translator compiles it too.
+        return _combine(_comparison_links(node), negated=negated, conjunction=not negated)
+    if isinstance(node, ast.BoolOp):
+        conjunction = isinstance(node.op, ast.And) is not negated
+        return _combine(node.values, negated=negated, conjunction=conjunction)
+    return None
+
+
+def _combine(
+    parts: typing.Sequence[ast.expr],
+    *,
+    negated: bool,
+    conjunction: bool,
+) -> typing.Optional[RootSpanScope]:
+    """Folds the restrictions of `parts` under one connective."""
+    scopes = [_scope(part, negated=negated) for part in parts]
+    if conjunction:
+        # One restricting part bounds the whole, since a conjunction only
+        # narrows, so an unrestricting part drops out rather than disqualifying
+        # the result. Where several restrict, they compound to the narrowest.
+        restricting = [scope for scope in scopes if scope is not None]
+        if not restricting:
+            return None
+        return "strict" if "strict" in restricting else "orphan_aware"
+    # A row need satisfy only one part, so every part must restrict or the
+    # result admits unrestricted rows. What remains unions, so the widest wins.
+    if any(scope is None for scope in scopes):
+        return None
+    return "orphan_aware" if "orphan_aware" in scopes else "strict"
+
+
+def _comparison_links(node: ast.Compare) -> list[ast.Compare]:
+    """Splits a chained comparison into its pairwise links."""
+    links = []
+    left = node.left
+    for op, comparator in zip(node.ops, node.comparators):
+        links.append(ast.Compare(left=left, ops=[op], comparators=[comparator]))
+        left = comparator
+    return links
+
+
+def _leaf_scope(node: ast.expr, *, negated: bool) -> typing.Optional[RootSpanScope]:
+    if _matches_no_rows(node, negated=negated):
+        # An expression that can never be TRUE returns nothing, and every row of
+        # an empty result is vacuously a root span. `"strict"` is the narrowest
+        # such claim and so the strongest sound one, which is also what makes
+        # constant folding unnecessary: a never-TRUE branch of an `or` cannot
+        # widen anything and so drops out on its own, and a never-TRUE conjunct
+        # makes the whole conjunction empty.
+        return "strict"
+    return _root_predicate_scope(node, negated=negated)
+
+
+def _matches_no_rows(node: ast.expr, *, negated: bool) -> bool:
+    """Whether `node` -- or ``not node`` when `negated` -- is a literal that can
+    never be TRUE, and so returns no rows.
+
+    `False` and `None` are both never TRUE, but they diverge under negation:
+    `not False` is always TRUE, while `not None` is NULL, which is still never
+    TRUE. So `None` returns nothing in either sense, and `True`/`False` swap.
+    """
+    if not isinstance(node, ast.Constant):
+        return False
+    if node.value is None:
+        return True
+    return node.value is (True if negated else False)
+
+
+_ROOT_PREDICATE_SCOPES: typing.Mapping[str, RootSpanScope] = {
+    _PARENT_KEYWORD: "orphan_aware",
+    _STRICT_ROOT_KEYWORD: "strict",
+}
+
+
+def _root_predicate_scope(
+    node: ast.expr,
+    *,
+    negated: bool = False,
+) -> typing.Optional[RootSpanScope]:
+    # `parent_span is None` / `parent_id is None` (and the `==` spellings), in
+    # either operand order. Under `negated`, the inverted spellings are matched
+    # instead, so a predicate under `not` maps to the scope it restricts to.
+    if not isinstance(node, ast.Compare) or len(node.ops) != 1:
+        return None
+    accepted = (ast.IsNot, ast.NotEq) if negated else (ast.Is, ast.Eq)
+    if not isinstance(node.ops[0], accepted):
+        return None
+    left, right = node.left, node.comparators[0]
+    for name, other in ((left, right), (right, left)):
+        if isinstance(name, ast.Name) and name.id in _ROOT_PREDICATE_SCOPES:
+            return _ROOT_PREDICATE_SCOPES[name.id] if _is_none_constant(other) else None
+    return None
 
 
 _VALID_PROJECTION_NODE_TYPES: tuple[type, ...] = (
@@ -303,6 +517,33 @@ def _is_string_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
 
 def _is_uppercase_enum(node: typing.Any) -> TypeGuard[ast.Name]:
     return isinstance(node, ast.Name) and node.id in ("span_kind", "status_code")
+
+
+def _is_parent_name(node: typing.Any) -> TypeGuard[ast.Name]:
+    # the bare reserved keyword `parent_span`
+    return isinstance(node, ast.Name) and node.id == _PARENT_KEYWORD
+
+
+def _is_parent_rooted(node: typing.Any) -> bool:
+    # an attribute/subscript chain rooted at the bare `parent_span` keyword, e.g.
+    # `parent_span.span_kind`, `parent_span.a.b`, `parent_span.attributes['x']`.
+    # (Not `attributes['parent_span']`, whose root is `attributes`.)
+    while isinstance(node, (ast.Attribute, ast.Subscript)):
+        node = node.value
+    return _is_parent_name(node)
+
+
+def _parent_traversal_error(node: ast.expr) -> SyntaxError:
+    # `parent_span.<field>` traversal is not supported yet (a follow-up).
+    return SyntaxError(
+        f"`{ast.unparse(node)}` is not supported: `parent_span` traversal "
+        "(`parent_span.<field>`) is not yet available; only `parent_span is None` "
+        "and `parent_span is not None` are supported"
+    )
+
+
+def _is_none_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
+    return isinstance(node, ast.Constant) and node.value is None
 
 
 def _convert_to_uppercase(node: ast.expr) -> ast.expr:
@@ -512,7 +753,61 @@ class _ProjectionTranslator(ast.NodeTransformer):
 
 
 class _FilterTranslator(_ProjectionTranslator):
+    def visit_Name(self, node: ast.Name) -> typing.Any:
+        if _is_parent_name(node):
+            # A bare `parent_span` that reaches this point is not part of a supported
+            # `parent_span is None` / `parent_span is not None` comparison (those are
+            # intercepted in visit_Compare before their operands are visited).
+            raise SyntaxError(
+                "`parent_span` can only be used as `parent_span is None` "
+                "or `parent_span is not None`"
+            )
+        return super().visit_Name(node)
+
+    def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
+        self._reject_parent_traversal(node)
+        return super().visit_Attribute(node)
+
+    def visit_Subscript(self, node: ast.Subscript) -> typing.Any:
+        self._reject_parent_traversal(node)
+        return super().visit_Subscript(node)
+
+    @staticmethod
+    def _reject_parent_traversal(node: ast.expr) -> None:
+        # The `parent_span` keyword is fully reserved: `parent_span.<field>` traversal is
+        # not supported yet (a follow-up), so reject it clearly here rather than
+        # letting it fall through to the pre-existing `attributes['parent_span'][...]`
+        # attribute-path behavior, which would silently mean something else.
+        if _is_parent_rooted(node):
+            raise _parent_traversal_error(node)
+
+    def _parent_root_predicate(self, node: ast.Compare) -> typing.Optional[ast.expr]:
+        """
+        Rewrites `parent_span is None` / `parent_span == None` into a root-existence
+        predicate (and the negations into non-root). Returns ``None`` when the
+        comparison does not involve the bare `parent_span` keyword.
+        """
+        op = node.ops[0]
+        left, right = node.left, node.comparators[0]
+        if _is_parent_name(left):
+            other = right
+        elif _is_parent_name(right):
+            other = left
+        else:
+            return None
+        if not _is_none_constant(other):
+            raise SyntaxError(
+                "`parent_span` can only be compared to None (e.g. `parent_span is None`)"
+            )
+        if isinstance(op, (ast.Is, ast.Eq)):
+            return ast.Name(id=_PARENT_IS_NULL, ctx=ast.Load())
+        if isinstance(op, (ast.IsNot, ast.NotEq)):
+            return ast.Name(id=_PARENT_IS_NOT_NULL, ctx=ast.Load())
+        raise SyntaxError("`parent_span` supports only `is` / `is not` (or `==` / `!=`) with None")
+
     def visit_Compare(self, node: ast.Compare) -> typing.Any:
+        if len(node.ops) == 1 and (predicate := self._parent_root_predicate(node)) is not None:
+            return predicate
         if len(node.comparators) > 1:
             args: list[typing.Any] = []
             left = node.left
@@ -645,6 +940,12 @@ def _validate_expression(
                 or _is_annotation(node)
             ):
                 continue
+        elif isinstance(node, (ast.Attribute, ast.Subscript)) and _is_parent_rooted(node):
+            # `parent_span.<field>` traversal is not supported yet (the `parent_span`
+            # keyword is fully reserved); reject with a clear message rather than
+            # the generic "invalid expression" below. Bare `parent_span` (valid in
+            # `parent_span is None`) is a Name, not matched here.
+            raise _parent_traversal_error(node)
         elif (
             _is_subscript(node, "metadata") or _is_subscript(node, "attributes")
         ) and _get_attribute_keys_list(node) is not None:

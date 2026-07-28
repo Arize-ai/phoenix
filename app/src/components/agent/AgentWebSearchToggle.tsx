@@ -47,7 +47,7 @@ const webSearchToggleCSS = css`
   }
 
   &[data-focus-visible] {
-    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 `;

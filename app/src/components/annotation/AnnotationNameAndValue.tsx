@@ -88,7 +88,7 @@ const getAnnotationValueParts = (
     case "score-and-label":
       return withFallback([labelPart, scorePart]);
     default:
-      assertUnreachable(displayPreference);
+      return assertUnreachable(displayPreference);
   }
 };
 

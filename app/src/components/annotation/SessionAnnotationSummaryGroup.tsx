@@ -1,17 +1,12 @@
-import { css } from "@emotion/react";
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex } from "@phoenix/components";
 import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
-import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
+import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
 import {
   Summary,
   SummaryValue,
-  SummaryValueLabelPreview,
-  SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
 import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
@@ -82,7 +77,7 @@ const useSessionAnnotationSummaryGroup = (
   // newest first - sessions don't have createdAt on annotations
   const annotationsByName = useMemo(
     () =>
-      sessionAnnotations.reduce(
+      sessionAnnotations.reduce<Record<string, typeof sessionAnnotations>>(
         (acc, annotation) => {
           if (annotation.label == null && annotation.score == null) {
             return acc;
@@ -94,21 +89,20 @@ const useSessionAnnotationSummaryGroup = (
           }
           return acc;
         },
-        {} as Record<string, typeof sessionAnnotations>
+        {}
       ),
     [sessionAnnotations]
   );
   const categoricalAnnotationConfigsByName = useMemo(() => {
-    return data.project.annotationConfigs.edges.reduce(
-      (acc, edge) => {
-        const name = edge.node.name;
-        if (name && edge.node.annotationType === "CATEGORICAL") {
-          acc[name] = edge.node as AnnotationConfigCategorical;
-        }
-        return acc;
-      },
-      {} as Record<string, AnnotationConfigCategorical>
-    );
+    return data.project.annotationConfigs.edges.reduce<
+      Record<string, AnnotationConfigCategorical>
+    >((acc, edge) => {
+      const name = edge.node.name;
+      if (name && edge.node.annotationType === "CATEGORICAL") {
+        acc[name] = edge.node as AnnotationConfigCategorical;
+      }
+      return acc;
+    }, {});
   }, [data.project.annotationConfigs]);
   return {
     sortedSummariesByName,
@@ -122,13 +116,6 @@ type SessionAnnotationSummaryGroupProps = {
   showFilterActions?: boolean;
   renderEmptyState?: () => React.ReactNode;
 };
-
-const annotationLabelCSS = css`
-  min-height: 20px;
-  align-items: center;
-  justify-content: center;
-  display: flex;
-`;
 
 export const SessionAnnotationSummaryGroupTokens = ({
   session,
@@ -146,47 +133,12 @@ export const SessionAnnotationSummaryGroupTokens = ({
   }
 
   return (
-    <Flex direction="row" gap="size-50" wrap="wrap">
-      {sortedSummariesByName.map((summary) => {
-        const latestAnnotation = annotationsByName[summary.name]?.[0];
-        const meanScore = summary?.meanScore;
-        if (!latestAnnotation) {
-          return null;
-        }
-        return (
-          <AnnotationSummaryPopover
-            key={latestAnnotation.id}
-            annotations={annotationsByName[summary.name]}
-            width="500px"
-            meanScore={meanScore}
-            showFilterActions={showFilterActions}
-          >
-            <AnnotationLabel
-              annotation={latestAnnotation}
-              annotationDisplayPreference="none"
-              css={annotationLabelCSS}
-              clickable
-            >
-              {meanScore != null ? (
-                <SummaryValuePreview
-                  name={latestAnnotation.name}
-                  meanScore={meanScore}
-                  size="S"
-                  disableAnimation
-                  annotationConfig={
-                    categoricalAnnotationConfigsByName[latestAnnotation.name]
-                  }
-                />
-              ) : (
-                <SummaryValueLabelPreview
-                  labelFractions={summary.labelFractions}
-                />
-              )}
-            </AnnotationLabel>
-          </AnnotationSummaryPopover>
-        );
-      })}
-    </Flex>
+    <AnnotationSummaryTokens
+      summaries={sortedSummariesByName}
+      annotationsByName={annotationsByName}
+      categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
+      showFilterActions={showFilterActions}
+    />
   );
 };
 

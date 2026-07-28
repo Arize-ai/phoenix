@@ -169,9 +169,10 @@ with tracer.start_as_current_span("ParseRequest", openinference_span_kind="llm")
 import phoenix as px
 from phoenix.trace.dsl import SpanQuery
 
+
 def load_traces() -> pd.DataFrame:
     query = SpanQuery().where("span_kind == 'AGENT'")
-    traces_df = Client().spans.get_spans_dataframe(query=query, project_name='recipe-agent-hw5')
+    traces_df = Client().spans.get_spans_dataframe(query=query, project_name="recipe-agent-hw5")
     return traces_df
 ```
 
@@ -180,16 +181,15 @@ def load_traces() -> pd.DataFrame:
 ```python
 from phoenix.evals import llm_generate, OpenAIModel
 
+
 def parser(response: str, row_index: int) -> dict:
     """Parse evaluation results"""
     failure_state = r'"failure_state":\s*"([^"]*)"'
     explanation = r'"explanation":\s*"([^"]*)"'
     failure_state_match = re.search(failure_state, response, re.IGNORECASE).group(1)
     explanation_match = re.search(explanation, response, re.IGNORECASE).group(1)
-    return {
-        "label": failure_state_match,
-        "explanation": explanation_match
-    }
+    return {"label": failure_state_match, "explanation": explanation_match}
+
 
 # Generate evaluations
 failure_analysis = llm_generate(

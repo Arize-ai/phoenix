@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<085fd155d6f61d880c7094f659d7d2f2>>
+ * @generated SignedSource<<ab90f58eacdd00f6cf483072cadfee9f>>
  * @lightSyntaxTransform
  */
 
@@ -25,7 +25,7 @@ export type SpanNotesEditorQuery$data = {
         readonly username: string;
       } | null;
     }>;
-    readonly " $fragmentSpreads": FragmentRefs<"SpanFeedback_annotations">;
+    readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationsTable_annotations">;
   };
   readonly viewer: {
     readonly id: string;
@@ -156,7 +156,7 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "SpanFeedback_annotations"
+                "name": "SpanAnnotationsTable_annotations"
               }
             ],
             "type": "Span",
@@ -270,16 +270,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1ee3e2486d1f2ef0b65f6f2fbbb82ec1",
+    "cacheID": "27d44da236c9e31bc447e6cfc5667536",
     "id": null,
     "metadata": {},
     "name": "SpanNotesEditorQuery",
     "operationKind": "query",
-    "text": "query SpanNotesEditorQuery(\n  $spanNodeId: ID!\n) {\n  viewer {\n    id\n    username\n    profilePictureUrl\n  }\n  span: node(id: $spanNodeId) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n        explanation\n        createdAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n      }\n      ...SpanFeedback_annotations\n    }\n    id\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "query SpanNotesEditorQuery(\n  $spanNodeId: ID!\n) {\n  viewer {\n    id\n    username\n    profilePictureUrl\n  }\n  span: node(id: $spanNodeId) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n        explanation\n        createdAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n      }\n      ...SpanAnnotationsTable_annotations\n    }\n    id\n  }\n}\n\nfragment SpanAnnotationsTable_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5ef72854a1deefb62cd963735947309d";
+(node as any).hash = "d78f4d425c459aa43164f9297877cf41";
 
 export default node;

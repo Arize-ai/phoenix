@@ -2417,6 +2417,14 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            source?: components["schemas"]["DatasetExampleSource"] | null;
+        };
+        /** DatasetExampleSource */
+        DatasetExampleSource: {
+            /** Span Id */
+            span_id: string;
+            /** Span Node Id */
+            span_node_id: string;
         };
         /** DatasetLabel */
         DatasetLabel: {
@@ -8628,6 +8636,8 @@ export interface operations {
                 end_time?: string | null;
                 /** @description Filter by one or more trace IDs */
                 trace_id?: string[] | null;
+                /** @description Filter by one or more span IDs */
+                span_id?: string[] | null;
                 /** @description Filter by parent span ID. Use "null" to get root spans only. */
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */
@@ -8697,6 +8707,8 @@ export interface operations {
                 end_time?: string | null;
                 /** @description Filter by one or more trace IDs */
                 trace_id?: string[] | null;
+                /** @description Filter by one or more span IDs */
+                span_id?: string[] | null;
                 /** @description Filter by parent span ID. Use "null" to get root spans only. */
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */

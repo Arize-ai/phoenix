@@ -25,6 +25,8 @@ export function SelectItem({
             direction="row"
             justifyContent="space-between"
             alignItems="center"
+            gap="size-200"
+            width="100%"
           >
             <span>{children}</span>
             {isSelected && <Icon svg={<Icons.Checkmark />} />}

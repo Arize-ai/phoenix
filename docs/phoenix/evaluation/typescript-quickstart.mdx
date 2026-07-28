@@ -2,6 +2,8 @@
 title: "TypeScript Quickstart"
 ---
 
+import StartPhoenix from "../../snippets/start-phoenix.mdx";
+
 The Phoenix TypeScript Evals package makes it easy to evaluate your application end-to-end by defining datasets, tasks, and evaluators that reveal how well your system performs and where it can improve.
 
 <Card title="@arizeai/phoenix-evals" href="https://www.npmjs.com/package/@arizeai/phoenix-evals" icon="js" description="TypeScript evals package"/>
@@ -18,17 +20,23 @@ If you'd like to follow along with this evaluation example, you can check out th
 
 <Steps>
   <Step title={<span className="step-title">Set up and Connect to Phoenix</span>}>
-    Before running your experiment and evaluations, make sure your environment is set up by installing the required dependencies and connecting your application to [Phoenix Cloud](https://app.arize.com/auth/phoenix/).
+    Before running your experiment and evaluations, make sure Phoenix is running and your environment is set up with the required dependencies.
+
+    <StartPhoenix />
+
+    Then install the dependencies this guide uses into your TypeScript project:
 
     ```bash
     npm install @arizeai/phoenix-otel @arizeai/openinference-instrumentation-openai openai @ai-sdk/openai @arizeai/phoenix-client @arizeai/phoenix-evals
     ```
 
-    ```typescript
-    //Include these in your .env file 
-    OPENAI_API_KEY = "your-openai-api-key"
-    PHOENIX_HOST = "your-phoenix-cloud-hostname"
-    PHOENIX_API_KEY = "your-phoenix-cloud-api-key"
+    Include these in your `.env` file. `PHOENIX_HOST` is what `@arizeai/phoenix-client` reads for datasets and experiments; `PHOENIX_COLLECTOR_ENDPOINT` is what `@arizeai/phoenix-otel` reads when exporting spans — set both to the same instance.
+
+    ```bash
+    OPENAI_API_KEY="your-openai-api-key"
+    PHOENIX_HOST="http://localhost:6006"
+    PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+    # PHOENIX_API_KEY="..."  # Only if your Phoenix instance has auth enabled
     ```
   </Step>
 
@@ -136,7 +144,7 @@ If you'd like to follow along with this evaluation example, you can check out th
     ```
   </Step>
 
-  <Step title={<span className="step-title">View Results in Phoenix Cloud</span>}>
+  <Step title={<span className="step-title">View Results in Phoenix</span>}>
     After the experiment completes, the results provide a detailed breakdown of how the application performed across all examples. You can quickly identify success cases, pinpoint failure modes, and analyze patterns across the dataset.
 
     For LLM-as-a-Judge evaluators, the _explanation_ field is especially valuable—it highlights why the evaluator scored a response a certain way. These explanations often reveal actionable insights, such as missing reasoning steps, misinterpretations, or opportunities to refine prompts. By reviewing these results holistically, you can iteratively improve your application and build confidence in its performance.

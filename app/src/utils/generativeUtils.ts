@@ -55,7 +55,7 @@ export function getProviderName(provider: ModelProvider): string {
     case "TOGETHER":
       return "Together";
     default:
-      assertUnreachable(provider);
+      return assertUnreachable(provider);
   }
 }
 
@@ -95,6 +95,6 @@ export function getSemConvProvider(provider: ModelProvider): string {
     case "TOGETHER":
       return "together"; // TODO: Add support for Together to semantic conventions
     default:
-      assertUnreachable(provider);
+      return assertUnreachable(provider);
   }
 }

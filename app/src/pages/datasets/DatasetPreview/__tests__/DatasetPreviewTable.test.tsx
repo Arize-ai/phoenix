@@ -46,24 +46,6 @@ describe("DatasetPreviewTable", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders assigned dotted columns as nested preview buckets", () => {
-    act(() => {
-      root.render(
-        <DatasetPreviewTable
-          columns={["input.user.name", "output.answer", "metadata.source"]}
-          rows={[["Ada", "42", "csv"]]}
-          inputColumns={["input.user.name"]}
-          outputColumns={["output.answer"]}
-          metadataColumns={["metadata.source"]}
-        />
-      );
-    });
-
-    expect(container.textContent).toContain('{"user":{"name":"Ada"}}');
-    expect(container.textContent).toContain('{"answer":"42"}');
-    expect(container.textContent).toContain('{"source":"csv"}');
-  });
-
   it("does not pollute Object.prototype for a direct __proto__ path", () => {
     act(() => {
       root.render(

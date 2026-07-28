@@ -2,8 +2,8 @@ import warnings
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
-from pydantic_ai import RunUsage
 from pydantic_ai.ui.vercel_ai.request_types import UIMessage
+from pydantic_ai.usage import RequestUsage
 from sqlalchemy import func, select
 from sqlalchemy.exc import SAWarning
 
@@ -31,7 +31,7 @@ def test_message_metadata_can_use_propagated_root_span_context() -> None:
         span_context=_get_span_context(parent_context),
         turn_trace_context=None,
         session_id="session-1",
-        usage=RunUsage(input_tokens=1, output_tokens=2),
+        usage=RequestUsage(input_tokens=1, output_tokens=2),
     )
 
     metadata = metadata_chunk.message_metadata
@@ -58,7 +58,7 @@ def test_turn_trace_context_is_clamped_and_used_for_metadata() -> None:
         span_context=None,
         turn_trace_context=turn_trace_context,
         session_id="session-1",
-        usage=RunUsage(),
+        usage=RequestUsage(),
     ).message_metadata
     assert metadata is not None
     assert metadata.turn_trace_context == turn_trace_context

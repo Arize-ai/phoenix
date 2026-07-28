@@ -458,9 +458,6 @@
                   "docs/phoenix/resources/frequently-asked-questions",
                   "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
                   "docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint",
-                  "docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud",
-                  "docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version",
-                  "docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-use-azure-openai",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance",
@@ -877,6 +874,20 @@
               "docs/phoenix/integrations/evaluation-integrations/ragas",
               "docs/phoenix/integrations/evaluation-integrations/uqlm"
             ]
+          },
+          {
+            "group": "Coding Agents",
+            "icon": "terminal",
+            "pages": [
+              "docs/phoenix/integrations/coding-agents/claude-code",
+              "docs/phoenix/integrations/coding-agents/codex",
+              "docs/phoenix/integrations/coding-agents/copilot",
+              "docs/phoenix/integrations/coding-agents/cursor",
+              "docs/phoenix/integrations/coding-agents/gemini",
+              "docs/phoenix/integrations/coding-agents/kiro",
+              "docs/phoenix/integrations/coding-agents/oh-my-pi",
+              "docs/phoenix/integrations/coding-agents/opencode"
+            ]
           }
         ]
       },
@@ -984,6 +995,18 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-span-annotations-by-filter",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-trace-annotations-by-filter",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-session-annotations-by-filter"
+                    ]
+                  },
+                  {
+                    "group": "API Keys",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-the-authenticated-users-api-keys",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/create-an-api-key-for-the-authenticated-user",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/delete-a-user-api-key",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-all-user-api-keys",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-system-api-keys",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/create-a-system-api-key",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/delete-a-system-api-key"
                     ]
                   },
                   {
@@ -1181,21 +1204,16 @@
             ]
           },
           {
+            "group": "Advanced",
+            "icon": "gears",
+            "pages": ["docs/phoenix/self-hosting/advanced/encryption"]
+          },
+          {
             "group": "Misc",
             "icon": "boxes-stacked",
             "pages": [
               "docs/phoenix/self-hosting/misc/frequently-asked-questions"
             ]
-          }
-        ]
-      },
-      {
-        "tab": "Phoenix Cloud",
-        "icon": "cloud",
-        "groups": [
-          {
-            "group": "Phoenix Cloud",
-            "pages": ["docs/phoenix/phoenix-cloud"]
           }
         ]
       },
@@ -1316,6 +1334,7 @@
               {
                 "group": "07.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/07-2026/07-22-2026-mcp-setup-provider-filter-and-evals",
                   "docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server",
                   "docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables",
                   "docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api"
@@ -1495,7 +1514,6 @@
                 "group": "06.2025",
                 "pages": [
                   "docs/phoenix/release-notes/06-2025/06-25-2025-cost-tracking",
-                  "docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
                   "docs/phoenix/release-notes/06-2025/06-25-2025-amazon-bedrock-support-in-playground",
                   "docs/phoenix/release-notes/06-2025/06-13-2025-session-filtering",
                   "docs/phoenix/release-notes/06-2025/06-13-2025-enhanced-span-creation-and-logging",
@@ -1567,7 +1585,6 @@
                   "docs/phoenix/release-notes/2024/11-18-2024-prompt-playground",
                   "docs/phoenix/release-notes/2024/09-26-2024-authentication-and-rbac",
                   "docs/phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations",
-                  "docs/phoenix/release-notes/2024/07-11-2024-hosted-phoenix-and-llamatrace",
                   "docs/phoenix/release-notes/2024/07-03-2024-datasets-and-experiments",
                   "docs/phoenix/release-notes/2024/07-02-2024-function-call-evaluations"
                 ]
@@ -1623,12 +1640,7 @@
         "title": "GitHub",
         "icon": "github"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Phoenix Cloud",
-      "href": "https://app.phoenix.arize.com/login"
-    }
+    ]
   },
   "footer": {
     "links": [
@@ -1652,6 +1664,30 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
+      "destination": "/docs/phoenix/release-notes"
+    },
+    {
+      "source": "/docs/phoenix/release-notes/2024/07-11-2024-hosted-phoenix-and-llamatrace",
+      "destination": "/docs/phoenix/release-notes"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/docs/phoenix/phoenix-cloud",
+      "destination": "/docs/phoenix/self-hosting"
+    },
     {
       "source": "/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
       "destination": "/docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
@@ -2002,15 +2038,15 @@
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/what-is-llamatrace-vs-phoenix-cloud",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud"
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix"
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/phoenix-cloud-migration-guide-legacy-to-new-version",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version"
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/can-i-add-other-users-to-my-phoenix-instance",

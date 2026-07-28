@@ -4642,6 +4642,27 @@
             "description": "Filter by one or more trace IDs"
           },
           {
+            "name": "span_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more span IDs",
+              "title": "Span Id"
+            },
+            "description": "Filter by one or more span IDs"
+          },
+          {
             "name": "parent_id",
             "in": "query",
             "required": false,
@@ -4877,6 +4898,27 @@
               "title": "Trace Id"
             },
             "description": "Filter by one or more trace IDs"
+          },
+          {
+            "name": "span_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more span IDs",
+              "title": "Span Id"
+            },
+            "description": "Filter by one or more span IDs"
           },
           {
             "name": "parent_id",
@@ -10070,6 +10112,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetExampleSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -10082,6 +10134,24 @@
           "updated_at"
         ],
         "title": "DatasetExample"
+      },
+      "DatasetExampleSource": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id"
+          },
+          "span_node_id": {
+            "type": "string",
+            "title": "Span Node Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "span_node_id"
+        ],
+        "title": "DatasetExampleSource"
       },
       "DatasetLabel": {
         "properties": {

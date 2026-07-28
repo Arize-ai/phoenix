@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { startTransition, Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
 
@@ -26,15 +25,9 @@ import type { StylableProps } from "@phoenix/components/core/types";
 import type { ProjectMenu_projects$key } from "./__generated__/ProjectMenu_projects.graphql";
 import type { ProjectMenuProjectsQuery } from "./__generated__/ProjectMenuProjectsQuery.graphql";
 import type { ProjectMenuSelectedProjectQuery } from "./__generated__/ProjectMenuSelectedProjectQuery.graphql";
+import { ProjectItemContent } from "./ProjectItemContent";
 
 const PAGE_SIZE = 50;
-
-const projectMenuItemNameCSS = css`
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
 
 type SelectedProject = {
   id: string;
@@ -150,6 +143,8 @@ export function ProjectMenu({
               project: node {
                 id
                 name
+                gradientStartColor
+                gradientEndColor
               }
             }
           }
@@ -316,7 +311,11 @@ export function ProjectMenu({
           >
             {(project) => (
               <MenuItem id={project.id} textValue={project.name}>
-                <span css={projectMenuItemNameCSS}>{project.name}</span>
+                <ProjectItemContent
+                  name={project.name}
+                  gradientStartColor={project.gradientStartColor}
+                  gradientEndColor={project.gradientEndColor}
+                />
               </MenuItem>
             )}
           </Menu>

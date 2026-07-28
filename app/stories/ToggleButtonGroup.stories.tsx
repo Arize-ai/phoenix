@@ -43,8 +43,8 @@ export const Default: Meta<typeof ToggleButtonGroup> = {
   args: {
     size: "M",
     isDisabled: false,
-    defaultSelectedKeys: ["1"],
-    selectionMode: "single",
+    defaultSelectedKeys: ["1", "3"],
+    selectionMode: "multiple",
   },
   argTypes: {
     size: {
@@ -79,8 +79,8 @@ export const AsIcon: Meta<typeof ToggleButtonGroup> = {
   args: {
     size: "M",
     isDisabled: false,
-    defaultSelectedKeys: ["1"],
-    selectionMode: "single",
+    defaultSelectedKeys: ["1", "3"],
+    selectionMode: "multiple",
   },
   argTypes: {
     size: {

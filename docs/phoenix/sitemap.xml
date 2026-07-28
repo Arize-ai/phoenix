@@ -737,18 +737,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1269,6 +1257,38 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/claude-code</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/codex</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/copilot</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/cursor</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/gemini</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/kiro</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/oh-my-pi</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/coding-agents/opencode</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1479,6 +1499,34 @@
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-session-annotations-by-filter</loc>
     <lastmod>2026-05-06T17:50:06+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-the-authenticated-users-api-keys</loc>
+    <lastmod>2026-07-23T02:13:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/create-an-api-key-for-the-authenticated-user</loc>
+    <lastmod>2026-07-23T02:13:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/delete-a-user-api-key</loc>
+    <lastmod>2026-07-23T02:13:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-all-user-api-keys</loc>
+    <lastmod>2026-07-23T02:13:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-system-api-keys</loc>
+    <lastmod>2026-07-23T02:13:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/create-a-system-api-key</loc>
+    <lastmod>2026-07-23T02:13:58+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/delete-a-system-api-key</loc>
+    <lastmod>2026-07-23T02:13:58+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets</loc>
@@ -1857,11 +1905,11 @@
     <lastmod>2026-05-01T21:59:49+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/self-hosting/misc/frequently-asked-questions</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+    <loc>https://arize.com/docs/phoenix/self-hosting/advanced/encryption</loc>
+    <lastmod>2026-07-27T03:55:04+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/phoenix-cloud</loc>
+    <loc>https://arize.com/docs/phoenix/self-hosting/misc/frequently-asked-questions</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
@@ -2051,6 +2099,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-22-2026-mcp-setup-provider-filter-and-evals</loc>
+    <lastmod>2026-07-22T21:35:55+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server</loc>
@@ -2509,10 +2561,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/release-notes/06-2025/06-25-2025-amazon-bedrock-support-in-playground</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -2674,10 +2722,6 @@
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/release-notes/2024/07-11-2024-hosted-phoenix-and-llamatrace</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>

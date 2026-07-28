@@ -1,5 +1,51 @@
 # @arizeai/phoenix-cli
 
+## 1.13.0
+
+### Minor Changes
+
+- f816b5b: Default the `pxi` terminal client to Anthropic `claude-opus-5` instead of `claude-opus-4-8`. Override with `--model` as before.
+
+## 1.12.0
+
+### Minor Changes
+
+- 3f5ef25: Add a case-insensitive `--name-contains` filter to `px project list`.
+
+## 1.11.1
+
+### Patch Changes
+
+- e35712a: Re-release to recover from a failed publish (versions were already on npm)
+- Updated dependencies [e35712a]
+  - @arizeai/phoenix-client@7.1.1
+
+## 1.11.0
+
+### Minor Changes
+
+- df7057a: Add `--span-id` filter to `px span list`, allowing spans to be fetched by OpenTelemetry span ID (requires Phoenix server >= 19.6.0). Add `--until` to bound `px span list` and `px trace list` by an exclusive end timestamp, pairing with `--since` for time ranges.
+
+### Patch Changes
+
+- Updated dependencies [df7057a]
+  - @arizeai/phoenix-client@7.1.0
+
+## 1.10.5
+
+### Patch Changes
+
+- Updated dependencies [a6c3f88]
+  - @arizeai/phoenix-client@7.0.1
+
+## 1.10.4
+
+### Patch Changes
+
+- 4867e34: Update the `ai` dependency to v7 to match `@arizeai/phoenix-client`'s `ai@^7.0.0` peer requirement, so installing the CLI no longer produces an unresolvable peer conflict. The CLI only uses the AI SDK's UI-message transport APIs, which are unchanged in v7.
+- Updated dependencies [4867e34]
+  - @arizeai/phoenix-client@7.0.0
+
 ## 1.10.3
 
 ### Patch Changes

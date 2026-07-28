@@ -17,9 +17,19 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
    */
   titleSeparator?: boolean;
   /**
-   * The subtitle of the card, displayed below the title.
+   * The subtitle of the card, displayed inline after the title with a lesser
+   * text color.
    */
-  subTitle?: string;
+  subTitle?: React.ReactNode;
+  /**
+   * Content after the title that shrinks to whatever the header's fixed parts
+   * leave it. Use over `titleExtra`, which sits in the title's own fixed-width
+   * run, for anything that has to stay responsive.
+   *
+   * Pair with `interactiveTitle` when the content is interactive — it renders
+   * inside the heading, which the collapse toggle otherwise wraps.
+   */
+  headerContent?: React.ReactNode;
   /**
    * Whether the card body can be collapsed.
    * @default false

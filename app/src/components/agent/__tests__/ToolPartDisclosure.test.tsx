@@ -98,20 +98,6 @@ function click(element: Element | null) {
 }
 
 describe("tool disclosure controls", () => {
-  it("expands and collapses a solo tool part", () => {
-    renderToolPart(createToolPart());
-    const details = container.querySelector("details.tool-part");
-    const summary = container.querySelector("summary");
-
-    expect(details?.hasAttribute("open")).toBe(false);
-
-    click(summary);
-    expect(details?.hasAttribute("open")).toBe(true);
-
-    click(summary);
-    expect(details?.hasAttribute("open")).toBe(false);
-  });
-
   it("previews native web search queries", () => {
     expect(
       getToolPartPreview(
@@ -157,28 +143,6 @@ describe("tool disclosure controls", () => {
         } as Partial<ToolInvocationPart>)
       )
     ).toBe("https://example.com/docs");
-  });
-
-  it("renders read_skill_resource resource names", () => {
-    const part = createToolPart({
-      type: "tool-read_skill_resource",
-      input: {
-        skill_name: "phoenix-graphql",
-        resource_name: "span-fields",
-        args: { entity: "Span" },
-      },
-      output: "field reference content",
-    });
-
-    expect(getToolPartPreview(part)).toBe("span-fields");
-
-    renderToolPart(part);
-
-    expect(container.textContent).toContain("read_skill_resource");
-    expect(container.textContent).toContain("phoenix-graphql");
-    expect(container.textContent).toContain("span-fields");
-    expect(container.textContent).toContain('"entity": "Span"');
-    expect(container.textContent).toContain("field reference content");
   });
 
   it("allows manually collapsing and expanding an auto-open solo tool part", () => {

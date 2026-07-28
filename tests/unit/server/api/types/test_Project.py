@@ -2748,6 +2748,192 @@ class TestProject:
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
 
+    async def test_parent_is_none_matches_orphan_aware_root_spans_only(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """The DSL predicate ``filterCondition: "parent_span is None"`` selects the same
+        spans as ``rootSpansOnly: true, orphanSpanAsRootSpan: true`` — verifying the
+        correlated ``NOT EXISTS`` behaves correctly once the resolver's project
+        predicate and query structure are applied, not just in direct SpanFilter
+        execution.
+        """
+        project = _orphan_spans.projects[0]
+
+        # Orphan-aware roots computed directly from the fixture: a NULL parent, or a
+        # parent_id that references no span in the table.
+        existing_span_ids = {s.span_id for s in _orphan_spans.spans}
+        expected = {
+            _gid(s)
+            for s in _orphan_spans.spans
+            if s.parent_id is None or s.parent_id not in existing_span_ids
+        }
+        # The fixture must exercise both kinds of root, or the test proves nothing.
+        assert any(s.parent_id is None for s in _orphan_spans.spans)
+        assert any(
+            s.parent_id is not None and s.parent_id not in existing_span_ids
+            for s in _orphan_spans.spans
+        )
+
+        dsl_res = await self._node(
+            'spans(filterCondition:"parent_span is None",first:100){edges{node{id}}}',
+            project,
+            httpx_client,
+        )
+        flag_res = await self._node(
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
+            project,
+            httpx_client,
+        )
+        dsl_ids = {e["node"]["id"] for e in dsl_res["edges"]}
+        flag_ids = {e["node"]["id"] for e in flag_res["edges"]}
+        assert dsl_ids == expected
+        assert dsl_ids == flag_ids
+
+    @pytest.mark.parametrize(
+        "condition,orphan_span_as_root_span",
+        [
+            pytest.param("parent_span is None", True, id="orphan-aware-both"),
+            pytest.param("parent_id is None", True, id="strict-condition-orphan-aware-flag"),
+            pytest.param("parent_id is None", False, id="strict-both"),
+            pytest.param("parent_span is None", False, id="orphan-aware-condition-strict-flag"),
+            # Disjunction where every branch is strict-scoped: the flag skip now
+            # fires off an `or`, so the rows must still match the flag alone.
+            pytest.param(
+                "(parent_id is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                True,
+                id="disjunction-all-strict-orphan-flag",
+            ),
+            pytest.param(
+                "(parent_id is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                False,
+                id="disjunction-all-strict-strict-flag",
+            ),
+            # Negated root predicate: `not (parent_id is not None)` is strict-scoped,
+            # so the skip fires off a `not` and must not change the result.
+            pytest.param(
+                "not (parent_id is not None) and '1' in input.value",
+                True,
+                id="negated-predicate-strict-orphan-flag",
+            ),
+            pytest.param(
+                "not (parent_id is not None) and '1' in input.value",
+                False,
+                id="negated-predicate-strict-strict-flag",
+            ),
+            # A form the analyzer does *not* recognize (De Morgan over a compound):
+            # it under-claims, so the flag's scoping is applied as well. Pinned
+            # because an under-claim must stay harmless -- redundant SQL, same rows.
+            pytest.param(
+                "not (parent_id is not None or '9' in input.value)",
+                True,
+                id="unrecognized-form-flag-still-applied",
+            ),
+            # Disjunction whose branches mix strict and orphan-aware: scoped to
+            # orphan-aware (the wider), so it may skip the orphan-aware flag but
+            # not the strict one.
+            pytest.param(
+                "(parent_span is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                True,
+                id="disjunction-mixed-orphan-flag",
+            ),
+            pytest.param(
+                "(parent_span is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                False,
+                id="disjunction-mixed-strict-flag",
+            ),
+        ],
+    )
+    async def test_root_predicate_and_flag_together_match_the_flag_alone(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+        condition: str,
+        orphan_span_as_root_span: bool,
+    ) -> None:
+        """Sending `rootSpansOnly` *and* a root predicate must not change the result.
+
+        The resolver drops the flag's scoping when the condition already implies
+        it, so this pins that the optimization is semantics-preserving. The
+        strict-flag/orphan-aware-condition case is the one that must NOT be
+        optimized away: skipping a strict flag there would admit orphans.
+        """
+        project = _orphan_spans.projects[0]
+        orphan_arg = str(orphan_span_as_root_span).lower()
+
+        async def span_ids(field: str) -> set[str]:
+            result = await self._node(field, project, httpx_client)
+            return {e["node"]["id"] for e in result["edges"]}
+
+        both = await span_ids(
+            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
+            f'filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
+        )
+        flag_only = await span_ids(
+            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
+            "first:100){edges{node{id}}}"
+        )
+        condition_only = await span_ids(
+            f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
+        )
+        # Combining them is the intersection, which is what the flag alone gives
+        # whenever the condition is at least as strict.
+        assert both == flag_only & condition_only
+        assert both
+
+    async def test_analyze_span_filter_condition_tracks_actual_query_scope(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """``analyzeSpanFilterCondition`` tells a client whether a filtered view is
+        root-scoped, which is what decides between cumulative and per-span metric
+        columns. Its answer has to match what the query actually returns, so this
+        checks the verdict against the rows for both a scoped and an unscoped
+        condition.
+        """
+        project = _orphan_spans.projects[0]
+        user_condition = "'2' in input.value"
+        root_scoped = f"parent_span is None and {user_condition}"
+
+        async def analyze(condition: str) -> bool:
+            result = await self._node(
+                f'analyzeSpanFilterCondition(condition:"{condition}"){{selectsRootSpansOnly}}',
+                project,
+                httpx_client,
+            )
+            return bool(result["selectsRootSpansOnly"])
+
+        async def span_ids(condition: str) -> set[str]:
+            result = await self._node(
+                f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}',
+                project,
+                httpx_client,
+            )
+            return {e["node"]["id"] for e in result["edges"]}
+
+        assert await analyze(user_condition) is False
+        assert await analyze(root_scoped) is True
+
+        scoped_ids = await span_ids(root_scoped)
+        unscoped_ids = await span_ids(user_condition)
+        # The verdict is only meaningful if the predicate actually narrowed the
+        # result; a silently dropped predicate would make these equal.
+        assert scoped_ids < unscoped_ids
+        # ...and it narrows to exactly what the boolean arguments selected.
+        flag_res = await self._node(
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,"
+            f'filterCondition:"{user_condition}",first:100){{edges{{node{{id}}}}}}',
+            project,
+            httpx_client,
+        )
+        assert scoped_ids == {e["node"]["id"] for e in flag_res["edges"]}
+
     @pytest.fixture
     async def _time_series_data(
         self,
@@ -5365,6 +5551,414 @@ class TestAnnotationScoreTimeSeries:
                 "satisfaction": pytest.approx(0.9),
             },
         }
+
+
+class TestAnnotationMetricsTimeSeries:
+    @pytest.fixture
+    async def _annotation_metrics_data(self, db: DbSessionFactory) -> models.Project:
+        hour_one = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        hour_two = datetime.fromisoformat("2024-01-01T02:20:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            session_one = await _add_project_session(session, project, start_time=hour_one)
+            session_two = await _add_project_session(session, project, start_time=hour_two)
+            trace_one = await _add_trace(session, project, session_one, start_time=hour_one)
+            trace_two = await _add_trace(session, project, session_two, start_time=hour_two)
+            span_one = await _add_span(session, trace_one, start_time=hour_one)
+            span_two = await _add_span(session, trace_two, start_time=hour_two)
+
+            annotation_values = [
+                ("mixed", "pass", 0.2, None),
+                ("mixed", "fail", 0.4, None),
+                ("mixed", None, 0.6, None),
+                ("mixed", None, None, "explanation only"),
+                ("empty", None, None, "explanation only"),
+                ("label-only", "yes", None, None),
+                ("score-only", None, 0.5, None),
+            ]
+            for model, parent_id_field, parent_id in (
+                (models.SpanAnnotation, "span_rowid", span_one.id),
+                (models.TraceAnnotation, "trace_rowid", trace_one.id),
+                (
+                    models.ProjectSessionAnnotation,
+                    "project_session_id",
+                    session_one.id,
+                ),
+            ):
+                session.add_all(
+                    [
+                        model(
+                            **{parent_id_field: parent_id},
+                            name=name,
+                            label=label,
+                            score=score,
+                            explanation=explanation,
+                            metadata_={},
+                            annotator_kind="HUMAN",
+                            identifier=str(index),
+                            source="APP",
+                            user_id=None,
+                        )
+                        for index, (name, label, score, explanation) in enumerate(annotation_values)
+                    ]
+                )
+            for model, parent_id_field, parent_id in (
+                (models.SpanAnnotation, "span_rowid", span_two.id),
+                (models.TraceAnnotation, "trace_rowid", trace_two.id),
+                (
+                    models.ProjectSessionAnnotation,
+                    "project_session_id",
+                    session_two.id,
+                ),
+            ):
+                session.add(
+                    model(
+                        **{parent_id_field: parent_id},
+                        name="mixed",
+                        label="pass",
+                        score=0.8,
+                        explanation=None,
+                        metadata_={},
+                        annotator_kind="HUMAN",
+                        identifier="hour-two",
+                        source="APP",
+                        user_id=None,
+                    )
+                )
+        return project
+
+    async def test_annotation_metrics_time_series_at_all_levels(
+        self,
+        _annotation_metrics_data: models.Project,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        span: spanAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        trace: traceAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        session: sessionAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                    }
+                }
+            }
+
+            fragment metrics on AnnotationMetricsTimeSeries {
+                names
+                data {
+                    timestamp
+                    annotationSummaries {
+                        name
+                        count
+                        scoreCount
+                        labelCount
+                        meanScore
+                        labelFractions { label fraction }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(_annotation_metrics_data.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T04:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        for level in ("span", "trace", "session"):
+            metrics = response.data["node"][level]
+            assert metrics["names"] == ["label-only", "mixed", "score-only"]
+            assert [point["timestamp"] for point in metrics["data"]] == [
+                "2024-01-01T01:00:00+00:00",
+                "2024-01-01T02:00:00+00:00",
+                "2024-01-01T03:00:00+00:00",
+            ]
+            hour_one_summaries = {
+                summary["name"]: summary for summary in metrics["data"][0]["annotationSummaries"]
+            }
+            assert hour_one_summaries["label-only"] == {
+                "name": "label-only",
+                "count": 1,
+                "scoreCount": 0,
+                "labelCount": 1,
+                "meanScore": None,
+                "labelFractions": [{"label": "yes", "fraction": 1.0}],
+            }
+            assert hour_one_summaries["score-only"] == {
+                "name": "score-only",
+                "count": 1,
+                "scoreCount": 1,
+                "labelCount": 0,
+                "meanScore": pytest.approx(0.5),
+                "labelFractions": [],
+            }
+            mixed_summary = hour_one_summaries["mixed"]
+            assert mixed_summary["count"] == 3
+            assert mixed_summary["scoreCount"] == 3
+            assert mixed_summary["labelCount"] == 2
+            assert mixed_summary["meanScore"] == pytest.approx(0.4)
+            assert mixed_summary["labelFractions"] == [
+                {"label": "fail", "fraction": pytest.approx(1 / 2)},
+                {"label": "pass", "fraction": pytest.approx(1 / 2)},
+            ]
+            assert metrics["data"][2]["annotationSummaries"] == []
+
+    async def test_label_fractions_weight_entities_instead_of_annotation_rows(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        timestamp = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            project_sessions = [
+                await _add_project_session(session, project, start_time=timestamp) for _ in range(3)
+            ]
+            traces = [
+                await _add_trace(
+                    session,
+                    project,
+                    project_session,
+                    start_time=timestamp,
+                )
+                for project_session in project_sessions
+            ]
+            spans = [await _add_span(session, trace, start_time=timestamp) for trace in traces]
+
+            for model, parent_id_field, parent_ids in (
+                (models.SpanAnnotation, "span_rowid", [span.id for span in spans]),
+                (models.TraceAnnotation, "trace_rowid", [trace.id for trace in traces]),
+                (
+                    models.ProjectSessionAnnotation,
+                    "project_session_id",
+                    [project_session.id for project_session in project_sessions],
+                ),
+            ):
+                for index, (parent_id, label, score) in enumerate(
+                    zip(
+                        parent_ids,
+                        ("pass", "fail", None),
+                        (0.2, 0.4, 0.6),
+                    )
+                ):
+                    session.add(
+                        model(
+                            **{parent_id_field: parent_id},
+                            name="coverage",
+                            label=label,
+                            score=score,
+                            explanation=None,
+                            metadata_={},
+                            annotator_kind="HUMAN",
+                            identifier=f"entity-{index}",
+                            source="APP",
+                            user_id=None,
+                        )
+                    )
+                session.add_all(
+                    [
+                        model(
+                            **{parent_id_field: parent_ids[0]},
+                            name="coverage",
+                            label="pass",
+                            score=None,
+                            explanation=None,
+                            metadata_={},
+                            annotator_kind="HUMAN",
+                            identifier=f"repeat-{index}",
+                            source="APP",
+                            user_id=None,
+                        )
+                        for index in range(9)
+                    ]
+                )
+
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        span: spanAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        trace: traceAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        session: sessionAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                    }
+                }
+            }
+
+            fragment metrics on AnnotationMetricsTimeSeries {
+                data {
+                    annotationSummaries {
+                        name
+                        count
+                        scoreCount
+                        labelCount
+                        meanScore
+                        labelFractions { label fraction }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T02:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+
+        assert not response.errors
+        assert response.data is not None
+        for level in ("span", "trace", "session"):
+            summary = response.data["node"][level]["data"][0]["annotationSummaries"][0]
+            assert summary == {
+                "name": "coverage",
+                "count": 12,
+                "scoreCount": 3,
+                "labelCount": 11,
+                "meanScore": pytest.approx(0.4),
+                "labelFractions": [
+                    {"label": "fail", "fraction": pytest.approx(1 / 3)},
+                    {"label": "pass", "fraction": pytest.approx(1 / 3)},
+                ],
+            }
+
+    async def test_each_time_bin_returns_its_observed_labels(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        hour_one = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        hour_two = datetime.fromisoformat("2024-01-01T02:15:00+00:00")
+        hour_three = datetime.fromisoformat("2024-01-01T03:15:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            project_session_one = await _add_project_session(session, project, start_time=hour_one)
+            project_session_two = await _add_project_session(session, project, start_time=hour_two)
+            project_session_three = await _add_project_session(
+                session, project, start_time=hour_three
+            )
+            trace_one = await _add_trace(session, project, project_session_one, start_time=hour_one)
+            trace_two = await _add_trace(session, project, project_session_two, start_time=hour_two)
+            trace_three = await _add_trace(
+                session, project, project_session_three, start_time=hour_three
+            )
+            labels_by_trace = (
+                (trace_one, ["pass", "pass", "pass", "fail"]),
+                (trace_two, ["pass", "review"]),
+            )
+            for trace, labels in labels_by_trace:
+                session.add_all(
+                    [
+                        models.TraceAnnotation(
+                            trace_rowid=trace.id,
+                            name="quality",
+                            label=label,
+                            score=None,
+                            explanation=None,
+                            metadata_={},
+                            annotator_kind="CODE",
+                            identifier=str(index),
+                            source="APP",
+                            user_id=None,
+                        )
+                        for index, label in enumerate(labels)
+                    ]
+                )
+            session.add(
+                models.TraceAnnotation(
+                    trace_rowid=trace_three.id,
+                    name="quality",
+                    label=None,
+                    score=0.9,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="CODE",
+                    identifier="score-only-tail",
+                    source="APP",
+                    user_id=None,
+                )
+            )
+
+        query = """
+          query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+            node(id: $id) {
+              ... on Project {
+                traceAnnotationMetricsTimeSeries(
+                  timeRange: $timeRange
+                  timeBinConfig: $timeBinConfig
+                ) {
+                  data {
+                    annotationSummaries {
+                      name
+                      count
+                      scoreCount
+                      labelCount
+                      labelFractions { label fraction }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID("Project", str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T04:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+
+        assert not response.errors
+        assert response.data is not None
+        data = response.data["node"]["traceAnnotationMetricsTimeSeries"]["data"]
+        first_summary = data[0]["annotationSummaries"][0]
+        second_summary = data[1]["annotationSummaries"][0]
+        third_summary = data[2]["annotationSummaries"][0]
+        assert first_summary["count"] == first_summary["labelCount"] == 4
+        assert second_summary["count"] == second_summary["labelCount"] == 2
+        assert [item["label"] for item in first_summary["labelFractions"]] == ["fail", "pass"]
+        assert [item["label"] for item in second_summary["labelFractions"]] == [
+            "pass",
+            "review",
+        ]
+        assert sum(item["fraction"] for item in first_summary["labelFractions"]) == pytest.approx(1)
+        assert sum(item["fraction"] for item in second_summary["labelFractions"]) == pytest.approx(
+            1
+        )
+        assert third_summary["scoreCount"] == 1
+        assert third_summary["labelFractions"] == []
 
 
 async def test_trace_resolves_by_otel_id_and_global_node_id(

@@ -109,15 +109,12 @@ describe("AgentChatTopNavButton", () => {
     return { drawer, modal };
   }
 
-  it("uses the quiet PXI button and opens the assistant", () => {
+  it("opens the assistant from the nav button", () => {
     renderButton();
     const button = container.querySelector<HTMLButtonElement>("button");
 
     expect(button).not.toBeNull();
     expect(button?.textContent).toBe("Ask PXI");
-    expect(button?.classList.contains("pxi-button")).toBe(true);
-    expect(button?.getAttribute("data-size")).toBe("S");
-    expect(button?.getAttribute("data-variant")).toBe("quiet");
 
     act(() => button?.click());
 

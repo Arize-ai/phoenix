@@ -53,7 +53,7 @@ scores[0].pretty_print()
 # With input mapping for nested data
 scores = evaluator.evaluate(
     {"data": {"query": "How do I reset?", "response": "Go to settings > reset."}},
-    input_mapping={"input": "data.query", "output": "data.response"}
+    input_mapping={"input": "data.query", "output": "data.response"},
 )
 scores[0].pretty_print()
 ```
@@ -85,11 +85,13 @@ llm = LLM(provider="openai", model="gpt-4o")
 
 # LLM-powered faithfulness evaluator
 faithfulness = FaithfulnessEvaluator(llm=llm)
-scores = faithfulness.evaluate({
-    "input": "What is the capital of France?",
-    "context": "Paris is the capital of France.",
-    "output": "The capital of France is Berlin.",
-})
+scores = faithfulness.evaluate(
+    {
+        "input": "What is the capital of France?",
+        "context": "Paris is the capital of France.",
+        "output": "The capital of France is Berlin.",
+    }
+)
 scores[0].pretty_print()
 # Score(name='faithfulness', score=0.0, label='unfaithful', explanation='...')
 
@@ -97,9 +99,7 @@ scores[0].pretty_print()
 match_result = exact_match({"output": "Paris", "expected": "Paris"})
 
 # Regex match
-regex_result = MatchesRegex(pattern=r"^\d{4}-\d{2}-\d{2}$").evaluate({
-    "output": "2024-03-15"
-})
+regex_result = MatchesRegex(pattern=r"^\d{4}-\d{2}-\d{2}$").evaluate({"output": "2024-03-15"})
 ```
 
 ## LLM Providers
@@ -148,10 +148,15 @@ helpfulness_evaluator = create_classifier(
 )
 
 # Prepare your dataframe
-df = pd.DataFrame([
-    {"input": "How do I reset my password?", "output": "Go to settings > account > reset password."},
-    {"input": "What's the weather like?", "output": "I can help you with password resets."},
-])
+df = pd.DataFrame(
+    [
+        {
+            "input": "How do I reset my password?",
+            "output": "Go to settings > account > reset password.",
+        },
+        {"input": "What's the weather like?", "output": "I can help you with password resets."},
+    ]
+)
 
 # Synchronous evaluation
 results_df = evaluate_dataframe(
@@ -162,10 +167,13 @@ print(results_df.head())
 
 # Async evaluation (up to 20x faster with large dataframes)
 import asyncio
-results_df = asyncio.run(async_evaluate_dataframe(
-    dataframe=df,
-    evaluators=[relevance_evaluator, helpfulness_evaluator],
-))
+
+results_df = asyncio.run(
+    async_evaluate_dataframe(
+        dataframe=df,
+        evaluators=[relevance_evaluator, helpfulness_evaluator],
+    )
+)
 ```
 
 ## Documentation
