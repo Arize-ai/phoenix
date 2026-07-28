@@ -15,7 +15,7 @@ import {
 import { useCategoryChartColors } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
-import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
+import { RichTokenBreakdown } from "@phoenix/components/RichTokenBreakdown";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";

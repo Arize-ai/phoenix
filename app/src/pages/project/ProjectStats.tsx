@@ -13,7 +13,7 @@ import {
   View,
 } from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart";
-import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
+import { RichTokenBreakdown } from "@phoenix/components/RichTokenBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";

@@ -78,8 +78,8 @@ export const WithBasicTooltip: Story = {
       </Pressable>
       <RichTooltip>
         <TokenCountDetails
-          total={1721}
-          prompt={230}
+          total={1699}
+          prompt={691}
           completion={1008}
           promptDetails={{
             tool: 461,
@@ -89,7 +89,7 @@ export const WithBasicTooltip: Story = {
     </TooltipTrigger>
   ),
   args: {
-    children: 1721,
+    children: 1699,
     size: "M",
   },
 };
@@ -106,19 +106,19 @@ export const WithDetailedTooltip: Story = {
       <RichTooltip>
         <TokenCountDetails
           total={3500}
-          prompt={1200}
+          prompt={1700}
           completion={1800}
           promptDetails={{
             audio: 100,
-            "cache read": 300,
-            "cache write": 150,
+            cache_read: 300,
+            cache_write: 150,
             tool: 500,
-            "system instructions": 200,
+            system_instructions: 200,
           }}
           completionDetails={{
             audio: 200,
             reasoning: 300,
-            "function calls": 150,
+            function_calls: 150,
           }}
         />
       </RichTooltip>
@@ -163,12 +163,12 @@ export const WithLoadingTooltip: Story = {
         <Suspense fallback={<Loading />}>
           <TokenCountDetails
             total={2500}
-            prompt={800}
+            prompt={1300}
             completion={1200}
             promptDetails={{
               audio: 150,
-              "cache read": 250,
-              "cache write": 100,
+              cache_read: 250,
+              cache_write: 100,
               tool: 500,
             }}
           />
@@ -230,6 +230,7 @@ export const MultipleTokenCounts: Story = {
         <RichTooltip>
           <TokenCountDetails
             total={461}
+            prompt={461}
             promptDetails={{
               tool: 461,
             }}

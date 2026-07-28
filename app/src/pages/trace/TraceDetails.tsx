@@ -25,6 +25,7 @@ import {
   View,
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import { RichTokenBreakdown } from "@phoenix/components/RichTokenBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
@@ -34,7 +35,6 @@ import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
-import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 import type {
   TraceDetailsQuery,
   TraceDetailsQuery$data,
