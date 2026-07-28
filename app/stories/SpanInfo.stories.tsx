@@ -15,6 +15,7 @@ import {
   llmErrorSpan,
   llmMultiModalSpan,
   llmPromptTemplateSpan,
+  llmRawPromptsSpan,
   llmToolCallsSpan,
   llmToolDefinitionsSpan,
   rerankerSpan,
@@ -22,6 +23,7 @@ import {
   spanWithoutIOSpan,
   toolBashSpan,
   toolSpan,
+  toolWithParametersSpan,
   unparsableAttributesSpan,
 } from "./constants/spanInfoFixtures";
 
@@ -39,11 +41,19 @@ const mockRelayEnvironment = new Environment({
  * attributes and renders the composition for the span's kind — each story is
  * a realistic span captured from Phoenix demo data (llama-index RAG,
  * LangGraph agents, Claude Code traces).
+ *
+ * Every card in the view carries a copy button as the last control in its
+ * header, so it sits in the same place on every card whatever else the header
+ * holds. The input / output cards of an LLM span copy whichever view is
+ * selected, so switching views is worth doing while reading these stories.
  */
 const meta: Meta<typeof SpanInfo> = {
   title: "Trace/SpanInfo",
   component: SpanInfo,
   decorators: [
+    // the same providers the span details view mounts above these cards: their
+    // open state, the aside the annotations and notes cards open, and a Relay
+    // environment for the annotation components' hooks
     (Story) => (
       <RelayEnvironmentProvider environment={mockRelayEnvironment}>
         <SpanAsideProvider>
@@ -94,6 +104,15 @@ export const LLMWithToolCalls: Story = {
  */
 export const LLMPromptTemplate: Story = {
   args: { span: llmPromptTemplateSpan },
+};
+
+/**
+ * A completion-style call whose prompts are recorded as raw text under
+ * `llm.prompts`. Switch the input card to Prompts: each prompt is a card of its
+ * own with its own copy button, and the card above copies all of them.
+ */
+export const LLMRawPrompts: Story = {
+  args: { span: llmRawPromptsSpan },
 };
 
 /**
@@ -149,6 +168,15 @@ export const EmbeddingWithoutEmbeddings: Story = {
  */
 export const Tool: Story = {
   args: { span: toolSpan },
+};
+
+/**
+ * A tool invocation whose tool definition carries a JSON parameter schema —
+ * the schema renders as JSON, which is also what the Tool card's copy button
+ * hands back.
+ */
+export const ToolWithParameters: Story = {
+  args: { span: toolWithParametersSpan },
 };
 
 /**
