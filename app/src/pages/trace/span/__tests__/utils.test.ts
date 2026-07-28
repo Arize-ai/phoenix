@@ -3,12 +3,16 @@ import { describe, expect, it } from "vitest";
 import type { DocumentEvaluation } from "../types";
 import {
   countToolCalls,
+  formatJSONForCopy,
+  formatJSONStringsForCopy,
+  formatTextListForCopy,
   getEmbeddingAttributes,
   getLLMAttributes,
   getRerankerAttributes,
   getRetrieverAttributes,
   getToolAttributes,
   groupDocumentEvaluationsByPosition,
+  parseJSONDocument,
   parseSpanAttributes,
 } from "../utils";
 
@@ -257,5 +261,47 @@ describe("groupDocumentEvaluationsByPosition", () => {
 
   it("returns an empty map for no evaluations", () => {
     expect(groupDocumentEvaluationsByPosition([])).toEqual({});
+  });
+});
+
+describe("formatJSONForCopy", () => {
+  it("pretty prints the value", () => {
+    expect(formatJSONForCopy({ role: "user", content: "hello" })).toBe(
+      '{\n  "role": "user",\n  "content": "hello"\n}'
+    );
+  });
+});
+
+describe("parseJSONDocument", () => {
+  it("parses a JSON document that arrived as a string", () => {
+    expect(parseJSONDocument('{"name": "search"}')).toEqual({
+      name: "search",
+    });
+  });
+
+  it("falls back to the string when it is not JSON", () => {
+    expect(parseJSONDocument("not json")).toBe("not json");
+  });
+});
+
+describe("formatJSONStringsForCopy", () => {
+  it("copies the schemas as one JSON array rather than escaped strings", () => {
+    expect(
+      formatJSONStringsForCopy(['{"name": "search"}', '{"name": "lookup"}'])
+    ).toBe(
+      '[\n  {\n    "name": "search"\n  },\n  {\n    "name": "lookup"\n  }\n]'
+    );
+  });
+});
+
+describe("formatTextListForCopy", () => {
+  it("joins the items so the clipboard holds pasteable text", () => {
+    expect(formatTextListForCopy(["first prompt", "second prompt"])).toBe(
+      "first prompt\n\nsecond prompt"
+    );
+  });
+
+  it("copies a single item verbatim", () => {
+    expect(formatTextListForCopy(["only prompt"])).toBe("only prompt");
   });
 });

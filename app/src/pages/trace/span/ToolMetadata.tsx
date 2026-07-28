@@ -1,9 +1,16 @@
 import { css } from "@emotion/react";
 
-import { Card, Flex, Text, View } from "@phoenix/components";
+import {
+  Card,
+  CopyToClipboardButton,
+  Flex,
+  Text,
+  View,
+} from "@phoenix/components";
 
 import { ReadonlyJSONBlock } from "../ReadonlyJSONBlock";
 import { defaultCardProps } from "./constants";
+import { formatJSONForCopy, parseJSONDocument } from "./utils";
 
 /**
  * A card describing the tool of a tool span — its name, description, and
@@ -22,6 +29,18 @@ export function ToolMetadata({
     <Card
       title={"Tool" + (typeof name === "string" ? `: ${name}` : "")}
       {...defaultCardProps}
+      // the tool as one document, so it can be pasted back into a tool
+      // definition rather than reassembled from the fields on screen
+      extra={
+        <CopyToClipboardButton
+          text={formatJSONForCopy({
+            name,
+            description,
+            parameters:
+              parameters == null ? undefined : parseJSONDocument(parameters),
+          })}
+        />
+      }
     >
       <Flex direction="column">
         {description != null ? (

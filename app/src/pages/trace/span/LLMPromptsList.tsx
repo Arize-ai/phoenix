@@ -1,9 +1,33 @@
 import { css } from "@emotion/react";
 
-import { View } from "@phoenix/components";
+import {
+  Card,
+  CopyToClipboardButton,
+  Counter,
+  Text,
+} from "@phoenix/components";
 
-import { CopyToClipboardWrap } from "./CopyToClipboardWrap";
+import { defaultCardProps } from "./constants";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
+
+/**
+ * A single raw prompt sent to the LLM, as a card so its copy button sits in the
+ * same place as every other card's.
+ */
+function LLMPrompt({ prompt, index }: { prompt: string; index: number }) {
+  return (
+    <Card
+      {...defaultCardProps}
+      backgroundColor="gray-100"
+      borderColor="gray-300"
+      title={<Text weight="heavy">Prompt</Text>}
+      titleExtra={<Counter>#{index + 1}</Counter>}
+      extra={<CopyToClipboardButton text={prompt} />}
+    >
+      <MimeTypeCodeBlock value={prompt} mimeType="text" />
+    </Card>
+  );
+}
 
 /**
  * A list of the raw prompts sent to the LLM.
@@ -22,17 +46,7 @@ export function LLMPromptsList({ prompts }: { prompts: string[] }) {
       {prompts.map((prompt, idx) => {
         return (
           <li key={idx}>
-            <View
-              backgroundColor="gray-100"
-              borderColor="gray-300"
-              borderWidth="thin"
-              borderRadius="medium"
-              padding="size-100"
-            >
-              <CopyToClipboardWrap text={prompt}>
-                <MimeTypeCodeBlock value={prompt} mimeType="text" />
-              </CopyToClipboardWrap>
-            </View>
+            <LLMPrompt prompt={prompt} index={idx} />
           </li>
         );
       })}

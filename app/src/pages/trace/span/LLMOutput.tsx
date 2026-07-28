@@ -12,7 +12,7 @@ import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
 import { LLMMessagesList } from "./LLMMessagesList";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanIOValue } from "./types";
-import { countToolCalls } from "./utils";
+import { countToolCalls, formatJSONForCopy } from "./utils";
 
 /**
  * The output side of an LLM span — a card with a view select for the output
@@ -44,6 +44,18 @@ export function LLMOutput({
 
   const isRawView = view === "output" && hasOutput;
 
+  // Whatever the card is showing is what its copy button copies, so the reader
+  // never has to switch views to get at the content in front of them
+  let copyText: string | null = null;
+  switch (view) {
+    case "output-messages":
+      copyText = formatJSONForCopy(outputMessages);
+      break;
+    case "output":
+      copyText = output?.value ?? null;
+      break;
+  }
+
   return (
     <MarkdownDisplayProvider>
       <Card
@@ -57,12 +69,6 @@ export function LLMOutput({
         }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
-            {isRawView && (
-              <>
-                <ConnectedMarkdownModeSelect />
-                <CopyToClipboardButton text={output.value} />
-              </>
-            )}
             {views.length > 0 && (
               <LLMIOViewSelect
                 label="Output view"
@@ -71,6 +77,10 @@ export function LLMOutput({
                 onChange={setView}
               />
             )}
+            {isRawView && <ConnectedMarkdownModeSelect />}
+            {/* copy sits last in every card header, so it is always in the same
+                place no matter which controls the card has */}
+            {copyText != null && <CopyToClipboardButton text={copyText} />}
           </Flex>
         }
       >
