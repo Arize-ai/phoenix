@@ -31,6 +31,15 @@ const CHILD_SPAN: ISpanItem = {
   spanId: "child-span-id",
 };
 
+const GRANDCHILD_SPAN: ISpanItem = {
+  ...ROOT_SPAN,
+  id: "grandchild-span-node-id",
+  name: "grandchild span with a much longer name",
+  latencyMs: null,
+  parentId: CHILD_SPAN.spanId,
+  spanId: "grandchild-span-id",
+};
+
 function createTestSpan({
   nodeId,
   parent,
@@ -227,6 +236,35 @@ describe("TraceTree", () => {
     act(() => traceButton?.click());
 
     expect(onTraceSelect).toHaveBeenCalledOnce();
+  });
+
+  it("keeps timing columns independent of span names and nesting", () => {
+    renderTraceTree({
+      spans: [ROOT_SPAN, CHILD_SPAN, GRANDCHILD_SPAN],
+    });
+
+    const nameColumns = Array.from(
+      container.querySelectorAll<HTMLElement>(".span-tree-name")
+    );
+    const timingColumns = Array.from(
+      container.querySelectorAll<HTMLElement>(".span-tree-timing")
+    );
+    const timelineBars = Array.from(
+      container.querySelectorAll<HTMLElement>(".timeline-bar")
+    );
+
+    expect(nameColumns).toHaveLength(3);
+    expect(new Set(nameColumns.map((column) => column.style.flex))).toEqual(
+      new Set(["1 1 480px"])
+    );
+    expect(timingColumns).toHaveLength(3);
+    expect(
+      new Set(timingColumns.map((column) => getComputedStyle(column).flexBasis))
+    ).toEqual(new Set(["150px"]));
+    expect(timelineBars).toHaveLength(3);
+    expect(
+      new Set(timelineBars.map((bar) => getComputedStyle(bar).gridColumn))
+    ).toEqual(new Set(["2"]));
   });
 
   it("shows 12 direct children before an expandable tree node", () => {

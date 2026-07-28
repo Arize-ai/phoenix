@@ -17,7 +17,12 @@ import { IDBadge } from "@phoenix/components/core/id";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import { TRACE_TREE_TIMING_MIN_WIDTH_PIXELS } from "@phoenix/components/trace/traceTreeSizing";
+import {
+  TRACE_TREE_LATENCY_WIDTH_PIXELS,
+  TRACE_TREE_NAME_MAX_WIDTH_PIXELS,
+  TRACE_TREE_TIMING_MAX_WIDTH_PIXELS,
+  TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
+} from "@phoenix/components/trace/traceTreeSizing";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { classNames } from "@phoenix/utils/classNames";
@@ -646,13 +651,14 @@ function SpanTreeItem<TSpan extends ISpanItem>(
           spanNodeId={node.span.id}
         >
           <Flex
+            className="span-tree-name"
             direction="row"
             gap="size-100"
             justifyContent="start"
             alignItems="center"
-            flex="1 1 auto"
+            flex={`1 1 ${TRACE_TREE_NAME_MAX_WIDTH_PIXELS}px`}
             minWidth={0}
-            maxWidth="size-6000"
+            maxWidth={`${TRACE_TREE_NAME_MAX_WIDTH_PIXELS}px`}
             css={css`
               overflow: hidden;
             `}
@@ -844,13 +850,14 @@ function TraceTreeDisclosureNode({
       <div aria-hidden="true">
         <SpanNodeWrap isSelected={false} nestingLevel={nestingLevel}>
           <Flex
+            className="span-tree-name"
             direction="row"
             gap="size-100"
             justifyContent="start"
             alignItems="center"
-            flex="1 1 auto"
+            flex={`1 1 ${TRACE_TREE_NAME_MAX_WIDTH_PIXELS}px`}
             minWidth={0}
-            maxWidth="size-6000"
+            maxWidth={`${TRACE_TREE_NAME_MAX_WIDTH_PIXELS}px`}
           >
             <SpanKindIcon spanKind="" />
             <span css={spanNameCSS} title="" />
@@ -921,7 +928,8 @@ function SpanNodeWrap(
           border-color: var(--global-color-gray-300);
         }
         & > *:first-of-type {
-          margin-left: calc(
+          box-sizing: border-box;
+          padding-left: calc(
             (${props.nestingLevel} * var(--trace-tree-nesting-indent)) + 16px
           );
         }
@@ -1005,18 +1013,25 @@ const spanControlsCSS = css`
 const spanTimingCSS = css`
   gap: var(--global-dimension-size-100);
   min-width: ${TRACE_TREE_TIMING_MIN_WIDTH_PIXELS}px;
-  max-width: var(--global-dimension-size-8000);
+  max-width: ${TRACE_TREE_TIMING_MAX_WIDTH_PIXELS}px;
   flex: 1 1 ${TRACE_TREE_TIMING_MIN_WIDTH_PIXELS}px;
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: ${TRACE_TREE_LATENCY_WIDTH_PIXELS}px minmax(0, 1fr);
   align-items: center;
   .latency-text {
     justify-content: end !important;
-    min-width: 2.5rem;
-    float: right;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .latency-text .text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .timeline-bar {
-    flex: 1 1 auto;
+    grid-column: 2;
+    width: 100%;
     min-width: 0;
   }
 `;

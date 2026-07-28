@@ -11,7 +11,12 @@ import {
 
 import { Flex } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading/Skeleton";
-import { TRACE_TREE_TIMING_MIN_WIDTH_PIXELS } from "@phoenix/components/trace/traceTreeSizing";
+import {
+  TRACE_TREE_LATENCY_WIDTH_PIXELS,
+  TRACE_TREE_NAME_MAX_WIDTH_PIXELS,
+  TRACE_TREE_TIMING_MAX_WIDTH_PIXELS,
+  TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
+} from "@phoenix/components/trace/traceTreeSizing";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { NESTING_INDENT, traceTreeListCSS } from "./traceTreeStyles";
@@ -128,13 +133,14 @@ function SpanNodeRowSkeleton({
   return (
     <SpanNodeWrapSkeleton nestingLevel={nestingLevel}>
       <Flex
+        className="span-tree-name"
         direction="row"
         gap="size-100"
         justifyContent="start"
         alignItems="center"
-        flex="1 1 auto"
+        flex={`1 1 ${TRACE_TREE_NAME_MAX_WIDTH_PIXELS}px`}
         minWidth={0}
-        maxWidth="size-6000"
+        maxWidth={`${TRACE_TREE_NAME_MAX_WIDTH_PIXELS}px`}
         css={css`
           overflow: hidden;
         `}
@@ -187,7 +193,8 @@ function SpanNodeWrapSkeleton(
         border-left: 4px solid transparent;
         box-sizing: border-box;
         & > *:first-of-type {
-          margin-left: calc(
+          box-sizing: border-box;
+          padding-left: calc(
             (${props.nestingLevel} * var(--trace-tree-nesting-indent)) + 16px
           );
         }
@@ -244,11 +251,16 @@ const spanControlsCSS = css`
 const spanTimingCSS = css`
   gap: var(--global-dimension-size-100);
   min-width: ${TRACE_TREE_TIMING_MIN_WIDTH_PIXELS}px;
-  max-width: var(--global-dimension-size-8000);
+  max-width: ${TRACE_TREE_TIMING_MAX_WIDTH_PIXELS}px;
   flex: 1 1 ${TRACE_TREE_TIMING_MIN_WIDTH_PIXELS}px;
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: ${TRACE_TREE_LATENCY_WIDTH_PIXELS}px minmax(0, 1fr);
   align-items: center;
+
+  & > *:last-child {
+    grid-column: 2;
+    min-width: 0;
+  }
 `;
 
 function DefaultTraceTreeSkeletonBody() {
