@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d4168a3e6a514d24faa9b77841fe7dde>>
+ * @generated SignedSource<<3d0d9480cf863c0df3b51fd5c3eed0fe>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,20 @@ export type SessionDetailsQuery$variables = {
 };
 export type SessionDetailsQuery$data = {
   readonly session: {
-    readonly numTraces?: number;
+    readonly __typename: "ProjectSession";
+    readonly costSummary: {
+      readonly total: {
+        readonly cost: number | null;
+      };
+    };
+    readonly numTraces: number;
+    readonly tokenUsage: {
+      readonly total: number;
+    };
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
   };
 };
 export type SessionDetailsQuery = {
@@ -37,6 +50,13 @@ v1 = [
   }
 ],
 v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v3 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -44,6 +64,53 @@ v2 = {
       "args": null,
       "kind": "ScalarField",
       "name": "numTraces",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TokenUsage",
+      "kind": "LinkedField",
+      "name": "tokenUsage",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "total",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanCostSummary",
+      "kind": "LinkedField",
+      "name": "costSummary",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "total",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "cost",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
@@ -65,7 +132,8 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*:: as any*/)
+          (v2/*:: as any*/),
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -87,14 +155,8 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
-          },
           (v2/*:: as any*/),
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -108,16 +170,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9c9d6d6718a13e0bffc66af88381e8ff",
+    "cacheID": "fc4297b32c99a5afef445e494436dd51",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n    }\n    id\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3e5550722128d40c8a530cbef27324ae";
+(node as any).hash = "4c0006959ac78d0bc394846658fd98a0";
 
 export default node;

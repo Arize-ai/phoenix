@@ -13,11 +13,19 @@ import {
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { useSearchParams } from "react-router";
 
-import { Flex, IDBadge, Loading, Text, View } from "@phoenix/components";
+import { Flex, IDBadge, Loading, View } from "@phoenix/components";
 import { SessionDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { ExpandCollapseAllButton } from "@phoenix/components/trace/ExpandCollapseAllButton";
+import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
+import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
+import {
+  SpanHeaderIdentityRow,
+  SpanHeaderMetaItem,
+  SpanHeaderMetaRow,
+  SpanHeaderName,
+} from "../SpanHeader";
 import type { SessionDetailsQuery } from "./__generated__/SessionDetailsQuery.graphql";
 import type { SessionDetailsTraceListQuery } from "./__generated__/SessionDetailsTraceListQuery.graphql";
 import type { SessionDetailsTracesViewQuery } from "./__generated__/SessionDetailsTracesViewQuery.graphql";
@@ -58,7 +66,14 @@ function SessionDetailsMainContent({
   children,
   sessionId,
   sessionDisplayId,
-}: PropsWithChildren<{ sessionId: string; sessionDisplayId: string }>) {
+  tokenCountTotal,
+  totalCost,
+}: PropsWithChildren<{
+  sessionId: string;
+  sessionDisplayId: string;
+  tokenCountTotal: number;
+  totalCost: number | null;
+}>) {
   return (
     <div
       css={css`
@@ -77,20 +92,34 @@ function SessionDetailsMainContent({
         flex="none"
       >
         <Flex direction="column" gap="size-50" width="100%">
-          <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
-            <Text size="L" weight="heavy">
-              Session
-            </Text>
-          </Flex>
-          <Flex
-            direction="row"
-            alignItems="center"
-            gap="size-100"
-            minWidth={0}
-            wrap
-          >
-            <IDBadge id={sessionDisplayId} tooltipText="Copy Session ID" />
-          </Flex>
+          <SpanHeaderIdentityRow>
+            <SpanHeaderName name="Session" />
+          </SpanHeaderIdentityRow>
+          <SpanHeaderMetaRow>
+            <SpanHeaderMetaItem>
+              <IDBadge id={sessionDisplayId} tooltipText="Copy Session ID" />
+            </SpanHeaderMetaItem>
+            {tokenCountTotal ? (
+              <SpanHeaderMetaItem>
+                <SessionTokenCount
+                  tokenCountTotal={tokenCountTotal}
+                  nodeId={sessionId}
+                  size="S"
+                  color="text-500"
+                />
+              </SpanHeaderMetaItem>
+            ) : null}
+            {totalCost ? (
+              <SpanHeaderMetaItem>
+                <SessionTokenCosts
+                  totalCost={totalCost}
+                  nodeId={sessionId}
+                  size="S"
+                  color="text-500"
+                />
+              </SpanHeaderMetaItem>
+            ) : null}
+          </SpanHeaderMetaRow>
         </Flex>
       </View>
       <Suspense fallback={null}>
@@ -150,8 +179,17 @@ export function SessionDetails({
     graphql`
       query SessionDetailsQuery($id: ID!) {
         session: node(id: $id) {
+          __typename
           ... on ProjectSession {
             numTraces
+            tokenUsage {
+              total
+            }
+            costSummary {
+              total {
+                cost
+              }
+            }
           }
         }
       }
@@ -164,10 +202,12 @@ export function SessionDetails({
     }
   );
 
-  if (data.session == null) {
+  if (data.session?.__typename !== "ProjectSession") {
     throw new Error("Session not found");
   }
   const traceCount = data.session.numTraces ?? 0;
+  const tokenCountTotal = data.session.tokenUsage.total;
+  const totalCost = data.session.costSummary.total.cost;
   const [traceListQueryRef, loadTraceListQuery] =
     useQueryLoader<SessionDetailsTraceListQuery>(sessionDetailsTraceListQuery);
   const [tracesViewQueryRef, loadTracesViewQuery] =
@@ -227,6 +267,8 @@ export function SessionDetails({
     <SessionDetailsMainContent
       sessionId={sessionId}
       sessionDisplayId={sessionDisplayId}
+      tokenCountTotal={tokenCountTotal}
+      totalCost={totalCost}
     >
       {content}
     </SessionDetailsMainContent>

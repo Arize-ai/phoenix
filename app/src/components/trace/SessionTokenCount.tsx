@@ -25,6 +25,10 @@ type SessionTokenCountProps = {
    * The size of the icon and text
    */
   size?: TextProps["size"];
+  /**
+   * The color of the icon and text
+   */
+  color?: TextProps["color"];
 };
 
 /**
@@ -34,7 +38,12 @@ export function SessionTokenCount(props: SessionTokenCountProps) {
   return (
     <TooltipTrigger>
       <Pressable>
-        <TokenCount size={props.size} role="button" tabIndex={0}>
+        <TokenCount
+          size={props.size}
+          color={props.color}
+          role="button"
+          tabIndex={0}
+        >
           {props.tokenCountTotal}
         </TokenCount>
       </Pressable>
