@@ -6286,7 +6286,12 @@ export interface components {
         };
         /**
          * AgentErrorChunk
-         * @description Durable data part paired with a standard protocol error chunk.
+         * @description Durable data part paired with a standard protocol ``error`` chunk.
+         *
+         *     Standard ``error`` chunks are transient: the reducer routes them to error
+         *     callbacks without adding a message part, so they vanish from persisted
+         *     transcripts. Pairing each one with this ``data-error`` part records the
+         *     error durably in the message for persistence, reload, and subagents.
          */
         AgentErrorChunk: {
             /**

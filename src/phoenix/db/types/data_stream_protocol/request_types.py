@@ -2,6 +2,12 @@
 # https://github.com/pydantic/pydantic-ai/tree/v2.17.0/pydantic_ai_slim/pydantic_ai/ui/vercel_ai
 # Copyright (c) Pydantic Services Inc. 2024 to present
 # SPDX-License-Identifier: MIT
+#
+# Kept byte-identical to upstream except for the `result_provider_metadata` field on the four
+# tool output parts, which AI SDK v7 defines but pydantic-ai v2.17.0 does not yet carry. The
+# divergence is allowlisted in
+# tests/unit/db/types/test_data_stream_protocol_compatibility.py; drop it there once upstream
+# catches up.
 
 """Vercel AI request types (UI messages).
 

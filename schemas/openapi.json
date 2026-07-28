@@ -19542,7 +19542,7 @@
       },
       "AgentErrorChunk": {
         "additionalProperties": false,
-        "description": "Durable data part paired with a standard protocol error chunk.",
+        "description": "Durable data part paired with a standard protocol ``error`` chunk.\n\nStandard ``error`` chunks are transient: the reducer routes them to error\ncallbacks without adding a message part, so they vanish from persisted\ntranscripts. Pairing each one with this ``data-error`` part records the\nerror durably in the message for persistence, reload, and subagents.",
         "properties": {
           "type": {
             "const": "data-error",
