@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import { startTransition } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import {
@@ -64,9 +63,7 @@ export const TraceDetailsPaginator = ({
         aria-label="Next trace"
         isDisabled={!hasNext}
         onPress={() => {
-          startTransition(() => {
-            next(currentId);
-          });
+          next(currentId);
         }}
       />
       <Tooltip placement={isCollapsed ? "left" : undefined} offset={4}>
@@ -87,9 +84,7 @@ export const TraceDetailsPaginator = ({
         aria-label="Previous trace"
         isDisabled={!hasPrevious}
         onPress={() => {
-          startTransition(() => {
-            previous(currentId);
-          });
+          previous(currentId);
         }}
       />
       <Tooltip placement={isCollapsed ? "left" : undefined} offset={4}>

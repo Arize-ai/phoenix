@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
@@ -107,33 +107,23 @@ export const TracePaginationProvider = ({ children }: PropsWithChildren) => {
     { traceId: string; spanId: string }[]
   >([]);
 
-  const next = useCallback(
-    (currentId?: string) => {
-      const { nextTracePath } = makeTraceUrls(
-        location,
-        traceSequence,
-        currentId
-      );
-      if (nextTracePath) {
-        navigate(nextTracePath);
-      }
-    },
-    [navigate, location, traceSequence]
-  );
+  const next = (currentId?: string) => {
+    const { nextTracePath } = makeTraceUrls(location, traceSequence, currentId);
+    if (nextTracePath) {
+      void navigate(nextTracePath, { flushSync: true });
+    }
+  };
 
-  const previous = useCallback(
-    (currentId?: string) => {
-      const { previousTracePath } = makeTraceUrls(
-        location,
-        traceSequence,
-        currentId
-      );
-      if (previousTracePath) {
-        navigate(previousTracePath);
-      }
-    },
-    [navigate, location, traceSequence]
-  );
+  const previous = (currentId?: string) => {
+    const { previousTracePath } = makeTraceUrls(
+      location,
+      traceSequence,
+      currentId
+    );
+    if (previousTracePath) {
+      void navigate(previousTracePath, { flushSync: true });
+    }
+  };
 
   return (
     <TracePaginationContext.Provider

@@ -6,7 +6,7 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { Dialog, Drawer, Loading } from "@phoenix/components";
+import { Dialog, Drawer } from "@phoenix/components";
 import { DialogContent } from "@phoenix/components/core/dialog";
 import {
   getTraceTreeMaximumWidth,
@@ -20,6 +20,7 @@ import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import { DetailsPanelHeader } from "./DetailsPanel";
 import { TraceDetails } from "./TraceDetails";
+import { TraceDetailsSkeleton } from "./TraceDetailsSkeleton";
 import { useDetailsPanelSizing } from "./useDetailsPanelSizing";
 
 /**
@@ -42,6 +43,9 @@ export function TracePage({
   const treeMaximumWidth = getTraceTreeMaximumWidth({
     hasTiming: showMetricsInTraceTree,
   });
+  const treeAddonWidth = showMetricsInTraceTree
+    ? TRACE_TREE_TIMING_MIN_WIDTH_PIXELS
+    : 0;
   const parentSearch = clearSelectionScopedParams(searchParams);
   const {
     defaultDrawerSize,
@@ -54,9 +58,7 @@ export function TracePage({
     onTreeCollapsedChange,
     preferredTreeWidth,
   } = useDetailsPanelSizing({
-    treeAddonWidth: showMetricsInTraceTree
-      ? TRACE_TREE_TIMING_MIN_WIDTH_PIXELS
-      : 0,
+    treeAddonWidth,
     treeMaximumWidth,
   });
   if (traceId == null || projectId == null) {
@@ -86,7 +88,30 @@ export function TracePage({
       <Dialog aria-label="Trace details">
         {({ close }) => (
           <DialogContent>
-            <Suspense fallback={<Loading />}>
+            <Suspense
+              fallback={
+                <TraceDetailsSkeleton
+                  preferredTreeWidth={preferredTreeWidth}
+                  onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                  treeAddonWidth={treeAddonWidth}
+                  treeMaximumWidth={treeMaximumWidth}
+                  treeHeader={
+                    <DetailsPanelHeader
+                      close={close}
+                      closeLabel="Close trace details"
+                      isCollapsed={isTreeCollapsed}
+                      onCollapsedChange={onTreeCollapsedChange}
+                      pagination={
+                        <TraceDetailsPaginator
+                          currentId={paginationSubjectId}
+                          isCollapsed={isTreeCollapsed}
+                        />
+                      }
+                    />
+                  }
+                />
+              }
+            >
               <TraceDetails
                 defaultToTrace={defaultToTrace}
                 traceId={traceId}

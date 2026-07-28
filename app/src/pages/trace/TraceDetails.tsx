@@ -8,7 +8,6 @@ import invariant from "tiny-invariant";
 
 import {
   Flex,
-  Loading,
   RichTooltip,
   Text,
   TooltipArrow,
@@ -40,8 +39,9 @@ import type {
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { DetailsPanel } from "./DetailsPanel";
-import { SpanDetails } from "./SpanDetails";
+import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
+import { DetailPanelAnnotationBarSkeleton } from "./TraceDetailsSkeleton";
 
 type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -169,7 +169,7 @@ export function TraceDetails({
                       searchParams.set(SELECTED_TRACE_ID_PARAM, trace.traceId);
                       return searchParams;
                     },
-                    { replace: true }
+                    { replace: true, flushSync: true }
                   );
                 },
                 traceId: trace.traceId,
@@ -181,7 +181,7 @@ export function TraceDetails({
                     searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
                     return searchParams;
                   },
-                  { replace: true }
+                  { replace: true, flushSync: true }
                 );
               }}
             />
@@ -195,13 +195,11 @@ export function TraceDetails({
         <SpanInfoCardsProvider>
           <SpanDetailsWrapper>
             {isTraceSelected ? (
-              <Suspense fallback={<Loading />}>
+              <Suspense fallback={<DetailPanelAnnotationBarSkeleton />}>
                 <TraceDetailPanelAnnotationBar traceNodeId={trace.id} />
               </Suspense>
             ) : selectedSpanNodeId ? (
-              <Suspense fallback={<Loading />}>
-                <SpanDetails spanNodeId={selectedSpanNodeId} />
-              </Suspense>
+              <SpanDetailsPaintGate spanNodeId={selectedSpanNodeId} />
             ) : null}
           </SpanDetailsWrapper>
         </SpanInfoCardsProvider>

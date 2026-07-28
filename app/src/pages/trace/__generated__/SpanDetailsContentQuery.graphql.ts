@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4e0ba7e5ae696f6176c7526c55683964>>
+ * @generated SignedSource<<b53a9177d10b19dd12c59680416a395a>>
  * @lightSyntaxTransform
  */
 
@@ -8,15 +8,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-import { FragmentRefs } from "relay-runtime";
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type MimeType = "json" | "text";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
-export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
-export type SpanDetailsQuery$variables = {
+export type SpanDetailsContentQuery$variables = {
   id: string;
 };
-export type SpanDetailsQuery$data = {
+export type SpanDetailsContentQuery$data = {
   readonly span: {
     readonly __typename: "Span";
     readonly attributes: string;
@@ -41,44 +39,30 @@ export type SpanDetailsQuery$data = {
       readonly ndcg: number | null;
       readonly precision: number | null;
     }>;
-    readonly endTime: string | null;
     readonly events: ReadonlyArray<{
-      readonly message: string;
       readonly name: string;
-      readonly timestamp: string;
     }>;
     readonly id: string;
     readonly input: {
       readonly mimeType: MimeType;
       readonly value: string;
     } | null;
-    readonly latencyMs: number | null;
-    readonly name: string;
     readonly output: {
       readonly mimeType: MimeType;
       readonly value: string;
     } | null;
-    readonly parentId: string | null;
     readonly spanId: string;
     readonly spanKind: SpanKind;
-    readonly startTime: string;
-    readonly statusCode: SpanStatusCode;
     readonly statusMessage: string;
-    readonly tokenCountTotal: number | null;
-    readonly trace: {
-      readonly id: string;
-      readonly traceId: string;
-    };
-    readonly " $fragmentSpreads": FragmentRefs<"SpanHeader_span">;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   };
 };
-export type SpanDetailsQuery = {
-  response: SpanDetailsQuery$data;
-  variables: SpanDetailsQuery$variables;
+export type SpanDetailsContentQuery = {
+  response: SpanDetailsContentQuery$data;
+  variables: SpanDetailsContentQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -120,86 +104,18 @@ v4 = {
 v5 = {
   "alias": null,
   "args": null,
-  "concreteType": "Trace",
-  "kind": "LinkedField",
-  "name": "trace",
-  "plural": false,
-  "selections": [
-    (v3/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "traceId",
-      "storageKey": null
-    }
-  ],
+  "kind": "ScalarField",
+  "name": "spanKind",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "spanKind",
-  "storageKey": null
-},
-v8 = {
-  "alias": "statusCode",
-  "args": null,
-  "kind": "ScalarField",
-  "name": "propagatedStatusCode",
-  "storageKey": null
-},
-v9 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "statusMessage",
   "storageKey": null
 },
-v10 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "startTime",
-  "storageKey": null
-},
-v11 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "parentId",
-  "storageKey": null
-},
-v12 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "latencyMs",
-  "storageKey": null
-},
-v13 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "tokenCountTotal",
-  "storageKey": null
-},
-v14 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "endTime",
-  "storageKey": null
-},
-v15 = [
+v7 = [
   {
     "alias": null,
     "args": null,
@@ -215,34 +131,41 @@ v15 = [
     "storageKey": null
   }
 ],
-v16 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v15/*:: as any*/),
+  "selections": (v7/*:: as any*/),
   "storageKey": null
 },
-v17 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v15/*:: as any*/),
+  "selections": (v7/*:: as any*/),
   "storageKey": null
 },
-v18 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "attributes",
   "storageKey": null
 },
-v19 = {
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v12 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanEvent",
@@ -250,25 +173,11 @@ v19 = {
   "name": "events",
   "plural": true,
   "selections": [
-    (v6/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "message",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "timestamp",
-      "storageKey": null
-    }
+    (v11/*:: as any*/)
   ],
   "storageKey": null
 },
-v20 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -307,63 +216,63 @@ v20 = {
   ],
   "storageKey": null
 },
-v21 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotatorKind",
   "storageKey": null
 },
-v22 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "documentPosition",
   "storageKey": null
 },
-v23 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v24 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v25 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "explanation",
   "storageKey": null
 },
-v26 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v27 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v28 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "username",
   "storageKey": null
 },
-v29 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -375,7 +284,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SpanDetailsQuery",
+    "name": "SpanDetailsContentQuery",
     "selections": [
       {
         "alias": "span",
@@ -393,23 +302,15 @@ return {
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v7/*:: as any*/),
               (v8/*:: as any*/),
               (v9/*:: as any*/),
               (v10/*:: as any*/),
-              (v11/*:: as any*/),
-              (v12/*:: as any*/),
-              (v13/*:: as any*/),
-              (v14/*:: as any*/),
-              (v16/*:: as any*/),
-              (v17/*:: as any*/),
-              (v18/*:: as any*/),
               {
                 "kind": "RequiredField",
-                "field": (v19/*:: as any*/),
+                "field": (v12/*:: as any*/),
                 "action": "THROW"
               },
-              (v20/*:: as any*/),
+              (v13/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -419,14 +320,14 @@ return {
                 "plural": true,
                 "selections": [
                   (v3/*:: as any*/),
-                  (v21/*:: as any*/),
-                  (v22/*:: as any*/),
-                  (v6/*:: as any*/),
-                  (v23/*:: as any*/),
-                  (v24/*:: as any*/),
-                  (v25/*:: as any*/),
-                  (v26/*:: as any*/),
-                  (v27/*:: as any*/),
+                  (v14/*:: as any*/),
+                  (v15/*:: as any*/),
+                  (v11/*:: as any*/),
+                  (v16/*:: as any*/),
+                  (v17/*:: as any*/),
+                  (v18/*:: as any*/),
+                  (v19/*:: as any*/),
+                  (v20/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -435,18 +336,13 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v28/*:: as any*/),
-                      (v29/*:: as any*/)
+                      (v21/*:: as any*/),
+                      (v22/*:: as any*/)
                     ],
                     "storageKey": null
                   }
                 ],
                 "storageKey": null
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "SpanHeader_span"
               }
             ],
             "type": "Span",
@@ -463,7 +359,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "SpanDetailsQuery",
+    "name": "SpanDetailsContentQuery",
     "selections": [
       {
         "alias": "span",
@@ -481,19 +377,11 @@ return {
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v7/*:: as any*/),
               (v8/*:: as any*/),
               (v9/*:: as any*/),
               (v10/*:: as any*/),
-              (v11/*:: as any*/),
               (v12/*:: as any*/),
               (v13/*:: as any*/),
-              (v14/*:: as any*/),
-              (v16/*:: as any*/),
-              (v17/*:: as any*/),
-              (v18/*:: as any*/),
-              (v19/*:: as any*/),
-              (v20/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -503,14 +391,14 @@ return {
                 "plural": true,
                 "selections": [
                   (v3/*:: as any*/),
-                  (v21/*:: as any*/),
-                  (v22/*:: as any*/),
-                  (v6/*:: as any*/),
-                  (v23/*:: as any*/),
-                  (v24/*:: as any*/),
-                  (v25/*:: as any*/),
-                  (v26/*:: as any*/),
-                  (v27/*:: as any*/),
+                  (v14/*:: as any*/),
+                  (v15/*:: as any*/),
+                  (v11/*:: as any*/),
+                  (v16/*:: as any*/),
+                  (v17/*:: as any*/),
+                  (v18/*:: as any*/),
+                  (v19/*:: as any*/),
+                  (v20/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -519,45 +407,9 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v28/*:: as any*/),
-                      (v29/*:: as any*/),
+                      (v21/*:: as any*/),
+                      (v22/*:: as any*/),
                       (v3/*:: as any*/)
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              },
-              {
-                "alias": "code",
-                "args": null,
-                "kind": "ScalarField",
-                "name": "statusCode",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "SpanCostSummary",
-                "kind": "LinkedField",
-                "name": "costSummary",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "CostBreakdown",
-                    "kind": "LinkedField",
-                    "name": "total",
-                    "plural": false,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "cost",
-                        "storageKey": null
-                      }
                     ],
                     "storageKey": null
                   }
@@ -574,16 +426,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2d55e5f8774fc7a08489a98b7ed95656",
+    "cacheID": "79b45a1192cac9ab7f4b7e84827544e9",
     "id": null,
     "metadata": {},
-    "name": "SpanDetailsQuery",
+    "name": "SpanDetailsContentQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        id\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      endTime\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        id\n        annotatorKind\n        documentPosition\n        name\n        label\n        score\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n      ...SpanHeader_span\n    }\n    id\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  code: statusCode\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
+    "text": "query SpanDetailsContentQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      spanKind\n      statusMessage\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        id\n        annotatorKind\n        documentPosition\n        name\n        label\n        score\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1f12d9cb58cca8464666a95f05a0ab1a";
+(node as any).hash = "20729824bda70a04c803b1098549f3f6";
 
 export default node;

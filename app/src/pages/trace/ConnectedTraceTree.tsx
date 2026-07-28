@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 
 import { Alert, Button, Flex } from "@phoenix/components";
@@ -43,18 +42,6 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
               parentId
               latencyMs
               tokenCountTotal
-              spanAnnotationSummaries {
-                labels
-                count
-                labelCount
-                labelFractions {
-                  fraction
-                  label
-                }
-                name
-                scoreCount
-                meanScore
-              }
             }
           }
         }
@@ -62,10 +49,8 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
     `,
     props.trace
   );
-  const spansList = useMemo(() => {
-    const gqlSpans = data?.spans.edges || [];
-    return gqlSpans.map((node) => node.span);
-  }, [data]);
+  const gqlSpans = data?.spans.edges || [];
+  const spansList = gqlSpans.map((node) => node.span);
 
   const totalSpans = data?.numSpans;
   const totalSpansViewing = spansList.length;

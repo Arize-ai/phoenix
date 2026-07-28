@@ -60,8 +60,9 @@ export type RetrievalMetric = {
 
 /**
  * The minimal shape of span data needed to render the span info view.
- * Structurally compatible with the Span type returned by SpanDetailsQuery so
- * the components in this folder stay decoupled from Relay generated types.
+ * Structurally compatible with the Span type returned by
+ * SpanDetailsContentQuery so the components in this folder stay decoupled
+ * from Relay generated types.
  */
 export type SpanInfoData = {
   readonly id: string;

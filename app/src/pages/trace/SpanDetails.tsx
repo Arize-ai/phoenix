@@ -25,18 +25,19 @@ import { useNotifySuccess } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 
 import { SpanHeader } from "../SpanHeader";
-import type {
-  SpanDetailsQuery,
-  SpanDetailsQuery$data,
-} from "./__generated__/SpanDetailsQuery.graphql";
+import type { SpanDetailsContentQuery } from "./__generated__/SpanDetailsContentQuery.graphql";
+import type { SpanDetailsHeaderQuery } from "./__generated__/SpanDetailsHeaderQuery.graphql";
 import { SpanAttributesCard, SpanInfo } from "./span";
 import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
 import { useSpanInfoCardProps } from "./SpanInfoCardsContext";
 import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
-
-type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
+import {
+  DetailPanelAnnotationBarSkeleton,
+  SpanDetailsContentSkeleton,
+  SpanHeaderSkeleton,
+} from "./TraceDetailsSkeleton";
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
 const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
@@ -191,15 +192,6 @@ function DeferredSpanDetailsContent({
 
 export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
   const { projectId } = useParams();
-  const attributesCardProps = useSpanInfoCardProps("attributes");
-  const shouldReduceMotion = useReducedMotion();
-  const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
-  const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
-  const scrollAnimationRef = useRef<ReturnType<typeof animate> | null>(null);
-  const sectionFeedbackAnimationRef = useRef<ReturnType<typeof animate> | null>(
-    null
-  );
-  const sectionFeedbackElementRef = useRef<HTMLElement | null>(null);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
   const isCondensedView = spanDetailsContainerDimensions?.width
@@ -207,20 +199,46 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
       CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD
     : true;
 
-  useEffect(() => {
-    const scrollContent = spanDetailsSectionsContentRef.current;
-    return () => {
-      scrollAnimationRef.current?.stop();
-      sectionFeedbackAnimationRef.current?.stop();
-      if (scrollContent) {
-        scrollContent.style.transform = "";
-      }
-    };
-  }, []);
+  if (projectId == null) {
+    throw new Error("Project ID is required to download a span");
+  }
 
-  const { span } = useLazyLoadQuery<SpanDetailsQuery>(
+  return (
+    <Flex
+      direction="column"
+      flex="1 1 auto"
+      height="100%"
+      ref={spanDetailsContainerRef}
+    >
+      <Suspense fallback={<SpanHeaderSkeleton />}>
+        <SpanDetailsHeader
+          isCondensedView={isCondensedView}
+          projectId={projectId}
+          spanNodeId={spanNodeId}
+        />
+      </Suspense>
+      <Suspense fallback={<DetailPanelAnnotationBarSkeleton />}>
+        <SpanDetailPanelAnnotationBar spanNodeId={spanNodeId} />
+      </Suspense>
+      <Suspense fallback={<SpanDetailsContentSkeleton />}>
+        <SpanDetailsContent spanNodeId={spanNodeId} />
+      </Suspense>
+    </Flex>
+  );
+}
+
+function SpanDetailsHeader({
+  isCondensedView,
+  projectId,
+  spanNodeId,
+}: {
+  isCondensedView: boolean;
+  projectId: string;
+  spanNodeId: string;
+}) {
+  const { span } = useLazyLoadQuery<SpanDetailsHeaderQuery>(
     graphql`
-      query SpanDetailsQuery($id: ID!) {
+      query SpanDetailsHeaderQuery($id: ID!) {
         span: node(id: $id) {
           __typename
           ... on Span {
@@ -230,15 +248,81 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
               id
               traceId
             }
-            name
             spanKind
-            statusCode: propagatedStatusCode
+            ...SpanHeader_span
+          }
+        }
+      }
+    `,
+    { id: spanNodeId }
+  );
+
+  if (span.__typename !== "Span") {
+    throw new Error(
+      "Expected a span, but got a different type" + span.__typename
+    );
+  }
+
+  return (
+    <View
+      paddingTop="size-100"
+      paddingBottom="size-100"
+      paddingStart="size-150"
+      paddingEnd="size-200"
+      flex="none"
+      data-testid="span-header-row"
+    >
+      <SpanHeader
+        span={span}
+        actions={
+          <>
+            <LinkButton
+              variant={span.spanKind !== "llm" ? "default" : "primary"}
+              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+              isDisabled={span.spanKind !== "llm"}
+              to={`/playground/spans/${span.id}`}
+              size="S"
+              aria-label="Prompt Playground"
+            >
+              {isCondensedView ? null : "Playground"}
+            </LinkButton>
+            <AddSpanToDatasetButton
+              spanNodeId={span.id}
+              buttonText={isCondensedView ? null : "Add to Dataset"}
+            />
+            <SpanDownloadMenu
+              projectId={projectId}
+              spanId={span.spanId}
+              traceId={span.trace.traceId}
+              buttonText={isCondensedView ? null : "Download"}
+            />
+          </>
+        }
+      />
+    </View>
+  );
+}
+
+function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
+  const attributesCardProps = useSpanInfoCardProps("attributes");
+  const shouldReduceMotion = useReducedMotion();
+  const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
+  const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
+  const scrollAnimationRef = useRef<ReturnType<typeof animate> | null>(null);
+  const sectionFeedbackAnimationRef = useRef<ReturnType<typeof animate> | null>(
+    null
+  );
+  const sectionFeedbackElementRef = useRef<HTMLElement | null>(null);
+  const { span } = useLazyLoadQuery<SpanDetailsContentQuery>(
+    graphql`
+      query SpanDetailsContentQuery($id: ID!) {
+        span: node(id: $id) {
+          __typename
+          ... on Span {
+            id
+            spanId
+            spanKind
             statusMessage
-            startTime
-            parentId
-            latencyMs
-            tokenCountTotal
-            endTime
             input {
               value
               mimeType
@@ -250,8 +334,6 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
             attributes
             events @required(action: THROW) {
               name
-              message
-              timestamp
             }
             documentRetrievalMetrics {
               evaluationName
@@ -274,7 +356,6 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
                 profilePictureUrl
               }
             }
-            ...SpanHeader_span
           }
         }
       }
@@ -282,13 +363,21 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
     { id: spanNodeId }
   );
 
+  useEffect(() => {
+    const scrollContent = spanDetailsSectionsContentRef.current;
+    return () => {
+      scrollAnimationRef.current?.stop();
+      sectionFeedbackAnimationRef.current?.stop();
+      if (scrollContent) {
+        scrollContent.style.transform = "";
+      }
+    };
+  }, []);
+
   if (span.__typename !== "Span") {
     throw new Error(
       "Expected a span, but got a different type" + span.__typename
     );
-  }
-  if (projectId == null) {
-    throw new Error("Project ID is required to download a span");
   }
 
   const hasExceptions = span.events.some((event) => event.name === "exception");
@@ -415,51 +504,7 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
   };
 
   return (
-    <Flex
-      direction="column"
-      flex="1 1 auto"
-      height="100%"
-      ref={spanDetailsContainerRef}
-    >
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-150"
-        paddingEnd="size-200"
-        flex="none"
-        data-testid="span-header-row"
-      >
-        <SpanHeader
-          span={span}
-          actions={
-            <>
-              <LinkButton
-                variant={span.spanKind !== "llm" ? "default" : "primary"}
-                leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-                isDisabled={span.spanKind !== "llm"}
-                to={`/playground/spans/${span.id}`}
-                size="S"
-                aria-label="Prompt Playground"
-              >
-                {isCondensedView ? null : "Playground"}
-              </LinkButton>
-              <AddSpanToDatasetButton
-                span={span}
-                buttonText={isCondensedView ? null : "Add to Dataset"}
-              />
-              <SpanDownloadMenu
-                projectId={projectId}
-                spanId={span.spanId}
-                traceId={span.trace.traceId}
-                buttonText={isCondensedView ? null : "Download"}
-              />
-            </>
-          }
-        />
-      </View>
-      <Suspense fallback={null}>
-        <SpanDetailPanelAnnotationBar spanNodeId={span.id} />
-      </Suspense>
+    <Flex direction="column" flex="1 1 auto" minHeight={0}>
       <nav css={spanDetailsAnchorNavCSS} aria-label="Span detail sections">
         <ul>
           <SpanDetailSectionLink
@@ -568,10 +613,10 @@ function SpanDetailSectionLink({
 }
 
 function AddSpanToDatasetButton({
-  span,
+  spanNodeId,
   buttonText,
 }: {
-  span: Span;
+  spanNodeId: string;
   buttonText: string | null;
 }) {
   const notifySuccess = useNotifySuccess();
@@ -589,7 +634,7 @@ function AddSpanToDatasetButton({
         <Modal variant="slideover" size="L">
           <Suspense fallback={<Loading />}>
             <SpanToDatasetExampleDialog
-              spanId={span.id}
+              spanId={spanNodeId}
               onCompleted={(datasetId) => {
                 notifySuccess({
                   title: "Span Added to Dataset",

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<694000e8ec1ab656111f5a2f375cb8f4>>
+ * @generated SignedSource<<d2d2e4b6ed734032f32833b8fff4a0dc>>
  * @lightSyntaxTransform
  */
 
@@ -74,14 +74,7 @@ v4 = [
     "name": "first",
     "variableName": "count"
   }
-],
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-};
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -178,7 +171,13 @@ return {
                             "name": "spanId",
                             "storageKey": null
                           },
-                          (v5/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "name",
+                            "storageKey": null
+                          },
                           {
                             "alias": null,
                             "args": null,
@@ -226,78 +225,6 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "tokenCountTotal",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "AnnotationSummary",
-                            "kind": "LinkedField",
-                            "name": "spanAnnotationSummaries",
-                            "plural": true,
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "labels",
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "count",
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "labelCount",
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "LabelFraction",
-                                "kind": "LinkedField",
-                                "name": "labelFractions",
-                                "plural": true,
-                                "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "fraction",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "label",
-                                    "storageKey": null
-                                  }
-                                ],
-                                "storageKey": null
-                              },
-                              (v5/*:: as any*/),
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "scoreCount",
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "meanScore",
-                                "storageKey": null
-                              }
-                            ],
                             "storageKey": null
                           }
                         ],
@@ -373,16 +300,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "60d46420089ceb39426b8114eb3e8d5e",
+    "cacheID": "eab53346c96f8205717ff77640b66b80",
     "id": null,
     "metadata": {},
     "name": "ConnectedTraceTreeQuery",
     "operationKind": "query",
-    "text": "query ConnectedTraceTreeQuery(\n  $count: Int = 1000\n  $cursor: String = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ConnectedTraceTree_1G22uz\n    id\n  }\n}\n\nfragment ConnectedTraceTree_1G22uz on Trace {\n  numSpans\n  spans(first: $count, after: $cursor) {\n    edges {\n      span: node {\n        id\n        spanId\n        name\n        spanKind\n        statusCode\n        startTime\n        endTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        spanAnnotationSummaries {\n          labels\n          count\n          labelCount\n          labelFractions {\n            fraction\n            label\n          }\n          name\n          scoreCount\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ConnectedTraceTreeQuery(\n  $count: Int = 1000\n  $cursor: String = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ConnectedTraceTree_1G22uz\n    id\n  }\n}\n\nfragment ConnectedTraceTree_1G22uz on Trace {\n  numSpans\n  spans(first: $count, after: $cursor) {\n    edges {\n      span: node {\n        id\n        spanId\n        name\n        spanKind\n        statusCode\n        startTime\n        endTime\n        parentId\n        latencyMs\n        tokenCountTotal\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a795a35718b61f5ea864138d6b275046";
+(node as any).hash = "1a660d50fb75a4da029f0be3cc20ae7b";
 
 export default node;

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
-import { startTransition, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { To } from "react-router";
 import { Link } from "react-router";
 
@@ -328,11 +328,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
           cursor: pointer;
         `}
         onClick={() => {
-          startTransition(() => {
-            if (onSpanClick) {
-              onSpanClick(node.span);
-            }
-          });
+          if (onSpanClick) {
+            onSpanClick(node.span);
+          }
         }}
       >
         <SpanNodeWrap
