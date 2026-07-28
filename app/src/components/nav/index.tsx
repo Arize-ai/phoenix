@@ -6,3 +6,4 @@ export * from "./SideNavToggleButton";
 export * from "./NavTitle";
 export * from "./TopNavActions";
 export * from "./VersionUpdateNotice";
+export * from "./useResponsiveSideNav";
