@@ -14,6 +14,7 @@ import {
 } from "@phoenix/components/chart";
 import { TokenCount } from "@phoenix/components/trace";
 import { formatInt, formatIntShort } from "@phoenix/utils/numberFormatUtils";
+import { getTokenDetailColor } from "@phoenix/utils/tokenDetailUtils";
 
 const chatTokenUsageCSS = css`
   display: contents;
@@ -272,10 +273,28 @@ export function ChatTokenUsageDetails({
     { name: "Prompt", value: prompt, color: colors.category1 },
     { name: "Completion", value: completion, color: colors.category2 },
   ];
+  // Colored by token type, so the cache reads here match the cache reads in
+  // the metrics charts and the cost tooltips.
   const promptSegments: TokenSegment[] = [
-    { name: "Uncached", value: uncachedPrompt, color: colors.category1 },
-    { name: "Cache read", value: cacheRead, color: colors.category5 },
-    { name: "Cache write", value: cacheWrite, color: colors.category4 },
+    {
+      name: "Uncached",
+      value: uncachedPrompt,
+      color: getTokenDetailColor({ colors, index: 0, tokenType: "input" }),
+    },
+    {
+      name: "Cache read",
+      value: cacheRead,
+      color: getTokenDetailColor({ colors, index: 1, tokenType: "cache_read" }),
+    },
+    {
+      name: "Cache write",
+      value: cacheWrite,
+      color: getTokenDetailColor({
+        colors,
+        index: 2,
+        tokenType: "cache_write",
+      }),
+    },
   ].filter((segment) => segment.value > 0);
 
   return (
