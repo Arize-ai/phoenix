@@ -142,16 +142,10 @@ export const defaultLegendProps: LegendProps = {
   wrapperStyle: {
     userSelect: "none",
   },
-  formatter: (value) => (
-    <span
-      style={{
-        color: "var(--chart-legend-text-color)",
-        userSelect: "none",
-      }}
-    >
-      {value}
-    </span>
-  ),
+  labelStyle: {
+    color: "var(--chart-legend-text-color)",
+    userSelect: "none",
+  },
 };
 
 /**

@@ -26,6 +26,7 @@ export function ChartTooltip(props: ChartTooltipProps) {
         flex-direction: column;
         gap: var(--global-dimension-size-50);
         min-width: 200px;
+        max-width: 300px;
         box-shadow: 0 8px 8px rgba(0, 0, 0, 0.1);
       `}
     >
@@ -69,14 +70,15 @@ export function ChartTooltipItem(props: ChartTooltipItemProps) {
           flex-direction: row;
           gap: var(--global-dimension-size-100);
           align-items: center;
+          min-width: 0;
         `}
       >
         <PreviewShape
           color={props.color ?? "transparent"}
           shape={props.shape ?? "line"}
         />
-        <Text title={props.name}>
-          <Truncate maxWidth="120px">{props.name}</Truncate>
+        <Text title={props.name} minWidth={0}>
+          <Truncate maxWidth="100%">{props.name}</Truncate>
         </Text>
       </div>
       <Text>{props.value}</Text>
