@@ -5,7 +5,7 @@ from typing import Optional, cast
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, select, true
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -15,7 +15,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version_for_update
+from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
@@ -138,15 +138,24 @@ async def _validate_code_evaluator_sandbox_config(
         sandbox_config_global_id, SandboxConfig.__name__
     )
     async with db() as session:
-        target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
-        if target_cfg is None:
+        config_and_provider = (
+            await session.execute(
+                select(models.SandboxConfig, models.SandboxProvider)
+                .outerjoin(
+                    models.SandboxProvider,
+                    models.SandboxProvider.backend_type == models.SandboxConfig.backend_type,
+                )
+                .where(models.SandboxConfig.id == sandbox_config_id)
+            )
+        ).one_or_none()
+        if config_and_provider is None:
             raise BadRequest(f"Sandbox config not found: {sandbox_config_global_id}")
+        target_cfg, provider = config_and_provider
         if not target_cfg.enabled:
             raise BadRequest(
                 f"Sandbox configuration '{target_cfg.name}' is disabled. Enable it before {action}."
             )
 
-        provider = await session.get(models.SandboxProvider, target_cfg.backend_type)
         if provider is None:
             raise BadRequest(
                 f"Sandbox provider for configuration '{target_cfg.name}' was not found"
@@ -250,12 +259,21 @@ async def _ensure_evaluator_prompt_label(
         session: The active database session (must be within a transaction)
         prompt_id: The ID of the prompt to label
     """
-    # Get or create the "evaluator" label
-    stmt = select(models.PromptLabel).where(models.PromptLabel.name == "evaluator")
-    result = await session.execute(stmt)
-    label = result.scalar_one_or_none()
+    label_and_association = (
+        await session.execute(
+            select(models.PromptLabel, models.PromptPromptLabel)
+            .outerjoin(
+                models.PromptPromptLabel,
+                and_(
+                    models.PromptPromptLabel.prompt_label_id == models.PromptLabel.id,
+                    models.PromptPromptLabel.prompt_id == prompt_id,
+                ),
+            )
+            .where(models.PromptLabel.name == "evaluator")
+        )
+    ).one_or_none()
 
-    if label is None:
+    if label_and_association is None:
         # Create the label if it doesn't exist
         label = models.PromptLabel(
             name="evaluator",
@@ -264,14 +282,9 @@ async def _ensure_evaluator_prompt_label(
         )
         session.add(label)
         await session.flush()  # Flush to get the ID
-
-    # Step 2: Check if association already exists
-    assoc_stmt = select(models.PromptPromptLabel).where(
-        models.PromptPromptLabel.prompt_id == prompt_id,
-        models.PromptPromptLabel.prompt_label_id == label.id,
-    )
-    assoc_result = await session.execute(assoc_stmt)
-    existing_association = assoc_result.scalar_one_or_none()
+        existing_association = None
+    else:
+        label, existing_association = label_and_association
 
     if existing_association is None:
         # Create the association if it doesn't exist
@@ -500,17 +513,23 @@ class EvaluatorMutationMixin:
                     prompt_version_id = from_global_id_with_expected_type(
                         global_id=input.prompt_version_id, expected_type_name=PromptVersion.__name__
                     )
-                    existing_prompt_version = await session.get(
-                        models.PromptVersion, prompt_version_id
-                    )
-                    if existing_prompt_version is None:
+                    prompt_version_and_prompt = (
+                        await session.execute(
+                            select(models.PromptVersion, models.Prompt)
+                            .outerjoin(
+                                models.Prompt,
+                                models.Prompt.id == models.PromptVersion.prompt_id,
+                            )
+                            .where(models.PromptVersion.id == prompt_version_id)
+                        )
+                    ).one_or_none()
+                    if prompt_version_and_prompt is None:
                         raise NotFound(
                             f"Prompt version with id {input.prompt_version_id} not found"
                         )
+                    existing_prompt_version, prompt = prompt_version_and_prompt
                     existing_prompt_id = existing_prompt_version.prompt_id
 
-                    # Fetch the existing prompt
-                    prompt = await session.get(models.Prompt, existing_prompt_id)
                     if prompt is None:
                         raise NotFound(f"Prompt with id {existing_prompt_id} not found")
 
@@ -626,15 +645,23 @@ class EvaluatorMutationMixin:
 
         async with info.context.db() as session:
             dataset_evaluator_row = await session.execute(
-                select(models.DatasetEvaluators, models.LLMEvaluator)
+                select(
+                    models.DatasetEvaluators,
+                    models.LLMEvaluator,
+                    models.PromptVersionTag,
+                )
                 .join(
                     models.LLMEvaluator,
                     models.DatasetEvaluators.evaluator_id == models.LLMEvaluator.id,
                 )
+                .outerjoin(
+                    models.PromptVersionTag,
+                    models.LLMEvaluator.prompt_version_tag_id == models.PromptVersionTag.id,
+                )
                 .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
             )
-            dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
-            if dataset_evaluator_pair is None:
+            dataset_evaluator_triplet = dataset_evaluator_row.one_or_none()
+            if dataset_evaluator_triplet is None:
                 dataset_evaluator = await session.get(
                     models.DatasetEvaluators, dataset_evaluator_rowid
                 )
@@ -652,11 +679,12 @@ class EvaluatorMutationMixin:
                 raise NotFound(
                     f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
                 )
-            dataset_evaluator, llm_evaluator = dataset_evaluator_pair
+            dataset_evaluator, llm_evaluator, prompt_version_tag = dataset_evaluator_triplet
 
             # Handle prompt_version_id if provided
             target_prompt_id = llm_evaluator.prompt_id
             provided_prompt_version_id: Optional[int] = None
+            provided_prompt_version: Optional[models.PromptVersion] = None
             new_prompt: Optional[models.Prompt] = None
             if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
                 provided_prompt_version_id = from_global_id_with_expected_type(
@@ -674,9 +702,6 @@ class EvaluatorMutationMixin:
                     llm_evaluator.prompt_id = target_prompt_id
                 # Update the prompt_version_tag to point to the provided prompt_version
                 if llm_evaluator.prompt_version_tag_id is not None:
-                    prompt_version_tag = await session.get(
-                        models.PromptVersionTag, llm_evaluator.prompt_version_tag_id
-                    )
                     if prompt_version_tag is not None:
                         prompt_version_tag.prompt_id = target_prompt_id
                         prompt_version_tag.prompt_version_id = provided_prompt_version_id
@@ -687,12 +712,8 @@ class EvaluatorMutationMixin:
                         )
 
             # Retrieve the active prompt version for comparison
-            if provided_prompt_version_id is not None:
-                active_prompt_version = await session.get(
-                    models.PromptVersion, provided_prompt_version_id
-                )
-                if active_prompt_version is None:
-                    raise NotFound(f"Prompt version with id {provided_prompt_version_id} not found")
+            if provided_prompt_version is not None:
+                active_prompt_version = provided_prompt_version
             else:
                 # No prompt_version_id provided: create new prompt and prompt version
                 prompt_name = IdentifierModel.model_validate(
@@ -762,9 +783,6 @@ class EvaluatorMutationMixin:
 
             if final_prompt_version_id is not None:
                 if llm_evaluator.prompt_version_tag_id is not None:
-                    prompt_version_tag = await session.get(
-                        models.PromptVersionTag, llm_evaluator.prompt_version_tag_id
-                    )
                     if prompt_version_tag is not None:
                         prompt_version_tag.prompt_version_id = final_prompt_version_id
                         # Ensure prompt_id matches
@@ -986,10 +1004,28 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                # Look up the builtin evaluator from DB to get its key
-                builtin_db = await session.get(models.BuiltinEvaluator, built_in_evaluator_id)
-                if builtin_db is None:
-                    raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
+                builtin_and_dataset = (
+                    await session.execute(
+                        select(models.BuiltinEvaluator, models.Dataset.name)
+                        .select_from(models.BuiltinEvaluator)
+                        .join(models.Dataset, true())
+                        .where(
+                            models.BuiltinEvaluator.id == built_in_evaluator_id,
+                            models.Dataset.id == dataset_rowid,
+                        )
+                    )
+                ).one_or_none()
+                if builtin_and_dataset is None:
+                    builtin_db = await session.get(models.BuiltinEvaluator, built_in_evaluator_id)
+                    if builtin_db is None:
+                        raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
+                    dataset_name = await session.scalar(
+                        select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+                    )
+                    if dataset_name is None:
+                        raise NotFound(f"Dataset with id {dataset_rowid} not found")
+                else:
+                    builtin_db, dataset_name = builtin_and_dataset
 
                 # Get the evaluator class from registry using the key
                 builtin_evaluator = get_builtin_evaluator_by_key(builtin_db.key)
@@ -1001,12 +1037,6 @@ class EvaluatorMutationMixin:
                 output_configs: Optional[list[OutputConfigType]] = None
                 if input.output_configs is not None:
                     output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
-
-                dataset_name = await session.scalar(
-                    select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
-                )
-                if dataset_name is None:
-                    raise NotFound(f"Dataset with id {dataset_rowid} not found")
 
                 dataset_evaluator = models.DatasetEvaluators(
                     dataset_id=dataset_rowid,
@@ -1176,15 +1206,28 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                code_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
-                if code_evaluator is None:
-                    raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
-
-                dataset_name = await session.scalar(
-                    select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
-                )
-                if dataset_name is None:
-                    raise NotFound(f"Dataset with id {dataset_rowid} not found")
+                evaluator_and_dataset = (
+                    await session.execute(
+                        select(models.CodeEvaluator, models.Dataset.name)
+                        .select_from(models.CodeEvaluator)
+                        .join(models.Dataset, true())
+                        .where(
+                            models.CodeEvaluator.id == evaluator_id,
+                            models.Dataset.id == dataset_rowid,
+                        )
+                    )
+                ).one_or_none()
+                if evaluator_and_dataset is None:
+                    code_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+                    if code_evaluator is None:
+                        raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
+                    dataset_name = await session.scalar(
+                        select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+                    )
+                    if dataset_name is None:
+                        raise NotFound(f"Dataset with id {dataset_rowid} not found")
+                else:
+                    code_evaluator, dataset_name = evaluator_and_dataset
 
                 dataset_evaluator = models.DatasetEvaluators(
                     dataset_id=dataset_rowid,
@@ -1395,19 +1438,14 @@ class EvaluatorMutationMixin:
         validated_source_code: Optional[str] = None
         if input.sandbox_config_id is not UNSET and input.sandbox_config_id is not None:
             async with info.context.db() as session:
-                current = await session.get(models.CodeEvaluator, evaluator_id)
-                if current is None:
-                    raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
-                language = current.language
-                validated_source_code = (
-                    await session.scalar(
-                        select(models.CodeEvaluatorVersion.source_code)
-                        .where(models.CodeEvaluatorVersion.code_evaluator_id == evaluator_id)
-                        .order_by(models.CodeEvaluatorVersion.id.desc())
-                        .limit(1)
-                    )
-                    or ""
+                code_evaluator_with_version = await code_evaluator_with_latest_version(
+                    session, evaluator_id
                 )
+                if code_evaluator_with_version is None:
+                    raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+                current, current_version = code_evaluator_with_version
+                language = current.language
+                validated_source_code = current_version.source_code if current_version else ""
             validated_sandbox_config_id = await _validate_code_evaluator_sandbox_config(
                 info.context.db,
                 sandbox_config_global_id=input.sandbox_config_id,
@@ -1419,9 +1457,12 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                row = await session.get(models.CodeEvaluator, evaluator_id)
-                if row is None:
+                code_evaluator_with_version = await code_evaluator_with_latest_version(
+                    session, evaluator_id
+                )
+                if code_evaluator_with_version is None:
                     raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+                row, current_version = code_evaluator_with_version
 
                 if input.name is not UNSET and input.name is not None:
                     try:
@@ -1437,13 +1478,7 @@ class EvaluatorMutationMixin:
                         row.sandbox_config_id = None
                     else:
                         latest_source_code = (
-                            await session.scalar(
-                                select(models.CodeEvaluatorVersion.source_code)
-                                .where(models.CodeEvaluatorVersion.code_evaluator_id == row.id)
-                                .order_by(models.CodeEvaluatorVersion.id.desc())
-                                .limit(1)
-                            )
-                            or ""
+                            current_version.source_code if current_version is not None else ""
                         )
                         if latest_source_code != validated_source_code:
                             raise Conflict(
@@ -1494,12 +1529,29 @@ class EvaluatorMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
 
+        candidate = models.CodeEvaluatorVersion(
+            code_evaluator_id=evaluator_id,
+            source_code=input.source_code,
+            user_id=user_id,
+        )
         async with info.context.db() as session:
-            current = await session.get(models.CodeEvaluator, evaluator_id)
-            if current is None:
+            code_evaluator_with_version = await code_evaluator_with_latest_version(
+                session, evaluator_id
+            )
+            if code_evaluator_with_version is None:
                 raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+            current, current_version = code_evaluator_with_version
             validated_language = current.language
             validated_sandbox_config_id = current.sandbox_config_id
+            if current_version is not None and current_version.has_identical_content(candidate):
+                return CreateCodeEvaluatorVersionPayload(
+                    evaluator=CodeEvaluator(id=current.id, db_record=current),
+                    was_created=False,
+                    query=Query(),
+                )
+            validated_current_version_id = (
+                current_version.id if current_version is not None else None
+            )
 
         _raise_on_uninferable_evaluate_signature(input.source_code, Language(validated_language))
         if validated_sandbox_config_id is not None:
@@ -1516,7 +1568,7 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                code_evaluator_with_version = await code_evaluator_with_latest_version_for_update(
+                code_evaluator_with_version = await code_evaluator_with_latest_version(
                     session, evaluator_id
                 )
                 if code_evaluator_with_version is None:
@@ -1527,17 +1579,19 @@ class EvaluatorMutationMixin:
                     or row.sandbox_config_id != validated_sandbox_config_id
                 ):
                     raise Conflict("The evaluator sandbox changed during source validation; retry.")
-
-                candidate = models.CodeEvaluatorVersion(
-                    code_evaluator_id=row.id,
-                    source_code=input.source_code,
-                    user_id=user_id,
-                )
-
+                current_version_id = current_version.id if current_version is not None else None
+                if current_version_id != validated_current_version_id:
+                    if current_version is None or not current_version.has_identical_content(
+                        candidate
+                    ):
+                        raise Conflict(
+                            "The evaluator version changed during source validation; retry."
+                        )
                 was_created = current_version is None or not current_version.has_identical_content(
                     candidate
                 )
                 if was_created:
+                    candidate.code_evaluator_id = row.id
                     session.add(candidate)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             raise BadRequest(f"Could not create code evaluator version: {e}")
