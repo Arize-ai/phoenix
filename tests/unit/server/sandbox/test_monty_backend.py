@@ -48,37 +48,23 @@ def test_bounded_text_sink_never_retains_more_than_its_limit() -> None:
     assert sink.getvalue() == "[output truncated: 4 earlier bytes dropped]\nbbbbcccc"
 
 
-async def test_execute_serializes_returned_value_and_captures_stdout(
+async def test_execute_serializes_returned_value_after_unterminated_stdout(
     runtime: MontyRuntime,
 ) -> None:
     backend = MontySandboxBackend(runtime)
 
     result = await backend.execute(
-        "print('running')\n{'label': 'pass', 'score': 1}",
-        session_key="",
-        timeout=1,
-    )
-
-    assert result.success
-    assert "running" in result.stdout
-    assert json.dumps({"label": "pass", "score": 1}) in result.stdout
-    assert "===PHOENIX_RESULT_BEGIN===" in result.stdout
-    assert "===PHOENIX_RESULT_END===" in result.stdout
-
-
-async def test_execute_separates_result_fence_from_unterminated_stdout(
-    runtime: MontyRuntime,
-) -> None:
-    result = await MontySandboxBackend(runtime).execute(
-        "print('checking', end='')\n{'score': 1}",
+        "print('running', end='')\n{'label': 'pass', 'score': 1}",
         session_key="",
         timeout=1,
     )
 
     fenced_result, stdout = _extract_fenced_result(result.stdout)
 
-    assert fenced_result == '{"score": 1}'
-    assert stdout == "checking"
+    assert result.success
+    assert fenced_result is not None
+    assert json.loads(fenced_result) == {"label": "pass", "score": 1}
+    assert stdout == "running"
 
 
 async def test_validate_code_runs_in_worker(runtime: MontyRuntime) -> None:

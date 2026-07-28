@@ -272,46 +272,23 @@ class TestInputSchemaInference:
 
 
 class TestEvaluateSuccessPath:
-    async def test_monty_returns_existing_evaluator_result_shape(self) -> None:
-        runtime = MontyRuntime()
-        try:
-            runner = CodeEvaluatorRunner(
-                name="monty-runner",
-                description=None,
-                source_code=(
-                    "def evaluate(output):\n    return {'label': 'pass', 'score': output['score']}"
-                ),
-                stored_output_configs=[_categorical_config()],
-                sandbox_backend=MontySandboxBackend(runtime),
-                language="PYTHON",
-                sandbox_session_manager=SandboxSessionManager(),
-                session_key="evaluator:monty-runner",
-                timeout=1,
-            )
-
-            results = await runner.evaluate(
-                context={"output": {"score": 1.0}},
-                input_mapping=_EMPTY_MAPPING,
-                name="monty",
-                output_configs=[_categorical_config()],
-            )
-        finally:
-            await runtime.aclose()
-
-        assert results[0]["label"] == "pass"
-        assert results[0]["score"] == 1.0
-        assert results[0]["error"] is None
-
-    @pytest.mark.parametrize("non_finite_value", [float("nan"), float("inf"), float("-inf")])
-    async def test_monty_passes_non_finite_inputs_without_embedding_python_literals(
-        self, non_finite_value: float
+    async def test_monty_preserves_non_finite_inputs_and_result_shape(
+        self,
     ) -> None:
         runtime = MontyRuntime()
         try:
             runner = CodeEvaluatorRunner(
                 name="monty-native-inputs",
                 description=None,
-                source_code="def evaluate(output):\n    return {'label': 'pass'}",
+                source_code=(
+                    "def evaluate(output):\n"
+                    "    preserved = (\n"
+                    "        output['nan'] != output['nan']\n"
+                    "        and output['positive_infinity'] > 1e300\n"
+                    "        and output['negative_infinity'] < -1e300\n"
+                    "    )\n"
+                    "    return {'label': 'pass' if preserved else 'fail', 'score': 1.0}"
+                ),
                 stored_output_configs=[_categorical_config()],
                 sandbox_backend=MontySandboxBackend(runtime),
                 language="PYTHON",
@@ -321,7 +298,13 @@ class TestEvaluateSuccessPath:
             )
 
             results = await runner.evaluate(
-                context={"output": {"score": non_finite_value}},
+                context={
+                    "output": {
+                        "nan": float("nan"),
+                        "positive_infinity": float("inf"),
+                        "negative_infinity": float("-inf"),
+                    }
+                },
                 input_mapping=_EMPTY_MAPPING,
                 name="monty",
                 output_configs=[_categorical_config()],
@@ -330,6 +313,7 @@ class TestEvaluateSuccessPath:
             await runtime.aclose()
 
         assert results[0]["label"] == "pass"
+        assert results[0]["score"] == 1.0
         assert results[0]["error"] is None
 
     async def test_returns_label_from_stdout(self) -> None:

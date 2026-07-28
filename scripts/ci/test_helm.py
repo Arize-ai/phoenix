@@ -2791,9 +2791,9 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             DeploymentValidators.replicas(3),
         ),
         TestCase(
-            "Custom termination grace period",
-            "--set deployment.terminationGracePeriodSeconds=120",
-            DeploymentValidators.termination_grace_period(120),
+            "Default termination grace period",
+            "",
+            DeploymentValidators.termination_grace_period(90),
         ),
         TestCase(
             "Custom CPU and memory limits",
