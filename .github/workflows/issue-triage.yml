@@ -6,11 +6,16 @@ on:
 
 jobs:
   triage-issue:
-    # External authors only.
-    if: >-
-      github.event.issue.author_association != 'MEMBER' &&
-      github.event.issue.author_association != 'OWNER' &&
-      github.event.issue.author_association != 'COLLABORATOR'
+    # External authors only: skip bots and the internal-contributor allowlist
+    # (same list as auto-label-external-issues.yaml / claude.yml). Avoids
+    # author_association, which misclassifies private org members.
+    if: |
+      github.event.issue.user.type != 'Bot' &&
+      !contains(fromJSON('[
+        "anticorrelator", "axiomofjoy", "cephalization", "ehutt", "jimbobbennett",
+        "mikeldking", "Nancy-Chauhan", "PatriciaArnedo", "rickarize", "RogerHYang",
+        "seldo", "yfrigui2"
+      ]'), github.actor)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
