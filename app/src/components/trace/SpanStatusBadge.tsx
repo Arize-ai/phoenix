@@ -83,13 +83,16 @@ export function SpanStatusBadge({
     <Badge
       variant={getStatusVariant(statusCode)}
       size="M"
-      css={
-        statusCode === "UNSET"
-          ? css`
-              --badge-base-color: var(--global-color-gray-400);
-            `
-          : undefined
-      }
+      css={css`
+        height: var(--global-dimension-size-250);
+        padding: 0 var(--global-dimension-size-75);
+        border-radius: var(--global-rounding-small);
+        font-size: var(--global-dimension-font-size-75);
+        line-height: var(--global-line-height-xs);
+        ${statusCode === "UNSET"
+          ? "--badge-base-color: var(--global-color-gray-400);"
+          : ""}
+      `}
     >
       {label}
     </Badge>

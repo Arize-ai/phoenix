@@ -3,7 +3,7 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, IDBadge, Text } from "@phoenix/components";
-import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -111,7 +111,7 @@ export function SpanHeaderContent({
   return (
     <Flex direction="column" gap="size-50" width="100%">
       <SpanHeaderIdentityRow>
-        <SpanKindToken spanKind={span.spanKind} />
+        <SpanKindBadge spanKind={span.spanKind} />
         <SpanHeaderName name={span.name} />
         <SpanStatusBadge statusCode={span.code} labelVariant="full" />
         {actions ? <div className="span-header__actions">{actions}</div> : null}

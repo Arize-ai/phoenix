@@ -606,14 +606,10 @@ const PromptFilledSVG = () => (
 );
 
 /**
- * Derives the background, border, and foreground colors from the span kind's
- * base color using the same lch formulas as the Token component so that the
- * icon and the SpanKindToken read as one visual system.
+ * Derives the background, border, and foreground colors shared by the framed
+ * icon and labeled span-kind badge.
  */
-const spanKindIconCSS = css`
-  width: 20px;
-  height: 20px;
-
+export const spanKindVisualCSS = css`
   &[data-theme="light"] {
     --span-kind-icon-background-color: lch(
       from var(--span-kind-icon-color) 96 calc(c * 0.3) h
@@ -640,12 +636,35 @@ const spanKindIconCSS = css`
   }
 `;
 
+const spanKindIconCSS = css`
+  width: var(--global-dimension-size-250);
+  height: var(--global-dimension-size-250);
+
+  &[data-framed="false"] {
+    width: var(--global-dimension-size-200);
+    height: var(--global-dimension-size-200);
+
+    svg {
+      width: var(--global-dimension-size-200);
+      height: var(--global-dimension-size-200);
+    }
+
+    /* The labeled badge supplies the shared frame around the glyph and text. */
+    svg > rect:first-of-type {
+      fill: none;
+      stroke: none;
+    }
+  }
+`;
+
 export function SpanKindIcon({
   spanKind,
   variant = "fill",
+  isFramed = true,
 }: {
   spanKind: string;
   variant?: "fill" | "outline";
+  isFramed?: boolean;
 }) {
   const { theme } = useTheme();
   const isFilled = variant === "fill";
@@ -686,13 +705,14 @@ export function SpanKindIcon({
 
   return (
     <div
-      css={spanKindIconCSS}
+      css={css(spanKindVisualCSS, spanKindIconCSS)}
       style={{
         // @ts-expect-error custom CSS properties
         "--span-kind-icon-color": color,
       }}
       data-theme={theme}
-      title={spanKind}
+      data-framed={isFramed}
+      title={isFramed ? spanKind : undefined}
     >
       {icon}
     </div>

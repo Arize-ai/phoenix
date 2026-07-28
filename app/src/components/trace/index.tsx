@@ -1,4 +1,5 @@
 export * from "./SpanKindIcon";
+export * from "./SpanKindBadge";
 export * from "./TraceTreeSkeleton";
 export * from "./SessionTokenCount";
 export * from "./SessionTokenCountDetails";

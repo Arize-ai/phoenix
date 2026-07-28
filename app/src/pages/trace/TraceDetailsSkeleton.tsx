@@ -3,7 +3,7 @@ import type { PropsWithChildren, ReactNode } from "react";
 
 import { Flex, IDBadge, Loading, Text, View } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
-import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { TraceTreePanelToggleButton } from "@phoenix/components/trace/TraceTreePanelToggleButton";
@@ -271,9 +271,9 @@ export function SpanHeaderSkeleton({
       <Flex direction="column" gap="size-50" width="100%">
         <SpanHeaderIdentityRow>
           {spanPreview?.spanKind !== undefined ? (
-            <SpanKindToken spanKind={spanPreview.spanKind} />
+            <SpanKindBadge spanKind={spanPreview.spanKind} />
           ) : (
-            <Skeleton width={54} height={24} animation="wave" />
+            <Skeleton width={54} height={20} animation="wave" />
           )}
           {spanPreview ? (
             <SpanHeaderName name={spanPreview.name} />
@@ -291,7 +291,7 @@ export function SpanHeaderSkeleton({
               labelVariant="full"
             />
           ) : (
-            <Skeleton width={72} height={24} animation="wave" />
+            <Skeleton width={72} height={20} animation="wave" />
           )}
           <div className="span-header__actions">
             <SpanDetailsHeaderActions
