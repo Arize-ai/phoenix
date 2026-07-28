@@ -114,11 +114,8 @@ function commitCreateSpanAnnotations({
                 id
                 __typename
                 ...AnnotationSummaryGroup
-                ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
-                ...SpanAsideAnnotationList_span
-                ...SpanFeedback_annotations
               }
             }
           }

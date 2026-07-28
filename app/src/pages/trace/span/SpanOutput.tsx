@@ -4,6 +4,7 @@ import {
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanIOValue } from "./types";
@@ -13,11 +14,13 @@ import type { SpanIOValue } from "./types";
  */
 export function SpanOutput({ value, mimeType }: SpanIOValue) {
   const isText = mimeType === "text";
+  const cardProps = useSpanInfoCardProps("output");
   return (
     <MarkdownDisplayProvider>
       <Card
         title="Output"
         {...defaultCardProps}
+        {...cardProps}
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             {isText ? <ConnectedMarkdownModeSelect /> : null}

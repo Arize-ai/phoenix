@@ -51,7 +51,7 @@ import { SessionViewTabs } from "@phoenix/pages/trace/SessionViewTabs";
 import type { SpanInfoData } from "@phoenix/pages/trace/span";
 import { SpanAttributesCard, SpanInfo } from "@phoenix/pages/trace/span";
 import { SpanEventsListContent } from "@phoenix/pages/trace/SpanEventsList";
-import { SpanAnnotations } from "@phoenix/pages/trace/SpanFeedback";
+import { SpanInfoCardsProvider } from "@phoenix/pages/trace/SpanInfoCardsContext";
 import type { TraceHeaderCostSummary } from "@phoenix/pages/trace/TraceDetails";
 import { TraceHeaderContent } from "@phoenix/pages/trace/TraceDetails";
 
@@ -478,7 +478,6 @@ function SpanDetailsFixture({
   const shouldReduceMotion = useReducedMotion();
   const sectionIds = {
     info: `${sectionIdPrefix}-info`,
-    annotations: `${sectionIdPrefix}-annotations`,
     attributes: `${sectionIdPrefix}-attributes`,
     events: `${sectionIdPrefix}-events`,
   };
@@ -521,107 +520,87 @@ function SpanDetailsFixture({
     });
   };
   return (
-    <div css={panelContentCSS}>
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-150"
-        paddingEnd="size-200"
-        flex="none"
-      >
-        <SpanHeaderContent span={header} />
-      </View>
-      <nav aria-label="Span detail sections">
-        <ul css={spanSectionNavigationCSS}>
-          <li>
-            <a
-              href={`#${sectionIds.info}`}
-              onClick={(event) =>
-                handleSectionLinkClick({ event, sectionId: sectionIds.info })
-              }
-            >
-              Info
-            </a>
-          </li>
-          <li>
-            <a
-              href={`#${sectionIds.annotations}`}
-              onClick={(event) =>
-                handleSectionLinkClick({
-                  event,
-                  sectionId: sectionIds.annotations,
-                })
-              }
-            >
-              Annotations
-            </a>
-          </li>
-          <li>
-            <a
-              href={`#${sectionIds.attributes}`}
-              onClick={(event) =>
-                handleSectionLinkClick({
-                  event,
-                  sectionId: sectionIds.attributes,
-                })
-              }
-            >
-              Attributes
-            </a>
-          </li>
-          <li>
-            <a
-              href={`#${sectionIds.events}`}
-              onClick={(event) =>
-                handleSectionLinkClick({ event, sectionId: sectionIds.events })
-              }
-            >
-              Events
-            </a>
-          </li>
-        </ul>
-      </nav>
-      <div ref={scrollContainerRef} css={spanDetailsContentCSS}>
-        <section id={sectionIds.info} aria-label="Info">
-          <View paddingX="size-200" paddingTop="size-200">
-            <Text elementType="h3" size="L" weight="heavy">
-              Info
-            </Text>
-          </View>
-          <SpanInfo span={details} />
-        </section>
-        <section id={sectionIds.annotations} aria-label="Annotations">
-          <View padding="size-200">
-            <Text elementType="h3" size="L" weight="heavy">
-              Annotations
-            </Text>
-          </View>
-          <SpanAnnotations
-            annotations={[]}
-            spanNodeId={details.id}
-            showActions={false}
-          />
-        </section>
-        <section id={sectionIds.attributes} aria-label="Attributes">
-          <View paddingX="size-200" paddingTop="size-200">
-            <Text elementType="h3" size="L" weight="heavy">
-              Attributes
-            </Text>
-          </View>
-          <View padding="size-200">
-            <SpanAttributesCard attributes={details.attributes} />
-          </View>
-        </section>
-        <section id={sectionIds.events} aria-label="Events">
-          <View padding="size-200">
-            <Text elementType="h3" size="L" weight="heavy">
-              Events
-            </Text>
-          </View>
-          <SpanEventsListContent events={[]} />
-        </section>
+    <SpanInfoCardsProvider>
+      <div css={panelContentCSS}>
+        <View
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          paddingStart="size-150"
+          paddingEnd="size-200"
+          flex="none"
+        >
+          <SpanHeaderContent span={header} />
+        </View>
+        <nav aria-label="Span detail sections">
+          <ul css={spanSectionNavigationCSS}>
+            <li>
+              <a
+                href={`#${sectionIds.info}`}
+                onClick={(event) =>
+                  handleSectionLinkClick({ event, sectionId: sectionIds.info })
+                }
+              >
+                Info
+              </a>
+            </li>
+            <li>
+              <a
+                href={`#${sectionIds.attributes}`}
+                onClick={(event) =>
+                  handleSectionLinkClick({
+                    event,
+                    sectionId: sectionIds.attributes,
+                  })
+                }
+              >
+                Attributes
+              </a>
+            </li>
+            <li>
+              <a
+                href={`#${sectionIds.events}`}
+                onClick={(event) =>
+                  handleSectionLinkClick({
+                    event,
+                    sectionId: sectionIds.events,
+                  })
+                }
+              >
+                Events
+              </a>
+            </li>
+          </ul>
+        </nav>
+        <div ref={scrollContainerRef} css={spanDetailsContentCSS}>
+          <section id={sectionIds.info} aria-label="Info">
+            <View paddingX="size-200" paddingTop="size-200">
+              <Text elementType="h3" size="L" weight="heavy">
+                Info
+              </Text>
+            </View>
+            <SpanInfo span={details} />
+          </section>
+          <section id={sectionIds.attributes} aria-label="Attributes">
+            <View paddingX="size-200" paddingTop="size-200">
+              <Text elementType="h3" size="L" weight="heavy">
+                Attributes
+              </Text>
+            </View>
+            <View padding="size-200">
+              <SpanAttributesCard attributes={details.attributes} />
+            </View>
+          </section>
+          <section id={sectionIds.events} aria-label="Events">
+            <View padding="size-200">
+              <Text elementType="h3" size="L" weight="heavy">
+                Events
+              </Text>
+            </View>
+            <SpanEventsListContent events={[]} />
+          </section>
+        </div>
       </div>
-    </div>
+    </SpanInfoCardsProvider>
   );
 }
 

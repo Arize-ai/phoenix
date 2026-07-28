@@ -166,19 +166,17 @@ function AnnotationBarDemo() {
         rows={getRows()}
         allAnnotationConfigs={allConfigs}
         projectAnnotationConfigs={activeConfigs}
-        onCreateAnnotation={async ({ config, target, value }) => {
+        onCreateAnnotation={async ({ annotationName, target, value }) => {
+          const annotation = {
+            id: `annotation-${Date.now()}`,
+            name: annotationName,
+            ...value,
+          };
           updateTargetAnnotations({
             targetId: target.id,
-            update: (annotations) => [
-              ...annotations,
-              {
-                id: `annotation-${Date.now()}`,
-                name: config.name,
-                ...value,
-              },
-            ],
+            update: (annotations) => [...annotations, annotation],
           });
-          return { success: true };
+          return { annotation, success: true };
         }}
         onUpdateAnnotation={async ({ annotation, target, value }) => {
           updateTargetAnnotations({
@@ -281,6 +279,11 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const getSuccessfulMutationResult = async () => ({ success: true }) as const;
+const getSuccessfulCreateResult = async () =>
+  ({
+    annotation: { id: "annotation-created", name: "annotation" },
+    success: true,
+  }) as const;
 
 export const Interactive: Story = {
   args: {
@@ -288,7 +291,7 @@ export const Interactive: Story = {
     projectAnnotationConfigs: [],
     rows: [],
     onAddAnnotationConfigToProject: getSuccessfulMutationResult,
-    onCreateAnnotation: getSuccessfulMutationResult,
+    onCreateAnnotation: getSuccessfulCreateResult,
     onCreateAnnotationConfig: getSuccessfulMutationResult,
     onDeleteAnnotation: getSuccessfulMutationResult,
     onRemoveAnnotationConfigFromProject: getSuccessfulMutationResult,

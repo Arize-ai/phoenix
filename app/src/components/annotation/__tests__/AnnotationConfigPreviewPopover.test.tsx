@@ -9,10 +9,13 @@ import {
   type AnnotationBarRow,
   DetailPanelAnnotationBar,
 } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
-import type { AnnotationConfig } from "@phoenix/components/annotation/types";
+import type {
+  AnnotationConfig,
+  AnnotationConfigCategorical,
+} from "@phoenix/components/annotation/types";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
-const annotationConfig: AnnotationConfig = {
+const annotationConfig: AnnotationConfigCategorical = {
   id: "config-toxicity",
   name: "toxicity",
   description: "Whether the response contains harmful language.",
@@ -69,8 +72,8 @@ describe("add annotation menu", () => {
         annotation: {
           id: "annotation-created",
           name: annotationConfig.name,
-          label: annotationConfig.values[0]?.label,
-          score: annotationConfig.values[0]?.score,
+          label: annotationConfig.values?.[0]?.label,
+          score: annotationConfig.values?.[0]?.score,
         },
       }) as const;
     await act(async () => {

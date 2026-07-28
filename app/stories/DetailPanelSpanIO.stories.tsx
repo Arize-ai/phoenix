@@ -73,20 +73,13 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 function SpanIOFixture({ span }: { span: SpanInfoData }) {
-  return (
-    <SpanIO
-      input={span.input}
-      output={span.output}
-      attributes={span.attributes}
-    />
-  );
+  return <SpanIO input={span.input} output={span.output} />;
 }
 
 export const LongJSON: Story = {
   args: {
     input: longJsonSpan.input,
     output: longJsonSpan.output,
-    attributes: longJsonSpan.attributes,
   },
   render: () => (
     <DetailPanelExamples>

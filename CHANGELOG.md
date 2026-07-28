@@ -1,5 +1,57 @@
 # Changelog
 
+## [19.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.7.0...arize-phoenix-v19.8.0) (2026-07-27)
+
+
+### Features
+
+* **agent:** add Claude Opus 5 to the curated model list ([#14778](https://github.com/Arize-ai/phoenix/issues/14778)) ([381dcb1](https://github.com/Arize-ai/phoenix/commit/381dcb1ef8f39119aa51187bbd035ec7671c08b9))
+* **playground:** register Claude Opus 5 ([#14777](https://github.com/Arize-ai/phoenix/issues/14777)) ([7f65b94](https://github.com/Arize-ai/phoenix/commit/7f65b94e148c0f963fb99ed567120d522f34a8fd))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#14764](https://github.com/Arize-ai/phoenix/issues/14764)) ([c269af8](https://github.com/Arize-ai/phoenix/commit/c269af8bf68077cc3db9d0a52d600051bd3f1676))
+* **deps:** exclude broken bashkit 0.14.2 to unbreak 3.14 installs ([#14785](https://github.com/Arize-ai/phoenix/issues/14785)) ([ba2c10d](https://github.com/Arize-ai/phoenix/commit/ba2c10d6fa93179a05824a4bbfb3753b637244be))
+* focus styles ([#14681](https://github.com/Arize-ai/phoenix/issues/14681)) ([0ba4c4b](https://github.com/Arize-ai/phoenix/commit/0ba4c4b823d0f710914179ea407ce743f5b8b4d4))
+* **server:** fall back to text for invalid span mime types ([#14786](https://github.com/Arize-ai/phoenix/issues/14786)) ([a6f91d5](https://github.com/Arize-ai/phoenix/commit/a6f91d53b14f228b8ba74ccec14e8fdd7c49f634)), closes [#14762](https://github.com/Arize-ai/phoenix/issues/14762)
+* **server:** surface PXI API key errors to the user ([#14649](https://github.com/Arize-ai/phoenix/issues/14649)) ([603cd14](https://github.com/Arize-ai/phoenix/commit/603cd142ef0681d2d7801b8a54213c2da8a0c97d))
+
+
+### Documentation
+
+* add encryption guide to self-hosting advanced section ([#14755](https://github.com/Arize-ai/phoenix/issues/14755)) ([14cac91](https://github.com/Arize-ai/phoenix/commit/14cac91243427da5f1cfc11913f4983232f8bab6))
+
+## [19.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.6.0...arize-phoenix-v19.7.0) (2026-07-27)
+
+
+### Features
+
+* add span detail downloads ([#14738](https://github.com/Arize-ai/phoenix/issues/14738)) ([a61a86c](https://github.com/Arize-ai/phoenix/commit/a61a86c50b6fa0eb6a8789d0e0e9610d0558b368))
+* **dsl:** add `parent_span is None` root-span predicate to span filter DSL ([#14553](https://github.com/Arize-ai/phoenix/issues/14553)) ([89e54b5](https://github.com/Arize-ai/phoenix/commit/89e54b5e62a687ad474e75df8a6a924f95348b83))
+* **dsl:** analyze root-span scope, stop applying it twice ([#14598](https://github.com/Arize-ai/phoenix/issues/14598)) ([aa9254e](https://github.com/Arize-ai/phoenix/commit/aa9254e4fb34a772e1fd8fc3e9882ba405a8448f))
+* **pytest:** evaluator trace isolation and experiment metadata for the pytest plugin ([#14613](https://github.com/Arize-ai/phoenix/issues/14613)) ([d81ee21](https://github.com/Arize-ai/phoenix/commit/d81ee219cb57e5035b535691710256d0561cd66c))
+* **ui:** add SegmentedControl component ([#14739](https://github.com/Arize-ai/phoenix/issues/14739)) ([649b061](https://github.com/Arize-ai/phoenix/commit/649b061f70cbd67d010cc116ee1368da933a1b83))
+* **ui:** collapse/expand rows in the tracing tables ([#14749](https://github.com/Arize-ai/phoenix/issues/14749)) ([d8f79bd](https://github.com/Arize-ai/phoenix/commit/d8f79bdc8a70cbba0743894d7e3abd47a503518e))
+* **ui:** make retention policy project list manageable ([#14704](https://github.com/Arize-ai/phoenix/issues/14704)) ([ce3873e](https://github.com/Arize-ai/phoenix/commit/ce3873ea1f2857b6f46f0f35750c4b6a1fbf6432))
+* **ui:** read a span's annotations and notes as tables ([#14753](https://github.com/Arize-ai/phoenix/issues/14753)) ([a945973](https://github.com/Arize-ai/phoenix/commit/a945973a9c4ad4a82affdf331be6fea08caf6b18))
+* **ui:** search button that expands from an icon ([#14751](https://github.com/Arize-ai/phoenix/issues/14751)) ([73f11d0](https://github.com/Arize-ai/phoenix/commit/73f11d079de5cb80e4949f46343ba82049c73a69))
+* **ui:** view span attributes as a searchable table ([#14746](https://github.com/Arize-ai/phoenix/issues/14746)) ([1db97b7](https://github.com/Arize-ai/phoenix/commit/1db97b7cc2d3028558eaf089a0f86b7ffcb8f833))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 2.13.0 ([#14303](https://github.com/Arize-ai/phoenix/issues/14303)) ([a30bab1](https://github.com/Arize-ai/phoenix/commit/a30bab187b0df4c5ff51a3627cf9850453965430))
+* **ui:** anchor IO tooltips beside the cell in tracing tables ([#14750](https://github.com/Arize-ai/phoenix/issues/14750)) ([4bfd95a](https://github.com/Arize-ai/phoenix/commit/4bfd95a4e9abe6a9f846a08406e48138414815d1))
+* **ui:** collapse span header actions at a wider breakpoint ([#14747](https://github.com/Arize-ai/phoenix/issues/14747)) ([b5de9d0](https://github.com/Arize-ai/phoenix/commit/b5de9d043b86edbe85838d1fc730a2252e52cd6b))
+* **ui:** let the attributes table's columns be resized again ([#14752](https://github.com/Arize-ai/phoenix/issues/14752)) ([d2bbef1](https://github.com/Arize-ai/phoenix/commit/d2bbef1fd19479849f9fd7b91c086a5298b73bde))
+* **ui:** segmented control jump ([#14744](https://github.com/Arize-ai/phoenix/issues/14744)) ([40681b9](https://github.com/Arize-ai/phoenix/commit/40681b90635ef31b71512e2880b6d858f45a7ece))
+
+
+### Documentation
+
+* audit and expand integrations in top-level README ([#14720](https://github.com/Arize-ai/phoenix/issues/14720)) ([c3e2132](https://github.com/Arize-ai/phoenix/commit/c3e213214884dfaa0c59755051fad2627990a15b))
+
 ## [19.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.5.0...arize-phoenix-v19.6.0) (2026-07-24)
 
 

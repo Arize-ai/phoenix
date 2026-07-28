@@ -7,7 +7,6 @@ import { useNavigate, useParams } from "react-router";
 
 import {
   Button,
-  CollapsibleContentProvider,
   Counter,
   DialogTrigger,
   ErrorBoundary,
@@ -19,9 +18,6 @@ import {
   Modal,
   ModalOverlay,
   SectionHeading,
-  Tooltip,
-  TooltipTrigger,
-  useCollapsibleContent,
   View,
 } from "@phoenix/components";
 import { SpanDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
@@ -36,6 +32,8 @@ import type {
 import { SpanAttributesCard, SpanInfo } from "./span";
 import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
+import { useSpanInfoCardProps } from "./SpanInfoCardsContext";
+import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
@@ -192,16 +190,8 @@ function DeferredSpanDetailsContent({
 }
 
 export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
-  return (
-    <CollapsibleContentProvider key={spanNodeId}>
-      <SpanDetailsContent spanNodeId={spanNodeId} />
-    </CollapsibleContentProvider>
-  );
-}
-
-function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const { projectId } = useParams();
-  const { collapseAll, expandAll, isCollapsed } = useCollapsibleContent();
+  const attributesCardProps = useSpanInfoCardProps("attributes");
   const shouldReduceMotion = useReducedMotion();
   const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
   const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
@@ -302,7 +292,6 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   }
 
   const hasExceptions = span.events.some((event) => event.name === "exception");
-  const expandCollapseAllLabel = isCollapsed ? "Expand all" : "Collapse all";
   const spanDetailsSectionIds = {
     info: `span-details-${span.spanId}-info`,
     attributes: `span-details-${span.spanId}-attributes`,
@@ -493,19 +482,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             </Counter>
           </SpanDetailSectionLink>
         </ul>
-        <TooltipTrigger>
-          <Button
-            size="S"
-            variant="quiet"
-            aria-label={expandCollapseAllLabel}
-            onPress={isCollapsed ? expandAll : collapseAll}
-          >
-            <Icon
-              svg={isCollapsed ? <Icons.RowCollapse /> : <Icons.RowExpand />}
-            />
-          </Button>
-          <Tooltip offset={-5}>{expandCollapseAllLabel}</Tooltip>
-        </TooltipTrigger>
+        <SpanInfoCardsToggle />
       </nav>
       <div ref={spanDetailsSectionsRef} css={spanDetailsSectionsCSS}>
         <div
@@ -529,7 +506,10 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               placeholderHeight={ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
             >
               <View padding="size-200">
-                <SpanAttributesCard attributes={span.attributes} />
+                <SpanAttributesCard
+                  attributes={span.attributes}
+                  {...attributesCardProps}
+                />
               </View>
             </DeferredSpanDetailsContent>
           </section>

@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-cli",
-  "version": "1.11.1",
+  "version": "1.13.0",
   "description": "A command-line interface for Phoenix",
   "keywords": [
     "arize",
@@ -46,12 +46,12 @@
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-config": "workspace:*",
     "@clack/prompts": "^1.7.0",
-    "ai": "^7.0.0",
+    "ai": "^7.0.37",
     "commander": "^15.0.0",
     "cross-spawn": "^7.0.6",
     "ignore": "^7.0.6",
     "ink": "^7.1.1",
-    "marked": "^18.0.6",
+    "marked": "^18.0.7",
     "marked-terminal": "^7.3.0",
     "react": "19.2.7",
     "zod": "^4.4.3"

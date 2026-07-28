@@ -5,7 +5,7 @@ import { Button, Text } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
 import type { AnnotationValueDraft } from "@phoenix/components/annotation/AnnotationValueDraft";
 import { getOptimizationGradientValueFromConfig } from "@phoenix/components/annotation/optimizationUtils";
-import type { AnnotationConfig } from "@phoenix/components/annotation/types";
+import type { AnnotationConfigCategorical } from "@phoenix/components/annotation/types";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 const categoricalQuickCreateCSS = css`
@@ -42,7 +42,7 @@ const categoricalQuickCreateCSS = css`
 
 export type CategoricalQuickCreateProps = {
   annotationName: string;
-  config: Extract<AnnotationConfig, { annotationType: "CATEGORICAL" }>;
+  config: AnnotationConfigCategorical;
   onCreate: (params: {
     shouldExplain: boolean;
     value: AnnotationValueDraft;
@@ -61,7 +61,7 @@ export function CategoricalQuickCreate({
     value,
   }: {
     shouldExplain: boolean;
-    value: NonNullable<AnnotationConfig["values"]>[number];
+    value: NonNullable<AnnotationConfigCategorical["values"]>[number];
   }) => {
     setSubmittingLabel(value.label);
     await onCreate({

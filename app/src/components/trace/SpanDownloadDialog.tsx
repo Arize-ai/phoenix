@@ -18,10 +18,10 @@ import {
   Icons,
   Input,
   Label,
+  SegmentedControl,
+  SegmentedControlItem,
   Text,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   View,
 } from "@phoenix/components";
 
@@ -153,12 +153,10 @@ export function SpanDownloadDialog({
                       </Text>
                     </ContextualHelp>
                   </Flex>
-                  <ToggleButtonGroup
-                    selectedKeys={[scope]}
-                    disallowEmptySelection
+                  <SegmentedControl
+                    selectedKey={scope}
                     aria-label="Data"
-                    onSelectionChange={(keys) => {
-                      const key = keys.keys().next().value;
+                    onSelectionChange={(key) => {
                       if (key !== "spans" && key !== "traces") {
                         return;
                       }
@@ -168,9 +166,13 @@ export function SpanDownloadDialog({
                       }
                     }}
                   >
-                    <ToggleButton id="spans">Spans</ToggleButton>
-                    <ToggleButton id="traces">Traces</ToggleButton>
-                  </ToggleButtonGroup>
+                    <SegmentedControlItem id="spans">
+                      Spans
+                    </SegmentedControlItem>
+                    <SegmentedControlItem id="traces">
+                      Traces
+                    </SegmentedControlItem>
+                  </SegmentedControl>
                 </div>
                 <div css={labeledGroupCSS}>
                   <Flex direction="row" alignItems="center" gap="size-50">
@@ -185,20 +187,22 @@ export function SpanDownloadDialog({
                       </Text>
                     </ContextualHelp>
                   </Flex>
-                  <ToggleButtonGroup
-                    selectedKeys={[format]}
-                    disallowEmptySelection
+                  <SegmentedControl
+                    selectedKey={format}
                     aria-label="Format"
-                    onSelectionChange={(keys) => {
-                      const key = keys.keys().next().value;
+                    onSelectionChange={(key) => {
                       if (key === "jsonl" || key === "otlp-json") {
                         setFormat(key);
                       }
                     }}
                   >
-                    <ToggleButton id="jsonl">JSONL</ToggleButton>
-                    <ToggleButton id="otlp-json">OTLP JSON</ToggleButton>
-                  </ToggleButtonGroup>
+                    <SegmentedControlItem id="jsonl">
+                      JSONL
+                    </SegmentedControlItem>
+                    <SegmentedControlItem id="otlp-json">
+                      OTLP JSON
+                    </SegmentedControlItem>
+                  </SegmentedControl>
                 </div>
               </Flex>
               <TextField

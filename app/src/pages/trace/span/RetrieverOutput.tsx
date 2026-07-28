@@ -10,6 +10,7 @@ import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
 import { RetrievalEvaluationLabel } from "../../project/RetrievalEvaluationLabel";
 import { DocumentItem } from "../DocumentItem";
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 import type { DocumentEvaluation, RetrievalMetric } from "./types";
 
@@ -31,12 +32,14 @@ export function RetrieverOutput({
   spanNodeId: string;
 }) {
   const hasDocumentRetrievalMetrics = retrievalMetrics.length > 0;
+  const cardProps = useSpanInfoCardProps("output");
   return (
     <MarkdownDisplayProvider>
       <Card
         title="Output"
         subTitle="Documents"
         {...defaultCardProps}
+        {...cardProps}
         extra={<ConnectedMarkdownModeSelect />}
       >
         {hasDocumentRetrievalMetrics && (

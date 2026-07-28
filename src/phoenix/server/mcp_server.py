@@ -40,7 +40,6 @@ from fastmcp.experimental.transforms.code_mode import (
     GetTags,
     GetToolCatalog,
     ListTools,
-    MontySandboxProvider,
     Search,
 )
 from fastmcp.server.dependencies import get_http_request
@@ -57,6 +56,7 @@ from phoenix.server.bearer_auth import (
     authenticated_claims,
     token_audience_permits,
 )
+from phoenix.server.mcp_code_mode import MontyPoolSandboxProvider
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.utils import prepend_root_path
 
@@ -307,7 +307,7 @@ def _read_only(
     return build
 
 
-def _build_code_mode() -> CodeMode:
+def _build_code_mode() -> tuple[CodeMode, MontyPoolSandboxProvider]:
     """Code-mode tool surface: discovery meta-tools plus a sandboxed ``execute``.
 
     Clients see ``search``/``get_schema``/``tags``/``list_tools`` for discovery and
@@ -318,28 +318,28 @@ def _build_code_mode() -> CodeMode:
     it can invoke mutating tools, and an unannotated tool is treated as
     possibly-destructive by clients, which is the correct default.
 
-    Sandbox bounds are the fastmcp defaults (30s wall clock, 100 MB memory, and
-    at most 50 ``call_tool`` invocations per ``execute`` block) plus an explicit
-    ``max_recursion_depth`` cap. The recursion cap is defense in depth against
-    Monty's *counted* recursion path; it does not bound native re-entry stack
-    growth (map/filter/sorted key callbacks re-entering the interpreter loop),
-    which overflows the native stack before any counted limit trips — that class
-    of crash is contained only by an out-of-process execution boundary.
+    Guest code runs in sandbox worker subprocesses rather than in this process,
+    because a guest program can fault the native interpreter in ways no
+    ``try``/``except`` can catch — an in-process sandbox turns that into the death
+    of the whole server. The provider owns those workers, so it is returned
+    alongside the transform for the caller to shut down.
+
+    Returns:
+        The transform to install, and the sandbox provider whose worker pool must
+        be closed when the server stops.
     """
-    return CodeMode(
-        discovery_tools=[
-            _read_only(Search()),
-            _read_only(GetSchemas()),
-            _read_only(GetTags()),
-            _read_only(ListTools()),
-        ],
-        sandbox_provider=MontySandboxProvider(
-            limits={
-                "max_duration_secs": 30.0,
-                "max_memory": 100_000_000,
-                "max_recursion_depth": 200,
-            },
+    sandbox_provider = MontyPoolSandboxProvider()
+    return (
+        CodeMode(
+            discovery_tools=[
+                _read_only(Search()),
+                _read_only(GetSchemas()),
+                _read_only(GetTags()),
+                _read_only(ListTools()),
+            ],
+            sandbox_provider=sandbox_provider,
         ),
+        sandbox_provider,
     )
 
 
@@ -431,11 +431,18 @@ class BearerAuthGuard:
         await self._app(scope, receive, send)
 
 
-def create_phoenix_mcp_app(app: "FastAPI") -> "StarletteWithLifespan":
+def create_phoenix_mcp_app(
+    app: "FastAPI",
+) -> tuple["StarletteWithLifespan", Optional[MontyPoolSandboxProvider]]:
     """Build the MCP server from ``app``'s REST API and return its ASGI app.
 
     The returned app's lifespan (its streamable-HTTP session manager) must be
     entered by the caller; mounting alone will not start it.
+
+    Returns:
+        The ASGI app to mount, and — when code mode is enabled — the sandbox
+        provider whose worker subprocesses the caller must shut down with the
+        server. ``None`` when code mode is disabled and no sandbox exists.
     """
     # Tool dispatch authenticates by principal passing, not token replay — see
     # ``_InternalIdentityDispatch``.
@@ -460,15 +467,17 @@ def create_phoenix_mcp_app(app: "FastAPI") -> "StarletteWithLifespan":
         # a mutation.
         mcp_component_fn=_annotate_from_rest_method,
     )
+    sandbox_provider: Optional[MontyPoolSandboxProvider] = None
     if get_env_mcp_code_mode():
         # Code mode replaces the tool surface wholesale: clients see only the
         # discovery meta-tools and ``execute``. Group gating must NOT be installed
         # with it — the code-mode catalog respects tool visibility, so gating would
         # hide every non-default group from ``search``/``list_tools`` with no way
         # to reveal them.
-        mcp.add_transform(_build_code_mode())
+        code_mode, sandbox_provider = _build_code_mode()
+        mcp.add_transform(code_mode)
     else:
         _install_progressive_disclosure(mcp, openapi_spec)
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
     # resolves to MCP_MOUNT_PATH itself rather than MCP_MOUNT_PATH + "/mcp".
-    return mcp.http_app(path="/")
+    return mcp.http_app(path="/"), sandbox_provider

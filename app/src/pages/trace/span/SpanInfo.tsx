@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 
-import { Alert, Card, Flex, View } from "@phoenix/components";
+import { Alert, Flex, View } from "@phoenix/components";
 
-import { defaultCardProps } from "./constants";
 import { EmbeddingSpanInfo } from "./EmbeddingSpanInfo";
 import { LLMSpanInfo } from "./LLMSpanInfo";
 import { RerankerSpanInfo } from "./RerankerSpanInfo";
@@ -36,9 +35,6 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
           <Alert variant="warning" title="Un-parsable attributes">
             {`Failed to parse span attributes. ${parseError instanceof Error ? parseError.message : ""}`}
           </Alert>
-          <Card {...defaultCardProps} title="Attributes">
-            <View padding="size-100">{attributes}</View>
-          </Card>
         </Flex>
       </View>
     );
@@ -71,13 +67,7 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
       break;
     }
     default:
-      content = (
-        <SpanIO
-          input={span.input}
-          output={span.output}
-          attributes={span.attributes}
-        />
-      );
+      content = <SpanIO input={span.input} output={span.output} />;
   }
 
   return (
@@ -85,7 +75,7 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
       <Flex direction="column" gap="size-200">
         {statusDescription}
         {content}
-        {attributesObject?.metadata ? (
+        {attributesObject.metadata != null ? (
           <SpanMetadata metadata={attributesObject.metadata} />
         ) : null}
       </Flex>

@@ -1,7 +1,5 @@
-import type { Ref } from "react";
+import type { MouseEvent, Ref } from "react";
 import { useEffect, useEffectEvent, useId, useState } from "react";
-
-import { useCollapsibleContent } from "@phoenix/components/core/contexts/CollapsibleContentContext";
 
 import { Heading } from "../content";
 import { DisclosureArrow } from "../icon";
@@ -16,31 +14,25 @@ function Card({
   titleExtra,
   titleSeparator = true,
   subTitle,
+  headerContent,
   children,
   collapsible = false,
   interactiveTitle = false,
   collapseButtonLabel,
   defaultOpen = true,
+  isOpen,
   scrollBody = false,
   extra,
   onCollapseChange,
+  onOpenChange,
   testId,
   ...otherProps
 }: CardProps & { ref?: Ref<HTMLElement> }) {
-  const { actionVersion, expansionAction } = useCollapsibleContent();
   const { styleProps } = useStyleProps(otherProps, viewStyleProps);
-  const [collapseState, setCollapseState] = useState(() => ({
-    actionVersion,
-    isCollapsed: collapsible
-      ? expansionAction === "collapse" ||
-        (expansionAction === null && !defaultOpen)
-      : false,
-  }));
-  const hasPendingGlobalAction =
-    collapsible && collapseState.actionVersion !== actionVersion;
-  const isCollapsed = hasPendingGlobalAction
-    ? expansionAction === "collapse"
-    : collapseState.isCollapsed;
+  const [uncontrolledIsCollapsed, setUncontrolledIsCollapsed] = useState(
+    collapsible ? !defaultOpen : false
+  );
+  const isCollapsed = isOpen == null ? uncontrolledIsCollapsed : !isOpen;
 
   const headerId = useId();
   const collapseButtonId = useId();
@@ -66,17 +58,37 @@ function Card({
           {subTitle}
         </Heading>
       )}
+      {headerContent && (
+        <div className="card__header-content">{headerContent}</div>
+      )}
     </div>
   );
 
+  // The local state is kept in step even while `isOpen` controls the card, so a
+  // card that later drops back to uncontrolled resumes where the reader left it.
+  const toggleCollapsed = () => {
+    setUncontrolledIsCollapsed(!isCollapsed);
+    onOpenChange?.(isCollapsed);
+  };
+
+  // With `interactiveTitle` the toggle itself is only the arrow, so the rest of
+  // the header would be dead space. Clicking it toggles too, except where the
+  // click lands on a control of its own (the help popover, the toolbar) or on
+  // the arrow, which handles itself.
+  const handleHeaderClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest('button,a,input,select,textarea,[role="button"]')
+    ) {
+      return;
+    }
+    toggleCollapsed();
+  };
+
   const collapseButton = (
     <button
-      onClick={() => {
-        setCollapseState({
-          actionVersion,
-          isCollapsed: !isCollapsed,
-        });
-      }}
+      onClick={toggleCollapsed}
       className="card__collapsible-button button--reset"
       id={collapseButtonId}
       aria-controls={bodyId}
@@ -112,7 +124,10 @@ function Card({
       <header id={headerId}>
         {collapsible ? (
           interactiveTitle ? (
-            <div className="card__collapsible-header">
+            <div
+              className="card__collapsible-header"
+              onClick={handleHeaderClick}
+            >
               {collapseButton}
               {headingContents}
             </div>

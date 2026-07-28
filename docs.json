@@ -1204,6 +1204,11 @@
             ]
           },
           {
+            "group": "Advanced",
+            "icon": "gears",
+            "pages": ["docs/phoenix/self-hosting/advanced/encryption"]
+          },
+          {
             "group": "Misc",
             "icon": "boxes-stacked",
             "pages": [

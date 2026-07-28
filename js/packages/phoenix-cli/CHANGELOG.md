@@ -1,5 +1,17 @@
 # @arizeai/phoenix-cli
 
+## 1.13.0
+
+### Minor Changes
+
+- f816b5b: Default the `pxi` terminal client to Anthropic `claude-opus-5` instead of `claude-opus-4-8`. Override with `--model` as before.
+
+## 1.12.0
+
+### Minor Changes
+
+- 3f5ef25: Add a case-insensitive `--name-contains` filter to `px project list`.
+
 ## 1.11.1
 
 ### Patch Changes

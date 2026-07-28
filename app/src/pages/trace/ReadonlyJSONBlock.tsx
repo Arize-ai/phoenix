@@ -6,7 +6,6 @@ import { useMemo } from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
-import { useCodeMirrorCollapsibleContent } from "@phoenix/components/code/useCodeMirrorCollapsibleContent";
 import { useTheme } from "@phoenix/contexts";
 
 const JSON_EDITOR_PRE_INITIALIZATION_MIN_HEIGHT_PIXELS = 120;
@@ -45,7 +44,6 @@ export function ReadonlyJSONBlock({
   basicSetup?: BasicSetupOptions;
 }) {
   const { theme } = useTheme();
-  const onCreateEditor = useCodeMirrorCollapsibleContent();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   // We need to make sure that the content can actually be displayed
   // As JSON as we cannot fully trust the backend to always send valid JSON
@@ -84,7 +82,6 @@ export function ReadonlyJSONBlock({
           extensions={[json(), EditorView.lineWrapping]}
           editable={false}
           theme={codeMirrorTheme}
-          onCreateEditor={onCreateEditor}
           css={codeMirrorCSS}
         />
       </LazyEditorWrapper>

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { Ref } from "react";
+import type { CSSProperties, Ref } from "react";
 import type {
   PopoverProps as AriaPopoverProps,
   PopoverRenderProps,
@@ -100,7 +100,9 @@ function Popover({
   const style =
     layer === "non-modal"
       ? typeof popoverStyle === "function"
-        ? (renderProps: PopoverRenderProps) => ({
+        ? (
+            renderProps: PopoverRenderProps & { defaultStyle: CSSProperties }
+          ) => ({
             ...popoverStyle(renderProps),
             zIndex: NON_MODAL_FLOATING_Z_INDEX,
           })

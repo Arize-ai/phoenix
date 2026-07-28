@@ -41,6 +41,7 @@ import type {
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { DetailsPanel } from "./DetailsPanel";
 import { SpanDetails } from "./SpanDetails";
+import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 
 type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -191,17 +192,19 @@ export function TraceDetails({
         treeAddonWidth={treeAddonWidth}
         treeMaximumWidth={treeMaximumWidth}
       >
-        <SpanDetailsWrapper>
-          {isTraceSelected ? (
-            <Suspense fallback={<Loading />}>
-              <TraceDetailPanelAnnotationBar traceNodeId={trace.id} />
-            </Suspense>
-          ) : selectedSpanNodeId ? (
-            <Suspense fallback={<Loading />}>
-              <SpanDetails spanNodeId={selectedSpanNodeId} />
-            </Suspense>
-          ) : null}
-        </SpanDetailsWrapper>
+        <SpanInfoCardsProvider>
+          <SpanDetailsWrapper>
+            {isTraceSelected ? (
+              <Suspense fallback={<Loading />}>
+                <TraceDetailPanelAnnotationBar traceNodeId={trace.id} />
+              </Suspense>
+            ) : selectedSpanNodeId ? (
+              <Suspense fallback={<Loading />}>
+                <SpanDetails spanNodeId={selectedSpanNodeId} />
+              </Suspense>
+            ) : null}
+          </SpanDetailsWrapper>
+        </SpanInfoCardsProvider>
       </DetailsPanel>
     </main>
   );

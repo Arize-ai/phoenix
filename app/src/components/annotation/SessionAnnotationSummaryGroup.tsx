@@ -1,17 +1,12 @@
-import { css } from "@emotion/react";
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex } from "@phoenix/components";
 import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
-import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
+import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
 import {
   Summary,
   SummaryValue,
-  SummaryValueLabelPreview,
-  SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
 import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
@@ -122,13 +117,6 @@ type SessionAnnotationSummaryGroupProps = {
   renderEmptyState?: () => React.ReactNode;
 };
 
-const annotationLabelCSS = css`
-  min-height: 20px;
-  align-items: center;
-  justify-content: center;
-  display: flex;
-`;
-
 export const SessionAnnotationSummaryGroupTokens = ({
   session,
   showFilterActions = false,
@@ -145,47 +133,12 @@ export const SessionAnnotationSummaryGroupTokens = ({
   }
 
   return (
-    <Flex direction="row" gap="size-50" wrap="wrap">
-      {sortedSummariesByName.map((summary) => {
-        const latestAnnotation = annotationsByName[summary.name]?.[0];
-        const meanScore = summary?.meanScore;
-        if (!latestAnnotation) {
-          return null;
-        }
-        return (
-          <AnnotationSummaryPopover
-            key={latestAnnotation.id}
-            annotations={annotationsByName[summary.name]}
-            width="500px"
-            meanScore={meanScore}
-            showFilterActions={showFilterActions}
-          >
-            <AnnotationLabel
-              annotation={latestAnnotation}
-              annotationDisplayPreference="none"
-              css={annotationLabelCSS}
-              clickable
-            >
-              {meanScore != null ? (
-                <SummaryValuePreview
-                  name={latestAnnotation.name}
-                  meanScore={meanScore}
-                  size="S"
-                  disableAnimation
-                  annotationConfig={
-                    categoricalAnnotationConfigsByName[latestAnnotation.name]
-                  }
-                />
-              ) : (
-                <SummaryValueLabelPreview
-                  labelFractions={summary.labelFractions}
-                />
-              )}
-            </AnnotationLabel>
-          </AnnotationSummaryPopover>
-        );
-      })}
-    </Flex>
+    <AnnotationSummaryTokens
+      summaries={sortedSummariesByName}
+      annotationsByName={annotationsByName}
+      categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
+      showFilterActions={showFilterActions}
+    />
   );
 };
 

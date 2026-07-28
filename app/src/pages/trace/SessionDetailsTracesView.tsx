@@ -55,6 +55,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { DetailsPanel } from "./DetailsPanel";
 import { SpanDetails } from "./SpanDetails";
+import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 
 const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
 
@@ -287,9 +288,11 @@ export function SessionDetailsTracesView({
         </>
       }
     >
-      {renderMainContent(
-        <SpanDetailsPanel selectedSpanNodeId={selectedSpanNodeId} />
-      )}
+      <SpanInfoCardsProvider>
+        {renderMainContent(
+          <SpanDetailsPanel selectedSpanNodeId={selectedSpanNodeId} />
+        )}
+      </SpanInfoCardsProvider>
     </DetailsPanel>
   );
 }

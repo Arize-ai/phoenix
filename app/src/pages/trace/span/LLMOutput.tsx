@@ -5,6 +5,7 @@ import {
 } from "@phoenix/components/markdown";
 import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
 
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 import type { LLMIOView } from "./LLMIOViewSelect";
 import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
@@ -33,6 +34,7 @@ export function LLMOutput({
     views.push({ id: "output-messages", label: "Messages" });
   if (hasOutput) views.push({ id: "output", label: "Raw" });
   const { view, setView } = useLLMIOView(views);
+  const cardProps = useSpanInfoCardProps("output");
 
   if (!hasOutput && !hasOutputMessages) {
     return null;
@@ -44,6 +46,7 @@ export function LLMOutput({
     <MarkdownDisplayProvider>
       <Card
         {...defaultCardProps}
+        {...cardProps}
         title="Output"
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">

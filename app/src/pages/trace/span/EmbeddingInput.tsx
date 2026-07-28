@@ -8,6 +8,7 @@ import {
 } from "@phoenix/components/markdown";
 import type { AttributeEmbeddingEmbedding } from "@phoenix/openInference/tracing/types";
 
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 
 /**
@@ -19,11 +20,13 @@ export function EmbeddingInput({
   embeddings: AttributeEmbeddingEmbedding[];
 }) {
   const numTexts = embeddings.length;
+  const cardProps = useSpanInfoCardProps("input");
   return (
     <Card
       title="Input"
       subTitle={`${numTexts} ${numTexts === 1 ? "text" : "texts"}`}
       {...defaultCardProps}
+      {...cardProps}
     >
       {
         <ul

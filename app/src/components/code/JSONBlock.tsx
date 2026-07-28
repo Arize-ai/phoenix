@@ -10,7 +10,6 @@ import { useMemo } from "react";
 import { useTheme } from "@phoenix/contexts";
 
 import { pierreDark, pierreLight } from "./pierreCodeMirrorTheme";
-import { useCodeMirrorCollapsibleContent } from "./useCodeMirrorCollapsibleContent";
 
 type JSONBlockProps = Omit<
   ReactCodeMirrorProps,
@@ -20,15 +19,8 @@ type JSONBlockProps = Omit<
 };
 
 export function JSONBlock(props: JSONBlockProps) {
-  const {
-    basicSetup: propsBasicSetup,
-    onCreateEditor: propsOnCreateEditor,
-    ...rest
-  } = props;
+  const { basicSetup: propsBasicSetup, ...rest } = props;
   const { theme } = useTheme();
-  const onCreateEditor = useCodeMirrorCollapsibleContent({
-    onCreateEditor: propsOnCreateEditor,
-  });
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const basicSetup = useMemo(() => {
     const baseSetup = {
@@ -50,7 +42,6 @@ export function JSONBlock(props: JSONBlockProps) {
       extensions={[json(), EditorView.lineWrapping, linter(jsonParseLinter())]}
       editable={false}
       theme={codeMirrorTheme}
-      onCreateEditor={onCreateEditor}
       {...rest}
       basicSetup={basicSetup}
     />

@@ -469,7 +469,7 @@ function AnnotationTargetRow({
   const rowConfigs: AnnotationBarConfigState[] = projectAnnotationConfigs.map(
     (config) => ({
       config,
-      id: config.id,
+      id: config.id ?? `config-${config.name}`,
       name: config.name,
     })
   );
@@ -597,7 +597,10 @@ function AnnotationValuePopover({
     config: config ?? undefined,
     score: aggregate.score,
   });
-  const isShowingQuickCreate = view === "quick-create";
+  const quickCreateConfig =
+    config?.annotationType === "CATEGORICAL" ? config : null;
+  const isShowingQuickCreate =
+    view === "quick-create" && quickCreateConfig !== null;
   const resetPopover = useCallback(() => {
     setView(initialView);
     setReturnView(initialView);
@@ -757,7 +760,7 @@ function AnnotationValuePopover({
           ) : isShowingQuickCreate ? (
             <CategoricalQuickCreate
               annotationName={annotationName}
-              config={config}
+              config={quickCreateConfig}
               onCreate={async ({ shouldExplain, value }) => {
                 setError(null);
                 if (shouldExplain) {
