@@ -1,6 +1,6 @@
 import type { TooltipContentProps } from "recharts";
 
-import { Text } from "@phoenix/components";
+import { Text, Truncate } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipDivider,
@@ -34,8 +34,10 @@ export function ModelTokenDetailTooltipContent({
   return (
     <ChartTooltip>
       {label && (
-        <Text weight="heavy" size="S">
-          {String(label)}
+        <Text weight="heavy" size="S" minWidth={0}>
+          <Truncate maxWidth="100%" title={String(label)}>
+            {String(label)}
+          </Truncate>
         </Text>
       )}
       {payload.map((entry) => {

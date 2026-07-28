@@ -144,8 +144,8 @@ const legendStaticItemCSS = css`
 `;
 
 const legendTextCSS = css`
-  color: var(--chart-legend-text-color);
-  max-width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
 `;
 
 function getInteractiveDataKey(
@@ -421,14 +421,11 @@ function DefaultInteractiveLegendContent({
                   iconType={iconType}
                   inactiveColor={inactiveColor}
                 />
-                <Truncate maxWidth="100%">
-                  <span
-                    className="recharts-legend-item-text"
-                    css={legendTextCSS}
-                  >
+                <span className="recharts-legend-item-text" css={legendTextCSS}>
+                  <Truncate maxWidth="100%" title={label}>
                     {renderedLabel}
-                  </span>
-                </Truncate>
+                  </Truncate>
+                </span>
               </span>
             ) : (
               <button
@@ -459,7 +456,9 @@ function DefaultInteractiveLegendContent({
                   inactiveColor={inactiveColor}
                 />
                 <span className="recharts-legend-item-text" css={legendTextCSS}>
-                  <Truncate maxWidth="100%">{renderedLabel}</Truncate>
+                  <Truncate maxWidth="100%" title={label}>
+                    {renderedLabel}
+                  </Truncate>
                 </span>
               </button>
             )}

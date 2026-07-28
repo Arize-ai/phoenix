@@ -20,7 +20,9 @@ export function ExperimentMetricsTooltipHeader({
       <SequenceNumberToken sequenceNumber={sequenceNumber} />
       {name != null && (
         <Text weight="heavy" size="S" minWidth={0}>
-          <Truncate maxWidth="100%">{name}</Truncate>
+          <Truncate maxWidth="100%" title={name}>
+            {name}
+          </Truncate>
         </Text>
       )}
       {isBaseline ? <BaselineExperimentBadge /> : null}
