@@ -4481,7 +4481,9 @@ class TestProject:
             return len(result["edges"])
 
         async def _count(args: str) -> int:
-            return await self._node(f"sessionCount({args})", project, httpx_client)
+            count = await self._node(f"sessionCount({args})", project, httpx_client)
+            assert isinstance(count, int)
+            return count
 
         # Case 1 — exact-ID hit short-circuits to that one session, ignoring the substring/DSL that
         # would otherwise exclude it (session 0 has a single trace, so `num_traces >= 999` fails).
