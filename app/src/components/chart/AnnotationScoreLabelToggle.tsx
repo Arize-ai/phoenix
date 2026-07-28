@@ -1,4 +1,7 @@
-import { ToggleButton, ToggleButtonGroup } from "@phoenix/components/core";
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@phoenix/components/core";
 
 import type { AnnotationMetricsView } from "./annotationMetricsUtils";
 
@@ -16,19 +19,18 @@ export function AnnotationScoreLabelToggle({
   onChange: (view: AnnotationMetricsView) => void;
 }) {
   return (
-    <ToggleButtonGroup
+    <SegmentedControl
       aria-label="Evaluation metric view"
       size="S"
-      selectedKeys={[view]}
-      onSelectionChange={(selection) => {
-        const selectedView = selection.keys().next().value;
+      selectedKey={view}
+      onSelectionChange={(selectedView) => {
         if (isAnnotationMetricsView(selectedView)) {
           onChange(selectedView);
         }
       }}
     >
-      <ToggleButton id="labels">Labels</ToggleButton>
-      <ToggleButton id="scores">Scores</ToggleButton>
-    </ToggleButtonGroup>
+      <SegmentedControlItem id="labels">Labels</SegmentedControlItem>
+      <SegmentedControlItem id="scores">Scores</SegmentedControlItem>
+    </SegmentedControl>
   );
 }
