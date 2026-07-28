@@ -11,6 +11,8 @@ type LazyEditorWrapperProps = {
   preInitializationMinHeight: number;
   /** Lightweight content to show before the editor enters the viewport. */
   fallback?: ReactNode;
+  /** Mounts the editor on the initial render instead of waiting for visibility. */
+  initializeImmediately?: boolean;
   children: ReactNode;
 } & ComponentPropsWithoutRef<"div">;
 
@@ -23,11 +25,12 @@ type LazyEditorWrapperProps = {
 export function LazyEditorWrapper({
   preInitializationMinHeight,
   fallback = null,
+  initializeImmediately = false,
   children,
   ...rest
 }: LazyEditorWrapperProps) {
   const [isInitialized, setIsInitialized] = useState(
-    () => typeof IntersectionObserver === "undefined"
+    () => initializeImmediately || typeof IntersectionObserver === "undefined"
   );
   const wrapperRef = useRef<HTMLDivElement>(null);
 

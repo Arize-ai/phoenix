@@ -141,7 +141,7 @@ export function LLMInput({
           />
         )}
         {view === "tools" && <LLMToolSchemasList toolSchemas={toolSchemas} />}
-        {isRawView && <MimeTypeCodeBlock {...input} />}
+        {isRawView && <MimeTypeCodeBlock {...input} initializeImmediately />}
         {view === "prompts" && <LLMPromptsList prompts={prompts} />}
       </Card>
     </MarkdownDisplayProvider>

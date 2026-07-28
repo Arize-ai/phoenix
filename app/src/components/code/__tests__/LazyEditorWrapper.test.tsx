@@ -42,6 +42,23 @@ afterEach(() => {
 });
 
 describe("LazyEditorWrapper", () => {
+  it("mounts the editor immediately when requested", () => {
+    act(() => {
+      root.render(
+        <LazyEditorWrapper
+          preInitializationMinHeight={120}
+          fallback={<span>Plain JSON</span>}
+          initializeImmediately
+        >
+          <span>Highlighted JSON</span>
+        </LazyEditorWrapper>
+      );
+    });
+
+    expect(container.textContent).toBe("Highlighted JSON");
+    expect(observe).not.toHaveBeenCalled();
+  });
+
   it("mounts the editor only after its wrapper enters the viewport", () => {
     act(() => {
       root.render(

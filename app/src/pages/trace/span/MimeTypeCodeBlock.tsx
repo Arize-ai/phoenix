@@ -8,10 +8,18 @@ import type { SpanIOValue } from "./types";
  * Renders a span input / output value according to its mime type — JSON gets a
  * readonly JSON block, text gets a markdown block.
  */
-export function MimeTypeCodeBlock({ value, mimeType }: SpanIOValue) {
+export function MimeTypeCodeBlock({
+  value,
+  mimeType,
+  initializeImmediately = false,
+}: SpanIOValue & { initializeImmediately?: boolean }) {
   switch (mimeType) {
     case "json":
-      return <ReadonlyJSONBlock>{value}</ReadonlyJSONBlock>;
+      return (
+        <ReadonlyJSONBlock initializeImmediately={initializeImmediately}>
+          {value}
+        </ReadonlyJSONBlock>
+      );
     case "text":
       return <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>;
     default:

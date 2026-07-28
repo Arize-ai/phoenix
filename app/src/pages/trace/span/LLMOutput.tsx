@@ -70,7 +70,7 @@ export function LLMOutput({
         {view === "output-messages" && (
           <LLMMessagesList messages={outputMessages} />
         )}
-        {isRawView && <MimeTypeCodeBlock {...output} />}
+        {isRawView && <MimeTypeCodeBlock {...output} initializeImmediately />}
       </Card>
     </MarkdownDisplayProvider>
   );

@@ -28,7 +28,11 @@ export function SpanInput({ value, mimeType }: SpanIOValue) {
           </Flex>
         }
       >
-        <MimeTypeCodeBlock value={value} mimeType={mimeType} />
+        <MimeTypeCodeBlock
+          value={value}
+          mimeType={mimeType}
+          initializeImmediately
+        />
       </Card>
     </MarkdownDisplayProvider>
   );

@@ -39,9 +39,11 @@ export function PreBlock({ children }: { children: string }) {
 export function ReadonlyJSONBlock({
   children,
   basicSetup = {},
+  initializeImmediately = false,
 }: {
   children: string;
   basicSetup?: BasicSetupOptions;
+  initializeImmediately?: boolean;
 }) {
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
@@ -67,6 +69,7 @@ export function ReadonlyJSONBlock({
           JSON_EDITOR_PRE_INITIALIZATION_MIN_HEIGHT_PIXELS
         }
         fallback={<PreBlock>{value}</PreBlock>}
+        initializeImmediately={initializeImmediately}
       >
         <CodeMirror
           value={value}
