@@ -1,23 +1,13 @@
-import { css } from "@emotion/react";
-
 import { Flex } from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart";
 import { RichTokenBreakdown } from "@phoenix/components/RichTokenBreakdown";
 import {
   compareTokenTypes,
+  getRemainderTokenType,
   getTokenDetailColor,
   getTokenDetailLabel,
+  TOKEN_DETAIL_EPSILON,
 } from "@phoenix/utils/tokenDetailUtils";
-
-/**
- * Costs and token counts are summed from floating point values, so a detail
- * breakdown that fully accounts for its group can still leave a sliver behind.
- */
-const REMAINDER_EPSILON = 1e-9;
-
-const tokenDetailsBreakdownCSS = css`
-  min-width: var(--global-dimension-size-3000);
-`;
 
 type TokenDetailValues = Record<string, number | null | undefined>;
 
@@ -75,64 +65,61 @@ export function TokenDetailsBreakdown({
     return null;
   }
 
-  const promptValue = prompt ?? 0;
-  const completionValue = completion ?? 0;
-  const totalValue = total ?? promptValue + completionValue;
-  const segments = [
-    ...(prompt != null
-      ? [{ name: "Prompt", value: promptValue, color: colors.category1 }]
-      : []),
-    ...(completion != null
-      ? [
-          {
-            name: "Completion",
-            value: completionValue,
-            color: colors.category2,
-          },
-        ]
-      : []),
-  ];
-  const promptSegments = buildDetailSegments({
-    colors,
-    details: promptDetails,
-    groupTotal: promptValue,
-    remainderTokenType: "input",
-  });
-  const completionSegments = buildDetailSegments({
-    colors,
-    details: completionDetails,
-    groupTotal: completionValue,
-    remainderTokenType: "output",
-  });
+  const groups = [
+    {
+      label: "Prompt",
+      isPrompt: true,
+      value: prompt,
+      details: promptDetails,
+      color: colors.category1,
+    },
+    {
+      label: "Completion",
+      isPrompt: false,
+      value: completion,
+      details: completionDetails,
+      color: colors.category2,
+    },
+  ].map((group) => ({
+    ...group,
+    // An absent group is left out of the split entirely; a zero one still
+    // belongs in the legend.
+    value: group.value ?? 0,
+    isPresent: group.value != null,
+    segments: buildDetailSegments({
+      colors,
+      details: group.details,
+      groupTotal: group.value ?? 0,
+      isPrompt: group.isPrompt,
+    }),
+  }));
 
   return (
-    <Flex direction="column" gap="size-200" css={tokenDetailsBreakdownCSS}>
+    <Flex direction="column" gap="size-200" minWidth="size-3000">
       <RichTokenBreakdown
         valueLabel={valueLabel}
         totalLabel={totalLabel}
-        totalValue={totalValue}
+        totalValue={
+          total ?? groups.reduce((acc, group) => acc + group.value, 0)
+        }
         formatter={formatter}
-        segments={segments}
+        segments={groups
+          .filter((group) => group.isPresent)
+          .map(({ label, value, color }) => ({ name: label, value, color }))}
       />
       {/* A lone segment restates the group total, so it is left to the legend above */}
-      {promptSegments.length > 1 && (
-        <RichTokenBreakdown
-          valueLabel={valueLabel}
-          totalLabel="Prompt"
-          totalValue={promptValue}
-          formatter={formatter}
-          segments={promptSegments}
-        />
-      )}
-      {completionSegments.length > 1 && (
-        <RichTokenBreakdown
-          valueLabel={valueLabel}
-          totalLabel="Completion"
-          totalValue={completionValue}
-          formatter={formatter}
-          segments={completionSegments}
-        />
-      )}
+      {groups
+        .filter((group) => group.segments.length > 1)
+        .map((group) => (
+          <RichTokenBreakdown
+            key={group.label}
+            valueLabel={valueLabel}
+            totalLabel={group.label}
+            totalValue={group.value}
+            formatter={formatter}
+            segments={group.segments}
+          />
+        ))}
     </Flex>
   );
 }
@@ -140,55 +127,46 @@ export function TokenDetailsBreakdown({
 /**
  * Turns one group's token-type values into labeled, colored segments.
  *
- * Details refine the authoritative prompt and completion totals but may be
- * incomplete for spans recorded before a token type was tracked. Any positive
- * remainder is attributed to the group's plain token type, so the bar always
- * accounts for the total it is drawn against.
+ * Any value the details do not account for is attributed to the group's plain
+ * token type, so the bar always adds up to the total it is drawn against.
  *
  * @param params - Segment building context.
  * @param params.colors - Theme-aware categorical chart colors.
  * @param params.details - Values keyed by token type.
  * @param params.groupTotal - The prompt or completion total the details refine.
- * @param params.remainderTokenType - Token type that absorbs the unaccounted remainder.
+ * @param params.isPrompt - Whether the group holds prompt rather than completion usage.
  * @returns Segments in canonical token-type order.
  */
 function buildDetailSegments({
   colors,
   details,
   groupTotal,
-  remainderTokenType,
+  isPrompt,
 }: {
   colors: ReturnType<typeof useCategoryChartColors>;
   details: TokenDetailValues | null | undefined;
   groupTotal: number;
-  remainderTokenType: string;
+  isPrompt: boolean;
 }): DetailSegment[] {
-  const valueByTokenType = new Map<string, number>();
+  const values: Record<string, number> = {};
+  let detailTotal = 0;
   Object.entries(details ?? {}).forEach(([tokenType, value]) => {
     if (value != null && value > 0) {
-      valueByTokenType.set(
-        tokenType,
-        (valueByTokenType.get(tokenType) ?? 0) + value
-      );
+      values[tokenType] = value;
+      detailTotal += value;
     }
   });
-  if (valueByTokenType.size === 0) {
+  if (detailTotal === 0) {
     return [];
   }
 
-  const detailTotal = Array.from(valueByTokenType.values()).reduce(
-    (acc, value) => acc + value,
-    0
-  );
   const remainder = groupTotal - detailTotal;
-  if (remainder > REMAINDER_EPSILON) {
-    valueByTokenType.set(
-      remainderTokenType,
-      (valueByTokenType.get(remainderTokenType) ?? 0) + remainder
-    );
+  if (remainder > TOKEN_DETAIL_EPSILON) {
+    const tokenType = getRemainderTokenType(isPrompt);
+    values[tokenType] = (values[tokenType] ?? 0) + remainder;
   }
 
-  return Array.from(valueByTokenType.entries())
+  return Object.entries(values)
     .sort(([leftType], [rightType]) => compareTokenTypes(leftType, rightType))
     .map(([tokenType, value], index) => ({
       name: getTokenDetailLabel(tokenType),

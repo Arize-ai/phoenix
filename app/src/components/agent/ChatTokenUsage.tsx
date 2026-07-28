@@ -279,21 +279,17 @@ export function ChatTokenUsageDetails({
     {
       name: "Uncached",
       value: uncachedPrompt,
-      color: getTokenDetailColor({ colors, index: 0, tokenType: "input" }),
+      color: getTokenDetailColor({ colors, tokenType: "input" }),
     },
     {
       name: "Cache read",
       value: cacheRead,
-      color: getTokenDetailColor({ colors, index: 1, tokenType: "cache_read" }),
+      color: getTokenDetailColor({ colors, tokenType: "cache_read" }),
     },
     {
       name: "Cache write",
       value: cacheWrite,
-      color: getTokenDetailColor({
-        colors,
-        index: 2,
-        tokenType: "cache_write",
-      }),
+      color: getTokenDetailColor({ colors, tokenType: "cache_write" }),
     },
   ].filter((segment) => segment.value > 0);
 

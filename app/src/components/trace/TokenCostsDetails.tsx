@@ -1,18 +1,17 @@
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
 import { TokenDetailsBreakdown } from "./TokenDetailsBreakdown";
 
-export interface TokenCostsDetailsProps {
-  total?: number | null;
-  prompt?: number | null;
-  completion?: number | null;
-  promptDetails?: Record<string, number | null> | null;
-  completionDetails?: Record<string, number | null> | null;
+export type TokenCostsDetailsProps = Omit<
+  TokenDetailsBreakdownProps,
+  "valueLabel" | "totalLabel" | "formatter"
+> & {
   /**
    * The label for the cost details. Defaults to "Total".
    */
   label?: string;
-}
+};
 
 export function TokenCostsDetails({
   total,

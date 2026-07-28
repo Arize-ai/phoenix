@@ -12,9 +12,8 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { useCategoryChartColors } from "@phoenix/components/chart";
-import { RichTokenBreakdown } from "@phoenix/components/RichTokenBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -77,7 +76,6 @@ export function ProjectStats(props: { project: ProjectStats_project$key }) {
     data?.spanAnnotationNames ?? []
   );
   const documentEvaluationNames = data?.documentEvaluationNames;
-  const colors = useCategoryChartColors();
 
   return (
     <Flex direction="row" gap="size-400" alignItems="center">
@@ -102,22 +100,10 @@ export function ProjectStats(props: { project: ProjectStats_project$key }) {
           <RichTooltip placement="bottom">
             <TooltipArrow />
             <View width="size-3600">
-              <RichTokenBreakdown
-                valueLabel="cost"
-                totalValue={data?.costSummary?.total?.cost ?? 0}
-                formatter={costFormatter}
-                segments={[
-                  {
-                    name: "Prompt",
-                    value: data?.costSummary?.prompt?.cost ?? 0,
-                    color: colors.category1,
-                  },
-                  {
-                    name: "Completion",
-                    value: data?.costSummary?.completion?.cost ?? 0,
-                    color: colors.category2,
-                  },
-                ]}
+              <TokenCostsDetails
+                total={data?.costSummary?.total?.cost ?? 0}
+                prompt={data?.costSummary?.prompt?.cost ?? 0}
+                completion={data?.costSummary?.completion?.cost ?? 0}
               />
             </View>
           </RichTooltip>

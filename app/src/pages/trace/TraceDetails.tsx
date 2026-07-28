@@ -25,9 +25,9 @@ import {
   View,
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { RichTokenBreakdown } from "@phoenix/components/RichTokenBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
+import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
@@ -258,22 +258,10 @@ function TraceHeader({
             <RichTooltip placement="bottom">
               <TooltipArrow />
               <View width="size-3600">
-                <RichTokenBreakdown
-                  valueLabel="cost"
-                  totalValue={costSummary?.total?.cost ?? 0}
-                  formatter={costFormatter}
-                  segments={[
-                    {
-                      name: "Prompt",
-                      value: costSummary?.prompt?.cost ?? 0,
-                      color: "rgba(254, 119, 99, 1)",
-                    },
-                    {
-                      name: "Completion",
-                      value: costSummary?.completion?.cost ?? 0,
-                      color: "rgba(98, 104, 239, 1)",
-                    },
-                  ]}
+                <TokenCostsDetails
+                  total={costSummary?.total?.cost ?? 0}
+                  prompt={costSummary?.prompt?.cost ?? 0}
+                  completion={costSummary?.completion?.cost ?? 0}
                 />
               </View>
             </RichTooltip>

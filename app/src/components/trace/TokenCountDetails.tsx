@@ -1,33 +1,17 @@
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
 import { TokenDetailsBreakdown } from "./TokenDetailsBreakdown";
 
-export interface TokenCountDetailsProps {
-  /**
-   * Total token count
-   */
-  total?: number | null;
-  /**
-   * Prompt token count
-   */
-  prompt?: number | null;
-  /**
-   * Completion token count
-   */
-  completion?: number | null;
-  /**
-   * Additional prompt token details as key-value pairs
-   */
-  promptDetails?: Record<string, number | null | undefined>;
-  /**
-   * Additional completion token details as key-value pairs
-   */
-  completionDetails?: Record<string, number | null | undefined>;
+export type TokenCountDetailsProps = Omit<
+  TokenDetailsBreakdownProps,
+  "valueLabel" | "totalLabel" | "formatter"
+> & {
   /**
    * The label for the count details. Defaults to "Total".
    */
   label?: string;
-}
+};
 
 export function TokenCountDetails({
   total,

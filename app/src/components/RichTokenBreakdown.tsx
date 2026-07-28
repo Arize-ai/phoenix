@@ -38,11 +38,6 @@ export function RichTokenBreakdown({
     ...segment,
     color: segment.color || getChartColor(index, colors),
   }));
-  // An all-zero breakdown has nothing to draw, and an empty bar reads as a
-  // rendering failure rather than as an empty total.
-  const hasChartedSegments = segmentsWithColor.some(
-    (segment) => segment.value > 0
-  );
   return (
     <Flex direction="column" gap="size-150">
       {/* Totals */}
@@ -53,14 +48,12 @@ export function RichTokenBreakdown({
         </Flex>
       </Flex>
       {/* Segment graph */}
-      {hasChartedSegments && (
-        <SegmentChart
-          height={6}
-          minimumSegmentPercentage={1}
-          totalValue={totalValue}
-          segments={segmentsWithColor}
-        />
-      )}
+      <SegmentChart
+        height={6}
+        minimumSegmentPercentage={1}
+        totalValue={totalValue}
+        segments={segmentsWithColor}
+      />
       {/* Segment table */}
       <Flex direction="column" gap="size-100">
         {segmentsWithColor.map((segment) => {

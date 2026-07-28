@@ -4,6 +4,7 @@ import { Pressable } from "react-aria";
 import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenDetailsBreakdown } from "@phoenix/components/trace/TokenDetailsBreakdown";
+import { formatCost, formatNumber } from "@phoenix/utils/numberFormatUtils";
 
 /**
  * The body of every cost and token tooltip in the app. A total is split into
@@ -35,9 +36,6 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const costFormatter = (value: number) => `$${value.toFixed(2)}`;
-const tokenFormatter = (value: number) => value.toLocaleString();
-
 /**
  * Cost split between prompt and completion. With no token-type details, the
  * breakdown is a single bar.
@@ -45,7 +43,7 @@ const tokenFormatter = (value: number) => value.toLocaleString();
 export const Cost: Story = {
   args: {
     valueLabel: "cost",
-    formatter: costFormatter,
+    formatter: formatCost,
     total: 27.09,
     prompt: 24.04,
     completion: 3.05,
@@ -59,7 +57,7 @@ export const Cost: Story = {
 export const CostWithCacheDetails: Story = {
   args: {
     valueLabel: "cost",
-    formatter: costFormatter,
+    formatter: formatCost,
     total: 27.09,
     prompt: 24.04,
     completion: 3.05,
@@ -78,7 +76,7 @@ export const CostWithCacheDetails: Story = {
 export const TokenCounts: Story = {
   args: {
     valueLabel: "tokens",
-    formatter: tokenFormatter,
+    formatter: formatNumber,
     total: 84_320,
     prompt: 78_100,
     completion: 6_220,
@@ -102,7 +100,7 @@ export const TokenCounts: Story = {
 export const IncompleteDetails: Story = {
   args: {
     valueLabel: "tokens",
-    formatter: tokenFormatter,
+    formatter: formatNumber,
     total: 84_320,
     prompt: 78_100,
     completion: 6_220,
@@ -121,7 +119,7 @@ export const AverageLabel: Story = {
   args: {
     valueLabel: "cost",
     totalLabel: "Average",
-    formatter: costFormatter,
+    formatter: formatCost,
     total: 0.34,
     prompt: 0.28,
     completion: 0.06,
@@ -135,7 +133,7 @@ export const AverageLabel: Story = {
 export const ZeroCost: Story = {
   args: {
     valueLabel: "cost",
-    formatter: costFormatter,
+    formatter: formatCost,
     total: 0,
     prompt: 0,
     completion: 0,
@@ -162,7 +160,7 @@ export const InTooltip: Story = {
   ),
   args: {
     valueLabel: "cost",
-    formatter: costFormatter,
+    formatter: formatCost,
     total: 27.09,
     prompt: 24.04,
     completion: 3.05,

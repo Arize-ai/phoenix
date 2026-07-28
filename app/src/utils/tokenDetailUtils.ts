@@ -6,6 +6,14 @@
 
 import type { useCategoryChartColors } from "@phoenix/components/chart";
 
+type CategoryChartColors = ReturnType<typeof useCategoryChartColors>;
+
+/**
+ * Costs and token counts are summed from floating point values, so a value
+ * this small is noise left over from the arithmetic rather than real usage.
+ */
+export const TOKEN_DETAIL_EPSILON = 1e-9;
+
 const TOKEN_DETAIL_SORT_ORDER: Partial<Record<string, number>> = {
   input: 0,
   output: 0,
@@ -14,6 +22,26 @@ const TOKEN_DETAIL_SORT_ORDER: Partial<Record<string, number>> = {
   reasoning: 3,
   audio: 4,
 };
+
+const TOKEN_DETAIL_COLORS: Partial<Record<string, keyof CategoryChartColors>> =
+  {
+    input: "category1",
+    output: "category2",
+    cache_read: "category9",
+    cache_write: "category7",
+    reasoning: "category4",
+    audio: "category3",
+  };
+
+/** The colors used for token types with no semantic color of their own. */
+const TOKEN_DETAIL_FALLBACK_COLORS = [
+  "category5",
+  "category6",
+  "category8",
+  "category10",
+  "category11",
+  "category12",
+] as const satisfies readonly (keyof CategoryChartColors)[];
 
 /**
  * Converts a snake-case token type into a user-facing label.
@@ -27,6 +55,20 @@ const TOKEN_DETAIL_SORT_ORDER: Partial<Record<string, number>> = {
 export function getTokenDetailLabel(tokenType: string) {
   const words = tokenType.split("_").join(" ");
   return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * The token type that absorbs value a group's details do not account for.
+ *
+ * Details refine the authoritative prompt and completion totals but may be
+ * incomplete for spans recorded before a token type was tracked; the leftover
+ * is plain input or output usage.
+ *
+ * @param isPrompt - Whether the group holds prompt rather than completion usage.
+ * @returns The token type to attribute the remainder to.
+ */
+export function getRemainderTokenType(isPrompt: boolean) {
+  return isPrompt ? "input" : "output";
 }
 
 /**
@@ -52,39 +94,27 @@ export function compareTokenTypes(left: string, right: string) {
  *
  * @param params - Color selection context.
  * @param params.colors - Theme-aware categorical chart colors.
- * @param params.index - Position of the series in display order.
  * @param params.tokenType - Raw token type received from the API.
+ * @param params.index - Position of the series in display order. Only
+ *   disambiguates token types that have no semantic color of their own.
  * @returns A theme-aware CSS color value.
  */
 export function getTokenDetailColor({
   colors,
-  index,
+  index = 0,
   tokenType,
 }: {
-  colors: ReturnType<typeof useCategoryChartColors>;
-  index: number;
+  colors: CategoryChartColors;
+  index?: number;
   tokenType: string;
 }) {
-  if (tokenType === "input") {
-    return colors.category1;
+  const semanticColor = TOKEN_DETAIL_COLORS[tokenType];
+  if (semanticColor) {
+    return colors[semanticColor];
   }
-  if (tokenType === "output") {
-    return colors.category2;
-  }
-  if (tokenType === "cache_read") {
-    return colors.category9;
-  }
-  if (tokenType === "cache_write") {
-    return colors.category7;
-  }
-  if (tokenType === "reasoning") {
-    return colors.category4;
-  }
-  if (tokenType === "audio") {
-    return colors.category3;
-  }
-  const fallbackColors = getTokenDetailFallbackColors(colors);
-  return fallbackColors[index % fallbackColors.length];
+  return colors[
+    TOKEN_DETAIL_FALLBACK_COLORS[index % TOKEN_DETAIL_FALLBACK_COLORS.length]
+  ];
 }
 
 /**
@@ -93,15 +123,6 @@ export function getTokenDetailColor({
  * @param colors - Theme-aware categorical chart colors.
  * @returns Fallback colors in assignment order.
  */
-export function getTokenDetailFallbackColors(
-  colors: ReturnType<typeof useCategoryChartColors>
-) {
-  return [
-    colors.category5,
-    colors.category6,
-    colors.category8,
-    colors.category10,
-    colors.category11,
-    colors.category12,
-  ];
+export function getTokenDetailFallbackColors(colors: CategoryChartColors) {
+  return TOKEN_DETAIL_FALLBACK_COLORS.map((color) => colors[color]);
 }

@@ -6,13 +6,14 @@
 import type { useCategoryChartColors } from "@phoenix/components/chart";
 import {
   compareTokenTypes,
+  getRemainderTokenType,
   getTokenDetailColor,
   getTokenDetailFallbackColors,
   getTokenDetailLabel,
+  TOKEN_DETAIL_EPSILON,
 } from "@phoenix/utils/tokenDetailUtils";
 
 const TOKEN_DETAIL_DATA_KEY_PREFIX = "tokenDetail:";
-const TOKEN_DETAIL_EPSILON = 1e-9;
 const TOKEN_DETAIL_BAR_RADIUS = 2;
 
 /** Numeric field projected from each token-detail cost breakdown. */
@@ -331,24 +332,16 @@ export function buildModelTokenDetailChartData({
       });
     });
 
-    const missingInputValue =
-      (model.costSummary.prompt[metric] ?? 0) - detailTotals.prompt;
-    recordTokenDetailValue({
-      chartDatum,
-      isPrompt: true,
-      seriesByDataKey,
-      tokenType: "input",
-      value: missingInputValue,
-    });
-
-    const missingOutputValue =
-      (model.costSummary.completion[metric] ?? 0) - detailTotals.completion;
-    recordTokenDetailValue({
-      chartDatum,
-      isPrompt: false,
-      seriesByDataKey,
-      tokenType: "output",
-      value: missingOutputValue,
+    ([true, false] as const).forEach((isPrompt) => {
+      const tokenKind = isPrompt ? "prompt" : "completion";
+      recordTokenDetailValue({
+        chartDatum,
+        isPrompt,
+        seriesByDataKey,
+        tokenType: getRemainderTokenType(isPrompt),
+        value:
+          (model.costSummary[tokenKind][metric] ?? 0) - detailTotals[tokenKind],
+      });
     });
 
     return chartDatum;
