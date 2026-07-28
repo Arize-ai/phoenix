@@ -1,8 +1,27 @@
 import { css } from "@emotion/react";
-import { startTransition, Suspense, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { startTransition, Suspense, useEffect, useRef, useState } from "react";
 
 import { SpanDetails } from "./SpanDetails";
 import { SpanDetailsSkeleton } from "./TraceDetailsSkeleton";
+
+const MAX_CACHED_SPAN_DETAILS = 2;
+
+type CachedSpanDetails = {
+  content: ReactNode;
+  spanNodeId: string;
+};
+
+function createCachedSpanDetails(spanNodeId: string): CachedSpanDetails {
+  return {
+    content: (
+      <Suspense fallback={<SpanDetailsSkeleton />}>
+        <SpanDetails key={spanNodeId} spanNodeId={spanNodeId} />
+      </Suspense>
+    ),
+    spanNodeId,
+  };
+}
 
 /**
  * Commits the new tree selection and a dehydrated details shell, allows the
@@ -11,16 +30,54 @@ import { SpanDetailsSkeleton } from "./TraceDetailsSkeleton";
  * delays the selection paint.
  */
 export function SpanDetailsPaintGate({ spanNodeId }: { spanNodeId: string }) {
-  const [hydratedSpanNodeId, setHydratedSpanNodeId] = useState<string | null>(
-    null
+  const [cachedSpanDetails, setCachedSpanDetails] = useState<
+    CachedSpanDetails[]
+  >([]);
+  const recentlyViewedSpanNodeIdsRef = useRef<string[]>([]);
+  const isTargetCached = cachedSpanDetails.some(
+    (cachedDetails) => cachedDetails.spanNodeId === spanNodeId
   );
 
   useEffect(() => {
+    const markSpanAsRecentlyViewed = () => {
+      recentlyViewedSpanNodeIdsRef.current = [
+        spanNodeId,
+        ...recentlyViewedSpanNodeIdsRef.current.filter(
+          (cachedSpanNodeId) => cachedSpanNodeId !== spanNodeId
+        ),
+      ].slice(0, MAX_CACHED_SPAN_DETAILS);
+    };
+
+    if (isTargetCached) {
+      markSpanAsRecentlyViewed();
+      return undefined;
+    }
+
     let hydrationFrameId: number | null = null;
     const paintFrameId = requestAnimationFrame(() => {
       hydrationFrameId = requestAnimationFrame(() => {
         startTransition(() => {
-          setHydratedSpanNodeId(spanNodeId);
+          setCachedSpanDetails((currentCache) => {
+            const cachedSpanNodeIds = new Set(
+              currentCache.map((cachedDetails) => cachedDetails.spanNodeId)
+            );
+            if (cachedSpanNodeIds.has(spanNodeId)) return currentCache;
+
+            const nextCache = [...currentCache];
+            if (nextCache.length >= MAX_CACHED_SPAN_DETAILS) {
+              const spanNodeIdToEvict =
+                recentlyViewedSpanNodeIdsRef.current.at(-1) ??
+                nextCache[0]?.spanNodeId;
+              const evictionIndex = nextCache.findIndex(
+                (cachedDetails) =>
+                  cachedDetails.spanNodeId === spanNodeIdToEvict
+              );
+              if (evictionIndex >= 0) nextCache.splice(evictionIndex, 1);
+            }
+            nextCache.push(createCachedSpanDetails(spanNodeId));
+            return nextCache;
+          });
+          markSpanAsRecentlyViewed();
         });
       });
     });
@@ -31,22 +88,9 @@ export function SpanDetailsPaintGate({ spanNodeId }: { spanNodeId: string }) {
         cancelAnimationFrame(hydrationFrameId);
       }
     };
-  }, [spanNodeId]);
+  }, [isTargetCached, spanNodeId]);
 
-  const isHydrationPending =
-    hydratedSpanNodeId == null || hydratedSpanNodeId !== spanNodeId;
-  const hydratedDetails = useMemo(
-    () =>
-      hydratedSpanNodeId == null ? null : (
-        <Suspense fallback={<SpanDetailsSkeleton />}>
-          <SpanDetails
-            key={hydratedSpanNodeId}
-            spanNodeId={hydratedSpanNodeId}
-          />
-        </Suspense>
-      ),
-    [hydratedSpanNodeId]
-  );
+  const isHydrationPending = !isTargetCached;
 
   return (
     <div
@@ -68,18 +112,19 @@ export function SpanDetailsPaintGate({ spanNodeId }: { spanNodeId: string }) {
       >
         <SpanDetailsSkeleton />
       </div>
-      {hydratedDetails == null ? null : (
+      {cachedSpanDetails.map((cachedDetails) => (
         <div
-          data-span-details-retained-id={hydratedSpanNodeId}
-          hidden={isHydrationPending}
+          key={cachedDetails.spanNodeId}
+          data-span-details-retained-id={cachedDetails.spanNodeId}
+          hidden={isHydrationPending || cachedDetails.spanNodeId !== spanNodeId}
           css={css`
             width: 100%;
             height: 100%;
           `}
         >
-          {hydratedDetails}
+          {cachedDetails.content}
         </div>
-      )}
+      ))}
     </div>
   );
 }

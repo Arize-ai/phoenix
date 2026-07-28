@@ -68,9 +68,11 @@ describe("SpanDetailsPaintGate", () => {
     return skeleton;
   }
 
-  function getRetainedDetails() {
+  function getRetainedDetails(spanNodeId?: string) {
     return container.querySelector<HTMLElement>(
-      "[data-span-details-retained-id]"
+      spanNodeId
+        ? `[data-span-details-retained-id="${spanNodeId}"]`
+        : "[data-span-details-retained-id]"
     );
   }
 
@@ -111,7 +113,40 @@ describe("SpanDetailsPaintGate", () => {
 
     runNextFrame();
     expect(getSkeleton().hidden).toBe(true);
-    expect(getRetainedDetails()?.textContent).toBe("Hydrated span-b");
+    expect(getRetainedDetails("span-a")).toHaveProperty("hidden", true);
+    expect(getRetainedDetails("span-b")).toHaveProperty("hidden", false);
+    expect(getRetainedDetails("span-b")?.textContent).toBe("Hydrated span-b");
+  });
+
+  it("reveals a cached span immediately and evicts the least recent span", () => {
+    act(() => {
+      root.render(<SpanDetailsPaintGate spanNodeId="span-a" />);
+    });
+    runNextFrame();
+    runNextFrame();
+    act(() => {
+      root.render(<SpanDetailsPaintGate spanNodeId="span-b" />);
+    });
+    runNextFrame();
+    runNextFrame();
+
+    act(() => {
+      root.render(<SpanDetailsPaintGate spanNodeId="span-a" />);
+    });
+    expect(getSkeleton().hidden).toBe(true);
+    expect(getRetainedDetails("span-a")).toHaveProperty("hidden", false);
+    expect(getRetainedDetails("span-b")).toHaveProperty("hidden", true);
+    expect(scheduledFrames.size).toBe(0);
+
+    act(() => {
+      root.render(<SpanDetailsPaintGate spanNodeId="span-c" />);
+    });
+    expect(getSkeleton().hidden).toBe(false);
+    runNextFrame();
+    runNextFrame();
+    expect(getRetainedDetails("span-a")).not.toBeNull();
+    expect(getRetainedDetails("span-b")).toBeNull();
+    expect(getRetainedDetails("span-c")).toHaveProperty("hidden", false);
   });
 
   it("cancels stale hydration when the target changes rapidly", () => {
@@ -128,6 +163,6 @@ describe("SpanDetailsPaintGate", () => {
     runNextFrame();
     runNextFrame();
     expect(getSkeleton().hidden).toBe(true);
-    expect(getRetainedDetails()?.textContent).toBe("Hydrated span-b");
+    expect(getRetainedDetails("span-b")?.textContent).toBe("Hydrated span-b");
   });
 });

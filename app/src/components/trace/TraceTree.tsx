@@ -92,14 +92,25 @@ function beginOptimisticSpanNavigation({
     "[data-span-details-state]"
   );
   if (detailsGate) {
-    detailsGate.dataset.spanDetailsState = "dehydrated";
     detailsGate.dataset.spanDetailsTargetId = spanNodeId;
-    detailsGate
-      .querySelector<HTMLElement>("[data-span-details-skeleton]")
-      ?.removeAttribute("hidden");
-    detailsGate
-      .querySelector<HTMLElement>("[data-span-details-retained-id]")
-      ?.setAttribute("hidden", "");
+    const retainedDetails = detailsGate.querySelectorAll<HTMLElement>(
+      "[data-span-details-retained-id]"
+    );
+    const cachedTarget = detailsGate.querySelector<HTMLElement>(
+      `[data-span-details-retained-id="${CSS.escape(spanNodeId)}"]`
+    );
+    retainedDetails.forEach((details) => details.setAttribute("hidden", ""));
+    const skeleton = detailsGate.querySelector<HTMLElement>(
+      "[data-span-details-skeleton]"
+    );
+    if (cachedTarget) {
+      detailsGate.dataset.spanDetailsState = "hydrating";
+      skeleton?.setAttribute("hidden", "");
+      cachedTarget.removeAttribute("hidden");
+    } else {
+      detailsGate.dataset.spanDetailsState = "dehydrated";
+      skeleton?.removeAttribute("hidden");
+    }
   }
 
   const pendingFrames = pendingSpanNavigationFrames.get(tree);

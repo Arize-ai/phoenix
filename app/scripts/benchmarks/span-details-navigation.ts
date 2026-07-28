@@ -301,7 +301,7 @@ async function installBrowserMeasurementTracker(page: Page) {
         `[data-span-details-target-id="${escapedTargetId}"][data-span-details-state="dehydrated"]`
       );
       const detailsBody = document.querySelector(
-        `[data-span-details-body-id="${escapedTargetId}"]`
+        `[data-span-details-retained-id="${escapedTargetId}"]:not([hidden]) [data-span-details-body-id="${escapedTargetId}"]`
       );
 
       if (selectedTreeNode && measurement.selectionObservedMs == null) {
@@ -550,7 +550,9 @@ async function measureLoadedPage({
   targetSpanNodeId: string;
 }): Promise<BrowserMeasurement> {
   await page
-    .locator(`[data-span-details-body-id="${targetSpanNodeId}"]`)
+    .locator(
+      `[data-span-details-retained-id="${targetSpanNodeId}"]:not([hidden]) [data-span-details-body-id="${targetSpanNodeId}"]`
+    )
     .waitFor();
   return page.evaluate(async (targetSpanNodeId) => {
     const bodyObservedMs = performance.now();
