@@ -67,6 +67,11 @@ from phoenix.server.sandbox import (  # noqa: E402
     SecretsContext,
     build_sandbox_backend,
 )
+from phoenix.server.sandbox.result_protocol import (
+    PHOENIX_RESULT_BEGIN,
+    PHOENIX_RESULT_END,
+    extract_framed_result,
+)
 from phoenix.server.sandbox.session_manager import (
     SandboxSessionManager,
     SessionInvalidated,
@@ -2476,48 +2481,6 @@ def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any
 _TYPESCRIPT_FUNCTION_SIGNATURE_RE = re.compile(r"function\s+evaluate\s*\(([^)]*)\)")
 _TYPESCRIPT_ARROW_SIGNATURE_RE = re.compile(r"(?:const|let|var)\s+evaluate\s*=\s*\(([^)]*)\)\s*=>")
 
-_PHOENIX_RESULT_BEGIN = "===PHOENIX_RESULT_BEGIN==="
-_PHOENIX_RESULT_END = "===PHOENIX_RESULT_END==="
-_PHOENIX_RESULT_BEGIN_RE = re.compile(
-    r"^" + re.escape(_PHOENIX_RESULT_BEGIN) + r"\s*$", re.MULTILINE
-)
-_PHOENIX_RESULT_END_RE = re.compile(r"^" + re.escape(_PHOENIX_RESULT_END) + r"\s*$", re.MULTILINE)
-
-_TYPESCRIPT_RESULT_BEGIN = _PHOENIX_RESULT_BEGIN
-_TYPESCRIPT_RESULT_END = _PHOENIX_RESULT_END
-
-
-def _extract_fenced_result(stdout: str) -> tuple[Optional[str], str]:
-    """Extract the last complete fenced region from ``stdout``.
-
-    Returns ``(fenced_text, non_fenced_text)`` where ``fenced_text`` is the
-    content between the last complete BEGIN/END pair (or ``None``).
-    """
-    begin_matches = list(_PHOENIX_RESULT_BEGIN_RE.finditer(stdout))
-    end_matches = list(_PHOENIX_RESULT_END_RE.finditer(stdout))
-    if not begin_matches or not end_matches:
-        return None, stdout
-
-    pairs: list[tuple[re.Match[str], re.Match[str]]] = []
-    end_idx = 0
-    for begin in begin_matches:
-        while end_idx < len(end_matches) and end_matches[end_idx].start() <= begin.end():
-            end_idx += 1
-        if end_idx >= len(end_matches):
-            break
-        pairs.append((begin, end_matches[end_idx]))
-        end_idx += 1
-
-    if not pairs:
-        return None, stdout
-
-    last_begin, last_end = pairs[-1]
-    fenced = stdout[last_begin.end() : last_end.start()].strip("\r\n")
-    pre = stdout[: last_begin.start()].rstrip("\r\n")
-    post = stdout[last_end.end() :].lstrip("\r\n")
-    non_fenced = ("\n".join(p for p in (pre, post) if p)).rstrip()
-    return fenced, non_fenced
-
 
 def _extract_typescript_object_parameter_keys(params: str) -> tuple[list[str], list[str]]:
     destructured = re.match(r"^\{([^}]*)\}", params.strip())
@@ -2643,9 +2606,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
             f"import json as _json\n"
             f"_inputs = {mapped_inputs!r}\n"
             f"_result = evaluate(**_inputs)\n"
-            f"print('{_PHOENIX_RESULT_BEGIN}')\n"
+            f"print('{PHOENIX_RESULT_BEGIN}')\n"
             f"print(_json.dumps(_result))\n"
-            f"print('{_PHOENIX_RESULT_END}')\n"
+            f"print('{PHOENIX_RESULT_END}')\n"
         )
 
     def _build_monty_harness(self) -> str:
@@ -2658,9 +2621,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
             f"const _inputs = {inputs_json};\n"
             f"const _run = async () => {{\n"
             f"  const _result = await evaluate(_inputs);\n"
-            f"  console.log('{_PHOENIX_RESULT_BEGIN}');\n"
+            f"  console.log('{PHOENIX_RESULT_BEGIN}');\n"
             f"  console.log(JSON.stringify(_result));\n"
-            f"  console.log('{_PHOENIX_RESULT_END}');\n"
+            f"  console.log('{PHOENIX_RESULT_END}');\n"
             f"}};\n"
             f"await _run();\n"
         )
@@ -2925,7 +2888,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
-                fenced_text, non_fenced_stdout = _extract_fenced_result(execution.stdout)
+                fenced_text, non_fenced_stdout = extract_framed_result(execution.stdout)
 
                 raw_value: Any = None
                 parse_error: Optional[str] = None

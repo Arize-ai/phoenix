@@ -15,6 +15,7 @@ from phoenix.server.monty_runtime import (
     MontyServiceError,
 )
 
+from .result_protocol import append_framed_result
 from .types import (
     BaseNoSessionBackend,
     ExecutionResult,
@@ -32,8 +33,6 @@ _DEFAULT_TIMEOUT_SECONDS = 30
 _VALIDATION_TIMEOUT_SECONDS = 0.05
 DEFAULT_STREAM_OUTPUT_BYTES = 1024 * 1024
 DEFAULT_RESULT_BYTES = 1024 * 1024
-_PHOENIX_RESULT_BEGIN = "===PHOENIX_RESULT_BEGIN==="
-_PHOENIX_RESULT_END = "===PHOENIX_RESULT_END==="
 
 
 class _BoundedTextSink:
@@ -134,9 +133,9 @@ class MontySandboxBackend(BaseNoSessionBackend):
                 raise ValueError(
                     f"Monty result exceeded the {DEFAULT_RESULT_BYTES}-byte output limit"
                 )
-            fenced_result = f"{_PHOENIX_RESULT_BEGIN}\n{serialized}\n{_PHOENIX_RESULT_END}\n"
             return ExecutionResult(
-                stdout=f"{stdout.getvalue()}\n{fenced_result}", stderr=stderr.getvalue()
+                stdout=append_framed_result(stdout.getvalue(), serialized),
+                stderr=stderr.getvalue(),
             )
         except MontyServiceError:
             raise

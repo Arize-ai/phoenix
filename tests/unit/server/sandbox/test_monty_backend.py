@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from phoenix.server.api.evaluators import _extract_fenced_result
 from phoenix.server.monty_runtime import (
     DEFAULT_GUEST_MAX_MEMORY_BYTES,
     DEFAULT_GUEST_MAX_RECURSION_DEPTH,
@@ -21,6 +20,7 @@ from phoenix.server.sandbox.monty_backend import (
     MontySandboxBackend,
     _BoundedTextSink,
 )
+from phoenix.server.sandbox.result_protocol import extract_framed_result
 from phoenix.server.sandbox.types import (
     MontyConfig,
     SandboxRuntimeContext,
@@ -59,7 +59,7 @@ async def test_execute_serializes_returned_value_after_unterminated_stdout(
         timeout=1,
     )
 
-    fenced_result, stdout = _extract_fenced_result(result.stdout)
+    fenced_result, stdout = extract_framed_result(result.stdout)
 
     assert result.success
     assert fenced_result is not None
