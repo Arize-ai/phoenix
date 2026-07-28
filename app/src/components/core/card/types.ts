@@ -41,6 +41,18 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
    */
   defaultOpen?: boolean;
   /**
+   * Whether the card body is open, when the caller owns that state. Leave unset
+   * to let the card track it from `defaultOpen`. Pair with `onOpenChange`, which
+   * is the only way a controlled card learns the reader toggled it. Only
+   * applicable if `collapsible` is `true`.
+   */
+  isOpen?: boolean;
+  /**
+   * Callback fired when the reader toggles the card, with the open state they
+   * asked for. Unlike `onCollapseChange`, this fires only on their action.
+   */
+  onOpenChange?: (isOpen: boolean) => void;
+  /**
    * Set when the title contains interactive elements (selects, buttons, etc.).
    * The collapse toggle then renders as a standalone arrow button beside the
    * title instead of wrapping it, so interactive controls are not nested

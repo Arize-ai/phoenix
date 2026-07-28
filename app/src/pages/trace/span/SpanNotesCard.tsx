@@ -16,6 +16,7 @@ import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { RowExpandToggleButton } from "@phoenix/components/table";
 
 import { useOpenSpanAside } from "../SpanAsideContext";
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { NOTE_HOTKEY } from "../SpanNotesEditor";
 import { SpanNotesTable } from "../SpanNotesTable";
 import { defaultCardProps } from "./constants";
@@ -40,9 +41,11 @@ function SpanNotesCardContents({ spanNodeId }: { spanNodeId: string }) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [areRowsExpanded, setAreRowsExpanded] = useState(false);
   const openSpanAside = useOpenSpanAside();
+  const cardProps = useSpanInfoCardProps("notes");
   return (
     <Card
       {...defaultCardProps}
+      {...cardProps}
       title="Notes"
       titleExtra={<Counter variant="quiet">{noteCount}</Counter>}
       defaultOpen={false}

@@ -13,6 +13,7 @@ import type {
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 import { LLMInvocationParams } from "./LLMInvocationParams";
 import type { LLMIOView } from "./LLMIOViewSelect";
@@ -105,11 +106,13 @@ export function LLMInput({
   ].filter(Boolean);
 
   const isRawView = view === "input" && hasInput;
+  const cardProps = useSpanInfoCardProps("input");
 
   return (
     <MarkdownDisplayProvider>
       <Card
-        collapsible
+        {...defaultCardProps}
+        {...cardProps}
         title="Input"
         subTitle={modelNameEl}
         extra={

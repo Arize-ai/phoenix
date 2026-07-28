@@ -41,6 +41,7 @@ import type {
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
+import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 import { TraceHeaderTraceAnnotations } from "./TraceHeaderTraceAnnotations";
 
 type RootSpan = NonNullable<
@@ -173,13 +174,17 @@ export function TraceDetails(props: TraceDetailsProps) {
         </Panel>
         <Separator css={compactResizeHandleCSS} />
         <Panel id="span-details">
-          <ScrollingTabsWrapper>
-            {selectedSpanNodeId ? (
-              <Suspense fallback={<Loading />}>
-                <SpanDetails spanNodeId={selectedSpanNodeId} />
-              </Suspense>
-            ) : null}
-          </ScrollingTabsWrapper>
+          {/* above the span details, so a collapse the reader asked for holds
+              as they move between spans in the tree */}
+          <SpanInfoCardsProvider>
+            <ScrollingTabsWrapper>
+              {selectedSpanNodeId ? (
+                <Suspense fallback={<Loading />}>
+                  <SpanDetails spanNodeId={selectedSpanNodeId} />
+                </Suspense>
+              ) : null}
+            </ScrollingTabsWrapper>
+          </SpanInfoCardsProvider>
         </Panel>
       </Group>
     </main>

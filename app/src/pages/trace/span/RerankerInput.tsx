@@ -13,6 +13,7 @@ import {
 import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
 import { DocumentItem } from "../DocumentItem";
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps, documentsListCSS } from "./constants";
 
 /**
@@ -28,11 +29,15 @@ export function RerankerInput({
   inputDocuments: AttributeDocument[];
 }) {
   const numInputDocuments = inputDocuments.length;
+  const cardProps = useSpanInfoCardProps("input");
   return (
     <Card
       title="Input"
-      subTitle={`${numInputDocuments} ${numInputDocuments === 1 ? "document" : "documents"}`}
+      subTitle={`${numInputDocuments} ${
+        numInputDocuments === 1 ? "document" : "documents"
+      }`}
       {...defaultCardProps}
+      {...cardProps}
     >
       <MarkdownDisplayProvider>
         <DisclosureGroup defaultExpandedKeys={["query"]}>

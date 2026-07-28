@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useContext, useEffect, useRef } from "react";
+import { TabListStateContext } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -44,6 +45,7 @@ import { SpanAside } from "./SpanAside";
 import { SpanAsideProvider, useOpenSpanAside } from "./SpanAsideContext";
 import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
+import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
 import { NOTE_HOTKEY } from "./SpanNotesEditor";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
@@ -238,7 +240,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             />
           </View>
           <Tabs>
-            <TabList>
+            <TabList extra={<SpanDetailsTabActions />}>
               <Tab id="info">Info</Tab>
               <Tab id="attributes">Attributes</Tab>
               <Tab id="events">
@@ -300,6 +302,16 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
       </Panel>
     </Group>
   );
+}
+
+/**
+ * Controls that sit level with the tabs and act on the selected panel. Only the
+ * info tab has any, so the slot is empty on the others rather than offering a
+ * control with nothing to act on.
+ */
+function SpanDetailsTabActions() {
+  const selectedTab = useContext(TabListStateContext)?.selectedKey;
+  return selectedTab === "info" ? <SpanInfoCardsToggle /> : null;
 }
 
 const spanInfoWrapCSS = css`
