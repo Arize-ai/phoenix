@@ -24,6 +24,13 @@ export const defaultCartesianGridProps: CartesianGridProps = {
  */
 const CHART_AXIS_FONT_SIZE = "12px";
 
+/**
+ * Recharts' default 1500ms line animation feels sluggish in compact metric
+ * panels, especially during resize. This matches its 400ms bar default so
+ * score and distribution views settle at the same pace.
+ */
+export const COMPACT_CHART_ANIMATION_DURATION_MS = 400;
+
 export const defaultXAxisProps: XAxisProps = {
   stroke: "var(--chart-axis-stroke-color)",
   style: {
