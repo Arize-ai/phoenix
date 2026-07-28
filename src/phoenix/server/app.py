@@ -708,7 +708,13 @@ def _lifespan(
                 # Surfaces a broken sandbox install at boot instead of leaving it
                 # for the first caller. Code mode is one feature, so a failure is
                 # logged and startup continues rather than taking the server down.
-                await sandbox.validate()
+                try:
+                    await sandbox.validate()
+                except Exception:
+                    logger.warning(
+                        "Code-mode sandbox startup check failed; continuing startup.",
+                        exc_info=True,
+                    )
             # Start the mounted MCP server's session manager (set in create_app).
             if (mcp_http_app := getattr(app.state, "mcp_http_app", None)) is not None:
                 await stack.enter_async_context(mcp_http_app.lifespan(app))

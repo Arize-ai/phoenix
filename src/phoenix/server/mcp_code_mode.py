@@ -30,12 +30,18 @@ DEFAULT_REQUEST_TIMEOUT = 180.0
 worker can go silent, not how long an ``execute`` takes."""
 
 DEFAULT_TOTAL_TIMEOUT = 300.0
-"""End-to-end ceiling for one ``execute``, host callbacks included. Immediate for
-a block awaiting a tool; a block already executing runs on to its guest limit."""
+"""End-to-end ceiling for one ``execute``, host callbacks and pool startup
+included. Immediate for a block awaiting a tool; a block already executing runs
+on to its guest limit."""
 
 DEFAULT_CHECKOUT_TIMEOUT = 30.0
 """How long an ``execute`` waits for a free worker before reporting a busy
 sandbox."""
+
+STARTUP_CHECK_TIMEOUT = 10.0
+"""Ceiling on the ``validate`` probe. It runs inline in server startup, so an
+install that spawns but never responds must stall boot briefly, not for the
+full execute budget."""
 
 
 class _Unset:
@@ -180,6 +186,18 @@ class MontyPoolSandboxProvider:
                 raise
             raise ToolError("Code mode sandbox is shutting down.") from exc
 
+    async def _acquire_and_feed(
+        self,
+        code: str,
+        inputs: Optional[dict[str, Any]],
+        external_functions: Optional[dict[str, Callable[..., Any]]],
+    ) -> Any:
+        """Everything the total timeout must bound: acquisition spawns workers
+        while holding the lock, so a wedged spawn left outside the deadline
+        would hang every ``run`` and ``aclose`` behind it."""
+        pool = await self._ensure_pool()
+        return await self._feed(pool, code, inputs, external_functions)
+
     async def run(
         self,
         code: str,
@@ -193,12 +211,11 @@ class MontyPoolSandboxProvider:
         sandbox failures become :class:`ToolError`.
         """
         pydantic_monty = _import_monty()
-        pool = await self._ensure_pool()
         try:
             # Applied here because no sandbox limit advances while the host
             # answers a `call_tool`.
             return await asyncio.wait_for(
-                self._feed(pool, code, inputs, external_functions),
+                self._acquire_and_feed(code, inputs, external_functions),
                 timeout=self._total_timeout,
             )
         except asyncio.TimeoutError as exc:
@@ -239,7 +256,9 @@ class MontyPoolSandboxProvider:
         protocol-incompatible one.
         """
         provider = MontyPoolSandboxProvider(
-            limits={"max_duration_secs": 10.0}, max_processes=1, total_timeout=30.0
+            limits={"max_duration_secs": 10.0},
+            max_processes=1,
+            total_timeout=STARTUP_CHECK_TIMEOUT,
         )
         try:
             await provider.run("return 1")

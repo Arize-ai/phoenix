@@ -161,6 +161,22 @@ async def test_total_timeout_bounds_a_block_dominated_by_tool_calls() -> None:
         await provider.aclose()
 
 
+@pytest.mark.real_code_mode_validate
+async def test_total_timeout_bounds_pool_startup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Acquisition is inside the end-to-end envelope. Monty currently spawns
+    lazily at checkout, so today a wedged install hangs there — but spawn-at-
+    startup is upstream's to change, and it happens under the provider lock."""
+    provider = MontyPoolSandboxProvider(total_timeout=0.2)
+
+    async def hang() -> Any:
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(provider, "_ensure_pool", hang)
+    with pytest.raises(ToolError, match="exceeded the"):
+        await asyncio.wait_for(provider.run("return 1"), timeout=5.0)
+
+
+@pytest.mark.real_code_mode_validate
 async def test_validate_reports_a_working_sandbox_and_leaves_nothing_running() -> None:
     provider = MontyPoolSandboxProvider()
     try:
@@ -170,12 +186,31 @@ async def test_validate_reports_a_working_sandbox_and_leaves_nothing_running() -
         await provider.aclose()
 
 
+@pytest.mark.real_code_mode_validate
 async def test_validate_reports_a_broken_install(monkeypatch: pytest.MonkeyPatch) -> None:
     """A broken install is reported at boot rather than raising into startup."""
     monkeypatch.setenv("MONTY_BIN", "/nonexistent/monty-binary")
     provider = MontyPoolSandboxProvider()
     try:
         assert await provider.validate() is False
+    finally:
+        await provider.aclose()
+
+
+@pytest.mark.real_code_mode_validate
+async def test_validate_is_bounded_when_the_install_hangs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    """A binary that spawns but never speaks the protocol hits no per-turn
+    bound, so only the startup-check ceiling keeps boot from stalling."""
+    stub = tmp_path / "monty"
+    stub.write_text("#!/bin/sh\nexec sleep 3600\n")
+    stub.chmod(0o755)
+    monkeypatch.setenv("MONTY_BIN", str(stub))
+    monkeypatch.setattr("phoenix.server.mcp_code_mode.STARTUP_CHECK_TIMEOUT", 1.0)
+    provider = MontyPoolSandboxProvider()
+    try:
+        assert await asyncio.wait_for(provider.validate(), timeout=10.0) is False
     finally:
         await provider.aclose()
 

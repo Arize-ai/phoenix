@@ -95,6 +95,38 @@ async def test_code_mode_sandbox_is_torn_down_after_the_mcp_server_drains(
     )
 
 
+async def test_app_starts_up_when_code_mode_startup_check_raises(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Code mode is one optional feature: a startup check that raises — not
+    just reports ``False`` — must not abort server startup."""
+    monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
+
+    class _ExplodingSandbox:
+        async def validate(self) -> bool:
+            raise RuntimeError("startup check blew up")
+
+        async def aclose(self) -> None:
+            return None
+
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=db,
+            authentication_enabled=False,
+            serve_ui=False,
+            bulk_inserter_factory=TestBulkInserter,
+        )
+        # The guarded path is actually exercised: code mode built a sandbox.
+        assert app.state.mcp_code_mode_sandbox is not None
+        app.state.mcp_code_mode_sandbox = _ExplodingSandbox()
+        # Lifespan startup must not raise even though the check does.
+        await stack.enter_async_context(LifespanManager(app))
+
+
 async def test_mcp_server_not_mounted_by_default(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
