@@ -14,10 +14,7 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
-from phoenix.server.session_filters import (
-    get_filtered_session_rowids_subquery,
-    get_io_substring_session_rowids_subquery,
-)
+from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
@@ -27,11 +24,6 @@ TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
 # A session filter DSL expression (see phoenix.trace.dsl.session_filter).
 SessionFilterCondition: TypeAlias = Optional[str]
-# A case-insensitive substring matched against session root-span input/output.
-FilterIoSubstring: TypeAlias = Optional[str]
-# Rowid of a single session to scope the summary to, used when the sessions
-# table search resolves to an exact session-ID match.
-SessionRowId: TypeAlias = Optional[int]
 AnnotationName: TypeAlias = str
 
 Segment: TypeAlias = tuple[
@@ -40,8 +32,6 @@ Segment: TypeAlias = tuple[
     TimeInterval,
     FilterCondition,
     SessionFilterCondition,
-    FilterIoSubstring,
-    SessionRowId,
 ]
 Param: TypeAlias = AnnotationName
 
@@ -51,8 +41,6 @@ Key: TypeAlias = tuple[
     Optional[TimeRange],
     FilterCondition,
     SessionFilterCondition,
-    FilterIoSubstring,
-    SessionRowId,
     AnnotationName,
 ]
 Result: TypeAlias = Optional[AnnotationSummary]
@@ -67,8 +55,6 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
         time_range,
         filter_condition,
         session_filter_condition,
-        filter_io_substring,
-        session_rowid,
         eval_name,
     ) = key
     interval = (
@@ -80,15 +66,11 @@ def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
         interval,
         filter_condition,
         session_filter_condition,
-        filter_io_substring,
-        session_rowid,
     ), eval_name
 
 
 _Section: TypeAlias = tuple[ProjectRowId, AnnotationName, Kind]
-_SubKey: TypeAlias = tuple[
-    TimeInterval, FilterCondition, SessionFilterCondition, FilterIoSubstring, SessionRowId
-]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, SessionFilterCondition]
 
 
 class AnnotationSummaryCache(
@@ -116,8 +98,6 @@ class AnnotationSummaryCache(
                 interval,
                 filter_condition,
                 session_filter_condition,
-                filter_io_substring,
-                session_rowid,
             ),
             annotation_name,
         ) = _cache_key_fn(key)
@@ -125,8 +105,6 @@ class AnnotationSummaryCache(
             interval,
             filter_condition,
             session_filter_condition,
-            filter_io_substring,
-            session_rowid,
         )
 
 
@@ -173,8 +151,6 @@ def _get_stmt(
         (start_time, end_time),
         filter_condition,
         session_filter_condition,
-        filter_io_substring,
-        session_rowid,
     ) = segment
 
     annotation_model: Union[
@@ -185,8 +161,8 @@ def _get_stmt(
     entity_model: Union[Type[models.Span], Type[models.Trace], Type[models.ProjectSession]]
     entity_join_model: Optional[Type[models.Base]]
     entity_id_column: Any
-    # The column holding the session rowid, used when a session filter narrows
-    # the summary to sessions whose root span input/output matches a substring.
+    # The column holding the session rowid, used when a session filter condition
+    # narrows the summary to the sessions it matches.
     session_rowid_column: Any
     # The column holding the project rowid, used to scope the (possibly
     # joined) entity rows to a project.
@@ -257,16 +233,6 @@ def _get_stmt(
         entity_count_query = entity_count_query.where(
             session_rowid_column.in_(filtered_session_rowids)
         )
-    if filter_io_substring:
-        io_session_rowids = get_io_substring_session_rowids_subquery(
-            io_substring=filter_io_substring,
-            project_rowids=[project_rowid],
-            start_time=start_time,
-            end_time=end_time,
-        )
-        entity_count_query = entity_count_query.where(session_rowid_column.in_(io_session_rowids))
-    if session_rowid is not None:
-        entity_count_query = entity_count_query.where(session_rowid_column == session_rowid)
 
     entity_count_query = entity_count_query.where(
         or_(score_column.is_not(None), label_column.is_not(None))
@@ -304,16 +270,6 @@ def _get_stmt(
             end_time=end_time,
         )
         base_stmt = base_stmt.where(session_rowid_column.in_(filtered_session_rowids))
-    if filter_io_substring:
-        io_session_rowids = get_io_substring_session_rowids_subquery(
-            io_substring=filter_io_substring,
-            project_rowids=[project_rowid],
-            start_time=start_time,
-            end_time=end_time,
-        )
-        base_stmt = base_stmt.where(session_rowid_column.in_(io_session_rowids))
-    if session_rowid is not None:
-        base_stmt = base_stmt.where(session_rowid_column == session_rowid)
 
     base_stmt = base_stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
     base_stmt = base_stmt.where(name_column.in_(annotation_names))

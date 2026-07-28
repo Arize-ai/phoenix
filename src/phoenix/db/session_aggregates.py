@@ -152,19 +152,13 @@ def cost_summary_by_session() -> SessionAggregate:
     )
 
 
-def span_kind_count_by_session(
-    span_kind: str,
-    span_name: Optional[str] = None,
-) -> SessionAggregate:
+def span_kind_count_by_session(span_kind: str) -> SessionAggregate:
     """Number of spans of a given kind per session — value column ``span_kind_count``."""
-    where = [func.upper(models.Span.span_kind) == span_kind.upper()]
-    if span_name is not None:
-        where.append(models.Span.name == span_name)
     return SessionAggregate(
         values=(func.count(models.Span.id).label("span_kind_count"),),
         source=models.Span,
         joins=(models.Trace,),
-        where=tuple(where),
+        where=(func.upper(models.Span.span_kind) == span_kind.upper(),),
     )
 
 

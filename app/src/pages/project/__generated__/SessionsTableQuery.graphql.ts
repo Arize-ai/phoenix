@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<51af62ce9966af459ac24b7b082b47cb>>
+ * @generated SignedSource<<2543152266663abcbbdaa939cb10497d>>
  * @lightSyntaxTransform
  */
 
@@ -27,11 +27,9 @@ export type TimeRange = {
 };
 export type SessionsTableQuery$variables = {
   after?: string | null;
-  filterIoSubstring?: string | null;
   first?: number | null;
   id: string;
   sessionFilterCondition?: string | null;
-  sessionId?: string | null;
   sort?: ProjectSessionSort | null;
   timeRange?: TimeRange | null;
 };
@@ -52,31 +50,21 @@ var v0 = {
   "name": "after"
 },
 v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "filterIoSubstring"
-},
-v2 = {
   "defaultValue": 30,
   "kind": "LocalArgument",
   "name": "first"
 },
-v3 = {
+v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "id"
 },
-v4 = {
+v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "sessionFilterCondition"
 },
-v5 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "sessionId"
-},
-v6 = {
+v4 = {
   "defaultValue": {
     "col": "startTime",
     "dir": "desc"
@@ -84,83 +72,71 @@ v6 = {
   "kind": "LocalArgument",
   "name": "sort"
 },
-v7 = {
+v5 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "timeRange"
 },
-v8 = [
+v6 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v9 = {
+v7 = {
   "kind": "Variable",
   "name": "after",
   "variableName": "after"
 },
-v10 = {
-  "kind": "Variable",
-  "name": "filterIoSubstring",
-  "variableName": "filterIoSubstring"
-},
-v11 = {
+v8 = {
   "kind": "Variable",
   "name": "first",
   "variableName": "first"
 },
-v12 = {
+v9 = {
   "kind": "Variable",
   "name": "sessionFilterCondition",
   "variableName": "sessionFilterCondition"
 },
-v13 = {
-  "kind": "Variable",
-  "name": "sessionId",
-  "variableName": "sessionId"
-},
-v14 = {
+v10 = {
   "kind": "Variable",
   "name": "sort",
   "variableName": "sort"
 },
-v15 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v16 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v17 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v18 = [
+v14 = [
+  (v7/*:: as any*/),
+  (v8/*:: as any*/),
   (v9/*:: as any*/),
   (v10/*:: as any*/),
-  (v11/*:: as any*/),
-  (v12/*:: as any*/),
-  (v13/*:: as any*/),
-  (v14/*:: as any*/),
   {
     "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
   }
 ],
-v19 = [
+v15 = [
   {
     "alias": "value",
     "args": null,
@@ -169,14 +145,14 @@ v19 = [
     "storageKey": null
   }
 ],
-v20 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v21 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -191,9 +167,7 @@ return {
       (v2/*:: as any*/),
       (v3/*:: as any*/),
       (v4/*:: as any*/),
-      (v5/*:: as any*/),
-      (v6/*:: as any*/),
-      (v7/*:: as any*/)
+      (v5/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -201,7 +175,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v8/*:: as any*/),
+        "args": (v6/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -209,12 +183,10 @@ return {
         "selections": [
           {
             "args": [
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
               (v9/*:: as any*/),
-              (v10/*:: as any*/),
-              (v11/*:: as any*/),
-              (v12/*:: as any*/),
-              (v13/*:: as any*/),
-              (v14/*:: as any*/)
+              (v10/*:: as any*/)
             ],
             "kind": "FragmentSpread",
             "name": "SessionsTable_sessions"
@@ -231,30 +203,28 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/),
+      (v3/*:: as any*/),
       (v4/*:: as any*/),
       (v5/*:: as any*/),
-      (v6/*:: as any*/),
-      (v7/*:: as any*/),
-      (v3/*:: as any*/)
+      (v2/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "SessionsTableQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v8/*:: as any*/),
+        "args": (v6/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v15/*:: as any*/),
-          (v16/*:: as any*/),
+          (v11/*:: as any*/),
+          (v12/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v17/*:: as any*/),
+              (v13/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -264,7 +234,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v18/*:: as any*/),
+                "args": (v14/*:: as any*/),
                 "concreteType": "ProjectSessionConnection",
                 "kind": "LinkedField",
                 "name": "sessions",
@@ -286,7 +256,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v16/*:: as any*/),
+                          (v12/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -329,7 +299,7 @@ return {
                             "kind": "LinkedField",
                             "name": "firstInput",
                             "plural": false,
-                            "selections": (v19/*:: as any*/),
+                            "selections": (v15/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -339,7 +309,7 @@ return {
                             "kind": "LinkedField",
                             "name": "lastOutput",
                             "plural": false,
-                            "selections": (v19/*:: as any*/),
+                            "selections": (v15/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -423,10 +393,10 @@ return {
                             "name": "sessionAnnotations",
                             "plural": true,
                             "selections": [
+                              (v12/*:: as any*/),
+                              (v13/*:: as any*/),
                               (v16/*:: as any*/),
                               (v17/*:: as any*/),
-                              (v20/*:: as any*/),
-                              (v21/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -456,7 +426,7 @@ return {
                                     "name": "profilePictureUrl",
                                     "storageKey": null
                                   },
-                                  (v16/*:: as any*/)
+                                  (v12/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -486,7 +456,7 @@ return {
                                     "name": "fraction",
                                     "storageKey": null
                                   },
-                                  (v20/*:: as any*/)
+                                  (v16/*:: as any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -497,7 +467,7 @@ return {
                                 "name": "meanScore",
                                 "storageKey": null
                               },
-                              (v17/*:: as any*/),
+                              (v13/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -530,7 +500,7 @@ return {
                             "name": "project",
                             "plural": false,
                             "selections": [
-                              (v16/*:: as any*/),
+                              (v12/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -555,7 +525,7 @@ return {
                                         "name": "node",
                                         "plural": false,
                                         "selections": [
-                                          (v15/*:: as any*/),
+                                          (v11/*:: as any*/),
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
@@ -573,8 +543,8 @@ return {
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
-                                              (v16/*:: as any*/),
-                                              (v17/*:: as any*/),
+                                              (v12/*:: as any*/),
+                                              (v13/*:: as any*/),
                                               {
                                                 "alias": null,
                                                 "args": null,
@@ -590,8 +560,8 @@ return {
                                                 "name": "values",
                                                 "plural": true,
                                                 "selections": [
-                                                  (v20/*:: as any*/),
-                                                  (v21/*:: as any*/)
+                                                  (v16/*:: as any*/),
+                                                  (v17/*:: as any*/)
                                                 ],
                                                 "storageKey": null
                                               }
@@ -602,7 +572,7 @@ return {
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
-                                              (v16/*:: as any*/)
+                                              (v12/*:: as any*/)
                                             ],
                                             "type": "Node",
                                             "abstractKey": "__isNode"
@@ -637,8 +607,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v15/*:: as any*/),
-                          (v16/*:: as any*/)
+                          (v11/*:: as any*/),
+                          (v12/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -675,13 +645,11 @@ return {
               },
               {
                 "alias": null,
-                "args": (v18/*:: as any*/),
+                "args": (v14/*:: as any*/),
                 "filters": [
                   "sort",
-                  "filterIoSubstring",
                   "sessionFilterCondition",
-                  "timeRange",
-                  "sessionId"
+                  "timeRange"
                 ],
                 "handle": "connection",
                 "key": "SessionsTable_sessions",
@@ -698,16 +666,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7e1e905f312f0ccd1a7c1a0ecf99245a",
+    "cacheID": "83cab4d0a5ef8c0c551dc1623c8acf9a",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $filterIoSubstring: String = null\n  $first: Int = 30\n  $sessionFilterCondition: String = null\n  $sessionId: String = null\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_1DNdLi\n    id\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionColumnSelector_annotations on Project {\n  sessionAnnotationNames\n}\n\nfragment SessionsTable_sessions_1DNdLi on Project {\n  id\n  name\n  ...SessionColumnSelector_annotations\n  sessions(first: $first, after: $after, sort: $sort, filterIoSubstring: $filterIoSubstring, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange, sessionId: $sessionId) {\n    edges {\n      session: node {\n        id\n        sessionId\n        userId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value: truncatedValue\n        }\n        lastOutput {\n          value: truncatedValue\n        }\n        tokenUsage {\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n        costSummary {\n          total {\n            cost\n          }\n        }\n        sessionAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          user {\n            username\n            profilePictureUrl\n            id\n          }\n        }\n        sessionAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        project {\n          id\n          annotationConfigs {\n            edges {\n              node {\n                __typename\n                ... on AnnotationConfigBase {\n                  __isAnnotationConfigBase: __typename\n                  annotationType\n                }\n                ... on CategoricalAnnotationConfig {\n                  id\n                  name\n                  optimizationDirection\n                  values {\n                    label\n                    score\n                  }\n                }\n                ... on Node {\n                  __isNode: __typename\n                  id\n                }\n              }\n            }\n          }\n        }\n        ...SessionAnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 30\n  $sessionFilterCondition: String = null\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2tSkrj\n    id\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionColumnSelector_annotations on Project {\n  sessionAnnotationNames\n}\n\nfragment SessionsTable_sessions_2tSkrj on Project {\n  id\n  name\n  ...SessionColumnSelector_annotations\n  sessions(first: $first, after: $after, sort: $sort, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        userId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value: truncatedValue\n        }\n        lastOutput {\n          value: truncatedValue\n        }\n        tokenUsage {\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n        costSummary {\n          total {\n            cost\n          }\n        }\n        sessionAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          user {\n            username\n            profilePictureUrl\n            id\n          }\n        }\n        sessionAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        project {\n          id\n          annotationConfigs {\n            edges {\n              node {\n                __typename\n                ... on AnnotationConfigBase {\n                  __isAnnotationConfigBase: __typename\n                  annotationType\n                }\n                ... on CategoricalAnnotationConfig {\n                  id\n                  name\n                  optimizationDirection\n                  values {\n                    label\n                    score\n                  }\n                }\n                ... on Node {\n                  __isNode: __typename\n                  id\n                }\n              }\n            }\n          }\n        }\n        ...SessionAnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d6dc3442f38e1f99aeb014f3ea2d4961";
+(node as any).hash = "bd21d26acb6b02042bc7743aac5560c6";
 
 export default node;

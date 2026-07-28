@@ -2028,6 +2028,11 @@ class _Data:
     projects: list[models.Project] = field(default_factory=list)
 
 
+# The `_data` fixture's sessions 1 and 3 are the two whose root-span input/output carry this
+# fragment; the sort tests use it to exercise sorting and cursor paging under a filter.
+_IO_CONDITION_ARG = "\"'\\\"\\\\'f' in any_input or '\\\"\\\\'f' in any_output\""
+
+
 class TestProject:
     @staticmethod
     async def _node(
@@ -2310,23 +2315,7 @@ class TestProject:
                 res = await self._node(field, project, httpx_client)
                 assert [e["node"]["id"] for e in res["edges"]] == expected
 
-    async def test_filter_by_session_id(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project = _data.projects[0]
-        session = _data.project_sessions[0]
-        field = f'sessions(first:50,sessionId:"{session.session_id}")' + "{edges{node{id}}}"
-        res = await self._node(field, project, httpx_client)
-        assert [e["node"]["id"] for e in res["edges"]] == [_gid(session)]
-
-        # Searching for a non-existent session ID should return an empty list
-        field = f'sessions(first:50,sessionId:"{token_hex(16)}")' + "{edges{node{id}}}"
-        res = await self._node(field, project, httpx_client)
-        assert [e["node"]["id"] for e in res["edges"]] == []
-
-    async def test_sessions_sort_token_count_total_plus_substring_filter(
+    async def test_sessions_sort_token_count_total_plus_session_filter_condition(
         self,
         _data: _Data,
         httpx_client: httpx.AsyncClient,
@@ -2344,7 +2333,9 @@ class TestProject:
                 + column
                 + ",dir:"
                 + direction
-                + '},filterIoSubstring:"\\"\'f"){edges{node{id}}}'
+                + "},sessionFilterCondition:"
+                + _IO_CONDITION_ARG
+                + "){edges{node{id}}}"
             )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
@@ -2363,7 +2354,9 @@ class TestProject:
                     + column
                     + ",dir:"
                     + direction
-                    + '},filterIoSubstring:"\\"\'f",first:'
+                    + "},sessionFilterCondition:"
+                    + _IO_CONDITION_ARG
+                    + ",first:"
                     + str(first)
                     + ',after:"'
                     + base64.b64encode(after).decode()
@@ -2420,7 +2413,7 @@ class TestProject:
                 res = await self._node(field, project, httpx_client)
                 assert [e["node"]["id"] for e in res["edges"]] == expected
 
-    async def test_sessions_sort_num_traces_plus_substring_filter(
+    async def test_sessions_sort_num_traces_plus_session_filter_condition(
         self,
         _data: _Data,
         httpx_client: httpx.AsyncClient,
@@ -2438,7 +2431,9 @@ class TestProject:
                 + column
                 + ",dir:"
                 + direction
-                + '},filterIoSubstring:"\\"\'f"){edges{node{id}}}'
+                + "},sessionFilterCondition:"
+                + _IO_CONDITION_ARG
+                + "){edges{node{id}}}"
             )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
@@ -2457,7 +2452,9 @@ class TestProject:
                     + column
                     + ",dir:"
                     + direction
-                    + '},filterIoSubstring:"\\"\'f",first:'
+                    + "},sessionFilterCondition:"
+                    + _IO_CONDITION_ARG
+                    + ",first:"
                     + str(first)
                     + ',after:"'
                     + base64.b64encode(after).decode()
@@ -2778,74 +2775,6 @@ class TestProject:
         ]
         assert res["pageInfo"]["hasNextPage"] is False
 
-    async def test_sessions_substring_search_looks_at_both_input_and_output(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project = _data.projects[0]
-        field = 'sessions(first:50,filterIoSubstring:"\\"\'f"){edges{node{id}}}'
-        res = await self._node(field, project, httpx_client)
-        assert {e["node"]["id"] for e in res["edges"]} == {
-            _gid(_data.project_sessions[1]),
-            _gid(_data.project_sessions[3]),
-        }
-
-    async def test_sessions_substring_search_looks_at_only_root_spans(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project = _data.projects[0]
-        field = 'sessions(first:50,filterIoSubstring:"\\"\'j"){edges{node{id}}}'
-        res = await self._node(field, project, httpx_client)
-        assert {e["node"]["id"] for e in res["edges"]} == set()
-
-    async def test_sessions_and_session_count_compose_substring_with_session_filter_condition(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project = _data.projects[0]
-        io_substring = "\"'f"
-        condition = (
-            f"session_id == '{_data.project_sessions[1].session_id}' "
-            f"or session_id == '{_data.project_sessions[2].session_id}'"
-        )
-        io_arg = json.dumps(io_substring)
-        condition_arg = json.dumps(condition)
-
-        sessions_result = await self._node(
-            "sessions("
-            f"filterIoSubstring:{io_arg},"
-            f"sessionFilterCondition:{condition_arg}"
-            "){edges{node{id}}}",
-            project,
-            httpx_client,
-        )
-        assert [e["node"]["id"] for e in sessions_result["edges"]] == [
-            _gid(_data.project_sessions[1])
-        ]
-
-        session_count = await self._node(
-            f"sessionCount(filterIoSubstring:{io_arg},sessionFilterCondition:{condition_arg})",
-            project,
-            httpx_client,
-        )
-        assert session_count == 1
-
-        # Each half is broader on its own — the composition is an AND, not a fallback to either.
-        assert (
-            await self._node(f"sessionCount(filterIoSubstring:{io_arg})", project, httpx_client)
-            == 2
-        )
-        assert (
-            await self._node(
-                f"sessionCount(sessionFilterCondition:{condition_arg})", project, httpx_client
-            )
-            == 2
-        )
-
     @pytest.fixture
     async def _case_insensitive_data(
         self,
@@ -2893,70 +2822,27 @@ class TestProject:
             projects=projects,
         )
 
-    async def test_sessions_case_insensitive_filtering(
-        self,
-        _case_insensitive_data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        """Test GraphQL integration for case-insensitive filtering."""
-        project = _case_insensitive_data.projects[0]
-
-        test_cases = [
-            ("\\'\"hello", [0, 1, 4], "Basic case-insensitive matching"),
-            ("WÖRLD'\"", [0, 1], "Unicode case-insensitivity"),
-            ("%", [2], "Special percentage sign"),
-            ("_", [3], "Special underscore"),
-            ("'; DROP TABLE users;--", [], "No matches"),
-        ]
-
-        for filter_substring, expected_session_indices, description in test_cases:
-            # Escape the filter substring for GraphQL
-            escaped_filter = filter_substring.replace("\\", "\\\\").replace('"', '\\"')
-            field = (
-                f'sessions(first:50,filterIoSubstring:"{escaped_filter}"){{edges{{node{{id}}}}}}'
-            )
-
-            res = await self._node(field, project, httpx_client)
-
-            # Get the expected session IDs
-            expected_session_ids = {
-                _gid(_case_insensitive_data.project_sessions[i]) for i in expected_session_indices
-            }
-
-            actual_session_ids = {e["node"]["id"] for e in res["edges"]}
-
-            assert actual_session_ids == expected_session_ids, (
-                f"{description} failed: "
-                f"Expected sessions {expected_session_indices} for filter '{filter_substring}', "
-                f"but got {actual_session_ids}"
-            )
-
-    async def test_search_box_is_case_insensitive_but_session_dsl_in_is_case_sensitive(
+    async def test_session_dsl_containment_is_case_sensitive(
         self,
         _case_insensitive_data: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project = _case_insensitive_data.projects[0]
-        filter_arg = json.dumps("hello")
 
-        search_result = await self._node(
-            f"sessions(filterIoSubstring:{filter_arg}){{edges{{node{{id}}}}}}",
-            project,
-            httpx_client,
-        )
-        assert {e["node"]["id"] for e in search_result["edges"]} == {
+        async def _matched(condition: str) -> set[str]:
+            result = await self._node(
+                f"sessions(first:50,sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+                project,
+                httpx_client,
+            )
+            return {e["node"]["id"] for e in result["edges"]}
+
+        # Sessions 0 and 4 spell it "Hello"; `in` matches the exact casing only.
+        assert await _matched("'Hello' in any_input") == {
             _gid(_case_insensitive_data.project_sessions[0]),
-            _gid(_case_insensitive_data.project_sessions[1]),
             _gid(_case_insensitive_data.project_sessions[4]),
         }
-
-        condition_arg = json.dumps("'hello' in any_input")
-        dsl_result = await self._node(
-            f"sessions(sessionFilterCondition:{condition_arg}){{edges{{node{{id}}}}}}",
-            project,
-            httpx_client,
-        )
-        assert [e["node"]["id"] for e in dsl_result["edges"]] == []
+        assert await _matched("'hello' in any_input") == set()
 
     @pytest.mark.parametrize("orphan_span_as_root_span", [False, True])
     async def test_root_spans_only_with_orphan_spans(
@@ -4346,7 +4232,6 @@ class TestProject:
         static_names = {t["name"] for t in terms if t["name"] in SESSION_BINDINGS.binding_names}
         assert static_names == set(SESSION_BINDINGS.binding_names)
         assert {"any_input", "any_output"}.issubset(static_names)
-        assert not any(name.startswith("__session_tool_call_count_by_name_") for name in term_names)
         # Every served term carries a non-empty gloss.
         assert all(t["description"] for t in terms)
         num_traces_term = next(t for t in terms if t["name"] == "num_traces")
@@ -4376,15 +4261,8 @@ class TestProject:
         # Per-project session-annotation names are folded in as fully-typed terms.
         assert 'annotations["quality"].score' in term_names
         assert 'annotations["quality"].label' in term_names
-        for term_name in {'tool_call_count["lookup"]', 'tool_call_count["search"]'}:
-            assert terms_by_name[term_name]["type"] == "number"
-            assert terms_by_name[term_name]["category"] == "aggregate"
-            assert "TOOL spans named" in terms_by_name[term_name]["description"]
-        absent_tool_terms = {
-            'tool_call_count["llm_not_cataloged"]',
-            'tool_call_count["other_tool"]',
-        }
-        assert absent_tool_terms.isdisjoint(terms_by_name)
+        # Span counts are session totals only — no per-tool-name terms are served.
+        assert not any(name.startswith("tool_span_count[") for name in term_names)
 
     async def test_session_count_shares_dsl_path_with_sessions_and_record_count(
         self,
@@ -4418,44 +4296,25 @@ class TestProject:
             == 2
         )
 
-    async def test_sessions_and_session_count_agree_on_exact_session_id_precedence(
+    async def test_sessions_lookup_by_exact_session_id_via_dsl(
         self,
         _data: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        """An exact session_id hit short-circuits the composed filters; a miss falls through to
-        them. The sessions list and sessionCount take the same branch in both cases."""
+        """`session_id == '...'` is how the DSL expresses a single-session lookup."""
         project = _data.projects[0]
+        session = _data.project_sessions[0]
 
-        async def _list_ids(args: str) -> list[str]:
+        async def _list_ids(condition: str) -> list[str]:
             result = await self._node(
-                f"sessions({args}){{edges{{node{{id}}}}}}", project, httpx_client
+                f"sessions(first:50,sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+                project,
+                httpx_client,
             )
             return [e["node"]["id"] for e in result["edges"]]
 
-        async def _count(args: str) -> int:
-            count = await self._node(f"sessionCount({args})", project, httpx_client)
-            assert isinstance(count, int)
-            return count
-
-        # Exact-ID hit wins over the substring/DSL that would otherwise exclude it (session 0
-        # has a single trace, so `num_traces >= 999` fails).
-        exact_session = _data.project_sessions[0]
-        hit_args = (
-            f"sessionId:{json.dumps(exact_session.session_id)},"
-            f"filterIoSubstring:{json.dumps('does-not-match')},"
-            f"sessionFilterCondition:{json.dumps('num_traces >= 999')}"
-        )
-        assert await _list_ids(hit_args) == [_gid(exact_session)]
-        assert await _count(hit_args) == 1
-
-        # Exact-ID miss falls through to the composed filters; only session index 2 has two traces.
-        miss_args = (
-            f"sessionId:{json.dumps('does-not-exist')},"
-            f"sessionFilterCondition:{json.dumps('num_traces >= 2')}"
-        )
-        assert await _list_ids(miss_args) == [_gid(_data.project_sessions[2])]
-        assert await _count(miss_args) == 1
+        assert await _list_ids(f"session_id == {session.session_id!r}") == [_gid(session)]
+        assert await _list_ids(f"session_id == {token_hex(16)!r}") == []
 
     @staticmethod
     async def _validate_session_filter(
@@ -4536,19 +4395,10 @@ class TestProject:
             for w in result["warnings"]
         )
 
-        # Typo'd tool name: same soft-warning behavior.
-        result = await self._validate_session_filter(
-            project, 'tool_call_count["typo"] > 0', gql_client
-        )
-        assert result["isValid"] is True
-        assert any(
-            w.startswith("unknown tool name 'typo'") and "search" in w for w in result["warnings"]
-        )
-
-        # Valid names (both observed) produce no warnings.
+        # An observed annotation name produces no warnings.
         result = await self._validate_session_filter(
             project,
-            "annotations['quality'].score > 0.5 and tool_call_count['search'] > 0",
+            "annotations['quality'].score > 0.5 and tool_span_count > 0",
             gql_client,
         )
         assert result["isValid"] is True
@@ -6080,10 +5930,13 @@ async def test_session_count_returns_expected_count(
         await _add_project_session(session, project, session_id="target-session", start_time=late)
 
     query = """
-      query ($projectId: ID!, $timeRange: TimeRange, $sessionId: String) {
+      query ($projectId: ID!, $timeRange: TimeRange, $sessionFilterCondition: String) {
         project: node(id: $projectId) {
           ... on Project {
-            sessionCount(timeRange: $timeRange, sessionId: $sessionId)
+            sessionCount(
+              timeRange: $timeRange
+              sessionFilterCondition: $sessionFilterCondition
+            )
           }
         }
       }
@@ -6119,12 +5972,12 @@ async def test_session_count_returns_expected_count(
     assert response.data is not None
     assert response.data["project"]["sessionCount"] == 1
 
-    # Exact session-ID match exercises the direct-query fallback branch.
+    # An expression filter leaves the dataloader path for a direct count query.
     response = await gql_client.execute(
         query=query,
         variables={
             "projectId": project_gid,
-            "sessionId": "target-session",
+            "sessionFilterCondition": "session_id == 'target-session'",
         },
     )
 
@@ -7033,40 +6886,19 @@ async def test_session_stats(
         await _add_span(session, trace2, attributes={"input": {"value": "beta task"}})
 
     query = """
-      query (
-        $projectId: ID!
-        $timeRange: TimeRange
-        $filterIoSubstring: String
-        $sessionId: String
-      ) {
+      query ($projectId: ID!, $timeRange: TimeRange) {
         node(id: $projectId) {
           ... on Project {
-            sessionCount(
-              timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            )
-            averageSessionDurationMs(
-              timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            )
-            averageTracesPerSession(
-              timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            )
+            sessionCount(timeRange: $timeRange)
+            averageSessionDurationMs(timeRange: $timeRange)
+            averageTracesPerSession(timeRange: $timeRange)
             sessionDurationMsP50: sessionDurationMsQuantile(
               probability: 0.5
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
             )
             sessionDurationMsP99: sessionDurationMsQuantile(
               probability: 0.99
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
             )
           }
         }
@@ -7082,17 +6914,6 @@ async def test_session_stats(
     assert response.data["node"]["averageTracesPerSession"] == 1.5
     assert response.data["node"]["sessionDurationMsP50"] == pytest.approx(15000.0)
     assert response.data["node"]["sessionDurationMsP99"] == pytest.approx(19900.0)
-
-    response = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "filterIoSubstring": "alpha"}
-    )
-    assert not response.errors
-    assert response.data is not None
-    assert response.data["node"]["sessionCount"] == 1
-    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
-    assert response.data["node"]["averageTracesPerSession"] == 2.0
-    assert response.data["node"]["sessionDurationMsP50"] == pytest.approx(10000.0)
-    assert response.data["node"]["sessionDurationMsP99"] == pytest.approx(10000.0)
 
     response = await gql_client.execute(
         query=query,
@@ -7129,60 +6950,6 @@ async def test_session_stats(
     assert response.data["node"]["averageTracesPerSession"] is None
     assert response.data["node"]["sessionDurationMsP50"] is None
     assert response.data["node"]["sessionDurationMsP99"] is None
-
-    # The UI passes the search text as both the substring filter and an exact
-    # session-ID lookup; the exact match wins even though the ID appears
-    # nowhere in the input/output, mirroring the sessions table
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "filterIoSubstring": "session-1-exact-id",
-            "sessionId": "session-1-exact-id",
-        },
-    )
-    assert not response.errors
-    assert response.data is not None
-    assert response.data["node"]["sessionCount"] == 1
-    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
-    assert response.data["node"]["averageTracesPerSession"] == 2.0
-    assert response.data["node"]["sessionDurationMsP50"] == pytest.approx(10000.0)
-    assert response.data["node"]["sessionDurationMsP99"] == pytest.approx(10000.0)
-
-    # The exact session-ID match also ignores the time range, like the
-    # sessions table
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "timeRange": {
-                "start": (base_time + timedelta(days=1)).isoformat(),
-                "end": (base_time + timedelta(days=2)).isoformat(),
-            },
-            "filterIoSubstring": "session-1-exact-id",
-            "sessionId": "session-1-exact-id",
-        },
-    )
-    assert not response.errors
-    assert response.data is not None
-    assert response.data["node"]["sessionCount"] == 1
-    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
-
-    # When the search text matches no session ID exactly, the substring
-    # filter still applies
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "filterIoSubstring": "alpha",
-            "sessionId": "alpha",
-        },
-    )
-    assert not response.errors
-    assert response.data is not None
-    assert response.data["node"]["sessionCount"] == 1
-    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
-    assert response.data["node"]["averageTracesPerSession"] == 2.0
 
 
 async def test_session_annotation_summary_returns_expected_results(
@@ -7225,14 +6992,10 @@ async def test_session_annotation_summary_returns_expected_results(
         )
 
     query = """
-      query ($projectId: ID!, $filterIoSubstring: String, $sessionId: String) {
+      query ($projectId: ID!) {
         node(id: $projectId) {
           ... on Project {
-            sessionAnnotationSummary(
-              annotationName: "test-annotation"
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            ) {
+            sessionAnnotationSummary(annotationName: "test-annotation") {
               name
               count
               scoreCount
@@ -7263,36 +7026,6 @@ async def test_session_annotation_summary_returns_expected_results(
         {"label": "important", "fraction": 0.5},
         {"label": "normal", "fraction": 0.5},
     ]
-
-    response = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "filterIoSubstring": "priority"}
-    )
-    assert not response.errors
-    assert response.data is not None
-    summary = response.data["node"]["sessionAnnotationSummary"]
-    assert summary is not None
-    assert summary["count"] == 1
-    assert summary["meanScore"] == 1.0
-    assert summary["labelFractions"] == [{"label": "important", "fraction": 1.0}]
-
-    # The UI passes the search text as both the substring filter and an exact
-    # session-ID lookup; the exact match wins even though the ID appears
-    # nowhere in the input/output, mirroring the sessions table
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "filterIoSubstring": "annotated-session-exact-id",
-            "sessionId": "annotated-session-exact-id",
-        },
-    )
-    assert not response.errors
-    assert response.data is not None
-    summary = response.data["node"]["sessionAnnotationSummary"]
-    assert summary is not None
-    assert summary["count"] == 1
-    assert summary["meanScore"] == 1.0
-    assert summary["labelFractions"] == [{"label": "important", "fraction": 1.0}]
 
 
 async def test_session_annotation_summary_time_range_uses_interval_overlap(
@@ -7378,10 +7111,14 @@ class TestProjectSessionsTimeRange:
     a session is included iff [start_time, end_time] intersects [start, end)."""
 
     _QUERY = """
-        query ($projectId: ID!, $timeRange: TimeRange, $filterIoSubstring: String) {
+        query ($projectId: ID!, $timeRange: TimeRange, $sessionFilterCondition: String) {
           node(id: $projectId) {
             ... on Project {
-              sessions(first: 50, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring) {
+              sessions(
+                first: 50
+                timeRange: $timeRange
+                sessionFilterCondition: $sessionFilterCondition
+              ) {
                 edges { node { id } }
               }
             }
@@ -7449,14 +7186,14 @@ class TestProjectSessionsTimeRange:
         gql_client: AsyncGraphQLClient,
         data: _TimeRangeSessionsData,
         time_range: Optional[dict[str, str]],
-        filter_io_substring: Optional[str] = None,
+        session_filter_condition: Optional[str] = None,
     ) -> set[str]:
         response = await gql_client.execute(
             query=self._QUERY,
             variables={
                 "projectId": str(GlobalID(Project.__name__, str(data.project.id))),
                 "timeRange": time_range,
-                "filterIoSubstring": filter_io_substring,
+                "sessionFilterCondition": session_filter_condition,
             },
         )
         assert not response.errors
@@ -7517,7 +7254,7 @@ class TestProjectSessionsTimeRange:
             "spans_window",
         )
 
-    async def test_substring_filter_matches_traces_outside_the_window(
+    async def test_content_filter_matches_traces_outside_the_window(
         self,
         _sessions_data: _TimeRangeSessionsData,
         gql_client: AsyncGraphQLClient,
@@ -7532,11 +7269,11 @@ class TestProjectSessionsTimeRange:
             gql_client,
             _sessions_data,
             time_range,
-            filter_io_substring="input for long_running",
+            session_filter_condition="'input for long_running' in any_input",
         )
         assert actual == self._expected_ids(_sessions_data, "long_running")
 
-    async def test_substring_filter_does_not_widen_the_window(
+    async def test_content_filter_does_not_widen_the_window(
         self,
         _sessions_data: _TimeRangeSessionsData,
         gql_client: AsyncGraphQLClient,
@@ -7550,6 +7287,6 @@ class TestProjectSessionsTimeRange:
             gql_client,
             _sessions_data,
             time_range,
-            filter_io_substring="input for before_window",
+            session_filter_condition="'input for before_window' in any_input",
         )
         assert actual == set()

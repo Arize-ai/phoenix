@@ -44,6 +44,10 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
     snippet: "num_traces_with_error > 0",
   },
   {
+    label: "filter by session id",
+    snippet: "session_id == '${session id}'",
+  },
+  {
     label: "search inputs for substring",
     snippet: "'${search text}' in any_input",
   },
@@ -61,7 +65,7 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
   },
   {
     label: "filter by tool usage",
-    snippet: 'tool_call_count["${tool name}"] > 0',
+    snippet: "tool_span_count > 0",
   },
   {
     label: "filter by total tokens",
@@ -82,10 +86,6 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
   {
     label: "filter by user",
     snippet: "user.id == '${user id}'",
-  },
-  {
-    label: "filter by session id",
-    snippet: "session_id == '${session id}'",
   },
 ];
 

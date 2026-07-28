@@ -70,40 +70,11 @@ def test_session_filter_translated(condition: str, expected: str) -> None:
     assert unparse(SessionFilter(condition).translated).strip() == expected
 
 
-def test_session_filter_tool_call_count_subscript_translates_to_flat_binding() -> None:
-    translated = unparse(
-        SessionFilter('tool_call_count["search"] >= 2 and tool_call_count >= 3').translated
-    ).strip()
-
-    assert "tool_call_count[" not in translated
-    # Ordinal alias (first-appearance index), not a content-derived hash.
-    assert "__session_tool_call_count_by_name_0" in translated
-    assert "tool_call_count >= 3" in translated
-
-
-def test_session_filter_tool_call_count_subscript_groups_duplicate_name_join() -> None:
-    subquery = SessionFilter(
-        'tool_call_count["search"] > 0 and tool_call_count["search"] < 3 '
-        'and tool_call_count["lookup"] == 0'
-    ).as_session_rowids_subquery(project_rowids=[1], aggregate_shape="grouped")
-    compiled = str(
-        select(models.ProjectSession.id)
-        .where(models.ProjectSession.id.in_(subquery))
-        .compile(compile_kwargs={"literal_binds": True})
-    ).lower()
-
-    assert compiled.count("left outer join (select") == 2
-    assert "spans.name = 'search'" in compiled
-    assert "spans.name = 'lookup'" in compiled
-
-
-def test_session_filter_rejects_user_written_reserved_alias_prefix() -> None:
-    # Ordinal aliases are predictable (`__session_tool_call_count_by_name_0`), so visit_Name
-    # must reject any user-written name carrying the reserved prefix before aliases are
-    # injected — otherwise a crafted condition could collide with a generated aggregate.
+def test_session_filter_rejects_span_count_subscript() -> None:
+    # Per-tool counts are not v1 vocabulary: only the bare session-total aggregate binds.
     with pytest.raises(SyntaxError) as exc_info:
-        SessionFilter("__session_tool_call_count_by_name_0 > 1")
-    assert "invalid name" in str(exc_info.value)
+        SessionFilter('tool_span_count["search"] >= 2')
+    assert "invalid expression" in str(exc_info.value)
 
 
 def test_session_filter_unknown_name_raises_did_you_mean() -> None:
@@ -413,7 +384,7 @@ async def test_session_filter_time_window_uses_interval_overlap(db: DbSessionFac
         assert before_window.id not in matched
 
 
-async def test_session_filter_tool_call_count_subscript_filters_by_tool_name(
+async def test_session_filter_tool_span_count_counts_tool_spans(
     db: DbSessionFactory,
 ) -> None:
     start = datetime.now(timezone.utc)
@@ -444,26 +415,10 @@ async def test_session_filter_tool_call_count_subscript_filters_by_tool_name(
             start_time=start,
         )
 
-        by_search_count = await _matched_rowids(
-            session,
-            SessionFilter('tool_call_count["search"] >= 2'),
-            project,
-        )
-        assert by_search_count == {search_twice.id}
-
-        by_two_names = await _matched_rowids(
-            session,
-            SessionFilter('tool_call_count["search"] >= 1 and tool_call_count["lookup"] >= 1'),
-            project,
-        )
-        assert by_two_names == {both_once.id}
-
-        by_plain_count = await _matched_rowids(
-            session, SessionFilter("tool_call_count >= 2"), project
-        )
-        assert by_plain_count == {search_twice.id, both_once.id}
-        assert lookup_once.id not in by_plain_count
-        assert no_tools.id not in by_plain_count
+        matched = await _matched_rowids(session, SessionFilter("tool_span_count >= 2"), project)
+        assert matched == {search_twice.id, both_once.id}
+        assert lookup_once.id not in matched
+        assert no_tools.id not in matched
 
 
 def test_session_filter_grouped_aggregate_shape_pushes_project_time_scope() -> None:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ddb860fd1c445262e477a87f6adf9d47>>
+ * @generated SignedSource<<6195b5b0e20fdafe627ae154cbb0eb10>>
  * @lightSyntaxTransform
  */
 
@@ -139,11 +139,6 @@ return {
       "name": "after"
     },
     {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "filterIoSubstring"
-    },
-    {
       "defaultValue": 30,
       "kind": "LocalArgument",
       "name": "first"
@@ -152,11 +147,6 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "sessionFilterCondition"
-    },
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "sessionId"
     },
     {
       "defaultValue": {
@@ -214,18 +204,8 @@ return {
       "args": [
         {
           "kind": "Variable",
-          "name": "filterIoSubstring",
-          "variableName": "filterIoSubstring"
-        },
-        {
-          "kind": "Variable",
           "name": "sessionFilterCondition",
           "variableName": "sessionFilterCondition"
-        },
-        {
-          "kind": "Variable",
-          "name": "sessionId",
-          "variableName": "sessionId"
         },
         {
           "kind": "Variable",
@@ -631,6 +611,6 @@ return {
 };
 })();
 
-(node as any).hash = "d6dc3442f38e1f99aeb014f3ea2d4961";
+(node as any).hash = "bd21d26acb6b02042bc7743aac5560c6";
 
 export default node;
