@@ -36,6 +36,7 @@ import { ChartEmptyStateOverlay } from "./ChartEmptyStateOverlay";
 import { ChartTooltip, ChartTooltipItem } from "./ChartTooltip";
 import { getCategoryChartColor, useCategoryChartColors } from "./colors";
 import {
+  COMPACT_CHART_ANIMATION_DURATION_MS,
   compactChartMargin,
   compactLegendProps,
   defaultCartesianGridProps,
@@ -47,9 +48,6 @@ const MEAN_SCORE_DATA_KEY = "meanScore";
 const LABEL_DATA_KEY_PREFIX = "fractions.";
 const OTHER_DATA_KEY = "otherFraction";
 const OTHER_COLOR = "var(--global-color-gray-500)";
-// Recharts' slower line default makes mixed-view toggles feel sluggish next
-// to the bar animation, so keep both chart modes on the same duration.
-const SCORE_LINE_ANIMATION_DURATION_MS = 400;
 const SCORE_CHART_MARGIN = {
   ...compactChartMargin,
   // A score of exactly 1 puts the dot center on the top gridline.
@@ -232,7 +230,7 @@ function AnnotationMetricsChartContent({
               strokeWidth={2}
               dot={{ r: 3 }}
               activeDot={{ r: 5 }}
-              animationDuration={SCORE_LINE_ANIMATION_DURATION_MS}
+              animationDuration={COMPACT_CHART_ANIMATION_DURATION_MS}
               hide={isDataKeyHidden(MEAN_SCORE_DATA_KEY)}
             />
           )}

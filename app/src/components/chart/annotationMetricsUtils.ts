@@ -34,23 +34,10 @@ export type AnnotationMetricsSeries = {
   readonly reference?: AnnotationMetricsChartPoint;
 };
 
-export function getEmptyAnnotationMetricsSeries(
-  name: string
-): AnnotationMetricsSeries {
-  return {
-    name,
-    views: [],
-    labels: [],
-    data: [],
-  };
-}
-
 export function getDefaultAnnotationMetricsView(
   series: AnnotationMetricsSeries
 ): AnnotationMetricsView {
-  // Prefer labels for mixed annotations because a distribution exposes more
-  // categorical detail than the aggregate score.
-  return series.views.includes("labels") ? "labels" : "scores";
+  return series.views.includes("scores") ? "scores" : "labels";
 }
 
 /**
@@ -91,6 +78,30 @@ export function getAnnotationOtherFraction({
   );
   const residual = Math.min(Math.max(1 - includedFraction, 0), 1);
   return residual < OTHER_FRACTION_EPSILON ? undefined : residual;
+}
+
+function makeAnnotationMetricsChartPoint({
+  point,
+  summary,
+  labels,
+}: {
+  point: AnnotationMetricsInputPoint;
+  summary?: AnnotationSummary;
+  labels: ReadonlyArray<string>;
+}): AnnotationMetricsChartPoint {
+  const fractionsByLabel = new Map(
+    (summary?.labelFractions ?? []).map(({ label, fraction }) => [
+      label,
+      fraction,
+    ])
+  );
+  return {
+    x: point.x,
+    metadata: point.metadata ?? {},
+    hasAnnotationSummary: summary != null,
+    meanScore: summary?.meanScore ?? undefined,
+    fractions: labels.map((label) => fractionsByLabel.get(label)),
+  };
 }
 
 /**
@@ -143,28 +154,6 @@ export function normalizeAnnotationMetrics({
         )
       );
 
-      const makeChartPoint = ({
-        point,
-        summary,
-      }: {
-        point: AnnotationMetricsInputPoint;
-        summary?: AnnotationSummary;
-      }): AnnotationMetricsChartPoint => {
-        const fractionsByLabel = new Map(
-          (summary?.labelFractions ?? []).map(({ label, fraction }) => [
-            label,
-            fraction,
-          ])
-        );
-        return {
-          x: point.x,
-          metadata: point.metadata ?? {},
-          hasAnnotationSummary: summary != null,
-          meanScore: summary?.meanScore ?? undefined,
-          fractions: labels.map((label) => fractionsByLabel.get(label)),
-        };
-      };
-
       const hasScoreValues = summaryByPoint.some(
         ({ summary }) => summary?.meanScore != null
       );
@@ -183,13 +172,16 @@ export function normalizeAnnotationMetrics({
         name,
         views,
         labels,
-        data: summaryByPoint.map(makeChartPoint),
+        data: summaryByPoint.map(({ point, summary }) =>
+          makeAnnotationMetricsChartPoint({ point, summary, labels })
+        ),
         reference:
           referencePoint == null
             ? undefined
-            : makeChartPoint({
+            : makeAnnotationMetricsChartPoint({
                 point: referencePoint,
                 summary: referenceSummary,
+                labels,
               }),
       };
     })

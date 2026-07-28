@@ -9,7 +9,6 @@ import {
   AnnotationScoreLabelToggle,
   ChartPanel,
   getDefaultAnnotationMetricsView,
-  getEmptyAnnotationMetricsSeries,
   normalizeAnnotationMetrics,
 } from "@phoenix/components/chart";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -101,8 +100,12 @@ function useExperimentAnnotationMetricSeries({
   });
 
   return {
-    series:
-      annotationSeries[0] ?? getEmptyAnnotationMetricsSeries(annotationName),
+    series: annotationSeries[0] ?? {
+      name: annotationName,
+      views: [],
+      labels: [],
+      data: [],
+    },
     baselineSequenceNumber: baselineExperiment?.sequenceNumber,
   };
 }

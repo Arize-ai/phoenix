@@ -81,7 +81,7 @@ export function makeExperimentAxisTick(baselineSequenceNumber?: number) {
           fontWeight={isBaseline ? 600 : undefined}
           fill={isBaseline ? BASELINE_COLOR : "var(--chart-axis-text-color)"}
         >
-          {`#${payload.value}${isBaseline ? " (baseline)" : ""}`}
+          {`#${payload.value}`}
         </text>
       </g>
     );

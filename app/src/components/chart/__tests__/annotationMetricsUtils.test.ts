@@ -108,7 +108,7 @@ describe("normalizeAnnotationMetrics", () => {
     ).toBe(1);
     expect(series.data[1]?.fractions).toEqual([1, undefined]);
     expect(series.data[2]?.fractions).toEqual([0.75, 0.25]);
-    expect(getDefaultAnnotationMetricsView(series)).toBe("labels");
+    expect(getDefaultAnnotationMetricsView(series)).toBe("scores");
   });
 
   it("preserves every visible point when an annotation is sparse", () => {
