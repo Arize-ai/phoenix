@@ -13,7 +13,6 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   getDefaultAnnotationMetricsView,
-  getEmptyAnnotationMetricsSeries,
   normalizeAnnotationMetrics,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -222,8 +221,12 @@ function ProjectAnnotationMetricPanelContent({
   const scale = useTimeBinScale({ timeRange: props.timeRange });
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const { fullTimeFormatter } = useTimeFormatters();
-  const series =
-    annotationSeries[0] ?? getEmptyAnnotationMetricsSeries(annotationName);
+  const series = annotationSeries[0] ?? {
+    name: annotationName,
+    views: [],
+    labels: [],
+    data: [],
+  };
   return (
     <ProjectAnnotationMetricsPanel
       {...props}
@@ -351,6 +354,7 @@ function ProjectAnnotationMetricsSeriesLoader({
     case "sessions":
       return <SessionAnnotationMetricsSeriesLoader {...props} />;
   }
+  return null;
 }
 
 function SpanAnnotationMetricsSeriesLoader({

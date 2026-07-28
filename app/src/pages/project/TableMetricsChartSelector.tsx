@@ -101,6 +101,7 @@ function ProjectChartSelectorMenu(props: ProjectChartSelectorMenuProps) {
     case "sessions":
       return <SessionChartSelectorMenu {...props} />;
   }
+  return null;
 }
 
 function SpanChartSelectorMenu(props: ProjectChartSelectorMenuProps) {
