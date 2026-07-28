@@ -145,7 +145,7 @@ from phoenix.server.agents.ui_message_stream import (
 )
 from phoenix.server.agents.vercel_ui_message_stream import (
     create_streaming_ui_message_state,
-    reduce_ui_message_chunk,
+    process_ui_message_stream,
 )
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, is_turn_active
 from phoenix.server.api.helpers.playground_registry import (
@@ -2500,10 +2500,10 @@ def create_agents_router(
                                 message_chunks=message_chunk_stream,
                                 summary_task=summary_task,
                             )
-                        async for message_chunk in iter_chunks_with_error_parts(
-                            message_chunk_stream
+                        async for message_chunk in process_ui_message_stream(
+                            stream=iter_chunks_with_error_parts(message_chunk_stream),
+                            state=message_state,
                         ):
-                            reduce_ui_message_chunk(chunk=message_chunk, state=message_state)
                             yield message_chunk
                         yield await _persist_turn()
                 except BaseException as exc:
