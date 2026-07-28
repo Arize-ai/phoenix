@@ -1926,50 +1926,38 @@ def create_agents_router(
             )
         )
         try:
-            try:
-                async with db_session_factory() as session:
-                    message_rows = await _load_agent_session_history(
-                        session,
-                        agent_session_rowid=agent_session_rowid,
-                    )
-                    first_row = message_rows[0] if message_rows else None
-                    latest_compaction = (
-                        first_row
-                        if first_row is not None and first_row.is_compaction_point
-                        else None
-                    )
-                    latest_row = message_rows[-1] if message_rows else None
-                    if latest_row is None or latest_row.message.role != "assistant":
-                        return CompactAgentSessionResponse(
-                            data=CompactAgentSessionResponseData(
-                                compacted=False,
-                                compaction_message=(
-                                    latest_compaction.message
-                                    if latest_compaction is not None
-                                    else None
-                                ),
+            async with db_session_factory() as session:
+                message_rows = await _load_agent_session_history(
+                    session,
+                    agent_session_rowid=agent_session_rowid,
+                )
+                first_row = message_rows[0] if message_rows else None
+                latest_compaction = (
+                    first_row if first_row is not None and first_row.is_compaction_point else None
+                )
+                latest_row = message_rows[-1] if message_rows else None
+                if latest_row is None or latest_row.message.role != "assistant":
+                    return CompactAgentSessionResponse(
+                        data=CompactAgentSessionResponseData(
+                            compacted=False,
+                            compaction_message=(
+                                latest_compaction.message if latest_compaction is not None else None
                             ),
-                        )
-                    boundary_row = latest_row
-                    messages_to_summarize = [row.message for row in message_rows]
-                    model = await build_model(
-                        request_body.model,
-                        session=session,
-                        decrypt=request.app.state.decrypt,
+                        ),
                     )
-            except AgentError as exc:
-                raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+                boundary_row = latest_row
+                messages_to_summarize = [row.message for row in message_rows]
+                model = await build_model(
+                    request_body.model,
+                    session=session,
+                    decrypt=request.app.state.decrypt,
+                )
 
             summary_messages = _to_pydantic_ai_messages(messages_to_summarize)
-            try:
-                summary = await summarize_messages_for_compaction(
-                    messages=summary_messages,
-                    model=model,
-                )
-            except CompactionError as exc:
-                raise HTTPException(
-                    status_code=502, detail=f"Conversation compaction failed: {exc}"
-                ) from exc
+            summary = await summarize_messages_for_compaction(
+                messages=summary_messages,
+                model=model,
+            )
 
             async with db_session_factory() as session:
                 await _refresh_and_load_agent_session(
@@ -2023,6 +2011,12 @@ def create_agents_router(
                     compaction_message=compaction_message,
                 ),
             )
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+        except CompactionError as exc:
+            raise HTTPException(
+                status_code=502, detail=f"Conversation compaction failed: {exc}"
+            ) from exc
         finally:
             heartbeat_task.cancel()
             await _release_agent_session_turn_lock(
