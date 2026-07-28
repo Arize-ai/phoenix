@@ -24,6 +24,7 @@ from phoenix.server.api.evaluators import (
     CodeEvaluatorRunner,
 )
 from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
+from phoenix.server.monty_runtime import MontyBusy, MontyRuntime
 from phoenix.server.sandbox.monty_backend import MontySandboxBackend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import BaseNoSessionBackend, ExecutionResult
@@ -272,26 +273,30 @@ class TestInputSchemaInference:
 
 class TestEvaluateSuccessPath:
     async def test_monty_returns_existing_evaluator_result_shape(self) -> None:
-        runner = CodeEvaluatorRunner(
-            name="monty-runner",
-            description=None,
-            source_code=(
-                "def evaluate(output):\n    return {'label': 'pass', 'score': output['score']}"
-            ),
-            stored_output_configs=[_categorical_config()],
-            sandbox_backend=MontySandboxBackend(),
-            language="PYTHON",
-            sandbox_session_manager=SandboxSessionManager(),
-            session_key="evaluator:monty-runner",
-            timeout=1,
-        )
+        runtime = MontyRuntime()
+        try:
+            runner = CodeEvaluatorRunner(
+                name="monty-runner",
+                description=None,
+                source_code=(
+                    "def evaluate(output):\n    return {'label': 'pass', 'score': output['score']}"
+                ),
+                stored_output_configs=[_categorical_config()],
+                sandbox_backend=MontySandboxBackend(runtime),
+                language="PYTHON",
+                sandbox_session_manager=SandboxSessionManager(),
+                session_key="evaluator:monty-runner",
+                timeout=1,
+            )
 
-        results = await runner.evaluate(
-            context={"output": {"score": 1.0}},
-            input_mapping=_EMPTY_MAPPING,
-            name="monty",
-            output_configs=[_categorical_config()],
-        )
+            results = await runner.evaluate(
+                context={"output": {"score": 1.0}},
+                input_mapping=_EMPTY_MAPPING,
+                name="monty",
+                output_configs=[_categorical_config()],
+            )
+        finally:
+            await runtime.aclose()
 
         assert results[0]["label"] == "pass"
         assert results[0]["score"] == 1.0
@@ -471,6 +476,17 @@ class TestEvaluateErrorPaths:
         assert len(results) == 1
         assert results[0]["error"] is not None
         assert "Sandbox execution failed" in results[0]["error"]
+
+    async def test_monty_infrastructure_error_propagates(self) -> None:
+        runner, _ = _make_runner(backend_raises=MontyBusy("sandbox capacity is busy"))
+
+        with pytest.raises(MontyBusy, match="capacity is busy"):
+            await runner.evaluate(
+                context={},
+                input_mapping=_EMPTY_MAPPING,
+                name="test",
+                output_configs=[_categorical_config()],
+            )
 
     async def test_backend_error_field_returns_error_result(self) -> None:
         runner, _ = _make_runner(backend_error="SyntaxError: invalid syntax")

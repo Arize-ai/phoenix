@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import textwrap
-from typing import Any
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator
 
 import pytest
 from fastmcp.exceptions import ToolError
@@ -18,6 +19,7 @@ from phoenix.server.mcp_code_mode import (
     DEFAULT_LIMITS,
     MontyPoolSandboxProvider,
 )
+from phoenix.server.monty_runtime import MontyRuntime, MontyShuttingDown
 
 # Faults the native interpreter in-process; depth is a runtime value, invisible
 # to any check on the source.
@@ -36,13 +38,35 @@ HUGE_STRING_BUILD = "return '\\t'.expandtabs(10**9)"
 
 
 @pytest.fixture
-async def provider() -> Any:
+async def provider() -> AsyncIterator[MontyPoolSandboxProvider]:
     """A provider whose pool is torn down even if a test fails."""
-    p = MontyPoolSandboxProvider()
+    async with _standalone_provider() as sandbox:
+        yield sandbox
+
+
+@asynccontextmanager
+async def _standalone_provider(
+    *,
+    limits: Any = None,
+    max_processes: int = 4,
+    request_timeout: float = 180.0,
+    total_timeout: float | None = 300.0,
+    checkout_timeout: float = 30.0,
+) -> AsyncIterator[MontyPoolSandboxProvider]:
+    runtime = MontyRuntime(
+        max_processes=max_processes,
+        request_timeout=request_timeout,
+        checkout_timeout=checkout_timeout,
+        consumer_limits={"mcp": max_processes},
+    )
     try:
-        yield p
+        yield MontyPoolSandboxProvider(
+            runtime=runtime,
+            limits=limits,
+            total_timeout=total_timeout,
+        )
     finally:
-        await p.aclose()
+        await runtime.aclose()
 
 
 async def test_returns_result_of_top_level_return(provider: MontyPoolSandboxProvider) -> None:
@@ -66,6 +90,20 @@ async def test_calls_async_external_function(provider: MontyPoolSandboxProvider)
         external_functions={"call_tool": call_tool},
     )
     assert result == 42
+
+
+async def test_external_function_timeout_is_not_misclassified_as_capacity(
+    provider: MontyPoolSandboxProvider,
+) -> None:
+    async def call_tool(tool_name: str, params: dict[str, Any]) -> None:
+        del tool_name, params
+        raise TimeoutError("host tool timed out")
+
+    with pytest.raises(MontyRuntimeError, match="host tool timed out"):
+        await provider.run(
+            "await call_tool('slow', {})",
+            external_functions={"call_tool": call_tool},
+        )
 
 
 async def test_inputs_are_bound_as_globals(provider: MontyPoolSandboxProvider) -> None:
@@ -116,30 +154,28 @@ async def test_guest_memory_limit_is_enforced(provider: MontyPoolSandboxProvider
 
 async def test_guest_duration_limit_is_enforced() -> None:
     """A compute-bound block is stopped by the guest duration limit."""
-    provider = MontyPoolSandboxProvider(limits={"max_duration_secs": 1.0})
-    try:
+    async with _standalone_provider(limits={"max_duration_secs": 1.0}) as provider:
         with pytest.raises(MontyRuntimeError) as exc_info:
             await provider.run("while True:\n    pass")
         assert "time limit" in str(exc_info.value).lower()
-    finally:
-        await provider.aclose()
 
 
 async def test_turn_timeout_reports_a_tool_error() -> None:
-    """``request_timeout`` reclaims a silent worker; guest limits off so nothing
-    else can end the block first."""
-    provider = MontyPoolSandboxProvider(limits=None, request_timeout=2.0)
-    try:
+    """``request_timeout`` reclaims a worker before its longer guest limit."""
+    async with _standalone_provider(
+        limits={"max_duration_secs": 60.0}, request_timeout=2.0
+    ) as provider:
         with pytest.raises(ToolError, match="stopped responding"):
             await provider.run("while True:\n    pass")
+
+
+async def test_none_and_omitted_limits_use_defaults() -> None:
+    runtime = MontyRuntime()
+    try:
+        assert MontyPoolSandboxProvider(runtime=runtime, limits=None).limits == DEFAULT_LIMITS
+        assert MontyPoolSandboxProvider(runtime=runtime).limits == DEFAULT_LIMITS
     finally:
-        await provider.aclose()
-
-
-async def test_explicit_none_disables_guest_limits_and_omitted_uses_defaults() -> None:
-    """``None`` (no guest limits) and omitted (baseline) must not collapse."""
-    assert MontyPoolSandboxProvider(limits=None).limits is None
-    assert MontyPoolSandboxProvider().limits == DEFAULT_LIMITS
+        await runtime.aclose()
 
 
 async def test_total_timeout_bounds_a_block_dominated_by_tool_calls() -> None:
@@ -151,54 +187,56 @@ async def test_total_timeout_bounds_a_block_dominated_by_tool_calls() -> None:
         return {"ok": True}
 
     code = "i = 0\nwhile i < 30:\n    r = await call_tool('t', {})\n    i = i + 1\nreturn i"
-    provider = MontyPoolSandboxProvider(
-        limits={"max_duration_secs": 60.0}, request_timeout=60.0, total_timeout=3.0
-    )
-    try:
+    async with _standalone_provider(
+        limits={"max_duration_secs": 60.0},
+        request_timeout=60.0,
+        total_timeout=3.0,
+    ) as provider:
         with pytest.raises(ToolError, match="tool calls took"):
             await provider.run(code, external_functions={"call_tool": slow_tool})
-    finally:
-        await provider.aclose()
 
 
-@pytest.mark.real_code_mode_validate
 async def test_total_timeout_bounds_pool_startup(monkeypatch: pytest.MonkeyPatch) -> None:
     """Acquisition is inside the end-to-end envelope. Monty currently spawns
     lazily at checkout, so today a wedged install hangs there — but spawn-at-
     startup is upstream's to change, and it happens under the provider lock."""
-    provider = MontyPoolSandboxProvider(total_timeout=0.2)
+    runtime = MontyRuntime()
+    provider = MontyPoolSandboxProvider(runtime=runtime, total_timeout=0.2)
 
     async def hang() -> Any:
         await asyncio.Event().wait()
 
-    monkeypatch.setattr(provider, "_ensure_pool", hang)
-    with pytest.raises(ToolError, match="exceeded the"):
-        await asyncio.wait_for(provider.run("return 1"), timeout=5.0)
-
-
-@pytest.mark.real_code_mode_validate
-async def test_validate_reports_a_working_sandbox_and_leaves_nothing_running() -> None:
-    provider = MontyPoolSandboxProvider()
+    monkeypatch.setattr(provider._runtime, "_ensure_pool", hang)
     try:
-        assert await provider.validate() is True
-        assert provider._pool is None, "startup check must not leave a worker behind"
+        with pytest.raises(ToolError, match="exceeded the"):
+            await asyncio.wait_for(provider.run("return 1"), timeout=5.0)
     finally:
-        await provider.aclose()
+        await runtime.aclose()
 
 
-@pytest.mark.real_code_mode_validate
-async def test_validate_reports_a_broken_install(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.real_monty_runtime_probe
+async def test_runtime_probe_reports_a_working_sandbox_and_leaves_nothing_running() -> None:
+    runtime = MontyRuntime()
+    try:
+        assert await runtime.probe_runtime() is True
+        assert runtime._pool is None, "startup probe must not warm the shared pool"
+    finally:
+        await runtime.aclose()
+
+
+@pytest.mark.real_monty_runtime_probe
+async def test_runtime_probe_reports_a_broken_install(monkeypatch: pytest.MonkeyPatch) -> None:
     """A broken install is reported at boot rather than raising into startup."""
     monkeypatch.setenv("MONTY_BIN", "/nonexistent/monty-binary")
-    provider = MontyPoolSandboxProvider()
+    runtime = MontyRuntime()
     try:
-        assert await provider.validate() is False
+        assert await runtime.probe_runtime() is False
     finally:
-        await provider.aclose()
+        await runtime.aclose()
 
 
-@pytest.mark.real_code_mode_validate
-async def test_validate_is_bounded_when_the_install_hangs(
+@pytest.mark.real_monty_runtime_probe
+async def test_runtime_probe_is_bounded_when_the_install_hangs(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Any
 ) -> None:
     """A binary that spawns but never speaks the protocol hits no per-turn
@@ -207,32 +245,59 @@ async def test_validate_is_bounded_when_the_install_hangs(
     stub.write_text("#!/bin/sh\nexec sleep 3600\n")
     stub.chmod(0o755)
     monkeypatch.setenv("MONTY_BIN", str(stub))
-    monkeypatch.setattr("phoenix.server.mcp_code_mode.STARTUP_CHECK_TIMEOUT", 1.0)
-    provider = MontyPoolSandboxProvider()
+    monkeypatch.setattr("phoenix.server.monty_runtime.STARTUP_CHECK_TIMEOUT", 1.0)
+    runtime = MontyRuntime()
     try:
-        assert await asyncio.wait_for(provider.validate(), timeout=10.0) is False
+        assert await asyncio.wait_for(runtime.probe_runtime(), timeout=10.0) is False
     finally:
-        await provider.aclose()
+        await runtime.aclose()
+
+
+@pytest.mark.real_monty_runtime_probe
+async def test_runtime_probe_reports_teardown_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def successful_run(self: MontyRuntime, *args: Any, **kwargs: Any) -> int:
+        del self, args, kwargs
+        return 1
+
+    async def failing_close(self: MontyRuntime) -> None:
+        del self
+        raise RuntimeError("probe teardown failed")
+
+    monkeypatch.setattr(MontyRuntime, "run", successful_run)
+    monkeypatch.setattr(MontyRuntime, "aclose", failing_close)
+
+    assert await MontyRuntime().probe_runtime() is False
 
 
 async def test_unstartable_pool_reports_a_tool_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """A sandbox that cannot start is a deployment fault, not a bare exception."""
     monkeypatch.setenv("MONTY_BIN", "/nonexistent/monty-binary")
-    provider = MontyPoolSandboxProvider()
+    runtime = MontyRuntime()
+    provider = MontyPoolSandboxProvider(runtime=runtime)
     try:
         with pytest.raises(ToolError, match="could not be started"):
             await provider.run("return 1")
     finally:
-        await provider.aclose()
+        await runtime.aclose()
 
 
 async def test_dropped_pool_during_shutdown_reports_a_tool_error() -> None:
     """A call that loses its pool to shutdown reports shutdown, not RuntimeError."""
-    provider = MontyPoolSandboxProvider()
-    pool = await provider._ensure_pool()  # the handle an in-flight run would hold
-    await provider.aclose()
-    with pytest.raises(ToolError, match="shutting down"):
-        await provider._feed(pool, "return 1", None, None)
+    runtime = MontyRuntime()
+    provider = MontyPoolSandboxProvider(runtime=runtime)
+    pool = await provider._runtime._ensure_pool()  # the handle an in-flight run would hold
+    await runtime.aclose()
+    with pytest.raises(MontyShuttingDown, match="shutting down"):
+        await provider._runtime._feed(
+            pool,
+            "return 1",
+            limits=provider.limits,
+            inputs=None,
+            external_functions=None,
+            print_callback=None,
+        )
 
 
 async def test_no_state_leaks_between_runs(provider: MontyPoolSandboxProvider) -> None:
@@ -243,6 +308,17 @@ async def test_no_state_leaks_between_runs(provider: MontyPoolSandboxProvider) -
     assert "secret" in str(exc_info.value)
 
 
+async def test_guest_print_does_not_write_to_server_output(
+    provider: MontyPoolSandboxProvider,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    await provider.run("print('guest-output-must-be-discarded')\nreturn 1")
+
+    captured = capsys.readouterr()
+    assert "guest-output-must-be-discarded" not in captured.out
+    assert "guest-output-must-be-discarded" not in captured.err
+
+
 async def test_concurrent_runs_all_complete(provider: MontyPoolSandboxProvider) -> None:
     """More concurrent calls than workers all finish, queueing for capacity."""
     results = await asyncio.gather(*(provider.run(f"return {i} * 10") for i in range(8)))
@@ -251,18 +327,19 @@ async def test_concurrent_runs_all_complete(provider: MontyPoolSandboxProvider) 
 
 async def test_saturated_pool_reports_a_tool_error() -> None:
     """Overload is reported as a busy sandbox instead of queueing without bound."""
-    provider = MontyPoolSandboxProvider(
-        limits={"max_duration_secs": 3.0}, max_processes=1, checkout_timeout=0.5
-    )
-    blocker = asyncio.ensure_future(provider.run("while True:\n    pass"))
-    try:
-        await asyncio.sleep(0.5)  # let the single worker be taken
-        with pytest.raises(ToolError, match="busy"):
-            await provider.run("return 1")
-    finally:
-        blocker.cancel()
-        await asyncio.gather(blocker, return_exceptions=True)
-        await provider.aclose()
+    async with _standalone_provider(
+        limits={"max_duration_secs": 3.0},
+        max_processes=1,
+        checkout_timeout=0.5,
+    ) as provider:
+        blocker = asyncio.ensure_future(provider.run("while True:\n    pass"))
+        try:
+            await asyncio.sleep(0.5)  # let the single worker be taken
+            with pytest.raises(ToolError, match="busy"):
+                await provider.run("return 1")
+        finally:
+            blocker.cancel()
+            await asyncio.gather(blocker, return_exceptions=True)
 
 
 async def test_cancelled_run_releases_its_worker_within_the_guest_limit() -> None:
@@ -272,10 +349,11 @@ async def test_cancelled_run_releases_its_worker_within_the_guest_limit() -> Non
     so ``run`` unwinds only when a bound ends it.
     """
     limit = 2.0
-    provider = MontyPoolSandboxProvider(
-        limits={"max_duration_secs": limit}, max_processes=1, checkout_timeout=10.0
-    )
-    try:
+    async with _standalone_provider(
+        limits={"max_duration_secs": limit},
+        max_processes=1,
+        checkout_timeout=10.0,
+    ) as provider:
         task = asyncio.ensure_future(provider.run("while True:\n    pass"))
         await asyncio.sleep(0.5)
         task.cancel()
@@ -286,50 +364,97 @@ async def test_cancelled_run_releases_its_worker_within_the_guest_limit() -> Non
         # if the duration limit failed to stop the block.
         assert asyncio.get_running_loop().time() - started < limit * 3
         assert await provider.run("return 7 * 6") == 42
-    finally:
-        await provider.aclose()
 
 
 async def test_pool_is_not_started_until_first_run() -> None:
     """A deployment that never calls ``execute`` never spawns a worker."""
-    provider = MontyPoolSandboxProvider()
-    assert provider._pool is None
-    await provider.aclose()
-    assert provider._pool is None
+    runtime = MontyRuntime()
+    provider = MontyPoolSandboxProvider(runtime=runtime)
+    assert provider._runtime._pool is None
+    await runtime.aclose()
+    assert provider._runtime._pool is None
 
 
-async def test_aclose_returns_without_waiting_on_a_running_block() -> None:
-    """Shutdown returns without waiting on a block still running."""
-    # The guest limit only bounds how long the abandoned block lingers after the
-    # test; the worker is still mid-run when `aclose` is called below, which is
-    # the condition under test.
-    provider = MontyPoolSandboxProvider(limits={"max_duration_secs": 3.0})
-    running = asyncio.ensure_future(provider.run("while True:\n    pass"))
+async def test_runtime_close_drains_running_blocks_and_rejects_new_work() -> None:
+    runtime = MontyRuntime()
+    provider = MontyPoolSandboxProvider(runtime=runtime)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def block() -> int:
+        entered.set()
+        await release.wait()
+        return 42
+
+    running = asyncio.create_task(
+        provider.run(
+            "return await block()",
+            external_functions={"block": block},
+        )
+    )
+    await asyncio.wait_for(entered.wait(), timeout=5.0)
+    closing = asyncio.create_task(runtime.aclose())
+    await asyncio.sleep(0)
+
+    assert not closing.done()
+    with pytest.raises(ToolError, match="shutting down"):
+        await provider.run("return 1")
+
+    release.set()
+    assert await running == 42
+    await closing
+
+
+async def test_runtime_close_forces_pool_close_after_grace_period(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("phoenix.server.monty_runtime.SHUTDOWN_GRACE_TIMEOUT", 0.1)
+    runtime = MontyRuntime()
+    provider = MontyPoolSandboxProvider(runtime=runtime, limits={"max_duration_secs": 3.0})
+    running = asyncio.create_task(provider.run("while True:\n    pass"))
     try:
-        await asyncio.sleep(0.5)  # let the worker actually start the block
+        await asyncio.sleep(0.5)
         started = asyncio.get_running_loop().time()
-        await provider.aclose()
-        assert asyncio.get_running_loop().time() - started < 5.0
+        await runtime.aclose()
+        assert asyncio.get_running_loop().time() - started < 1.0
+        await asyncio.wait_for(runtime.aclose(), timeout=0.1)
     finally:
         running.cancel()
         await asyncio.gather(running, return_exceptions=True)
 
 
-async def test_aclose_is_idempotent_and_refuses_later_runs() -> None:
-    provider = MontyPoolSandboxProvider()
+async def test_runtime_close_is_idempotent_and_refuses_later_runs() -> None:
+    runtime = MontyRuntime()
+    provider = MontyPoolSandboxProvider(runtime=runtime)
     assert await provider.run("return 1") == 1
-    await provider.aclose()
-    await provider.aclose()
+    await runtime.aclose()
+    await runtime.aclose()
     with pytest.raises(ToolError, match="shutting down"):
         await provider.run("return 1")
 
 
 async def test_default_limits_are_not_shared_between_providers() -> None:
     """Mutating one provider's limits must not change the defaults or another's."""
-    first = MontyPoolSandboxProvider()
-    assert first.limits is not None
-    first.limits["max_memory"] = 1
-    second = MontyPoolSandboxProvider()
-    assert second.limits is not None
-    assert second.limits["max_memory"] == DEFAULT_LIMITS["max_memory"]
-    assert DEFAULT_LIMITS["max_memory"] != 1
+    runtime = MontyRuntime()
+    try:
+        first = MontyPoolSandboxProvider(runtime=runtime)
+        assert first.limits is not None
+        first.limits["max_memory"] = 1
+        second = MontyPoolSandboxProvider(runtime=runtime)
+        assert second.limits is not None
+        assert second.limits.get("max_memory") == DEFAULT_LIMITS.get("max_memory")
+        assert DEFAULT_LIMITS.get("max_memory") != 1
+    finally:
+        await runtime.aclose()
+
+
+def test_partial_consumer_limits_merge_with_defaults() -> None:
+    runtime = MontyRuntime(consumer_limits={"mcp": 1})
+
+    assert set(runtime._consumer_slots) == {"mcp", "evaluator", "validation"}
+    assert runtime._consumer_slots["mcp"]._value == 1
+
+
+def test_unknown_consumer_limit_is_rejected() -> None:
+    with pytest.raises(ValueError, match="Unknown Monty consumers"):
+        MontyRuntime(consumer_limits={"unknown": 1})  # type: ignore[dict-item]

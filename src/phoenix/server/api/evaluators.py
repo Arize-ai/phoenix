@@ -61,6 +61,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
+from phoenix.server.monty_runtime import MontyServiceError
 from phoenix.server.sandbox import (  # noqa: E402
     MissingSecretError,
     SecretsContext,
@@ -71,7 +72,12 @@ from phoenix.server.sandbox.session_manager import (
     SessionInvalidated,
     SessionLimitExceeded,
 )
-from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, UnsupportedOperation
+from phoenix.server.sandbox.types import (
+    ExecutionResult,
+    SandboxBackend,
+    SandboxRuntimeContext,
+    UnsupportedOperation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -743,6 +749,7 @@ async def get_evaluators(
     experiment_id: int,
     credentials: Sequence[GenerativeCredentialInput] | None = None,
     sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: Optional[SandboxRuntimeContext] = None,
 ) -> list[BaseEvaluator]:
     """
     Get all evaluators for the given DatasetEvaluator row IDs.
@@ -873,6 +880,7 @@ async def get_evaluators(
                         backend_by_sandbox_key[sandbox_key] = await build_sandbox_backend(
                             live_sandbox_config,
                             secrets=SecretsContext(session=session, decrypt=decrypt),
+                            runtime=sandbox_runtime,
                         )
                     except (
                         MissingSecretError,
@@ -2894,6 +2902,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         self._make_error_result(name, err, start_time, trace_id=trace_id)
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
+                except MontyServiceError:
+                    raise
                 except Exception as exc:
                     err = f"Sandbox execution failed: {exc}"
                     sandbox_span.set_attributes(

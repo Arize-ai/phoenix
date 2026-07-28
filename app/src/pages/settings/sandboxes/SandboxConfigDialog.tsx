@@ -67,7 +67,6 @@ import {
   formValuesToConfigPatch,
   getDependencyPreview,
   shouldShowLocalDenoTrustWarning,
-  shouldShowMontySameProcessWarning,
 } from "./utils";
 
 type SandboxConfigDialogTriggerProps =
@@ -377,12 +376,6 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 Deno runs locally on the Phoenix server and relies on Deno's
                 permission system for isolation. Only enable it for trusted code
                 execution.
-              </Alert>
-            ) : null}
-            {shouldShowMontySameProcessWarning(activeBackend) ? (
-              <Alert variant="warning">
-                Monty runs evaluator code inside the Phoenix server process.
-                Only use it for trusted code. {activeBackend?.runtimeNotes}
               </Alert>
             ) : null}
             <Suspense fallback={<SandboxProviderSelectFallback />}>

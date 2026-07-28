@@ -211,12 +211,6 @@ export function shouldShowLocalDenoTrustWarning(
   return !window.Config.managementUrl;
 }
 
-export function shouldShowMontySameProcessWarning(
-  backend: Pick<BackendInfo, "backendType" | "status"> | undefined
-): boolean {
-  return backend?.backendType === "MONTY" && backend.status === "AVAILABLE";
-}
-
 /**
  * Whether to show a "runtime unavailable" badge on a sandbox config row.
  * True only for a local backend that is not currently AVAILABLE.

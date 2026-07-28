@@ -27,6 +27,7 @@ from phoenix.server.sandbox.types import (
     SANDBOX_DEPLOYMENT_ADAPTER,
     DaytonaDeployment,
     E2BDeployment,
+    SandboxRuntimeContext,
     SupportsDependencies,
     SupportsEnvVars,
     SupportsInternetAccess,
@@ -421,6 +422,7 @@ def _build_credential_specs(
 async def get_sandbox_backend_info(
     *,
     secrets: SecretsContext,
+    runtime: Optional[SandboxRuntimeContext] = None,
 ) -> list[SandboxBackendInfo]:
     """Return one ``SandboxBackendInfo`` per entry in ``SANDBOX_ADAPTER_METADATA``.
 
@@ -455,6 +457,7 @@ async def get_sandbox_backend_info(
                             backend_type,
                             language=probe_language,
                             secrets=secrets,
+                            runtime=runtime,
                         )
                         status = (
                             SandboxBackendStatus.AVAILABLE

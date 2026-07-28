@@ -99,7 +99,10 @@ async def test_monty_advertises_restricted_python(
         backend for backend in response.data["sandboxBackends"] if backend["backendType"] == "MONTY"
     )
     assert monty["languageDialect"] == "RESTRICTED"
-    assert monty["runtimeNotes"]
+    runtime_notes = monty["runtimeNotes"]
+    assert "worker subprocesses" in runtime_notes
+    assert "limited standard library" in runtime_notes
+    assert "class definitions" not in runtime_notes
 
 
 async def test_sandbox_config_secret_ref_env_var_round_trips(

@@ -51,7 +51,7 @@ def pytest_configure(config: Config) -> None:
     )
     config.addinivalue_line(
         "markers",
-        "real_code_mode_validate: run the real code-mode startup check "
+        "real_monty_runtime_probe: run the real Monty runtime startup probe "
         "(spawns a worker subprocess)",
     )
 
@@ -61,14 +61,14 @@ def _stub_code_mode_startup_check(request: FixtureRequest, monkeypatch: pytest.M
     """The code-mode startup check spawns a worker subprocess, and MCP plus code
     mode default on — so every app-lifespan test would pay that spawn inside
     asgi_lifespan's 5s startup budget. Stubbed suite-wide; tests exercising the
-    check itself opt back in with ``@pytest.mark.real_code_mode_validate``."""
-    if request.node.get_closest_marker("real_code_mode_validate"):
+    check itself opt back in with ``@pytest.mark.real_monty_runtime_probe``."""
+    if request.node.get_closest_marker("real_monty_runtime_probe"):
         return
 
     async def _skip(self: Any) -> bool:
         return True
 
-    monkeypatch.setattr("phoenix.server.mcp_code_mode.MontyPoolSandboxProvider.validate", _skip)
+    monkeypatch.setattr("phoenix.server.monty_runtime.MontyRuntime.probe_runtime", _skip)
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:

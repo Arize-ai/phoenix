@@ -65,6 +65,8 @@ if TYPE_CHECKING:
     from fastmcp.server.http import StarletteWithLifespan
     from starlette.types import ASGIApp, Receive, Scope, Send
 
+    from phoenix.server.monty_runtime import MontyRuntime
+
 #: Path the MCP ASGI app is mounted at on the Phoenix FastAPI app.
 MCP_MOUNT_PATH = "/mcp"
 
@@ -307,7 +309,7 @@ def _read_only(
     return build
 
 
-def _build_code_mode() -> tuple[CodeMode, MontyPoolSandboxProvider]:
+def _build_code_mode(runtime: "MontyRuntime") -> tuple[CodeMode, MontyPoolSandboxProvider]:
     """Code-mode tool surface: discovery meta-tools plus a sandboxed ``execute``.
 
     Clients see ``search``/``get_schema``/``tags``/``list_tools`` for discovery and
@@ -321,14 +323,13 @@ def _build_code_mode() -> tuple[CodeMode, MontyPoolSandboxProvider]:
     Guest code runs in sandbox worker subprocesses rather than in this process,
     because a guest program can fault the native interpreter in ways no
     ``try``/``except`` can catch — an in-process sandbox turns that into the death
-    of the whole server. The provider owns those workers, so it is returned
-    alongside the transform for the caller to shut down.
+    of the whole server. The provider adapts the application-owned shared Monty
+    runtime to FastMCP's sandbox interface.
 
     Returns:
-        The transform to install, and the sandbox provider whose worker pool must
-        be closed when the server stops.
+        The transform to install and its FastMCP sandbox adapter.
     """
-    sandbox_provider = MontyPoolSandboxProvider()
+    sandbox_provider = MontyPoolSandboxProvider(runtime=runtime)
     return (
         CodeMode(
             discovery_tools=[
@@ -433,17 +434,27 @@ class BearerAuthGuard:
 
 def create_phoenix_mcp_app(
     app: "FastAPI",
+    *,
+    monty_runtime: Optional["MontyRuntime"] = None,
 ) -> tuple["StarletteWithLifespan", Optional[MontyPoolSandboxProvider]]:
     """Build the MCP server from ``app``'s REST API and return its ASGI app.
 
     The returned app's lifespan (its streamable-HTTP session manager) must be
     entered by the caller; mounting alone will not start it.
 
+    Args:
+        app: Phoenix application whose REST API becomes the MCP tool surface.
+        monty_runtime: Shared runtime required only when code mode is enabled.
+
     Returns:
         The ASGI app to mount, and — when code mode is enabled — the sandbox
-        provider whose worker subprocesses the caller must shut down with the
-        server. ``None`` when code mode is disabled and no sandbox exists.
+        adapter backed by the application-owned Monty runtime. ``None`` when
+        code mode is disabled.
     """
+    code_mode_enabled = get_env_mcp_code_mode()
+    if code_mode_enabled and monty_runtime is None:
+        raise ValueError("Monty runtime is required when MCP code mode is enabled")
+
     # Tool dispatch authenticates by principal passing, not token replay — see
     # ``_InternalIdentityDispatch``.
     client = httpx.AsyncClient(
@@ -468,13 +479,14 @@ def create_phoenix_mcp_app(
         mcp_component_fn=_annotate_from_rest_method,
     )
     sandbox_provider: Optional[MontyPoolSandboxProvider] = None
-    if get_env_mcp_code_mode():
+    if code_mode_enabled:
         # Code mode replaces the tool surface wholesale: clients see only the
         # discovery meta-tools and ``execute``. Group gating must NOT be installed
         # with it — the code-mode catalog respects tool visibility, so gating would
         # hide every non-default group from ``search``/``list_tools`` with no way
         # to reveal them.
-        code_mode, sandbox_provider = _build_code_mode()
+        assert monty_runtime is not None
+        code_mode, sandbox_provider = _build_code_mode(monty_runtime)
         mcp.add_transform(code_mode)
     else:
         _install_progressive_disclosure(mcp, openapi_spec)

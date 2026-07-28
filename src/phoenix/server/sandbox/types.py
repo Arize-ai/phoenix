@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Annotated,
     ClassVar,
     Generic,
@@ -35,9 +36,23 @@ from typing_extensions import TypeAlias
 
 from phoenix.db.models import LanguageName, SandboxBackendType
 
+if TYPE_CHECKING:
+    from phoenix.server.monty_runtime import MontyRuntime
+
 
 class UnsupportedOperation(Exception):
     """Raised when a sandbox backend does not support a requested operation."""
+
+
+class SandboxValidationUnavailable(Exception):
+    """Raised when sandbox-backed code validation could not be performed."""
+
+
+@dataclass(frozen=True)
+class SandboxRuntimeContext:
+    """Application-owned runtimes available to sandbox backend adapters."""
+
+    monty: "MontyRuntime"
 
 
 # Dependency-spec grammar. Mirrored in app/src/pages/settings/sandboxes/utils.tsx.
@@ -384,7 +399,7 @@ class DenoDeployment(NoDeployment):
 
 
 class MontyDeployment(NoDeployment):
-    """Monty runs in-process; no deployment routing applies."""
+    """Monty runs in local worker subprocesses; no deployment routing applies."""
 
     backend_type: Literal["MONTY"] = "MONTY"
 
@@ -685,7 +700,13 @@ class SandboxAdapter(Generic[ConfigT, CredT, DeployT], ABC):
     def credential_specs(cls) -> list[ProviderCredentialSpec]:
         return credential_specs_from(cls.credentials_model)
 
-    def validate_code(self, config: ConfigT, code: str) -> Optional[str]:
+    async def validate_code(
+        self,
+        config: ConfigT,
+        code: str,
+        *,
+        runtime: Optional[SandboxRuntimeContext] = None,
+    ) -> Optional[str]:
         """Return an authoring-time validation error for code, if any."""
         return None
 
@@ -700,6 +721,7 @@ class SandboxAdapter(Generic[ConfigT, CredT, DeployT], ABC):
         credentials: CredT,
         deployment: DeployT,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
         """Construct a SandboxBackend from typed config + credentials + deployment."""
         ...

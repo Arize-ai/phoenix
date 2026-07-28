@@ -35,6 +35,7 @@ from phoenix.server.sandbox.types import (
     EnvVarValue,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     SupportsDependencies,
     SupportsEnvVars,
     SupportsInternetAccess,
@@ -294,12 +295,14 @@ async def build_sandbox_backend(
     sandbox_config: models.SandboxConfig,
     *,
     secrets: SecretsContext,
+    runtime: Optional[SandboxRuntimeContext] = None,
 ) -> Optional[SandboxBackend]:
     """Build a fresh SandboxBackend from a stored SandboxConfig row."""
     return await _build_backend_for(
         sandbox_config.backend_type,
         config=sandbox_config.config or {},
         secrets=secrets,
+        runtime=runtime,
     )
 
 
@@ -308,12 +311,14 @@ async def probe_sandbox_backend_buildable(
     *,
     language: LanguageName,
     secrets: SecretsContext,
+    runtime: Optional[SandboxRuntimeContext] = None,
 ) -> Optional[SandboxBackend]:
     """Build a backend with a minimal config to verify the adapter is buildable."""
     return await _build_backend_for(
         backend_type,
         config={"language": language},
         secrets=secrets,
+        runtime=runtime,
     )
 
 
@@ -322,6 +327,7 @@ async def _build_backend_for(
     *,
     config: Mapping[str, Any],
     secrets: SecretsContext,
+    runtime: Optional[SandboxRuntimeContext],
 ) -> Optional[SandboxBackend]:
     # Caller must pass ``language`` in config; stored blobs and the probe wrapper both do.
     adapter = SANDBOX_ADAPTERS.get(backend_type)
@@ -354,6 +360,7 @@ async def _build_backend_for(
             credentials=typed_credentials,
             deployment=typed_deployment,
             user_env=user_env,
+            runtime=runtime,
         )
     except (MissingSecretError, UnsupportedOperation, ValidationError, ValueError):
         raise

@@ -60,6 +60,7 @@ from phoenix.server.api.types.SandboxConfig import (
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
+from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
@@ -130,6 +131,7 @@ async def _validate_code_evaluator_sandbox_config(
     language: str,
     action: str,
     source_code: str,
+    sandbox_runtime: SandboxRuntimeContext,
 ) -> int:
     sandbox_config_id = from_global_id_with_expected_type(
         sandbox_config_global_id, SandboxConfig.__name__
@@ -162,14 +164,21 @@ async def _validate_code_evaluator_sandbox_config(
                 **(target_cfg.config or {}),
             }
         )
-        validation_error = adapter.validate_code(validated_config, source_code)
+        try:
+            validation_error = await adapter.validate_code(
+                validated_config,
+                source_code,
+                runtime=sandbox_runtime,
+            )
+        except SandboxValidationUnavailable as exc:
+            raise BadRequest(
+                f"Code could not be validated by the {adapter.display_name} runtime. Retry shortly."
+            ) from exc
         if validation_error is not None:
             raise BadRequest(
                 f"Code is not supported by the {adapter.display_name} runtime: {validation_error}"
             )
 
-    # Backend runtime availability (installed dependencies, downloaded binaries)
-    # is enforced at execution time, not authoring time.
     return sandbox_config_id
 
 
@@ -1330,6 +1339,7 @@ class EvaluatorMutationMixin:
                     language=input.language.value,
                     action="creating this evaluator",
                     source_code=input.source_code,
+                    sandbox_runtime=info.context.sandbox_runtime,
                 )
 
                 row = models.CodeEvaluator(
@@ -1406,6 +1416,7 @@ class EvaluatorMutationMixin:
                                 )
                                 or ""
                             ),
+                            sandbox_runtime=info.context.sandbox_runtime,
                         )
                         row.sandbox_config_id = sandbox_config_id
 
@@ -1471,6 +1482,7 @@ class EvaluatorMutationMixin:
                         language=row.language,
                         action="creating this evaluator version",
                         source_code=input.source_code,
+                        sandbox_runtime=info.context.sandbox_runtime,
                     )
 
                 candidate = models.CodeEvaluatorVersion(

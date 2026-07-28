@@ -14,6 +14,7 @@ from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server import sandbox as sandbox_module
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
+from phoenix.server.sandbox.types import SandboxValidationUnavailable
 from phoenix.server.sandbox.wasm_backend import WASMAdapter
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -597,6 +598,35 @@ class TestDisabledProviderAndConfigGuards:
 
 
 class TestCodeEvaluatorSandboxMutationIds:
+    async def test_create_reports_when_sandbox_validation_is_unavailable(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        config = await _create_monty_config(db)
+        adapter = sandbox_module.SANDBOX_ADAPTERS.get("MONTY")
+        assert adapter is not None
+
+        with patch.object(
+            adapter,
+            "validate_code",
+            side_effect=SandboxValidationUnavailable("capacity is busy"),
+        ):
+            result = await gql_client.execute(
+                _CREATE_CODE_EVALUATOR,
+                variables={
+                    "input": _create_code_evaluator_input(
+                        sandbox_config_id=config.id,
+                        name=f"busy-monty-{token_hex(4)}",
+                    )
+                },
+            )
+
+        assert result.errors
+        assert "could not be validated by the Monty runtime" in str(result.errors)
+        assert "Retry shortly" in str(result.errors)
+
     async def test_create_rejects_code_unsupported_by_selected_sandbox_before_write(
         self,
         gql_client: AsyncGraphQLClient,
