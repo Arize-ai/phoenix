@@ -69,6 +69,7 @@ export function LLMOutput({
         }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
+            {isRawView && <ConnectedMarkdownModeSelect />}
             {views.length > 0 && (
               <LLMIOViewSelect
                 label="Output view"
@@ -77,9 +78,8 @@ export function LLMOutput({
                 onChange={setView}
               />
             )}
-            {isRawView && <ConnectedMarkdownModeSelect />}
-            {/* copy sits last in every card header, so it is always in the same
-                place no matter which controls the card has */}
+            {/* the view switch sits immediately before copy, and copy remains
+                last so both controls stay in a consistent place */}
             {copyText != null && <CopyToClipboardButton text={copyText} />}
           </Flex>
         }
