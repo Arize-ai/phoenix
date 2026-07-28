@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Card, CopyToClipboardButton, Flex } from "@phoenix/components";
+import { inlineDividerCSS } from "@phoenix/components/core/styles";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownModeSelect,
@@ -54,26 +55,32 @@ export function LLMInput({
   /** The invocation parameters as a JSON string */
   invocationParameters: string;
 }) {
-  let modelNameEl: ReactNode = null;
-  if (modelName != null) {
+  const toolCount = toolSchemas.length;
+  let subTitleEl: ReactNode = null;
+  if (modelName != null || toolCount > 0) {
     const normalizedProvider = provider?.toUpperCase();
     // Only show a provider icon when the provider is known
     const providerIcon =
+      modelName != null &&
       typeof normalizedProvider === "string" &&
       isModelProvider(normalizedProvider) ? (
         <GenerativeProviderIcon provider={normalizedProvider} height={16} />
       ) : null;
-    modelNameEl = (
+    subTitleEl = (
       <Flex direction="row" gap="size-100" alignItems="center">
         {providerIcon}
         {modelName}
+        {modelName != null && toolCount > 0 && (
+          <span aria-hidden css={inlineDividerCSS} />
+        )}
+        {toolCount > 0 && `${toolCount} ${toolCount === 1 ? "tool" : "tools"}`}
       </Flex>
     );
   }
 
   const hasInput = input != null && input.value != null;
   const hasInputMessages = inputMessages.length > 0;
-  const hasLLMToolSchemas = toolSchemas.length > 0;
+  const hasLLMToolSchemas = toolCount > 0;
   const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(safelyParseJSON(invocationParameters).json || {}).length > 0;
@@ -114,7 +121,7 @@ export function LLMInput({
         {...defaultCardProps}
         {...cardProps}
         title="Input"
-        subTitle={modelNameEl}
+        subTitle={subTitleEl}
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             {isRawView && (

@@ -12,6 +12,7 @@ import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
 import { LLMMessagesList } from "./LLMMessagesList";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanIOValue } from "./types";
+import { countToolCalls } from "./utils";
 
 /**
  * The output side of an LLM span — a card with a view select for the output
@@ -28,6 +29,7 @@ export function LLMOutput({
 }) {
   const hasOutput = output != null && output.value != null;
   const hasOutputMessages = outputMessages.length > 0;
+  const toolCallCount = countToolCalls(outputMessages);
 
   const views: LLMIOView[] = [];
   if (hasOutputMessages)
@@ -48,6 +50,11 @@ export function LLMOutput({
         {...defaultCardProps}
         {...cardProps}
         title="Output"
+        subTitle={
+          toolCallCount > 0
+            ? `${toolCallCount} ${toolCallCount === 1 ? "tool call" : "tool calls"}`
+            : undefined
+        }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             {isRawView && (

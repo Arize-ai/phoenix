@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DocumentEvaluation } from "../types";
 import {
+  countToolCalls,
   getEmbeddingAttributes,
   getLLMAttributes,
   getRerankerAttributes,
@@ -95,6 +96,34 @@ describe("getLLMAttributes", () => {
       },
     });
     expect(result.prompts).toEqual([]);
+  });
+});
+
+describe("countToolCalls", () => {
+  it("sums the tool calls across messages, skipping empty entries", () => {
+    expect(
+      countToolCalls([
+        { role: "assistant", content: "no tool calls here" },
+        {
+          role: "assistant",
+          tool_calls: [
+            { tool_call: { id: "1", function: { name: "search" } } },
+            {},
+            { tool_call: { id: "2", function: { name: "calculate" } } },
+          ],
+        },
+        {
+          role: "assistant",
+          tool_calls: [
+            { tool_call: { id: "3", function: { name: "search" } } },
+          ],
+        },
+      ])
+    ).toBe(3);
+  });
+
+  it("returns zero when there are no messages", () => {
+    expect(countToolCalls([])).toBe(0);
   });
 });
 
