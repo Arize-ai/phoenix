@@ -163,7 +163,7 @@ class GenerativeModel(Node, ModelInterface):
             "timeRange gets an error. Unlike costDetailSummaryEntries, this field "
             "cannot yet resolve an arbitrary scope."
         )
-    )
+    )  # type: ignore
     async def cost_summary(
         self,
         info: Info[Context, None],
@@ -205,7 +205,7 @@ class GenerativeModel(Node, ModelInterface):
             "spans in one project, timeRange to spans that started within it, and "
             "omitting both returns the model's usage across all projects and time."
         )
-    )
+    )  # type: ignore
     async def cost_detail_summary_entries(
         self,
         info: Info[Context, None],
