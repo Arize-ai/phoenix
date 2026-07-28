@@ -1,20 +1,11 @@
 import { css } from "@emotion/react";
 
-import {
-  TRACE_TREE_HOVER_WIDTH_PIXELS,
-  TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS,
-} from "@phoenix/constants";
-
 export const NESTING_INDENT = 25;
 export const COMPACT_BREAKPOINT = "300px";
-export const LARGE_BREAKPOINT = "500px";
-export const EXTRA_LARGE_BREAKPOINT = "800px";
 
 /**
- * Content for the resizable trace-tree column. The parent Panel is the query
- * container. When the allocated column is narrower than size-3000, hovering
- * or moving keyboard focus into the tree exposes a usable overlay without
- * changing the resizable layout's remembered width.
+ * Content for the resizable trace-tree column. The sizing machine guarantees
+ * that this content is either usefully open or reduced to the compact rail.
  */
 export const traceTreePanelContentCSS = css`
   position: relative;
@@ -28,122 +19,6 @@ export const traceTreePanelContentCSS = css`
   container-type: inline-size;
   background: var(--global-background-color-default);
   --trace-tree-overflow-y: auto;
-
-  .details-panel-columns:has(
-      .details-panel-tree-separator[data-overlay-resizing="true"]
-    )
-    & {
-    z-index: var(--global-z-index-local-raised);
-    width: 100%;
-    border-right: var(--global-border-size-thin) solid
-      var(--global-border-color-default);
-    box-shadow: 4px 0 12px var(--global-overlay-shadow-color);
-  }
-
-  @container trace-tree-panel (width < ${TRACE_TREE_HOVER_WIDTH_PIXELS}px) {
-    --trace-tree-overflow-y: hidden;
-
-    .details-panel-columns:not(
-        :has(
-          .details-panel-tree-separator:is(
-            [data-overlay-resizing="true"],
-            [data-dragging="true"],
-            [data-separator="active"]
-          )
-        )
-      )
-      &:is(:hover, :focus-within),
-    .details-panel-columns:not(
-        :has(
-          .details-panel-tree-separator:is(
-            [data-overlay-resizing="true"],
-            [data-dragging="true"],
-            [data-separator="active"]
-          )
-        )
-      ):has(
-        .details-panel-tree-separator[data-overlay-active="true"]:is(
-          :hover,
-          :focus-visible
-        )
-      )
-      & {
-      z-index: var(--global-z-index-local-raised);
-      width: var(--global-dimension-size-3000);
-      --trace-tree-overflow-y: auto;
-      border-right: var(--global-border-size-thin) solid
-        var(--global-border-color-default);
-
-      .trace-tree-toolbar__search {
-        flex: 1 1 auto;
-        width: 100%;
-      }
-
-      .trace-tree-toolbar__search .search-field {
-        width: 100%;
-      }
-
-      .trace-tree-toolbar__search .react-aria-Input {
-        width: 100%;
-        padding-left: calc(
-          var(--global-dimension-size-200) + var(--searchfield-icon-size)
-        ) !important;
-        padding-right: var(--global-dimension-size-300) !important;
-        opacity: 1;
-        cursor: text;
-      }
-
-      .trace-tree-toolbar__search .search-field__icon {
-        left: var(--global-dimension-size-100);
-        transform: translateY(-50%);
-      }
-
-      .trace-tree-toolbar__search .search-field__clear:not([data-empty]) {
-        display: flex;
-      }
-    }
-  }
-
-  @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
-    .details-panel-columns:not(
-        :has(
-          .details-panel-tree-separator:is(
-            [data-overlay-resizing="true"],
-            [data-separator="active"]
-          )
-        )
-      )
-      &:is(:hover, :focus-within),
-    .details-panel-columns:not(
-        :has(
-          .details-panel-tree-separator:is(
-            [data-overlay-resizing="true"],
-            [data-separator="active"]
-          )
-        )
-      ):has(
-        .details-panel-tree-separator[data-overlay-active="true"]:is(
-          :hover,
-          :focus-visible
-        )
-      )
-      & {
-      .trace-tree-toolbar__controls {
-        width: 100%;
-      }
-
-      .trace-tree-toolbar__action {
-        justify-content: flex-start;
-        width: 100%;
-        padding: var(--global-dimension-size-50)
-          var(--global-dimension-size-100) !important;
-      }
-
-      .trace-tree-toolbar__action-label {
-        display: inline;
-      }
-    }
-  }
 `;
 
 export const traceTreeListCSS = css`
@@ -166,18 +41,6 @@ export const traceTreeListCSS = css`
     }
     .span-node-wrap {
       padding-left: var(--global-dimension-size-200);
-    }
-  }
-  @container (width < ${LARGE_BREAKPOINT}) {
-    .span-tree-timing {
-      display: none;
-      visibility: hidden;
-      width: 0;
-    }
-  }
-  @container (width > ${EXTRA_LARGE_BREAKPOINT}) {
-    .span-tree-timing {
-      width: 33%;
     }
   }
 `;

@@ -258,6 +258,7 @@ export type DimensionValue =
   | "size-5000"
   | "size-6000"
   | "size-12000"
+  | "size-15000"
   | "single-line-height"
   | "single-line-width"
   | number

@@ -10,19 +10,17 @@ import {
   Dialog,
   Drawer,
   ErrorBoundary,
-  Flex,
-  DialogCloseButton,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   TitleWithID,
 } from "@phoenix/components";
-import { TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS } from "@phoenix/constants";
+import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
 import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
+import { DetailsPanelHeader } from "./DetailsPanel";
 import { SessionDetails } from "./SessionDetails";
 import { useDetailsPanelSizing } from "./useDetailsPanelSizing";
 
@@ -33,17 +31,24 @@ export function SessionPage() {
   const loaderData = useLoaderData<typeof sessionLoader>();
   invariant(loaderData, "loaderData is required");
   const { sessionId } = useParams();
+  invariant(sessionId, "Session ID is required");
   const navigate = useNavigate();
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
   const parentSearch = clearSelectionScopedParams(location.search);
   const {
     defaultDrawerSize,
+    isTreeCollapsed,
+    maximumDrawerSize,
+    minimumDrawerSize,
     onDrawerResize,
     onDrawerSizeChange,
     onPreferredTreeWidthChange,
+    onTreeCollapsedChange,
     preferredTreeWidth,
-  } = useDetailsPanelSizing();
+  } = useDetailsPanelSizing({
+    treeMaximumWidth: getTraceTreeMaximumWidth({ hasTiming: false }),
+  });
 
   return (
     <Drawer
@@ -56,30 +61,41 @@ export function SessionPage() {
         })
       }
       defaultSize={defaultDrawerSize}
-      minSize={TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS}
+      minSize={minimumDrawerSize}
+      maxSize={maximumDrawerSize}
       onResize={onDrawerResize}
       onResizeEnd={onDrawerSizeChange}
     >
-      <Dialog>
+      <Dialog aria-label="Session details">
         {({ close }) => (
           <DialogContent>
-            <DialogHeader>
-              <Flex direction="row" gap="size-200" alignItems="center">
-                <DialogCloseButton close={close} />
-                <SessionDetailsPaginator currentId={sessionId} />
-                <DialogTitle>
-                  <TitleWithID
-                    title="Session"
-                    id={loaderData.session.sessionId || ""}
-                  />
-                </DialogTitle>
-              </Flex>
-            </DialogHeader>
             <ErrorBoundary>
               <SessionDetails
-                sessionId={sessionId as string}
+                sessionId={sessionId}
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                navigationHeader={
+                  <DetailsPanelHeader
+                    close={close}
+                    closeLabel="Close session details"
+                    isCollapsed={isTreeCollapsed}
+                    onCollapsedChange={onTreeCollapsedChange}
+                    pagination={
+                      <SessionDetailsPaginator
+                        currentId={sessionId}
+                        isCollapsed={isTreeCollapsed}
+                      />
+                    }
+                    title={
+                      <DialogTitle>
+                        <TitleWithID
+                          title="Session"
+                          id={loaderData.session.sessionId || ""}
+                        />
+                      </DialogTitle>
+                    }
+                  />
+                }
               />
             </ErrorBoundary>
           </DialogContent>

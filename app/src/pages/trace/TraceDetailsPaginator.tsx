@@ -9,7 +9,6 @@ import {
   Icons,
   KeyboardToken,
   Tooltip,
-  TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
 import {
@@ -24,9 +23,11 @@ export const PREVIOUS_TRACE_HOTKEY = "k";
 export const TraceDetailsPaginator = ({
   currentId,
   className,
+  isCollapsed,
 }: {
   currentId?: string;
   className?: string;
+  isCollapsed: boolean;
 }) => {
   const pagination = useTracePagination();
 
@@ -53,6 +54,52 @@ export const TraceDetailsPaginator = ({
   );
   const hasPrevious = !!previousTraceId;
   const hasNext = !!nextTraceId;
+  const nextButton = (
+    <TooltipTrigger key="next" delay={100}>
+      <Button
+        size="S"
+        variant="quiet"
+        id="next"
+        leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
+        aria-label="Next trace"
+        isDisabled={!hasNext}
+        onPress={() => {
+          startTransition(() => {
+            next(currentId);
+          });
+        }}
+      />
+      <Tooltip placement={isCollapsed ? "left" : undefined} offset={4}>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <span>Next trace</span>
+          <KeyboardToken>{NEXT_TRACE_HOTKEY}</KeyboardToken>
+        </Flex>
+      </Tooltip>
+    </TooltipTrigger>
+  );
+  const previousButton = (
+    <TooltipTrigger key="previous" delay={100}>
+      <Button
+        size="S"
+        variant="quiet"
+        id="previous"
+        leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
+        aria-label="Previous trace"
+        isDisabled={!hasPrevious}
+        onPress={() => {
+          startTransition(() => {
+            previous(currentId);
+          });
+        }}
+      />
+      <Tooltip placement={isCollapsed ? "left" : undefined} offset={4}>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <span>Previous trace</span>
+          <KeyboardToken>{PREVIOUS_TRACE_HOTKEY}</KeyboardToken>
+        </Flex>
+      </Tooltip>
+    </TooltipTrigger>
+  );
 
   return (
     <Flex
@@ -71,48 +118,17 @@ export const TraceDetailsPaginator = ({
         gap="size-50"
         alignItems="center"
       >
-        <TooltipTrigger delay={100}>
-          <Button
-            size="S"
-            id="next"
-            leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
-            aria-label="Next trace"
-            isDisabled={!hasNext}
-            onPress={() => {
-              startTransition(() => {
-                next(currentId);
-              });
-            }}
-          />
-          <Tooltip offset={4}>
-            <TooltipArrow />
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <span>Next trace</span>
-              <KeyboardToken>{NEXT_TRACE_HOTKEY}</KeyboardToken>
-            </Flex>
-          </Tooltip>
-        </TooltipTrigger>
-        <TooltipTrigger delay={100}>
-          <Button
-            size="S"
-            id="previous"
-            leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
-            aria-label="Previous trace"
-            isDisabled={!hasPrevious}
-            onPress={() => {
-              startTransition(() => {
-                previous(currentId);
-              });
-            }}
-          />
-          <Tooltip offset={4}>
-            <TooltipArrow />
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <span>Previous trace</span>
-              <KeyboardToken>{PREVIOUS_TRACE_HOTKEY}</KeyboardToken>
-            </Flex>
-          </Tooltip>
-        </TooltipTrigger>
+        {isCollapsed ? (
+          <>
+            {previousButton}
+            {nextButton}
+          </>
+        ) : (
+          <>
+            {nextButton}
+            {previousButton}
+          </>
+        )}
       </Flex>
     </Flex>
   );

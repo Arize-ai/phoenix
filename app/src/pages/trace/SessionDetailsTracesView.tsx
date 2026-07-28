@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import { throttle } from "lodash";
 import {
+  type ReactNode,
   Suspense,
   useCallback,
   useEffect,
@@ -15,7 +16,6 @@ import {
   usePaginationFragment,
   usePreloadedQuery,
 } from "react-relay";
-import { Group, Panel } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 
 import {
@@ -33,19 +33,11 @@ import {
   EmptyStateGraphic,
 } from "@phoenix/components/core/empty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import {
-  ResizableTraceTreePanelContent,
-  ResizableTraceTreeSeparator,
-  resizableTraceTreePanelStyle,
-} from "@phoenix/components/trace/ResizableTraceTreePanelContent";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
+import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
-import {
-  SPAN_DETAILS_MIN_WIDTH_PIXELS,
-  TRACE_TREE_MIN_WIDTH_PIXELS,
-} from "@phoenix/constants";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
@@ -61,8 +53,8 @@ import type { SessionDetailsTracesViewTreeQuery } from "@phoenix/pages/trace/__g
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
+import { DetailsPanel } from "./DetailsPanel";
 import { SpanDetails } from "./SpanDetails";
-import { usePreferredTreePanel } from "./useDetailsPanelSizing";
 
 const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
 
@@ -104,10 +96,14 @@ export function SessionDetailsTracesView({
   queryRef,
   preferredTreeWidth,
   onPreferredTreeWidthChange,
+  navigationHeader,
+  renderMainContent,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTracesViewQuery>;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
+  navigationHeader: ReactNode;
+  renderMainContent: (content: ReactNode) => ReactNode;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTracesViewQuery>(
     sessionDetailsTracesViewQuery,
@@ -247,18 +243,6 @@ export function SessionDetailsTracesView({
     }
   }, [hasNext, isLoadingNext, loadNext, traces]);
 
-  const {
-    groupElementRef,
-    onLayoutChanged,
-    onTreeResize,
-    onTreeResizeEnd,
-    onTreeResizeStart,
-    treePanelRef,
-  } = usePreferredTreePanel({
-    preferredTreeWidth,
-    onPreferredTreeWidthChange,
-  });
-
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -278,27 +262,14 @@ export function SessionDetailsTracesView({
   );
 
   return (
-    <Group
-      elementRef={groupElementRef}
-      orientation="horizontal"
-      onLayoutChanged={onLayoutChanged}
-      css={viewGroupCSS}
-      className="details-panel-columns"
-      data-testid="session-traces-view"
-    >
-      <Panel
-        id="details-panel-tree-column"
-        panelRef={treePanelRef}
-        defaultSize={preferredTreeWidth}
-        minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
-        groupResizeBehavior="preserve-pixel-size"
-        css={css`
-          container-name: trace-tree-panel;
-          container-type: inline-size;
-        `}
-        style={resizableTraceTreePanelStyle}
-      >
-        <ResizableTraceTreePanelContent contentCSS={tracesListPanelCSS}>
+    <DetailsPanel
+      dataTestId="session-traces-view"
+      preferredTreeWidth={preferredTreeWidth}
+      onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+      treeMaximumWidth={getTraceTreeMaximumWidth({ hasTiming: false })}
+      navigation={
+        <>
+          {navigationHeader}
           <TraceRowList
             traces={traces}
             expandedIds={expandedIds}
@@ -313,20 +284,13 @@ export function SessionDetailsTracesView({
               throttledFetchMoreOnBottomReached(event.currentTarget)
             }
           />
-        </ResizableTraceTreePanelContent>
-      </Panel>
-      <ResizableTraceTreeSeparator
-        onResize={onTreeResize}
-        onResizeEnd={onTreeResizeEnd}
-        onResizeStart={onTreeResizeStart}
-      />
-      <Panel
-        id="details-panel-main-column"
-        minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
-      >
+        </>
+      }
+    >
+      {renderMainContent(
         <SpanDetailsPanel selectedSpanNodeId={selectedSpanNodeId} />
-      </Panel>
-    </Group>
+      )}
+    </DetailsPanel>
   );
 }
 
@@ -678,18 +642,6 @@ function LazyTraceTree({
     </TraceTreeProvider>
   );
 }
-
-const viewGroupCSS = css`
-  flex: 1 1 auto;
-  overflow: hidden;
-`;
-
-const tracesListPanelCSS = css`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-`;
 
 const traceRowListCSS = css`
   flex: 1 1 auto;

@@ -133,9 +133,12 @@ export function TraceTreeToolbar() {
         @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
           height: auto;
 
-          .trace-tree-toolbar__layout,
-          .trace-tree-toolbar__controls {
+          .trace-tree-toolbar__layout {
             flex-direction: column;
+          }
+
+          .trace-tree-toolbar__controls {
+            display: none;
           }
         }
       `}

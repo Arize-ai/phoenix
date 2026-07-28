@@ -9,21 +9,25 @@ import {
   Icons,
   KeyboardToken,
   Tooltip,
-  TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
 import {
   getNeighbors,
   useSessionPagination,
 } from "@phoenix/pages/trace/SessionPaginationContext";
+import { classNames } from "@phoenix/utils/classNames";
 
 export const NEXT_SESSION_HOTKEY = "j";
 export const PREVIOUS_SESSION_HOTKEY = "k";
 
 export const SessionDetailsPaginator = ({
   currentId,
+  className,
+  isCollapsed,
 }: {
   currentId?: string;
+  className?: string;
+  isCollapsed: boolean;
 }) => {
   const pagination = useSessionPagination();
 
@@ -50,9 +54,56 @@ export const SessionDetailsPaginator = ({
   );
   const hasPrevious = !!previousSessionId;
   const hasNext = !!nextSessionId;
+  const nextButton = (
+    <TooltipTrigger key="next" delay={100}>
+      <Button
+        size="S"
+        variant="quiet"
+        id="next"
+        leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
+        aria-label="Next session"
+        isDisabled={!hasNext}
+        onPress={() => {
+          startTransition(() => {
+            next(currentId);
+          });
+        }}
+      />
+      <Tooltip placement={isCollapsed ? "left" : undefined} offset={4}>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <span>Next session</span>
+          <KeyboardToken>{NEXT_SESSION_HOTKEY}</KeyboardToken>
+        </Flex>
+      </Tooltip>
+    </TooltipTrigger>
+  );
+  const previousButton = (
+    <TooltipTrigger key="previous" delay={100}>
+      <Button
+        size="S"
+        variant="quiet"
+        id="previous"
+        leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
+        aria-label="Previous session"
+        isDisabled={!hasPrevious}
+        onPress={() => {
+          startTransition(() => {
+            previous(currentId);
+          });
+        }}
+      />
+      <Tooltip placement={isCollapsed ? "left" : undefined} offset={4}>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <span>Previous session</span>
+          <KeyboardToken>{PREVIOUS_SESSION_HOTKEY}</KeyboardToken>
+        </Flex>
+      </Tooltip>
+    </TooltipTrigger>
+  );
 
   return (
     <Flex
+      className={classNames("session-details-paginator", className)}
       gap="size-50"
       css={css`
         button {
@@ -62,49 +113,23 @@ export const SessionDetailsPaginator = ({
         }
       `}
     >
-      <Flex direction="row" gap="size-50" alignItems="center">
-        <TooltipTrigger delay={100}>
-          <Button
-            size="S"
-            id="next"
-            leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
-            aria-label="Next session"
-            isDisabled={!hasNext}
-            onPress={() => {
-              startTransition(() => {
-                next(currentId);
-              });
-            }}
-          />
-          <Tooltip offset={4}>
-            <TooltipArrow />
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <span>Next session</span>
-              <KeyboardToken>{NEXT_SESSION_HOTKEY}</KeyboardToken>
-            </Flex>
-          </Tooltip>
-        </TooltipTrigger>
-        <TooltipTrigger delay={100}>
-          <Button
-            size="S"
-            id="previous"
-            leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
-            aria-label="Previous session"
-            isDisabled={!hasPrevious}
-            onPress={() => {
-              startTransition(() => {
-                previous(currentId);
-              });
-            }}
-          />
-          <Tooltip offset={4}>
-            <TooltipArrow />
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <span>Previous session</span>
-              <KeyboardToken>{PREVIOUS_SESSION_HOTKEY}</KeyboardToken>
-            </Flex>
-          </Tooltip>
-        </TooltipTrigger>
+      <Flex
+        className="session-details-paginator__buttons"
+        direction="row"
+        gap="size-50"
+        alignItems="center"
+      >
+        {isCollapsed ? (
+          <>
+            {previousButton}
+            {nextButton}
+          </>
+        ) : (
+          <>
+            {nextButton}
+            {previousButton}
+          </>
+        )}
       </Flex>
     </Flex>
   );

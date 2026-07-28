@@ -19,9 +19,11 @@
 
 import {
   SPAN_DETAILS_FACTORY_WIDTH_PIXELS,
+  SPAN_DETAILS_MAX_WIDTH_PIXELS,
   SPAN_DETAILS_MIN_WIDTH_PIXELS,
   TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS,
   TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS,
+  TRACE_TREE_COLLAPSED_WIDTH_PIXELS,
   TRACE_TREE_DEFAULT_WIDTH_PIXELS,
   TRACE_TREE_MIN_WIDTH_PIXELS,
 } from "@phoenix/constants";
@@ -40,6 +42,7 @@ import {
   int,
   intVar,
   iteInt,
+  le,
   maxE,
   minE,
   mulConst,
@@ -52,9 +55,11 @@ import {
 /* -------------------------------- constants ------------------------------ */
 
 export const TREE_MIN = TRACE_TREE_MIN_WIDTH_PIXELS;
+export const TREE_COLLAPSED = TRACE_TREE_COLLAPSED_WIDTH_PIXELS;
 export const TREE_DEFAULT = TRACE_TREE_DEFAULT_WIDTH_PIXELS;
 export const MAIN_MIN = SPAN_DETAILS_MIN_WIDTH_PIXELS;
 export const MAIN_FACTORY = SPAN_DETAILS_FACTORY_WIDTH_PIXELS;
+export const MAIN_MAX = SPAN_DETAILS_MAX_WIDTH_PIXELS;
 export const SEPARATOR = TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS;
 export const DRAWER_MIN = TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS;
 /** Mirrors the Drawer's default `maxSize` of "95%" of the viewport. */
@@ -66,6 +71,8 @@ export const INT_FIELDS = [
   "gesture",
   "prefTree",
   "prefMain",
+  "treeAddon",
+  "treeMax",
   "intendedDrawer",
   "renderedDrawer",
   "renderedTree",
@@ -77,7 +84,7 @@ export const INT_FIELDS = [
   "dragMaxDrawer",
 ] as const;
 
-export const BOOL_FIELDS = ["open", "moved"] as const;
+export const BOOL_FIELDS = ["open", "moved", "collapsed"] as const;
 
 export type IntField = (typeof INT_FIELDS)[number];
 export type BoolField = (typeof BOOL_FIELDS)[number];
@@ -106,6 +113,10 @@ export const EVENT_TYPES = [
   "TREE_END",
   "TREE_CANCEL",
   "TREE_PREF_SET",
+  "TREE_ADDON_SET",
+  "TREE_MAX_SET",
+  "TREE_COLLAPSE",
+  "TREE_EXPAND",
   "VIEWPORT",
   "ALLOCATION",
 ] as const;
@@ -117,6 +128,8 @@ const EVENTS_WITH_PARAM: ReadonlySet<SizingEventType> = new Set([
   "OUTER_END",
   "TREE_MOVE",
   "TREE_PREF_SET",
+  "TREE_ADDON_SET",
+  "TREE_MAX_SET",
   "VIEWPORT",
   "ALLOCATION",
 ]);
@@ -134,6 +147,10 @@ export type SizingEvent =
   | { readonly type: "TREE_END" }
   | { readonly type: "TREE_CANCEL" }
   | { readonly type: "TREE_PREF_SET"; readonly px: number }
+  | { readonly type: "TREE_ADDON_SET"; readonly px: number }
+  | { readonly type: "TREE_MAX_SET"; readonly px: number }
+  | { readonly type: "TREE_COLLAPSE" }
+  | { readonly type: "TREE_EXPAND" }
   | { readonly type: "VIEWPORT"; readonly px: number }
   | { readonly type: "ALLOCATION"; readonly px: number };
 
@@ -171,61 +188,219 @@ const v = intVar;
 const px = intVar("px");
 const openF = boolVar("open");
 const movedF = boolVar("moved");
+const collapsedF = boolVar("collapsed");
 
-/** Largest drawer width the viewport permits: max(DRAWER_MIN, 95% of vw). */
-export const maxDrawerExpr = (viewport: IntExpr): IntExpr =>
+/** Maximum rendered tree width supplied by the navigation child. */
+export const maximumTreeExpr = (
+  treeMax: IntExpr,
+  collapsed: BoolExpr
+): IntExpr => iteInt(collapsed, int(TREE_COLLAPSED), treeMax);
+
+/** The current mode's hard layout minimum. */
+export const minimumDrawerExpr = (
+  treeAddon: IntExpr,
+  collapsed: BoolExpr
+): IntExpr =>
+  derivedDrawerExpr(
+    iteInt(collapsed, int(TREE_COLLAPSED), add(int(TREE_MIN), treeAddon)),
+    int(MAIN_MIN)
+  );
+
+/**
+ * Largest drawer width: both columns at their hard maxima, further
+ * constrained by the viewport. The outer handle may therefore reclaim tree
+ * capacity after the main column reaches its maximum.
+ */
+export const maxDrawerExpr = (
+  viewport: IntExpr,
+  treeAddon: IntExpr = v("treeAddon"),
+  collapsed: BoolExpr = collapsedF,
+  treeMax: IntExpr = v("treeMax")
+): IntExpr =>
   maxE(
-    int(DRAWER_MIN),
-    divConst(mulConst(viewport, DRAWER_MAX_VIEWPORT_PERCENT), 100)
+    minimumDrawerExpr(treeAddon, collapsed),
+    minE(
+      divConst(mulConst(viewport, DRAWER_MAX_VIEWPORT_PERCENT), 100),
+      derivedDrawerExpr(maximumTreeExpr(treeMax, collapsed), int(MAIN_MAX))
+    )
+  );
+
+/**
+ * Tree-divider gestures may increase the tree preference, so their captured
+ * drawer capacity uses the tree's own maximum rather than its old preference.
+ */
+export const maximumTreeDragDrawerExpr = (
+  viewport: IntExpr,
+  treeAddon: IntExpr = v("treeAddon"),
+  treeMax: IntExpr = v("treeMax")
+): IntExpr =>
+  maxE(
+    minimumDrawerExpr(treeAddon, bool(false)),
+    minE(
+      divConst(mulConst(viewport, DRAWER_MAX_VIEWPORT_PERCENT), 100),
+      derivedDrawerExpr(maximumTreeExpr(treeMax, bool(false)), int(MAIN_MAX))
+    )
   );
 
 /** DW-1/DW-4: the derived drawer width is the sum of preferences + separator. */
 export const derivedDrawerExpr = (
-  prefTree: IntExpr,
+  treeWidth: IntExpr,
   prefMain: IntExpr
-): IntExpr => add(add(prefTree, int(SEPARATOR)), prefMain);
+): IntExpr => add(add(treeWidth, int(SEPARATOR)), prefMain);
 
-/** Clamp a requested drawer width to [DRAWER_MIN, maxDrawer(viewport)]. */
-export const clampDrawerExpr = (width: IntExpr, viewport: IntExpr): IntExpr =>
-  clampE(width, int(DRAWER_MIN), maxDrawerExpr(viewport));
+/** Preferred rendered width: navigation preference plus additive UI width. */
+export const preferredTreeExpr = (
+  prefTree: IntExpr,
+  treeAddon: IntExpr,
+  collapsed: BoolExpr,
+  treeMax: IntExpr = v("treeMax")
+): IntExpr =>
+  iteInt(
+    collapsed,
+    int(TREE_COLLAPSED),
+    minE(add(prefTree, treeAddon), maximumTreeExpr(treeMax, collapsed))
+  );
+
+/** Clamp a requested drawer width to the current mode's dynamic bounds. */
+export const clampDrawerExpr = (
+  width: IntExpr,
+  viewport: IntExpr,
+  treeAddon: IntExpr = v("treeAddon"),
+  collapsed: BoolExpr = collapsedF,
+  treeMax: IntExpr = v("treeMax")
+): IntExpr =>
+  clampE(
+    width,
+    minimumDrawerExpr(treeAddon, collapsed),
+    maxDrawerExpr(viewport, treeAddon, collapsed, treeMax)
+  );
 
 /**
  * CP-1/CP-2/TC-2: split an allocated drawer width between the columns. The
- * tree renders at its preference when space allows, compresses toward its
- * 48px floor only after the main column has bottomed out at 640px, and never
- * exceeds its preference on constraint-driven growth.
+ * tree renders at its preference while the main column has room. After the
+ * main reaches its maximum, additional allocation grows the tree up to its
+ * own maximum. Expanded allocation is floored at navigation minimum plus
+ * additive timing width; compact mode is exactly the existing 48px rail.
  */
-export const splitTreeExpr = (alloc: IntExpr, prefTree: IntExpr): IntExpr =>
-  maxE(int(TREE_MIN), minE(prefTree, sub(alloc, int(SEPARATOR + MAIN_MIN))));
+export const splitTreeExpr = (
+  alloc: IntExpr,
+  prefTree: IntExpr,
+  treeAddon: IntExpr,
+  collapsed: BoolExpr,
+  treeMax: IntExpr = v("treeMax")
+): IntExpr => {
+  const availableTreeWidthAtMainMinimum = sub(alloc, int(SEPARATOR + MAIN_MIN));
+  const treeWidthBeyondMainMaximum = sub(alloc, int(SEPARATOR + MAIN_MAX));
+  const minimumOpenWidth = add(int(TREE_MIN), treeAddon);
+  const maximumOpenWidth = maximumTreeExpr(treeMax, bool(false));
+  const preferredOpenWidth = minE(add(prefTree, treeAddon), maximumOpenWidth);
+  return iteInt(
+    collapsed,
+    int(TREE_COLLAPSED),
+    minE(
+      maximumOpenWidth,
+      maxE(
+        minimumOpenWidth,
+        maxE(
+          minE(preferredOpenWidth, availableTreeWidthAtMainMinimum),
+          treeWidthBeyondMainMaximum
+        )
+      )
+    )
+  );
+};
 
-export const splitMainExpr = (alloc: IntExpr, prefTree: IntExpr): IntExpr =>
-  sub(sub(alloc, int(SEPARATOR)), splitTreeExpr(alloc, prefTree));
+export const splitMainExpr = (
+  alloc: IntExpr,
+  prefTree: IntExpr,
+  treeAddon: IntExpr,
+  collapsed: BoolExpr,
+  treeMax: IntExpr = v("treeMax")
+): IntExpr =>
+  sub(
+    sub(alloc, int(SEPARATOR)),
+    splitTreeExpr(alloc, prefTree, treeAddon, collapsed, treeMax)
+  );
 
 /** DW-3: the main preference implied by a released drawer width. */
 export const mainFromDrawerExpr = (
   drawer: IntExpr,
   prefTree: IntExpr
-): IntExpr => maxE(int(MAIN_MIN), sub(sub(drawer, prefTree), int(SEPARATOR)));
+): IntExpr =>
+  clampE(
+    sub(sub(drawer, prefTree), int(SEPARATOR)),
+    int(MAIN_MIN),
+    int(MAIN_MAX)
+  );
 
 /**
  * TC-8/TC-9: fixed-origin tree-divider drag mapping. Rightward travel first
- * transfers width from the main column down to its 640px minimum, then grows
- * the drawer up to its captured maximum; reversing retraces the same mapping,
- * relinquishing induced drawer growth before the main column grows again.
+ * grows the tree by shrinking the main column. If the tree reaches its maximum
+ * before the main reaches 640px, continued travel keeps the tree pinned and
+ * shrinks the main and drawer together; it never grows the drawer to the left.
+ * If the main reaches its minimum first, travel clamps. Leftward travel shrinks
+ * the tree until its expanded minimum; only overflow beyond that hard limit
+ * grows the drawer to the left and transfers new width to the main column.
+ * Reversing retraces the same mapping in either direction.
  */
 export const treeDragExprs = (
   requested: IntExpr
 ): { drawer: IntExpr; tree: IntExpr; main: IntExpr } => {
-  const clampedRequest = maxE(int(TREE_MIN), requested);
+  const minimumOpenWidth = add(int(TREE_MIN), v("treeAddon"));
+  const maximumOpenWidth = maximumTreeExpr(v("treeMax"), bool(false));
+  const mainGrowthCapacity = maxE(
+    int(0),
+    sub(int(MAIN_MAX), v("dragStartMain"))
+  );
+  const smallestWithoutExceedingMainMaximum = sub(
+    v("dragStartTree"),
+    mainGrowthCapacity
+  );
+  const requestWithinMainMaximum = maxE(
+    smallestWithoutExceedingMainMaximum,
+    requested
+  );
   const shrinkCapacity = maxE(int(0), sub(v("dragStartMain"), int(MAIN_MIN)));
   const largestWithoutGrowth = add(v("dragStartTree"), shrinkCapacity);
   const availableGrowth = maxE(
     int(0),
     sub(v("dragMaxDrawer"), v("dragStartDrawer"))
   );
-  const tree = minE(clampedRequest, add(largestWithoutGrowth, availableGrowth));
-  const drawerGrowth = maxE(int(0), sub(tree, largestWithoutGrowth));
-  const drawer = add(v("dragStartDrawer"), drawerGrowth);
+  const leftwardTree = minE(
+    maximumOpenWidth,
+    maxE(minimumOpenWidth, requestWithinMainMaximum)
+  );
+  const leftDrawerGrowth = minE(
+    availableGrowth,
+    maxE(int(0), sub(minimumOpenWidth, requestWithinMainMaximum))
+  );
+  const leftwardDrawer = add(v("dragStartDrawer"), leftDrawerGrowth);
+  const rightwardTree = minE(
+    maximumOpenWidth,
+    minE(maxE(v("dragStartTree"), requested), largestWithoutGrowth)
+  );
+  const canReachMaximumTree = le(maximumOpenWidth, largestWithoutGrowth);
+  const maximumTreeOverflow = iteInt(
+    canReachMaximumTree,
+    maxE(int(0), sub(requested, maximumOpenWidth)),
+    int(0)
+  );
+  const rightwardMainBeforeOverflow = sub(
+    sub(v("dragStartDrawer"), int(SEPARATOR)),
+    rightwardTree
+  );
+  const availableRightwardMainShrink = maxE(
+    int(0),
+    sub(rightwardMainBeforeOverflow, int(MAIN_MIN))
+  );
+  const rightwardDrawerShrink = minE(
+    maximumTreeOverflow,
+    availableRightwardMainShrink
+  );
+  const rightwardDrawer = sub(v("dragStartDrawer"), rightwardDrawerShrink);
+  const isLeftward = le(requested, v("dragStartTree"));
+  const tree = iteInt(isLeftward, leftwardTree, rightwardTree);
+  const drawer = iteInt(isLeftward, leftwardDrawer, rightwardDrawer);
   const main = sub(sub(drawer, int(SEPARATOR)), tree);
   return { drawer, tree, main };
 };
@@ -238,29 +413,95 @@ const isTree = eq(v("gesture"), int(GESTURE_TREE));
 
 /** Rendered geometry recomputed from an allocated width and tree preference. */
 const renderFromAllocation = (
-  alloc: IntExpr
+  alloc: IntExpr,
+  prefTree: IntExpr = v("prefTree"),
+  treeAddon: IntExpr = v("treeAddon"),
+  collapsed: BoolExpr = collapsedF,
+  treeMax: IntExpr = v("treeMax")
 ): Partial<Record<IntField, IntExpr>> => ({
   renderedDrawer: alloc,
-  renderedTree: splitTreeExpr(alloc, v("prefTree")),
-  renderedMain: splitMainExpr(alloc, v("prefTree")),
+  renderedTree: splitTreeExpr(alloc, prefTree, treeAddon, collapsed, treeMax),
+  renderedMain: splitMainExpr(alloc, prefTree, treeAddon, collapsed, treeMax),
 });
 
-const openedDrawer = clampDrawerExpr(
-  derivedDrawerExpr(v("prefTree"), v("prefMain")),
-  v("viewport")
-);
+const getOpenedDrawerExpr = ({
+  treeAddon = v("treeAddon"),
+  treeMax = v("treeMax"),
+  collapsed = collapsedF,
+}: {
+  treeAddon?: IntExpr;
+  treeMax?: IntExpr;
+  collapsed?: BoolExpr;
+} = {}): IntExpr =>
+  clampDrawerExpr(
+    derivedDrawerExpr(
+      preferredTreeExpr(v("prefTree"), treeAddon, collapsed, treeMax),
+      v("prefMain")
+    ),
+    v("viewport"),
+    treeAddon,
+    collapsed,
+    treeMax
+  );
+
+const openedDrawer = getOpenedDrawerExpr();
 
 /**
  * The drawer width an OPEN dispatch will produce from this state — the same
  * expression the `open` rule evaluates, exposed so the adapter can render a
  * consistent first frame before its mount effect dispatches OPEN.
  */
-export function previewOpenDrawerWidth(state: SizingState): number {
+export function previewOpenDrawerWidth(
+  state: SizingState,
+  treeAddon = state.treeAddon,
+  treeMax = state.treeMax
+): number {
   const ints: Record<string, number> = { px: 0 };
   for (const field of INT_FIELDS) ints[field] = state[field];
+  ints.treeMax = Math.max(TREE_MIN, Math.round(treeMax));
+  ints.treeAddon = Math.min(
+    Math.max(0, ints.treeMax - TREE_MIN),
+    Math.max(0, Math.round(treeAddon))
+  );
   return evaluateInt(openedDrawer, {
     ints,
-    bools: { open: state.open, moved: state.moved },
+    bools: {
+      open: state.open,
+      moved: state.moved,
+      collapsed: state.collapsed,
+    },
+  });
+}
+
+const maximumDrawerForState = iteInt(
+  eq(v("gesture"), int(GESTURE_TREE)),
+  maximumTreeDragDrawerExpr(v("viewport")),
+  maxDrawerExpr(v("viewport"))
+);
+
+/**
+ * The exact maximum the outer Drawer must enforce for the current mode: the
+ * mode's tree maximum plus the main maximum, capped by the viewport.
+ */
+export function previewMaximumDrawerWidth(
+  state: SizingState,
+  treeAddon = state.treeAddon,
+  treeMax = state.treeMax
+): number {
+  const ints: Record<string, number> = { px: 0 };
+  for (const field of INT_FIELDS) ints[field] = state[field];
+  ints.treeMax = Math.max(TREE_MIN, Math.round(treeMax));
+  ints.treeAddon = Math.min(
+    Math.max(0, ints.treeMax - TREE_MIN),
+    Math.max(0, Math.round(treeAddon))
+  );
+  return evaluateInt(maximumDrawerForState, {
+    ints,
+    bools: {
+      open: state.open,
+      moved: state.moved,
+      collapsed: state.collapsed,
+    },
   });
 }
 
@@ -270,14 +511,175 @@ export function previewOpenDrawerWidth(state: SizingState): number {
  * the event arrives from idle, e.g. a keyboard resize).
  */
 const outerStart = iteInt(isOuter, v("dragStartDrawer"), v("renderedDrawer"));
-const outerWidth = clampDrawerExpr(px, v("viewport"));
+const outerWidth = clampDrawerExpr(
+  px,
+  v("viewport"),
+  v("treeAddon"),
+  collapsedF
+);
 const outerMoved = or(and(isOuter, movedF), ne(outerWidth, outerStart));
 /** TC-4/PS-4: deliberate = a moved gesture released at a different width. */
 const outerCommitted = and(outerMoved, ne(outerWidth, outerStart));
+const outerRenderedTree = splitTreeExpr(
+  outerWidth,
+  v("prefTree"),
+  v("treeAddon"),
+  collapsedF
+);
+const outerPreferredTree = preferredTreeExpr(
+  v("prefTree"),
+  v("treeAddon"),
+  collapsedF
+);
+const outerTreeCommitted = and(
+  outerCommitted,
+  not(le(outerRenderedTree, outerPreferredTree))
+);
 
-const treeCommitted = and(movedF, ne(v("renderedTree"), v("dragStartTree")));
+const releasedTreeFromCurrentPreference = splitTreeExpr(
+  v("renderedDrawer"),
+  v("prefTree"),
+  v("treeAddon"),
+  collapsedF
+);
+const treePreferenceCommitted = and(
+  movedF,
+  ne(v("renderedTree"), releasedTreeFromCurrentPreference)
+);
+const mainPreferenceCommittedFromTree = and(
+  movedF,
+  or(
+    eq(v("renderedTree"), v("dragStartTree")),
+    and(
+      eq(v("renderedTree"), add(int(TREE_MIN), v("treeAddon"))),
+      not(le(v("renderedDrawer"), v("dragStartDrawer")))
+    )
+  ),
+  ne(v("renderedMain"), v("dragStartMain"))
+);
+const treeGestureCommitted = or(
+  treePreferenceCommitted,
+  mainPreferenceCommittedFromTree
+);
 
 const treeDrag = treeDragExprs(px);
+const nextTreeAddon = clampE(px, int(0), sub(v("treeMax"), int(TREE_MIN)));
+const nextTreePreference = maxE(int(TREE_MIN), px);
+const treePreferenceDrawer = clampDrawerExpr(
+  v("renderedDrawer"),
+  v("viewport"),
+  v("treeAddon"),
+  collapsedF,
+  v("treeMax")
+);
+const timingPreferredTree = preferredTreeExpr(
+  v("prefTree"),
+  nextTreeAddon,
+  bool(false)
+);
+const timingExactDrawer = derivedDrawerExpr(
+  timingPreferredTree,
+  v("renderedMain")
+);
+const timingConstrainedDrawer = clampDrawerExpr(
+  timingExactDrawer,
+  v("viewport"),
+  nextTreeAddon,
+  bool(false)
+);
+const timingRenderedTree = splitTreeExpr(
+  timingConstrainedDrawer,
+  v("prefTree"),
+  nextTreeAddon,
+  bool(false)
+);
+const timingRenderedMain = sub(
+  sub(timingConstrainedDrawer, int(SEPARATOR)),
+  timingRenderedTree
+);
+
+const collapsedDrawer = derivedDrawerExpr(
+  int(TREE_COLLAPSED),
+  v("renderedMain")
+);
+/**
+ * Button expansion restores the preferred tree width when possible. The
+ * drawer grows first so the main column stays stable; at the drawer maximum,
+ * remaining tree width comes from main-column slack down to MAIN_MIN.
+ */
+export const treeExpansionExprs = (): {
+  intendedDrawer: IntExpr;
+  drawer: IntExpr;
+  tree: IntExpr;
+  main: IntExpr;
+} => {
+  const preferredTree = preferredTreeExpr(
+    v("prefTree"),
+    v("treeAddon"),
+    bool(false)
+  );
+  const maximumDrawer = maxDrawerExpr(
+    v("viewport"),
+    v("treeAddon"),
+    bool(false)
+  );
+  const intendedDrawer = derivedDrawerExpr(preferredTree, v("renderedMain"));
+  const drawer = minE(intendedDrawer, maximumDrawer);
+  const treeCapacity = sub(sub(maximumDrawer, int(SEPARATOR)), int(MAIN_MIN));
+  const tree = minE(
+    maximumTreeExpr(v("treeMax"), bool(false)),
+    minE(preferredTree, treeCapacity)
+  );
+  const main = sub(sub(drawer, int(SEPARATOR)), tree);
+  return { intendedDrawer, drawer, tree, main };
+};
+
+const treeExpansion = treeExpansionExprs();
+
+const nextTreeMax = maxE(add(int(TREE_MIN), v("treeAddon")), px);
+const constraintPreferredTree = preferredTreeExpr(
+  v("prefTree"),
+  v("treeAddon"),
+  bool(false),
+  nextTreeMax
+);
+const constraintExactDrawer = derivedDrawerExpr(
+  constraintPreferredTree,
+  v("renderedMain")
+);
+const constraintConstrainedDrawer = clampDrawerExpr(
+  constraintExactDrawer,
+  v("viewport"),
+  v("treeAddon"),
+  bool(false),
+  nextTreeMax
+);
+const constraintMaximumDrawer = maxDrawerExpr(
+  v("viewport"),
+  v("treeAddon"),
+  bool(false),
+  nextTreeMax
+);
+const canKeepConstraintPeersFixed = le(
+  constraintExactDrawer,
+  constraintMaximumDrawer
+);
+const constraintRenderedTree = iteInt(
+  canKeepConstraintPeersFixed,
+  constraintPreferredTree,
+  splitTreeExpr(
+    constraintConstrainedDrawer,
+    v("prefTree"),
+    v("treeAddon"),
+    bool(false),
+    nextTreeMax
+  )
+);
+const constraintRenderedMain = iteInt(
+  canKeepConstraintPeersFixed,
+  v("renderedMain"),
+  sub(sub(constraintConstrainedDrawer, int(SEPARATOR)), constraintRenderedTree)
+);
 
 export const RULES: readonly TransitionRule[] = [
   {
@@ -326,10 +728,19 @@ export const RULES: readonly TransitionRule[] = [
       intendedDrawer: outerWidth,
       ...renderFromAllocation(outerWidth),
       // DW-3: a deliberate release stores the main preference implied by the
-      // released drawer width; the tree preference is untouched.
+      // released drawer width. Once main is maxed, overflow tree allocation
+      // also becomes the new tree preference.
+      prefTree: iteInt(
+        outerTreeCommitted,
+        sub(outerRenderedTree, v("treeAddon")),
+        v("prefTree")
+      ),
       prefMain: iteInt(
         outerCommitted,
-        mainFromDrawerExpr(outerWidth, v("prefTree")),
+        mainFromDrawerExpr(
+          outerWidth,
+          preferredTreeExpr(v("prefTree"), v("treeAddon"), collapsedF)
+        ),
         v("prefMain")
       ),
     },
@@ -338,7 +749,15 @@ export const RULES: readonly TransitionRule[] = [
       {
         kind: "persistMain",
         when: outerCommitted,
-        value: mainFromDrawerExpr(outerWidth, v("prefTree")),
+        value: mainFromDrawerExpr(
+          outerWidth,
+          preferredTreeExpr(v("prefTree"), v("treeAddon"), collapsedF)
+        ),
+      },
+      {
+        kind: "persistTree",
+        when: outerTreeCommitted,
+        value: sub(outerRenderedTree, v("treeAddon")),
       },
     ],
   },
@@ -348,13 +767,16 @@ export const RULES: readonly TransitionRule[] = [
     // owns the pointer.
     name: "treeStart",
     event: "TREE_START",
-    guard: and(openF, isIdle),
+    guard: and(openF, isIdle, not(collapsedF)),
     updates: {
       gesture: int(GESTURE_TREE),
       dragStartDrawer: v("renderedDrawer"),
       dragStartTree: v("renderedTree"),
       dragStartMain: v("renderedMain"),
-      dragMaxDrawer: maxE(maxDrawerExpr(v("viewport")), v("renderedDrawer")),
+      dragMaxDrawer: maxE(
+        maximumTreeDragDrawerExpr(v("viewport")),
+        v("renderedDrawer")
+      ),
     },
     boolUpdates: { moved: bool(false) },
     effects: [],
@@ -370,43 +792,70 @@ export const RULES: readonly TransitionRule[] = [
       intendedDrawer: treeDrag.drawer,
     },
     boolUpdates: {
-      moved: or(movedF, ne(treeDrag.tree, v("dragStartTree"))),
+      moved: or(
+        movedF,
+        ne(treeDrag.tree, v("dragStartTree")),
+        ne(treeDrag.drawer, v("dragStartDrawer"))
+      ),
     },
     effects: [],
   },
   {
-    // TC-4/TC-5: only a moved release at a different width persists the tree
-    // preference; otherwise the pre-gesture geometry is restored.
+    // TC-4/TC-5: a moved release persists the column owned by the final
+    // geometry. Persist the tree whenever the released allocation would
+    // otherwise re-split to a different width from the current preference;
+    // this makes every idle release a canonical layout and prevents the next
+    // outer gesture from snapping to a stale preference. When leftward
+    // overflow at the expanded tree minimum grows the drawer, persist the
+    // expanded main width as well. Otherwise restore the drag origin.
     name: "treeEnd",
     event: "TREE_END",
     guard: and(openF, isTree),
     updates: {
       gesture: int(GESTURE_IDLE),
-      prefTree: iteInt(treeCommitted, v("renderedTree"), v("prefTree")),
+      prefTree: iteInt(
+        treePreferenceCommitted,
+        sub(v("renderedTree"), v("treeAddon")),
+        v("prefTree")
+      ),
+      prefMain: iteInt(
+        mainPreferenceCommittedFromTree,
+        v("renderedMain"),
+        v("prefMain")
+      ),
       renderedDrawer: iteInt(
-        treeCommitted,
+        treeGestureCommitted,
         v("renderedDrawer"),
         v("dragStartDrawer")
       ),
       renderedTree: iteInt(
-        treeCommitted,
+        treeGestureCommitted,
         v("renderedTree"),
         v("dragStartTree")
       ),
       renderedMain: iteInt(
-        treeCommitted,
+        treeGestureCommitted,
         v("renderedMain"),
         v("dragStartMain")
       ),
       intendedDrawer: iteInt(
-        treeCommitted,
+        treeGestureCommitted,
         v("renderedDrawer"),
         v("dragStartDrawer")
       ),
     },
     boolUpdates: { moved: bool(false) },
     effects: [
-      { kind: "persistTree", when: treeCommitted, value: v("renderedTree") },
+      {
+        kind: "persistTree",
+        when: treePreferenceCommitted,
+        value: sub(v("renderedTree"), v("treeAddon")),
+      },
+      {
+        kind: "persistMain",
+        when: mainPreferenceCommittedFromTree,
+        value: v("renderedMain"),
+      },
     ],
   },
   {
@@ -434,14 +883,125 @@ export const RULES: readonly TransitionRule[] = [
     event: "TREE_PREF_SET",
     guard: isIdle,
     updates: {
-      prefTree: maxE(int(TREE_MIN), px),
-      renderedTree: splitTreeExpr(v("renderedDrawer"), maxE(int(TREE_MIN), px)),
-      renderedMain: splitMainExpr(v("renderedDrawer"), maxE(int(TREE_MIN), px)),
+      prefTree: nextTreePreference,
+      intendedDrawer: treePreferenceDrawer,
+      ...renderFromAllocation(treePreferenceDrawer, nextTreePreference),
     },
     boolUpdates: {},
     effects: [
-      { kind: "persistTree", when: bool(true), value: maxE(int(TREE_MIN), px) },
+      { kind: "persistTree", when: bool(true), value: nextTreePreference },
     ],
+  },
+  {
+    name: "treeMaxSetCompact",
+    event: "TREE_MAX_SET",
+    guard: and(isIdle, collapsedF),
+    updates: { treeMax: nextTreeMax },
+    boolUpdates: {},
+    effects: [],
+  },
+  {
+    name: "treeMaxSetExpanded",
+    event: "TREE_MAX_SET",
+    guard: and(openF, isIdle, not(collapsedF)),
+    updates: {
+      treeMax: nextTreeMax,
+      intendedDrawer: constraintExactDrawer,
+      renderedDrawer: constraintConstrainedDrawer,
+      renderedTree: constraintRenderedTree,
+      renderedMain: constraintRenderedMain,
+    },
+    boolUpdates: {},
+    effects: [],
+  },
+  {
+    name: "treeMaxSetClosedExpanded",
+    event: "TREE_MAX_SET",
+    guard: and(not(openF), isIdle, not(collapsedF)),
+    updates: {
+      treeMax: nextTreeMax,
+      intendedDrawer: getOpenedDrawerExpr({ treeMax: nextTreeMax }),
+      ...renderFromAllocation(
+        getOpenedDrawerExpr({ treeMax: nextTreeMax }),
+        v("prefTree"),
+        v("treeAddon"),
+        bool(false),
+        nextTreeMax
+      ),
+    },
+    boolUpdates: {},
+    effects: [],
+  },
+  {
+    name: "treeAddonSetCompact",
+    event: "TREE_ADDON_SET",
+    guard: and(openF, isIdle, collapsedF),
+    updates: { treeAddon: nextTreeAddon },
+    boolUpdates: {},
+    effects: [],
+  },
+  {
+    name: "treeAddonSetExpanded",
+    event: "TREE_ADDON_SET",
+    guard: and(openF, isIdle, not(collapsedF)),
+    updates: {
+      treeAddon: nextTreeAddon,
+      intendedDrawer: timingConstrainedDrawer,
+      renderedDrawer: timingConstrainedDrawer,
+      renderedTree: timingRenderedTree,
+      renderedMain: timingRenderedMain,
+    },
+    boolUpdates: {},
+    effects: [],
+  },
+  {
+    name: "treeAddonSetClosedCompact",
+    event: "TREE_ADDON_SET",
+    guard: and(not(openF), collapsedF),
+    updates: { treeAddon: nextTreeAddon },
+    boolUpdates: {},
+    effects: [],
+  },
+  {
+    name: "treeAddonSetClosedExpanded",
+    event: "TREE_ADDON_SET",
+    guard: and(not(openF), not(collapsedF)),
+    updates: {
+      treeAddon: nextTreeAddon,
+      intendedDrawer: getOpenedDrawerExpr({ treeAddon: nextTreeAddon }),
+      ...renderFromAllocation(
+        getOpenedDrawerExpr({ treeAddon: nextTreeAddon }),
+        v("prefTree"),
+        nextTreeAddon
+      ),
+    },
+    boolUpdates: {},
+    effects: [],
+  },
+  {
+    name: "treeCollapseOpen",
+    event: "TREE_COLLAPSE",
+    guard: and(openF, isIdle, not(collapsedF)),
+    updates: {
+      intendedDrawer: collapsedDrawer,
+      renderedDrawer: collapsedDrawer,
+      renderedTree: int(TREE_COLLAPSED),
+    },
+    boolUpdates: { collapsed: bool(true) },
+    effects: [],
+  },
+  {
+    name: "treeExpandOpen",
+    event: "TREE_EXPAND",
+    guard: and(openF, isIdle, collapsedF),
+    updates: {
+      intendedDrawer: treeExpansion.intendedDrawer,
+      renderedDrawer: treeExpansion.drawer,
+      renderedTree: treeExpansion.tree,
+      renderedMain: treeExpansion.main,
+    },
+    boolUpdates: { collapsed: bool(false) },
+    effects: [],
   },
   {
     // While a gesture is active the drag owns geometry (captured origin stays
@@ -454,7 +1014,12 @@ export const RULES: readonly TransitionRule[] = [
     updates: {
       viewport: maxE(int(1), px),
       ...renderFromAllocation(
-        clampDrawerExpr(v("intendedDrawer"), maxE(int(1), px))
+        clampDrawerExpr(
+          v("intendedDrawer"),
+          maxE(int(1), px),
+          v("treeAddon"),
+          collapsedF
+        )
       ),
     },
     boolUpdates: {},
@@ -476,7 +1041,9 @@ export const RULES: readonly TransitionRule[] = [
     name: "allocation",
     event: "ALLOCATION",
     guard: and(openF, isIdle),
-    updates: renderFromAllocation(maxE(int(DRAWER_MIN), px)),
+    updates: renderFromAllocation(
+      clampDrawerExpr(px, v("viewport"), v("treeAddon"), collapsedF)
+    ),
     boolUpdates: {},
     effects: [],
   },
@@ -505,21 +1072,44 @@ const initPrefTree = iteInt(
 );
 const initPrefMain = iteInt(
   boolVar("mainRawPresent"),
-  maxE(int(MAIN_MIN), v("mainRaw")),
+  clampE(v("mainRaw"), int(MAIN_MIN), int(MAIN_MAX)),
   int(MAIN_FACTORY)
 );
 const initViewport = maxE(int(1), v("viewportRaw"));
+const initTreeAddon = int(0);
+const initTreeMax = int(TREE_DEFAULT);
+const initCollapsed = bool(false);
 const initDrawer = clampDrawerExpr(
-  derivedDrawerExpr(initPrefTree, initPrefMain),
-  initViewport
+  derivedDrawerExpr(
+    preferredTreeExpr(initPrefTree, initTreeAddon, initCollapsed, initTreeMax),
+    initPrefMain
+  ),
+  initViewport,
+  initTreeAddon,
+  initCollapsed,
+  initTreeMax
 );
-const initTree = splitTreeExpr(initDrawer, initPrefTree);
-const initMain = splitMainExpr(initDrawer, initPrefTree);
+const initTree = splitTreeExpr(
+  initDrawer,
+  initPrefTree,
+  initTreeAddon,
+  initCollapsed,
+  initTreeMax
+);
+const initMain = splitMainExpr(
+  initDrawer,
+  initPrefTree,
+  initTreeAddon,
+  initCollapsed,
+  initTreeMax
+);
 
 export const INIT_INT_EXPRS: Readonly<Record<IntField, IntExpr>> = {
   gesture: int(GESTURE_IDLE),
   prefTree: initPrefTree,
   prefMain: initPrefMain,
+  treeAddon: initTreeAddon,
+  treeMax: initTreeMax,
   intendedDrawer: initDrawer,
   renderedDrawer: initDrawer,
   renderedTree: initTree,
@@ -528,12 +1118,17 @@ export const INIT_INT_EXPRS: Readonly<Record<IntField, IntExpr>> = {
   dragStartDrawer: initDrawer,
   dragStartTree: initTree,
   dragStartMain: initMain,
-  dragMaxDrawer: maxDrawerExpr(initViewport),
+  dragMaxDrawer: maximumTreeDragDrawerExpr(
+    initViewport,
+    initTreeAddon,
+    initTreeMax
+  ),
 };
 
 export const INIT_BOOL_EXPRS: Readonly<Record<BoolField, BoolExpr>> = {
   open: bool(false),
   moved: bool(false),
+  collapsed: initCollapsed,
 };
 
 export const INIT_INPUT_INT_VARS = [
@@ -548,8 +1143,8 @@ export const INIT_INPUT_BOOL_VARS = [
 
 /**
  * Evaluate the Init expressions. Missing, non-numeric, or non-finite stored
- * values arrive as null and fall back to defaults; finite values are floored
- * at the column minimum. The raw stored value is never rewritten.
+ * values arrive as null and fall back to defaults; finite values are clamped
+ * to the column's bounds. The raw stored value is never rewritten.
  */
 export function createInitialState({
   treeRaw,

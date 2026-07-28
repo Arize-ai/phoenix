@@ -3,7 +3,6 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { Suspense } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Group, Panel } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -18,23 +17,19 @@ import {
 } from "@phoenix/components";
 import { TraceDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import {
-  ResizableTraceTreePanelContent,
-  ResizableTraceTreeSeparator,
-  resizableTraceTreePanelStyle,
-} from "@phoenix/components/trace/ResizableTraceTreePanelContent";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
+import {
+  getTraceTreeMaximumWidth,
+  TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
+} from "@phoenix/components/trace/traceTreeSizing";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
-import {
-  SPAN_DETAILS_MIN_WIDTH_PIXELS,
-  TRACE_TREE_MIN_WIDTH_PIXELS,
-} from "@phoenix/constants";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
 } from "@phoenix/constants/searchParams";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -44,8 +39,8 @@ import type {
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
+import { DetailsPanel } from "./DetailsPanel";
 import { SpanDetails } from "./SpanDetails";
-import { usePreferredTreePanel } from "./useDetailsPanelSizing";
 
 type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -78,6 +73,15 @@ export function TraceDetails({
   treeHeader,
 }: TraceDetailsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const showMetricsInTraceTree = usePreferencesContext(
+    (state) => state.showMetricsInTraceTree
+  );
+  const treeAddonWidth = showMetricsInTraceTree
+    ? TRACE_TREE_TIMING_MIN_WIDTH_PIXELS
+    : 0;
+  const treeMaximumWidth = getTraceTreeMaximumWidth({
+    hasTiming: showMetricsInTraceTree,
+  });
   const data = useLazyLoadQuery<TraceDetailsQuery>(
     graphql`
       query TraceDetailsQuery($traceId: ID!, $id: ID!) {
@@ -115,18 +119,18 @@ export function TraceDetails({
     }
   );
   invariant(data.project.trace, "Trace is required to view the trace details");
-  const gqlSpans = data.project.trace?.rootSpans.edges || [];
+  const trace = data.project.trace;
+  const gqlSpans = trace.rootSpans.edges || [];
   const rootSpans: RootSpan[] = gqlSpans.map((node) => node.span);
   const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   const urlTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
   invariant(rootSpans.length > 0, "At least one root must be resolvable");
   const rootSpan = rootSpans[0];
   const isTraceSelected =
-    urlSpanNodeId == null &&
-    (defaultToTrace || urlTraceId === data.project.trace.traceId);
+    urlSpanNodeId == null && (defaultToTrace || urlTraceId === trace.traceId);
   const selectedSpanNodeId =
     urlSpanNodeId ?? (isTraceSelected ? null : rootSpan.id);
-  const session = data.project.trace.session;
+  const session = trace.session;
   const treeSession = session
     ? {
         sessionId: session.sessionId,
@@ -137,18 +141,6 @@ export function TraceDetails({
       }
     : undefined;
 
-  const {
-    groupElementRef,
-    onLayoutChanged,
-    onTreeResize,
-    onTreeResizeEnd,
-    onTreeResizeStart,
-    treePanelRef,
-  } = usePreferredTreePanel({
-    preferredTreeWidth,
-    onPreferredTreeWidthChange,
-  });
-
   return (
     <main
       css={css`
@@ -158,91 +150,59 @@ export function TraceDetails({
         flex-direction: column;
       `}
     >
-      <Group
-        elementRef={groupElementRef}
-        orientation="horizontal"
-        onLayoutChanged={onLayoutChanged}
-        className="details-panel-columns"
-        css={css`
-          flex: 1 1 auto;
-          overflow: hidden;
-        `}
-      >
-        <Panel
-          id="details-panel-tree-column"
-          panelRef={treePanelRef}
-          defaultSize={preferredTreeWidth}
-          minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
-          groupResizeBehavior="preserve-pixel-size"
-          css={css`
-            container-name: trace-tree-panel;
-            container-type: inline-size;
-          `}
-          style={resizableTraceTreePanelStyle}
-        >
+      <DetailsPanel
+        navigation={
           <TraceTreeProvider>
-            <ResizableTraceTreePanelContent>
-              {treeHeader}
-              <TraceTreeToolbar />
-              <ConnectedTraceTree
-                trace={data.project.trace}
-                session={treeSession}
-                selectedSpanNodeId={selectedSpanNodeId ?? ""}
-                traceSelection={{
-                  isSelected: isTraceSelected,
-                  onSelect: () => {
-                    setSearchParams(
-                      (searchParams) => {
-                        searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-                        searchParams.set(
-                          SELECTED_TRACE_ID_PARAM,
-                          data.project.trace.traceId
-                        );
-                        return searchParams;
-                      },
-                      { replace: true }
-                    );
-                  },
-                  traceId: data.project.trace.traceId,
-                }}
-                onSpanClick={(span) => {
+            {treeHeader}
+            <TraceTreeToolbar />
+            <ConnectedTraceTree
+              trace={trace}
+              session={treeSession}
+              selectedSpanNodeId={selectedSpanNodeId ?? ""}
+              traceSelection={{
+                isSelected: isTraceSelected,
+                onSelect: () => {
                   setSearchParams(
                     (searchParams) => {
-                      searchParams.delete(SELECTED_TRACE_ID_PARAM);
-                      searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
+                      searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                      searchParams.set(SELECTED_TRACE_ID_PARAM, trace.traceId);
                       return searchParams;
                     },
                     { replace: true }
                   );
-                }}
-              />
-            </ResizableTraceTreePanelContent>
+                },
+                traceId: trace.traceId,
+              }}
+              onSpanClick={(span) => {
+                setSearchParams(
+                  (searchParams) => {
+                    searchParams.delete(SELECTED_TRACE_ID_PARAM);
+                    searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
+                    return searchParams;
+                  },
+                  { replace: true }
+                );
+              }}
+            />
           </TraceTreeProvider>
-        </Panel>
-        <ResizableTraceTreeSeparator
-          onResize={onTreeResize}
-          onResizeEnd={onTreeResizeEnd}
-          onResizeStart={onTreeResizeStart}
-        />
-        <Panel
-          id="details-panel-main-column"
-          minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
-        >
-          <SpanDetailsWrapper>
-            {isTraceSelected ? (
-              <Suspense fallback={<Loading />}>
-                <TraceDetailPanelAnnotationBar
-                  traceNodeId={data.project.trace.id}
-                />
-              </Suspense>
-            ) : selectedSpanNodeId ? (
-              <Suspense fallback={<Loading />}>
-                <SpanDetails spanNodeId={selectedSpanNodeId} />
-              </Suspense>
-            ) : null}
-          </SpanDetailsWrapper>
-        </Panel>
-      </Group>
+        }
+        preferredTreeWidth={preferredTreeWidth}
+        onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+        treeAddonWidth={treeAddonWidth}
+        treeMaximumWidth={treeMaximumWidth}
+      >
+        <SpanDetailsWrapper>
+          {isTraceSelected ? (
+            <Suspense fallback={<Loading />}>
+              <TraceDetailPanelAnnotationBar traceNodeId={trace.id} />
+            </Suspense>
+          ) : selectedSpanNodeId ? (
+            <Suspense fallback={<Loading />}>
+              <SpanDetails spanNodeId={selectedSpanNodeId} />
+            </Suspense>
+          ) : null}
+        </SpanDetailsWrapper>
+      </DetailsPanel>
     </main>
   );
 }
@@ -362,6 +322,7 @@ function SpanDetailsWrapper({ children }: PropsWithChildren) {
     <div
       data-testid="scrolling-tabs-wrapper"
       css={css`
+        width: 100%;
         height: 100%;
         overflow: hidden;
       `}

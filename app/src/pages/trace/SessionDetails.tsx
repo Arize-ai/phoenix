@@ -1,5 +1,7 @@
 import { css } from "@emotion/react";
 import {
+  type PropsWithChildren,
+  type ReactNode,
   Suspense,
   useEffect,
   useEffectEvent,
@@ -9,7 +11,7 @@ import {
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { useSearchParams } from "react-router";
 
-import { Flex, Loading } from "@phoenix/components";
+import { Loading } from "@phoenix/components";
 import { SessionDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
@@ -26,15 +28,46 @@ import {
   sessionDetailsTracesViewQuery,
 } from "./SessionDetailsTracesView";
 import type { SessionView } from "./SessionViewTabs";
-import { isSessionView, SessionViewTabs } from "./SessionViewTabs";
+import { isSessionView, SessionViewControl } from "./SessionViewTabs";
 
 export type SessionDetailsProps = {
   sessionId: string;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
+  navigationHeader: ReactNode;
 };
 
 const DEFAULT_SESSION_VIEW: SessionView = "turns";
+
+function SessionDetailsMainContent({
+  children,
+  sessionId,
+}: PropsWithChildren<{ sessionId: string }>) {
+  return (
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      `}
+    >
+      <Suspense fallback={null}>
+        <SessionDetailPanelAnnotationBar sessionNodeId={sessionId} />
+      </Suspense>
+      <div
+        css={css`
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow: hidden;
+        `}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 const setSessionViewSearchParam = ({
   params,
@@ -55,6 +88,7 @@ export function SessionDetails({
   sessionId,
   preferredTreeWidth,
   onPreferredTreeWidthChange,
+  navigationHeader,
 }: SessionDetailsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const sessionViewParam = searchParams.get(SESSION_VIEW_PARAM);
@@ -153,6 +187,21 @@ export function SessionDetails({
       { replace: true }
     );
   };
+  const renderMainContent = (content: ReactNode) => (
+    <SessionDetailsMainContent sessionId={sessionId}>
+      {content}
+    </SessionDetailsMainContent>
+  );
+  const combinedNavigationHeader = (
+    <>
+      {navigationHeader}
+      <SessionViewControl
+        sessionView={sessionView}
+        onSessionViewChange={handleSessionViewChange}
+        traceCount={traceCount}
+      />
+    </>
+  );
 
   return (
     <main
@@ -164,41 +213,27 @@ export function SessionDetails({
         overflow: hidden;
       `}
     >
-      <Suspense fallback={null}>
-        <SessionDetailPanelAnnotationBar sessionNodeId={sessionId} />
+      <Suspense fallback={<Loading />}>
+        {sessionView === "traces"
+          ? tracesViewQueryRef != null && (
+              <SessionDetailsTracesView
+                queryRef={tracesViewQueryRef}
+                preferredTreeWidth={preferredTreeWidth}
+                onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                navigationHeader={combinedNavigationHeader}
+                renderMainContent={renderMainContent}
+              />
+            )
+          : traceListQueryRef != null && (
+              <SessionDetailsTraceList
+                queryRef={traceListQueryRef}
+                preferredTreeWidth={preferredTreeWidth}
+                onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                navigationHeader={combinedNavigationHeader}
+                renderMainContent={renderMainContent}
+              />
+            )}
       </Suspense>
-      <Flex
-        direction="column"
-        flex="1 1 auto"
-        minHeight={0}
-        css={css`
-          overflow: hidden;
-        `}
-      >
-        <SessionViewTabs
-          sessionView={sessionView}
-          onSessionViewChange={handleSessionViewChange}
-          traceCount={traceCount}
-        >
-          <Suspense fallback={<Loading />}>
-            {sessionView === "traces"
-              ? tracesViewQueryRef != null && (
-                  <SessionDetailsTracesView
-                    queryRef={tracesViewQueryRef}
-                    preferredTreeWidth={preferredTreeWidth}
-                    onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                  />
-                )
-              : traceListQueryRef != null && (
-                  <SessionDetailsTraceList
-                    queryRef={traceListQueryRef}
-                    preferredTreeWidth={preferredTreeWidth}
-                    onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                  />
-                )}
-          </Suspense>
-        </SessionViewTabs>
-      </Flex>
     </main>
   );
 }

@@ -2,16 +2,14 @@ import { Suspense } from "react";
 import { useNavigate, useParams, useRouteLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Dialog, Drawer, Flex, Loading } from "@phoenix/components";
+import { Dialog, Drawer, DialogTitle, Loading } from "@phoenix/components";
+import { DialogContent } from "@phoenix/components/core/dialog";
 import {
-  DialogCloseButton,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/core/dialog";
-import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
-import { TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS } from "@phoenix/constants";
+  getTraceTreeMaximumWidth,
+  TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
+} from "@phoenix/components/trace/traceTreeSizing";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { DetailsPanelHeader } from "@phoenix/pages/trace/DetailsPanel";
 import { TraceDetails } from "@phoenix/pages/trace/TraceDetails";
 import { useDetailsPanelSizing } from "@phoenix/pages/trace/useDetailsPanelSizing";
 
@@ -29,13 +27,28 @@ export function EvaluatorTracePage() {
     EVALUATOR_DETAILS_ROUTE_ID
   );
   const projectId = loaderData?.projectId;
+  const showMetricsInTraceTree = usePreferencesContext(
+    (state) => state.showMetricsInTraceTree
+  );
+  const treeMaximumWidth = getTraceTreeMaximumWidth({
+    hasTiming: showMetricsInTraceTree,
+  });
   const {
     defaultDrawerSize,
+    isTreeCollapsed,
+    maximumDrawerSize,
+    minimumDrawerSize,
     onDrawerResize,
     onDrawerSizeChange,
     onPreferredTreeWidthChange,
+    onTreeCollapsedChange,
     preferredTreeWidth,
-  } = useDetailsPanelSizing();
+  } = useDetailsPanelSizing({
+    treeAddonWidth: showMetricsInTraceTree
+      ? TRACE_TREE_TIMING_MIN_WIDTH_PIXELS
+      : 0,
+    treeMaximumWidth,
+  });
 
   invariant(traceId, "traceId is required");
   invariant(projectId, "projectId is required");
@@ -49,33 +62,29 @@ export function EvaluatorTracePage() {
         navigate(`/datasets/${datasetId}/evaluators/${evaluatorId}`)
       }
       defaultSize={defaultDrawerSize}
-      minSize={TRACE_DETAILS_MIN_DRAWER_WIDTH_PIXELS}
+      minSize={minimumDrawerSize}
+      maxSize={maximumDrawerSize}
       onResize={onDrawerResize}
       onResizeEnd={onDrawerSizeChange}
     >
-      <Dialog>
+      <Dialog aria-label="Trace details">
         {({ close }) => (
           <DialogContent>
-            <DialogHeader>
-              <Flex direction="row" gap="size-200" alignItems="center">
-                <DialogCloseButton close={close} />
-                <DialogTitle>Trace Details</DialogTitle>
-              </Flex>
-              <DialogTitleExtra>
-                <ShareLinkButton
-                  preserveSearchParams
-                  buttonText="Share"
-                  tooltipText="Copy trace link to clipboard"
-                  successText="Trace link copied to clipboard"
-                />
-              </DialogTitleExtra>
-            </DialogHeader>
             <Suspense fallback={<Loading />}>
               <TraceDetails
                 traceId={traceId}
                 projectId={projectId}
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                treeHeader={
+                  <DetailsPanelHeader
+                    close={close}
+                    closeLabel="Close trace details"
+                    isCollapsed={isTreeCollapsed}
+                    onCollapsedChange={onTreeCollapsedChange}
+                    title={<DialogTitle>Trace Details</DialogTitle>}
+                  />
+                }
               />
             </Suspense>
           </DialogContent>

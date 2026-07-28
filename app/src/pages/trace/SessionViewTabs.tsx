@@ -5,30 +5,89 @@ import {
   Counter,
   Icon,
   Icons,
-  LazyTabPanel,
-  Tab,
-  TabList,
-  Tabs,
+  SegmentedControl,
+  SegmentedControlItem,
 } from "@phoenix/components";
+import { TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS } from "@phoenix/constants";
 
 export type SessionView = "turns" | "traces";
 
-const SESSION_VIEWS: SessionView[] = ["turns", "traces"];
-
 export function isSessionView(value: unknown): value is SessionView {
-  return SESSION_VIEWS.includes(value as SessionView);
+  return value === "turns" || value === "traces";
 }
 
-const tabLabelCSS = css`
+const sessionViewControlCSS = css`
+  box-sizing: border-box;
+  padding: var(--global-dimension-size-100);
+  border-bottom: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+
+  .segmented-control {
+    width: 100%;
+  }
+
+  @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
+    padding-inline: var(--global-dimension-size-50);
+
+    .session-view-control__label,
+    .counter {
+      display: none;
+    }
+
+    .segmented-control__item {
+      padding-inline: 0;
+    }
+  }
+`;
+
+const sessionViewControlItemCSS = css`
   display: inline-flex;
   align-items: center;
   gap: var(--global-dimension-size-100);
 `;
 
-/**
- * The top-level tabs for a session. The tab panels render the content for the
- * selected view only, so the caller passes the content for the current view.
- */
+export function SessionViewControl({
+  sessionView,
+  onSessionViewChange,
+  traceCount,
+}: {
+  sessionView: SessionView;
+  onSessionViewChange: (view: SessionView) => void;
+  traceCount: number;
+}) {
+  return (
+    <div css={sessionViewControlCSS}>
+      <SegmentedControl
+        aria-label="Session view"
+        size="S"
+        isJustified
+        selectedKey={sessionView}
+        onSelectionChange={(key) => {
+          if (isSessionView(key)) {
+            onSessionViewChange(key);
+          }
+        }}
+      >
+        <SegmentedControlItem id="turns">
+          <span css={sessionViewControlItemCSS}>
+            <Icon svg={<Icons.MessagesSquare />} />
+            <span className="session-view-control__label">Turns</span>
+            <Counter variant="quiet">{traceCount}</Counter>
+          </span>
+        </SegmentedControlItem>
+        <SegmentedControlItem id="traces">
+          <span css={sessionViewControlItemCSS}>
+            <Icon svg={<Icons.Trace />} />
+            <span className="session-view-control__label">Traces</span>
+            <Counter variant="quiet">{traceCount}</Counter>
+          </span>
+        </SegmentedControlItem>
+      </SegmentedControl>
+    </div>
+  );
+}
+
+/** Session view switcher with content below it. */
 export function SessionViewTabs({
   sessionView,
   onSessionViewChange,
@@ -41,35 +100,21 @@ export function SessionViewTabs({
   children: ReactNode;
 }) {
   return (
-    <Tabs
-      selectedKey={sessionView}
-      onSelectionChange={(key) => {
-        if (isSessionView(key)) {
-          onSessionViewChange(key);
-        }
-      }}
+    <div
+      css={css`
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      `}
     >
-      <TabList aria-label="Session view">
-        <Tab id="turns">
-          <span css={tabLabelCSS}>
-            <Icon svg={<Icons.MessagesSquare />} />
-            Turns
-            <Counter variant="quiet">{traceCount}</Counter>
-          </span>
-        </Tab>
-        <Tab id="traces">
-          <span css={tabLabelCSS}>
-            <Icon svg={<Icons.Trace />} />
-            Traces
-            <Counter variant="quiet">{traceCount}</Counter>
-          </span>
-        </Tab>
-      </TabList>
-      {SESSION_VIEWS.map((view) => (
-        <LazyTabPanel key={view} id={view}>
-          {children}
-        </LazyTabPanel>
-      ))}
-    </Tabs>
+      <SessionViewControl
+        sessionView={sessionView}
+        onSessionViewChange={onSessionViewChange}
+        traceCount={traceCount}
+      />
+      {children}
+    </div>
   );
 }

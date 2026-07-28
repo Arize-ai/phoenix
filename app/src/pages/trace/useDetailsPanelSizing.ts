@@ -38,6 +38,7 @@ import { DrawerResizeContext } from "@phoenix/components/core/overlay/DrawerCont
 import {
   SPAN_DETAILS_MIN_WIDTH_PIXELS,
   TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS,
+  TRACE_TREE_COLLAPSED_WIDTH_PIXELS,
   TRACE_TREE_MIN_WIDTH_PIXELS,
 } from "@phoenix/constants";
 import type { SizeValue } from "@phoenix/types/sizing";
@@ -47,7 +48,9 @@ import type { SizingState } from "./detailsPanelSizing/machine";
 import {
   GESTURE_TREE,
   mainFromDrawerExpr,
+  minimumDrawerExpr,
   previewOpenDrawerWidth,
+  previewMaximumDrawerWidth,
   treeDragExprs,
 } from "./detailsPanelSizing/machine";
 import { getDetailsPanelSizingStore } from "./detailsPanelSizing/store";
@@ -84,6 +87,25 @@ export function getDetailsPanelDrawerWidth({
   );
 }
 
+export function getMinimumDetailsPanelDrawerWidth({
+  isCollapsed,
+  treeAddonWidth,
+}: {
+  isCollapsed: boolean;
+  treeAddonWidth: number;
+}): number {
+  return evaluateInt(
+    minimumDrawerExpr(
+      {
+        kind: "int",
+        value: Math.max(0, Math.round(treeAddonWidth)),
+      },
+      { kind: "bool", value: isCollapsed }
+    ),
+    { ints: {}, bools: {} }
+  );
+}
+
 /** DW-3, evaluated from the machine's kernel expression. */
 export function getMainDetailsWidthFromDrawer({
   drawerWidth,
@@ -107,16 +129,20 @@ export function getMainDetailsWidthFromDrawer({
  */
 export function getTreeDividerDragLayout({
   maximumDrawerWidth,
+  maximumTreeWidth,
   requestedTreeWidth,
   startDrawerWidth,
   startMainWidth,
   startTreeWidth,
+  treeAddonWidth = 0,
 }: {
   maximumDrawerWidth: number;
+  maximumTreeWidth: number;
   requestedTreeWidth: number;
   startDrawerWidth: number;
   startMainWidth: number;
   startTreeWidth: number;
+  treeAddonWidth?: number;
 }): { drawerWidth: number; treeWidth: number } {
   const exprs = treeDragExprs(KERNEL_INT_VAR);
   const env = {
@@ -126,6 +152,8 @@ export function getTreeDividerDragLayout({
       dragStartTree: startTreeWidth,
       dragStartMain: startMainWidth,
       dragMaxDrawer: maximumDrawerWidth,
+      treeMax: Math.max(TRACE_TREE_MIN_WIDTH_PIXELS, maximumTreeWidth),
+      treeAddon: Math.max(0, Math.round(treeAddonWidth)),
     },
     bools: {},
   };
@@ -133,6 +161,25 @@ export function getTreeDividerDragLayout({
     drawerWidth: evaluateInt(exprs.drawer, env),
     treeWidth: evaluateInt(exprs.tree, env),
   };
+}
+
+/**
+ * Maps the compact tree divider's fixed-origin pointer coordinate to the
+ * enclosing drawer width. The compact rail stays fixed, so leftward travel
+ * grows the main column and moves the drawer's left edge with the pointer.
+ */
+export function getCompactTreeDividerDrawerWidth({
+  requestedTreeWidth,
+  startDrawerWidth,
+}: {
+  requestedTreeWidth: number;
+  startDrawerWidth: number;
+}): number {
+  return (
+    startDrawerWidth +
+    TRACE_TREE_COLLAPSED_WIDTH_PIXELS -
+    Math.round(requestedTreeWidth)
+  );
 }
 
 /* ------------------------------- store hooks ------------------------------ */
@@ -158,7 +205,10 @@ export function useSharedTreePreference(): {
       px: Math.round(width),
     });
   }, []);
-  return { preferredTreeWidth: state.prefTree, onPreferredTreeWidthChange };
+  return {
+    onPreferredTreeWidthChange,
+    preferredTreeWidth: state.prefTree,
+  };
 }
 
 /**
@@ -166,15 +216,42 @@ export function useSharedTreePreference(): {
  * panel's open/close: the machine outlives the page, so reopening derives
  * from in-memory preferences — never from storage.
  */
-export function useDetailsPanelSizing(): {
+export function useDetailsPanelSizing({
+  treeAddonWidth = 0,
+  treeMaximumWidth,
+}: {
+  treeAddonWidth?: number;
+  treeMaximumWidth: number;
+}): {
   defaultDrawerSize: SizeValue;
+  isTreeCollapsed: boolean;
+  maximumDrawerSize: number;
+  minimumDrawerSize: number;
   onDrawerResize: (sizePercent: number, sizePixels: number) => void;
   onDrawerSizeChange: (sizePercent: number, sizePixels: number) => void;
   onPreferredTreeWidthChange: (width: number) => void;
+  onTreeCollapsedChange: (isCollapsed: boolean) => void;
   preferredTreeWidth: number;
 } {
   const state = useSizingState();
   const { onPreferredTreeWidthChange } = useSharedTreePreference();
+  const onTreeCollapsedChange = (isCollapsed: boolean) => {
+    getDetailsPanelSizingStore().dispatch({
+      type: isCollapsed ? "TREE_COLLAPSE" : "TREE_EXPAND",
+    });
+  };
+
+  useLayoutEffect(() => {
+    const store = getDetailsPanelSizingStore();
+    store.dispatch({
+      type: "TREE_MAX_SET",
+      px: Math.max(TRACE_TREE_MIN_WIDTH_PIXELS, Math.round(treeMaximumWidth)),
+    });
+    store.dispatch({
+      type: "TREE_ADDON_SET",
+      px: Math.max(0, Math.round(treeAddonWidth)),
+    });
+  }, [treeAddonWidth, treeMaximumWidth]);
 
   useLayoutEffect(() => {
     const store = getDetailsPanelSizingStore();
@@ -186,9 +263,20 @@ export function useDetailsPanelSizing(): {
 
   // First render happens before the OPEN dispatch; preview the exact width
   // the machine's open rule will produce from the same state.
-  const defaultDrawerSize = state.open
-    ? state.renderedDrawer
-    : previewOpenDrawerWidth(state);
+  const defaultDrawerSize = previewOpenDrawerWidth(
+    state,
+    treeAddonWidth,
+    treeMaximumWidth
+  );
+  const minimumDrawerSize = getMinimumDetailsPanelDrawerWidth({
+    isCollapsed: state.collapsed,
+    treeAddonWidth,
+  });
+  const maximumDrawerSize = previewMaximumDrawerWidth(
+    state,
+    treeAddonWidth,
+    treeMaximumWidth
+  );
 
   const onDrawerResize = useCallback((_: number, sizePixels: number) => {
     getDetailsPanelSizingStore().dispatch({
@@ -206,9 +294,13 @@ export function useDetailsPanelSizing(): {
 
   return {
     defaultDrawerSize,
+    isTreeCollapsed: state.collapsed,
+    maximumDrawerSize,
+    minimumDrawerSize,
     onDrawerResize,
     onDrawerSizeChange,
     onPreferredTreeWidthChange,
+    onTreeCollapsedChange,
     preferredTreeWidth: state.prefTree,
   };
 }
@@ -218,25 +310,64 @@ export function useDetailsPanelSizing(): {
 export function usePreferredTreePanel({
   preferredTreeWidth,
   onPreferredTreeWidthChange,
+  treeAddonWidth = 0,
+  treeMaximumWidth,
 }: {
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
+  treeAddonWidth?: number;
+  treeMaximumWidth: number;
 }): {
+  defaultTreeWidth: number;
   groupElementRef: RefObject<HTMLDivElement | null>;
+  isTreeCollapsed: boolean;
+  isTreeSeparatorDisabled: boolean;
+  maximumTreeWidth: number | undefined;
+  minimumTreeWidth: number;
   onTreeResize: (width: number) => number;
   onTreeResizeEnd: (options: {
     didMove: boolean;
     shouldCommit: boolean;
   }) => void;
   onTreeResizeStart: (width: number) => void;
+  onTreeToggle: (() => void) | undefined;
   onLayoutChanged: (layout: Layout, meta: LayoutChangedMeta) => void;
   treePanelRef: RefObject<PanelImperativeHandle | null>;
 } {
+  const sizingState = useSizingState();
   const drawerResizeController = useContext(DrawerResizeContext);
   const isDrawerMode = drawerResizeController != null;
   const groupElementRef = useRef<HTMLDivElement>(null);
   const treePanelRef = useRef<PanelImperativeHandle | null>(null);
-  const pendingTreeResizeFrameRef = useRef<number | null>(null);
+  const normalizedTreeMaximumWidth = Math.max(
+    TRACE_TREE_MIN_WIDTH_PIXELS,
+    Math.round(treeMaximumWidth)
+  );
+  const normalizedTreeAddonWidth = Math.min(
+    normalizedTreeMaximumWidth - TRACE_TREE_MIN_WIDTH_PIXELS,
+    Math.max(0, Math.round(treeAddonWidth))
+  );
+  const isTreeCollapsed = isDrawerMode && sizingState.collapsed;
+  const expandedMinimumTreeWidth =
+    TRACE_TREE_MIN_WIDTH_PIXELS + normalizedTreeAddonWidth;
+  const minimumTreeWidth = isTreeCollapsed
+    ? TRACE_TREE_COLLAPSED_WIDTH_PIXELS
+    : expandedMinimumTreeWidth;
+  const expandedMaximumTreeWidth = normalizedTreeMaximumWidth;
+  const maximumTreeWidth = isTreeCollapsed
+    ? TRACE_TREE_COLLAPSED_WIDTH_PIXELS
+    : normalizedTreeMaximumWidth;
+  const preferredRenderedTreeWidth = Math.min(
+    preferredTreeWidth + normalizedTreeAddonWidth,
+    expandedMaximumTreeWidth
+  );
+  const defaultTreeWidth = isTreeCollapsed
+    ? TRACE_TREE_COLLAPSED_WIDTH_PIXELS
+    : preferredRenderedTreeWidth;
+
+  // A compact-divider drag resizes the enclosing drawer while the 48px tree
+  // rail stays fixed. Keep its origin separate from the expanded tree drag.
+  const compactDragStartDrawerWidthRef = useRef<number | null>(null);
 
   // Dialog-mode drag session (drawer mode keeps its session in the machine).
   const dialogDragRef = useRef<{
@@ -247,24 +378,12 @@ export function usePreferredTreePanel({
   } | null>(null);
 
   /**
-   * Mechanically apply a width to the tree panel. Growing the drawer commits
-   * through React state, so retry once on the next frame after that wider
-   * group has laid out; the immediate call still handles the fixed-drawer
-   * portion of the same gesture without a frame of lag.
+   * Mechanically apply a width to the tree panel. When the drawer must resize
+   * first, its context update causes the reconciliation layout effect below to
+   * run again against the new group width before paint.
    */
   const applyTreeWidth = useCallback((treeWidth: number) => {
-    const treePanel = treePanelRef.current;
-    if (!treePanel) return;
-    treePanel.resize(treeWidth);
-    if (treePanel.getSize().inPixels !== treeWidth) {
-      if (pendingTreeResizeFrameRef.current != null) {
-        cancelAnimationFrame(pendingTreeResizeFrameRef.current);
-      }
-      pendingTreeResizeFrameRef.current = requestAnimationFrame(() => {
-        pendingTreeResizeFrameRef.current = null;
-        treePanelRef.current?.resize(treeWidth);
-      });
-    }
+    treePanelRef.current?.resize(treeWidth);
   }, []);
 
   /** Drawer mode: reconcile rendered machine geometry into the DOM. */
@@ -280,13 +399,33 @@ export function usePreferredTreePanel({
     applyTreeWidth(state.renderedTree);
   }, [isDrawerMode, drawerResizeController, applyTreeWidth]);
 
-  useEffect(() => {
-    return () => {
-      if (pendingTreeResizeFrameRef.current != null) {
-        cancelAnimationFrame(pendingTreeResizeFrameRef.current);
-      }
-    };
-  }, []);
+  useLayoutEffect(() => {
+    const store = getDetailsPanelSizingStore();
+    store.dispatch({
+      type: "TREE_MAX_SET",
+      px: normalizedTreeMaximumWidth,
+    });
+    store.dispatch({
+      type: "TREE_ADDON_SET",
+      px: normalizedTreeAddonWidth,
+    });
+  }, [normalizedTreeAddonWidth, normalizedTreeMaximumWidth]);
+
+  useLayoutEffect(() => {
+    if (isDrawerMode) {
+      applyMachineGeometry();
+    } else {
+      applyTreeWidth(defaultTreeWidth);
+    }
+  }, [
+    applyMachineGeometry,
+    applyTreeWidth,
+    defaultTreeWidth,
+    isDrawerMode,
+    sizingState.collapsed,
+    sizingState.renderedDrawer,
+    sizingState.renderedTree,
+  ]);
 
   // Group-size measurement. Drawer mode feeds the machine (whose gesture
   // guards decide whether measurements may re-split — the machine ignores
@@ -314,9 +453,12 @@ export function usePreferredTreePanel({
         TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS -
         SPAN_DETAILS_MIN_WIDTH_PIXELS;
       applyTreeWidth(
-        Math.max(
-          TRACE_TREE_MIN_WIDTH_PIXELS,
-          Math.min(preferredTreeWidth, availableTreeWidth)
+        Math.min(
+          expandedMaximumTreeWidth,
+          Math.max(
+            expandedMinimumTreeWidth,
+            Math.min(preferredRenderedTreeWidth, availableTreeWidth)
+          )
         )
       );
     };
@@ -336,7 +478,13 @@ export function usePreferredTreePanel({
       resizeObserver.disconnect();
       if (animationFrameId != null) cancelAnimationFrame(animationFrameId);
     };
-  }, [isDrawerMode, preferredTreeWidth, applyTreeWidth]);
+  }, [
+    applyTreeWidth,
+    isDrawerMode,
+    expandedMaximumTreeWidth,
+    expandedMinimumTreeWidth,
+    preferredRenderedTreeWidth,
+  ]);
 
   const onLayoutChanged = (
     _layout: Layout,
@@ -352,7 +500,13 @@ export function usePreferredTreePanel({
     if (isUserInteraction) {
       // The panel library's own (keyboard) separator resize is a deliberate
       // release; TREE_PREF_SET re-splits rendered geometry in the machine.
-      onPreferredTreeWidthChange(treePanel.getSize().inPixels);
+      const renderedWidth = treePanel.getSize().inPixels;
+      onPreferredTreeWidthChange(
+        Math.max(
+          TRACE_TREE_MIN_WIDTH_PIXELS,
+          renderedWidth - normalizedTreeAddonWidth
+        )
+      );
       if (isDrawerMode) applyMachineGeometry();
       return;
     }
@@ -362,12 +516,17 @@ export function usePreferredTreePanel({
     if (isDrawerMode) {
       applyTreeWidth(store.getState().renderedTree);
     } else {
-      applyTreeWidth(preferredTreeWidth);
+      applyTreeWidth(defaultTreeWidth);
     }
   };
 
   const onTreeResizeStart = (renderedTreeWidth: number) => {
     if (isDrawerMode) {
+      if (isTreeCollapsed) {
+        compactDragStartDrawerWidthRef.current =
+          getDetailsPanelSizingStore().getState().renderedDrawer;
+        return;
+      }
       getDetailsPanelSizingStore().dispatch({ type: "TREE_START" });
       return;
     }
@@ -388,9 +547,28 @@ export function usePreferredTreePanel({
     };
   };
 
+  const onTreeToggle = () => {
+    getDetailsPanelSizingStore().dispatch({
+      type: isTreeCollapsed ? "TREE_EXPAND" : "TREE_COLLAPSE",
+    });
+  };
+
   const onTreeResize = (requestedTreeWidth: number) => {
     if (isDrawerMode) {
       const store = getDetailsPanelSizingStore();
+      const compactDragStartDrawerWidth =
+        compactDragStartDrawerWidthRef.current;
+      if (compactDragStartDrawerWidth != null) {
+        const state = store.dispatch({
+          type: "OUTER_MOVE",
+          px: getCompactTreeDividerDrawerWidth({
+            requestedTreeWidth,
+            startDrawerWidth: compactDragStartDrawerWidth,
+          }),
+        });
+        applyMachineGeometry();
+        return state.renderedTree;
+      }
       const state = store.dispatch({
         type: "TREE_MOVE",
         px: Math.round(requestedTreeWidth),
@@ -404,10 +582,12 @@ export function usePreferredTreePanel({
     // is the starting group width (growth capacity zero).
     const layout = getTreeDividerDragLayout({
       maximumDrawerWidth: session.startDrawerWidth,
+      maximumTreeWidth: normalizedTreeMaximumWidth,
       requestedTreeWidth,
       startDrawerWidth: session.startDrawerWidth,
       startMainWidth: session.startMainWidth,
       startTreeWidth: session.startTreeWidth,
+      treeAddonWidth: normalizedTreeAddonWidth,
     });
     session.latestTreeWidth = layout.treeWidth;
     applyTreeWidth(layout.treeWidth);
@@ -422,9 +602,21 @@ export function usePreferredTreePanel({
     shouldCommit: boolean;
   }) => {
     if (isDrawerMode) {
-      getDetailsPanelSizingStore().dispatch({
-        type: shouldCommit ? "TREE_END" : "TREE_CANCEL",
-      });
+      const store = getDetailsPanelSizingStore();
+      const compactDragStartDrawerWidth =
+        compactDragStartDrawerWidthRef.current;
+      compactDragStartDrawerWidthRef.current = null;
+      if (compactDragStartDrawerWidth != null) {
+        const state = store.getState();
+        store.dispatch({
+          type: "OUTER_END",
+          px: shouldCommit ? state.renderedDrawer : compactDragStartDrawerWidth,
+        });
+      } else {
+        store.dispatch({
+          type: shouldCommit ? "TREE_END" : "TREE_CANCEL",
+        });
+      }
       applyMachineGeometry();
       return;
     }
@@ -436,18 +628,26 @@ export function usePreferredTreePanel({
       didMove &&
       session.latestTreeWidth !== session.startTreeWidth;
     if (didResize) {
-      onPreferredTreeWidthChange(session.latestTreeWidth);
+      onPreferredTreeWidthChange(
+        session.latestTreeWidth - normalizedTreeAddonWidth
+      );
     } else {
       applyTreeWidth(session.startTreeWidth);
     }
   };
 
   return {
+    defaultTreeWidth,
     groupElementRef,
+    isTreeCollapsed,
+    isTreeSeparatorDisabled: false,
+    maximumTreeWidth,
+    minimumTreeWidth,
     onLayoutChanged,
     onTreeResize,
     onTreeResizeEnd,
     onTreeResizeStart,
+    onTreeToggle: isDrawerMode ? onTreeToggle : undefined,
     treePanelRef,
   };
 }

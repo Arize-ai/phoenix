@@ -16,6 +16,7 @@ import { IDBadge } from "@phoenix/components/core/id";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
+import { TRACE_TREE_TIMING_MIN_WIDTH_PIXELS } from "@phoenix/components/trace/traceTreeSizing";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { classNames } from "@phoenix/utils/classNames";
@@ -345,6 +346,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             alignItems="center"
             flex="1 1 auto"
             minWidth={0}
+            maxWidth="size-6000"
             css={css`
               overflow: hidden;
             `}
@@ -561,8 +563,9 @@ const spanControlsCSS = css`
 
 const spanTimingCSS = css`
   gap: var(--global-dimension-size-100);
-  width: 150px;
-  flex: none;
+  min-width: ${TRACE_TREE_TIMING_MIN_WIDTH_PIXELS}px;
+  max-width: var(--global-dimension-size-8000);
+  flex: 1 1 ${TRACE_TREE_TIMING_MIN_WIDTH_PIXELS}px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -570,6 +573,10 @@ const spanTimingCSS = css`
     justify-content: end !important;
     min-width: 2.5rem;
     float: right;
+  }
+  .timeline-bar {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 `;
 

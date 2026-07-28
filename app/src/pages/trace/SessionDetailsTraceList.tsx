@@ -4,10 +4,10 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import { isNumber, isString, throttle } from "lodash";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
-import { Group, Panel } from "react-resizable-panels";
 import type { To } from "react-router";
 import { useLocation, useSearchParams } from "react-router";
 
@@ -32,15 +32,11 @@ import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotatio
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { ResizableTraceTreeSeparator } from "@phoenix/components/trace/ResizableTraceTreePanelContent";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
-import {
-  SPAN_DETAILS_MIN_WIDTH_PIXELS,
-  TRACE_TREE_MIN_WIDTH_PIXELS,
-} from "@phoenix/constants";
+import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
@@ -58,8 +54,8 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import { DetailsPanel } from "./DetailsPanel";
 import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
-import { usePreferredTreePanel } from "./useDetailsPanelSizing";
 
 export const sessionDetailsTraceListQuery = graphql`
   query SessionDetailsTraceListQuery($id: ID!, $first: Int!) {
@@ -557,21 +553,18 @@ const turnDetailRowCSS = css`
   }
 `;
 
-const panelContentCSS = css`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-`;
-
 export function SessionDetailsTraceList({
   queryRef,
   preferredTreeWidth,
   onPreferredTreeWidthChange,
+  navigationHeader,
+  renderMainContent,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
+  navigationHeader: ReactNode;
+  renderMainContent: (content: ReactNode) => ReactNode;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
     sessionDetailsTraceListQuery,
@@ -671,17 +664,6 @@ export function SessionDetailsTraceList({
   );
 
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const {
-    groupElementRef,
-    onLayoutChanged,
-    onTreeResize,
-    onTreeResizeEnd,
-    onTreeResizeStart,
-    treePanelRef: navigationPanelRef,
-  } = usePreferredTreePanel({
-    preferredTreeWidth,
-    onPreferredTreeWidthChange,
-  });
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
 
@@ -738,102 +720,85 @@ export function SessionDetailsTraceList({
     </div>
   );
 
-  return (
-    <Group
-      elementRef={groupElementRef}
-      orientation="horizontal"
-      onLayoutChanged={onLayoutChanged}
+  const turnDetails = (
+    <div
       css={css`
-        flex: 1 1 auto;
-        overflow: hidden;
+        height: 100%;
+        overflow: auto;
       `}
+      onScroll={(event) =>
+        debouncedFetchMoreOnBottomReached(event.currentTarget)
+      }
     >
-      <Panel
-        id="details-panel-tree-column"
-        panelRef={navigationPanelRef}
-        defaultSize={preferredTreeWidth}
-        minSize={TRACE_TREE_MIN_WIDTH_PIXELS}
-        groupResizeBehavior="preserve-pixel-size"
-      >
-        <div css={panelContentCSS}>{turnListPanel}</div>
-      </Panel>
-      <ResizableTraceTreeSeparator
-        ariaLabel="Resize session turns"
-        onResize={onTreeResize}
-        onResizeEnd={onTreeResizeEnd}
-        onResizeStart={onTreeResizeStart}
-      />
-      <Panel
-        id="details-panel-main-column"
-        minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
-      >
-        <div
-          css={css`
-            height: 100%;
-            overflow: auto;
-          `}
-          onScroll={(e) =>
-            debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
-          }
-        >
-          {sessionRootSpans.map(({ traceId, rootSpan }, index) => {
-            const isSelected = index === selectedIndex;
-            // Hide this row's top divider when the row directly above it is
-            // the selected one, since the selected row draws its own
-            // border-bottom and a divider here would double up.
-            const isAfterSelected =
-              selectedIndex >= 0 && index === selectedIndex + 1;
-            return (
-              <div
-                key={rootSpan.spanId}
-                css={turnDetailRowCSS}
-                data-selected={isSelected || undefined}
-                data-after-selected={isAfterSelected || undefined}
-                ref={(el) => {
-                  if (el) {
-                    rowRefs.current.set(traceId, el);
-                  } else {
-                    rowRefs.current.delete(traceId);
-                  }
-                }}
-              >
-                <View
-                  paddingTop="size-100"
-                  paddingBottom="size-200"
-                  paddingX="size-200"
-                >
-                  <View
-                    width="100%"
-                    maxWidth={SESSION_TURN_MAX_WIDTH}
-                    marginX="auto"
-                  >
-                    <SessionTurnDetail
-                      index={index}
-                      traceId={traceId}
-                      rootSpan={rootSpan}
-                    />
-                  </View>
-                </View>
-              </div>
-            );
-          })}
-          {isLoadingNext && (
+      {sessionRootSpans.map(({ traceId, rootSpan }, index) => {
+        const isSelected = index === selectedIndex;
+        // Hide this row's top divider when the row directly above it is
+        // the selected one, since the selected row draws its own
+        // border-bottom and a divider here would double up.
+        const isAfterSelected =
+          selectedIndex >= 0 && index === selectedIndex + 1;
+        return (
+          <div
+            key={rootSpan.spanId}
+            css={turnDetailRowCSS}
+            data-selected={isSelected || undefined}
+            data-after-selected={isAfterSelected || undefined}
+            ref={(element) => {
+              if (element) {
+                rowRefs.current.set(traceId, element);
+              } else {
+                rowRefs.current.delete(traceId);
+              }
+            }}
+          >
             <View
-              borderBottomColor="default"
-              borderBottomWidth={"thin"}
-              padding="size-200"
+              paddingTop="size-100"
+              paddingBottom="size-200"
+              paddingX="size-200"
             >
               <View
                 width="100%"
                 maxWidth={SESSION_TURN_MAX_WIDTH}
                 marginX="auto"
               >
-                <Loading />
+                <SessionTurnDetail
+                  index={index}
+                  traceId={traceId}
+                  rootSpan={rootSpan}
+                />
               </View>
             </View>
-          )}
-        </div>
-      </Panel>
-    </Group>
+          </div>
+        );
+      })}
+      {isLoadingNext && (
+        <View
+          borderBottomColor="default"
+          borderBottomWidth={"thin"}
+          padding="size-200"
+        >
+          <View width="100%" maxWidth={SESSION_TURN_MAX_WIDTH} marginX="auto">
+            <Loading />
+          </View>
+        </View>
+      )}
+    </div>
+  );
+
+  return (
+    <DetailsPanel
+      navigationAriaLabel="Resize session turns"
+      preferredTreeWidth={preferredTreeWidth}
+      onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+      treeMaximumWidth={getTraceTreeMaximumWidth({ hasTiming: false })}
+      navigation={
+        <>
+          {navigationHeader}
+          {turnListPanel}
+        </>
+      }
+    >
+      {renderMainContent(turnDetails)}
+    </DetailsPanel>
   );
 }
