@@ -52,6 +52,7 @@ import type { SpanInfoData } from "@phoenix/pages/trace/span";
 import { SpanAttributesCard, SpanInfo } from "@phoenix/pages/trace/span";
 import { SpanEventsListContent } from "@phoenix/pages/trace/SpanEventsList";
 import { SpanInfoCardsProvider } from "@phoenix/pages/trace/SpanInfoCardsContext";
+import { SpanNotesListContent } from "@phoenix/pages/trace/SpanNotesList";
 import type { TraceHeaderCostSummary } from "@phoenix/pages/trace/TraceDetails";
 import { TraceHeaderContent } from "@phoenix/pages/trace/TraceDetails";
 
@@ -480,6 +481,7 @@ function SpanDetailsFixture({
     info: `${sectionIdPrefix}-info`,
     attributes: `${sectionIdPrefix}-attributes`,
     events: `${sectionIdPrefix}-events`,
+    notes: `${sectionIdPrefix}-notes`,
   };
   const handleSectionLinkClick = ({
     event,
@@ -569,6 +571,19 @@ function SpanDetailsFixture({
                 Events
               </a>
             </li>
+            <li>
+              <a
+                href={`#${sectionIds.notes}`}
+                onClick={(event) =>
+                  handleSectionLinkClick({
+                    event,
+                    sectionId: sectionIds.notes,
+                  })
+                }
+              >
+                Notes
+              </a>
+            </li>
           </ul>
         </nav>
         <div ref={scrollContainerRef} css={spanDetailsContentCSS}>
@@ -597,6 +612,14 @@ function SpanDetailsFixture({
               </Text>
             </View>
             <SpanEventsListContent events={[]} />
+          </section>
+          <section id={sectionIds.notes} aria-label="Notes">
+            <View padding="size-200">
+              <Text elementType="h3" size="L" weight="heavy">
+                Notes
+              </Text>
+            </View>
+            <SpanNotesListContent notes={[]} />
           </section>
         </div>
       </div>

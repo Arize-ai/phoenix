@@ -79,6 +79,7 @@ const EMPTY_STATE_GRAPHICS = {
     size: "small",
     icon: <Icon svg={<Icons.FlagTriangleRight />} />,
   },
+  note: { size: "small", icon: <Icon svg={<Icons.NotebookPen />} /> },
   attribute: { size: "small", icon: <Icon svg={<Icons.Info />} /> },
   config: { size: "small", icon: <Icon svg={<Icons.Settings />} /> },
   credential: { size: "small", icon: <Icon svg={<Icons.Key />} /> },

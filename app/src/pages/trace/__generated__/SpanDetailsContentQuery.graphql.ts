@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b53a9177d10b19dd12c59680416a395a>>
+ * @generated SignedSource<<a54f0a263ce1ffd02e60d02ede498258>>
  * @lightSyntaxTransform
  */
 
@@ -53,6 +53,9 @@ export type SpanDetailsContentQuery$data = {
     } | null;
     readonly spanId: string;
     readonly spanKind: SpanKind;
+    readonly spanNotes: ReadonlyArray<{
+      readonly id: string;
+    }>;
     readonly statusMessage: string;
   } | {
     // This will never be '%other', but we need some
@@ -180,6 +183,18 @@ v12 = {
 v13 = {
   "alias": null,
   "args": null,
+  "concreteType": "SpanAnnotation",
+  "kind": "LinkedField",
+  "name": "spanNotes",
+  "plural": true,
+  "selections": [
+    (v3/*:: as any*/)
+  ],
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
   "concreteType": "DocumentRetrievalMetrics",
   "kind": "LinkedField",
   "name": "documentRetrievalMetrics",
@@ -216,63 +231,63 @@ v13 = {
   ],
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotatorKind",
   "storageKey": null
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "documentPosition",
   "storageKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "explanation",
   "storageKey": null
 },
-v19 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v20 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v21 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "username",
   "storageKey": null
 },
-v22 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -311,6 +326,7 @@ return {
                 "action": "THROW"
               },
               (v13/*:: as any*/),
+              (v14/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -320,14 +336,14 @@ return {
                 "plural": true,
                 "selections": [
                   (v3/*:: as any*/),
-                  (v14/*:: as any*/),
                   (v15/*:: as any*/),
-                  (v11/*:: as any*/),
                   (v16/*:: as any*/),
+                  (v11/*:: as any*/),
                   (v17/*:: as any*/),
                   (v18/*:: as any*/),
                   (v19/*:: as any*/),
                   (v20/*:: as any*/),
+                  (v21/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -336,8 +352,8 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v21/*:: as any*/),
-                      (v22/*:: as any*/)
+                      (v22/*:: as any*/),
+                      (v23/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -382,6 +398,7 @@ return {
               (v10/*:: as any*/),
               (v12/*:: as any*/),
               (v13/*:: as any*/),
+              (v14/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -391,14 +408,14 @@ return {
                 "plural": true,
                 "selections": [
                   (v3/*:: as any*/),
-                  (v14/*:: as any*/),
                   (v15/*:: as any*/),
-                  (v11/*:: as any*/),
                   (v16/*:: as any*/),
+                  (v11/*:: as any*/),
                   (v17/*:: as any*/),
                   (v18/*:: as any*/),
                   (v19/*:: as any*/),
                   (v20/*:: as any*/),
+                  (v21/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -407,8 +424,8 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v21/*:: as any*/),
                       (v22/*:: as any*/),
+                      (v23/*:: as any*/),
                       (v3/*:: as any*/)
                     ],
                     "storageKey": null
@@ -426,16 +443,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "79b45a1192cac9ab7f4b7e84827544e9",
+    "cacheID": "4579195acc8b0d49846f664e0ec9df86",
     "id": null,
     "metadata": {},
     "name": "SpanDetailsContentQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsContentQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      spanKind\n      statusMessage\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        id\n        annotatorKind\n        documentPosition\n        name\n        label\n        score\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanDetailsContentQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      spanKind\n      statusMessage\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n      }\n      spanNotes {\n        id\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        id\n        annotatorKind\n        documentPosition\n        name\n        label\n        score\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "20729824bda70a04c803b1098549f3f6";
+(node as any).hash = "9eda0408276e9400977dddcdbac5e025";
 
 export default node;

@@ -400,6 +400,11 @@ export function SpanDetailsContentSkeleton() {
               Events
             </Text>
           </li>
+          <li>
+            <Text color="inherit" size="S">
+              Notes
+            </Text>
+          </li>
         </ul>
       </nav>
       <Flex flex="1 1 auto" minHeight={0}>

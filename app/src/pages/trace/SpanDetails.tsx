@@ -26,6 +26,7 @@ import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
 import { SpanEventsList } from "./SpanEventsList";
 import { useSpanInfoCardProps } from "./SpanInfoCardsContext";
 import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
+import { SpanNotesList } from "./SpanNotesList";
 import {
   DetailPanelAnnotationBarSkeleton,
   SpanDetailsContentSkeleton,
@@ -37,6 +38,7 @@ const FINAL_SCROLL_ANIMATION_DURATION_SECONDS = 0.18;
 const SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS = 0.5;
 const ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 const EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
+const NOTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 
 const spanDetailsAnchorNavCSS = css`
   display: flex;
@@ -333,6 +335,9 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             events @required(action: THROW) {
               name
             }
+            spanNotes {
+              id
+            }
             documentRetrievalMetrics {
               evaluationName
               ndcg
@@ -383,6 +388,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     info: `span-details-${span.spanId}-info`,
     attributes: `span-details-${span.spanId}-attributes`,
     events: `span-details-${span.spanId}-events`,
+    notes: `span-details-${span.spanId}-notes`,
   } as const;
 
   const showSectionNavigationFeedback = (targetSection: HTMLElement) => {
@@ -529,6 +535,13 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               {span.events.length}
             </Counter>
           </SpanDetailSectionLink>
+          <SpanDetailSectionLink
+            label="Notes"
+            sectionId={spanDetailsSectionIds.notes}
+            onClick={handleSectionLinkClick}
+          >
+            <Counter>{span.spanNotes.length}</Counter>
+          </SpanDetailSectionLink>
         </ul>
         <SpanInfoCardsToggle />
       </nav>
@@ -580,6 +593,26 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             >
               <Suspense fallback={<Loading />}>
                 <SpanEventsList spanId={span.id} />
+              </Suspense>
+            </DeferredSpanDetailsContent>
+          </section>
+          <section id={spanDetailsSectionIds.notes} aria-label="Notes">
+            <SpanDetailsSectionHeading>
+              <Flex
+                elementType="span"
+                direction="row"
+                gap="size-100"
+                alignItems="center"
+              >
+                Notes
+                <Counter>{span.spanNotes.length}</Counter>
+              </Flex>
+            </SpanDetailsSectionHeading>
+            <DeferredSpanDetailsContent
+              placeholderHeight={NOTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
+            >
+              <Suspense fallback={<Loading />}>
+                <SpanNotesList spanId={span.id} />
               </Suspense>
             </DeferredSpanDetailsContent>
           </section>
