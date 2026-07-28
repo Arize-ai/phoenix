@@ -6,21 +6,26 @@ import {
   useEffect,
   useEffectEvent,
   useRef,
+  useState,
+  useSyncExternalStore,
   useTransition,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { useSearchParams } from "react-router";
 
-import { Loading } from "@phoenix/components";
+import { Flex, IDBadge, Loading, Text, View } from "@phoenix/components";
 import { SessionDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { ExpandCollapseAllButton } from "@phoenix/components/trace/ExpandCollapseAllButton";
-import { TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS } from "@phoenix/constants";
-import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import type { SessionDetailsQuery } from "./__generated__/SessionDetailsQuery.graphql";
 import type { SessionDetailsTraceListQuery } from "./__generated__/SessionDetailsTraceListQuery.graphql";
 import type { SessionDetailsTracesViewQuery } from "./__generated__/SessionDetailsTracesViewQuery.graphql";
+import { DetailsPanelNavigationControlsRow } from "./DetailsPanel";
+import {
+  createSessionDetailsSearchParamsStore,
+  type SessionDetailsSearchParamsStore,
+} from "./sessionDetailsSearchParamsStore";
 import {
   SessionDetailsTraceList,
   sessionDetailsTraceListQuery,
@@ -34,8 +39,11 @@ import { isSessionView, SessionViewControl } from "./SessionViewTabs";
 
 export type SessionDetailsProps = {
   sessionId: string;
+  sessionDisplayId: string;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
+  isTreePanelCollapsed: boolean;
+  onTreePanelCollapsedChange: (isCollapsed: boolean) => void;
   navigationHeader: ReactNode;
 };
 
@@ -46,30 +54,11 @@ export type SessionNavigationHeaderRenderer = (options?: {
 
 const DEFAULT_SESSION_VIEW: SessionView = "turns";
 
-const sessionNavigationControlsCSS = css`
-  box-sizing: border-box;
-  display: flex;
-  flex: none;
-  justify-content: flex-end;
-  width: 100%;
-  padding: var(--global-dimension-size-100);
-  border-bottom: var(--global-border-size-thin) solid
-    var(--global-border-color-default);
-
-  .session-navigation-controls__expand-collapse-all {
-    width: var(--global-button-height-s);
-    padding: 0 !important;
-  }
-
-  @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
-    display: none;
-  }
-`;
-
 function SessionDetailsMainContent({
   children,
   sessionId,
-}: PropsWithChildren<{ sessionId: string }>) {
+  sessionDisplayId,
+}: PropsWithChildren<{ sessionId: string; sessionDisplayId: string }>) {
   return (
     <div
       css={css`
@@ -80,6 +69,30 @@ function SessionDetailsMainContent({
         overflow: hidden;
       `}
     >
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-150"
+        paddingEnd="size-200"
+        flex="none"
+      >
+        <Flex direction="column" gap="size-50" width="100%">
+          <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
+            <Text size="L" weight="heavy">
+              Session
+            </Text>
+          </Flex>
+          <Flex
+            direction="row"
+            alignItems="center"
+            gap="size-100"
+            minWidth={0}
+            wrap
+          >
+            <IDBadge id={sessionDisplayId} tooltipText="Copy Session ID" />
+          </Flex>
+        </Flex>
+      </View>
       <Suspense fallback={null}>
         <SessionDetailPanelAnnotationBar sessionNodeId={sessionId} />
       </Suspense>
@@ -96,29 +109,40 @@ function SessionDetailsMainContent({
   );
 }
 
-const setSessionViewSearchParam = ({
-  params,
-  view,
+function SessionDetailsSearchParamsBridge({
+  store,
 }: {
-  params: URLSearchParams;
-  view: SessionView;
-}) => {
-  const nextParams = new URLSearchParams(params);
-  nextParams.set(SESSION_VIEW_PARAM, view);
-  return nextParams;
-};
+  store: SessionDetailsSearchParamsStore;
+}) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    store.connectToRouter(searchParams, setSearchParams);
+  }, [searchParams, setSearchParams, store]);
+  return null;
+}
 
 /**
  * A component that shows the details of a session
  */
 export function SessionDetails({
   sessionId,
+  sessionDisplayId,
   preferredTreeWidth,
   onPreferredTreeWidthChange,
+  isTreePanelCollapsed,
+  onTreePanelCollapsedChange,
   navigationHeader,
 }: SessionDetailsProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const sessionViewParam = searchParams.get(SESSION_VIEW_PARAM);
+  const [searchParamsStore] = useState(() =>
+    createSessionDetailsSearchParamsStore(
+      new URLSearchParams(window.location.search)
+    )
+  );
+  const sessionViewParam = useSyncExternalStore(
+    searchParamsStore.subscribeToSessionView,
+    searchParamsStore.getSessionViewParam,
+    searchParamsStore.getSessionViewParam
+  );
   const sessionView: SessionView = isSessionView(sessionViewParam)
     ? sessionViewParam
     : DEFAULT_SESSION_VIEW;
@@ -180,23 +204,15 @@ export function SessionDetails({
     if (isSessionView(sessionViewParam)) {
       return;
     }
-    setSearchParams(
-      (params) => {
-        return setSessionViewSearchParam({
-          params,
-          view: DEFAULT_SESSION_VIEW,
-        });
-      },
-      { replace: true }
-    );
-  }, [sessionViewParam, setSearchParams]);
+    searchParamsStore.setSessionViewParam(DEFAULT_SESSION_VIEW);
+  }, [searchParamsStore, sessionViewParam]);
 
   // Keep the currently visible session view routable. We preload the target
   // query before swapping tabs so the current view stays mounted while the
   // next one fetches, avoiding a blank state during the transition.
   useEffect(() => {
     loadInitialQueryForSessionView(sessionView);
-  }, [sessionView]);
+  }, [sessionId, sessionView]);
 
   const handleSessionViewChange = (view: SessionView) => {
     if (view === sessionView) {
@@ -205,36 +221,32 @@ export function SessionDetails({
     startViewTransition(() => {
       loadQueryForSessionView(view);
     });
-    setSearchParams(
-      (params) =>
-        setSessionViewSearchParam({
-          params,
-          view,
-        }),
-      { replace: true }
-    );
+    searchParamsStore.setSessionViewParam(view);
   };
   const renderMainContent = (content: ReactNode) => (
-    <SessionDetailsMainContent sessionId={sessionId}>
+    <SessionDetailsMainContent
+      sessionId={sessionId}
+      sessionDisplayId={sessionDisplayId}
+    >
       {content}
     </SessionDetailsMainContent>
   );
   const renderNavigationHeader: SessionNavigationHeaderRenderer = (options) => (
     <>
       {navigationHeader}
-      {options ? (
-        <div
-          className="session-navigation-controls"
-          css={sessionNavigationControlsCSS}
-        >
+      <DetailsPanelNavigationControlsRow
+        isCollapsed={isTreePanelCollapsed}
+        onCollapsedChange={onTreePanelCollapsedChange}
+      >
+        {options ? (
           <ExpandCollapseAllButton
-            className="session-navigation-controls__expand-collapse-all"
+            className="details-panel-navigation-controls__expand-collapse-all"
             contentLabel="traces"
             isCollapsed={options.isAllCollapsed}
             onCollapsedChange={options.onAllCollapsedChange}
           />
-        </div>
-      ) : null}
+        ) : null}
+      </DetailsPanelNavigationControlsRow>
       <SessionViewControl
         sessionView={sessionView}
         onSessionViewChange={handleSessionViewChange}
@@ -253,6 +265,7 @@ export function SessionDetails({
         overflow: hidden;
       `}
     >
+      <SessionDetailsSearchParamsBridge store={searchParamsStore} />
       <Suspense fallback={<Loading />}>
         {sessionView === "traces"
           ? tracesViewQueryRef != null && (
@@ -262,6 +275,7 @@ export function SessionDetails({
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
                 renderNavigationHeader={renderNavigationHeader}
                 renderMainContent={renderMainContent}
+                searchParamsStore={searchParamsStore}
               />
             )
           : traceListQueryRef != null && (

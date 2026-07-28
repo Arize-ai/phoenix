@@ -1,11 +1,26 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 
-import { Flex, Loading, Text, View } from "@phoenix/components";
+import { Flex, IDBadge, Loading, Text, View } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
+import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
+import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
+import { TraceTreePanelToggleButton } from "@phoenix/components/trace/TraceTreePanelToggleButton";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
+import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
+import { TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS } from "@phoenix/constants";
+import { useTimeFormatters } from "@phoenix/hooks";
+import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import {
+  SpanHeaderIdentityRow,
+  SpanHeaderMetaItem,
+  SpanHeaderMetaRow,
+  SpanHeaderName,
+} from "../SpanHeader";
 import { DetailsPanel } from "./DetailsPanel";
+import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
 
 const traceDetailsSkeletonCSS = css`
   flex: 1 1 auto;
@@ -28,6 +43,10 @@ const traceTreeToolbarSkeletonCSS = css`
   .trace-tree-toolbar-skeleton__search {
     flex: 1 1 auto;
     min-width: 0;
+  }
+
+  @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
+    display: none;
   }
 `;
 
@@ -54,23 +73,9 @@ const traceTreeEntitySkeletonCSS = css`
   }
 `;
 
-const spanHeaderIdentitySkeletonCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-100);
-  min-width: 0;
-
-  .span-header-skeleton__name {
-    flex: 0 1 240px;
-    min-width: var(--global-dimension-size-600);
-  }
-
-  .span-header-skeleton__actions {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-100);
-    margin-left: auto;
-  }
+const spanHeaderNameSkeletonCSS = css`
+  flex: 0 1 240px;
+  min-width: var(--global-dimension-size-600);
 `;
 
 const annotationBarSkeletonCSS = css`
@@ -116,12 +121,16 @@ const spanDetailsLoadingNavigationCSS = css`
 export function TraceDetailsSkeleton({
   onPreferredTreeWidthChange,
   preferredTreeWidth,
+  isTreePanelCollapsed,
+  onTreePanelCollapsedChange,
   treeAddonWidth,
   treeHeader,
   treeMaximumWidth,
 }: {
   onPreferredTreeWidthChange: (width: number) => void;
   preferredTreeWidth: number;
+  isTreePanelCollapsed: boolean;
+  onTreePanelCollapsedChange: (isCollapsed: boolean) => void;
   treeAddonWidth: number;
   treeHeader?: ReactNode;
   treeMaximumWidth: number;
@@ -132,7 +141,10 @@ export function TraceDetailsSkeleton({
         navigation={
           <>
             {treeHeader}
-            <TraceTreeNavigationSkeleton />
+            <TraceTreeNavigationSkeleton
+              isTreePanelCollapsed={isTreePanelCollapsed}
+              onTreePanelCollapsedChange={onTreePanelCollapsedChange}
+            />
           </>
         }
         preferredTreeWidth={preferredTreeWidth}
@@ -162,7 +174,13 @@ function SkeletonDetailsWrapper({ children }: PropsWithChildren) {
   );
 }
 
-function TraceTreeNavigationSkeleton() {
+function TraceTreeNavigationSkeleton({
+  isTreePanelCollapsed,
+  onTreePanelCollapsedChange,
+}: {
+  isTreePanelCollapsed: boolean;
+  onTreePanelCollapsedChange: (isCollapsed: boolean) => void;
+}) {
   return (
     <Flex direction="column" flex="1 1 auto" minHeight={0} aria-busy="true">
       <div css={traceTreeToolbarSkeletonCSS}>
@@ -173,6 +191,10 @@ function TraceTreeNavigationSkeleton() {
         />
         <Skeleton width={32} height={32} animation="wave" />
         <Skeleton width={32} height={32} animation="wave" />
+        <TraceTreePanelToggleButton
+          isCollapsed={isTreePanelCollapsed}
+          onCollapsedChange={onTreePanelCollapsedChange}
+        />
       </div>
       <ul css={traceTreeEntitySkeletonListCSS}>
         <TraceTreeEntitySkeleton labelWidth={54} idWidth={104} />
@@ -207,10 +229,19 @@ function TraceTreeEntitySkeleton({
 }
 
 /** Loading state for the complete selected-span details column. */
-export function SpanDetailsSkeleton() {
+export function SpanDetailsSkeleton({
+  spanPreview,
+  isCondensedView = true,
+}: {
+  spanPreview?: SpanDetailsPreview;
+  isCondensedView?: boolean;
+}) {
   return (
     <Flex direction="column" flex="1 1 auto" height="100%" aria-busy="true">
-      <SpanHeaderSkeleton />
+      <SpanHeaderSkeleton
+        spanPreview={spanPreview}
+        isCondensedView={isCondensedView}
+      />
       <DetailPanelAnnotationBarSkeleton />
       <SpanDetailsContentSkeleton />
     </Flex>
@@ -218,7 +249,17 @@ export function SpanDetailsSkeleton() {
 }
 
 /** Keeps the two-row span identity header stable while its metadata loads. */
-export function SpanHeaderSkeleton() {
+export function SpanHeaderSkeleton({
+  spanPreview,
+  isCondensedView = true,
+}: {
+  spanPreview?: SpanDetailsPreview;
+  isCondensedView?: boolean;
+}) {
+  const { fullTimeFormatter } = useTimeFormatters();
+  const hasLatencyPreview = spanPreview?.latencyMs !== undefined;
+  const hasTokenCountPreview = spanPreview?.tokenCountTotal !== undefined;
+
   return (
     <View
       paddingTop="size-100"
@@ -228,26 +269,96 @@ export function SpanHeaderSkeleton() {
       flex="none"
     >
       <Flex direction="column" gap="size-50" width="100%">
-        <div css={spanHeaderIdentitySkeletonCSS}>
-          <Skeleton width={54} height={24} animation="wave" />
-          <Skeleton
-            className="span-header-skeleton__name"
-            height={22}
-            animation="wave"
-          />
-          <Skeleton width={72} height={24} animation="wave" />
-          <div className="span-header-skeleton__actions">
-            <Skeleton width={32} height={32} animation="wave" />
-            <Skeleton width={32} height={32} animation="wave" />
-            <Skeleton width={32} height={32} animation="wave" />
+        <SpanHeaderIdentityRow>
+          {spanPreview?.spanKind !== undefined ? (
+            <SpanKindToken spanKind={spanPreview.spanKind} />
+          ) : (
+            <Skeleton width={54} height={24} animation="wave" />
+          )}
+          {spanPreview ? (
+            <SpanHeaderName name={spanPreview.name} />
+          ) : (
+            <Skeleton
+              className="span-header-skeleton__name"
+              css={spanHeaderNameSkeletonCSS}
+              height={22}
+              animation="wave"
+            />
+          )}
+          {spanPreview?.statusCode !== undefined ? (
+            <SpanStatusBadge
+              statusCode={spanPreview.statusCode}
+              labelVariant="full"
+            />
+          ) : (
+            <Skeleton width={72} height={24} animation="wave" />
+          )}
+          <div className="span-header__actions">
+            <SpanDetailsHeaderActions
+              buttonText={{
+                addToDataset: isCondensedView ? null : "Add to Dataset",
+                download: isCondensedView ? null : "Download",
+                playground: isCondensedView ? null : "Playground",
+              }}
+              isDisabled={spanPreview == null}
+              projectId={spanPreview?.projectId}
+              spanId={spanPreview?.spanId}
+              spanKind={spanPreview?.spanKind}
+              spanNodeId={spanPreview?.id ?? ""}
+              traceId={spanPreview?.traceId}
+            />
           </div>
-        </div>
-        <Flex direction="row" gap="size-100" alignItems="center" wrap>
-          <Skeleton width={104} height={16} animation="wave" />
-          <Skeleton width={54} height={16} animation="wave" />
-          <Skeleton width={168} height={16} animation="wave" />
-          <Skeleton width={64} height={16} animation="wave" />
-        </Flex>
+        </SpanHeaderIdentityRow>
+        <SpanHeaderMetaRow>
+          <SpanHeaderMetaItem>
+            {spanPreview?.spanId !== undefined ? (
+              <IDBadge id={spanPreview.spanId} tooltipText="Copy Span ID" />
+            ) : (
+              <Skeleton width={104} height={16} animation="wave" />
+            )}
+          </SpanHeaderMetaItem>
+          {hasLatencyPreview ? (
+            typeof spanPreview.latencyMs === "number" ? (
+              <SpanHeaderMetaItem>
+                <Text size="S" color="text-500" fontFamily="mono">
+                  {latencyMsFormatter(spanPreview.latencyMs)}
+                </Text>
+              </SpanHeaderMetaItem>
+            ) : null
+          ) : (
+            <SpanHeaderMetaItem>
+              <Skeleton width={54} height={16} animation="wave" />
+            </SpanHeaderMetaItem>
+          )}
+          <SpanHeaderMetaItem>
+            {spanPreview?.startTime !== undefined ? (
+              <Text size="S" color="text-500" fontFamily="mono">
+                {fullTimeFormatter(new Date(spanPreview.startTime))}
+              </Text>
+            ) : (
+              <Skeleton width={168} height={16} animation="wave" />
+            )}
+          </SpanHeaderMetaItem>
+          {hasTokenCountPreview ? (
+            spanPreview.tokenCountTotal ? (
+              <SpanHeaderMetaItem>
+                <SpanTokenCount
+                  tokenCountTotal={spanPreview.tokenCountTotal}
+                  nodeId={spanPreview.id}
+                  size="S"
+                  color="text-500"
+                />
+              </SpanHeaderMetaItem>
+            ) : null
+          ) : (
+            <SpanHeaderMetaItem>
+              <Skeleton width={64} height={16} animation="wave" />
+            </SpanHeaderMetaItem>
+          )}
+          <SpanHeaderMetaItem>
+            <Skeleton width={64} height={16} animation="wave" />
+          </SpanHeaderMetaItem>
+        </SpanHeaderMetaRow>
       </Flex>
     </View>
   );

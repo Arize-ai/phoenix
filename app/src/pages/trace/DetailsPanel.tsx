@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { Group, Panel } from "react-resizable-panels";
 
 import { DialogCloseButton, Icon, Icons } from "@phoenix/components";
@@ -30,8 +30,8 @@ const detailsPanelNavigationCSS = css`
 const detailsPanelHeaderCSS = css`
   box-sizing: border-box;
   display: grid;
-  grid-template-areas: "close pagination title collapse";
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-areas: "close pagination title";
+  grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
   gap: var(--global-dimension-size-100);
   width: 100%;
@@ -44,6 +44,10 @@ const detailsPanelHeaderCSS = css`
     grid-area: close;
   }
 
+  .details-panel-header__close-row {
+    display: contents;
+  }
+
   .details-panel-header__pagination {
     grid-area: pagination;
   }
@@ -53,17 +57,40 @@ const detailsPanelHeaderCSS = css`
     min-width: 0;
   }
 
-  .details-panel-header__collapse-button {
-    grid-area: collapse;
+  .details-panel-header__compact-collapse-button {
+    display: none;
   }
 
   @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
     grid-template-areas:
-      "close"
+      "close-row"
       "collapse"
       "pagination";
     grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0;
     justify-items: start;
+
+    .details-panel-header__close-row {
+      box-sizing: border-box;
+      display: flex;
+      grid-area: close-row;
+      width: 100%;
+      padding: var(--global-dimension-size-100);
+      border-bottom: var(--global-border-size-thin) solid
+        var(--global-border-color-default);
+    }
+
+    .details-panel-header__compact-collapse-button {
+      display: inline-flex;
+      grid-area: collapse;
+      margin: var(--global-dimension-size-100);
+    }
+
+    .details-panel-header__pagination {
+      margin: 0 var(--global-dimension-size-100)
+        var(--global-dimension-size-100);
+    }
 
     .details-panel-header__title {
       display: none;
@@ -93,12 +120,19 @@ export function DetailsPanelHeader({
 }) {
   return (
     <header className="details-panel-header" css={detailsPanelHeaderCSS}>
-      <DialogCloseButton
-        className="details-panel-header__close-button"
-        close={close}
-        variant="quiet"
-        aria-label={closeLabel}
-        leadingVisual={<Icon svg={<Icons.Close />} />}
+      <div className="details-panel-header__close-row">
+        <DialogCloseButton
+          className="details-panel-header__close-button"
+          close={close}
+          variant="quiet"
+          aria-label={closeLabel}
+          leadingVisual={<Icon svg={<Icons.Close />} />}
+        />
+      </div>
+      <TraceTreePanelToggleButton
+        className="details-panel-header__compact-collapse-button"
+        isCollapsed={isCollapsed}
+        onCollapsedChange={onCollapsedChange}
       />
       {pagination ? (
         <div className="details-panel-header__pagination">{pagination}</div>
@@ -106,12 +140,45 @@ export function DetailsPanelHeader({
       {title ? (
         <div className="details-panel-header__title">{title}</div>
       ) : null}
+    </header>
+  );
+}
+
+const detailsPanelNavigationControlsRowCSS = css`
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  gap: var(--global-dimension-size-100);
+  width: 100%;
+  padding: var(--global-dimension-size-100);
+  border-bottom: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+
+  @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
+    display: none;
+  }
+`;
+
+export function DetailsPanelNavigationControlsRow({
+  children,
+  isCollapsed,
+  onCollapsedChange,
+}: PropsWithChildren<{
+  isCollapsed: boolean;
+  onCollapsedChange: (isCollapsed: boolean) => void;
+}>) {
+  return (
+    <div
+      className="details-panel-navigation-controls"
+      css={detailsPanelNavigationControlsRowCSS}
+    >
+      {children}
       <TraceTreePanelToggleButton
-        className="details-panel-header__collapse-button"
         isCollapsed={isCollapsed}
         onCollapsedChange={onCollapsedChange}
       />
-    </header>
+    </div>
   );
 }
 

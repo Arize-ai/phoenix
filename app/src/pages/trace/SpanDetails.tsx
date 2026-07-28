@@ -3,43 +3,35 @@ import { animate, useReducedMotion } from "motion/react";
 import type { MouseEvent as ReactMouseEvent, PropsWithChildren } from "react";
 import { startTransition, Suspense, useEffect, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
 
 import {
-  Button,
   Counter,
-  DialogTrigger,
   ErrorBoundary,
   Flex,
-  Icon,
-  Icons,
-  LinkButton,
   Loading,
-  Modal,
-  ModalOverlay,
   SectionHeading,
   View,
 } from "@phoenix/components";
 import { SpanDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
-import { useNotifySuccess } from "@phoenix/contexts";
+import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
+import { SPAN_DETAILS_CONDENSED_WIDTH_PIXELS } from "@phoenix/constants";
 import { useDimensions } from "@phoenix/hooks";
 
 import { SpanHeader } from "../SpanHeader";
 import type { SpanDetailsContentQuery } from "./__generated__/SpanDetailsContentQuery.graphql";
 import type { SpanDetailsHeaderQuery } from "./__generated__/SpanDetailsHeaderQuery.graphql";
 import { SpanAttributesCard, SpanInfo } from "./span";
-import { SpanDownloadMenu } from "./SpanDownloadMenu";
+import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
 import { SpanEventsList } from "./SpanEventsList";
 import { useSpanInfoCardProps } from "./SpanInfoCardsContext";
 import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
-import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 import {
   DetailPanelAnnotationBarSkeleton,
   SpanDetailsContentSkeleton,
   SpanHeaderSkeleton,
 } from "./TraceDetailsSkeleton";
 
-const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
 const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
 const FINAL_SCROLL_ANIMATION_DURATION_SECONDS = 0.18;
 const SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS = 0.5;
@@ -190,14 +182,21 @@ function DeferredSpanDetailsContent({
   );
 }
 
-export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
+export function SpanDetails({
+  spanNodeId,
+  spanPreview,
+  initialIsCondensedView = true,
+}: {
+  spanNodeId: string;
+  spanPreview?: SpanDetailsPreview;
+  initialIsCondensedView?: boolean;
+}) {
   const { projectId } = useParams();
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
   const isCondensedView = spanDetailsContainerDimensions?.width
-    ? spanDetailsContainerDimensions.width <
-      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD
-    : true;
+    ? spanDetailsContainerDimensions.width < SPAN_DETAILS_CONDENSED_WIDTH_PIXELS
+    : initialIsCondensedView;
 
   if (projectId == null) {
     throw new Error("Project ID is required to download a span");
@@ -211,7 +210,14 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
       height="100%"
       ref={spanDetailsContainerRef}
     >
-      <Suspense fallback={<SpanHeaderSkeleton />}>
+      <Suspense
+        fallback={
+          <SpanHeaderSkeleton
+            spanPreview={spanPreview}
+            isCondensedView={isCondensedView}
+          />
+        }
+      >
         <SpanDetailsHeader
           isCondensedView={isCondensedView}
           projectId={projectId}
@@ -277,28 +283,18 @@ function SpanDetailsHeader({
       <SpanHeader
         span={span}
         actions={
-          <>
-            <LinkButton
-              variant={span.spanKind !== "llm" ? "default" : "primary"}
-              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-              isDisabled={span.spanKind !== "llm"}
-              to={`/playground/spans/${span.id}`}
-              size="S"
-              aria-label="Prompt Playground"
-            >
-              {isCondensedView ? null : "Playground"}
-            </LinkButton>
-            <AddSpanToDatasetButton
-              spanNodeId={span.id}
-              buttonText={isCondensedView ? null : "Add to Dataset"}
-            />
-            <SpanDownloadMenu
-              projectId={projectId}
-              spanId={span.spanId}
-              traceId={span.trace.traceId}
-              buttonText={isCondensedView ? null : "Download"}
-            />
-          </>
+          <SpanDetailsHeaderActions
+            buttonText={{
+              addToDataset: isCondensedView ? null : "Add to Dataset",
+              download: isCondensedView ? null : "Download",
+              playground: isCondensedView ? null : "Playground",
+            }}
+            projectId={projectId}
+            spanId={span.spanId}
+            spanKind={span.spanKind}
+            spanNodeId={span.id}
+            traceId={span.trace.traceId}
+          />
         }
       />
     </View>
@@ -616,46 +612,5 @@ function SpanDetailSectionLink({
         {children}
       </a>
     </li>
-  );
-}
-
-function AddSpanToDatasetButton({
-  spanNodeId,
-  buttonText,
-}: {
-  spanNodeId: string;
-  buttonText: string | null;
-}) {
-  const notifySuccess = useNotifySuccess();
-  const navigate = useNavigate();
-  return (
-    <DialogTrigger>
-      <Button
-        variant="default"
-        size="S"
-        leadingVisual={<Icon svg={<Icons.Database />} />}
-      >
-        {buttonText}
-      </Button>
-      <ModalOverlay>
-        <Modal variant="slideover" size="L">
-          <Suspense fallback={<Loading />}>
-            <SpanToDatasetExampleDialog
-              spanId={spanNodeId}
-              onCompleted={(datasetId) => {
-                notifySuccess({
-                  title: "Span Added to Dataset",
-                  message: "Successfully added span to dataset",
-                  action: {
-                    text: "View Dataset",
-                    onClick: () => navigate(`/datasets/${datasetId}/examples`),
-                  },
-                });
-              }}
-            />
-          </Suspense>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
   );
 }

@@ -57,6 +57,8 @@ function LinkButton({
       css={css(buttonCSS, linkButtonCSS, propCSS)}
       to={to}
       aria-label={ariaLabel}
+      aria-disabled={isDisabled}
+      tabIndex={isDisabled ? -1 : undefined}
     >
       {leadingVisual}
       {children}

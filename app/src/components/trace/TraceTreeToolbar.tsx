@@ -16,6 +16,7 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { ExpandCollapseAllButton } from "./ExpandCollapseAllButton";
 import { useTraceTree } from "./TraceTreeContext";
+import { TraceTreePanelToggleButton } from "./TraceTreePanelToggleButton";
 
 /**
  * Header controls for the trace tree panel.
@@ -26,7 +27,13 @@ import { useTraceTree } from "./TraceTreeContext";
  * `TraceTreeProvider`. Keeping those concerns out of the toolbar keeps this
  * component focused on layout and control wiring.
  */
-export function TraceTreeToolbar() {
+export function TraceTreeToolbar({
+  isTreePanelCollapsed,
+  onTreePanelCollapsedChange,
+}: {
+  isTreePanelCollapsed?: boolean;
+  onTreePanelCollapsedChange?: (isCollapsed: boolean) => void;
+}) {
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
   );
@@ -132,15 +139,7 @@ export function TraceTreeToolbar() {
         }
 
         @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
-          height: auto;
-
-          .trace-tree-toolbar__layout {
-            flex-direction: column;
-          }
-
-          .trace-tree-toolbar__controls {
-            display: none;
-          }
+          display: none;
         }
       `}
     >
@@ -191,6 +190,14 @@ export function TraceTreeToolbar() {
                 : "Show metrics in trace tree"}
             </Tooltip>
           </TooltipTrigger>
+          {isTreePanelCollapsed !== undefined &&
+          onTreePanelCollapsedChange != null ? (
+            <TraceTreePanelToggleButton
+              className="trace-tree-toolbar__action trace-tree-toolbar__panel-toggle"
+              isCollapsed={isTreePanelCollapsed}
+              onCollapsedChange={onTreePanelCollapsedChange}
+            />
+          ) : null}
         </div>
       </div>
     </div>

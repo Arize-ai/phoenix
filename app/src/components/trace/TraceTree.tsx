@@ -48,6 +48,7 @@ export type TraceTreeProps = {
     traceId: string;
   };
   onSpanClick?: (span: ISpanItem) => void;
+  onSpanSelectionStart?: (span: ISpanItem) => void;
   selectedSpanNodeId: string;
   scrollSelectedSpanIntoView?: boolean;
 };
@@ -179,6 +180,7 @@ export function TraceTree(props: TraceTreeProps) {
     session,
     traceSelection,
     onSpanClick,
+    onSpanSelectionStart,
     selectedSpanNodeId,
     scrollSelectedSpanIntoView = true,
   } = props;
@@ -244,6 +246,7 @@ export function TraceTree(props: TraceTreeProps) {
             node={spanNode}
             overallTimeRange={overallTimeRange}
             onSpanClick={onSpanClick}
+            onSpanSelectionStart={onSpanSelectionStart}
             selectedSpanNodeId={selectedSpanNodeId}
             selectedSpanPathNodeIds={selectedSpanPathNodeIds}
             scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
@@ -552,6 +555,7 @@ interface SpanTreeItemProps<TSpan extends ISpanItem> {
   scrollSelectedSpanIntoView: boolean;
   overallTimeRange: TimeRange;
   onSpanClick?: (span: ISpanItem) => void;
+  onSpanSelectionStart?: (span: ISpanItem) => void;
   /**
    * How deep the item is nested in the tree. Starts at 0.
    * @default 0
@@ -569,6 +573,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     selectedSpanPathNodeIds,
     scrollSelectedSpanIntoView,
     onSpanClick,
+    onSpanSelectionStart,
     nestingLevel = 0,
     overallTimeRange,
   } = props;
@@ -626,6 +631,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
         `}
         onClick={(event) => {
           if (onSpanClick) {
+            onSpanSelectionStart?.(node.span);
             beginOptimisticSpanNavigation({
               onNavigate: () => onSpanClick(node.span),
               spanNodeId: node.span.id,
@@ -756,6 +762,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                     isChildTruncationEnabled={isChildTruncationEnabled}
                     overallTimeRange={overallTimeRange}
                     onSpanClick={onSpanClick}
+                    onSpanSelectionStart={onSpanSelectionStart}
                     selectedSpanNodeId={selectedSpanNodeId}
                     selectedSpanPathNodeIds={selectedSpanPathNodeIds}
                     scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}

@@ -93,6 +93,8 @@ export function TracePage({
                 <TraceDetailsSkeleton
                   preferredTreeWidth={preferredTreeWidth}
                   onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                  isTreePanelCollapsed={isTreeCollapsed}
+                  onTreePanelCollapsedChange={onTreeCollapsedChange}
                   treeAddonWidth={treeAddonWidth}
                   treeMaximumWidth={treeMaximumWidth}
                   treeHeader={
@@ -132,6 +134,8 @@ export function TracePage({
                     }
                   />
                 }
+                isTreePanelCollapsed={isTreeCollapsed}
+                onTreePanelCollapsedChange={onTreeCollapsedChange}
               />
             </Suspense>
           </DialogContent>

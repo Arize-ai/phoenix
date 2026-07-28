@@ -15,4 +15,21 @@ export interface ISpanItem {
   [otherKeys: string]: unknown;
 }
 
+/** Header and action data that may already be available before details load. */
+export type SpanDetailsPreview = Pick<ISpanItem, "id" | "name"> &
+  Partial<
+    Pick<
+      ISpanItem,
+      | "latencyMs"
+      | "spanId"
+      | "spanKind"
+      | "startTime"
+      | "statusCode"
+      | "tokenCountTotal"
+    >
+  > & {
+    projectId?: string;
+    traceId?: string;
+  };
+
 export type SpanStatusCodeType = "OK" | "ERROR" | "UNSET";

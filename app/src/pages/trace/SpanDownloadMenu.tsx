@@ -33,6 +33,7 @@ type SpanDownloadMenuProps = {
   spanId: string;
   traceId: string;
   buttonText: string | null;
+  isDisabled?: boolean;
 };
 
 /** Span-detail download actions for the current span and its trace. */
@@ -41,6 +42,7 @@ export function SpanDownloadMenu({
   spanId,
   traceId,
   buttonText,
+  isDisabled = false,
 }: SpanDownloadMenuProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -89,7 +91,7 @@ export function SpanDownloadMenu({
           size="S"
           aria-label="Download span"
           leadingVisual={<Icon svg={<Icons.Download />} />}
-          isDisabled={isDownloading}
+          isDisabled={isDisabled || isDownloading}
         >
           {buttonText}
         </Button>

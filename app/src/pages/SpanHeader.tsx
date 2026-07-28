@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, IDBadge, Text } from "@phoenix/components";
@@ -22,15 +22,8 @@ const identityRowCSS = css`
   gap: var(--global-dimension-size-100);
   min-width: 0;
 
-  & > * {
+  & > :not(.span-header__name, .span-header-skeleton__name) {
     flex: none;
-  }
-  .span-header__name {
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .span-header__actions {
     display: flex;
@@ -39,6 +32,14 @@ const identityRowCSS = css`
     gap: var(--global-dimension-size-100);
     margin-left: auto;
   }
+`;
+
+const spanHeaderNameCSS = css`
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const metaRowCSS = css`
@@ -109,56 +110,87 @@ export function SpanHeaderContent({
 
   return (
     <Flex direction="column" gap="size-50" width="100%">
-      <div className="span-header__identity" css={identityRowCSS}>
+      <SpanHeaderIdentityRow>
         <SpanKindToken spanKind={span.spanKind} />
-        <Text
-          size="L"
-          weight="heavy"
-          className="span-header__name"
-          title={span.name}
-        >
-          {span.name}
-        </Text>
+        <SpanHeaderName name={span.name} />
         <SpanStatusBadge statusCode={span.code} labelVariant="full" />
         {actions ? <div className="span-header__actions">{actions}</div> : null}
-      </div>
-      <div className="span-header__meta" css={metaRowCSS}>
-        <span className="span-header__meta-item">
+      </SpanHeaderIdentityRow>
+      <SpanHeaderMetaRow>
+        <SpanHeaderMetaItem>
           <IDBadge id={span.spanId} tooltipText="Copy Span ID" />
-        </span>
+        </SpanHeaderMetaItem>
         {typeof span.latencyMs === "number" ? (
-          <span className="span-header__meta-item">
+          <SpanHeaderMetaItem>
             <Text size="S" color="text-500" fontFamily="mono">
               {latencyMsFormatter(span.latencyMs)}
             </Text>
-          </span>
+          </SpanHeaderMetaItem>
         ) : null}
-        <span className="span-header__meta-item">
+        <SpanHeaderMetaItem>
           <Text size="S" color="text-500" fontFamily="mono">
             {fullTimeFormatter(startTime)}
           </Text>
-        </span>
+        </SpanHeaderMetaItem>
         {span.tokenCountTotal ? (
-          <span className="span-header__meta-item">
+          <SpanHeaderMetaItem>
             <SpanTokenCount
               tokenCountTotal={span.tokenCountTotal}
               nodeId={span.id}
               size="S"
               color="text-500"
             />
-          </span>
+          </SpanHeaderMetaItem>
         ) : null}
         {span.costSummary?.total?.cost ? (
-          <span className="span-header__meta-item">
+          <SpanHeaderMetaItem>
             <SpanTokenCosts
               totalCost={span.costSummary.total.cost}
               spanNodeId={span.id}
               size="S"
               color="text-500"
             />
-          </span>
+          </SpanHeaderMetaItem>
         ) : null}
-      </div>
+      </SpanHeaderMetaRow>
     </Flex>
   );
+}
+
+/** Span name shared by loaded and preview detail headers. */
+export function SpanHeaderName({ name }: { name: string }) {
+  return (
+    <Text
+      size="L"
+      weight="heavy"
+      className="span-header__name"
+      title={name}
+      css={spanHeaderNameCSS}
+    >
+      {name}
+    </Text>
+  );
+}
+
+/** Identity row shared by loaded and preview detail headers. */
+export function SpanHeaderIdentityRow({ children }: PropsWithChildren) {
+  return (
+    <div className="span-header__identity" css={identityRowCSS}>
+      {children}
+    </div>
+  );
+}
+
+/** Metadata row shared by loaded and preview detail headers. */
+export function SpanHeaderMetaRow({ children }: PropsWithChildren) {
+  return (
+    <div className="span-header__meta" css={metaRowCSS}>
+      {children}
+    </div>
+  );
+}
+
+/** One metadata value in a span detail header. */
+export function SpanHeaderMetaItem({ children }: PropsWithChildren) {
+  return <span className="span-header__meta-item">{children}</span>;
 }

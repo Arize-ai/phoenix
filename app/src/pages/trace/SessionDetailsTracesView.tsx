@@ -17,7 +17,6 @@ import {
   usePaginationFragment,
   usePreloadedQuery,
 } from "react-relay";
-import { useSearchParams } from "react-router";
 
 import {
   DisclosureArrow,
@@ -39,10 +38,7 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
-import {
-  SELECTED_SPAN_NODE_ID_PARAM,
-  SELECTED_TRACE_ID_PARAM,
-} from "@phoenix/constants/searchParams";
+import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
 import { useTimeFormatters } from "@phoenix/hooks";
 import type {
   SessionDetailsTracesView_traces$data,
@@ -56,6 +52,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { DetailsPanel } from "./DetailsPanel";
 import type { SessionNavigationHeaderRenderer } from "./SessionDetails";
+import type { SessionDetailsSearchParamsStore } from "./sessionDetailsSearchParamsStore";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 
@@ -82,18 +79,14 @@ type SessionTraceRow = NonNullable<
 type SpanClickHandler = ({
   traceId,
   spanNodeId,
+  spanPreview,
 }: {
   traceId: string;
   spanNodeId: string;
+  spanPreview?: SpanDetailsPreview;
 }) => void;
 
-type TraceSelectHandler = ({
-  traceId,
-  spanNodeId,
-}: {
-  traceId: string;
-  spanNodeId: string;
-}) => void;
+type TraceSelectHandler = SpanClickHandler;
 
 export function SessionDetailsTracesView({
   queryRef,
@@ -101,12 +94,14 @@ export function SessionDetailsTracesView({
   onPreferredTreeWidthChange,
   renderNavigationHeader,
   renderMainContent,
+  searchParamsStore,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTracesViewQuery>;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
   renderNavigationHeader: SessionNavigationHeaderRenderer;
   renderMainContent: (content: ReactNode) => ReactNode;
+  searchParamsStore: SessionDetailsSearchParamsStore;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTracesViewQuery>(
     sessionDetailsTracesViewQuery,
@@ -167,13 +162,16 @@ export function SessionDetailsTracesView({
     );
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
-  const [searchParams, setSearchParams] = useSearchParams();
-  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
-  const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
+  const { spanNodeId: selectedSpanNodeId, traceId: selectedTraceId } =
+    searchParamsStore.getSpanSelection();
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const initialSelectedTraceIdRef = useRef(selectedTraceId);
   const hasScrolledInitialSelectionRef = useRef(false);
   const initialSelectedTracePagesLoadedRef = useRef(0);
+  const spanSelectionRequestRef = useRef<SpanClickHandler>(() => undefined);
+  const pendingUrlSelectionRef = useRef<Parameters<SpanClickHandler>[0] | null>(
+    null
+  );
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
@@ -197,19 +195,49 @@ export function SessionDetailsTracesView({
     });
   };
 
-  const handleTraceSelect: TraceSelectHandler = ({ traceId, spanNodeId }) => {
-    setSearchParams(
-      (params) => {
-        params.set(SELECTED_TRACE_ID_PARAM, traceId);
-        params.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
-        return params;
-      },
-      { replace: true }
-    );
+  const synchronizePendingSelection = (spanNodeId: string) => {
+    const pendingSelection = pendingUrlSelectionRef.current;
+    if (pendingSelection?.spanNodeId !== spanNodeId) return;
+    pendingUrlSelectionRef.current = null;
+    searchParamsStore.synchronizeSpanSelection(pendingSelection);
   };
 
-  const handleSpanClick: SpanClickHandler = ({ traceId, spanNodeId }) => {
-    handleTraceSelect({ traceId, spanNodeId });
+  const handleTraceSelect: TraceSelectHandler = (selection) => {
+    const { spanNodeId } = selection;
+    spanSelectionRequestRef.current(selection);
+    pendingUrlSelectionRef.current = selection;
+    searchParamsStore.prepareSpanSelection(selection);
+
+    const escapedSpanNodeId = CSS.escape(spanNodeId);
+    const retainedDetailsAreReady = document.querySelector(
+      `[data-span-details-retained-id="${escapedSpanNodeId}"]:not([hidden]) [data-span-details-body-id="${escapedSpanNodeId}"]`
+    );
+    if (retainedDetailsAreReady) {
+      requestAnimationFrame(() => synchronizePendingSelection(spanNodeId));
+    }
+  };
+
+  const handleSpanClick: SpanClickHandler = (selection) => {
+    handleTraceSelect(selection);
+  };
+
+  const handleSpanSelectionStart: SpanClickHandler = (selection) => {
+    spanSelectionRequestRef.current(selection);
+  };
+
+  useEffect(() => {
+    return searchParamsStore.subscribeToExternalSelection((selection) => {
+      if (selection.spanNodeId && selection.traceId) {
+        spanSelectionRequestRef.current({
+          spanNodeId: selection.spanNodeId,
+          traceId: selection.traceId,
+        });
+      }
+    });
+  }, [searchParamsStore]);
+
+  const handleSpanDetailsReady = (spanNodeId: string) => {
+    synchronizePendingSelection(spanNodeId);
   };
 
   // The URL can preselect a trace before its paginated row is loaded. Page a
@@ -294,6 +322,7 @@ export function SessionDetailsTracesView({
             onToggleExpanded={toggleExpanded}
             onTraceSelect={handleTraceSelect}
             onSpanClick={handleSpanClick}
+            onSpanSelectionStart={handleSpanSelectionStart}
             rowRefs={rowRefs}
             isLoadingNext={isLoadingNext}
             onScroll={(event) =>
@@ -305,7 +334,11 @@ export function SessionDetailsTracesView({
     >
       <SpanInfoCardsProvider>
         {renderMainContent(
-          <SpanDetailsPanel selectedSpanNodeId={selectedSpanNodeId} />
+          <SpanDetailsPanel
+            selectedSpanNodeId={selectedSpanNodeId}
+            selectionRequestRef={spanSelectionRequestRef}
+            onSpanDetailsReady={handleSpanDetailsReady}
+          />
         )}
       </SpanInfoCardsProvider>
     </DetailsPanel>
@@ -320,6 +353,7 @@ function TraceRowList({
   onToggleExpanded,
   onTraceSelect,
   onSpanClick,
+  onSpanSelectionStart,
   rowRefs,
   isLoadingNext,
   onScroll,
@@ -331,6 +365,7 @@ function TraceRowList({
   onToggleExpanded: (id: string) => void;
   onTraceSelect: TraceSelectHandler;
   onSpanClick: SpanClickHandler;
+  onSpanSelectionStart: SpanClickHandler;
   rowRefs: { current: Map<string, HTMLDivElement> };
   isLoadingNext: boolean;
   onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
@@ -363,9 +398,15 @@ function TraceRowList({
                 onTraceSelect({
                   traceId: trace.traceId,
                   spanNodeId: trace.rootSpan.id,
+                  spanPreview: {
+                    ...trace.rootSpan,
+                    projectId: trace.rootSpan.project.id,
+                    traceId: trace.traceId,
+                  },
                 })
               }
               onSpanClick={onSpanClick}
+              onSpanSelectionStart={onSpanSelectionStart}
               setTraceRowRef={({ traceId, el }) => {
                 if (el) {
                   rowRefs.current.set(traceId, el);
@@ -399,6 +440,7 @@ function TraceRow({
   onToggleExpanded,
   onTraceSelect,
   onSpanClick,
+  onSpanSelectionStart,
   setTraceRowRef,
 }: {
   trace: SessionTraceRow;
@@ -409,6 +451,7 @@ function TraceRow({
   onToggleExpanded: () => void;
   onTraceSelect: () => void;
   onSpanClick: SpanClickHandler;
+  onSpanSelectionStart: SpanClickHandler;
   setTraceRowRef: ({
     traceId,
     el,
@@ -440,6 +483,7 @@ function TraceRow({
           projectId={trace.rootSpan.project.id}
           selectedSpanNodeId={selectedSpanNodeId}
           onSpanClick={onSpanClick}
+          onSpanSelectionStart={onSpanSelectionStart}
         />
       ) : null}
     </div>
@@ -575,11 +619,13 @@ function TraceTreeContainer({
   projectId,
   selectedSpanNodeId,
   onSpanClick,
+  onSpanSelectionStart,
 }: {
   traceId: string;
   projectId: string;
   selectedSpanNodeId: string | null;
   onSpanClick: SpanClickHandler;
+  onSpanSelectionStart: SpanClickHandler;
 }) {
   return (
     <div css={traceTreeContainerCSS} data-testid="session-trace-tree">
@@ -588,7 +634,8 @@ function TraceTreeContainer({
           traceId={traceId}
           projectId={projectId}
           selectedSpanNodeId={selectedSpanNodeId}
-          onSpanClick={({ spanNodeId }) => onSpanClick({ traceId, spanNodeId })}
+          onSpanClick={onSpanClick}
+          onSpanSelectionStart={onSpanSelectionStart}
         />
       </Suspense>
     </div>
@@ -597,10 +644,30 @@ function TraceTreeContainer({
 
 function SpanDetailsPanel({
   selectedSpanNodeId,
+  selectionRequestRef,
+  onSpanDetailsReady,
 }: {
   selectedSpanNodeId: string | null;
+  selectionRequestRef: { current: SpanClickHandler };
+  onSpanDetailsReady: (spanNodeId: string) => void;
 }) {
-  if (!selectedSpanNodeId) {
+  const [localSpanSelection, setLocalSpanSelection] = useState<{
+    spanNodeId: string;
+    spanPreview?: SpanDetailsPreview;
+  } | null>(() =>
+    selectedSpanNodeId ? { spanNodeId: selectedSpanNodeId } : null
+  );
+
+  useEffect(() => {
+    selectionRequestRef.current = ({ spanNodeId, spanPreview }) => {
+      setLocalSpanSelection({ spanNodeId, spanPreview });
+    };
+    return () => {
+      selectionRequestRef.current = () => undefined;
+    };
+  }, [selectionRequestRef]);
+
+  if (!localSpanSelection) {
     return (
       <Flex
         direction="row"
@@ -615,7 +682,11 @@ function SpanDetailsPanel({
   }
   return (
     <div css={spanDetailsContainerCSS} data-testid="session-span-details">
-      <SpanDetailsPaintGate spanNodeId={selectedSpanNodeId} />
+      <SpanDetailsPaintGate
+        spanNodeId={localSpanSelection.spanNodeId}
+        spanPreview={localSpanSelection.spanPreview}
+        onSpanDetailsReady={onSpanDetailsReady}
+      />
     </div>
   );
 }
@@ -625,11 +696,13 @@ function LazyTraceTree({
   projectId,
   selectedSpanNodeId,
   onSpanClick,
+  onSpanSelectionStart,
 }: {
   traceId: string;
   projectId: string;
   selectedSpanNodeId: string | null;
   onSpanClick: SpanClickHandler;
+  onSpanSelectionStart: SpanClickHandler;
 }) {
   const data = useLazyLoadQuery<SessionDetailsTracesViewTreeQuery>(
     graphql`
@@ -654,7 +727,20 @@ function LazyTraceTree({
         isChildTruncationEnabled
         selectedSpanNodeId={selectedSpanNodeId ?? ""}
         scrollSelectedSpanIntoView={false}
-        onSpanClick={(span) => onSpanClick({ traceId, spanNodeId: span.id })}
+        onSpanClick={(span) =>
+          onSpanClick({
+            traceId,
+            spanNodeId: span.id,
+            spanPreview: { ...span, projectId, traceId },
+          })
+        }
+        onSpanSelectionStart={(span) =>
+          onSpanSelectionStart({
+            traceId,
+            spanNodeId: span.id,
+            spanPreview: { ...span, projectId, traceId },
+          })
+        }
       />
     </TraceTreeProvider>
   );

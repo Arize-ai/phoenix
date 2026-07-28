@@ -2,16 +2,22 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
+
 import { SpanDetailsPaintGate } from "../SpanDetailsPaintGate";
 
 vi.mock("../SpanDetails", () => ({
   SpanDetails: ({ spanNodeId }: { spanNodeId: string }) => (
-    <div>{`Hydrated ${spanNodeId}`}</div>
+    <div data-span-details-body-id={spanNodeId}>{`Hydrated ${spanNodeId}`}</div>
   ),
 }));
 
 vi.mock("../TraceDetailsSkeleton", () => ({
-  SpanDetailsSkeleton: () => <div>Loading span details</div>,
+  SpanDetailsSkeleton: ({
+    spanPreview,
+  }: {
+    spanPreview?: SpanDetailsPreview;
+  }) => <div>{spanPreview?.name ?? "Loading span details"}</div>,
 }));
 
 describe("SpanDetailsPaintGate", () => {
@@ -118,6 +124,30 @@ describe("SpanDetailsPaintGate", () => {
     expect(getRetainedDetails("span-b")?.textContent).toBe("Hydrated span-b");
   });
 
+  it("shows the selected span name before its details hydrate", () => {
+    act(() => {
+      root.render(
+        <SpanDetailsPaintGate
+          spanNodeId="span-a"
+          spanPreview={{ id: "span-a", name: "Span A" }}
+        />
+      );
+    });
+    expect(getSkeleton().textContent).toBe("Span A");
+
+    act(() => {
+      root.render(
+        <SpanDetailsPaintGate
+          spanNodeId="span-b"
+          spanPreview={{ id: "span-b", name: "Span B" }}
+        />
+      );
+    });
+    expect(getSkeleton().hidden).toBe(false);
+    expect(getSkeleton().textContent).toBe("Span B");
+    expect(getRetainedDetails()).toBeNull();
+  });
+
   it("reveals a cached span immediately and evicts the least recent span", () => {
     act(() => {
       root.render(<SpanDetailsPaintGate spanNodeId="span-a" />);
@@ -164,5 +194,28 @@ describe("SpanDetailsPaintGate", () => {
     runNextFrame();
     expect(getSkeleton().hidden).toBe(true);
     expect(getRetainedDetails("span-b")?.textContent).toBe("Hydrated span-b");
+  });
+
+  it("reports readiness only after hydrated details have had time to paint", async () => {
+    const onSpanDetailsReady = vi.fn();
+    act(() => {
+      root.render(
+        <SpanDetailsPaintGate
+          spanNodeId="span-a"
+          onSpanDetailsReady={onSpanDetailsReady}
+        />
+      );
+    });
+
+    runNextFrame();
+    runNextFrame();
+    await act(async () => await Promise.resolve());
+    expect(onSpanDetailsReady).not.toHaveBeenCalled();
+
+    runNextFrame();
+    expect(onSpanDetailsReady).not.toHaveBeenCalled();
+    runNextFrame();
+    expect(onSpanDetailsReady).toHaveBeenCalledOnce();
+    expect(onSpanDetailsReady).toHaveBeenCalledWith("span-a");
   });
 });

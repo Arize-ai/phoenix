@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { startTransition } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
@@ -105,13 +104,6 @@ export const SessionDetailsPaginator = ({
     <Flex
       className={classNames("session-details-paginator", className)}
       gap="size-50"
-      css={css`
-        button {
-          // either the icons or the trigger wrap are making the buttons slightly too small
-          // so just spot adjust the min height here
-          min-height: 31px;
-        }
-      `}
     >
       <Flex
         className="session-details-paginator__buttons"

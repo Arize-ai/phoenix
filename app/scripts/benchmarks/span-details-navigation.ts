@@ -40,6 +40,9 @@ type BrowserMeasurement = {
   heapBeforeBytes: number | null;
   longestLongTaskMs: number;
   longTaskCount: number;
+  mountedLlmMessagesAfter: number;
+  routeObservedMs: number | null;
+  routePaintMs: number | null;
   selectionObservedMs: number | null;
   selectionPaintMs: number | null;
   skeletonObservedMs: number | null;
@@ -79,6 +82,9 @@ const NUMERIC_METRICS = [
   "bodyObservedMs",
   "bodyPaintMs",
   "longTaskCount",
+  "mountedLlmMessagesAfter",
+  "routeObservedMs",
+  "routePaintMs",
   "totalLongTaskMs",
   "longestLongTaskMs",
   "graphQlRequestCount",
@@ -172,7 +178,7 @@ async function installBrowserMeasurementTracker(page: Page) {
   await page.evaluate(() => {
     type MutableMeasurement = BrowserMeasurement & {
       scheduledPaintMetrics: Set<
-        "bodyPaintMs" | "selectionPaintMs" | "skeletonPaintMs"
+        "bodyPaintMs" | "routePaintMs" | "selectionPaintMs" | "skeletonPaintMs"
       >;
       startTime: number;
     };
@@ -218,6 +224,7 @@ async function installBrowserMeasurementTracker(page: Page) {
       if (
         currentMeasurement !== measurement ||
         measurement.bodyPaintMs == null ||
+        measurement.routePaintMs == null ||
         measurement.selectionPaintMs == null
       ) {
         return;
@@ -228,7 +235,9 @@ async function installBrowserMeasurementTracker(page: Page) {
           startTime: entry.startTime,
         });
       }
-      const endTime = measurement.startTime + measurement.bodyPaintMs;
+      const endTime =
+        measurement.startTime +
+        Math.max(measurement.bodyPaintMs, measurement.routePaintMs);
       const relevantLongTasks = longTasks.filter(
         (entry) =>
           entry.startTime + entry.duration >= measurement.startTime &&
@@ -263,6 +272,9 @@ async function installBrowserMeasurementTracker(page: Page) {
         0
       );
       measurement.domNodesAfter = document.getElementsByTagName("*").length;
+      measurement.mountedLlmMessagesAfter = document.querySelectorAll(
+        `[data-span-details-body-id="${CSS.escape(measurement.targetSpanNodeId)}"] [data-llm-message-state="mounted"]`
+      ).length;
       measurement.heapAfterBytes = getHeapUsage();
 
       const {
@@ -279,7 +291,11 @@ async function installBrowserMeasurementTracker(page: Page) {
       metric,
     }: {
       measurement: MutableMeasurement;
-      metric: "bodyPaintMs" | "selectionPaintMs" | "skeletonPaintMs";
+      metric:
+        | "bodyPaintMs"
+        | "routePaintMs"
+        | "selectionPaintMs"
+        | "skeletonPaintMs";
     }) => {
       if (measurement.scheduledPaintMetrics.has(metric)) return;
       measurement.scheduledPaintMetrics.add(metric);
@@ -301,7 +317,10 @@ async function installBrowserMeasurementTracker(page: Page) {
         `[data-span-details-target-id="${escapedTargetId}"][data-span-details-state="dehydrated"]`
       );
       const detailsBody = document.querySelector(
-        `[data-span-details-retained-id="${escapedTargetId}"]:not([hidden]) [data-span-details-body-id="${escapedTargetId}"]`
+        `[data-span-details-retained-id="${escapedTargetId}"]:not([hidden]) [data-span-details-body-id="${escapedTargetId}"]:has([data-llm-message-state="mounted"])`
+      );
+      const routeTargetId = new URL(window.location.href).searchParams.get(
+        "selectedSpanNodeId"
       );
 
       if (selectedTreeNode && measurement.selectionObservedMs == null) {
@@ -322,9 +341,17 @@ async function installBrowserMeasurementTracker(page: Page) {
         measurement.bodyObservedMs = elapsed;
         schedulePaintMeasurement({ measurement, metric: "bodyPaintMs" });
       }
+      if (
+        routeTargetId === measurement.targetSpanNodeId &&
+        measurement.routeObservedMs == null
+      ) {
+        measurement.routeObservedMs = elapsed;
+        schedulePaintMeasurement({ measurement, metric: "routePaintMs" });
+      }
 
       if (
         measurement.bodyPaintMs == null ||
+        measurement.routePaintMs == null ||
         measurement.selectionPaintMs == null
       ) {
         requestAnimationFrame(() => inspectMeasurement(measurement));
@@ -366,6 +393,9 @@ async function installBrowserMeasurementTracker(page: Page) {
         heapBeforeBytes: getHeapUsage(),
         longestLongTaskMs: 0,
         longTaskCount: 0,
+        mountedLlmMessagesAfter: 0,
+        routeObservedMs: null,
+        routePaintMs: null,
         scheduledPaintMetrics: new Set(),
         selectionObservedMs: null,
         selectionPaintMs: null,
@@ -551,7 +581,7 @@ async function measureLoadedPage({
 }): Promise<BrowserMeasurement> {
   await page
     .locator(
-      `[data-span-details-retained-id="${targetSpanNodeId}"]:not([hidden]) [data-span-details-body-id="${targetSpanNodeId}"]`
+      `[data-span-details-retained-id="${targetSpanNodeId}"]:not([hidden]) [data-span-details-body-id="${targetSpanNodeId}"]:has([data-llm-message-state="mounted"])`
     )
     .waitFor();
   return page.evaluate(async (targetSpanNodeId) => {
@@ -588,6 +618,11 @@ async function measureLoadedPage({
       heapBeforeBytes: null,
       longestLongTaskMs: 0,
       longTaskCount: 0,
+      mountedLlmMessagesAfter: document.querySelectorAll(
+        `[data-span-details-body-id="${CSS.escape(targetSpanNodeId)}"] [data-llm-message-state="mounted"]`
+      ).length,
+      routeObservedMs: null,
+      routePaintMs: null,
       selectionObservedMs: null,
       selectionPaintMs: null,
       skeletonObservedMs: null,

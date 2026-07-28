@@ -11,8 +11,6 @@ import {
   Drawer,
   ErrorBoundary,
   DialogContent,
-  DialogTitle,
-  TitleWithID,
 } from "@phoenix/components";
 import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -71,9 +69,13 @@ export function SessionPage() {
           <DialogContent>
             <ErrorBoundary>
               <SessionDetails
+                key={sessionId}
                 sessionId={sessionId}
+                sessionDisplayId={loaderData.session.sessionId || ""}
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                isTreePanelCollapsed={isTreeCollapsed}
+                onTreePanelCollapsedChange={onTreeCollapsedChange}
                 navigationHeader={
                   <DetailsPanelHeader
                     close={close}
@@ -85,14 +87,6 @@ export function SessionPage() {
                         currentId={sessionId}
                         isCollapsed={isTreeCollapsed}
                       />
-                    }
-                    title={
-                      <DialogTitle>
-                        <TitleWithID
-                          title="Session"
-                          id={loaderData.session.sessionId || ""}
-                        />
-                      </DialogTitle>
                     }
                   />
                 }

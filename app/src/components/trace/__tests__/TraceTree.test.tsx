@@ -76,12 +76,14 @@ describe("TraceTree", () => {
     spans,
     selectedSpanNodeId = "",
     onSpanClick,
+    onSpanSelectionStart,
     searchQuery,
     isChildTruncationEnabled = false,
   }: {
     spans: ISpanItem[];
     selectedSpanNodeId?: string;
     onSpanClick?: (span: ISpanItem) => void;
+    onSpanSelectionStart?: (span: ISpanItem) => void;
     searchQuery?: string;
     isChildTruncationEnabled?: boolean;
   }) {
@@ -92,6 +94,7 @@ describe("TraceTree", () => {
         selectedSpanNodeId={selectedSpanNodeId}
         scrollSelectedSpanIntoView={false}
         onSpanClick={onSpanClick}
+        onSpanSelectionStart={onSpanSelectionStart}
       />
     );
     act(() => {
@@ -602,6 +605,7 @@ describe("TraceTree", () => {
       vi.fn((frameId: number) => scheduledFrames.delete(frameId))
     );
     const onSpanClick = vi.fn();
+    const onSpanSelectionStart = vi.fn();
 
     act(() => {
       root.render(
@@ -614,6 +618,7 @@ describe("TraceTree", () => {
                   selectedSpanNodeId={ROOT_SPAN.id}
                   scrollSelectedSpanIntoView={false}
                   onSpanClick={onSpanClick}
+                  onSpanSelectionStart={onSpanSelectionStart}
                 />
               </TraceTreeProvider>
             </PreferencesProvider>
@@ -635,11 +640,16 @@ describe("TraceTree", () => {
     act(() => childTrigger?.click());
     expect(rootSpan?.dataset.selected).toBe("false");
     expect(childSpan?.dataset.selected).toBe("true");
+    expect(onSpanSelectionStart).toHaveBeenCalledOnce();
+    expect(onSpanSelectionStart).toHaveBeenCalledWith(CHILD_SPAN);
     expect(onSpanClick).not.toHaveBeenCalled();
 
+    onSpanSelectionStart.mockClear();
     act(() => rootTrigger?.click());
     expect(rootSpan?.dataset.selected).toBe("true");
     expect(childSpan?.dataset.selected).toBe("false");
+    expect(onSpanSelectionStart).toHaveBeenCalledOnce();
+    expect(onSpanSelectionStart).toHaveBeenCalledWith(ROOT_SPAN);
     expect(scheduledFrames.size).toBe(1);
 
     const runNextFrame = () => {

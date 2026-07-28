@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import {
@@ -100,13 +99,6 @@ export const TraceDetailsPaginator = ({
     <Flex
       className={classNames("trace-details-paginator", className)}
       gap="size-50"
-      css={css`
-        button {
-          // either the icons or the trigger wrap are making the buttons slightly too small
-          // so just spot adjust the min height here
-          min-height: 31px;
-        }
-      `}
     >
       <Flex
         className="trace-details-paginator__buttons"

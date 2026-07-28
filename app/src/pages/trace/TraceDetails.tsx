@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useSearchParams } from "react-router";
@@ -23,7 +23,10 @@ import {
   TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
 } from "@phoenix/components/trace/traceTreeSizing";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
-import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
+import type {
+  SpanDetailsPreview,
+  SpanStatusCodeType,
+} from "@phoenix/components/trace/types";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
@@ -59,7 +62,14 @@ export type TraceDetailsProps = {
   projectId: string;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
+  isTreePanelCollapsed?: boolean;
+  onTreePanelCollapsedChange?: (isCollapsed: boolean) => void;
   treeHeader?: ReactNode;
+};
+
+type LocalSpanSelection = {
+  isRouteCommitPending: boolean;
+  spanPreview: SpanDetailsPreview;
 };
 
 /**
@@ -71,9 +81,13 @@ export function TraceDetails({
   projectId,
   preferredTreeWidth,
   onPreferredTreeWidthChange,
+  isTreePanelCollapsed,
+  onTreePanelCollapsedChange,
   treeHeader,
 }: TraceDetailsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [localSpanSelection, setLocalSpanSelection] =
+    useState<LocalSpanSelection | null>(null);
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
   );
@@ -127,10 +141,20 @@ export function TraceDetails({
   const urlTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
   invariant(rootSpans.length > 0, "At least one root must be resolvable");
   const rootSpan = rootSpans[0];
-  const isTraceSelected =
+  const isRouteTraceSelected =
     urlSpanNodeId == null && (defaultToTrace || urlTraceId === trace.traceId);
+  const isLocalSpanSelectionCurrent =
+    localSpanSelection != null &&
+    (localSpanSelection.isRouteCommitPending ||
+      localSpanSelection.spanPreview.id === urlSpanNodeId);
+  const selectedSpanPreview = isLocalSpanSelectionCurrent
+    ? localSpanSelection.spanPreview
+    : undefined;
+  const isTraceSelected = selectedSpanPreview == null && isRouteTraceSelected;
   const selectedSpanNodeId =
-    urlSpanNodeId ?? (isTraceSelected ? null : rootSpan.id);
+    selectedSpanPreview?.id ??
+    urlSpanNodeId ??
+    (isTraceSelected ? null : rootSpan.id);
   const session = trace.session;
   const treeSession = session
     ? {
@@ -155,7 +179,10 @@ export function TraceDetails({
         navigation={
           <TraceTreeProvider>
             {treeHeader}
-            <TraceTreeToolbar />
+            <TraceTreeToolbar
+              isTreePanelCollapsed={isTreePanelCollapsed}
+              onTreePanelCollapsedChange={onTreePanelCollapsedChange}
+            />
             <ConnectedTraceTree
               trace={trace}
               session={treeSession}
@@ -163,6 +190,7 @@ export function TraceDetails({
               traceSelection={{
                 isSelected: isTraceSelected,
                 onSelect: () => {
+                  setLocalSpanSelection(null);
                   setSearchParams(
                     (searchParams) => {
                       searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
@@ -174,6 +202,16 @@ export function TraceDetails({
                 },
                 traceId: trace.traceId,
               }}
+              onSpanSelectionStart={(span) => {
+                setLocalSpanSelection({
+                  isRouteCommitPending: true,
+                  spanPreview: {
+                    ...span,
+                    projectId,
+                    traceId: trace.traceId,
+                  },
+                });
+              }}
               onSpanClick={(span) => {
                 setSearchParams(
                   (searchParams) => {
@@ -183,6 +221,14 @@ export function TraceDetails({
                   },
                   { replace: true, flushSync: true }
                 );
+                setLocalSpanSelection({
+                  isRouteCommitPending: false,
+                  spanPreview: {
+                    ...span,
+                    projectId,
+                    traceId: trace.traceId,
+                  },
+                });
               }}
             />
           </TraceTreeProvider>
@@ -199,7 +245,10 @@ export function TraceDetails({
                 <TraceDetailPanelAnnotationBar traceNodeId={trace.id} />
               </Suspense>
             ) : selectedSpanNodeId ? (
-              <SpanDetailsPaintGate spanNodeId={selectedSpanNodeId} />
+              <SpanDetailsPaintGate
+                spanNodeId={selectedSpanNodeId}
+                spanPreview={selectedSpanPreview}
+              />
             ) : null}
           </SpanDetailsWrapper>
         </SpanInfoCardsProvider>

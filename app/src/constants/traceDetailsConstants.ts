@@ -25,6 +25,9 @@ export const SPAN_DETAILS_FACTORY_WIDTH_PIXELS = 960;
 /** size-15000; hard maximum for the main detail column and its drawer allocation. */
 export const SPAN_DETAILS_MAX_WIDTH_PIXELS = 1200;
 
+/** Detail actions switch to icon-only controls below this width. */
+export const SPAN_DETAILS_CONDENSED_WIDTH_PIXELS = 950;
+
 /** size-10; width of the compact separator between the trace columns. */
 export const TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS = 1;
 

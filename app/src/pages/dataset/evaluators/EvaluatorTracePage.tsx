@@ -76,6 +76,8 @@ export function EvaluatorTracePage() {
                 projectId={projectId}
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                isTreePanelCollapsed={isTreeCollapsed}
+                onTreePanelCollapsedChange={onTreeCollapsedChange}
                 treeHeader={
                   <DetailsPanelHeader
                     close={close}
