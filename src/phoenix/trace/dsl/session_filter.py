@@ -167,7 +167,8 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "end_time": "Session end timestamp (latest trace).",
         "duration_ms": "Session wall-clock duration in milliseconds (end_time - start_time).",
         "num_traces": (
-            "Number of traces in the session — ≈ conversation turns; 0 when absent, never null."
+            "Number of traces in the session — ≈ conversation turns (one trace records one "
+            "exchange: an input and the response produced for it); 0 when absent, never null."
         ),
         "num_traces_with_error": (
             "Number of traces in the session containing an errored span; 0 when absent, never null."
@@ -194,7 +195,9 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             "Total cost across the session's spans; 0 when no cost is configured, never null."
         ),
         "tool_call_count": (
-            'TOOL span count; subscript by name, e.g. tool_call_count["search"]. '
+            "TOOL span count; behaves like a Counter — bare tool_call_count is the session "
+            'total, tool_call_count["search"] counts one tool. The subscripted name must '
+            "exactly match a TOOL span name; a name that never occurs counts as 0. "
             "0 when absent, never null."
         ),
         "llm_call_count": "Number of LLM spans in the session; 0 when absent, never null.",
@@ -209,12 +212,16 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             "`'x' not in any_output` also matches sessions with no output (NOT EXISTS)."
         ),
         "first_input": (
-            "Case-sensitive turn-1-only root span input.value string; a session with no first "
-            "input is SQL null, so `not in` and comparisons exclude it (target it with `is None`)."
+            "Case-sensitive turn-1-only root span input.value string — the input of the "
+            "session's first trace; a session with no first input is SQL null, so `not in` and "
+            "comparisons exclude it (target it with `is None`). For containment anywhere in "
+            "the session, prefer the cheaper any_input."
         ),
         "last_output": (
-            "Case-sensitive final-turn-only root span output.value string; a session with no last "
-            "output is SQL null, so `not in last_output` excludes it (target it with `is None`)."
+            "Case-sensitive final-turn-only root span output.value string — the output of the "
+            "session's last trace; a session with no last output is SQL null, so `not in "
+            "last_output` excludes it (target it with `is None`). For containment anywhere in "
+            "the session, prefer the cheaper any_output."
         ),
         "attributes[...]": (
             "Open root-span attribute access. Use canonical bracket paths such as "

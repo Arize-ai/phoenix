@@ -10,6 +10,7 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
+import { css } from "@emotion/react";
 import CodeMirror, {
   type BasicSetupOptions,
   EditorView,
@@ -52,6 +53,12 @@ import {
 export type DSLFilterConditionValidationResult = {
   isValid: boolean;
   errorMessage?: string | null;
+  /**
+   * Non-blocking advisories on a condition that is otherwise valid — e.g. a
+   * name that compiles but never occurs in the project's data. Surfaced with
+   * warning (not danger) severity; the condition still applies.
+   */
+  warnings?: readonly string[] | null;
 };
 
 /**
@@ -67,6 +74,15 @@ export type DSLFilterSnippet = {
 };
 
 const pythonLanguage = python();
+
+const warningListCSS = css`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-25);
+`;
 
 const basicSetupOptions: BasicSetupOptions = {
   lineNumbers: false,
@@ -190,7 +206,8 @@ export type DSLFilterConditionFieldProps = {
  * invalid (intermediate keystrokes are not flagged), whose tooltip shows the
  * full error on hover or focus, plus a red border once the user leaves the
  * field — so an error can never fight the suggestions dropdown for the same
- * space.
+ * space. Validator-supplied warnings on a valid condition use the same badge
+ * at warning severity; the condition still applies.
  */
 export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
   const {
@@ -211,6 +228,10 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
   // null means the condition is not known to be invalid; the empty string
   // means invalid with no server-provided detail
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Advisories attached to a *valid* condition — cleared whenever the text
+  // changes so a stale warning never describes an expression it wasn't
+  // computed from
+  const [warnings, setWarnings] = useState<readonly string[]>([]);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
 
@@ -219,9 +240,10 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
   // time it opens; invalidated on focus so names created elsewhere in the
   // app (e.g. a new annotation) appear when the user returns to filter
   const loadedCompletionsRef = useRef<Promise<Completion[]> | null>(null);
-  const errorId = useId();
+  const statusId = useId();
 
   const hasError = errorMessage !== null;
+  const hasWarnings = warnings.length > 0;
   const hasCondition = value !== "";
 
   // A cached result from a previous loader no longer describes the data
@@ -317,20 +339,21 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
       return;
     }
     content.setAttribute("aria-invalid", hasError ? "true" : "false");
-    if (hasError) {
-      content.setAttribute("aria-describedby", errorId);
+    if (hasError || hasWarnings) {
+      content.setAttribute("aria-describedby", statusId);
     } else {
       content.removeAttribute("aria-describedby");
     }
-  }, [hasError, errorId]);
+  }, [hasError, hasWarnings, statusId]);
 
   useEffect(() => {
     let isCancelled = false;
 
     // The last validation no longer describes what's in the field — drop any
-    // stale error so the field isn't flagged invalid mid-edit. An error only
-    // shows once the current text has settled and failed validation.
+    // stale error or warnings so the field isn't flagged mid-edit. Status
+    // only shows once the current text has settled and been validated.
     setErrorMessage(null);
+    setWarnings([]);
 
     // An empty condition means "no filter" — resolve it here rather than
     // asking the validator about a blank (or whitespace-only) expression
@@ -355,9 +378,11 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
 
           if (!result?.isValid) {
             setErrorMessage(result?.errorMessage ?? "");
+            setWarnings([]);
             onValidationStateChange?.(false);
           } else {
             setErrorMessage(null);
+            setWarnings(result.warnings ?? []);
             onValidationStateChange?.(true);
             startTransition(() => {
               onValidCondition(value);
@@ -372,6 +397,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
           // rather than leaving a normal-looking field whose filter is
           // silently never applied
           setErrorMessage("The condition could not be validated");
+          setWarnings([]);
           onValidationStateChange?.(false);
         });
     }, 250);
@@ -386,6 +412,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     <div
       data-is-focused={isFocused}
       data-is-invalid={hasError}
+      data-is-warning={!hasError && hasWarnings}
       data-has-condition={hasCondition}
       className={classNames("dsl-filter-condition-field", className)}
       css={dslFilterFieldCSS}
@@ -414,33 +441,60 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
           placeholder={placeholder}
           extensions={extensions}
         />
-        {hasError ? (
+        {hasError || hasWarnings ? (
           <TooltipTrigger delay={0}>
             <Pressable>
               <div
                 role="button"
                 tabIndex={0}
-                className="error-badge"
-                aria-label="Filter condition error"
+                className="status-badge"
+                data-severity={hasError ? "danger" : "warning"}
+                aria-label={
+                  hasError
+                    ? "Filter condition error"
+                    : "Filter condition warning"
+                }
               >
-                <Icon svg={<Icons.AlertCircle />} color="danger" />
-                <span className="error-badge__message">
-                  {errorMessage || "Invalid filter condition"}
+                <Icon
+                  svg={<Icons.AlertCircle />}
+                  color={hasError ? "danger" : "warning"}
+                />
+                <span className="status-badge__message">
+                  {hasError
+                    ? errorMessage || "Invalid filter condition"
+                    : warnings[0]}
                 </span>
               </div>
             </Pressable>
             <Tooltip placement="bottom end" css={dslFilterErrorTooltipCSS}>
               <Flex direction="row" gap="size-100" alignItems="start">
-                <Icon svg={<Icons.AlertCircle />} color="danger" />
+                <Icon
+                  svg={<Icons.AlertCircle />}
+                  color={hasError ? "danger" : "warning"}
+                />
                 <Flex direction="column" gap="size-25">
                   <Text size="S" weight="heavy">
-                    Invalid filter condition
+                    {hasError
+                      ? "Invalid filter condition"
+                      : "Filter condition warning"}
                   </Text>
-                  {errorMessage ? (
-                    <Text size="S" color="text-700">
-                      {errorMessage}
-                    </Text>
-                  ) : null}
+                  {hasError ? (
+                    errorMessage ? (
+                      <Text size="S" color="text-700">
+                        {errorMessage}
+                      </Text>
+                    ) : null
+                  ) : (
+                    <ul css={warningListCSS}>
+                      {warnings.map((warning, index) => (
+                        <li key={`${warning}-${index}`}>
+                          <Text size="S" color="text-700">
+                            {warning}
+                          </Text>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </Flex>
               </Flex>
             </Tooltip>
@@ -458,8 +512,10 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
         </button>
       </Flex>
       <VisuallyHidden>
-        <span id={errorId} role="status">
-          {hasError ? `Invalid filter condition. ${errorMessage}`.trim() : ""}
+        <span id={statusId} role="status">
+          {hasError
+            ? `Invalid filter condition. ${errorMessage}`.trim()
+            : warnings.join(" ")}
         </span>
       </VisuallyHidden>
     </div>

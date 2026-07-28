@@ -133,11 +133,12 @@ export const dslFilterErrorTooltipCSS = css`
 `;
 
 /**
- * Grows the error badge out from the editor's right edge. Animating
- * max-width alongside opacity keeps the appearance smooth — the editor
- * cedes the space gradually instead of the badge popping in at full size.
+ * Grows the status badge (error or warning) out from the editor's right
+ * edge. Animating max-width alongside opacity keeps the appearance smooth —
+ * the editor cedes the space gradually instead of the badge popping in at
+ * full size.
  */
-const errorBadgeIn = keyframes`
+const statusBadgeIn = keyframes`
   from {
     opacity: 0;
     max-width: 0;
@@ -170,12 +171,15 @@ export const dslFilterFieldCSS = css`
   &[data-is-invalid="true"]:not([data-is-focused="true"]) {
     border-color: var(--global-color-danger);
   }
+  &[data-is-warning="true"]:not([data-is-focused="true"]) {
+    border-color: var(--global-color-warning);
+  }
   box-sizing: border-box;
   .filter-icon {
     margin-left: var(--global-dimension-size-100);
     margin-right: var(--global-dimension-size-50);
   }
-  .error-badge {
+  .status-badge {
     display: flex;
     align-items: center;
     gap: var(--global-dimension-size-50);
@@ -184,15 +188,25 @@ export const dslFilterFieldCSS = css`
     padding: 2px var(--global-dimension-size-65);
     margin-right: var(--global-dimension-size-50);
     border-radius: var(--global-rounding-small);
-    background-color: var(--global-color-danger-100);
-    color: var(--global-color-danger);
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-xs);
     white-space: nowrap;
     cursor: default;
-    animation: ${errorBadgeIn} 0.25s ease-out;
+    animation: ${statusBadgeIn} 0.25s ease-out;
     @media (prefers-reduced-motion: reduce) {
       animation: none;
+    }
+    &[data-severity="danger"] {
+      background-color: var(--global-color-danger-100);
+      color: var(--global-color-danger);
+    }
+    &[data-severity="warning"] {
+      background-color: color-mix(
+        in srgb,
+        var(--global-color-warning) 10%,
+        transparent
+      );
+      color: var(--global-color-warning);
     }
     .icon-wrap {
       flex-shrink: 0;
@@ -202,7 +216,7 @@ export const dslFilterFieldCSS = css`
       outline-offset: var(--focus-ring-offset);
     }
   }
-  .error-badge__message {
+  .status-badge__message {
     overflow: hidden;
     text-overflow: ellipsis;
   }

@@ -1,4 +1,3 @@
-export * from "./FilterConditionField";
 export * from "./filterUtils";
 export * from "./Toolbar";
 export * from "./annotationCompletions";
