@@ -418,7 +418,12 @@ export function useAgentChat({
               store.getState().setDraftInput(targetSessionId, restoredInput);
             }
           }
-          chat.clearError();
+          // Deferred: the SDK assigns its error state around this callback, so
+          // a synchronous clearError would be clobbered and the inline
+          // "response failed" banner would still render.
+          queueMicrotask(() => {
+            chat.clearError();
+          });
           store.getState().setSessionBusyElsewhere(targetSessionId, true);
         },
         onFinish: ({ messages: finalMessages, message }) => {

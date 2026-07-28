@@ -852,7 +852,9 @@ export function ChatView({
                     onRewind={onRewindRequest}
                   />
                 ) : null}
-                {error && (
+                {/* A session-conflict rejection is not a failed response:
+                    busy-elsewhere mode owns the UI until the lock clears. */}
+                {error && !isBusyElsewhere && (
                   <ChatErrorMessage
                     error={error}
                     latestUserMessageId={getLatestMessageId({
