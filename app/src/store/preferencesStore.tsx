@@ -97,8 +97,9 @@ export interface PreferencesProps {
    */
   showMetricsInTraceTree: boolean;
   /**
-   * Whether tracing tables' rows wrap their content or clip it to a single
-   * line. A reading preference, so it spans projects and tabs.
+   * Whether the tracing and experiments tables' rows wrap their content or
+   * clip it to a single line. A reading preference, so it spans datasets,
+   * projects and tabs.
    * @default false
    */
   areTableRowsExpanded: boolean;

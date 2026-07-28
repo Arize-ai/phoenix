@@ -1,8 +1,8 @@
 import { usePreferencesContext } from "@phoenix/contexts";
 
 /**
- * The row-height preference the tracing tables share, with the attribute that
- * drives `expandableRowsTableCSS`.
+ * The row-height preference the tracing and experiments tables share, with the
+ * attribute that drives `expandableRowsTableCSS`.
  */
 export function useTableRowsExpanded() {
   const isExpanded = usePreferencesContext(
