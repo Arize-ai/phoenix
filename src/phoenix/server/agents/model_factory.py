@@ -8,14 +8,20 @@ are resolved from the secret store first and the environment second.
 This module is **transport-neutral**: it does not import ``fastapi`` or
 raise ``HTTPException``. Failures surface as ``AgentError`` subclasses
 (see ``phoenix.server.agents.exceptions``) and the REST router maps them
-to HTTP responses at the boundary. The only remaining infrastructure
-dependency is ``AsyncSession`` for secret-store and provider-record
-lookups; the planned next step is to swap that for a small resolver
-protocol so this module is fully composable.
+to HTTP responses at the boundary.
+
+``build_model`` takes the ``DbSessionFactory`` rather than an open
+``AsyncSession``: secret-store and provider-record reads run in their own
+short-lived transaction, and SDK clients are constructed only after it
+commits. Client construction must never run inside a transaction —
+``BedrockProvider`` builds its boto client eagerly, and botocore's
+default credential chain can resolve credentials over the network
+(IMDS/STS) when no static keys are configured.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from os import getenv
 from typing import Any, Callable, Literal, Protocol, cast
 
@@ -49,6 +55,7 @@ from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_clients import _resolve_secrets
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.env_vars import without_env_vars
 
 
@@ -119,19 +126,38 @@ async def _resolve_secrets_or_env(
     return {key: secrets.get(key) or getenv(key) for key in keys}
 
 
-async def _resolve_secret_or_env(
-    session: AsyncSession,
-    decrypt: Callable[[bytes], bytes],
-    *keys: str,
-) -> str | None:
-    """First non-empty credential value across ``keys``, in order, with
-    secret-store values winning over the environment for any given key.
+def _first_credential(credentials: Mapping[str, str | None], *keys: str) -> str | None:
+    """First non-empty credential value across ``keys``, in order.
+
+    Per-key precedence (secret store over environment) was already applied
+    when the mapping was built by ``_resolve_secrets_or_env``.
     """
-    resolved = await _resolve_secrets_or_env(session, decrypt, *keys)
     for key in keys:
-        if value := resolved.get(key):
+        if value := credentials.get(key):
             return value
     return None
+
+
+# Credential keys prefetched (secret store, then environment) before a
+# built-in provider's client is constructed. Must stay in sync with the
+# keys each branch of ``_get_pydantic_ai_model_from_builtin_provider``
+# reads from its ``credentials`` mapping.
+_BUILTIN_PROVIDER_CREDENTIAL_KEYS: dict[ModelProvider, tuple[str, ...]] = {
+    ModelProvider.OPENAI: ("OPENAI_API_KEY",),
+    ModelProvider.AZURE_OPENAI: ("AZURE_OPENAI_API_KEY",),
+    ModelProvider.ANTHROPIC: ("ANTHROPIC_API_KEY",),
+    ModelProvider.GOOGLE: ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    ModelProvider.AWS: ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"),
+    ModelProvider.DEEPSEEK: ("DEEPSEEK_API_KEY",),
+    ModelProvider.XAI: ("XAI_API_KEY",),
+    ModelProvider.OLLAMA: (),
+    ModelProvider.CEREBRAS: ("CEREBRAS_API_KEY",),
+    ModelProvider.FIREWORKS: ("FIREWORKS_API_KEY",),
+    ModelProvider.GROQ: ("GROQ_API_KEY",),
+    ModelProvider.MOONSHOT: ("MOONSHOT_API_KEY",),
+    ModelProvider.PERPLEXITY: ("PERPLEXITY_API_KEY",),
+    ModelProvider.TOGETHER: ("TOGETHER_API_KEY",),
+}
 
 
 def _placeholder_or_error_for_openai_compatible_provider(
@@ -151,7 +177,7 @@ def _placeholder_or_error_for_openai_compatible_provider(
 async def build_model(
     model: AgentModelSelection,
     *,
-    session: AsyncSession,
+    db: DbSessionFactory,
     decrypt: Callable[[bytes], bytes],
     tracer_provider: TracerProvider | None = None,
 ) -> OpenInferenceModelWrapper:
@@ -160,8 +186,9 @@ async def build_model(
     Args:
         model: Discriminated schema selecting either a stored custom
             provider or a built-in provider.
-        session: Open async session used for secret-store and provider
-            lookups.
+        db: Session factory used for secret-store and provider lookups.
+            The transaction it opens is scoped to those reads only — no
+            transaction is held while SDK clients are constructed.
         decrypt: Callable that decrypts secret/provider config payloads.
         tracer_provider: Optional provider for OpenInference spans.
 
@@ -184,10 +211,11 @@ async def build_model(
             GlobalID.from_id(model.provider_id),
             "GenerativeModelCustomProvider",
         )
-        provider = await session.get(
-            models.GenerativeModelCustomProvider,
-            provider_id,
-        )
+        async with db() as session:
+            provider = await session.get(
+                models.GenerativeModelCustomProvider,
+                provider_id,
+            )
         if provider is None:
             raise ProviderNotFoundError("Custom provider not found.")
         pydantic_ai_model = await _get_pydantic_ai_model_from_generative_model_custom_provider(
@@ -196,10 +224,15 @@ async def build_model(
             decrypt=decrypt,
         )
     elif isinstance(model, BuiltInProviderModelSelection):
-        pydantic_ai_model = await _get_pydantic_ai_model_from_builtin_provider(
+        async with db() as session:
+            credentials = await _resolve_secrets_or_env(
+                session,
+                decrypt,
+                *_BUILTIN_PROVIDER_CREDENTIAL_KEYS.get(model.provider, ()),
+            )
+        pydantic_ai_model = _get_pydantic_ai_model_from_builtin_provider(
             model,
-            session=session,
-            decrypt=decrypt,
+            credentials=credentials,
         )
     else:
         # See ``_build_openai_model`` for why ``assert_never`` and ``raise``
@@ -373,11 +406,10 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
     raise ProviderUnsupportedError(f"Unsupported custom provider type: {config.type}")
 
 
-async def _get_pydantic_ai_model_from_builtin_provider(
+def _get_pydantic_ai_model_from_builtin_provider(
     params: BuiltInProviderModelSelection,
     *,
-    session: AsyncSession,
-    decrypt: Callable[[bytes], bytes],
+    credentials: Mapping[str, str | None],
 ) -> "PydanticAIModel":
     from openai import AsyncOpenAI
     from pydantic_ai.models.anthropic import AnthropicModel
@@ -389,7 +421,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
     from pydantic_ai.providers.openai import OpenAIProvider
 
     if params.provider == ModelProvider.OPENAI:
-        api_key = await _resolve_secret_or_env(session, decrypt, "OPENAI_API_KEY")
+        api_key = _first_credential(credentials, "OPENAI_API_KEY")
         base_url = getenv("OPENAI_BASE_URL")
         api_key = _placeholder_or_error_for_openai_compatible_provider(
             api_key=api_key,
@@ -409,7 +441,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
             openai_api_type=params.openai_api_type,
         )
     if params.provider == ModelProvider.AZURE_OPENAI:
-        api_key = await _resolve_secret_or_env(session, decrypt, "AZURE_OPENAI_API_KEY")
+        api_key = _first_credential(credentials, "AZURE_OPENAI_API_KEY")
         azure_endpoint = getenv("AZURE_OPENAI_ENDPOINT")
         if not azure_endpoint:
             raise ProviderCredentialsError(
@@ -444,7 +476,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
     if params.provider == ModelProvider.ANTHROPIC:
         from anthropic import AsyncAnthropic
 
-        api_key = await _resolve_secret_or_env(session, decrypt, "ANTHROPIC_API_KEY")
+        api_key = _first_credential(credentials, "ANTHROPIC_API_KEY")
         if not api_key:
             raise ProviderCredentialsError(
                 "An API key is required for Anthropic models. "
@@ -457,7 +489,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
             settings=ModelSettings(max_tokens=_ANTHROPIC_MAX_TOKENS),
         )
     if params.provider == ModelProvider.GOOGLE:
-        api_key = await _resolve_secret_or_env(session, decrypt, "GEMINI_API_KEY", "GOOGLE_API_KEY")
+        api_key = _first_credential(credentials, "GEMINI_API_KEY", "GOOGLE_API_KEY")
         if not api_key:
             raise ProviderCredentialsError(
                 "An API key is required for Google GenAI models. "
@@ -466,17 +498,10 @@ async def _get_pydantic_ai_model_from_builtin_provider(
         google_provider = GoogleProvider(api_key=api_key)
         return GoogleModel(params.model_name, provider=google_provider)
     if params.provider == ModelProvider.AWS:
-        aws_creds = await _resolve_secrets_or_env(
-            session,
-            decrypt,
-            "AWS_ACCESS_KEY_ID",
-            "AWS_SECRET_ACCESS_KEY",
-            "AWS_SESSION_TOKEN",
-        )
         bedrock_provider = BedrockProvider(
-            aws_access_key_id=aws_creds["AWS_ACCESS_KEY_ID"],
-            aws_secret_access_key=aws_creds["AWS_SECRET_ACCESS_KEY"],
-            aws_session_token=aws_creds["AWS_SESSION_TOKEN"],
+            aws_access_key_id=credentials.get("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=credentials.get("AWS_SECRET_ACCESS_KEY"),
+            aws_session_token=credentials.get("AWS_SESSION_TOKEN"),
             region_name=getenv("AWS_REGION") or "us-east-1",
         )
         return BedrockConverseModel(params.model_name, provider=bedrock_provider)
@@ -562,9 +587,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
             params.provider
         ]
         api_key = (
-            await _resolve_secret_or_env(session, decrypt, credential_key)
-            if credential_key is not None
-            else None
+            _first_credential(credentials, credential_key) if credential_key is not None else None
         )
         if params.provider == ModelProvider.OLLAMA:
             if not base_url:

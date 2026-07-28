@@ -215,13 +215,12 @@ def create_legacy_agents_router(
             tracer.tracer_provider.add_span_processor(agent_span_recorder)
 
         try:
-            async with request.app.state.db() as session:
-                model = await build_model(
-                    body.model,
-                    session=session,
-                    decrypt=request.app.state.decrypt,
-                    tracer_provider=tracer_provider,
-                )
+            model = await build_model(
+                body.model,
+                db=request.app.state.db,
+                decrypt=request.app.state.decrypt,
+                tracer_provider=tracer_provider,
+            )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
