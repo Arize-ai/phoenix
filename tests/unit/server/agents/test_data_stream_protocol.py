@@ -20,10 +20,12 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     TextDeltaChunk,
     TextEndChunk,
     TextStartChunk,
+    ToolApprovalRequestChunk,
     ToolInputAvailableChunk,
     ToolInputDeltaChunk,
     ToolInputStartChunk,
     ToolOutputAvailableChunk,
+    ToolOutputDeniedChunk,
 )
 
 from phoenix.db.types.data_stream_protocol import (
@@ -34,7 +36,9 @@ from phoenix.db.types.data_stream_protocol import (
     SourceUrlUIPart,
     StepStartUIPart,
     TextUIPart,
+    ToolApprovalRequestedPart,
     ToolOutputAvailablePart,
+    ToolOutputDeniedPart,
     UIMessage,
 )
 from phoenix.server.agents.data_stream_protocol import (
@@ -194,6 +198,44 @@ class TestAccumulateUIMessageChunksToUIMessages:
         assert tool_part.input == {"query": "latency"}
         assert tool_part.output == {"rows": 3}
         assert tool_part.preliminary is True
+
+    async def test_accumulates_sdk_v7_tool_approval_and_denial_parts(self) -> None:
+        messages = await _collect_messages(
+            [
+                ToolInputAvailableChunk(
+                    tool_call_id="tool-call-1",
+                    tool_name="lookup",
+                    input={"query": "latency"},
+                    provider_executed=True,
+                    provider_metadata={"provider": {"call": "lookup"}},
+                ),
+                ToolApprovalRequestChunk(
+                    approval_id="approval-1",
+                    tool_call_id="tool-call-1",
+                ),
+                ToolOutputDeniedChunk(tool_call_id="tool-call-1"),
+            ]
+        )
+
+        approval_part = messages[-2].parts[0]
+        assert isinstance(approval_part, ToolApprovalRequestedPart)
+        assert approval_part.type == "tool-lookup"
+        assert approval_part.input == {"query": "latency"}
+        assert approval_part.provider_executed is True
+        assert approval_part.call_provider_metadata == {
+            "provider": {"call": "lookup"},
+        }
+        assert approval_part.approval is not None
+        assert approval_part.approval.id == "approval-1"
+
+        denied_part = messages[-1].parts[0]
+        assert isinstance(denied_part, ToolOutputDeniedPart)
+        assert denied_part.type == "tool-lookup"
+        assert denied_part.input == {"query": "latency"}
+        assert denied_part.provider_executed is True
+        assert denied_part.call_provider_metadata == {
+            "provider": {"call": "lookup"},
+        }
 
     async def test_accumulates_data_source_file_and_error_chunks(self) -> None:
         messages = await _collect_messages(
