@@ -14,7 +14,7 @@ jobs:
       !contains(fromJSON('[
         "anticorrelator", "axiomofjoy", "cephalization", "ehutt", "jimbobbennett",
         "mikeldking", "Nancy-Chauhan", "PatriciaArnedo", "rickarize", "RogerHYang",
-        "seldo", "yfrigui2"
+        "seldo", "yfrigui2", "MoraVigoMalusardi"
       ]'), github.actor)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -32,8 +32,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          allowed_non_write_users: "*"
           claude_args: |
             --allowedTools "Bash(./scripts/gh.sh:*),Bash(./scripts/edit-issue-labels.sh:*),Bash(./scripts/comment.sh:*)"
           prompt: |
