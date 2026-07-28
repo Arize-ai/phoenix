@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { MessageAction } from "@phoenix/components/ai/message/MessageAction";
 import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
 import { Icon, Icons } from "@phoenix/components/core/icon";
@@ -9,11 +11,13 @@ export function FeedbackActionToolbar({
   selectedFeedback,
   isSubmittingFeedback = false,
   onFeedback,
+  children,
 }: {
   onAnnotate?: () => void;
   selectedFeedback: FeedbackValue | null;
   isSubmittingFeedback?: boolean;
   onFeedback: ({ feedback }: { feedback: FeedbackValue }) => void;
+  children?: ReactNode;
 }) {
   const isPositiveSelected = selectedFeedback === "positive";
   const isNegativeSelected = selectedFeedback === "negative";
@@ -65,6 +69,7 @@ export function FeedbackActionToolbar({
           color={isNegativeSelected ? "danger" : "inherit"}
         />
       </MessageAction>
+      {children}
     </MessageActions>
   );
 }

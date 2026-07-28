@@ -1,5 +1,6 @@
 import { graphql, useFragment, useMutation } from "react-relay";
 
+import { MessageCopyAction } from "@phoenix/components/agent/MessageCopyAction";
 import {
   FeedbackActionToolbar,
   type FeedbackValue,
@@ -9,9 +10,9 @@ import {
   getUserFeedbackScore,
 } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts";
-import type { TraceFeedbackActionToolbar_trace$key } from "@phoenix/pages/trace/__generated__/TraceFeedbackActionToolbar_trace.graphql";
-import type { TraceFeedbackActionToolbarCreateAnnotationMutation } from "@phoenix/pages/trace/__generated__/TraceFeedbackActionToolbarCreateAnnotationMutation.graphql";
-import type { TraceFeedbackActionToolbarDeleteAnnotationMutation } from "@phoenix/pages/trace/__generated__/TraceFeedbackActionToolbarDeleteAnnotationMutation.graphql";
+import type { TraceActionToolbar_trace$key } from "@phoenix/pages/trace/__generated__/TraceActionToolbar_trace.graphql";
+import type { TraceActionToolbarCreateAnnotationMutation } from "@phoenix/pages/trace/__generated__/TraceActionToolbarCreateAnnotationMutation.graphql";
+import type { TraceActionToolbarDeleteAnnotationMutation } from "@phoenix/pages/trace/__generated__/TraceActionToolbarDeleteAnnotationMutation.graphql";
 
 function getFeedbackValue(
   label: string | null | undefined
@@ -22,16 +23,18 @@ function getFeedbackValue(
   return null;
 }
 
-export function TraceFeedbackActionToolbar({
+export function TraceActionToolbar({
   trace,
   onAnnotate,
+  copyText,
 }: {
-  trace: TraceFeedbackActionToolbar_trace$key;
+  trace: TraceActionToolbar_trace$key;
   onAnnotate?: () => void;
+  copyText?: string | null;
 }) {
-  const data = useFragment<TraceFeedbackActionToolbar_trace$key>(
+  const data = useFragment<TraceActionToolbar_trace$key>(
     graphql`
-      fragment TraceFeedbackActionToolbar_trace on Trace {
+      fragment TraceActionToolbar_trace on Trace {
         id
         viewerUserFeedbackAnnotations: traceAnnotations(
           filter: { include: { names: ["user_feedback"] } }
@@ -46,8 +49,8 @@ export function TraceFeedbackActionToolbar({
   );
   const { viewer } = useViewer();
   const [createTraceAnnotation, isCreatingFeedback] =
-    useMutation<TraceFeedbackActionToolbarCreateAnnotationMutation>(graphql`
-      mutation TraceFeedbackActionToolbarCreateAnnotationMutation(
+    useMutation<TraceActionToolbarCreateAnnotationMutation>(graphql`
+      mutation TraceActionToolbarCreateAnnotationMutation(
         $traceId: ID!
         $label: String!
         $score: Float!
@@ -71,7 +74,7 @@ export function TraceFeedbackActionToolbar({
             node(id: $traceId) {
               ... on Trace {
                 ...TraceAnnotationSummaryGroup
-                ...TraceFeedbackActionToolbar_trace
+                ...TraceActionToolbar_trace
               }
             }
           }
@@ -79,8 +82,8 @@ export function TraceFeedbackActionToolbar({
       }
     `);
   const [deleteTraceAnnotation, isDeletingFeedback] =
-    useMutation<TraceFeedbackActionToolbarDeleteAnnotationMutation>(graphql`
-      mutation TraceFeedbackActionToolbarDeleteAnnotationMutation(
+    useMutation<TraceActionToolbarDeleteAnnotationMutation>(graphql`
+      mutation TraceActionToolbarDeleteAnnotationMutation(
         $traceId: ID!
         $annotationId: ID!
       ) {
@@ -89,7 +92,7 @@ export function TraceFeedbackActionToolbar({
             node(id: $traceId) {
               ... on Trace {
                 ...TraceAnnotationSummaryGroup
-                ...TraceFeedbackActionToolbar_trace
+                ...TraceActionToolbar_trace
               }
             }
           }
@@ -133,6 +136,8 @@ export function TraceFeedbackActionToolbar({
           },
         });
       }}
-    />
+    >
+      {copyText != null ? <MessageCopyAction text={copyText} /> : null}
+    </FeedbackActionToolbar>
   );
 }
