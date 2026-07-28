@@ -15,6 +15,8 @@ Setup Phoenix tracing in TypeScript/JavaScript with `@arizeai/phoenix-otel`.
 npm install @arizeai/phoenix-otel
 ```
 
+Requires Node.js 18 or newer. Both ESM and CommonJS entry points are provided.
+
 ```typescript
 import { register } from "@arizeai/phoenix-otel";
 register({ projectName: "my-app" });

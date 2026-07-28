@@ -14,12 +14,12 @@ pnpm add @arizeai/phoenix-client @arizeai/phoenix-evals @arizeai/phoenix-otel
 
 ## LLM Providers
 
-For LLM-as-judge evaluators, install Vercel AI SDK providers:
+`@arizeai/phoenix-evals` requires **Vercel AI SDK v7** (`ai@^7.0.0`) and **Node.js >= 22.12**. AI SDK v7 is ESM-only, and v4/v5/v6 will not work. Install a matching major version of `ai` and v7-compatible provider packages (`@ai-sdk/*` v4+):
 
 ```bash
-npm install ai @ai-sdk/openai      # Vercel AI SDK + OpenAI
-npm install @ai-sdk/anthropic      # Anthropic
-npm install @ai-sdk/google         # Google
+npm install "ai@^7" "@ai-sdk/openai@^4"      # Vercel AI SDK v7 + OpenAI
+npm install "@ai-sdk/anthropic@^4"           # Anthropic
+npm install "@ai-sdk/google@^4"              # Google
 ```
 
 Or use direct provider SDKs:
