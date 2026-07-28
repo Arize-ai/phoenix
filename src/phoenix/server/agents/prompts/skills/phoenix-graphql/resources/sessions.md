@@ -4,7 +4,7 @@ A session groups the traces of one multi-turn conversation.
 
 ## Reaching a session
 
-- `Project.sessions(timeRange, first, after, sort, filterIoSubstring, sessionId)` → connection of `ProjectSession`.
+- `Project.sessions(timeRange, first, after, sort, sessionFilterCondition)` → connection of `ProjectSession`. `sessionFilterCondition` is a session filter expression; discover its bindable names via `Project.sessionFilterVocabulary` and check one with `Project.validateSessionFilterCondition`.
 - `getProjectSessionById(sessionId: String!)` → `ProjectSession` — `sessionId` is the raw session string, not a global id.
 
 ## Fields

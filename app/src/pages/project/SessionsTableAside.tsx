@@ -30,57 +30,27 @@ import {
  * per-annotation summaries. Mirrors {@link SpansTableAside} so the sessions
  * tab gets the same collapsible stats panel as the spans tab.
  */
-export function SessionsTableAside(props: {
-  /**
-   * The sessions table search text. Like the table, the stats treat it as
-   * both an input/output substring filter and an exact session-ID lookup,
-   * with an exact match taking precedence.
-   */
-  filterIoSubstringOrSessionId?: string | null;
-}) {
-  const filterIoSubstringOrSessionId =
-    props.filterIoSubstringOrSessionId || null;
+export function SessionsTableAside() {
   const projectId = useTracingContext((state) => state.projectId);
   const { timeRangeISOStrings } = useTimeRange();
   const { fetchKey } = useStreamState();
   const data = useLazyLoadQuery<SessionsTableAsideQuery>(
     graphql`
-      query SessionsTableAsideQuery(
-        $id: ID!
-        $timeRange: TimeRange!
-        $filterIoSubstring: String
-        $sessionId: String
-      ) {
+      query SessionsTableAsideQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ... on Project {
             name
             description
-            sessionCount(
-              timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            )
-            averageSessionDurationMs(
-              timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            )
-            averageTracesPerSession(
-              timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            )
+            sessionCount(timeRange: $timeRange)
+            averageSessionDurationMs(timeRange: $timeRange)
+            averageTracesPerSession(timeRange: $timeRange)
             sessionDurationMsP50: sessionDurationMsQuantile(
               probability: 0.5
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
             )
             sessionDurationMsP99: sessionDurationMsQuantile(
               probability: 0.99
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
             )
             sessionAnnotationNames
           }
@@ -90,8 +60,6 @@ export function SessionsTableAside(props: {
     {
       id: projectId,
       timeRange: timeRangeISOStrings,
-      filterIoSubstring: filterIoSubstringOrSessionId,
-      sessionId: filterIoSubstringOrSessionId,
     },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
@@ -142,12 +110,7 @@ export function SessionsTableAside(props: {
                     key={name}
                     fallback={TextErrorBoundaryFallback}
                   >
-                    <SessionAnnotationSummary
-                      annotationName={name}
-                      filterIoSubstringOrSessionId={
-                        filterIoSubstringOrSessionId
-                      }
-                    />
+                    <SessionAnnotationSummary annotationName={name} />
                   </ErrorBoundary>
                 ))}
               </StatsSection>

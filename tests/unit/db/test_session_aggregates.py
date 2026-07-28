@@ -90,26 +90,6 @@ async def test_session_aggregate_builders(db: DbSessionFactory) -> None:
             .all()
         )
         assert tool_count == [(rowid, 1)]
-        named_tool_count = (
-            (
-                await session.execute(
-                    span_kind_count_by_session("TOOL", "search").as_grouped_subquery([rowid])
-                )
-            )
-            .tuples()
-            .all()
-        )
-        assert named_tool_count == [(rowid, 1)]
-        missing_named_tool_count = (
-            (
-                await session.execute(
-                    span_kind_count_by_session("TOOL", "lookup").as_grouped_subquery([rowid])
-                )
-            )
-            .tuples()
-            .all()
-        )
-        assert missing_named_tool_count == []
         llm_count = (
             (await session.execute(span_kind_count_by_session("LLM").as_grouped_subquery([rowid])))
             .tuples()

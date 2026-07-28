@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa3cb88d77c0f3d75350f6c8fd2aef99>>
+ * @generated SignedSource<<b5176527832ead65ed9479bd5e1705be>>
  * @lightSyntaxTransform
  */
 
@@ -82,16 +82,6 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "annotationName"
-    },
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "filterIoSubstring"
-    },
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "sessionId"
     },
     {
       "defaultValue": null,
@@ -202,16 +192,6 @@ return {
         },
         {
           "kind": "Variable",
-          "name": "filterIoSubstring",
-          "variableName": "filterIoSubstring"
-        },
-        {
-          "kind": "Variable",
-          "name": "sessionId",
-          "variableName": "sessionId"
-        },
-        {
-          "kind": "Variable",
           "name": "timeRange",
           "variableName": "timeRange"
         }
@@ -279,6 +259,6 @@ return {
 };
 })();
 
-(node as any).hash = "78d6985aa96cf32af722550d3db8bb65";
+(node as any).hash = "af7f6cdb76f31c843b0f860756045230";
 
 export default node;

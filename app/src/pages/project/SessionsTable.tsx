@@ -13,7 +13,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import React, {
-  Suspense,
   startTransition,
   useEffect,
   useMemo,
@@ -25,7 +24,6 @@ import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
-  Counter,
   ContextualHelp,
   Flex,
   Heading,
@@ -64,7 +62,6 @@ import {
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
-import type { SessionsTableSessionCountQuery } from "./__generated__/SessionsTableSessionCountQuery.graphql";
 import type { SessionsTableSessionFilterVocabularyQuery } from "./__generated__/SessionsTableSessionFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import {
@@ -73,8 +70,6 @@ import {
 } from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
 import { SessionFilterConditionField } from "./SessionFilterConditionField";
-import { useSessionSearchContext } from "./SessionSearchContext";
-import { SessionSearchField } from "./SessionSearchField";
 import { SessionsTableAside } from "./SessionsTableAside";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
@@ -96,11 +91,6 @@ const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
-
-const toolbarFieldCSS = css`
-  flex: 1 1 260px;
-  min-width: min(100%, 240px);
-`;
 
 const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
@@ -166,7 +156,6 @@ export function SessionsTable(props: SessionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validSessionFilterCondition, setValidSessionFilterCondition] =
     useState<string>("");
-  const { filterIoSubstringOrSessionId } = useSessionSearchContext();
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the current
@@ -190,9 +179,7 @@ export function SessionsTable(props: SessionsTableProps) {
             type: "ProjectSessionSort"
             defaultValue: { col: startTime, dir: desc }
           }
-          filterIoSubstring: { type: "String", defaultValue: null }
           sessionFilterCondition: { type: "String", defaultValue: null }
-          sessionId: { type: "String", defaultValue: null }
         ) {
           id
           name
@@ -201,10 +188,8 @@ export function SessionsTable(props: SessionsTableProps) {
             first: $first
             after: $after
             sort: $sort
-            filterIoSubstring: $filterIoSubstring
             sessionFilterCondition: $sessionFilterCondition
             timeRange: $timeRange
-            sessionId: $sessionId
           ) @connection(key: "SessionsTable_sessions") {
             edges {
               session: node {
@@ -517,9 +502,7 @@ export function SessionsTable(props: SessionsTableProps) {
           sort: sort ? getGqlSessionSort(sort) : DEFAULT_SESSION_SORT,
           after: null,
           first: PAGE_SIZE,
-          filterIoSubstring: filterIoSubstringOrSessionId,
           sessionFilterCondition: validSessionFilterCondition || null,
-          sessionId: filterIoSubstringOrSessionId,
           timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
@@ -528,7 +511,6 @@ export function SessionsTable(props: SessionsTableProps) {
   }, [
     sorting,
     refetch,
-    filterIoSubstringOrSessionId,
     validSessionFilterCondition,
     fetchKey,
     timeRangeISOStrings,
@@ -652,9 +634,6 @@ export function SessionsTable(props: SessionsTableProps) {
             alignItems="center"
             wrap="wrap"
           >
-            <div css={toolbarFieldCSS}>
-              <SessionSearchField />
-            </div>
             <div css={toolbarFilterFieldCSS}>
               <SessionFilterConditionField
                 vocabulary={
@@ -663,12 +642,6 @@ export function SessionsTable(props: SessionsTableProps) {
                 onValidCondition={setValidSessionFilterCondition}
               />
             </div>
-            <SessionFilterMatchCount
-              projectId={data.id}
-              sessionFilterCondition={validSessionFilterCondition}
-              filterIoSubstring={filterIoSubstringOrSessionId}
-              fetchKey={fetchKey}
-            />
             <TableMetricsChartSelector view="sessions" />
             <SessionColumnSelector
               columns={table.getAllColumns()}
@@ -806,103 +779,10 @@ export function SessionsTable(props: SessionsTableProps) {
             </div>
           </Panel>
           <TableAsidePanel>
-            <SessionsTableAside
-              filterIoSubstringOrSessionId={filterIoSubstringOrSessionId}
-            />
+            <SessionsTableAside />
           </TableAsidePanel>
         </Group>
       </div>
     </TableMetricsChartsPanelGroup>
-  );
-}
-
-function SessionFilterMatchCount({
-  projectId,
-  sessionFilterCondition,
-  filterIoSubstring,
-  fetchKey,
-}: {
-  projectId: string;
-  sessionFilterCondition: string;
-  filterIoSubstring: string;
-  fetchKey: string;
-}) {
-  const { timeRange } = useTimeRange();
-  const timeRangeVariable = {
-    start: timeRange.start?.toISOString(),
-    end: timeRange.end?.toISOString(),
-  };
-  return (
-    <Suspense fallback={<SessionFilterMatchCountDisplay count="--" />}>
-      <SessionFilterMatchCountValue
-        projectId={projectId}
-        sessionFilterCondition={sessionFilterCondition}
-        filterIoSubstring={filterIoSubstring}
-        timeRange={timeRangeVariable}
-        fetchKey={fetchKey}
-      />
-    </Suspense>
-  );
-}
-
-function SessionFilterMatchCountValue({
-  projectId,
-  sessionFilterCondition,
-  filterIoSubstring,
-  timeRange,
-  fetchKey,
-}: {
-  projectId: string;
-  sessionFilterCondition: string;
-  filterIoSubstring: string;
-  timeRange: {
-    start?: string | null;
-    end?: string | null;
-  };
-  fetchKey: string;
-}) {
-  const data = useLazyLoadQuery<SessionsTableSessionCountQuery>(
-    graphql`
-      query SessionsTableSessionCountQuery(
-        $id: ID!
-        $timeRange: TimeRange!
-        $filterIoSubstring: String
-        $sessionFilterCondition: String
-        $sessionId: String
-      ) {
-        project: node(id: $id) {
-          ... on Project {
-            sessionCount(
-              timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionFilterCondition: $sessionFilterCondition
-              sessionId: $sessionId
-            )
-          }
-        }
-      }
-    `,
-    {
-      id: projectId,
-      timeRange,
-      filterIoSubstring: filterIoSubstring || null,
-      sessionFilterCondition: sessionFilterCondition || null,
-      sessionId: filterIoSubstring || null,
-    },
-    { fetchKey, fetchPolicy: "store-and-network" }
-  );
-  return (
-    <SessionFilterMatchCountDisplay count={data.project?.sessionCount ?? 0} />
-  );
-}
-
-function SessionFilterMatchCountDisplay({ count }: { count: number | "--" }) {
-  return (
-    <Flex direction="row" gap="size-50" alignItems="center" flex="none">
-      <Text size="S" color="text-700">
-        matching sessions
-      </Text>
-      <Counter variant="quiet">{count}</Counter>
-    </Flex>
   );
 }

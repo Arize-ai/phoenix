@@ -8,7 +8,7 @@ import strawberry
 from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
-from sqlalchemy import Select, and_, case, desc, distinct, exists, false, func, or_, select
+from sqlalchemy import Select, and_, case, desc, distinct, exists, func, or_, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
@@ -63,10 +63,7 @@ from phoenix.server.api.types.SpanFilterConditionAnalysis import (
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.server.session_filters import (
-    get_filtered_session_rowids_subquery,
-    get_io_substring_session_rowids_subquery,
-)
+from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
@@ -163,52 +160,21 @@ def _apply_project_session_filters(
     stmt: Select[Any],
     project_rowid: int,
     time_range: Optional[TimeRange],
-    filter_io_substring: Optional[str],
-    session_id: Optional[str] = None,
 ) -> Select[Any]:
-    """Restrict a ``ProjectSession`` aggregation to the project, time range, and
-    input/output substring filter used by the sessions table.
+    """Restrict a ``ProjectSession`` aggregation to the project and time range.
 
     The time range uses interval-overlap semantics: a session is included iff
     [start_time, end_time] intersects [time_range.start, time_range.end), i.e.
     the session had activity inside the window.
-
-    When ``session_id`` is provided, mirror the ``sessions`` resolver's search
-    semantics: an exact session-ID match wins (ignoring the time range and
-    substring filter); otherwise fall back to the substring/time-range filters,
-    or to no sessions at all when there is no substring to fall back to.
     """
     table = models.ProjectSession
     stmt = stmt.where(table.project_id == project_rowid)
-    conditions = []
     if time_range:
         if time_range.start:
-            conditions.append(time_range.start <= table.end_time)
+            stmt = stmt.where(time_range.start <= table.end_time)
         if time_range.end:
-            conditions.append(table.start_time < time_range.end)
-    if filter_io_substring:
-        filtered_session_rowids = get_io_substring_session_rowids_subquery(
-            io_substring=filter_io_substring,
-            project_rowids=[project_rowid],
-            start_time=time_range.start if time_range else None,
-            end_time=time_range.end if time_range else None,
-        )
-        conditions.append(table.id.in_(filtered_session_rowids))
-    if not session_id:
-        return stmt.where(*conditions)
-    exact_match = exists(
-        select(1).where(
-            table.project_id == project_rowid,
-            table.session_id == session_id,
-        )
-    )
-    fallback = and_(*conditions) if filter_io_substring else false()
-    return stmt.where(
-        or_(
-            and_(exact_match, table.session_id == session_id),
-            and_(~exact_match, fallback),
-        )
-    )
+            stmt = stmt.where(table.start_time < time_range.end)
+    return stmt
 
 
 def _attribute_leaf_paths(
@@ -227,7 +193,6 @@ def _attribute_leaf_paths(
 
 # ``evals`` is the filter compiler's accepted alias for ``annotations``.
 _ANNOTATION_SUBSCRIPT_NAMES = frozenset({"annotations", "evals"})
-_TOOL_CALL_COUNT_SUBSCRIPT_NAMES = frozenset({"tool_call_count"})
 
 
 def _referenced_subscript_names(condition: str, subscript_names: frozenset[str]) -> set[str]:
@@ -254,15 +219,6 @@ def _session_annotation_names_stmt(project_rowid: int) -> Select[Any]:
         select(distinct(models.ProjectSessionAnnotation.name))
         .join(models.ProjectSession)
         .where(models.ProjectSession.project_id == project_rowid)
-    )
-
-
-def _session_tool_span_names_stmt(project_rowid: int) -> Select[Any]:
-    return (
-        select(distinct(models.Span.name))
-        .join(models.Trace)
-        .where(models.Trace.project_rowid == project_rowid)
-        .where(func.upper(models.Span.span_kind) == "TOOL")
     )
 
 
@@ -667,11 +623,8 @@ class Project(Node):
         "semantics: a session is included iff [startTime, endTime] intersects "
         "[timeRange.start, timeRange.end), i.e. the session had activity inside the "
         "window. Long-running sessions therefore appear in every window they overlap. "
-        "filterIoSubstring matches a case-insensitive substring of root-span "
-        "input/output; sessionFilterCondition is a session filter expression (see "
-        "sessionFilterVocabulary); both filters AND together. An exact sessionId "
-        "match takes precedence over the other filters, mirroring the sessions "
-        "table search."
+        "sessionFilterCondition is a session filter expression (see "
+        "sessionFilterVocabulary)."
     )  # type: ignore
     async def sessions(
         self,
@@ -680,34 +633,13 @@ class Project(Node):
         first: Optional[int] = DEFAULT_PAGE_SIZE,
         after: Optional[CursorString] = UNSET,
         sort: Optional[ProjectSessionSort] = UNSET,
-        filter_io_substring: Optional[str] = UNSET,
         session_filter_condition: Optional[str] = UNSET,
-        session_id: Optional[str] = UNSET,
     ) -> Connection[ProjectSession]:
         table = models.ProjectSession
-        if session_id:
-            async with info.context.db.read() as session:
-                ans = await session.scalar(
-                    select(table).filter_by(
-                        session_id=session_id,
-                        project_id=self.id,
-                    )
-                )
-            if ans:
-                return connection_from_list(
-                    data=[ProjectSession(id=ans.id, db_record=ans)],
-                    args=ConnectionArgs(),
-                )
-            elif not filter_io_substring and not session_filter_condition:
-                return connection_from_list(
-                    data=[],
-                    args=ConnectionArgs(),
-                )
         stmt = _apply_project_session_filters(
             select(table),
             project_rowid=self.id,
             time_range=time_range or None,
-            filter_io_substring=filter_io_substring or None,
         )
         if session_filter_condition:
             filtered_session_rowids = get_filtered_session_rowids_subquery(
@@ -775,23 +707,19 @@ class Project(Node):
 
     @strawberry.field(
         description="Number of sessions in the project, optionally filtered by "
-        "a time range, a substring of the session input/output, or a session "
-        "filter expression. An exact session-ID match takes precedence over "
-        "the other filters, mirroring the sessions table search."
+        "a time range or a session filter expression."
     )  # type: ignore
     async def session_count(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        filter_io_substring: Optional[str] = UNSET,
         session_filter_condition: Optional[str] = UNSET,
-        session_id: Optional[str] = UNSET,
     ) -> int:
-        # When there is no substring / session-ID / expression filter, the count
-        # depends only on the project and time range, so it can be batched across
-        # projects through the record_counts dataloader (this is the projects-list /
-        # project-card path, which would otherwise issue one query per project).
-        if not filter_io_substring and not session_id and not session_filter_condition:
+        # Without an expression filter the count depends only on the project and time
+        # range, so it can be batched across projects through the record_counts dataloader
+        # (this is the projects-list / project-card path, which would otherwise issue one
+        # query per project).
+        if not session_filter_condition:
             return await info.context.data_loaders.record_counts.load(
                 (
                     "session",
@@ -801,25 +729,10 @@ class Project(Node):
                     None,
                 ),
             )
-        # Mirror the ``sessions`` resolver's exact-session-id precedence so the count never
-        # disagrees with the rows shown.
-        if session_id:
-            async with info.context.db.read() as session:
-                ans = await session.scalar(
-                    select(models.ProjectSession).filter_by(
-                        session_id=session_id,
-                        project_id=self.id,
-                    )
-                )
-            if ans:
-                return 1
-            elif not filter_io_substring and not session_filter_condition:
-                return 0
         stmt = _apply_project_session_filters(
             select(func.count(models.ProjectSession.id)),
             project_rowid=self.id,
             time_range=time_range or None,
-            filter_io_substring=filter_io_substring or None,
         )
         if session_filter_condition:
             filtered_session_rowids = get_filtered_session_rowids_subquery(
@@ -836,16 +749,12 @@ class Project(Node):
     @strawberry.field(
         description="Average session duration in milliseconds, i.e. the mean of "
         "end time minus start time across sessions, optionally filtered by a "
-        "time range and a substring of the session input/output. An exact "
-        "session-ID match takes precedence over the other filters, mirroring "
-        "the sessions table search."
+        "time range."
     )  # type: ignore
     async def average_session_duration_ms(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        filter_io_substring: Optional[str] = UNSET,
-        session_id: Optional[str] = UNSET,
     ) -> Optional[float]:
         stmt = _apply_project_session_filters(
             select(
@@ -858,8 +767,6 @@ class Project(Node):
             ),
             project_rowid=self.id,
             time_range=time_range or None,
-            filter_io_substring=filter_io_substring or None,
-            session_id=session_id or None,
         )
         async with info.context.db.read() as session:
             average_duration_ms = await session.scalar(stmt)
@@ -867,16 +774,12 @@ class Project(Node):
 
     @strawberry.field(
         description="Average number of traces (e.g. conversation turns) per "
-        "session, optionally filtered by a time range and a substring of the "
-        "session input/output. An exact session-ID match takes precedence "
-        "over the other filters, mirroring the sessions table search."
+        "session, optionally filtered by a time range."
     )  # type: ignore
     async def average_traces_per_session(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        filter_io_substring: Optional[str] = UNSET,
-        session_id: Optional[str] = UNSET,
     ) -> Optional[float]:
         traces_per_session = _apply_project_session_filters(
             select(func.count(models.Trace.id).label("num_traces"))
@@ -888,8 +791,6 @@ class Project(Node):
             .group_by(models.ProjectSession.id),
             project_rowid=self.id,
             time_range=time_range or None,
-            filter_io_substring=filter_io_substring or None,
-            session_id=session_id or None,
         ).subquery()
         stmt = select(func.avg(traces_per_session.c.num_traces))
         async with info.context.db.read() as session:
@@ -899,17 +800,13 @@ class Project(Node):
     @strawberry.field(
         description="Quantile (e.g. p50, p99) of session duration in "
         "milliseconds, i.e. end time minus start time, optionally filtered by "
-        "a time range and a substring of the session input/output. An exact "
-        "session-ID match takes precedence over the other filters, mirroring "
-        "the sessions table search."
+        "a time range."
     )  # type: ignore
     async def session_duration_ms_quantile(
         self,
         info: Info[Context, None],
         probability: float,
         time_range: Optional[TimeRange] = UNSET,
-        filter_io_substring: Optional[str] = UNSET,
-        session_id: Optional[str] = UNSET,
     ) -> Optional[float]:
         if not 0 <= probability <= 1:
             raise BadRequest("Probability must be between 0 and 1 (inclusive)")
@@ -929,8 +826,6 @@ class Project(Node):
             select(quantile),
             project_rowid=self.id,
             time_range=time_range or None,
-            filter_io_substring=filter_io_substring or None,
-            session_id=session_id or None,
         )
         async with info.context.db.read() as session:
             quantile_value = await session.scalar(stmt)
@@ -1084,8 +979,6 @@ class Project(Node):
                 time_range or None,
                 filter_condition or None,
                 session_filter_condition or None,
-                None,
-                None,
                 annotation_name,
             ),
         )
@@ -1111,8 +1004,6 @@ class Project(Node):
                 time_range or None,
                 filter_condition or None,
                 session_filter_condition or None,
-                None,
-                None,
                 annotation_name,
             ),
         )
@@ -1120,45 +1011,16 @@ class Project(Node):
     @strawberry.field(
         description="Summary (score and label fractions) of a session "
         "annotation across the project's sessions, optionally filtered by a "
-        "time range and a substring of the session input/output. An exact "
-        "session-ID match takes precedence over the other filters, mirroring "
-        "the sessions table search."
+        "time range."
     )  # type: ignore
     async def session_annotation_summary(
         self,
         info: Info[Context, None],
         annotation_name: str,
         time_range: Optional[TimeRange] = UNSET,
-        filter_io_substring: Optional[str] = UNSET,
-        session_id: Optional[str] = UNSET,
     ) -> Optional[AnnotationSummary]:
-        if session_id:
-            async with info.context.db.read() as session:
-                session_rowid = await session.scalar(
-                    select(models.ProjectSession.id).where(
-                        models.ProjectSession.project_id == self.id,
-                        models.ProjectSession.session_id == session_id,
-                    )
-                )
-            if session_rowid is not None:
-                # Mirror the sessions table: the exact match wins and ignores
-                # the time range and substring filter.
-                return await info.context.data_loaders.annotation_summaries.load(
-                    ("session", self.id, None, None, None, None, session_rowid, annotation_name),
-                )
-            if not filter_io_substring:
-                return None
         return await info.context.data_loaders.annotation_summaries.load(
-            (
-                "session",
-                self.id,
-                time_range or None,
-                None,
-                None,
-                filter_io_substring or None,
-                None,
-                annotation_name,
-            ),
+            ("session", self.id, time_range or None, None, None, annotation_name),
         )
 
     @strawberry.field
@@ -1241,8 +1103,8 @@ class Project(Node):
     @strawberry.field(
         description="Validate a session filter expression without executing it. A condition "
         "that fails to compile returns isValid=false with an errorMessage; a condition that "
-        "compiles but references names not observed in this project (e.g. an annotation or "
-        "tool name) returns isValid=true with advisory warnings."
+        "compiles but references names not observed in this project (e.g. an annotation "
+        "name) returns isValid=true with advisory warnings."
     )  # type: ignore
     async def validate_session_filter_condition(
         self,
@@ -1260,26 +1122,16 @@ class Project(Node):
         referenced_annotation_names = _referenced_subscript_names(
             condition, _ANNOTATION_SUBSCRIPT_NAMES
         )
-        referenced_tool_names = _referenced_subscript_names(
-            condition, _TOOL_CALL_COUNT_SUBSCRIPT_NAMES
-        )
         warnings: list[str] = []
-        if referenced_annotation_names or referenced_tool_names:
+        if referenced_annotation_names:
             async with info.context.db.read() as session:
                 observed_annotation_names = set(
                     await session.scalars(_session_annotation_names_stmt(self.id))
-                )
-                observed_tool_names = set(
-                    await session.scalars(_session_tool_span_names_stmt(self.id))
                 )
             for name in sorted(referenced_annotation_names - observed_annotation_names):
                 warnings.append(
                     f"unknown annotation name '{name}' — "
                     f"observed names: {sorted(observed_annotation_names)}"
-                )
-            for name in sorted(referenced_tool_names - observed_tool_names):
-                warnings.append(
-                    f"unknown tool name '{name}' — observed names: {sorted(observed_tool_names)}"
                 )
         return ValidationResult(is_valid=True, error_message=None, warnings=warnings)
 
@@ -1287,15 +1139,13 @@ class Project(Node):
         description="The bindable terms of the session filter expression language for this "
         "project, for autocomplete, agent discovery, and docs. Static terms derive from the "
         "filter compiler's own bindings so they cannot drift from what compiles; observed "
-        "per-project names (session annotations, tool names, root-span attribute paths) are "
-        "folded in."
+        "per-project names (session annotations, root-span attribute paths) are folded in."
     )  # type: ignore
     async def session_filter_vocabulary(
         self,
         info: Info[Context, None],
     ) -> list[FilterVocabularyTerm]:
         annotation_names_stmt = _session_annotation_names_stmt(self.id)
-        tool_span_names_stmt = _session_tool_span_names_stmt(self.id)
         recent_session_rowids_stmt = (
             select(models.ProjectSession.id)
             .where(models.ProjectSession.project_id == self.id)
@@ -1304,7 +1154,6 @@ class Project(Node):
         )
         async with info.context.db.read() as session:
             annotation_names = list(await session.scalars(annotation_names_stmt))
-            tool_span_names = list(await session.scalars(tool_span_names_stmt))
             recent_session_rowids = list(await session.scalars(recent_session_rowids_stmt))
             root_spans = earliest_root_span_by_session(
                 keys=recent_session_rowids,
@@ -1328,7 +1177,6 @@ class Project(Node):
         return session_filter_vocabulary_terms(
             annotation_names,
             root_span_attribute_paths,
-            tool_span_names,
         )
 
     @strawberry.field
