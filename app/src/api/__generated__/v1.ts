@@ -1729,6 +1729,11 @@ export interface components {
             updated_at: string;
             /** Is Temporary */
             is_temporary: boolean;
+            /**
+             * Is Turn Active
+             * @description Whether a turn is currently streaming on this session, i.e. its turn lock has a live (non-stale) heartbeat.
+             */
+            is_turn_active: boolean;
             /** Messages */
             messages: components["schemas"]["PhoenixUIMessage"][];
         };

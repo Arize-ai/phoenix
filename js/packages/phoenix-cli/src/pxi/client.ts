@@ -199,10 +199,11 @@ export function createPxiSessionClient({
         title: session.title,
         updatedAt: session.updated_at,
         isTemporary: session.is_temporary,
-        // Read loosely: the generated OpenAPI types don't carry
-        // `isTurnActive` yet, and an absent field means no lock is held.
+        // Read defensively: the CLI consumes phoenix-client's built types,
+        // which may not carry `is_turn_active` until that package rebuilds.
+        // An absent field means no lock is held.
         isTurnActive:
-          (session as { isTurnActive?: unknown }).isTurnActive === true,
+          (session as { is_turn_active?: unknown }).is_turn_active === true,
         messages: session.messages as PxiMessage[],
       };
     },

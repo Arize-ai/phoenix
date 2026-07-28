@@ -500,9 +500,8 @@ export function useAgentChat({
         if (!data || abortController.signal.aborted) {
           return;
         }
-        // Read loosely: the generated OpenAPI types don't carry
-        // `isTurnActive` yet, and an absent field means no lock is held.
-        const isTurnActive = data.isTurnActive === true;
+        // An absent field means no lock is held.
+        const isTurnActive = data.is_turn_active === true;
         const state = store.getState();
         const wasBusy =
           state.isBusyElsewhereBySessionId[persistedSessionId] === true;

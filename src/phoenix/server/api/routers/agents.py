@@ -356,13 +356,7 @@ class AgentSessionSummary(V1RoutesBaseModel):
 
 
 class AgentSessionData(AgentSessionSummary):
-    # ``populate_by_name`` lets the handler construct this model with the
-    # ``is_turn_active`` field name while the wire (and OpenAPI schema) use
-    # the ``isTurnActive`` alias — the contract with the frontend.
-    model_config = ConfigDict(populate_by_name=True)
-
     is_turn_active: bool = Field(
-        alias="isTurnActive",
         description=(
             "Whether a turn is currently streaming on this session, i.e. its "
             "turn lock has a live (non-stale) heartbeat."
