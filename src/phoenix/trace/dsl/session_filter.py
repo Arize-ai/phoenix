@@ -142,8 +142,15 @@ SESSION_BINDINGS = _FilterBindings(
 SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
     {
         "session_id": "Session identifier string.",
-        "start_time": "Session start timestamp (earliest trace).",
-        "end_time": "Session end timestamp (latest trace).",
+        "start_time": (
+            "Session start timestamp (earliest trace). Compare against ISO 8601 strings, "
+            "e.g. start_time > '2026-07-01'; values without a timezone are read as UTC."
+        ),
+        "end_time": (
+            "Session end timestamp (latest trace). Compare against ISO 8601 strings, "
+            "e.g. end_time < '2026-07-04T12:00:00+00:00'; values without a timezone are "
+            "read as UTC."
+        ),
         "duration_ms": "Session wall-clock duration in milliseconds (end_time - start_time).",
         "num_traces": (
             "Number of traces in the session — ≈ conversation turns (one trace records one "

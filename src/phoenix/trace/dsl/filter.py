@@ -351,6 +351,7 @@ def _eval_globals(
         "SafeJsonBoolean": SafeJsonBoolean,
         "SafeJsonFloat": SafeJsonFloat,
         "TextContains": models.TextContains,
+        _DATETIME_CONVERTER: _parse_datetime_literal,
     }
 
 
@@ -711,6 +712,36 @@ class Projector:
 
 def _is_string_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, str)
+
+
+_DATETIME_CONVERTER = "__to_datetime__"
+
+
+def _parse_datetime_literal(value: str) -> datetime:
+    """Parse an ISO 8601 string comparand for a datetime-bound name; naive values read as UTC.
+
+    Without this conversion the string would reach the column's bind processor, which
+    turns non-datetime input into SQL NULL — a predicate that silently matches nothing.
+    """
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise SyntaxError(
+            f"invalid datetime literal {value!r}; use ISO 8601, "
+            "e.g. '2026-07-01' or '2026-07-01T12:00:00+00:00'"
+        ) from None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_datetime_name(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Name]:
+    return isinstance(node, ast.Name) and node.id in bindings.datetime_names
+
+
+def _as_datetime_literal(node: ast.Constant) -> ast.Call:
+    _parse_datetime_literal(typing.cast(str, node.value))  # reject malformed input early
+    return ast.Call(func=ast.Name(id=_DATETIME_CONVERTER, ctx=ast.Load()), args=[node], keywords=[])
 
 
 def _is_uppercase_name(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Name]:
