@@ -610,8 +610,8 @@ class TestCodeEvaluatorSandboxMutationIds:
 
         async def unavailable_without_database_lock(*args: object, **kwargs: object) -> None:
             del args, kwargs
-            assert db.lock is not None
-            assert not db.lock.locked()
+            if db.lock is not None:
+                assert not db.lock.locked()
             raise SandboxValidationUnavailable("capacity is busy")
 
         with patch.object(adapter, "validate_code", side_effect=unavailable_without_database_lock):

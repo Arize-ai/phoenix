@@ -19,6 +19,8 @@ from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_v
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
+    AnnotationType,
+    CategoricalAnnotationValue,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
     FreeformOutputConfig,
@@ -63,17 +65,18 @@ from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
 from phoenix.server.types import DbSessionFactory
 
+_EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
+    LLMEvaluator.__name__: "LLM",
+    CodeEvaluator.__name__: "CODE",
+    BuiltInEvaluator.__name__: "BUILTIN",
+}
+
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
     """
     Convert AnnotationConfigInput to pydantic for evaluator output configs.
     Always includes name.
     """
-    from phoenix.db.types.annotation_configs import (
-        AnnotationType,
-        CategoricalAnnotationValue,
-    )
-
     if input.categorical is not None and input.categorical is not UNSET:
         cat = input.categorical
         return CategoricalOutputConfig(
@@ -303,17 +306,12 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
         tuple of (evaluator_rowid, evaluator_kind)
     """
     type_name, evaluator_rowid = from_global_id(global_id)
-    evaluator_types: dict[str, EvaluatorKind] = {
-        LLMEvaluator.__name__: "LLM",
-        CodeEvaluator.__name__: "CODE",
-        BuiltInEvaluator.__name__: "BUILTIN",
-    }
-    if type_name not in evaluator_types:
+    if type_name not in _EVALUATOR_KIND_BY_TYPENAME:
         raise ValueError(
             f"Invalid evaluator type: {type_name}. "
-            f"Expected one of {', '.join(evaluator_types.keys())}"
+            f"Expected one of {', '.join(_EVALUATOR_KIND_BY_TYPENAME)}"
         )
-    return evaluator_rowid, evaluator_types[type_name]
+    return evaluator_rowid, _EVALUATOR_KIND_BY_TYPENAME[type_name]
 
 
 @strawberry.input
@@ -562,7 +560,6 @@ class EvaluatorMutationMixin:
                     prompt=prompt,
                     dataset_evaluators=[dataset_evaluator_record],
                 )
-                llm_evaluator.updated_at = datetime.now(timezone.utc)
 
                 try:
                     validate_consistent_llm_evaluator_and_prompt_version(
@@ -594,7 +591,6 @@ class EvaluatorMutationMixin:
                 # or other fields solely on the parent record Evaluator does not
                 # trigger an update of the updated_at field on the LLMEvaluator record.
                 llm_evaluator.updated_at = datetime.now(timezone.utc)
-                session.add(llm_evaluator)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
