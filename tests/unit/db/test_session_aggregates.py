@@ -6,6 +6,7 @@ from phoenix.db import models
 from phoenix.db.session_aggregates import (
     earliest_root_span_by_session,
     num_traces_by_session,
+    num_traces_with_error_by_session,
     root_span_io_value_by_session,
     span_kind_count_by_session,
     token_counts_by_session,
@@ -16,7 +17,8 @@ from tests.unit._helpers import _add_project, _add_project_session, _add_span, _
 
 async def test_session_aggregate_builders(db: DbSessionFactory) -> None:
     """The grouped/correlated adapters and the earliest-root-span helper agree on a session
-    with two traces (each a root LLM span) and one child TOOL span."""
+    with two traces (each a root LLM span) and one child TOOL span; the first trace's two
+    spans both carry errors, so the errored-trace count would read 2 without its distinct."""
     start = datetime.now(timezone.utc)
     async with db() as session:
         project = await _add_project(session)
@@ -30,8 +32,14 @@ async def test_session_aggregate_builders(db: DbSessionFactory) -> None:
             attributes={"input": {"value": "first input"}, "output": {"value": "first output"}},
             llm_token_count_prompt=1,
             llm_token_count_completion=2,
+            cumulative_error_count=1,
         )
-        tool_span = await _add_span(session, parent_span=earliest_root_span, span_kind="TOOL")
+        tool_span = await _add_span(
+            session,
+            parent_span=earliest_root_span,
+            span_kind="TOOL",
+            cumulative_error_count=1,
+        )
         tool_span.name = "search"
         await session.flush()
 
@@ -63,6 +71,13 @@ async def test_session_aggregate_builders(db: DbSessionFactory) -> None:
             )
         )
         assert correlated_num_traces == 2
+
+        num_traces_with_error = (
+            (await session.execute(num_traces_with_error_by_session().as_grouped_subquery([rowid])))
+            .tuples()
+            .all()
+        )
+        assert num_traces_with_error == [(rowid, 1)]
 
         token_row = (
             await session.execute(token_counts_by_session().as_grouped_subquery([rowid]))
