@@ -514,6 +514,10 @@ export function useAgentChat({
         } else if (wasBusy) {
           // The other client's turn completed and its transcript persisted;
           // mirror the rewind path by replacing the runtime chat's messages.
+          // Clear any lingering 409 error first: the SDK assigns error state
+          // AFTER onError runs, so entry-time clearing is timing-fragile —
+          // this is the deterministic point where nothing can re-error.
+          chatInstance.clearError();
           chatInstance.messages = Array.isArray(data.messages)
             ? (data.messages as AgentUIMessage[])
             : [];
