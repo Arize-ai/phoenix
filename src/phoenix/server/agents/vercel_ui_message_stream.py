@@ -40,11 +40,13 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     TextDeltaChunk,
     TextEndChunk,
     TextStartChunk,
+    ToolApprovalRequestChunk,
     ToolInputAvailableChunk,
     ToolInputDeltaChunk,
     ToolInputErrorChunk,
     ToolInputStartChunk,
     ToolOutputAvailableChunk,
+    ToolOutputDeniedChunk,
     ToolOutputErrorChunk,
 )
 
@@ -66,6 +68,7 @@ from phoenix.db.types.data_stream_protocol import (
     StepStartUIPart,
     TextUIPart,
     ToolApproval,
+    ToolApprovalRequested,
     ToolApprovalRequestedPart,
     ToolApprovalRespondedPart,
     ToolInputAvailablePart,
@@ -426,6 +429,37 @@ def reduce_ui_message_chunk(
             title=tool_part.title,
         )
         write()
+    elif isinstance(chunk, ToolApprovalRequestChunk):
+        tool_part = _get_tool_invocation(
+            message=state.message,
+            tool_call_id=chunk.tool_call_id,
+        )
+        _update_tool_part(
+            message=state.message,
+            tool_call_id=chunk.tool_call_id,
+            tool_name=_get_tool_name(tool_part),
+            part_state="approval-requested",
+            input_value=tool_part.input,
+            dynamic=isinstance(tool_part, _DYNAMIC_TOOL_PART_TYPES),
+            title=tool_part.title,
+            approval=ToolApprovalRequested(id=chunk.approval_id),
+        )
+        write()
+    elif isinstance(chunk, ToolOutputDeniedChunk):
+        tool_part = _get_tool_invocation(
+            message=state.message,
+            tool_call_id=chunk.tool_call_id,
+        )
+        _update_tool_part(
+            message=state.message,
+            tool_call_id=chunk.tool_call_id,
+            tool_name=_get_tool_name(tool_part),
+            part_state="output-denied",
+            input_value=tool_part.input,
+            dynamic=isinstance(tool_part, _DYNAMIC_TOOL_PART_TYPES),
+            title=tool_part.title,
+        )
+        write()
     elif isinstance(chunk, StartStepChunk):
         state.message.parts.append(StepStartUIPart())
     elif isinstance(chunk, FinishStepChunk):
@@ -594,7 +628,9 @@ def _update_tool_part(
     part_state: Literal[
         "input-streaming",
         "input-available",
+        "approval-requested",
         "output-available",
+        "output-denied",
         "output-error",
     ],
     input_value: Any,
@@ -606,6 +642,7 @@ def _update_tool_part(
     provider_metadata: ProviderMetadata | None = None,
     preliminary: bool | None = None,
     title: str | None = None,
+    approval: ToolApproval | None = None,
 ) -> None:
     """Replace or append the tool part for a call ID in the message.
 
@@ -655,8 +692,10 @@ def _update_tool_part(
         if title is not None
         else (existing_part.title if isinstance(existing_part, _TOOL_PART_TYPES) else None)
     )
-    approval: ToolApproval | None = (
-        existing_part.approval if isinstance(existing_part, _TOOL_PART_TYPES) else None
+    resolved_approval: ToolApproval | None = (
+        approval
+        if approval is not None
+        else (existing_part.approval if isinstance(existing_part, _TOOL_PART_TYPES) else None)
     )
     static_type = (
         existing_part.type
@@ -673,7 +712,7 @@ def _update_tool_part(
                 input=input_value,
                 provider_executed=resolved_provider_executed,
                 call_provider_metadata=call_provider_metadata,
-                approval=approval,
+                approval=resolved_approval,
             )
         elif part_state == "input-available":
             replacement = DynamicToolInputAvailablePart(
@@ -683,7 +722,17 @@ def _update_tool_part(
                 input=input_value,
                 provider_executed=resolved_provider_executed,
                 call_provider_metadata=call_provider_metadata,
-                approval=approval,
+                approval=resolved_approval,
+            )
+        elif part_state == "approval-requested":
+            replacement = DynamicToolApprovalRequestedPart(
+                tool_name=tool_name,
+                tool_call_id=tool_call_id,
+                title=resolved_title,
+                input=input_value,
+                provider_executed=resolved_provider_executed,
+                call_provider_metadata=call_provider_metadata,
+                approval=resolved_approval,
             )
         elif part_state == "output-available":
             replacement = DynamicToolOutputAvailablePart(
@@ -696,7 +745,17 @@ def _update_tool_part(
                 call_provider_metadata=call_provider_metadata,
                 result_provider_metadata=result_provider_metadata,
                 preliminary=preliminary,
-                approval=approval,
+                approval=resolved_approval,
+            )
+        elif part_state == "output-denied":
+            replacement = DynamicToolOutputDeniedPart(
+                tool_name=tool_name,
+                tool_call_id=tool_call_id,
+                title=resolved_title,
+                input=input_value,
+                provider_executed=resolved_provider_executed,
+                call_provider_metadata=call_provider_metadata,
+                approval=resolved_approval,
             )
         else:
             assert error_text is not None
@@ -709,7 +768,7 @@ def _update_tool_part(
                 provider_executed=resolved_provider_executed,
                 call_provider_metadata=call_provider_metadata,
                 result_provider_metadata=result_provider_metadata,
-                approval=approval,
+                approval=resolved_approval,
             )
     elif part_state == "input-streaming":
         replacement = ToolInputStreamingPart(
@@ -719,7 +778,7 @@ def _update_tool_part(
             input=input_value,
             provider_executed=resolved_provider_executed,
             call_provider_metadata=call_provider_metadata,
-            approval=approval,
+            approval=resolved_approval,
         )
     elif part_state == "input-available":
         replacement = ToolInputAvailablePart(
@@ -729,7 +788,17 @@ def _update_tool_part(
             input=input_value,
             provider_executed=resolved_provider_executed,
             call_provider_metadata=call_provider_metadata,
-            approval=approval,
+            approval=resolved_approval,
+        )
+    elif part_state == "approval-requested":
+        replacement = ToolApprovalRequestedPart(
+            type=static_type,
+            tool_call_id=tool_call_id,
+            title=resolved_title,
+            input=input_value,
+            provider_executed=resolved_provider_executed,
+            call_provider_metadata=call_provider_metadata,
+            approval=resolved_approval,
         )
     elif part_state == "output-available":
         replacement = ToolOutputAvailablePart(
@@ -742,7 +811,17 @@ def _update_tool_part(
             call_provider_metadata=call_provider_metadata,
             result_provider_metadata=result_provider_metadata,
             preliminary=preliminary,
-            approval=approval,
+            approval=resolved_approval,
+        )
+    elif part_state == "output-denied":
+        replacement = ToolOutputDeniedPart(
+            type=static_type,
+            tool_call_id=tool_call_id,
+            title=resolved_title,
+            input=input_value,
+            provider_executed=resolved_provider_executed,
+            call_provider_metadata=call_provider_metadata,
+            approval=resolved_approval,
         )
     else:
         assert error_text is not None
@@ -756,7 +835,7 @@ def _update_tool_part(
             provider_executed=resolved_provider_executed,
             call_provider_metadata=call_provider_metadata,
             result_provider_metadata=result_provider_metadata,
-            approval=approval,
+            approval=resolved_approval,
         )
 
     if existing_part is None:

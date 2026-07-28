@@ -46,22 +46,19 @@ UNSUPPORTED_BY_PYDANTIC_AI = {
     ),
 }
 
-UNSUPPORTED_BY_SDK_VERSION = {
-    "processUIMessageStream > tool approval requests (static tool)",
-    "processUIMessageStream > tool approval requests (dynamic tool)",
-    "processUIMessageStream > tool approval request with signature",
-    "processUIMessageStream > tool approval response with signature",
-    "processUIMessageStream > tool approval request without signature",
-    "processUIMessageStream > automatic tool approval denial (static tool)",
-    "processUIMessageStream > automatic tool approval with execution (dynamic tool)",
-    "processUIMessageStream > initial tool execution after approval (static tool)",
-    "processUIMessageStream > initial tool execution after approval (dynamic tool)",
-    (
-        "processUIMessageStream > initial tool execution with preliminary results "
-        "after approval (static tool)"
+UNSUPPORTED_APPROVAL_CHUNKS = {
+    "processUIMessageStream > tool approval request with signature": (
+        "pydantic-ai ToolApprovalRequestChunk does not model signature"
     ),
-    "processUIMessageStream > tool execution denial (static tool)",
-    "processUIMessageStream > tool execution denial (dynamic tool)",
+    "processUIMessageStream > tool approval response with signature": (
+        "pydantic-ai does not model tool-approval-response chunks"
+    ),
+    (
+        "processUIMessageStream > automatic tool approval denial (static tool)"
+    ): "pydantic-ai does not model automatic approval fields or response chunks",
+    "processUIMessageStream > automatic tool approval with execution (dynamic tool)": (
+        "pydantic-ai does not model automatic approval fields or response chunks"
+    ),
 }
 
 _FIXTURES: list[dict[str, Any]] = json.loads(_FIXTURES_PATH.read_text())
@@ -89,8 +86,8 @@ async def test_matches_ai_sdk_write_sequence(fixture: dict[str, Any]) -> None:
     name = fixture["name"]
     if reason := UNSUPPORTED_BY_PYDANTIC_AI.get(name):
         pytest.skip(reason)
-    if name in UNSUPPORTED_BY_SDK_VERSION:
-        pytest.skip("Phoenix intentionally emits the pydantic-ai SDK v5 wire")
+    if reason := UNSUPPORTED_APPROVAL_CHUNKS.get(name):
+        pytest.skip(reason)
 
     fixture_input = fixture["input"]
     last_message = fixture_input["lastMessage"]
@@ -133,10 +130,10 @@ async def test_matches_ai_sdk_write_sequence(fixture: dict[str, Any]) -> None:
 
 def test_unsupported_case_list_is_explicit_and_current() -> None:
     fixture_names = {fixture["name"] for fixture in _FIXTURES}
-    unsupported_names = set(UNSUPPORTED_BY_PYDANTIC_AI) | UNSUPPORTED_BY_SDK_VERSION
+    unsupported_names = set(UNSUPPORTED_BY_PYDANTIC_AI) | set(UNSUPPORTED_APPROVAL_CHUNKS)
 
     assert len(UNSUPPORTED_BY_PYDANTIC_AI) == 8
-    assert len(UNSUPPORTED_BY_SDK_VERSION) == 12
+    assert len(UNSUPPORTED_APPROVAL_CHUNKS) == 4
     assert unsupported_names <= fixture_names
 
 
