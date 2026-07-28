@@ -27,8 +27,7 @@ TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
 # A session filter DSL expression (see phoenix.trace.dsl.session_filter).
 SessionFilterCondition: TypeAlias = Optional[str]
-# A case-insensitive substring matched against session root-span input/output,
-# mirroring the sessions table search box.
+# A case-insensitive substring matched against session root-span input/output.
 FilterIoSubstring: TypeAlias = Optional[str]
 # Rowid of a single session to scope the summary to, used when the sessions
 # table search resolves to an exact session-ID match.

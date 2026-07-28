@@ -44,10 +44,7 @@ export function AnnotationSummaryTokens({
     AnnotationConfigCategorical | undefined
   >;
   showFilterActions?: boolean;
-  /**
-   * Grain-specific filter actions rendered in the popover's filters column —
-   * e.g. sessions append to the session filter, spans to the span filter
-   */
+  /** Grain-specific filter actions rendered in the popover's filters column */
   renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   return (

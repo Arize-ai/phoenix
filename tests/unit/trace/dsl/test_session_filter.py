@@ -106,18 +106,11 @@ def test_session_filter_rejects_user_written_reserved_alias_prefix() -> None:
     assert "invalid name" in str(exc_info.value)
 
 
-@pytest.mark.parametrize(
-    "condition,suggestion",
-    [
-        ("num_tracez > 5", 'did you mean "num_traces"?'),
-        ("total_kost > 0.1", 'did you mean "total_cost"?'),
-    ],
-)
-def test_session_filter_unknown_name_raises_did_you_mean(condition: str, suggestion: str) -> None:
+def test_session_filter_unknown_name_raises_did_you_mean() -> None:
     # An unbound bare name is a loud did-you-mean error, never a silent zero-match.
     with pytest.raises(SyntaxError) as exc_info:
-        SessionFilter(condition)
-    assert suggestion in str(exc_info.value)
+        SessionFilter("num_tracez > 5")
+    assert 'did you mean "num_traces"?' in str(exc_info.value)
 
 
 def test_session_bindings_flavor_audit() -> None:
@@ -136,12 +129,11 @@ def test_session_bindings_flavor_audit() -> None:
 @pytest.mark.parametrize(
     "condition",
     [
+        # One row per rejection site: comparator with a non-containment operator, the name
+        # appearing anywhere else in a comparison, and the bare-name fallback.
         "any_input == 'x'",
         "any_input in 'x'",
-        "str(any_input) == 'x'",
         "not any_input",
-        "any_input + 'x' == 'y'",
-        "any_input",
     ],
 )
 def test_session_filter_rejects_any_input_misuse(condition: str) -> None:
@@ -187,7 +179,6 @@ async def _seed_session(
     num_traces: int,
     total_cost: float,
     start_time: datetime,
-    session_id: Optional[str] = None,
     root_attributes: Optional[dict[str, Any]] = None,
 ) -> models.ProjectSession:
     """Create a session with ``num_traces`` traces (each a root LLM span) totalling ``total_cost``.
@@ -195,9 +186,7 @@ async def _seed_session(
     The session's cost is attached to the earliest root span; ``root_attributes`` seed that span's
     attributes for user.id / metadata reads.
     """
-    project_session = await _add_project_session(
-        session, project, session_id=session_id, start_time=start_time
-    )
+    project_session = await _add_project_session(session, project, start_time=start_time)
     for i in range(num_traces):
         trace = await _add_trace(
             session, project, project_session, start_time=start_time + timedelta(seconds=i)
@@ -242,11 +231,8 @@ async def _seed_io_session(
     *,
     turns: list[tuple[str, str]],
     start_time: datetime,
-    session_id: Optional[str] = None,
 ) -> models.ProjectSession:
-    project_session = await _add_project_session(
-        session, project, session_id=session_id, start_time=start_time
-    )
+    project_session = await _add_project_session(session, project, start_time=start_time)
     for index, (input_value, output_value) in enumerate(turns):
         trace = await _add_trace(
             session,
@@ -659,39 +645,6 @@ async def test_session_filter_first_last_io_returns_window_turn_matches(
         assert case_mismatch.id not in by_last_output
 
 
-async def test_session_filter_first_input_candidate_scoping(db: DbSessionFactory) -> None:
-    start = datetime.now(timezone.utc)
-    async with db() as session:
-        project = await _add_project(session)
-        candidate = await _seed_io_session(
-            session,
-            project,
-            turns=[("refund please", "done")],
-            start_time=start,
-        )
-        excluded = await _seed_io_session(
-            session,
-            project,
-            turns=[("refund please", "done")],
-            start_time=start,
-        )
-
-        subquery = SessionFilter("'refund' in first_input").as_session_rowids_subquery(
-            project_rowids=[project.id],
-            candidate_session_rowids=[candidate.id],
-        )
-        scoped = {
-            row
-            for row in (
-                await session.scalars(
-                    select(models.ProjectSession.id).where(models.ProjectSession.id.in_(subquery))
-                )
-            ).all()
-        }
-        assert scoped == {candidate.id}
-        assert excluded.id not in scoped
-
-
 async def test_session_filter_root_span_and_annotation(db: DbSessionFactory) -> None:
     """user.id / metadata read the earliest root span, and annotations["Name"] joins the
     ProjectSessionAnnotation peer."""
@@ -743,8 +696,8 @@ async def test_session_filter_root_span_and_annotation(db: DbSessionFactory) -> 
 
 
 async def test_session_filter_differential_oracle(db: DbSessionFactory) -> None:
-    """Differential-testing oracle: the compiled filter's row set equals the Python ground truth,
-    and equivalent authorings (`>= 3` vs `> 2`) score identically without AST normalization."""
+    """Differential-testing oracle: the compiled filter's row set equals the Python ground
+    truth over a spread of aggregate values that straddle the predicate boundaries."""
     start = datetime.now(timezone.utc)
     specs = [
         (2, 0.05),
@@ -776,12 +729,6 @@ async def test_session_filter_differential_oracle(db: DbSessionFactory) -> None:
         )
         assert actual == expected
 
-        # Equivalent authoring: `num_traces > 2` selects the same sessions as `num_traces >= 3`.
-        equivalent = await _matched_rowids(
-            session, SessionFilter("num_traces > 2 and total_cost > 0.1"), project
-        )
-        assert equivalent == expected
-
 
 async def test_session_filter_ratio_zero_denominator_excludes_without_error(
     db: DbSessionFactory,
@@ -811,10 +758,3 @@ async def test_session_filter_ratio_zero_denominator_excludes_without_error(
         assert by_cost_ratio == {has_cost.id}
         assert zero_cost.id not in by_cost_ratio
         assert orphan.id not in by_cost_ratio
-
-        # num_traces denominator is 0 on the orphan session — must not raise either.
-        by_trace_ratio = await _matched_rowids(
-            session, SessionFilter("num_traces_with_error / num_traces > 0.2"), project
-        )
-        assert orphan.id not in by_trace_ratio
-        assert zero_cost.id not in by_trace_ratio

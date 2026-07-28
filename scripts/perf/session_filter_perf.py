@@ -59,8 +59,7 @@ def _skewed_num_traces(rng: random.Random) -> int:
 
 def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
     """Bulk-seed one project with ``n_sessions`` skewed sessions; return counts + rowids."""
-    # Reset between tiers so an unscoped grouped aggregate never sees a prior tier's rows (a fresh
-    # SQLite temp file is already empty; a reused PostgreSQL database is not).
+    # Reset between tiers: a reused PostgreSQL database is not empty (a fresh SQLite temp file is).
     models.Base.metadata.drop_all(engine)
     models.Base.metadata.create_all(engine)
     trace_rows: list[dict[str, Any]] = []
@@ -130,7 +129,7 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
             span_counter += 1
             cost_rows.append(
                 {
-                    "span_rowid": None,  # filled after span ids resolve; see below
+                    "span_rowid": None,
                     "trace_rowid": trace_id,
                     "span_start_time": root_start,
                     "total_cost": 0.02,
@@ -198,9 +197,7 @@ def _span_row(
 def option_a(
     condition: str, project_id: int, candidates: Optional[list[int]] = None
 ) -> Select[Any]:
-    # Matches SessionFilter.__call__ usage; the grouped-subquery joins are 1:1 per session, so no
-    # DISTINCT is needed for these predicates (and DISTINCT + ORDER BY a non-selected column is
-    # rejected by PostgreSQL in the paginated view shape).
+    # No DISTINCT: PostgreSQL rejects DISTINCT + ORDER BY a non-selected column in the view shape.
     base = select(models.ProjectSession.id).where(models.ProjectSession.project_id == project_id)
     if candidates is not None:
         base = base.where(models.ProjectSession.id.in_(candidates))

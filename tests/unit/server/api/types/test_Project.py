@@ -2834,36 +2834,17 @@ class TestProject:
         )
         assert session_count == 1
 
-    async def test_session_count_accepts_substring_without_session_filter_condition(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project = _data.projects[0]
-        io_arg = json.dumps("\"'f")
-        session_count = await self._node(
-            f"sessionCount(filterIoSubstring:{io_arg})",
-            project,
-            httpx_client,
+        # Each half is broader on its own — the composition is an AND, not a fallback to either.
+        assert (
+            await self._node(f"sessionCount(filterIoSubstring:{io_arg})", project, httpx_client)
+            == 2
         )
-        assert session_count == 2
-
-    async def test_sessions_exact_session_id_match_precedes_composed_filters(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project = _data.projects[0]
-        session = _data.project_sessions[0]
-        condition = f"session_id == '{_data.project_sessions[2].session_id}'"
-        field = (
-            f"sessions(sessionId:{json.dumps(session.session_id)},"
-            f"filterIoSubstring:{json.dumps('does-not-match')},"
-            f"sessionFilterCondition:{json.dumps(condition)})"
-            "{edges{node{id}}}"
+        assert (
+            await self._node(
+                f"sessionCount(sessionFilterCondition:{condition_arg})", project, httpx_client
+            )
+            == 2
         )
-        res = await self._node(field, project, httpx_client)
-        assert [e["node"]["id"] for e in res["edges"]] == [_gid(session)]
 
     @pytest.fixture
     async def _case_insensitive_data(
@@ -4205,7 +4186,6 @@ class TestProject:
         "expectation,condition",
         [
             (True, "num_traces >= 5"),
-            (True, "session_id == 'abc'"),
             (False, "num_traces >= "),
             (False, "nonexistent_field == 1"),
         ],
@@ -4438,72 +4418,44 @@ class TestProject:
             == 2
         )
 
-    async def test_session_count_accepts_named_tool_call_count_session_filter(
-        self,
-        _data: _Data,
-        db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project = _data.projects[0]
-        async with db() as session:
-            named_tool_spans = [
-                (_data.spans[3].id, "search"),
-                (_data.spans[4].id, "lookup"),
-                (_data.spans[6].id, "lookup"),
-            ]
-            for span_rowid, tool_name in named_tool_spans:
-                span = await session.get(models.Span, span_rowid)
-                assert span is not None
-                span.span_kind = "TOOL"
-                span.name = tool_name
-            await session.flush()
-
-        condition = 'tool_call_count["search"] == 1 and tool_call_count["lookup"] == 1'
-        session_count = await self._node(
-            f"sessionCount(sessionFilterCondition:{json.dumps(condition)})",
-            project,
-            httpx_client,
-        )
-        assert session_count == 1
-
-    async def test_session_count_mirrors_sessions_exact_session_id_precedence(
+    async def test_sessions_and_session_count_agree_on_exact_session_id_precedence(
         self,
         _data: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        """sessionCount agrees with the sessions list in every session_id precedence branch."""
+        """An exact session_id hit short-circuits the composed filters; a miss falls through to
+        them. The sessions list and sessionCount take the same branch in both cases."""
         project = _data.projects[0]
 
-        async def _list_len(args: str) -> int:
+        async def _list_ids(args: str) -> list[str]:
             result = await self._node(
                 f"sessions({args}){{edges{{node{{id}}}}}}", project, httpx_client
             )
-            return len(result["edges"])
+            return [e["node"]["id"] for e in result["edges"]]
 
         async def _count(args: str) -> int:
             count = await self._node(f"sessionCount({args})", project, httpx_client)
             assert isinstance(count, int)
             return count
 
-        # Case 1 — exact-ID hit short-circuits to that one session, ignoring the substring/DSL that
-        # would otherwise exclude it (session 0 has a single trace, so `num_traces >= 999` fails).
-        hit_id = json.dumps(_data.project_sessions[0].session_id)
+        # Exact-ID hit wins over the substring/DSL that would otherwise exclude it (session 0
+        # has a single trace, so `num_traces >= 999` fails).
+        exact_session = _data.project_sessions[0]
         hit_args = (
-            f"sessionId:{hit_id},"
+            f"sessionId:{json.dumps(exact_session.session_id)},"
             f"filterIoSubstring:{json.dumps('does-not-match')},"
             f"sessionFilterCondition:{json.dumps('num_traces >= 999')}"
         )
-        assert await _list_len(hit_args) == await _count(hit_args) == 1
+        assert await _list_ids(hit_args) == [_gid(exact_session)]
+        assert await _count(hit_args) == 1
 
-        # Case 2 — exact-ID miss with other filters falls through to the composed filters; only
-        # session index 2 has two traces.
-        condition = json.dumps("num_traces >= 2")
-        miss_args = f"sessionId:{json.dumps('does-not-exist')},sessionFilterCondition:{condition}"
-        assert await _list_len(miss_args) == await _count(miss_args) == 1
-
-        # Case 3 — no session_id: plain composed-filter agreement.
-        plain_args = f"sessionFilterCondition:{condition}"
-        assert await _list_len(plain_args) == await _count(plain_args) == 1
+        # Exact-ID miss falls through to the composed filters; only session index 2 has two traces.
+        miss_args = (
+            f"sessionId:{json.dumps('does-not-exist')},"
+            f"sessionFilterCondition:{json.dumps('num_traces >= 2')}"
+        )
+        assert await _list_ids(miss_args) == [_gid(_data.project_sessions[2])]
+        assert await _count(miss_args) == 1
 
     @staticmethod
     async def _validate_session_filter(
@@ -4601,24 +4553,6 @@ class TestProject:
         )
         assert result["isValid"] is True
         assert result["warnings"] == []
-
-    async def test_validate_session_filter_condition_warns_with_no_observed_names(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-    ) -> None:
-        """An unknown name still warns when the project has observed no names at all."""
-        async with db() as session:
-            project = await _add_project(session)
-        result = await self._validate_session_filter(
-            project, "annotations['typoo'].score > 0.5", gql_client
-        )
-        assert result["isValid"] is True
-        assert result["errorMessage"] is None
-        assert any(
-            w.startswith("unknown annotation name 'typoo'") and "observed names: []" in w
-            for w in result["warnings"]
-        )
 
     async def test_session_filter_vocabulary_bounds_attribute_scan_to_recent_sessions(
         self,

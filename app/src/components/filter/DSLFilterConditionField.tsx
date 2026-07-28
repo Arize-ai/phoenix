@@ -58,11 +58,7 @@ import {
 export type DSLFilterConditionValidationResult = {
   isValid: boolean;
   errorMessage?: string | null;
-  /**
-   * Non-blocking advisories on a condition that is otherwise valid — e.g. a
-   * name that compiles but never occurs in the project's data. Surfaced with
-   * warning (not danger) severity; the condition still applies.
-   */
+  /** Non-blocking advisories on an otherwise-valid condition; the condition still applies. */
   warnings?: readonly string[] | null;
 };
 
@@ -405,8 +401,7 @@ export function DSLFilterErrorBadge({
  * invalid (intermediate keystrokes are not flagged), whose tooltip shows the
  * full error on hover or focus, plus a red border once the user leaves the
  * field — so an error can never fight the suggestions dropdown for the same
- * space. Validator-supplied warnings on a valid condition use the same badge
- * at warning severity; the condition still applies.
+ * space.
  *
  * The field knows nothing beyond the DSL. Richer behaviors compose in from
  * outside through `extensions` (keymaps), `variant` (prose input in the same
@@ -447,9 +442,6 @@ export function DSLFilterConditionField<
   // null means the condition is not known to be invalid; the empty string
   // means invalid with no server-provided detail
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  // Advisories attached to a *valid* condition — cleared whenever the text
-  // changes so a stale warning never describes an expression it wasn't
-  // computed from
   const [warnings, setWarnings] = useState<readonly string[]>([]);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;

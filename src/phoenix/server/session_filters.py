@@ -18,10 +18,8 @@ def get_filtered_session_rowids_subquery(
 ) -> ScalarSelect[int]:
     """Compile the session filter DSL into a subquery of matching project-session rowids.
 
-    ``session_filter_condition`` is a session-grain filter expression (see
-    :class:`~phoenix.trace.dsl.session_filter.SessionFilter`), not a substring. The returned
-    ``ScalarSelect[int]`` is the shared session-filter contract every fan-out consumer
-    (counts, cost/latency summaries, the sessions list) applies as ``.where(id.in_(subquery))``.
+    ``session_filter_condition`` is a filter expression, not a substring — the substring matcher is
+    :func:`get_io_substring_session_rowids_subquery`.
     """
     return SessionFilter(condition=session_filter_condition).as_session_rowids_subquery(
         project_rowids=list(project_rowids),
@@ -37,11 +35,8 @@ def get_io_substring_session_rowids_subquery(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ) -> ScalarSelect[int]:
-    """Return session rowids whose root-span input or output contains ``io_substring``.
-
-    Case-insensitive substring match over root spans only, backing the sessions list's free-text
-    search. This is the pre-DSL matcher; the structured session filter lives in
-    :func:`get_filtered_session_rowids_subquery`.
+    """Return session rowids whose root-span input or output case-insensitively contains
+    ``io_substring``.
 
     The substring may match the root span input/output of any trace in the session,
     regardless of when that trace occurred. ``start_time``/``end_time`` scope the
