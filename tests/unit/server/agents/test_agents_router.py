@@ -1373,6 +1373,69 @@ async def test_chat_turn_on_an_empty_session_rejects_a_last_message_id(
     assert response.json() == {"code": "agent_session_stale"}
 
 
+async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A compaction checkpoint is a regular transcript message: when it is the
+    transcript's tail, its id is exactly what a follow-up send must present as
+    ``lastMessageId`` — and the pre-compaction tail is stale."""
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    session_id = "26262626-2626-4626-8626-262626262626"
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id=session_id,
+        title="Already titled",
+        messages=[
+            _user_message("earlier question"),
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "earlier answer"}],
+            },
+            {
+                "id": "compaction-1",
+                "role": "user",
+                "metadata": {
+                    "type": "user",
+                    "currentDateTime": "2026-01-01T00:00:00Z",
+                    "timeZone": "UTC",
+                    "isCompactionMessage": True,
+                },
+                "parts": [{"type": "text", "text": "Summary of the conversation so far."}],
+            },
+        ],
+    )
+
+    # The pre-compaction tail is no longer the transcript's last message.
+    stale_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("follow-up", message_id="msg-user-2"),
+            lastMessageId="assistant-1",
+        ),
+    )
+    assert stale_response.status_code == 409
+    assert stale_response.json() == {"code": "agent_session_stale"}
+
+    # The compaction checkpoint is the valid follow-up point.
+    follow_up_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("follow-up", message_id="msg-user-2"),
+            lastMessageId="compaction-1",
+        ),
+    )
+    assert follow_up_response.status_code == 200
+
+
 async def test_chat_turn_with_unknown_agent_session_id_returns_not_found(
     httpx_client: httpx.AsyncClient,
 ) -> None:

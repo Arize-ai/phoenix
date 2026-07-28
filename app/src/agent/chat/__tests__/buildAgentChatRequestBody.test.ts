@@ -320,6 +320,50 @@ describe("buildAgentChatRequestBody", () => {
     expect(body.lastMessageId).toBeUndefined();
   });
 
+  it("treats a compaction checkpoint as the persisted tail for lastMessageId", () => {
+    const compactionMessage: AgentUIMessage = {
+      id: "compaction-1",
+      role: "user",
+      metadata: {
+        type: "user",
+        currentDateTime: "2026-01-01T00:00:00Z",
+        timeZone: "UTC",
+        isCompactionMessage: true,
+      },
+      parts: [{ type: "text", text: "Summary of the conversation so far." }],
+    };
+    const newUserMessage: AgentUIMessage = {
+      id: "user-2",
+      role: "user",
+      parts: [{ type: "text", text: "follow-up after compaction" }],
+    };
+
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [userMessage, compactionMessage, newUserMessage],
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    // Compaction checkpoints are persisted transcript messages and valid
+    // follow-up points — never skipped when computing the tail.
+    expect(body.lastMessageId).toBe("compaction-1");
+  });
+
   it("uses the trailing assistant message's own id as lastMessageId on continuations", () => {
     const continuationAssistant: AgentUIMessage = {
       id: "assistant-1",
