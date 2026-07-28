@@ -19,7 +19,7 @@ client = openai.OpenAI(
   api_key=os.environ["CEREBRAS_API_KEY"],
 )
 response = client.chat.completions.create(
-  model="llama3.1-8b",
+  model="gpt-oss-120b",
   messages=[{"role": "user", "content": "What makes large language models effective at understanding context?"}],
 )`;
 }
@@ -45,7 +45,7 @@ const openai = new OpenAI({
   apiKey: process.env.CEREBRAS_API_KEY,
 });
 const response = await openai.chat.completions.create({
-  model: "llama3.1-8b",
+  model: "gpt-oss-120b",
   messages: [{ role: "user", content: "What makes large language models effective at understanding context?" }],
 });
 
