@@ -8,6 +8,15 @@ import { ErrorBoundary } from "@phoenix/components/exception";
 const DEFAULT_CHART_HEIGHT = 190;
 
 /**
+ * The narrowest a chart panel gets. Below this the x axis thins out to a tick
+ * or two, the legend crowds the plot, and the title is mostly ellipsis — the
+ * chart stops carrying any reading. Layouts that place charts side by side
+ * scroll horizontally at this width instead of shrinking them further, so a
+ * chart is the same usable size at every window width.
+ */
+export const CHART_MIN_WIDTH = 320;
+
+/**
  * Below this panel height the subtitle is dropped so the chart keeps the
  * space; the title alone still identifies the chart.
  */
@@ -18,7 +27,7 @@ const chartPanelCSS = css`
   flex-direction: column;
   height: 100%;
   width: 100%;
-  min-width: 0;
+  min-width: ${CHART_MIN_WIDTH}px;
   border: var(--global-border-size-thin) solid var(--chart-panel-border-color);
   border-radius: var(--global-rounding-medium);
   background-color: var(--chart-panel-background-color);

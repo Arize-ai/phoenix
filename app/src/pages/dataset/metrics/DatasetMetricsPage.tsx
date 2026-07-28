@@ -40,7 +40,9 @@ export function DatasetMetricsPage() {
         width: 100%;
         height: 100%;
         box-sizing: border-box;
-        overflow-y: auto;
+        /* Scrolls in both directions: the rows hold their charts at a
+           readable width rather than shrinking to fit a narrow window */
+        overflow: auto;
       `}
     >
       <div
@@ -49,6 +51,9 @@ export function DatasetMetricsPage() {
           flex-direction: column;
           gap: var(--global-dimension-size-200);
           padding: var(--global-dimension-size-200);
+          /* The widest row's charts at their minimum width. Every row stretches
+             to it, so a scrolled page keeps its charts aligned in a column. */
+          min-width: min-content;
         `}
       >
         {METRIC_PAGE_ROWS.map((row) => (
