@@ -52,7 +52,10 @@ from phoenix.db.types.data_stream_protocol import (
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
 from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
-from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
+from phoenix.server.agents.vercel_ui_message_stream import (
+    UIMessageStreamError,
+    read_ui_message_stream,
+)
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS
 from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
@@ -939,7 +942,7 @@ async def test_failed_chat_turn_does_not_persist_partial_transcript(
     assert stored_messages == persisted_messages
 
 
-async def test_malformed_ui_stream_persists_the_last_valid_snapshot(
+async def test_malformed_ui_stream_fails_the_turn_without_persisting(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -959,37 +962,28 @@ async def test_malformed_ui_stream_persists_the_last_valid_snapshot(
 
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
     session_id = "56565656-5656-4565-8565-565656565656"
+    persisted_messages = [_user_message("earlier message")]
     agent_session_id = await _create_agent_session_row(
         db,
         project_session_id=session_id,
         title="Already titled",
+        messages=persisted_messages,
     )
 
-    response = await httpx_client.post(
-        _chat_url(agent_session_id),
-        json=_chat_body(
-            session_id,
-            _user_message("new message"),
-        ),
-    )
+    with pytest.raises(UIMessageStreamError, match="text-delta"):
+        await httpx_client.post(
+            _chat_url(agent_session_id),
+            json=_chat_body(
+                session_id,
+                _user_message("new message"),
+            ),
+        )
 
-    assert response.status_code == 200
-    chunks = _stream_chunks(response.text)
-    assert any(chunk["type"] == "text-delta" for chunk in chunks)
-    assert any(chunk["type"] == "data-transcript-persisted" for chunk in chunks)
     async with db() as session:
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert agent_session_rowid is not None
-        [user_message, assistant_message] = await _load_session_messages(
-            session,
-            agent_session_rowid,
-        )
-    assert user_message["role"] == "user"
-    assert assistant_message == {
-        "id": "partial-assistant",
-        "role": "assistant",
-        "parts": [],
-    }
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    assert stored_messages == persisted_messages
 
 
 async def test_client_tool_continuation_extends_the_persisted_assistant_message(

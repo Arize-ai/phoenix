@@ -51,12 +51,7 @@ async def _iter_chunks(chunks: Sequence[BaseChunk]) -> AsyncIterator[BaseChunk]:
 
 
 async def _collect_messages(chunks: Sequence[BaseChunk]) -> list[UIMessage]:
-    return [
-        message
-        async for message in read_ui_message_stream(
-            stream=iter_chunks_with_error_parts(_iter_chunks(chunks))
-        )
-    ]
+    return [message async for message in read_ui_message_stream(stream=_iter_chunks(chunks))]
 
 
 async def _collect_messages_with_initial(
@@ -67,7 +62,7 @@ async def _collect_messages_with_initial(
     return [
         message
         async for message in read_ui_message_stream(
-            stream=iter_chunks_with_error_parts(_iter_chunks(chunks)),
+            stream=_iter_chunks(chunks),
             message=initial_message,
         )
     ]
@@ -238,7 +233,7 @@ class TestReadUIMessageStream:
             "provider": {"call": "lookup"},
         }
 
-    async def test_accumulates_data_source_file_and_error_chunks(self) -> None:
+    async def test_accumulates_data_source_and_file_chunks(self) -> None:
         messages = await _collect_messages(
             [
                 DataChunk(type="data-status", data="working", transient=True),
@@ -255,11 +250,10 @@ class TestReadUIMessageStream:
                     filename="document.txt",
                 ),
                 FileChunk(url="data:text/plain;base64,aGk=", media_type="text/plain"),
-                ErrorChunk(error_text="subagent failed"),
             ]
         )
 
-        data_part, source_url_part, source_document_part, file_part, error_part = messages[-1].parts
+        data_part, source_url_part, source_document_part, file_part = messages[-1].parts
         assert isinstance(data_part, DataUIPart)
         assert data_part.type == "data-progress"
         assert data_part.id == "data-1"
@@ -272,6 +266,18 @@ class TestReadUIMessageStream:
         assert source_document_part.filename == "document.txt"
         assert isinstance(file_part, FileUIPart)
         assert file_part.url == "data:text/plain;base64,aGk="
+
+    async def test_error_chunks_pair_with_durable_data_error_parts(self) -> None:
+        messages = [
+            message
+            async for message in read_ui_message_stream(
+                stream=iter_chunks_with_error_parts(
+                    _iter_chunks([ErrorChunk(error_text="subagent failed")])
+                )
+            )
+        ]
+
+        [error_part] = messages[-1].parts
         assert isinstance(error_part, DataUIPart)
         assert error_part.type == "data-error"
         assert error_part.data == {"errorText": "subagent failed"}

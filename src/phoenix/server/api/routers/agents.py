@@ -2500,22 +2500,10 @@ def create_agents_router(
                                 message_chunks=message_chunk_stream,
                                 summary_task=summary_task,
                             )
-                        accumulation_failed = False
                         async for message_chunk in iter_chunks_with_error_parts(
                             message_chunk_stream
                         ):
-                            if not accumulation_failed:
-                                try:
-                                    reduce_ui_message_chunk(
-                                        chunk=message_chunk, state=message_state
-                                    )
-                                except Exception:
-                                    accumulation_failed = True
-                                    logger.exception(
-                                        "Failed to reduce the streamed assistant message for "
-                                        "session %r; persisting the last valid snapshot",
-                                        otel_session_id,
-                                    )
+                            reduce_ui_message_chunk(chunk=message_chunk, state=message_state)
                             yield message_chunk
                         yield await _persist_turn()
                 except BaseException as exc:
