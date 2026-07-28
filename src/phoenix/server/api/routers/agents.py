@@ -1907,18 +1907,12 @@ def create_agents_router(
                 user_id=request_user_id,
             )
             agent_session_rowid = agent_session.id
-            # Claim the turn lock before reading history: an in-flight turn
-            # persists its messages only when it completes, so without the
-            # lock the tail would look stable and the checkpoint would land
-            # mid-turn, summarizing a transcript that omits it.
             if not await _claim_agent_session_turn_lock(
                 session,
                 agent_session_rowid=agent_session_rowid,
             ):
                 return JSONResponse({"code": "agent_session_busy"}, status_code=409)
 
-        # The lock is held from here on; keep its heartbeat fresh while the
-        # summarization call runs so concurrent turns stay rejected.
         heartbeat_task = asyncio.create_task(
             _heartbeat_agent_session_turn_lock(
                 db_session_factory,

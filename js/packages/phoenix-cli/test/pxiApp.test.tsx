@@ -1438,10 +1438,10 @@ describe("PXI /compact command", () => {
 
   function createSessionClientWithPersistedSession({
     compactSession,
-    isTurnActive = false,
+    isActive = false,
   }: {
     compactSession: PxiSessionClient["compactSession"];
-    isTurnActive?: boolean;
+    isActive?: boolean;
   }): PxiSessionClient {
     return {
       createSession: async () => {
@@ -1460,7 +1460,7 @@ describe("PXI /compact command", () => {
         title: "First session",
         updatedAt: "2026-07-24T12:00:00Z",
         isTemporary: false,
-        isTurnActive,
+        isActive,
         messages: persistedTranscript,
       }),
       compactSession,
@@ -1596,7 +1596,7 @@ describe("PXI /compact command", () => {
         client={client}
         sessionClient={createSessionClientWithPersistedSession({
           compactSession,
-          isTurnActive: true,
+          isActive: true,
         })}
       />
     );

@@ -573,9 +573,7 @@ async def test_compact_is_rejected_while_a_turn_holds_the_session_lock(
     )
     live_heartbeat = datetime.now(timezone.utc)
     async with db() as session:
-        await session.execute(
-            update(models.AgentSession).values(turn_lock_heartbeat_at=live_heartbeat)
-        )
+        await session.execute(update(models.AgentSession).values(heartbeat_at=live_heartbeat))
 
     response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
 
@@ -584,7 +582,7 @@ async def test_compact_is_rejected_while_a_turn_holds_the_session_lock(
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
         assert stored is not None
-        assert stored.turn_lock_heartbeat_at is not None
+        assert stored.heartbeat_at is not None
         compaction_message_count = await session.scalar(
             select(func.count())
             .select_from(models.AgentSessionMessage)
@@ -632,9 +630,7 @@ async def test_compact_takes_over_a_stale_session_lock(
     )
     stale_heartbeat = datetime.now(timezone.utc) - TURN_LOCK_STALENESS * 2
     async with db() as session:
-        await session.execute(
-            update(models.AgentSession).values(turn_lock_heartbeat_at=stale_heartbeat)
-        )
+        await session.execute(update(models.AgentSession).values(heartbeat_at=stale_heartbeat))
 
     response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
 
@@ -643,7 +639,7 @@ async def test_compact_takes_over_a_stale_session_lock(
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
         assert stored is not None
-        assert stored.turn_lock_heartbeat_at is None
+        assert stored.heartbeat_at is None
 
 
 async def test_chat_send_during_compaction_is_rejected_as_busy(
@@ -708,7 +704,7 @@ async def test_chat_send_during_compaction_is_rejected_as_busy(
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
         assert stored is not None
-        assert stored.turn_lock_heartbeat_at is None
+        assert stored.heartbeat_at is None
 
 
 async def test_server_agent_compact_route_matches_chat_route_gating(
