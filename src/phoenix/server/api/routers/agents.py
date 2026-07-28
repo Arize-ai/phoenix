@@ -1386,7 +1386,7 @@ async def _claim_agent_session_turn_lock(
                 models.AgentSession.turn_lock_heartbeat_at < now - _TURN_LOCK_STALENESS,
             ),
         )
-        .values(turn_lock_acquired_at=now, turn_lock_heartbeat_at=now)
+        .values(turn_lock_heartbeat_at=now)
         .returning(models.AgentSession.id)
     )
     return claimed_rowid is not None
@@ -1407,7 +1407,7 @@ async def _release_agent_session_turn_lock(
             await session.execute(
                 update(models.AgentSession)
                 .where(models.AgentSession.id == agent_session_rowid)
-                .values(turn_lock_acquired_at=None, turn_lock_heartbeat_at=None)
+                .values(turn_lock_heartbeat_at=None)
             )
     except Exception:
         logger.exception(
