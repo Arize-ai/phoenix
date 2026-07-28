@@ -698,6 +698,23 @@ def _lifespan(
                         "Failed to initialize docs MCP server; continuing without docs capability.",
                         exc_info=True,
                     )
+            # The code-mode sandbox spawns worker subprocesses on first use, which
+            # the pool would otherwise keep alive past server shutdown. Registered
+            # before the MCP lifespan so the stack unwinds in the opposite order:
+            # the MCP server stops accepting and drains its in-flight `execute`
+            # calls first, and only then are the workers running them torn down.
+            if (sandbox := getattr(app.state, "mcp_code_mode_sandbox", None)) is not None:
+                stack.push_async_callback(sandbox.aclose)
+                # Surfaces a broken sandbox install at boot instead of leaving it
+                # for the first caller. Code mode is one feature, so a failure is
+                # logged and startup continues rather than taking the server down.
+                try:
+                    await sandbox.validate()
+                except Exception:
+                    logger.warning(
+                        "Code-mode sandbox startup check failed; continuing startup.",
+                        exc_info=True,
+                    )
             # Start the mounted MCP server's session manager (set in create_app).
             if (mcp_http_app := getattr(app.state, "mcp_http_app", None)) is not None:
                 await stack.enter_async_context(mcp_http_app.lifespan(app))
@@ -1164,6 +1181,7 @@ def create_app(
 
     app.openapi = _openapi  # type: ignore[method-assign]
     mcp_http_app = None
+    mcp_code_mode_sandbox = None
     if mcp_mount_path is not None:
         # Build after ``app.openapi`` is customized so the generated tools mirror
         # the same /v1 schema, and mount before the static UI ("/") catch-all so
@@ -1175,7 +1193,7 @@ def create_app(
             create_phoenix_mcp_app,
         )
 
-        mcp_http_app = create_phoenix_mcp_app(app)
+        mcp_http_app, mcp_code_mode_sandbox = create_phoenix_mcp_app(app)
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).
         app.mount(
@@ -1186,6 +1204,9 @@ def create_app(
         # clients are configured with; rewrite it to the mount root before routing.
         app.add_middleware(MountPathNormalizer)
     app.state.mcp_http_app = mcp_http_app
+    # Owns the code-mode sandbox's worker subprocesses; shut down in ``_lifespan``
+    # so they do not outlive the server. None unless code mode is enabled.
+    app.state.mcp_code_mode_sandbox = mcp_code_mode_sandbox
     # Consumed by the OAuth2 authorization server (resource-indicator validation)
     # and the protected-resource metadata routes; None when the mount is disabled.
     app.state.mcp_mount_path = mcp_mount_path
