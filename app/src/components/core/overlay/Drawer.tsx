@@ -99,9 +99,10 @@ export type DrawerProps = {
    */
   onResize?: (sizePercent: number, sizePixels: number) => void;
   /**
-   * Fires after a pointer or keyboard resize finishes at a different width.
-   * Use this instead of `onResize` when transient drag widths must not be
-   * persisted as user preferences.
+   * Fires after a keyboard resize or a pointer gesture that emitted at least
+   * one width change. A pointer gesture that returns to its starting width
+   * still emits this matching end event. Use this instead of `onResize` when
+   * transient drag widths must not be persisted as user preferences.
    */
   onResizeEnd?: (sizePercent: number, sizePixels: number) => void;
   children?: ReactNode;
@@ -194,6 +195,7 @@ export function Drawer({
   const dragSizeRef = useRef(0);
   const pendingSizeRef = useRef<number | null>(null);
   const rafIdRef = useRef<number | null>(null);
+  const hasDragResizeEmittedRef = useRef(false);
 
   const getSizePixels = (value: number) =>
     isPixelBased
@@ -203,9 +205,13 @@ export function Drawer({
     normalizeSize((getSizePixels(value) / window.innerWidth) * 100);
 
   const commitResize = (nextSize: number) => {
+    if (nextSize === currentSizeRef.current) return;
     currentSizeRef.current = nextSize;
     setSize(nextSize);
     onResize?.(getSizePercent(nextSize), getSizePixels(nextSize));
+    if (isDraggingRef.current) {
+      hasDragResizeEmittedRef.current = true;
+    }
   };
 
   const notifyResizeEnd = (nextSize: number) => {
@@ -226,6 +232,7 @@ export function Drawer({
     startSizeRef.current = isPixelBased ? getSizePixels(size) : size;
     dragSizeRef.current = startSizeRef.current;
     isDraggingRef.current = true;
+    hasDragResizeEmittedRef.current = false;
     setIsDragging(true);
     event.preventDefault();
   };
@@ -252,7 +259,6 @@ export function Drawer({
 
   const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current) return;
-    isDraggingRef.current = false;
 
     // Cancel any pending frame and commit the latest pointer position
     // synchronously so the released width matches where the cursor actually
@@ -266,9 +272,11 @@ export function Drawer({
       pendingSizeRef.current = null;
       commitResize(finalSize);
     }
-    if (dragSizeRef.current !== startSizeRef.current) {
+    if (hasDragResizeEmittedRef.current) {
       notifyResizeEnd(dragSizeRef.current);
     }
+    hasDragResizeEmittedRef.current = false;
+    isDraggingRef.current = false;
 
     setIsDragging(false);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {

@@ -5,6 +5,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Drawer } from "../Drawer";
 
+function dispatchPointerEvent(element: Element, type: string, clientX: number) {
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    button: 0,
+    cancelable: true,
+    clientX,
+  });
+  Object.defineProperty(event, "pointerId", { value: 1 });
+  Object.defineProperty(event, "isPrimary", { value: true });
+  Object.defineProperty(event, "pointerType", { value: "mouse" });
+  element.dispatchEvent(event);
+}
+
 function CloseDrawerButton() {
   const overlayState = useContext(OverlayTriggerStateContext);
   return createElement(
@@ -226,5 +239,101 @@ describe("Drawer", () => {
     expect(onResizeEnd).toHaveBeenLastCalledWith(55, 550);
     expect(onClose).toHaveBeenCalledOnce();
     expect(closeSequence).toEqual(["commit", "close"]);
+  });
+
+  it("does not emit an unmatched resize move when a pointer drag is clamped", () => {
+    const onResize = vi.fn();
+    const onResizeEnd = vi.fn();
+    let animationFrameCallback: FrameRequestCallback | null = null;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      animationFrameCallback = callback;
+      return 1;
+    });
+
+    act(() => {
+      root.render(
+        createElement(
+          Drawer,
+          {
+            defaultSize: 950,
+            isOpen: true,
+            maxSize: 950,
+            minSize: 350,
+            onResize,
+            onResizeEnd,
+          },
+          createElement("div", null, "Drawer content")
+        )
+      );
+    });
+
+    const handle = container.querySelector('[role="separator"]');
+    expect(handle).not.toBeNull();
+    if (!(handle instanceof HTMLDivElement)) return;
+    Object.assign(handle, {
+      hasPointerCapture: () => true,
+      releasePointerCapture: () => {},
+      setPointerCapture: () => {},
+    });
+
+    act(() => {
+      dispatchPointerEvent(handle, "pointerdown", 50);
+      dispatchPointerEvent(handle, "pointermove", 0);
+      animationFrameCallback?.(0);
+      dispatchPointerEvent(handle, "pointerup", 0);
+    });
+
+    expect(onResize).not.toHaveBeenCalled();
+    expect(onResizeEnd).not.toHaveBeenCalled();
+  });
+
+  it("ends a resize gesture that returns to its starting width", () => {
+    const onResize = vi.fn();
+    const onResizeEnd = vi.fn();
+    const animationFrameCallbacks: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      animationFrameCallbacks.push(callback);
+      return animationFrameCallbacks.length;
+    });
+
+    act(() => {
+      root.render(
+        createElement(
+          Drawer,
+          {
+            defaultSize: 500,
+            isOpen: true,
+            maxSize: 950,
+            minSize: 350,
+            onResize,
+            onResizeEnd,
+          },
+          createElement("div", null, "Drawer content")
+        )
+      );
+    });
+
+    const handle = container.querySelector('[role="separator"]');
+    expect(handle).not.toBeNull();
+    if (!(handle instanceof HTMLDivElement)) return;
+    Object.assign(handle, {
+      hasPointerCapture: () => true,
+      releasePointerCapture: () => {},
+      setPointerCapture: () => {},
+    });
+
+    act(() => {
+      dispatchPointerEvent(handle, "pointerdown", 500);
+      dispatchPointerEvent(handle, "pointermove", 400);
+      animationFrameCallbacks.shift()?.(0);
+      dispatchPointerEvent(handle, "pointermove", 500);
+      animationFrameCallbacks.shift()?.(0);
+      dispatchPointerEvent(handle, "pointerup", 500);
+    });
+
+    expect(onResize).toHaveBeenNthCalledWith(1, 60, 600);
+    expect(onResize).toHaveBeenNthCalledWith(2, 50, 500);
+    expect(onResizeEnd).toHaveBeenCalledOnce();
+    expect(onResizeEnd).toHaveBeenLastCalledWith(50, 500);
   });
 });
