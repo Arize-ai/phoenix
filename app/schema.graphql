@@ -2116,8 +2116,16 @@ type GenerativeModel implements Node & ModelInterface {
   updatedAt: DateTime!
   startTime: DateTime
   tokenPrices: [TokenPrice!]!
+
+  """
+  Total cost for this model. Narrowing by project or time range is only answered on the topModelsByCost and topModelsByToken paths, which precompute the scoped summary; any other caller passing projectId or timeRange gets an error. Unlike costDetailSummaryEntries, this field cannot yet resolve an arbitrary scope.
+  """
   costSummary(projectId: ID, timeRange: TimeRange): SpanCostSummary!
-  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+
+  """
+  Cost and token counts for this model, broken down by token type. Both arguments are optional filters: projectId limits the breakdown to spans in one project, timeRange to spans that started within it, and omitting both returns the model's usage across all projects and time.
+  """
+  costDetailSummaryEntries(projectId: ID, timeRange: TimeRange): [SpanCostDetailSummaryEntry!]!
   lastUsedAt: DateTime
 }
 

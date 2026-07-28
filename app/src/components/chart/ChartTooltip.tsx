@@ -60,6 +60,7 @@ export function ChartTooltipItem(props: ChartTooltipItemProps) {
         display: flex;
         flex-direction: row;
         justify-content: space-between;
+        gap: var(--global-dimension-size-200);
       `}
     >
       <div

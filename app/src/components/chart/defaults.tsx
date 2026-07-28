@@ -130,6 +130,11 @@ export const defaultTooltipProps: TooltipProps<any, any> = {
   cursor: {
     fill: "var(--chart-tooltip-cursor-fill-color)",
   },
+  // Recharts renders legends after tooltips, so the tooltip needs an explicit
+  // stacking level to remain above legend content when they overlap.
+  wrapperStyle: {
+    zIndex: 1,
+  },
 };
 
 export const defaultLegendProps: LegendProps = {
