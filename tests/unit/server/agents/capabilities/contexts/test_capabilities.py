@@ -382,6 +382,8 @@ class TestCodeEvaluatorContextCapabilityRender:
         # secret-bearing field.
         assert "phoenix-gql" in content
         assert "sandboxProviders" in content
+        assert "languageDialect" in content
+        assert "runtimeNotes" in content
         assert "envVars { name }" in content
         assert "never `secretKey`" in content
 

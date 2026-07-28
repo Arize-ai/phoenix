@@ -18,6 +18,7 @@ from .types import (
     ModalDeployment,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     compose_secret_values,
     compute_config_fingerprint,
 )
@@ -289,7 +290,9 @@ class ModalAdapter(SandboxAdapter[ModalConfig, ModalCredentials, ModalDeployment
         credentials: ModalCredentials,
         deployment: ModalDeployment,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
+        del runtime
         token_id = credentials.MODAL_TOKEN_ID.get_secret_value()
         token_secret = credentials.MODAL_TOKEN_SECRET.get_secret_value()
         if not token_id or not token_secret:

@@ -14,11 +14,16 @@ from typing import TYPE_CHECKING, Any, AsyncIterator
 import httpx
 import pytest
 from asgi_lifespan import LifespanManager
+from fastapi import FastAPI
 from pydantic import SecretStr
 
 from phoenix.server.app import create_app
 from phoenix.server.bearer_auth import INTERNAL_PRINCIPAL_SCOPE_KEY, PhoenixUser
-from phoenix.server.mcp_server import MCP_MOUNT_PATH, MountPathNormalizer
+from phoenix.server.mcp_server import (
+    MCP_MOUNT_PATH,
+    MountPathNormalizer,
+    create_phoenix_mcp_app,
+)
 from phoenix.server.types import (
     AccessTokenAttributes,
     AccessTokenClaims,
@@ -37,7 +42,26 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
-async def test_code_mode_sandbox_is_torn_down_after_the_mcp_server_drains(
+async def test_base_mcp_app_does_not_require_a_monty_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
+
+    mcp_app, sandbox = create_phoenix_mcp_app(FastAPI())
+
+    assert sandbox is None
+    async with LifespanManager(mcp_app):
+        pass
+
+
+def test_code_mode_requires_a_monty_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
+
+    with pytest.raises(ValueError, match="Monty runtime is required when MCP code mode is enabled"):
+        create_phoenix_mcp_app(FastAPI())
+
+
+async def test_shared_monty_runtime_is_torn_down_after_the_mcp_server_drains(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -64,6 +88,8 @@ async def test_code_mode_sandbox_is_torn_down_after_the_mcp_server_drains(
         real_mcp_app = app.state.mcp_http_app
         real_sandbox = app.state.mcp_code_mode_sandbox
         assert real_sandbox is not None, "code mode should have built a sandbox provider"
+        real_runtime = app.state.sandbox_runtime.monty
+        assert real_sandbox._runtime is real_runtime
 
         class _RecordingMcpApp:
             """Wraps the MCP app so its lifespan exit is observable."""
@@ -77,39 +103,29 @@ async def test_code_mode_sandbox_is_torn_down_after_the_mcp_server_drains(
                     yield
                 order.append("mcp_lifespan_exited")
 
-        class _RecordingSandbox:
-            async def validate(self) -> bool:
-                return True
+        real_close = real_runtime.aclose
 
-            async def aclose(self) -> None:
-                order.append("sandbox_closed")
-                await real_sandbox.aclose()
+        async def recording_close() -> None:
+            order.append("runtime_closed")
+            await real_close()
 
         app.state.mcp_http_app = _RecordingMcpApp(real_mcp_app)
-        app.state.mcp_code_mode_sandbox = _RecordingSandbox()
+        monkeypatch.setattr(real_runtime, "aclose", recording_close)
 
         await stack.enter_async_context(LifespanManager(app))
 
-    assert order == ["mcp_lifespan_exited", "sandbox_closed"], (
-        f"sandbox must close after the MCP server drains, got {order}"
+    assert order == ["mcp_lifespan_exited", "runtime_closed"], (
+        f"shared runtime must close after the MCP server drains, got {order}"
     )
 
 
-async def test_app_starts_up_when_code_mode_startup_check_raises(
+async def test_app_starts_up_when_monty_runtime_probe_raises(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Code mode is one optional feature: a startup check that raises — not
-    just reports ``False`` — must not abort server startup."""
+    """A failing probe for the optional Monty runtime must not abort startup."""
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
-
-    class _ExplodingSandbox:
-        async def validate(self) -> bool:
-            raise RuntimeError("startup check blew up")
-
-        async def aclose(self) -> None:
-            return None
 
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(patch_batched_caller())
@@ -120,11 +136,48 @@ async def test_app_starts_up_when_code_mode_startup_check_raises(
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
         )
-        # The guarded path is actually exercised: code mode built a sandbox.
         assert app.state.mcp_code_mode_sandbox is not None
-        app.state.mcp_code_mode_sandbox = _ExplodingSandbox()
+
+        async def exploding_probe() -> bool:
+            raise RuntimeError("startup probe blew up")
+
+        monkeypatch.setattr(app.state.sandbox_runtime.monty, "probe_runtime", exploding_probe)
         # Lifespan startup must not raise even though the check does.
         await stack.enter_async_context(LifespanManager(app))
+
+
+async def test_monty_runtime_is_probed_for_evaluators_when_code_mode_is_disabled(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
+    monkeypatch.setattr(
+        "phoenix.server.app.get_env_allowed_sandbox_providers",
+        lambda: frozenset({"MONTY"}),
+    )
+
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=db,
+            authentication_enabled=False,
+            serve_ui=False,
+            bulk_inserter_factory=TestBulkInserter,
+        )
+        assert app.state.mcp_code_mode_sandbox is None
+        probe_calls = 0
+
+        async def record_probe() -> bool:
+            nonlocal probe_calls
+            probe_calls += 1
+            return True
+
+        monkeypatch.setattr(app.state.sandbox_runtime.monty, "probe_runtime", record_probe)
+        await stack.enter_async_context(LifespanManager(app))
+
+    assert probe_calls == 1
 
 
 async def test_mcp_server_not_mounted_by_default(

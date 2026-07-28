@@ -2407,6 +2407,10 @@ input ModelsInput {
   openaiApiType: OpenAIApiType = null
 }
 
+input MontyConfigInput {
+  language: Language! = PYTHON
+}
+
 type Mutation {
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
@@ -3692,6 +3696,8 @@ type SandboxBackendInfo {
   supportsEnvVars: Boolean!
   internetAccess: InternetAccessMode!
   supportsDependencies: Boolean!
+  languageDialect: SandboxLanguageDialect!
+  runtimeNotes: String!
   credentialSpecs: [SandboxProviderCredentialSpec!]!
 }
 
@@ -3710,6 +3716,7 @@ enum SandboxBackendType {
   VERCEL
   DENO
   MODAL
+  MONTY
 }
 
 type SandboxConfig implements Node {
@@ -3757,6 +3764,7 @@ input SandboxConfigVariantInput @oneOf {
   vercel: VercelConfigInput
   wasm: WASMConfigInput
   modal: ModalConfigInput
+  monty: MontyConfigInput
 }
 
 """
@@ -3772,6 +3780,11 @@ input SandboxDeploymentVariantInput @oneOf {
 enum SandboxHostingType {
   LOCAL
   HOSTED
+}
+
+enum SandboxLanguageDialect {
+  FULL
+  RESTRICTED
 }
 
 type SandboxProvider implements Node {
