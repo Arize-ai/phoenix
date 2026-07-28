@@ -7,7 +7,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { TRACE_TREE_WIDTH_STORAGE_KEY } from "@phoenix/constants";
+import {
+  SPAN_DETAILS_MAX_WIDTH_PIXELS,
+  TRACE_TREE_WIDTH_STORAGE_KEY,
+} from "@phoenix/constants";
 
 import {
   createDetailsPanelSizingStore,
@@ -62,6 +65,14 @@ describe("details panel sizing store", () => {
     expect(garbage.getItem(TRACE_TREE_WIDTH_STORAGE_KEY)).toBe(
       '"not-a-number"'
     );
+
+    const oversized = new FakeStorage();
+    oversized.setItem(MAIN_DETAILS_WIDTH_STORAGE_KEY, "1400");
+    const clamped = createDetailsPanelSizingStore({
+      storage: oversized,
+      viewport: 2000,
+    });
+    expect(clamped.getState().prefMain).toBe(SPAN_DETAILS_MAX_WIDTH_PIXELS);
   });
 
   it("persists synchronously on deliberate release, before any close", () => {

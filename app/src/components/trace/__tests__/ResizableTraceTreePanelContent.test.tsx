@@ -22,7 +22,18 @@ function dispatchPointerEvent(
   Object.defineProperty(event, "pointerId", {
     value: init.pointerId ?? 1,
   });
+  Object.defineProperty(event, "isPrimary", { value: true });
   element.dispatchEvent(event);
+}
+
+function dispatchKeyboardEvent(element: Element, key: string) {
+  element.dispatchEvent(
+    new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key,
+    })
+  );
 }
 
 function toDOMRect({ left, width }: { left: number; width: number }): DOMRect {
@@ -72,7 +83,7 @@ describe("ResizableTraceTreePanelContent", () => {
     vi.restoreAllMocks();
   });
 
-  it("moves its only separator to the overlay edge before resizing", () => {
+  it("keeps its only separator at the allocated edge while resizing", () => {
     const onResizeStart = vi.fn();
     const onResize = vi.fn((width: number) => width);
     const onResizeEnd = vi.fn();
@@ -139,13 +150,12 @@ describe("ResizableTraceTreePanelContent", () => {
       );
     });
 
-    expect(separator.style.transform).toBe("translateX(192px)");
+    expect(separator.style.transform).toBe("");
 
     act(() => {
       dispatchPointerEvent(separator, "pointerdown", { clientX: 340 });
     });
 
-    expect(separator.dataset.overlayResizing).toBe("true");
     expect(separator.dataset.separator).not.toBe("active");
 
     act(() => {
@@ -153,12 +163,15 @@ describe("ResizableTraceTreePanelContent", () => {
       dispatchPointerEvent(separator, "pointerup", { clientX: 360 });
     });
 
-    expect(onResizeStart).toHaveBeenCalledWith(240);
-    expect(onResize).toHaveBeenCalledWith(260);
-    expect(onResizeEnd).toHaveBeenCalledWith(true);
+    expect(onResizeStart).toHaveBeenCalledWith(48);
+    expect(onResize).toHaveBeenCalledWith(68);
+    expect(onResizeEnd).toHaveBeenCalledWith({
+      didMove: true,
+      shouldCommit: true,
+    });
   });
 
-  it("keeps the separator at its allocated edge during a native drag", () => {
+  it("owns the complete pointer lifecycle and reports cancellation", () => {
     const onResizeStart = vi.fn();
     const onResize = vi.fn((width: number) => width);
     const onResizeEnd = vi.fn();
@@ -184,11 +197,9 @@ describe("ResizableTraceTreePanelContent", () => {
     });
 
     const panel = container.querySelector("[data-panel]");
-    const content = container.querySelector(".trace-tree-panel-content");
     const separator = container.querySelector(".details-panel-tree-separator");
     if (
       !(panel instanceof HTMLDivElement) ||
-      !(content instanceof HTMLDivElement) ||
       !(separator instanceof HTMLDivElement)
     ) {
       return;
@@ -197,29 +208,166 @@ describe("ResizableTraceTreePanelContent", () => {
     vi.spyOn(panel, "getBoundingClientRect").mockReturnValue(
       toDOMRect({ left: 100, width: 168 })
     );
-    vi.spyOn(content, "getBoundingClientRect").mockReturnValue(
-      toDOMRect({ left: 100, width: 240 })
-    );
+    let capturedPointerId: number | null = null;
+    Object.assign(separator, {
+      hasPointerCapture: (pointerId: number) => capturedPointerId === pointerId,
+      releasePointerCapture: () => {
+        capturedPointerId = null;
+      },
+      setPointerCapture: (pointerId: number) => {
+        capturedPointerId = pointerId;
+      },
+    });
 
     act(() => {
       dispatchPointerEvent(separator, "pointerdown", { clientX: 468 });
     });
-    expect(onResizeStart).not.toHaveBeenCalled();
-
-    // jsdom does not calculate the library's resize hit regions, so mirror
-    // the active attribute it applies before the panel crosses the breakpoint.
-    separator.dataset.separator = "active";
+    expect(onResizeStart).toHaveBeenCalledWith(168);
 
     act(() => {
-      resizeObserverEntries.forEach(({ callback, observer }) =>
-        callback([], observer)
+      dispatchPointerEvent(separator, "pointermove", { clientX: 300 });
+      dispatchPointerEvent(separator, "pointercancel", { clientX: 300 });
+    });
+
+    expect(onResize).toHaveBeenCalledWith(0);
+    expect(onResizeEnd).toHaveBeenCalledWith({
+      didMove: true,
+      shouldCommit: false,
+    });
+  });
+
+  it("reports leftward travel from a compact-width separator", () => {
+    const onResizeStart = vi.fn();
+    const onResize = vi.fn((width: number) => width);
+    const onResizeEnd = vi.fn();
+
+    act(() => {
+      root.render(
+        createElement(
+          Group,
+          { orientation: "horizontal" },
+          createElement(Panel, { defaultSize: 48 }, "Trace tree"),
+          createElement(ResizableTraceTreeSeparator, {
+            onResize,
+            onResizeEnd,
+            onResizeStart,
+          }),
+          createElement(Panel, null, "Details")
+        )
       );
     });
 
-    expect(separator.style.transform).toBe("");
+    const separator = container.querySelector(".details-panel-tree-separator");
+    if (!(separator instanceof HTMLDivElement)) return;
+
+    const panel = container.querySelector("[data-panel]");
+    if (!(panel instanceof HTMLDivElement)) return;
+
+    vi.spyOn(panel, "getBoundingClientRect").mockReturnValue(
+      toDOMRect({ left: 100, width: 48 })
+    );
+    let capturedPointerId: number | null = null;
+    Object.assign(separator, {
+      hasPointerCapture: (pointerId: number) => capturedPointerId === pointerId,
+      releasePointerCapture: () => {
+        capturedPointerId = null;
+      },
+      setPointerCapture: (pointerId: number) => {
+        capturedPointerId = pointerId;
+      },
+    });
 
     act(() => {
-      dispatchPointerEvent(separator, "pointerup", { clientX: 268 });
+      dispatchPointerEvent(separator, "pointerdown", { clientX: 148 });
+      dispatchPointerEvent(separator, "pointermove", { clientX: 108 });
+      dispatchPointerEvent(separator, "pointerup", { clientX: 108 });
     });
+
+    expect(onResizeStart).toHaveBeenCalledWith(48);
+    expect(onResize).toHaveBeenCalledWith(8);
+    expect(onResizeEnd).toHaveBeenCalledWith({
+      didMove: true,
+      shouldCommit: true,
+    });
+  });
+
+  it("maps compact separator arrow keys to the same resize lifecycle", () => {
+    const onResizeStart = vi.fn();
+    const onResize = vi.fn((width: number) => width);
+    const onResizeEnd = vi.fn();
+
+    act(() => {
+      root.render(
+        createElement(
+          Group,
+          { orientation: "horizontal" },
+          createElement(Panel, { defaultSize: 48 }, "Trace tree"),
+          createElement(ResizableTraceTreeSeparator, {
+            isCompact: true,
+            onResize,
+            onResizeEnd,
+            onResizeStart,
+          }),
+          createElement(Panel, null, "Details")
+        )
+      );
+    });
+
+    const panel = container.querySelector("[data-panel]");
+    const separator = container.querySelector(".details-panel-tree-separator");
+    if (
+      !(panel instanceof HTMLDivElement) ||
+      !(separator instanceof HTMLDivElement)
+    ) {
+      return;
+    }
+    vi.spyOn(panel, "getBoundingClientRect").mockReturnValue(
+      toDOMRect({ left: 100, width: 48 })
+    );
+    vi.spyOn(window, "innerWidth", "get").mockReturnValue(1600);
+
+    act(() => dispatchKeyboardEvent(separator, "ArrowLeft"));
+
+    expect(onResizeStart).toHaveBeenCalledWith(48);
+    expect(onResize).toHaveBeenCalledWith(-32);
+    expect(onResizeEnd).toHaveBeenCalledWith({
+      didMove: true,
+      shouldCommit: true,
+    });
+  });
+
+  it("requests a navigation toggle when the separator is double-clicked", () => {
+    const onResizeStart = vi.fn();
+    const onResize = vi.fn((width: number) => width);
+    const onResizeEnd = vi.fn();
+    const onToggle = vi.fn();
+
+    act(() => {
+      root.render(
+        createElement(
+          Group,
+          { orientation: "horizontal" },
+          createElement(Panel, { defaultSize: 48 }, "Trace tree"),
+          createElement(ResizableTraceTreeSeparator, {
+            onResize,
+            onResizeEnd,
+            onResizeStart,
+            onToggle,
+          }),
+          createElement(Panel, null, "Details")
+        )
+      );
+    });
+
+    const separator = container.querySelector(".details-panel-tree-separator");
+    if (!(separator instanceof HTMLDivElement)) return;
+
+    act(() => {
+      separator.dispatchEvent(
+        new MouseEvent("dblclick", { bubbles: true, cancelable: true })
+      );
+    });
+
+    expect(onToggle).toHaveBeenCalledOnce();
   });
 });

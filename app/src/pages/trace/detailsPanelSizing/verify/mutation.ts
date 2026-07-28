@@ -13,14 +13,30 @@
  * `pnpm verify:details-panel`).
  */
 
-import { int, intVar, iteInt, maxE, minE, ne, sub } from "../expr";
+import {
+  add,
+  and,
+  bool,
+  boolVar,
+  int,
+  intVar,
+  iteInt,
+  le,
+  maxE,
+  minE,
+  ne,
+  not,
+  sub,
+} from "../expr";
 import type { TransitionRule } from "../machine";
 import {
   clampDrawerExpr,
+  MAIN_MIN,
   mainFromDrawerExpr,
   RULES,
   SEPARATOR,
   splitTreeExpr,
+  treeDragExprs,
 } from "../machine";
 import { runProofs } from "./prove-lib";
 import { runSweep } from "./sweep";
@@ -60,10 +76,20 @@ const MUTANTS: readonly Mutant[] = [
             ...rule.updates,
             intendedDrawer: stale,
             renderedDrawer: stale,
-            renderedTree: splitTreeExpr(stale, v("prefTree")),
+            renderedTree: splitTreeExpr(
+              stale,
+              v("prefTree"),
+              v("treeAddon"),
+              boolVar("collapsed")
+            ),
             renderedMain: sub(
               sub(stale, int(SEPARATOR)),
-              splitTreeExpr(stale, v("prefTree"))
+              splitTreeExpr(
+                stale,
+                v("prefTree"),
+                v("treeAddon"),
+                boolVar("collapsed")
+              )
             ),
           },
         };
@@ -78,7 +104,12 @@ const MUTANTS: readonly Mutant[] = [
         ...rule,
         updates: {
           ...rule.updates,
-          prefTree: splitTreeExpr(maxE(int(689), v("px")), v("prefTree")),
+          prefTree: splitTreeExpr(
+            maxE(int(689), v("px")),
+            v("prefTree"),
+            v("treeAddon"),
+            boolVar("collapsed")
+          ),
         },
       })),
   },
@@ -116,6 +147,85 @@ const MUTANTS: readonly Mutant[] = [
       })),
   },
   {
+    name: "tree-release-keeps-stale-compressed-preference",
+    models:
+      "a compound tree release stays visually compressed but leaves a larger stale tree preference, so the next outer gesture snaps",
+    mutate: () => {
+      const staleTreeCommit = and(
+        boolVar("moved"),
+        ne(v("renderedTree"), v("dragStartTree"))
+      );
+      return replaceRule(RULES, "treeEnd", (rule) => ({
+        ...rule,
+        updates: {
+          ...rule.updates,
+          prefTree: iteInt(
+            staleTreeCommit,
+            sub(v("renderedTree"), v("treeAddon")),
+            v("prefTree")
+          ),
+        },
+        effects: rule.effects.map((effect) =>
+          effect.kind === "persistTree"
+            ? { ...effect, when: staleTreeCommit }
+            : effect
+        ),
+      }));
+    },
+  },
+  {
+    name: "rightward-tree-drag-grows-drawer",
+    models:
+      "a rightward inner-separator drag moves the outer drawer boundary instead of clamping when adjacent main-column slack is exhausted",
+    mutate: () => {
+      const drag = treeDragExprs(v("px"));
+      const rightwardDrawerGrowth = maxE(
+        int(0),
+        sub(drag.tree, v("dragStartTree"))
+      );
+      const brokenDrawer = iteInt(
+        le(v("dragStartTree"), v("px")),
+        add(drag.drawer, rightwardDrawerGrowth),
+        drag.drawer
+      );
+      return replaceRule(RULES, "treeMove", (rule) => ({
+        ...rule,
+        updates: {
+          ...rule.updates,
+          renderedDrawer: brokenDrawer,
+          renderedMain: sub(sub(brokenDrawer, int(SEPARATOR)), drag.tree),
+          intendedDrawer: brokenDrawer,
+        },
+      }));
+    },
+  },
+  {
+    name: "rightward-tree-drag-shrinks-drawer-before-tree-maximum",
+    models:
+      "a rightward inner-separator drag moves the outer boundary before the tree has exhausted its own growth capacity",
+    mutate: () => {
+      const drag = treeDragExprs(v("px"));
+      const shrinkPrematurely = and(
+        le(v("dragStartTree"), v("px")),
+        not(le(v("treeMax"), drag.tree)),
+        le(add(int(MAIN_MIN), int(1)), drag.main)
+      );
+      const brokenDrawer = sub(
+        drag.drawer,
+        iteInt(shrinkPrematurely, int(1), int(0))
+      );
+      return replaceRule(RULES, "treeMove", (rule) => ({
+        ...rule,
+        updates: {
+          ...rule.updates,
+          renderedDrawer: brokenDrawer,
+          renderedMain: sub(sub(brokenDrawer, int(SEPARATOR)), drag.tree),
+          intendedDrawer: brokenDrawer,
+        },
+      }));
+    },
+  },
+  {
     name: "main-min-clamp-dropped",
     models:
       "allocation split loses the 640px main-column reservation (CC-1 violation)",
@@ -144,6 +254,55 @@ const MUTANTS: readonly Mutant[] = [
           ...effect,
           value: v("prefMain"),
         })),
+      })),
+  },
+  {
+    name: "tree-release-collapses-mode",
+    models:
+      "a divider release changes explicit compact mode even though only the button may own that transition (EC-1/FV-5 violation)",
+    mutate: () =>
+      replaceRule(RULES, "treeEnd", (rule) => ({
+        ...rule,
+        boolUpdates: { ...rule.boolUpdates, collapsed: bool(true) },
+      })),
+  },
+  {
+    name: "collapse-changes-main",
+    models:
+      "button collapse donates a pixel to another column instead of preserving main geometry exactly (CG-1/CG-2 violation)",
+    mutate: () =>
+      replaceRule(RULES, "treeCollapseOpen", (rule) => ({
+        ...rule,
+        updates: {
+          ...rule.updates,
+          renderedMain: sub(v("renderedMain"), int(1)),
+        },
+      })),
+  },
+  {
+    name: "timing-writes-navigation-preference",
+    models:
+      "the additive timing width is folded into the persisted navigation preference (AT-1/AT-3 violation)",
+    mutate: () =>
+      replaceRule(RULES, "treeAddonSetExpanded", (rule) => ({
+        ...rule,
+        updates: {
+          ...rule.updates,
+          prefTree: add(v("prefTree"), int(150)),
+        },
+      })),
+  },
+  {
+    name: "expand-does-not-consume-main-slack",
+    models:
+      "a constrained expand leaves main unchanged instead of prioritizing the navigation column",
+    mutate: () =>
+      replaceRule(RULES, "treeExpandOpen", (rule) => ({
+        ...rule,
+        updates: {
+          ...rule.updates,
+          renderedMain: v("renderedMain"),
+        },
       })),
   },
 ];

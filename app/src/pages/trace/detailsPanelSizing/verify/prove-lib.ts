@@ -21,9 +21,9 @@
  *    post-state value of its own preference field (PS-7).
  * 5. `open-derives-from-preferences` — the reopen width is the clamped sum of
  *    the pre-state preferences (DW-1; the reported defect, generalized).
- * 6. `tree-drag-*-lipschitz` — within a tree gesture the rendered tree and
- *    drawer widths are monotone 1-Lipschitz functions of the requested width
- *    (TC-9: the 640px handoff cannot jump).
+ * 6. `tree-drag-*-lipschitz` — within a tree gesture the rendered tree is
+ *    monotone and both tree and drawer widths are 1-Lipschitz functions of
+ *    the requested width (TC-9: neither boundary handoff can jump).
  * 7. `*-idempotent` — measurement events are fixpoints when re-applied (Q-1:
  *    the measure→dispatch→render loop cannot oscillate).
  *
@@ -34,31 +34,44 @@
 
 import { spawnSync } from "node:child_process";
 
-import { boolToSmt, intToSmt, intVar } from "../expr";
+import { boolToSmt, boolVar, intToSmt, intVar } from "../expr";
 import { STATE_INVARIANTS } from "../invariants";
 import type { IntField, TransitionRule } from "../machine";
 import {
   BOOL_FIELDS,
   clampDrawerExpr,
   derivedDrawerExpr,
+  GESTURE_IDLE,
   INIT_BOOL_EXPRS,
   INIT_INPUT_BOOL_VARS,
   INIT_INPUT_INT_VARS,
   INIT_INT_EXPRS,
   INT_FIELDS,
+  MAIN_MAX,
+  mainFromDrawerExpr,
+  preferredTreeExpr,
+  SEPARATOR,
+  splitTreeExpr,
+  TREE_COLLAPSED,
+  TREE_MIN,
   treeDragExprs,
+  treeExpansionExprs,
 } from "../machine";
 
 /* ------------------------- syntactic frame audit -------------------------- */
 
 const PREF_WRITERS: Record<string, readonly string[]> = {
-  prefTree: ["treeEnd", "treePrefSet"],
-  prefMain: ["outerEnd"],
+  prefTree: ["outerEnd", "treeEnd", "treePrefSet"],
+  prefMain: ["outerEnd", "treeEnd"],
 };
 
 const EFFECT_WRITERS: Record<string, readonly string[]> = {
-  persistTree: ["treeEnd", "treePrefSet"],
-  persistMain: ["outerEnd"],
+  persistTree: ["outerEnd", "treeEnd", "treePrefSet"],
+  persistMain: ["outerEnd", "treeEnd"],
+};
+
+const BOOL_WRITERS: Record<string, readonly string[]> = {
+  collapsed: ["treeCollapseOpen", "treeExpandOpen"],
 };
 
 export function auditFrameSyntactically(
@@ -76,6 +89,13 @@ export function auditFrameSyntactically(
       if (!EFFECT_WRITERS[effect.kind].includes(rule.name)) {
         throw new Error(
           `Rule ${rule.name} emits ${effect.kind} but is not sanctioned`
+        );
+      }
+    }
+    for (const [field, writers] of Object.entries(BOOL_WRITERS)) {
+      if (field in rule.boolUpdates && !writers.includes(rule.name)) {
+        throw new Error(
+          `Rule ${rule.name} writes ${field} but is not sanctioned`
         );
       }
     }
@@ -232,6 +252,8 @@ function emitCommitTheorems(
   const outerEnd = ruleByName(rules, "outerEnd");
   const open = ruleByName(rules, "open");
   const close = ruleByName(rules, "close");
+  const collapse = ruleByName(rules, "treeCollapseOpen");
+  const expand = ruleByName(rules, "treeExpandOpen");
 
   const setup = (rule: TransitionRule): string =>
     [
@@ -242,28 +264,73 @@ function emitCommitTheorems(
       definePostState(rule, "s_", "n_"),
     ].join("\n");
 
-  // TC-4/TC-5: a tree-preference change requires a moved gesture released at
-  // a width different from its origin, and stores exactly the released width.
+  const releasedTreeFromOldPreference = intToSmt(
+    splitTreeExpr(
+      intVar("renderedDrawer"),
+      intVar("prefTree"),
+      intVar("treeAddon"),
+      boolVar("collapsed"),
+      intVar("treeMax")
+    ),
+    stage("s_")
+  );
+
+  // TC-4/TC-5: a tree-preference change requires a moved gesture whose
+  // released geometry is not the old preference's canonical split, and stores
+  // exactly the released width.
   obligations.push({
     name: "tree-commit-deliberate",
     body: `${setup(treeEnd)}
 (assert (not (=> (not (= n_prefTree s_prefTree))
                  (and s_moved
-                      (not (= s_renderedTree s_dragStartTree))
-                      (= n_prefTree s_renderedTree)))))`,
+                      (not (= s_renderedTree ${releasedTreeFromOldPreference}))
+                      (= n_prefTree (- s_renderedTree s_treeAddon))))))`,
   });
 
-  // DW-3: a main-preference change stores max(640, released − prefTree − 1),
+  obligations.push({
+    name: "outer-tree-commit-deliberate",
+    body: `${setup(outerEnd)}
+(assert (not (=> (not (= n_prefTree s_prefTree))
+                 (and (> n_renderedTree
+                         ${intToSmt(preferredTreeExpr(intVar("prefTree"), intVar("treeAddon"), boolVar("collapsed")), stage("s_"))})
+                      (= n_prefTree (- n_renderedTree s_treeAddon))))))`,
+  });
+
+  // Boundary overflow may change the main preference: either the tree stayed
+  // at its captured boundary, or leftward overflow grew the drawer after the
+  // tree reached its expanded minimum.
+  obligations.push({
+    name: "tree-main-commit-deliberate",
+    body: `${setup(treeEnd)}
+(assert (not (=> (not (= n_prefMain s_prefMain))
+                 (and s_moved
+                      (or (= s_renderedTree s_dragStartTree)
+                          (and (= s_renderedTree (+ ${TREE_MIN} s_treeAddon))
+                               (> s_renderedDrawer s_dragStartDrawer)))
+                      (not (= s_renderedMain s_dragStartMain))
+                      (= n_prefMain s_renderedMain)))))`,
+  });
+
+  // DW-3: a main-preference change stores the bounded width implied by the
+  // released drawer and preferred tree,
   // and that value equals the released rendered main width (CC-5 corollary).
+  const expectedCommittedMain = intToSmt(
+    mainFromDrawerExpr(
+      intVar("renderedDrawer"),
+      preferredTreeExpr(
+        intVar("prefTree"),
+        intVar("treeAddon"),
+        boolVar("collapsed")
+      )
+    ),
+    (name) => (name === "renderedDrawer" ? `n_${name}` : `s_${name}`)
+  );
   obligations.push({
     name: "main-commit-deliberate-dw3",
     body: `${setup(outerEnd)}
 (assert (not (=> (not (= n_prefMain s_prefMain))
                  (and (= n_prefMain n_renderedMain)
-                      (= n_prefMain
-                         (ite (>= (- (- n_renderedDrawer s_prefTree) 1) 640)
-                              (- (- n_renderedDrawer s_prefTree) 1)
-                              640))))))`,
+                      (= n_prefMain ${expectedCommittedMain})))))`,
   });
 
   // DW-1/PS-1/PS-3 (the reported defect, generalized): reopen requests the
@@ -272,8 +339,17 @@ function emitCommitTheorems(
   // machine uses — never hand-written SMT.
   const expectedReopenWidth = intToSmt(
     clampDrawerExpr(
-      derivedDrawerExpr(intVar("prefTree"), intVar("prefMain")),
-      intVar("viewport")
+      derivedDrawerExpr(
+        preferredTreeExpr(
+          intVar("prefTree"),
+          intVar("treeAddon"),
+          boolVar("collapsed")
+        ),
+        intVar("prefMain")
+      ),
+      intVar("viewport"),
+      intVar("treeAddon"),
+      boolVar("collapsed")
     ),
     stage("s_")
   );
@@ -294,6 +370,32 @@ function emitCommitTheorems(
                   (= n_prefMain s_prefMain)
                   (= n_intendedDrawer s_intendedDrawer)
                   (not n_open))))`,
+  });
+
+  obligations.push({
+    name: "collapse-preserves-main",
+    body: `${setup(collapse)}
+(assert (not (and n_collapsed
+                  (= n_renderedTree ${TREE_COLLAPSED})
+                  (= n_renderedMain s_renderedMain)
+                  (= n_renderedDrawer (+ (+ ${TREE_COLLAPSED} ${SEPARATOR}) s_renderedMain))
+                  (= n_prefTree s_prefTree)
+                  (= n_prefMain s_prefMain))))`,
+  });
+
+  const expectedExpansion = treeExpansionExprs();
+  obligations.push({
+    name: "expand-prioritizes-tree-with-main-slack",
+    body: `${setup(expand)}
+(assert (not (and (not n_collapsed)
+                  (= n_intendedDrawer ${intToSmt(expectedExpansion.intendedDrawer, stage("s_"))})
+                  (= n_renderedDrawer ${intToSmt(expectedExpansion.drawer, stage("s_"))})
+                  (= n_renderedTree ${intToSmt(expectedExpansion.tree, stage("s_"))})
+                  (= n_renderedMain ${intToSmt(expectedExpansion.main, stage("s_"))})
+                  (<= n_renderedMain s_renderedMain)
+                  (>= n_renderedTree (+ ${TREE_MIN} s_treeAddon))
+                  (= n_prefTree s_prefTree)
+                  (= n_prefMain s_prefMain))))`,
   });
 }
 
@@ -324,7 +426,10 @@ function emitEffectTheorems(
 
 function emitLipschitzTheorems(obligations: Obligation[]): void {
   // TC-9: within one gesture (fixed origin), requested widths r and r+1 move
-  // the rendered tree and drawer by at most 1px, monotonically.
+  // the rendered tree monotonically and move both rendered widths by at most
+  // 1px. The drawer may grow only on leftward overflow after the tree reaches
+  // its expanded minimum. Rightward travel never grows the drawer and may
+  // shrink it only while the tree is pinned at its maximum.
   const dragA = treeDragExprs({ kind: "intVar", name: "px" });
   const declares = [
     declareState("s_"),
@@ -350,7 +455,48 @@ function emitLipschitzTheorems(obligations: Obligation[]): void {
   });
   obligations.push({
     name: "tree-drag-drawer-lipschitz",
-    body: `${body}\n(assert (not (and (<= a_drawer b_drawer) (<= (- b_drawer a_drawer) 1))))`,
+    body: `${body}\n(assert (not (and (<= (- b_drawer a_drawer) 1) (<= (- a_drawer b_drawer) 1))))`,
+  });
+  obligations.push({
+    name: "tree-drag-right-never-grows-drawer",
+    body: `${declares}
+(assert (>= r1 s_dragStartTree))
+${bind("r1", "a_")}
+(assert (not (<= a_drawer s_dragStartDrawer)))`,
+  });
+  obligations.push({
+    name: "tree-drag-right-shrinks-drawer-only-at-tree-maximum",
+    body: `${declares}
+(assert (>= r1 s_dragStartTree))
+${bind("r1", "a_")}
+(assert (not (=> (< a_drawer s_dragStartDrawer)
+                 (= a_tree s_treeMax))))`,
+  });
+  obligations.push({
+    name: "tree-drag-left-before-floor-resizes-tree-only",
+    body: `${declares}
+(assert (<= r1 s_dragStartTree))
+(assert (>= r1 (+ ${TREE_MIN} s_treeAddon)))
+(assert (>= r1 (- s_dragStartTree (- ${MAIN_MAX} s_dragStartMain))))
+${bind("r1", "a_")}
+(assert (not (and (= a_tree r1) (= a_drawer s_dragStartDrawer))))`,
+  });
+  obligations.push({
+    name: "tree-drag-left-overflow-pins-tree-at-floor",
+    body: `${declares}
+(assert (<= r1 (+ ${TREE_MIN} s_treeAddon)))
+(assert (<= (+ s_dragStartMain (- s_dragStartTree (+ ${TREE_MIN} s_treeAddon))) ${MAIN_MAX}))
+${bind("r1", "a_")}
+(assert (not (= a_tree (+ ${TREE_MIN} s_treeAddon))))`,
+  });
+  obligations.push({
+    name: "tree-drag-left-overflow-grows-drawer",
+    body: `${declares}
+(assert (< r1 (+ ${TREE_MIN} s_treeAddon)))
+(assert (< s_dragStartDrawer s_dragMaxDrawer))
+(assert (< (+ s_dragStartMain (- s_dragStartTree (+ ${TREE_MIN} s_treeAddon))) ${MAIN_MAX}))
+${bind("r1", "a_")}
+(assert (not (> a_drawer s_dragStartDrawer)))`,
   });
 }
 
@@ -380,6 +526,91 @@ function emitIdempotenceTheorems(
   }
 }
 
+function emitGestureEntryContinuityTheorems(
+  obligations: Obligation[],
+  rules: readonly TransitionRule[],
+  firingCondition: ReturnType<typeof makeFiringCondition>
+): void {
+  const outerMove = ruleByName(rules, "outerMove");
+  const treeMove = ruleByName(rules, "treeMove");
+  const setup = (pointerWidth: string): string =>
+    [
+      declareState("s_"),
+      "(declare-const p_px Int)",
+      `(assert ${invariantConjunction("s_")})`,
+      `(assert (= s_gesture ${GESTURE_IDLE}))`,
+      `(assert (= s_renderedDrawer ${intToSmt(
+        clampDrawerExpr(
+          intVar("renderedDrawer"),
+          intVar("viewport"),
+          intVar("treeAddon"),
+          boolVar("collapsed"),
+          intVar("treeMax")
+        ),
+        stage("s_")
+      )}))`,
+      `(assert (= p_px ${pointerWidth}))`,
+      `(assert ${firingCondition(outerMove, "s_")})`,
+      definePostState(outerMove, "s_", "n_"),
+    ].join("\n");
+
+  obligations.push({
+    name: "outer-gesture-zero-delta-preserves-geometry",
+    body: `${setup("s_renderedDrawer")}
+(assert (not (and (= n_renderedDrawer s_renderedDrawer)
+                  (= n_renderedTree s_renderedTree)
+                  (= n_renderedMain s_renderedMain)
+                  (not n_moved))))`,
+  });
+
+  const renderedDimensions = [
+    "renderedDrawer",
+    "renderedTree",
+    "renderedMain",
+  ] as const;
+  const changesByAtMostOne = renderedDimensions
+    .map(
+      (field) =>
+        `(and (<= (- n_${field} s_${field}) 1) (<= (- s_${field} n_${field}) 1))`
+    )
+    .join(" ");
+  for (const [name, pointerWidth] of [
+    ["left", "(- s_renderedDrawer 1)"],
+    ["right", "(+ s_renderedDrawer 1)"],
+  ] as const) {
+    obligations.push({
+      name: `outer-gesture-first-pixel-${name}-is-continuous`,
+      body: `${setup(pointerWidth)}
+(assert (not (and ${changesByAtMostOne})))`,
+    });
+  }
+
+  obligations.push({
+    name: "tree-move-right-never-grows-drawer",
+    body: [
+      declareState("s_"),
+      "(declare-const p_px Int)",
+      `(assert ${invariantConjunction("s_")})`,
+      `(assert ${firingCondition(treeMove, "s_")})`,
+      "(assert (>= p_px s_dragStartTree))",
+      definePostState(treeMove, "s_", "n_"),
+      "(assert (not (<= n_renderedDrawer s_dragStartDrawer)))",
+    ].join("\n"),
+  });
+  obligations.push({
+    name: "tree-move-right-shrinks-drawer-only-at-tree-maximum",
+    body: [
+      declareState("s_"),
+      "(declare-const p_px Int)",
+      `(assert ${invariantConjunction("s_")})`,
+      `(assert ${firingCondition(treeMove, "s_")})`,
+      "(assert (>= p_px s_dragStartTree))",
+      definePostState(treeMove, "s_", "n_"),
+      "(assert (not (=> (< n_renderedDrawer s_dragStartDrawer) (= n_renderedTree s_treeMax))))",
+    ].join("\n"),
+  });
+}
+
 /* --------------------------------- runner --------------------------------- */
 
 export function buildObligations(
@@ -393,6 +624,7 @@ export function buildObligations(
   emitEffectTheorems(obligations, rules, firingCondition);
   emitIdempotenceTheorems(obligations, rules, firingCondition);
   emitLipschitzTheorems(obligations);
+  emitGestureEntryContinuityTheorems(obligations, rules, firingCondition);
   return obligations;
 }
 

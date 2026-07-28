@@ -11,7 +11,10 @@ const FACTORY_TREE_WIDTH = 368;
 const FACTORY_MAIN_WIDTH = 960;
 const MINIMUM_DRAWER_WIDTH = 689;
 const MINIMUM_TREE_WIDTH = 48;
+const MINIMUM_EXPANDED_TREE_WIDTH = 240;
 const MINIMUM_MAIN_WIDTH = 640;
+const MAXIMUM_MAIN_WIDTH = 1200;
+const TRACE_TREE_TIMING_MINIMUM_WIDTH = 150;
 
 type DetailsPanelFixture = {
   childSpanNodeId: string;
@@ -462,15 +465,15 @@ test.describe("Details panel column behavior assertions", () => {
     });
   });
 
-  test("CC-2, TC-4, TC-5, TC-8, TC-9, and PS-7: one tree drag transitions from main shrinkage to drawer growth", async ({
+  test("CC-2, TC-4, TC-5, TC-8, TC-9, and PS-7: one tree drag shrinks the tree before handing leftward overflow to the drawer", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 2000, height: 900 });
     await page.goto(`/projects/${fixture.projectId}/traces/${fixture.traceId}`);
     await expectColumnWidths({
       page,
-      drawerWidth: FACTORY_DRAWER_WIDTH,
-      treeWidth: FACTORY_TREE_WIDTH,
+      drawerWidth: FACTORY_DRAWER_WIDTH + TRACE_TREE_TIMING_MINIMUM_WIDTH,
+      treeWidth: FACTORY_TREE_WIDTH + TRACE_TREE_TIMING_MINIMUM_WIDTH,
       mainWidth: FACTORY_MAIN_WIDTH,
     });
 
@@ -479,12 +482,23 @@ test.describe("Details panel column behavior assertions", () => {
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await expect(treeSeparator).toHaveAttribute("data-dragging", "true");
+    await page.mouse.move(start.x - 100, start.y);
+
+    await expectColumnWidths({
+      page,
+      drawerWidth: FACTORY_DRAWER_WIDTH + TRACE_TREE_TIMING_MINIMUM_WIDTH,
+      treeWidth: FACTORY_TREE_WIDTH + TRACE_TREE_TIMING_MINIMUM_WIDTH - 100,
+      mainWidth: FACTORY_MAIN_WIDTH + 100,
+    });
+    const beforeHandoffCenter = await getCenter(treeSeparator);
+    expect(Math.round(beforeHandoffCenter.x)).toBe(Math.round(start.x - 100));
+
     await page.mouse.move(start.x - 200, start.y);
 
     await expectColumnWidths({
       page,
-      drawerWidth: FACTORY_DRAWER_WIDTH,
-      treeWidth: 168,
+      drawerWidth: 1551,
+      treeWidth: MINIMUM_EXPANDED_TREE_WIDTH + TRACE_TREE_TIMING_MINIMUM_WIDTH,
       mainWidth: 1160,
     });
     const narrowSeparatorCenter = await getCenter(treeSeparator);
@@ -493,8 +507,8 @@ test.describe("Details panel column behavior assertions", () => {
     await page.mouse.move(start.x + 200, start.y);
     await expectColumnWidths({
       page,
-      drawerWidth: FACTORY_DRAWER_WIDTH,
-      treeWidth: 568,
+      drawerWidth: FACTORY_DRAWER_WIDTH + TRACE_TREE_TIMING_MINIMUM_WIDTH,
+      treeWidth: 718,
       mainWidth: 760,
     });
 
@@ -502,8 +516,8 @@ test.describe("Details panel column behavior assertions", () => {
 
     await expectColumnWidths({
       page,
-      drawerWidth: 1509,
-      treeWidth: 868,
+      drawerWidth: 1479,
+      treeWidth: 838,
       mainWidth: MINIMUM_MAIN_WIDTH,
     });
     expect(await getStoredPreferences(page)).toEqual({
@@ -516,18 +530,18 @@ test.describe("Details panel column behavior assertions", () => {
       .poll(() => getStoredPreferences(page))
       .toEqual({
         main: null,
-        tree: "868",
+        tree: "688",
       });
     await page.reload();
     await expectColumnWidths({
       page,
-      drawerWidth: 1829,
-      treeWidth: 868,
+      drawerWidth: 1799,
+      treeWidth: 838,
       mainWidth: FACTORY_MAIN_WIDTH,
     });
   });
 
-  test("TC-4 and TC-8: a tree drag grows the drawer immediately from the main minimum and cancellation restores it", async ({
+  test("TC-4 and TC-8: a rightward tree drag clamps at the main minimum", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 2000, height: 900 });
@@ -537,7 +551,9 @@ test.describe("Details panel column behavior assertions", () => {
       },
       [MAIN_PREFERENCE_KEY, String(MINIMUM_MAIN_WIDTH)]
     );
-    await page.goto(`/projects/${fixture.projectId}/traces/${fixture.traceId}`);
+    await page.goto(
+      `/projects/${fixture.projectId}/sessions/${encodeURIComponent(fixture.sessionId)}?sessionView=traces&selectedSpanNodeId=${encodeURIComponent(fixture.childSpanNodeId)}`
+    );
     await expectColumnWidths({
       page,
       drawerWidth: 1009,
@@ -552,8 +568,8 @@ test.describe("Details panel column behavior assertions", () => {
     await page.mouse.move(start.x + 200, start.y);
     await expectColumnWidths({
       page,
-      drawerWidth: 1209,
-      treeWidth: 568,
+      drawerWidth: 1009,
+      treeWidth: FACTORY_TREE_WIDTH,
       mainWidth: MINIMUM_MAIN_WIDTH,
     });
     await treeSeparator.dispatchEvent("pointercancel", {
@@ -583,15 +599,15 @@ test.describe("Details panel column behavior assertions", () => {
     await page.mouse.up();
     await expectColumnWidths({
       page,
-      drawerWidth: 1209,
-      treeWidth: 568,
+      drawerWidth: 1009,
+      treeWidth: FACTORY_TREE_WIDTH,
       mainWidth: MINIMUM_MAIN_WIDTH,
     });
     await expect
       .poll(() => getStoredPreferences(page))
       .toEqual({
         main: String(MINIMUM_MAIN_WIDTH),
-        tree: "568",
+        tree: null,
       });
   });
 
@@ -737,7 +753,7 @@ test.describe("Details panel column behavior assertions", () => {
     expect(mainDuringFocusOverlay).toEqual(mainBeforeOverlay);
   });
 
-  test("CC-5 and CC-6: a user-set main width above the factory maximum is restored", async ({
+  test("CC-5: the main panel and drawer stop at the same maximum width", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 2000, height: 900 });
@@ -760,24 +776,457 @@ test.describe("Details panel column behavior assertions", () => {
     await expectColumnWidths({
       page,
       drawerWidth: 1629,
-      treeWidth: FACTORY_TREE_WIDTH,
-      mainWidth: 1260,
+      treeWidth: 428,
+      mainWidth: MAXIMUM_MAIN_WIDTH,
     });
     await page.mouse.up();
 
     await expect
       .poll(() => getStoredPreferences(page))
       .toEqual({
-        main: "1260",
-        tree: null,
+        main: String(MAXIMUM_MAIN_WIDTH),
+        tree: "428",
       });
     await page.reload();
     await expectColumnWidths({
       page,
       drawerWidth: 1629,
-      treeWidth: FACTORY_TREE_WIDTH,
-      mainWidth: 1260,
+      treeWidth: 428,
+      mainWidth: MAXIMUM_MAIN_WIDTH,
     });
+  });
+
+  test("the expanded minimum tree edge grows the main column leftward in span and session details", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2000, height: 900 });
+    const cases = [
+      {
+        route: `/projects/${fixture.projectId}/spans/${fixture.traceId}?selectedSpanNodeId=${encodeURIComponent(fixture.childSpanNodeId)}`,
+        renderedTreeWidth:
+          MINIMUM_EXPANDED_TREE_WIDTH + TRACE_TREE_TIMING_MINIMUM_WIDTH,
+      },
+      {
+        route: `/projects/${fixture.projectId}/sessions/${encodeURIComponent(fixture.sessionId)}?sessionView=traces&selectedSpanNodeId=${encodeURIComponent(fixture.childSpanNodeId)}`,
+        renderedTreeWidth: MINIMUM_EXPANDED_TREE_WIDTH,
+      },
+    ];
+
+    for (const { route, renderedTreeWidth } of cases) {
+      await page.evaluate(
+        ([treePreferenceKey, mainPreferenceKey, treeWidth, mainWidth]) => {
+          localStorage.setItem(treePreferenceKey, treeWidth);
+          localStorage.setItem(mainPreferenceKey, mainWidth);
+        },
+        [
+          TREE_PREFERENCE_KEY,
+          MAIN_PREFERENCE_KEY,
+          String(MINIMUM_EXPANDED_TREE_WIDTH),
+          String(MINIMUM_MAIN_WIDTH),
+        ]
+      );
+      await page.goto(route);
+      await expectColumnWidths({
+        page,
+        drawerWidth: renderedTreeWidth + 1 + MINIMUM_MAIN_WIDTH,
+        treeWidth: renderedTreeWidth,
+        mainWidth: MINIMUM_MAIN_WIDTH,
+      });
+
+      const treeSeparator = page.getByTestId("details-panel-tree-separator");
+      const start = await getCenter(treeSeparator);
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await expect(treeSeparator).toHaveAttribute("data-dragging", "true");
+      await page.mouse.move(start.x - 800, start.y);
+
+      await expectColumnWidths({
+        page,
+        drawerWidth: renderedTreeWidth + 1 + MAXIMUM_MAIN_WIDTH,
+        treeWidth: renderedTreeWidth,
+        mainWidth: MAXIMUM_MAIN_WIDTH,
+      });
+      const movedSeparatorCenter = await getCenter(treeSeparator);
+      expect(Math.round(movedSeparatorCenter.x)).toBe(
+        Math.round(start.x - (MAXIMUM_MAIN_WIDTH - MINIMUM_MAIN_WIDTH))
+      );
+      await page.mouse.up();
+
+      await expect
+        .poll(() => getStoredPreferences(page))
+        .toEqual({
+          main: String(MAXIMUM_MAIN_WIDTH),
+          tree: String(MINIMUM_EXPANDED_TREE_WIDTH),
+        });
+
+      const releasedSeparator = page.getByTestId(
+        "details-panel-tree-separator"
+      );
+      const releasedStart = await getCenter(releasedSeparator);
+      await page.mouse.move(releasedStart.x, releasedStart.y);
+      await page.mouse.down();
+      await page.mouse.move(releasedStart.x + 200, releasedStart.y);
+      await expectColumnWidths({
+        page,
+        drawerWidth: renderedTreeWidth + 1 + MAXIMUM_MAIN_WIDTH,
+        treeWidth: renderedTreeWidth + 200,
+        mainWidth: MAXIMUM_MAIN_WIDTH - 200,
+      });
+      await releasedSeparator.dispatchEvent("pointercancel", {
+        bubbles: true,
+        cancelable: true,
+        isPrimary: true,
+        pointerId: 1,
+        pointerType: "mouse",
+      });
+      await page.mouse.up();
+      await expectColumnWidths({
+        page,
+        drawerWidth: renderedTreeWidth + 1 + MAXIMUM_MAIN_WIDTH,
+        treeWidth: renderedTreeWidth,
+        mainWidth: MAXIMUM_MAIN_WIDTH,
+      });
+
+      await page.reload();
+      await expectColumnWidths({
+        page,
+        drawerWidth: renderedTreeWidth + 1 + MAXIMUM_MAIN_WIDTH,
+        treeWidth: renderedTreeWidth,
+        mainWidth: MAXIMUM_MAIN_WIDTH,
+      });
+
+      const reloadedSeparator = page.getByTestId(
+        "details-panel-tree-separator"
+      );
+      const maximumMainStart = await getCenter(reloadedSeparator);
+      await page.mouse.move(maximumMainStart.x, maximumMainStart.y);
+      await page.mouse.down();
+      await page.mouse.move(maximumMainStart.x + 200, maximumMainStart.y);
+      await expectColumnWidths({
+        page,
+        drawerWidth: renderedTreeWidth + 1 + MAXIMUM_MAIN_WIDTH,
+        treeWidth: renderedTreeWidth + 200,
+        mainWidth: MAXIMUM_MAIN_WIDTH - 200,
+      });
+      const rightwardSeparatorCenter = await getCenter(reloadedSeparator);
+      expect(Math.round(rightwardSeparatorCenter.x)).toBe(
+        Math.round(maximumMainStart.x + 200)
+      );
+      await page.mouse.up();
+    }
+  });
+
+  test("rightward travel past the maximum tree width shrinks the main column to its minimum", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2600, height: 900 });
+    const cases = [
+      {
+        preferredTreeWidth: 970,
+        renderedTreeWidth: 1120,
+        route: `/projects/${fixture.projectId}/spans/${fixture.traceId}?selectedSpanNodeId=${encodeURIComponent(fixture.childSpanNodeId)}`,
+      },
+      {
+        preferredTreeWidth: 480,
+        renderedTreeWidth: 480,
+        route: `/projects/${fixture.projectId}/sessions/${encodeURIComponent(fixture.sessionId)}?sessionView=traces&selectedSpanNodeId=${encodeURIComponent(fixture.childSpanNodeId)}`,
+      },
+    ];
+
+    for (const { preferredTreeWidth, renderedTreeWidth, route } of cases) {
+      await page.evaluate(
+        ([treePreferenceKey, mainPreferenceKey, treeWidth, mainWidth]) => {
+          localStorage.setItem(treePreferenceKey, treeWidth);
+          localStorage.setItem(mainPreferenceKey, mainWidth);
+        },
+        [
+          TREE_PREFERENCE_KEY,
+          MAIN_PREFERENCE_KEY,
+          String(preferredTreeWidth),
+          String(MAXIMUM_MAIN_WIDTH),
+        ]
+      );
+      await page.goto(route);
+      await expectColumnWidths({
+        page,
+        drawerWidth: renderedTreeWidth + 1 + MAXIMUM_MAIN_WIDTH,
+        treeWidth: renderedTreeWidth,
+        mainWidth: MAXIMUM_MAIN_WIDTH,
+      });
+
+      const treeSeparator = page.getByTestId("details-panel-tree-separator");
+      const start = await getCenter(treeSeparator);
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(start.x + 200, start.y);
+      await expectColumnWidths({
+        page,
+        drawerWidth: renderedTreeWidth + 1 + MAXIMUM_MAIN_WIDTH - 200,
+        treeWidth: renderedTreeWidth,
+        mainWidth: MAXIMUM_MAIN_WIDTH - 200,
+      });
+      const movedSeparatorCenter = await getCenter(treeSeparator);
+      expect(Math.round(movedSeparatorCenter.x)).toBe(
+        Math.round(start.x + 200)
+      );
+
+      await page.mouse.move(start.x + 800, start.y);
+      await expectColumnWidths({
+        page,
+        drawerWidth: renderedTreeWidth + 1 + MINIMUM_MAIN_WIDTH,
+        treeWidth: renderedTreeWidth,
+        mainWidth: MINIMUM_MAIN_WIDTH,
+      });
+      await page.mouse.up();
+      await expect
+        .poll(() => getStoredPreferences(page))
+        .toEqual({
+          main: String(MINIMUM_MAIN_WIDTH),
+          tree: String(preferredTreeWidth),
+        });
+    }
+  });
+
+  test("the middle separator remains operable after a repeated clamped outer drag", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto(
+      `/projects/${fixture.projectId}/sessions/${encodeURIComponent(fixture.sessionId)}?sessionView=traces&selectedSpanNodeId=${encodeURIComponent(fixture.childSpanNodeId)}`
+    );
+    await expectColumnWidths({
+      page,
+      drawerWidth: FACTORY_DRAWER_WIDTH,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: FACTORY_MAIN_WIDTH,
+    });
+
+    const drawerSeparator = page.getByRole("separator", {
+      name: "Resize drawer",
+    });
+    const drawerStart = await getCenter(drawerSeparator);
+    await page.mouse.move(drawerStart.x, drawerStart.y);
+    await page.mouse.down();
+    await page.mouse.move(0, drawerStart.y);
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1520,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: 1151,
+    });
+
+    const treeSeparator = page.getByTestId("details-panel-tree-separator");
+    const treeStart = await getCenter(treeSeparator);
+    await page.mouse.move(treeStart.x, treeStart.y);
+    await page.mouse.down();
+    await page.mouse.move(0, treeStart.y);
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1520,
+      treeWidth: 319,
+      mainWidth: MAXIMUM_MAIN_WIDTH,
+    });
+
+    const maximumDrawerStart = await getCenter(drawerSeparator);
+    await page.mouse.move(maximumDrawerStart.x, maximumDrawerStart.y);
+    await page.mouse.down();
+    await page.mouse.move(0, maximumDrawerStart.y);
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1520,
+      treeWidth: 319,
+      mainWidth: MAXIMUM_MAIN_WIDTH,
+    });
+
+    const reverseStart = await getCenter(treeSeparator);
+    await page.mouse.move(reverseStart.x, reverseStart.y);
+    await page.mouse.down();
+    await page.mouse.move(reverseStart.x + 100, reverseStart.y);
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1520,
+      treeWidth: 419,
+      mainWidth: 1100,
+    });
+    const reversedSeparatorCenter = await getCenter(treeSeparator);
+    expect(Math.round(reversedSeparatorCenter.x)).toBe(
+      Math.round(reverseStart.x + 100)
+    );
+    await page.mouse.up();
+  });
+
+  test("a rightward middle drag stays clamped when both columns are minimum", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto(
+      `/projects/${fixture.projectId}/sessions/${encodeURIComponent(fixture.sessionId)}?sessionView=traces&selectedSpanNodeId=${encodeURIComponent(fixture.childSpanNodeId)}`
+    );
+    await expectColumnWidths({
+      page,
+      drawerWidth: FACTORY_DRAWER_WIDTH,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: FACTORY_MAIN_WIDTH,
+    });
+
+    const drawerSeparator = page.getByRole("separator", {
+      name: "Resize drawer",
+    });
+    const drawerStart = await getCenter(drawerSeparator);
+    await page.mouse.move(drawerStart.x, drawerStart.y);
+    await page.mouse.down();
+    await page.mouse.move(drawerStart.x + 1000, drawerStart.y);
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 881,
+      treeWidth: MINIMUM_EXPANDED_TREE_WIDTH,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+
+    const treeSeparator = page.getByTestId("details-panel-tree-separator");
+    const treeStart = await getCenter(treeSeparator);
+    await page.mouse.move(treeStart.x, treeStart.y);
+    await page.mouse.down();
+    await page.mouse.move(treeStart.x + 30, treeStart.y);
+    await expectColumnWidths({
+      page,
+      drawerWidth: 881,
+      treeWidth: MINIMUM_EXPANDED_TREE_WIDTH,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+    const clampedCenter = await getCenter(treeSeparator);
+    expect(Math.round(clampedCenter.x)).toBe(Math.round(treeStart.x));
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 881,
+      treeWidth: MINIMUM_EXPANDED_TREE_WIDTH,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+    await expect
+      .poll(() => getStoredPreferences(page))
+      .toEqual({
+        main: String(MINIMUM_MAIN_WIDTH),
+        tree: null,
+      });
+  });
+
+  test("a new outer drag stays continuous after minimum tree overflow", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto(
+      `/projects/${fixture.projectId}/sessions/${encodeURIComponent(fixture.sessionId)}?sessionView=traces&selectedSpanNodeId=${encodeURIComponent(fixture.childSpanNodeId)}`
+    );
+    await expectColumnWidths({
+      page,
+      drawerWidth: FACTORY_DRAWER_WIDTH,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: FACTORY_MAIN_WIDTH,
+    });
+
+    const drawerSeparator = page.getByRole("separator", {
+      name: "Resize drawer",
+    });
+    const factoryDrawerStart = await getCenter(drawerSeparator);
+    await page.mouse.move(factoryDrawerStart.x, factoryDrawerStart.y);
+    await page.mouse.down();
+    await page.mouse.move(factoryDrawerStart.x + 1000, factoryDrawerStart.y);
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 881,
+      treeWidth: MINIMUM_EXPANDED_TREE_WIDTH,
+      mainWidth: MINIMUM_MAIN_WIDTH,
+    });
+
+    const treeSeparator = page.getByTestId("details-panel-tree-separator");
+    const minimumTreeStart = await getCenter(treeSeparator);
+    await page.mouse.move(minimumTreeStart.x, minimumTreeStart.y);
+    await page.mouse.down();
+    await page.mouse.move(0, minimumTreeStart.y);
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1441,
+      treeWidth: MINIMUM_EXPANDED_TREE_WIDTH,
+      mainWidth: MAXIMUM_MAIN_WIDTH,
+    });
+    await expect
+      .poll(() => getStoredPreferences(page))
+      .toEqual({
+        main: String(MAXIMUM_MAIN_WIDTH),
+        tree: String(MINIMUM_EXPANDED_TREE_WIDTH),
+      });
+
+    const overflowDrawerStart = await getCenter(drawerSeparator);
+    await page.mouse.move(overflowDrawerStart.x, overflowDrawerStart.y);
+    await page.mouse.down();
+    await page.mouse.move(overflowDrawerStart.x + 20, overflowDrawerStart.y);
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1421,
+      treeWidth: MINIMUM_EXPANDED_TREE_WIDTH,
+      mainWidth: 1180,
+    });
+    const movedDrawerCenter = await getCenter(drawerSeparator);
+    expect(Math.round(movedDrawerCenter.x)).toBe(
+      Math.round(overflowDrawerStart.x + 20)
+    );
+    await page.mouse.up();
+  });
+
+  test("the outer separator reclaims left-column capacity after the middle separator reaches minimum", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 2000, height: 900 });
+    await page.goto(
+      `/projects/${fixture.projectId}/sessions/${encodeURIComponent(fixture.sessionId)}?sessionView=traces&selectedSpanNodeId=${encodeURIComponent(fixture.childSpanNodeId)}`
+    );
+    await expectColumnWidths({
+      page,
+      drawerWidth: FACTORY_DRAWER_WIDTH,
+      treeWidth: FACTORY_TREE_WIDTH,
+      mainWidth: FACTORY_MAIN_WIDTH,
+    });
+
+    const treeSeparator = page.getByTestId("details-panel-tree-separator");
+    const treeStart = await getCenter(treeSeparator);
+    await page.mouse.move(treeStart.x, treeStart.y);
+    await page.mouse.down();
+    await page.mouse.move(0, treeStart.y);
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1441,
+      treeWidth: MINIMUM_EXPANDED_TREE_WIDTH,
+      mainWidth: MAXIMUM_MAIN_WIDTH,
+    });
+
+    const drawerSeparator = page.getByRole("separator", {
+      name: "Resize drawer",
+    });
+    const drawerStart = await getCenter(drawerSeparator);
+    await page.mouse.move(drawerStart.x, drawerStart.y);
+    await page.mouse.down();
+    await page.mouse.move(0, drawerStart.y);
+    await page.mouse.up();
+    await expectColumnWidths({
+      page,
+      drawerWidth: 1681,
+      treeWidth: 480,
+      mainWidth: MAXIMUM_MAIN_WIDTH,
+    });
+    await expect
+      .poll(() => getStoredPreferences(page))
+      .toEqual({
+        main: String(MAXIMUM_MAIN_WIDTH),
+        tree: "480",
+      });
   });
 
   test("XS-1: trace, selected-span, and session products share the same column sizing", async ({

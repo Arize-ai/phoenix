@@ -14,11 +14,13 @@ import type { SizingEvent, SizingState, TransitionRule } from "../machine";
 import {
   BOOL_FIELDS,
   createInitialState,
-  DRAWER_MIN,
   INT_FIELDS,
+  MAIN_MAX,
   MAIN_MIN,
   RULES,
   SEPARATOR,
+  TREE_COLLAPSED,
+  TREE_MIN,
 } from "../machine";
 import { transition } from "../transition";
 
@@ -42,10 +44,14 @@ export const SWEEP_EVENTS: readonly SizingEvent[] = [
   { type: "TREE_START" },
   { type: "TREE_END" },
   { type: "TREE_CANCEL" },
+  { type: "TREE_COLLAPSE" },
+  { type: "TREE_EXPAND" },
   ...DRAWER_PARAMS.map((px): SizingEvent => ({ type: "OUTER_MOVE", px })),
   ...DRAWER_PARAMS.map((px): SizingEvent => ({ type: "OUTER_END", px })),
   ...TREE_PARAMS.map((px): SizingEvent => ({ type: "TREE_MOVE", px })),
   ...TREE_PREF_PARAMS.map((px): SizingEvent => ({ type: "TREE_PREF_SET", px })),
+  { type: "TREE_ADDON_SET", px: 0 },
+  { type: "TREE_ADDON_SET", px: 150 },
   ...VIEWPORT_PARAMS.map((px): SizingEvent => ({ type: "VIEWPORT", px })),
   ...ALLOCATION_PARAMS.map((px): SizingEvent => ({ type: "ALLOCATION", px })),
 ];
@@ -64,9 +70,7 @@ export const DEPTH_BOUND = 10;
 const STATE_CAP = 1_500_000;
 
 export const stateKey = (state: SizingState): string =>
-  `${state.open ? 1 : 0}|${state.moved ? 1 : 0}|${INT_FIELDS.map(
-    (field) => state[field]
-  ).join("|")}`;
+  `${BOOL_FIELDS.map((field) => (state[field] ? 1 : 0)).join("|")}|${INT_FIELDS.map((field) => state[field]).join("|")}`;
 
 const environmentFor = (state: SizingState): Environment => {
   const ints: Record<string, number> = {};
@@ -79,9 +83,70 @@ const environmentFor = (state: SizingState): Environment => {
 const statesEqual = (a: SizingState, b: SizingState): boolean =>
   stateKey(a) === stateKey(b);
 
-const clampDrawer = (width: number, viewport: number): number => {
-  const maxDrawer = Math.max(DRAWER_MIN, Math.floor((viewport * 95) / 100));
-  return Math.max(DRAWER_MIN, Math.min(width, maxDrawer));
+const getMinimumDrawer = ({
+  collapsed,
+  treeAddon,
+}: Pick<SizingState, "collapsed" | "treeAddon">): number =>
+  MAIN_MIN + SEPARATOR + (collapsed ? TREE_COLLAPSED : TREE_MIN + treeAddon);
+
+const getMaximumTree = ({
+  collapsed,
+  treeMax,
+}: Pick<SizingState, "collapsed" | "treeMax">): number =>
+  collapsed ? TREE_COLLAPSED : treeMax;
+
+const getPreferredTree = ({
+  collapsed,
+  prefTree,
+  treeAddon,
+  treeMax,
+}: Pick<
+  SizingState,
+  "collapsed" | "prefTree" | "treeAddon" | "treeMax"
+>): number =>
+  collapsed
+    ? TREE_COLLAPSED
+    : Math.min(prefTree + treeAddon, getMaximumTree({ collapsed, treeMax }));
+
+const getCanonicalTree = (state: SizingState): number => {
+  if (state.collapsed) return TREE_COLLAPSED;
+  const minimumTree = TREE_MIN + state.treeAddon;
+  const maximumTree = getMaximumTree(state);
+  const availableAtMainMinimum = state.renderedDrawer - SEPARATOR - MAIN_MIN;
+  const treeBeyondMainMaximum = state.renderedDrawer - SEPARATOR - MAIN_MAX;
+  return Math.min(
+    maximumTree,
+    Math.max(
+      minimumTree,
+      Math.max(
+        Math.min(getPreferredTree(state), availableAtMainMinimum),
+        treeBeyondMainMaximum
+      )
+    )
+  );
+};
+
+const clampDrawer = ({
+  collapsed,
+  treeAddon,
+  treeMax,
+  viewport,
+  width,
+}: Pick<
+  SizingState,
+  "collapsed" | "prefTree" | "treeAddon" | "treeMax" | "viewport"
+> & {
+  width: number;
+}): number => {
+  const minimumDrawer = getMinimumDrawer({ collapsed, treeAddon });
+  const maximumDrawer = Math.max(
+    minimumDrawer,
+    Math.min(
+      Math.floor((viewport * 95) / 100),
+      getMaximumTree({ collapsed, treeMax }) + SEPARATOR + MAIN_MAX
+    )
+  );
+  return Math.max(minimumDrawer, Math.min(width, maximumDrawer));
 };
 
 interface Edge {
@@ -101,21 +166,55 @@ function checkEdge(edge: Edge, rules: readonly TransitionRule[]): void {
 
   // preferenceFrame (TC-4, CP-3, PS-4, NR-7)
   if (post.prefTree !== pre.prefTree) {
-    if (event.type !== "TREE_END" && event.type !== "TREE_PREF_SET") {
+    if (
+      event.type !== "OUTER_END" &&
+      event.type !== "TREE_END" &&
+      event.type !== "TREE_PREF_SET"
+    ) {
       throw new Error(`prefTree changed by ${describeEdge(edge)}`);
     }
   }
-  if (post.prefMain !== pre.prefMain && event.type !== "OUTER_END") {
+
+  if (event.type === "OUTER_END" && post.prefTree !== pre.prefTree) {
+    if (
+      post.renderedTree <= getPreferredTree(pre) ||
+      post.prefTree !== post.renderedTree - pre.treeAddon
+    ) {
+      throw new Error(
+        `outer tree commit width mismatch: ${describeEdge(edge)}`
+      );
+    }
+  }
+  if (
+    post.prefMain !== pre.prefMain &&
+    event.type !== "OUTER_END" &&
+    event.type !== "TREE_END"
+  ) {
     throw new Error(`prefMain changed by ${describeEdge(edge)}`);
   }
 
   // deliberateTreeCommit (TC-4, TC-5)
   if (event.type === "TREE_END" && post.prefTree !== pre.prefTree) {
-    if (!pre.moved || pre.renderedTree === pre.dragStartTree) {
+    if (!pre.moved || pre.renderedTree === getCanonicalTree(pre)) {
       throw new Error(`non-deliberate tree commit: ${describeEdge(edge)}`);
     }
-    if (post.prefTree !== post.renderedTree) {
+    if (post.prefTree !== post.renderedTree - pre.treeAddon) {
       throw new Error(`tree commit width mismatch: ${describeEdge(edge)}`);
+    }
+  }
+
+  if (event.type === "TREE_END" && post.prefMain !== pre.prefMain) {
+    if (
+      !pre.moved ||
+      (pre.renderedTree !== pre.dragStartTree &&
+        (pre.renderedTree !== TREE_MIN + pre.treeAddon ||
+          pre.renderedDrawer <= pre.dragStartDrawer)) ||
+      pre.renderedMain === pre.dragStartMain
+    ) {
+      throw new Error(`non-deliberate tree main commit: ${describeEdge(edge)}`);
+    }
+    if (post.prefMain !== post.renderedMain) {
+      throw new Error(`tree main commit width mismatch: ${describeEdge(edge)}`);
     }
   }
 
@@ -126,7 +225,10 @@ function checkEdge(edge: Edge, rules: readonly TransitionRule[]): void {
     }
     const expected = Math.max(
       MAIN_MIN,
-      post.renderedDrawer - pre.prefTree - SEPARATOR
+      Math.min(
+        MAIN_MAX,
+        post.renderedDrawer - getPreferredTree(pre) - SEPARATOR
+      )
     );
     if (post.prefMain !== expected) {
       throw new Error(`DW-3 formula violated: ${describeEdge(edge)}`);
@@ -135,13 +237,83 @@ function checkEdge(edge: Edge, rules: readonly TransitionRule[]): void {
 
   // reopenDerivesFromPreferences (DW-1, PS-1, PS-3 — the reported defect)
   if (event.type === "OPEN" && !pre.open) {
-    const derived = clampDrawer(
-      pre.prefTree + SEPARATOR + pre.prefMain,
-      pre.viewport
-    );
+    const preferredTree = getPreferredTree(pre);
+    const derived = clampDrawer({
+      collapsed: pre.collapsed,
+      prefTree: pre.prefTree,
+      treeAddon: pre.treeAddon,
+      treeMax: pre.treeMax,
+      viewport: pre.viewport,
+      width: preferredTree + SEPARATOR + pre.prefMain,
+    });
     if (post.renderedDrawer !== derived) {
       throw new Error(`reopen width not derived: ${describeEdge(edge)}`);
     }
+  }
+
+  // EC-1: only explicit button events may change compact mode.
+  if (
+    post.collapsed !== pre.collapsed &&
+    event.type !== "TREE_COLLAPSE" &&
+    event.type !== "TREE_EXPAND"
+  ) {
+    throw new Error(`compact mode changed by ${describeEdge(edge)}`);
+  }
+
+  // CG-1/CG-2: collapse changes only tree/drawer effective geometry.
+  if (event.type === "TREE_COLLAPSE" && post.collapsed !== pre.collapsed) {
+    if (
+      post.renderedTree !== TREE_COLLAPSED ||
+      post.renderedMain !== pre.renderedMain ||
+      post.renderedDrawer !== TREE_COLLAPSED + SEPARATOR + pre.renderedMain ||
+      post.prefTree !== pre.prefTree ||
+      post.prefMain !== pre.prefMain
+    ) {
+      throw new Error(`collapse geometry violated: ${describeEdge(edge)}`);
+    }
+  }
+
+  // Expansion clears compact mode and may consume main slack down to its floor.
+  if (event.type === "TREE_EXPAND" && post.collapsed !== pre.collapsed) {
+    if (
+      post.renderedMain > pre.renderedMain ||
+      post.renderedTree < TREE_MIN + pre.treeAddon ||
+      post.renderedTree > getMaximumTree(post) ||
+      post.renderedDrawer !==
+        post.renderedTree + SEPARATOR + post.renderedMain ||
+      post.prefTree !== pre.prefTree ||
+      post.prefMain !== pre.prefMain
+    ) {
+      throw new Error(`expand geometry violated: ${describeEdge(edge)}`);
+    }
+  }
+
+  // AT-3/AT-7: timing never mutates navigation preference or compact geometry.
+  if (event.type === "TREE_ADDON_SET") {
+    const expectedTreeAddon = Math.min(
+      pre.treeMax - TREE_MIN,
+      Math.max(0, event.px)
+    );
+    if (pre.gesture === 0 && post.treeAddon !== expectedTreeAddon) {
+      throw new Error(`timing add-on did not update: ${describeEdge(edge)}`);
+    }
+    if (post.prefTree !== pre.prefTree) {
+      throw new Error(
+        `timing changed navigation preference: ${describeEdge(edge)}`
+      );
+    }
+    if (
+      pre.collapsed &&
+      (post.renderedTree !== pre.renderedTree ||
+        post.renderedMain !== pre.renderedMain ||
+        post.renderedDrawer !== pre.renderedDrawer)
+    ) {
+      throw new Error(`timing changed compact geometry: ${describeEdge(edge)}`);
+    }
+  }
+
+  if (post.treeMax !== pre.treeMax && event.type !== "TREE_MAX_SET") {
+    throw new Error(`treeMax changed by ${describeEdge(edge)}`);
   }
 
   // persistMatchesState (PS-7, DW-2) + effect sanctioning
@@ -154,14 +326,20 @@ function checkEdge(edge: Edge, rules: readonly TransitionRule[]): void {
     }
     if (effect.kind === "persistTree") {
       const deliberateTreeRelease =
-        event.type === "TREE_END" &&
-        pre.moved &&
-        pre.renderedTree !== pre.dragStartTree;
+        (event.type === "TREE_END" &&
+          pre.moved &&
+          pre.renderedTree !== getCanonicalTree(pre)) ||
+        (event.type === "OUTER_END" &&
+          post.renderedTree > getPreferredTree(pre));
       if (!deliberateTreeRelease && event.type !== "TREE_PREF_SET") {
         throw new Error(`non-deliberate persistTree: ${describeEdge(edge)}`);
       }
     }
-    if (effect.kind === "persistMain" && event.type !== "OUTER_END") {
+    if (
+      effect.kind === "persistMain" &&
+      event.type !== "OUTER_END" &&
+      event.type !== "TREE_END"
+    ) {
       throw new Error(`non-deliberate persistMain: ${describeEdge(edge)}`);
     }
   }

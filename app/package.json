@@ -37,7 +37,8 @@
     "test:e2e:pxi": "PXI_E2E=true PHOENIX_PORT=16006 PHOENIX_GRPC_PORT=14317 playwright test tests/pxi --project=chromium --reporter=list",
     "test:e2e:ui": "playwright test --ui",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:details-panel": "vitest run src/pages/trace/detailsPanelSizing && tsx src/pages/trace/detailsPanelSizing/verify/prove.ts && tsx src/pages/trace/detailsPanelSizing/verify/mutation.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.34",
