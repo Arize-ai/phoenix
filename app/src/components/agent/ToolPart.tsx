@@ -46,10 +46,6 @@ import {
 import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import {
-  parseSetSessionsFilterInput,
-  SET_SESSIONS_FILTER_TOOL_NAME,
-} from "@phoenix/agent/tools/sessionsFilter";
-import {
   parseSetSpansFilterInput,
   SET_SPANS_FILTER_TOOL_NAME,
 } from "@phoenix/agent/tools/spansFilter";
@@ -1024,15 +1020,6 @@ function getSetSpansFilterToolPreview(part: ToolInvocationPart): string {
   return parsed.condition.trim() || "All spans";
 }
 
-function getSetSessionsFilterToolPreview(part: ToolInvocationPart): string {
-  const parsed = parseSetSessionsFilterInput(part.input);
-  if (!parsed) {
-    return "";
-  }
-  const condition = parsed.condition.trim();
-  return condition || "Clear sessions filter";
-}
-
 function getToolPresentation(
   toolName: string,
   part: ToolInvocationPart
@@ -1256,13 +1243,6 @@ function getToolPresentation(
     case SET_SPANS_FILTER_TOOL_NAME:
       return {
         preview: getSetSpansFilterToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <GenericToolDetails part={part} />,
-      };
-    case SET_SESSIONS_FILTER_TOOL_NAME:
-      return {
-        preview: getSetSessionsFilterToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <GenericToolDetails part={part} />,
