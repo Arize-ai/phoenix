@@ -15,11 +15,10 @@ import json
 from pathlib import Path
 from unittest import mock
 
-from phoenix.client.__generated__ import v1
-
 from evals.pxi.online_evals.conversation import segment_turns, transcript
 from evals.pxi.online_evals.evaluators import user_friction
 from evals.pxi.online_evals.evaluators.tool_count_per_turn import evaluate_tool_count_per_turn
+from phoenix.client.__generated__ import v1
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "pxi_turn_trace.json"
 
@@ -52,6 +51,8 @@ def test_tool_count_per_turn_on_real_trace() -> None:
         "add_spans_to_dataset",
         "get_route_info",
     ]
+    assert result.metadata["nested_tool_count"] == 0
+    assert result.explanation == "8 tool calls in this turn"
 
 
 def test_transcript_reconstruction_on_real_trace() -> None:
