@@ -77,7 +77,8 @@ class CallSubAgentToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
                 final_summary = result.output
 
             event_stream = VercelAIEventStream(
-                run_input=_get_dummy_request_data(tool_call_id=tool_call_id, task=task)
+                run_input=_get_dummy_request_data(tool_call_id=tool_call_id, task=task),
+                sdk_version=7,
             )
             async with server_agent.run_stream_events(
                 task,

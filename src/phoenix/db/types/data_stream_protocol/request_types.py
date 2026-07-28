@@ -1,4 +1,5 @@
-# Vendored from pydantic-ai v2.9.0: https://github.com/pydantic/pydantic-ai
+# Vendored from pydantic-ai v2.17.0:
+# https://github.com/pydantic/pydantic-ai/tree/v2.17.0/pydantic_ai_slim/pydantic_ai/ui/vercel_ai
 # Copyright (c) Pydantic Services Inc. 2024 to present
 # SPDX-License-Identifier: MIT
 

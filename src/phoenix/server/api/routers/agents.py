@@ -2005,10 +2005,9 @@ def create_agents_router(
                 if chunk is None:
                     yield b": keep-alive\n\n"
                 else:
-                    # sdk_version 5 matches the POST /chat stream's encoding
-                    # (the VercelAIAdapter default) so both streams are
-                    # byte-identical for the same chunk.
-                    yield f"data: {chunk.encode(5)}\n\n".encode()
+                    # sdk_version 7 matches the POST /chat stream's adapters
+                    # so both streams are byte-identical for the same chunk.
+                    yield f"data: {chunk.encode(7)}\n\n".encode()
 
         return StreamingResponse(
             encoded_events(),
@@ -2293,6 +2292,7 @@ def create_agents_router(
                 agent=server_agent,
                 run_input=_to_pydantic_ai_request_data(body, messages=model_transcript_messages),
                 accept=accept_header,
+                sdk_version=7,
                 server_message_id=server_message_id,
             )
 
@@ -2393,6 +2393,7 @@ def create_agents_router(
                 agent=agent,
                 run_input=_to_pydantic_ai_request_data(body, messages=model_transcript_messages),
                 accept=accept_header,
+                sdk_version=7,
                 server_message_id=server_message_id,
             )
             deps = AgentDependencies(
