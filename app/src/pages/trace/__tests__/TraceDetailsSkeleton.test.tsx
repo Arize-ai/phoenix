@@ -68,7 +68,7 @@ describe("SpanHeaderSkeleton", () => {
     expect(
       container.querySelector('button[aria-label="Copy Span ID span-id"]')
     ).not.toBeNull();
-    expect(container.querySelectorAll(".skeleton")).toHaveLength(1);
+    expect(container.querySelectorAll(".skeleton")).toHaveLength(0);
     expect(
       container.querySelector('[aria-label="Prompt Playground"]')?.dataset
         .disabled

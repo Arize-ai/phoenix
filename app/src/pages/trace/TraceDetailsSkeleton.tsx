@@ -354,9 +354,6 @@ export function SpanHeaderSkeleton({
               <Skeleton width={64} height={16} animation="wave" />
             </SpanHeaderMetaItem>
           )}
-          <SpanHeaderMetaItem>
-            <Skeleton width={64} height={16} animation="wave" />
-          </SpanHeaderMetaItem>
         </SpanHeaderMetaRow>
       </Flex>
     </View>
