@@ -55,6 +55,7 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { DetailsPanel } from "./DetailsPanel";
+import type { SessionNavigationHeaderRenderer } from "./SessionDetails";
 import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
 
 export const sessionDetailsTraceListQuery = graphql`
@@ -557,13 +558,13 @@ export function SessionDetailsTraceList({
   queryRef,
   preferredTreeWidth,
   onPreferredTreeWidthChange,
-  navigationHeader,
+  renderNavigationHeader,
   renderMainContent,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
-  navigationHeader: ReactNode;
+  renderNavigationHeader: SessionNavigationHeaderRenderer;
   renderMainContent: (content: ReactNode) => ReactNode;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
@@ -793,7 +794,7 @@ export function SessionDetailsTraceList({
       treeMaximumWidth={getTraceTreeMaximumWidth({ hasTiming: false })}
       navigation={
         <>
-          {navigationHeader}
+          {renderNavigationHeader()}
           {turnListPanel}
         </>
       }

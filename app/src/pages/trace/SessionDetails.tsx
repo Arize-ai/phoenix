@@ -13,6 +13,8 @@ import { useSearchParams } from "react-router";
 
 import { Loading } from "@phoenix/components";
 import { SessionDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
+import { ExpandCollapseAllButton } from "@phoenix/components/trace/ExpandCollapseAllButton";
+import { TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS } from "@phoenix/constants";
 import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
@@ -37,7 +39,32 @@ export type SessionDetailsProps = {
   navigationHeader: ReactNode;
 };
 
+export type SessionNavigationHeaderRenderer = (options?: {
+  isAllCollapsed: boolean;
+  onAllCollapsedChange: (isCollapsed: boolean) => void;
+}) => ReactNode;
+
 const DEFAULT_SESSION_VIEW: SessionView = "turns";
+
+const sessionNavigationControlsCSS = css`
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  width: 100%;
+  padding: var(--global-dimension-size-100);
+  border-bottom: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+
+  .session-navigation-controls__expand-collapse-all {
+    width: var(--global-button-height-s);
+    padding: 0 !important;
+  }
+
+  @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
+    display: none;
+  }
+`;
 
 function SessionDetailsMainContent({
   children,
@@ -192,9 +219,22 @@ export function SessionDetails({
       {content}
     </SessionDetailsMainContent>
   );
-  const combinedNavigationHeader = (
+  const renderNavigationHeader: SessionNavigationHeaderRenderer = (options) => (
     <>
       {navigationHeader}
+      {options ? (
+        <div
+          className="session-navigation-controls"
+          css={sessionNavigationControlsCSS}
+        >
+          <ExpandCollapseAllButton
+            className="session-navigation-controls__expand-collapse-all"
+            contentLabel="traces"
+            isCollapsed={options.isAllCollapsed}
+            onCollapsedChange={options.onAllCollapsedChange}
+          />
+        </div>
+      ) : null}
       <SessionViewControl
         sessionView={sessionView}
         onSessionViewChange={handleSessionViewChange}
@@ -220,7 +260,7 @@ export function SessionDetails({
                 queryRef={tracesViewQueryRef}
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                navigationHeader={combinedNavigationHeader}
+                renderNavigationHeader={renderNavigationHeader}
                 renderMainContent={renderMainContent}
               />
             )
@@ -229,7 +269,7 @@ export function SessionDetails({
                 queryRef={traceListQueryRef}
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                navigationHeader={combinedNavigationHeader}
+                renderNavigationHeader={renderNavigationHeader}
                 renderMainContent={renderMainContent}
               />
             )}

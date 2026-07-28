@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import { throttle } from "lodash";
 import {
   type ReactNode,
+  startTransition,
   Suspense,
   useCallback,
   useEffect,
@@ -54,6 +55,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { DetailsPanel } from "./DetailsPanel";
+import type { SessionNavigationHeaderRenderer } from "./SessionDetails";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 
@@ -97,13 +99,13 @@ export function SessionDetailsTracesView({
   queryRef,
   preferredTreeWidth,
   onPreferredTreeWidthChange,
-  navigationHeader,
+  renderNavigationHeader,
   renderMainContent,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTracesViewQuery>;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
-  navigationHeader: ReactNode;
+  renderNavigationHeader: SessionNavigationHeaderRenderer;
   renderMainContent: (content: ReactNode) => ReactNode;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTracesViewQuery>(
@@ -182,6 +184,16 @@ export function SessionDetailsTracesView({
         next.add(id);
       }
       return next;
+    });
+  };
+
+  const areAllTraceRowsExpanded =
+    traces.length > 0 && traces.every((trace) => expandedIds.has(trace.id));
+  const handleAllTraceRowsCollapsedChange = (isCollapsed: boolean) => {
+    startTransition(() => {
+      setExpandedIds(
+        isCollapsed ? new Set() : new Set(traces.map((trace) => trace.id))
+      );
     });
   };
 
@@ -270,7 +282,10 @@ export function SessionDetailsTracesView({
       treeMaximumWidth={getTraceTreeMaximumWidth({ hasTiming: false })}
       navigation={
         <>
-          {navigationHeader}
+          {renderNavigationHeader({
+            isAllCollapsed: !areAllTraceRowsExpanded,
+            onAllCollapsedChange: handleAllTraceRowsCollapsedChange,
+          })}
           <TraceRowList
             traces={traces}
             expandedIds={expandedIds}
@@ -636,6 +651,7 @@ function LazyTraceTree({
     <TraceTreeProvider>
       <ConnectedTraceTree
         trace={trace}
+        isChildTruncationEnabled
         selectedSpanNodeId={selectedSpanNodeId ?? ""}
         scrollSelectedSpanIntoView={false}
         onSpanClick={(span) => onSpanClick({ traceId, spanNodeId: span.id })}
@@ -694,10 +710,9 @@ const chevronCSS = css`
 `;
 
 const traceTreeContainerCSS = css`
-  max-height: 500px;
-  overflow: auto;
   border-top: 1px solid var(--global-border-color-default);
   background: var(--global-color-gray-75);
+  --trace-tree-show-more-background-color: var(--global-color-gray-75);
 
   /* The tree renders inside a trace row that is itself selected, so tone the
    * span selection down a step — the strong list-item selection color stays

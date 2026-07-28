@@ -12,6 +12,7 @@ import {
   Icons,
   Text,
 } from "@phoenix/components";
+import { expandableContentExpandButtonCSS } from "@phoenix/components/core/content/ExpandableContent";
 import { IDBadge } from "@phoenix/components/core/id";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
@@ -32,6 +33,11 @@ import { createSpanTree, filterSpanTree } from "./utils";
 
 export type TraceTreeProps = {
   spans: ISpanItem[];
+  /**
+   * Whether large child lists use Show more and Show less disclosure rows.
+   * @default false
+   */
+  isChildTruncationEnabled?: boolean;
   session?: {
     sessionId: string;
     to: To;
@@ -52,6 +58,10 @@ const pendingSpanNavigationFrames = new WeakMap<
   Element,
   { first: number; second?: number }
 >();
+
+const SHALLOW_CHILD_LIMIT = 12;
+const DEEP_CHILD_LIMIT = 8;
+const SHOW_MORE_NODE_STATUS_CODE: SpanStatusCodeType = "UNSET";
 
 function beginOptimisticSpanNavigation({
   onNavigate,
@@ -130,9 +140,42 @@ function beginOptimisticSpanNavigation({
   pendingSpanNavigationFrames.set(tree, nextFrames);
 }
 
+/**
+ * Builds the selected span's root-to-leaf path for keeping deep links visible
+ * even when one of their sibling lists is truncated.
+ *
+ * @param params - Selected span path inputs.
+ * @param params.spans - Flat spans rendered by the tree.
+ * @param params.selectedSpanNodeId - Relay node id for the selected span.
+ */
+function getSelectedSpanPathNodeIds<TSpan extends ISpanItem>({
+  spans,
+  selectedSpanNodeId,
+}: {
+  spans: TSpan[];
+  selectedSpanNodeId: string;
+}) {
+  const spansBySpanId = new Map(
+    spans.map((span) => [span.spanId, span] as const)
+  );
+  const selectedSpan = spans.find((span) => span.id === selectedSpanNodeId);
+  const selectedPathNodeIds = new Set<string>();
+  let currentSpan = selectedSpan;
+
+  while (currentSpan && !selectedPathNodeIds.has(currentSpan.id)) {
+    selectedPathNodeIds.add(currentSpan.id);
+    currentSpan = currentSpan.parentId
+      ? spansBySpanId.get(currentSpan.parentId)
+      : undefined;
+  }
+
+  return selectedPathNodeIds;
+}
+
 export function TraceTree(props: TraceTreeProps) {
   const {
     spans,
+    isChildTruncationEnabled = false,
     session,
     traceSelection,
     onSpanClick,
@@ -142,6 +185,10 @@ export function TraceTree(props: TraceTreeProps) {
   const { searchQuery } = useTraceTree();
   const spanTree = createSpanTree(spans);
   const filteredSpanTree = filterSpanTree(spanTree, searchQuery);
+  const selectedSpanPathNodeIds = getSelectedSpanPathNodeIds({
+    spans,
+    selectedSpanNodeId,
+  });
   const rootSpan = spanTree[0]?.span;
   const hasSearchQuery = searchQuery.length > 0;
   const noSearchResults = hasSearchQuery && filteredSpanTree.length === 0;
@@ -198,7 +245,9 @@ export function TraceTree(props: TraceTreeProps) {
             overallTimeRange={overallTimeRange}
             onSpanClick={onSpanClick}
             selectedSpanNodeId={selectedSpanNodeId}
+            selectedSpanPathNodeIds={selectedSpanPathNodeIds}
             scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
+            isChildTruncationEnabled={isChildTruncationEnabled}
           />
         ))}
       </ul>
@@ -347,9 +396,159 @@ const spanNameCSS = css`
   text-overflow: ellipsis;
 `;
 
+type ShowMoreTreeNode = {
+  id: string;
+  type: "show-more";
+};
+
+type ShowLessTreeNode = {
+  id: "show-less";
+  type: "show-less";
+};
+
+type SpanTreeRenderNode<TSpan> =
+  | {
+      type: "span";
+      node: SpanTreeNode<TSpan>;
+    }
+  | ShowMoreTreeNode
+  | ShowLessTreeNode;
+
+/**
+ * Returns the number of rows shown before a child list is truncated.
+ *
+ * @param params - Depth and limit configuration.
+ * @param params.childNestingLevel - Zero-based nesting level of the child rows.
+ * @param params.shallowChildLimit - Limit for child levels one and two.
+ * @param params.deepChildLimit - Limit for child levels three and deeper.
+ */
+function getChildLimit({
+  childNestingLevel,
+  shallowChildLimit = SHALLOW_CHILD_LIMIT,
+  deepChildLimit = DEEP_CHILD_LIMIT,
+}: {
+  childNestingLevel: number;
+  shallowChildLimit?: number;
+  deepChildLimit?: number;
+}) {
+  return childNestingLevel <= 1 ? shallowChildLimit : deepChildLimit;
+}
+
+function buildSpanRenderNodes<TSpan>({
+  nodes,
+}: {
+  nodes: SpanTreeNode<TSpan>[];
+}): SpanTreeRenderNode<TSpan>[] {
+  return nodes.map((node) => ({ type: "span", node }));
+}
+
+/**
+ * Builds a synthetic row for one omitted range.
+ *
+ * @param params - Omitted range inputs.
+ * @param params.id - Stable position id within the parent list.
+ * @param params.nodes - Direct children represented by the row.
+ */
+function buildShowMoreRenderNode<TSpan>({
+  id,
+  nodes,
+}: {
+  id: string;
+  nodes: SpanTreeNode<TSpan>[];
+}): ShowMoreTreeNode[] {
+  return nodes.length > 0
+    ? [
+        {
+          id,
+          type: "show-more",
+        },
+      ]
+    : [];
+}
+
+function buildShowLessRenderNode({
+  isVisible,
+}: {
+  isVisible: boolean;
+}): ShowLessTreeNode[] {
+  return isVisible ? [{ id: "show-less", type: "show-less" }] : [];
+}
+
+/**
+ * Builds the bounded list of real and synthetic child rows for one parent.
+ * When a selected path falls beyond the limit, the selected child replaces the
+ * last preview row instead of disabling truncation for the entire sibling list.
+ *
+ * @param params - Child rendering inputs.
+ * @param params.childNodes - Chronologically ordered direct children.
+ * @param params.childLimit - Maximum number of real child rows to preview.
+ * @param params.selectedSpanPathNodeIds - Span ids on the selected branch.
+ * @param params.shouldShowAllChildren - Whether truncation is disabled.
+ * @param params.shouldShowLess - Whether to append the collapse action.
+ */
+function buildChildRenderNodes<TSpan extends ISpanItem>({
+  childNodes,
+  childLimit,
+  selectedSpanPathNodeIds,
+  shouldShowAllChildren,
+  shouldShowLess,
+}: {
+  childNodes: SpanTreeNode<TSpan>[];
+  childLimit: number;
+  selectedSpanPathNodeIds: Set<string>;
+  shouldShowAllChildren: boolean;
+  shouldShowLess: boolean;
+}): SpanTreeRenderNode<TSpan>[] {
+  if (shouldShowAllChildren || childNodes.length <= childLimit) {
+    return [
+      ...buildSpanRenderNodes({ nodes: childNodes }),
+      ...buildShowLessRenderNode({
+        isVisible: shouldShowLess && childNodes.length > childLimit,
+      }),
+    ];
+  }
+
+  const selectedChildIndex = childNodes.findIndex((childNode) =>
+    selectedSpanPathNodeIds.has(childNode.span.id)
+  );
+  const hasSelectedChild = selectedChildIndex >= 0;
+  const isSelectedChildInPreview = selectedChildIndex < childLimit;
+  if (!hasSelectedChild || isSelectedChildInPreview) {
+    return [
+      ...buildSpanRenderNodes({ nodes: childNodes.slice(0, childLimit) }),
+      ...buildShowMoreRenderNode({
+        id: "after-limit",
+        nodes: childNodes.slice(childLimit),
+      }),
+    ];
+  }
+
+  const leadingChildCount = Math.max(childLimit - 1, 0);
+  const selectedChild = childNodes[selectedChildIndex];
+  if (!selectedChild) {
+    return buildSpanRenderNodes({ nodes: childNodes.slice(0, childLimit) });
+  }
+  const remainingChildNodes = [
+    ...childNodes.slice(leadingChildCount, selectedChildIndex),
+    ...childNodes.slice(selectedChildIndex + 1),
+  ];
+  return [
+    ...buildSpanRenderNodes({
+      nodes: childNodes.slice(0, leadingChildCount),
+    }),
+    ...buildShowMoreRenderNode({
+      id: "around-selected",
+      nodes: remainingChildNodes,
+    }),
+    ...buildSpanRenderNodes({ nodes: [selectedChild] }),
+  ];
+}
+
 interface SpanTreeItemProps<TSpan extends ISpanItem> {
   node: SpanTreeNode<TSpan>;
+  isChildTruncationEnabled: boolean;
   selectedSpanNodeId: string;
+  selectedSpanPathNodeIds: Set<string>;
   scrollSelectedSpanIntoView: boolean;
   overallTimeRange: TimeRange;
   onSpanClick?: (span: ISpanItem) => void;
@@ -365,7 +564,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
 ) {
   const {
     node,
+    isChildTruncationEnabled,
     selectedSpanNodeId,
+    selectedSpanPathNodeIds,
     scrollSelectedSpanIntoView,
     onSpanClick,
     nestingLevel = 0,
@@ -373,10 +574,24 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   } = props;
   const childNodes = node.children;
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [areAllChildrenVisible, setAreAllChildrenVisible] = useState(false);
   const { isCollapsed: treeIsCollapsed, searchQuery } = useTraceTree();
   const hasChildren = childNodes.length > 0;
   const isSearching = searchQuery.length > 0;
   const effectiveIsCollapsed = isSearching ? false : isCollapsed;
+  const childNestingLevel = nestingLevel + 1;
+  const childLimit = getChildLimit({ childNestingLevel });
+  const shouldShowAllChildren =
+    !isChildTruncationEnabled || isSearching || areAllChildrenVisible;
+  const shouldShowLess =
+    isChildTruncationEnabled && areAllChildrenVisible && !isSearching;
+  const childRenderNodes = buildChildRenderNodes({
+    childNodes,
+    childLimit,
+    selectedSpanPathNodeIds,
+    shouldShowAllChildren,
+    shouldShowLess,
+  });
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
   );
@@ -495,39 +710,73 @@ function SpanTreeItem<TSpan extends ISpanItem>(
           </div>
         </SpanNodeWrap>
       </div>
-      {childNodes.length ? (
+      {childRenderNodes.length ? (
         <ul
           css={css`
             display: ${effectiveIsCollapsed ? "none" : "flex"};
             flex-direction: column;
           `}
         >
-          {childNodes.map((leafNode, index) => {
+          {childRenderNodes.map((childRenderNode, index) => {
             // The last child does not need an edge connector, a line to connect the nodes
             // after to the parent node
-            const nexSibling = childNodes[index + 1];
+            const nextSibling = childRenderNodes[index + 1];
+            const statusCode =
+              childRenderNode.type === "span"
+                ? childRenderNode.node.span.statusCode
+                : SHOW_MORE_NODE_STATUS_CODE;
+            const nextSiblingStatusCode =
+              nextSibling?.type === "span"
+                ? nextSibling.node.span.statusCode
+                : SHOW_MORE_NODE_STATUS_CODE;
             return (
               <li
-                key={leafNode.span.spanId}
+                key={
+                  childRenderNode.type === "span"
+                    ? childRenderNode.node.span.spanId
+                    : `${childRenderNode.type}-${node.span.spanId}-${childRenderNode.id}`
+                }
                 css={css`
                   position: relative;
                 `}
               >
-                {nexSibling ? (
+                {nextSibling ? (
                   <SpanTreeEdgeConnector
-                    {...nexSibling.span}
+                    statusCode={nextSiblingStatusCode}
                     nestingLevel={nestingLevel}
                   />
                 ) : null}
-                <SpanTreeEdge {...leafNode.span} nestingLevel={nestingLevel} />
-                <SpanTreeItem
-                  node={leafNode}
-                  overallTimeRange={overallTimeRange}
-                  onSpanClick={onSpanClick}
-                  selectedSpanNodeId={selectedSpanNodeId}
-                  scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
-                  nestingLevel={nestingLevel + 1}
+                <SpanTreeEdge
+                  statusCode={statusCode}
+                  nestingLevel={nestingLevel}
                 />
+                {childRenderNode.type === "span" ? (
+                  <SpanTreeItem
+                    node={childRenderNode.node}
+                    isChildTruncationEnabled={isChildTruncationEnabled}
+                    overallTimeRange={overallTimeRange}
+                    onSpanClick={onSpanClick}
+                    selectedSpanNodeId={selectedSpanNodeId}
+                    selectedSpanPathNodeIds={selectedSpanPathNodeIds}
+                    scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
+                    nestingLevel={childNestingLevel}
+                  />
+                ) : (
+                  <TraceTreeDisclosureNode
+                    nestingLevel={childNestingLevel}
+                    label={
+                      childRenderNode.type === "show-more"
+                        ? "Show more"
+                        : "Show less"
+                    }
+                    isExpanded={childRenderNode.type === "show-less"}
+                    onClick={() =>
+                      setAreAllChildrenVisible(
+                        childRenderNode.type === "show-more"
+                      )
+                    }
+                  />
+                )}
               </li>
             );
           })}
@@ -537,11 +786,105 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   );
 }
 
+const traceTreeDisclosureNodeCSS = css`
+  position: relative;
+  --expandable-content-overlay-background-color: var(
+    --trace-tree-show-more-background-color,
+    var(--global-background-color-default)
+  );
+
+  .trace-tree-disclosure-node__action {
+    z-index: 2;
+    justify-content: flex-start;
+    box-sizing: border-box;
+    height: var(--global-dimension-size-450);
+  }
+
+  .trace-tree-disclosure-node__action > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`;
+
+/**
+ * Renders a tree disclosure action with standard geometry under the shared
+ * Expand gradient treatment.
+ *
+ * @param props - Disclosure row props.
+ * @param props.nestingLevel - Zero-based tree level used for row indentation.
+ * @param props.label - Visible and accessible action text.
+ * @param props.isExpanded - Whether the sibling list is fully expanded.
+ * @param props.onClick - Changes the sibling list's expansion state.
+ */
+function TraceTreeDisclosureNode({
+  nestingLevel,
+  label,
+  isExpanded,
+  onClick,
+}: {
+  nestingLevel: number;
+  label: string;
+  isExpanded: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      className="trace-tree-disclosure-node"
+      css={traceTreeDisclosureNodeCSS}
+    >
+      <div aria-hidden="true">
+        <SpanNodeWrap isSelected={false} nestingLevel={nestingLevel}>
+          <Flex
+            direction="row"
+            gap="size-100"
+            justifyContent="start"
+            alignItems="center"
+            flex="1 1 auto"
+            minWidth={0}
+            maxWidth="size-6000"
+          >
+            <SpanKindIcon spanKind="" />
+            <span css={spanNameCSS} title="" />
+          </Flex>
+        </SpanNodeWrap>
+      </div>
+      <button
+        type="button"
+        className="expand-button button--reset trace-tree-disclosure-node__action"
+        css={[
+          expandableContentExpandButtonCSS,
+          css`
+            /* Begin at this node's elbow so ancestor connectors stay visible. */
+            left: calc(
+              (${nestingLevel} * var(--trace-tree-nesting-indent)) +
+                var(--global-dimension-size-50)
+            );
+            width: auto;
+            /* Align the label after the unknown-kind icon and row gap. */
+            padding-left: calc(
+              var(--global-dimension-size-200) +
+                var(--global-dimension-size-250) +
+                var(--global-dimension-size-100)
+            );
+          `,
+        ]}
+        aria-label={label}
+        aria-expanded={isExpanded}
+        onClick={onClick}
+      >
+        <span>{label}</span>
+      </button>
+    </div>
+  );
+}
+
 function SpanNodeWrap(
   props: PropsWithChildren<{
     isSelected: boolean;
     nestingLevel: number;
-    spanNodeId: string;
+    spanNodeId?: string;
   }>
 ) {
   return (

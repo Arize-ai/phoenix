@@ -33,7 +33,7 @@ const contentCSS = css`
   }
 `;
 
-const expandButtonCSS = css`
+export const expandableContentExpandButtonCSS = css`
   position: absolute;
   bottom: 0;
   left: 0;
@@ -172,7 +172,7 @@ export function ExpandableContent({
       {isOverflowing && !isExpanded && (
         <button
           className="expand-button button--reset"
-          css={expandButtonCSS}
+          css={expandableContentExpandButtonCSS}
           onClick={() => setExpanded(true)}
           aria-label="Show more"
           aria-expanded={false}
@@ -184,7 +184,7 @@ export function ExpandableContent({
       {canCollapse && (
         <button
           className="expand-button button--reset"
-          css={[expandButtonCSS, collapseButtonCSS]}
+          css={[expandableContentExpandButtonCSS, collapseButtonCSS]}
           onClick={() => setExpanded(false)}
           aria-label="Show less"
           aria-expanded={true}

@@ -8,6 +8,7 @@ import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { TraceTree, TraceTreeProvider } from "../TraceTree";
+import { TraceTreeContext } from "../TraceTreeContext";
 import type { ISpanItem } from "../types";
 
 const ROOT_SPAN: ISpanItem = {
@@ -30,6 +31,28 @@ const CHILD_SPAN: ISpanItem = {
   spanId: "child-span-id",
 };
 
+function createTestSpan({
+  nodeId,
+  parent,
+  startOffsetMs,
+}: {
+  nodeId: string;
+  parent: ISpanItem;
+  startOffsetMs: number;
+}): ISpanItem {
+  const startTime = new Date(
+    new Date(ROOT_SPAN.startTime).getTime() + startOffsetMs
+  ).toISOString();
+  return {
+    ...ROOT_SPAN,
+    id: nodeId,
+    name: nodeId,
+    parentId: parent.spanId,
+    spanId: `${nodeId}-span-id`,
+    startTime,
+  };
+}
+
 describe("TraceTree", () => {
   installTestMatchMedia();
 
@@ -48,6 +71,54 @@ describe("TraceTree", () => {
     container.remove();
     vi.unstubAllGlobals();
   });
+
+  function renderTraceTree({
+    spans,
+    selectedSpanNodeId = "",
+    onSpanClick,
+    searchQuery,
+    isChildTruncationEnabled = false,
+  }: {
+    spans: ISpanItem[];
+    selectedSpanNodeId?: string;
+    onSpanClick?: (span: ISpanItem) => void;
+    searchQuery?: string;
+    isChildTruncationEnabled?: boolean;
+  }) {
+    const traceTree = (
+      <TraceTree
+        spans={spans}
+        isChildTruncationEnabled={isChildTruncationEnabled}
+        selectedSpanNodeId={selectedSpanNodeId}
+        scrollSelectedSpanIntoView={false}
+        onSpanClick={onSpanClick}
+      />
+    );
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ThemeProvider>
+            <PreferencesProvider>
+              {searchQuery === undefined ? (
+                <TraceTreeProvider>{traceTree}</TraceTreeProvider>
+              ) : (
+                <TraceTreeContext.Provider
+                  value={{
+                    isCollapsed: false,
+                    setIsCollapsed: vi.fn(),
+                    searchQuery,
+                    setSearchQuery: vi.fn(),
+                  }}
+                >
+                  {traceTree}
+                </TraceTreeContext.Provider>
+              )}
+            </PreferencesProvider>
+          </ThemeProvider>
+        </MemoryRouter>
+      );
+    });
+  }
 
   it("renders the session, trace, and root span in order", () => {
     const onTraceSelect = vi.fn();
@@ -153,6 +224,365 @@ describe("TraceTree", () => {
     act(() => traceButton?.click());
 
     expect(onTraceSelect).toHaveBeenCalledOnce();
+  });
+
+  it("shows 12 direct children before an expandable tree node", () => {
+    const onSpanClick = vi.fn();
+    const directChildren = Array.from({ length: 13 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `direct-child-${index + 1}`,
+        parent: ROOT_SPAN,
+        startOffsetMs: index + 1,
+      })
+    );
+    const omittedChild = directChildren[12];
+    if (!omittedChild) throw new Error("Expected an omitted child fixture");
+    const omittedDescendants = Array.from({ length: 5 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `omitted-descendant-${index + 1}`,
+        parent: omittedChild,
+        startOffsetMs: 100 + index,
+      })
+    );
+
+    renderTraceTree({
+      spans: [ROOT_SPAN, ...directChildren, ...omittedDescendants],
+      onSpanClick,
+      isChildTruncationEnabled: true,
+    });
+
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="direct-child-12"]'
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="direct-child-13"]'
+      )
+    ).toBeNull();
+
+    const showMoreButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show more"]'
+    );
+    const showMoreListItem = showMoreButton?.closest("li");
+    expect(showMoreButton?.textContent).toBe("Show more");
+    expect(showMoreButton?.getAttribute("aria-expanded")).toBe("false");
+    expect(showMoreListItem?.querySelector(".span-tree-edge")).not.toBeNull();
+    expect(showMoreListItem?.querySelector('div[title=""] svg')).not.toBeNull();
+    expect(
+      showMoreListItem?.querySelector("[data-trace-tree-span-node-id]")
+    ).toBeNull();
+
+    act(() => showMoreButton?.click());
+
+    expect(onSpanClick).not.toHaveBeenCalled();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="direct-child-13"]'
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="omitted-descendant-5"]'
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Show more"]')
+    ).toBeNull();
+
+    const showLessButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show less"]'
+    );
+    const showLessListItem = showLessButton?.closest("li");
+    expect(showLessButton?.textContent).toBe("Show less");
+    expect(showLessButton?.getAttribute("aria-expanded")).toBe("true");
+    expect(showLessListItem?.parentElement?.lastElementChild).toBe(
+      showLessListItem
+    );
+
+    act(() => showLessButton?.click());
+
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="direct-child-13"]'
+      )
+    ).toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="omitted-descendant-5"]'
+      )
+    ).toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Show more"]')
+    ).not.toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Show less"]')
+    ).toBeNull();
+  });
+
+  it("does not truncate children unless truncation is enabled", () => {
+    const directChildren = Array.from({ length: 13 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `unbounded-child-${index + 1}`,
+        parent: ROOT_SPAN,
+        startOffsetMs: index + 1,
+      })
+    );
+
+    renderTraceTree({
+      spans: [ROOT_SPAN, ...directChildren],
+    });
+
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="unbounded-child-13"]'
+      )
+    ).not.toBeNull();
+    expect(container.querySelector(".trace-tree-disclosure-node")).toBeNull();
+  });
+
+  it("uses a limit of 8 at level three and deeper", () => {
+    const levelOne = createTestSpan({
+      nodeId: "level-one",
+      parent: ROOT_SPAN,
+      startOffsetMs: 1,
+    });
+    const levelTwo = Array.from({ length: 9 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `level-two-${index + 1}`,
+        parent: levelOne,
+        startOffsetMs: 10 + index,
+      })
+    );
+    const firstLevelTwo = levelTwo[0];
+    if (!firstLevelTwo) throw new Error("Expected a level-two fixture");
+    const levelThree = Array.from({ length: 9 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `level-three-${index + 1}`,
+        parent: firstLevelTwo,
+        startOffsetMs: 100 + index,
+      })
+    );
+
+    renderTraceTree({
+      spans: [ROOT_SPAN, levelOne, ...levelTwo, ...levelThree],
+      isChildTruncationEnabled: true,
+    });
+
+    expect(
+      container.querySelector('[data-trace-tree-span-node-id="level-two-8"]')
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-trace-tree-span-node-id="level-two-9"]')
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-trace-tree-span-node-id="level-three-8"]')
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-trace-tree-span-node-id="level-three-9"]')
+    ).toBeNull();
+  });
+
+  it("shows every matching child while searching", () => {
+    const directChildren = Array.from({ length: 13 }, (_value, index) => ({
+      ...createTestSpan({
+        nodeId: `searchable-child-${index + 1}`,
+        parent: ROOT_SPAN,
+        startOffsetMs: index + 1,
+      }),
+      name: `matching child ${index + 1}`,
+    }));
+
+    renderTraceTree({
+      spans: [ROOT_SPAN, ...directChildren],
+      searchQuery: "matching child",
+      isChildTruncationEnabled: true,
+    });
+
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="searchable-child-13"]'
+      )
+    ).not.toBeNull();
+    expect(container.querySelector(".trace-tree-disclosure-node")).toBeNull();
+  });
+
+  it("keeps an initially selected span visible without revealing its siblings", () => {
+    const directChildren = Array.from({ length: 20 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `selectable-child-${index + 1}`,
+        parent: ROOT_SPAN,
+        startOffsetMs: index + 1,
+      })
+    );
+    const selectedSpan = directChildren[19];
+    if (!selectedSpan) throw new Error("Expected a selected span fixture");
+
+    renderTraceTree({
+      spans: [ROOT_SPAN, ...directChildren],
+      selectedSpanNodeId: selectedSpan.id,
+      isChildTruncationEnabled: true,
+    });
+
+    expect(
+      container.querySelector(
+        `[data-trace-tree-span-node-id="${selectedSpan.id}"]`
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="selectable-child-11"]'
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="selectable-child-12"]'
+      )
+    ).toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Show more"]')
+    ).not.toBeNull();
+  });
+
+  it("reveals every omitted sibling from a selected-path show-more node", () => {
+    const directChildren = Array.from({ length: 20 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `middle-selection-child-${index + 1}`,
+        parent: ROOT_SPAN,
+        startOffsetMs: index + 1,
+      })
+    );
+    const selectedSpan = directChildren[14];
+    if (!selectedSpan) throw new Error("Expected a middle selection fixture");
+
+    renderTraceTree({
+      spans: [ROOT_SPAN, ...directChildren],
+      selectedSpanNodeId: selectedSpan.id,
+      isChildTruncationEnabled: true,
+    });
+
+    const showMoreButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show more"]'
+    );
+    expect(showMoreButton).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="middle-selection-child-12"]'
+      )
+    ).toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="middle-selection-child-15"]'
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="middle-selection-child-20"]'
+      )
+    ).toBeNull();
+
+    act(() => showMoreButton?.click());
+
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="middle-selection-child-12"]'
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="middle-selection-child-20"]'
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Show more"]')
+    ).toBeNull();
+
+    const showLessButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show less"]'
+    );
+    expect(showLessButton).not.toBeNull();
+
+    act(() => showLessButton?.click());
+
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="middle-selection-child-12"]'
+      )
+    ).toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="middle-selection-child-15"]'
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="middle-selection-child-20"]'
+      )
+    ).toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Show more"]')
+    ).not.toBeNull();
+  });
+
+  it("keeps a deep selected path bounded at every ancestor", () => {
+    const levelOne = Array.from({ length: 20 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `selected-path-level-one-${index + 1}`,
+        parent: ROOT_SPAN,
+        startOffsetMs: index + 1,
+      })
+    );
+    const selectedLevelOne = levelOne[19];
+    if (!selectedLevelOne) throw new Error("Expected a level-one selection");
+    const levelTwo = Array.from({ length: 20 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `selected-path-level-two-${index + 1}`,
+        parent: selectedLevelOne,
+        startOffsetMs: 100 + index,
+      })
+    );
+    const selectedLevelTwo = levelTwo[19];
+    if (!selectedLevelTwo) throw new Error("Expected a level-two selection");
+    const levelThree = Array.from({ length: 12 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `selected-path-level-three-${index + 1}`,
+        parent: selectedLevelTwo,
+        startOffsetMs: 200 + index,
+      })
+    );
+    const selectedSpan = levelThree[11];
+    if (!selectedSpan) throw new Error("Expected a level-three selection");
+
+    renderTraceTree({
+      spans: [ROOT_SPAN, ...levelOne, ...levelTwo, ...levelThree],
+      selectedSpanNodeId: selectedSpan.id,
+      isChildTruncationEnabled: true,
+    });
+
+    expect(
+      container.querySelector(
+        `[data-trace-tree-span-node-id="${selectedSpan.id}"]`
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="selected-path-level-one-12"]'
+      )
+    ).toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="selected-path-level-two-8"]'
+      )
+    ).toBeNull();
+    expect(
+      container.querySelector(
+        '[data-trace-tree-span-node-id="selected-path-level-three-8"]'
+      )
+    ).toBeNull();
+    expect(
+      container.querySelectorAll('button[aria-label="Show more"]')
+    ).toHaveLength(3);
   });
 
   it("paints an optimistic span selection before starting navigation", () => {

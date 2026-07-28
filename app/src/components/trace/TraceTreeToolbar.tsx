@@ -14,6 +14,7 @@ import {
 } from "@phoenix/constants";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
+import { ExpandCollapseAllButton } from "./ExpandCollapseAllButton";
 import { useTraceTree } from "./TraceTreeContext";
 
 /**
@@ -155,29 +156,12 @@ export function TraceTreeToolbar() {
           />
         </div>
         <div className="trace-tree-toolbar__controls">
-          <TooltipTrigger>
-            <Button
-              className="trace-tree-toolbar__action"
-              size="S"
-              variant="quiet"
-              aria-label={isCollapsed ? "Expand all" : "Collapse all"}
-              onPress={() => {
-                setIsCollapsed(!isCollapsed);
-              }}
-            >
-              <Icon
-                svg={isCollapsed ? <Icons.RowCollapse /> : <Icons.RowExpand />}
-              />
-              <span className="trace-tree-toolbar__action-label">
-                {isCollapsed ? "Expand all" : "Collapse all"}
-              </span>
-            </Button>
-            <Tooltip offset={-5}>
-              {isCollapsed
-                ? "Expand all nested spans"
-                : "Collapse all nested spans"}
-            </Tooltip>
-          </TooltipTrigger>
+          <ExpandCollapseAllButton
+            className="trace-tree-toolbar__action"
+            contentLabel="nested spans"
+            isCollapsed={isCollapsed}
+            onCollapsedChange={setIsCollapsed}
+          />
           <TooltipTrigger>
             <Button
               className="trace-tree-toolbar__action"
