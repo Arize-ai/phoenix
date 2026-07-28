@@ -316,7 +316,8 @@
                   "docs/phoenix/datasets-and-experiments/how-to-datasets",
                   "docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets",
                   "docs/phoenix/datasets-and-experiments/how-to-datasets/updating-datasets",
-                  "docs/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets"
+                  "docs/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets",
+                  "docs/phoenix/datasets-and-experiments/how-to-datasets/linking-examples-to-spans"
                 ]
               },
               {
