@@ -205,6 +205,7 @@ export function SpanDetails({ spanNodeId }: { spanNodeId: string }) {
 
   return (
     <Flex
+      data-span-details-mounted-id={spanNodeId}
       direction="column"
       flex="1 1 auto"
       height="100%"
@@ -265,6 +266,7 @@ function SpanDetailsHeader({
 
   return (
     <View
+      data-span-details-header-id={span.id}
       paddingTop="size-100"
       paddingBottom="size-100"
       paddingStart="size-150"
@@ -504,7 +506,12 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   };
 
   return (
-    <Flex direction="column" flex="1 1 auto" minHeight={0}>
+    <Flex
+      data-span-details-body-id={span.id}
+      direction="column"
+      flex="1 1 auto"
+      minHeight={0}
+    >
       <nav css={spanDetailsAnchorNavCSS} aria-label="Span detail sections">
         <ul>
           <SpanDetailSectionLink

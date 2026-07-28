@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { startTransition, Suspense, useEffect, useState } from "react";
 
 import { SpanDetails } from "./SpanDetails";
@@ -35,13 +36,26 @@ export function SpanDetailsPaintGate({ spanNodeId }: { spanNodeId: string }) {
   const isHydrationPending =
     hydratedSpanNodeId == null || hydratedSpanNodeId !== spanNodeId;
 
-  if (isHydrationPending) {
-    return <SpanDetailsSkeleton />;
-  }
-
   return (
-    <Suspense fallback={<SpanDetailsSkeleton />}>
-      <SpanDetails key={hydratedSpanNodeId} spanNodeId={hydratedSpanNodeId} />
-    </Suspense>
+    <div
+      data-span-details-state={isHydrationPending ? "dehydrated" : "hydrating"}
+      data-span-details-target-id={spanNodeId}
+      css={css`
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      `}
+    >
+      {isHydrationPending ? (
+        <SpanDetailsSkeleton />
+      ) : (
+        <Suspense fallback={<SpanDetailsSkeleton />}>
+          <SpanDetails
+            key={hydratedSpanNodeId}
+            spanNodeId={hydratedSpanNodeId}
+          />
+        </Suspense>
+      )}
+    </div>
   );
 }

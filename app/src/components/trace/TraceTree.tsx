@@ -336,6 +336,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
         <SpanNodeWrap
           isSelected={selectedSpanNodeId === node.span.id}
           nestingLevel={nestingLevel}
+          spanNodeId={node.span.id}
         >
           <Flex
             direction="row"
@@ -451,10 +452,16 @@ function SpanTreeItem<TSpan extends ISpanItem>(
 }
 
 function SpanNodeWrap(
-  props: PropsWithChildren<{ isSelected: boolean; nestingLevel: number }>
+  props: PropsWithChildren<{
+    isSelected: boolean;
+    nestingLevel: number;
+    spanNodeId: string;
+  }>
 ) {
   return (
     <div
+      data-selected={props.isSelected}
+      data-trace-tree-span-node-id={props.spanNodeId}
       className={classNames("span-node-wrap", {
         "is-selected": props.isSelected,
       })}

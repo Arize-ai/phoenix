@@ -65,12 +65,22 @@ describe("SpanDetailsPaintGate", () => {
       root.render(<SpanDetailsPaintGate spanNodeId="span-a" />);
     });
     expect(container.textContent).toBe("Loading span details");
+    expect(
+      container
+        .querySelector("[data-span-details-state]")
+        ?.getAttribute("data-span-details-state")
+    ).toBe("dehydrated");
 
     runNextFrame();
     expect(container.textContent).toBe("Loading span details");
 
     runNextFrame();
     expect(container.textContent).toBe("Hydrated span-a");
+    expect(
+      container
+        .querySelector("[data-span-details-state]")
+        ?.getAttribute("data-span-details-state")
+    ).toBe("hydrating");
 
     act(() => {
       root.render(<SpanDetailsPaintGate spanNodeId="span-b" />);
