@@ -98,6 +98,24 @@ describe("PXI client", () => {
     expect(request).not.toHaveProperty("messages");
   });
 
+  it("sends the previous message's id as lastMessageId", () => {
+    const options = createRuntimeOptions();
+    const firstMessage = userMessage("first question");
+
+    const followUp = buildPxiChatRequest({
+      messages: [firstMessage, userMessage("second question")],
+      options,
+    });
+    expect(followUp.lastMessageId).toBe(firstMessage.id);
+
+    // A session's first message has no persisted transcript to check against.
+    const firstSend = buildPxiChatRequest({
+      messages: [firstMessage],
+      options,
+    });
+    expect(firstSend.lastMessageId).toBeNull();
+  });
+
   it("rejects an agent-session request without a message", () => {
     const options = createRuntimeOptions();
 

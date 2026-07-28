@@ -95,6 +95,12 @@ const SESSION_PATH_TEMPLATE =
 const ASSISTANT_AGENT_ID = "assistant";
 /** Error code the chat endpoint returns when another client holds the lock. */
 const SESSION_BUSY_ERROR_CODE = "agent_session_busy";
+/**
+ * Error code the chat endpoint returns when the send's `lastMessageId` no
+ * longer matches the persisted transcript — another client appended to the
+ * session and this client is rendering a stale transcript.
+ */
+const SESSION_STALE_ERROR_CODE = "agent_session_stale";
 const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
 
 function buildAgentChatApiUrl(sessionId: string): string {
@@ -320,6 +326,10 @@ export function useAgentChat({
             // this request reads the active turn trace context.
             turnCompletionGate.beginTurn();
             store.getState().setSessionResponsePending(targetSessionId, true);
+            // A fresh send supersedes any lingering stale-refresh notice.
+            store
+              .getState()
+              .setSessionRefreshedFromStale(targetSessionId, false);
             return {
               body: buildAgentChatRequestBody({
                 body,
@@ -400,13 +410,22 @@ export function useAgentChat({
         onError: (error) => {
           transcriptPersistence.cancelPendingWaiters();
           turnCompletionGate.fail(error);
-          if (!error.message.includes(SESSION_BUSY_ERROR_CODE)) {
+          const isBusyRejection = error.message.includes(
+            SESSION_BUSY_ERROR_CODE
+          );
+          const isStaleRejection = error.message.includes(
+            SESSION_STALE_ERROR_CODE
+          );
+          if (!isBusyRejection && !isStaleRejection) {
             return;
           }
-          // Another client's turn holds the session lock (HTTP 409). Withdraw
+          // A session-conflict rejection (HTTP 409): either another client's
+          // turn holds the session lock, or this client's transcript went
+          // stale because another client appended to the session. Withdraw
           // the optimistic user message into the composer draft and enter
-          // busy-elsewhere mode; the poll below refreshes the transcript once
-          // the other turn completes.
+          // busy-elsewhere mode; the poll below fetches the fresh transcript
+          // and swaps it in (immediately for a stale send with no live turn,
+          // or once the other client's turn completes).
           const lastMessage = chat.messages.at(-1);
           if (lastMessage?.role === "user") {
             const restoredInput = getRemovedUserMessageText(
@@ -424,6 +443,14 @@ export function useAgentChat({
           queueMicrotask(() => {
             chat.clearError();
           });
+          if (isStaleRejection) {
+            // Raise the refreshed-from-stale notice now; it renders once the
+            // poll exits busy mode with the fresh transcript in place, and
+            // clears on the next send.
+            store
+              .getState()
+              .setSessionRefreshedFromStale(targetSessionId, true);
+          }
           store.getState().setSessionBusyElsewhere(targetSessionId, true);
         },
         onFinish: ({ messages: finalMessages, message }) => {

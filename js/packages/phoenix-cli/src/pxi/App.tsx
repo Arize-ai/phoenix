@@ -7,6 +7,7 @@ import {
   createPxiSessionClient,
   createUserMessage,
   isSessionBusyError,
+  isSessionStaleError,
 } from "./client";
 import {
   getSlashCommandName,
@@ -115,6 +116,8 @@ const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
 const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
 const SESSION_BUSY_STATUS_TEXT =
   "Session is being used elsewhere, the chat will refresh when complete";
+const SESSION_STALE_STATUS_TEXT =
+  "Session was updated elsewhere, the chat has been refreshed";
 
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
@@ -872,6 +875,9 @@ export function PxiApp({
   // Another client's turn holds the session's server-side lock (HTTP 409 on
   // send, or `isTurnActive` on restore); plain sends are blocked while set.
   const [isSessionBusy, setIsSessionBusy] = useState(false);
+  // A send was rejected as stale (another client appended to the session) and
+  // the transcript was refreshed in place; shown until the next send.
+  const [showStaleRefreshNotice, setShowStaleRefreshNotice] = useState(false);
   const [activeSession, setActiveSession] = useState<PxiSessionSummary | null>(
     null
   );
@@ -958,6 +964,7 @@ export function PxiApp({
     setActiveSession(null);
     setIsDraftTemporary(temporary);
     setIsSessionBusy(false);
+    setShowStaleRefreshNotice(false);
     setModelPicker(null);
     setSessionPicker(null);
     setMessages([]);
@@ -1095,6 +1102,7 @@ export function PxiApp({
         // enter the busy state so the poll refreshes the transcript when it
         // completes.
         setIsSessionBusy(session.isTurnActive === true);
+        setShowStaleRefreshNotice(false);
         setMessages(session.messages);
         setError(null);
         setDraft(EMPTY_DRAFT_EDITOR_STATE);
@@ -1170,6 +1178,7 @@ export function PxiApp({
     streamingAssistantMessageRef.current = null;
     setDraft(EMPTY_DRAFT_EDITOR_STATE);
     setError(null);
+    setShowStaleRefreshNotice(false);
     setStatus("streaming");
     setMessages(nextMessages);
     void (async () => {
@@ -1239,6 +1248,43 @@ export function PxiApp({
               : { value: text, cursorIndex: text.length }
           );
           setIsSessionBusy(true);
+          return;
+        }
+        if (isSessionStaleError({ error: err })) {
+          // The send was rejected because this client's transcript is out of
+          // date (HTTP 409: another client appended to the session). Withdraw
+          // the optimistic user message back into the composer and refetch
+          // the fresh transcript; if a turn is already running elsewhere,
+          // hand off to the busy poll instead of the one-shot notice.
+          setMessages((currentMessages) =>
+            currentMessages.filter((message) => message.id !== userMessage.id)
+          );
+          setDraft((currentDraft) =>
+            currentDraft.value
+              ? currentDraft
+              : { value: text, cursorIndex: text.length }
+          );
+          const staleSessionId = activeSession?.id;
+          if (!staleSessionId) {
+            return;
+          }
+          const requestId = sessionRequestIdRef.current;
+          void serverSessionClient
+            .getSession({ sessionId: staleSessionId })
+            .then((session) => {
+              // A session switch or /new superseded this refresh.
+              if (sessionRequestIdRef.current !== requestId) return;
+              setActiveSession(session);
+              setMessages(session.messages);
+              setShowStaleRefreshNotice(true);
+              if (session.isTurnActive === true) {
+                setIsSessionBusy(true);
+              }
+            })
+            .catch(() => {
+              // Refresh failed; the draft is intact and the next send will
+              // hit the stale rejection again.
+            });
           return;
         }
         setError(err instanceof Error ? err.message : String(err));
@@ -1564,6 +1610,8 @@ export function PxiApp({
         <ThinkingIndicator />
       ) : isSessionBusy ? (
         <SessionBusyIndicator />
+      ) : showStaleRefreshNotice ? (
+        <Text color="yellow">{SESSION_STALE_STATUS_TEXT}</Text>
       ) : null}
       {modelPicker ? (
         <ModelPicker state={modelPicker} />

@@ -316,7 +316,8 @@ const chatCSS = css`
     color: var(--global-text-color-300);
   }
 
-  .chat__busy-elsewhere {
+  .chat__busy-elsewhere,
+  .chat__stale-refreshed {
     color: var(--global-text-color-300);
     font-size: var(--global-font-size-xs);
   }
@@ -521,6 +522,11 @@ export function ChatView({
   );
   const isBusyElsewhere = useAgentContext((state) =>
     sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
+  );
+  const wasRefreshedFromStale = useAgentContext((state) =>
+    sessionId
+      ? (state.wasRefreshedFromStaleBySessionId[sessionId] ?? false)
+      : false
   );
   const setDraftInput = useAgentContext((state) => state.setDraftInput);
   const [elicitationDraft, setElicitationDraft] =
@@ -844,6 +850,16 @@ export function ChatView({
                     complete
                   </div>
                 ) : null}
+                {wasRefreshedFromStale && !isBusyElsewhere ? (
+                  <div
+                    className="chat__stale-refreshed"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Session was updated elsewhere, the chat has been refreshed.
+                    Your unsent message is still in the input below.
+                  </div>
+                ) : null}
                 {shouldShowInterruptedMessage ? (
                   <InterruptedChatMessage
                     latestUserMessageId={latestMessage.id}
@@ -853,8 +869,9 @@ export function ChatView({
                   />
                 ) : null}
                 {/* A session-conflict rejection is not a failed response:
-                    busy-elsewhere mode owns the UI until the lock clears. */}
-                {error && !isBusyElsewhere && (
+                    busy-elsewhere mode owns the UI until the lock clears, and
+                    a stale send resolves into the refreshed-transcript notice. */}
+                {error && !isBusyElsewhere && !wasRefreshedFromStale && (
                   <ChatErrorMessage
                     error={error}
                     latestUserMessageId={getLatestMessageId({

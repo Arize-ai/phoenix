@@ -2070,6 +2070,11 @@ export interface components {
             id: string;
             /** @description The turn's new message: a user message to append, or the transcript's trailing assistant message updated with client-executed tool results. */
             message: components["schemas"]["PhoenixUIMessage"];
+            /**
+             * Lastmessageid
+             * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_stale`` — the client should refetch the session before retrying.
+             */
+            lastMessageId?: string | null;
         };
         /**
          * CodeEvaluatorContext

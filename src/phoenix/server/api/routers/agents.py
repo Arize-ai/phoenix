@@ -317,6 +317,17 @@ class ChatSubmitMessage(_ChatRequestMixin):
             "client-executed tool results."
         ),
     )
+    last_message_id: str | None = Field(
+        default=None,
+        description=(
+            "The id of the last transcript message the client has rendered, "
+            "used for optimistic concurrency. Omit when the session has no "
+            "messages; required (and validated against the persisted "
+            "transcript) once it does. On mismatch the server rejects the "
+            "send with HTTP 409 and code ``agent_session_stale`` — the "
+            "client should refetch the session before retrying."
+        ),
+    )
 
 
 class ChatRequest(ChatSubmitMessage):
@@ -2039,6 +2050,17 @@ def create_agents_router(
                     session,
                     agent_session_rowid=agent_session.id,
                 )
+                # Optimistic concurrency: the client declares the last
+                # transcript message it has rendered. A mismatch (including an
+                # omitted id when the transcript is non-empty) means the
+                # client is viewing a stale transcript — reject before the
+                # merge and lock claim so it refetches instead of appending
+                # onto history it has never seen.
+                expected_last_message_id = (
+                    session_history[-1].message_id if session_history else None
+                )
+                if body.last_message_id != expected_last_message_id:
+                    return JSONResponse({"code": "agent_session_stale"}, status_code=409)
                 transcript_messages = _merge_messages(
                     old_messages=[row.message for row in session_history],
                     new_message=body.message,

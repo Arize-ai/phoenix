@@ -41,6 +41,20 @@ export function isSessionBusyError({ error }: { error: unknown }): boolean {
   );
 }
 
+/**
+ * Error code the chat endpoint returns (HTTP 409) when the send's
+ * `lastMessageId` no longer matches the persisted transcript — another client
+ * appended to the session and this client is rendering a stale transcript.
+ */
+const SESSION_STALE_ERROR_CODE = "agent_session_stale";
+
+/** Whether an error is the chat endpoint's stale-transcript (HTTP 409) rejection. */
+export function isSessionStaleError({ error }: { error: unknown }): boolean {
+  return (
+    error instanceof Error && error.message.includes(SESSION_STALE_ERROR_CODE)
+  );
+}
+
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
 }
@@ -300,9 +314,17 @@ export function buildPxiChatRequest({
   if (!message) {
     throw new Error("A chat submit request requires a message to send");
   }
+  // The send's optimistic-concurrency check: the id of the last transcript
+  // message this client believes is persisted. A new user message at the tail
+  // is the turn being submitted, so the message before it is the persisted
+  // tail; a trailing assistant message (client-tool continuation) is itself
+  // the persisted tail. Null while the transcript is empty.
+  const lastMessageId =
+    (message.role === "assistant" ? message.id : messages.at(-2)?.id) ?? null;
   return {
     ...buildPxiRequestBase({ options }),
     message,
+    lastMessageId,
   };
 }
 
@@ -441,9 +463,11 @@ export function createPxiChatClient({
           onSessionTitle,
         });
       } catch (error) {
-        // A session-busy rejection (HTTP 409) is not a model/provider
-        // failure: rethrow it unwrapped so the UI can enter its busy state.
-        if (isSessionBusyError({ error })) {
+        // Session-conflict rejections (HTTP 409: another client's turn holds
+        // the lock, or this client's transcript went stale) are not
+        // model/provider failures: rethrow them unwrapped so the UI can enter
+        // its busy state or refresh the transcript.
+        if (isSessionBusyError({ error }) || isSessionStaleError({ error })) {
           throw error;
         }
         throw formatPxiRuntimeError({

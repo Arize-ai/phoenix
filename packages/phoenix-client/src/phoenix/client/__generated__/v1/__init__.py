@@ -1893,6 +1893,7 @@ class ChatRequest(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
     turnTraceContext: NotRequired[TurnTraceContext]
     trigger: NotRequired[str]
+    lastMessageId: NotRequired[str]
 
 
 class CompactAgentSessionResponseData(TypedDict):
