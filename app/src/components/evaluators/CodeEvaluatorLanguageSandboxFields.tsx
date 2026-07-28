@@ -4,6 +4,7 @@ import {
   Button,
   Flex,
   Label,
+  Link,
   ListBox,
   Popover,
   Select,
@@ -176,6 +177,15 @@ export const CodeEvaluatorSandboxField = ({
           )}
         </ListBox>
       </Popover>
+      {hasNoCompatibleConfigs && (
+        <Text slot="description">
+          No sandbox available.{" "}
+          <Link to="/settings/sandboxes">
+            Set one up in Settings → Sandboxes
+          </Link>
+          .
+        </Text>
+      )}
     </Select>
   );
 };
