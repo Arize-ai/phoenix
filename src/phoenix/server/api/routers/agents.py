@@ -2054,6 +2054,7 @@ def create_agents_router(
                 agent=server_agent,
                 run_input=_to_pydantic_ai_request_data(body, messages=model_transcript_messages),
                 accept=request.headers.get("accept"),
+                sdk_version=7,
                 server_message_id=server_message_id,
             )
 
@@ -2156,6 +2157,7 @@ def create_agents_router(
                 agent=agent,
                 run_input=_to_pydantic_ai_request_data(body, messages=model_transcript_messages),
                 accept=request.headers.get("accept"),
+                sdk_version=7,
                 server_message_id=server_message_id,
             )
             deps = AgentDependencies(
