@@ -5,6 +5,7 @@ import type { useCategoryChartColors } from "@phoenix/components/chart";
 import type { ModelTokenDetailChartDatum } from "../tokenDetails";
 import {
   buildModelTokenDetailChartData,
+  getCostChartEmptyStateMessage,
   getModelTokenDetailBarRadius,
   getModelTokenDetailColors,
   getModelTokenDetailDataKey,
@@ -214,5 +215,27 @@ describe("getModelTokenDetailColors", () => {
     expect(colorByDataKey.get("promptAudio")).not.toBe(
       colorByDataKey.get("completionAudio")
     );
+  });
+});
+
+describe("getCostChartEmptyStateMessage", () => {
+  it("blames the time range only when nothing ran in it", () => {
+    expect(
+      getCostChartEmptyStateMessage({ modelCount: 0, tokenCount: 0 })
+    ).toBe("No data in this time range");
+  });
+
+  it("points at pricing when tokens were recorded but no model was priced", () => {
+    // An unpriced project: SpanCost rows carry tokens with a null model_id, so
+    // they count toward the project total but drop out of topModelsByCost
+    expect(
+      getCostChartEmptyStateMessage({ modelCount: 0, tokenCount: 4200 })
+    ).toBe("No cost data. Model pricing may not be configured.");
+  });
+
+  it("points at pricing when priced models ran but cost nothing", () => {
+    expect(
+      getCostChartEmptyStateMessage({ modelCount: 2, tokenCount: 0 })
+    ).toBe("No cost data. Model pricing may not be configured.");
   });
 });

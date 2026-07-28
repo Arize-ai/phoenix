@@ -452,3 +452,32 @@ export function buildModelTokenDetailChartData({
     series: Array.from(seriesByDataKey.values()).sort(compareTokenDetailSeries),
   };
 }
+
+/**
+ * The empty-state message for the cost chart.
+ *
+ * The chart draws nothing in two very different situations, and only one of
+ * them is the user's to fix by widening the range:
+ *
+ * - Nothing ran in the range at all.
+ * - Models ran and recorded tokens, but no cost came back. Costs are only
+ *   attributed to a model when its pricing is configured (`SpanCost.model_id`
+ *   is null otherwise, and the top-models queries skip those rows), so an
+ *   unpriced project reports usage through `tokenCount` while `models` comes
+ *   back empty. Pointing at the time range there sends people to widen a range
+ *   that was never the problem.
+ */
+export function getCostChartEmptyStateMessage({
+  modelCount,
+  tokenCount,
+}: {
+  /** Models with attributed cost in the range, i.e. `topModelsByCost.length`. */
+  modelCount: number;
+  /** Tokens recorded in the range, priced or not, i.e. the project's cost summary total. */
+  tokenCount: number;
+}) {
+  const hasUsage = modelCount > 0 || tokenCount > 0;
+  return hasUsage
+    ? "No cost data. Model pricing may not be configured."
+    : "No data in this time range";
+}

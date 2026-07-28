@@ -31,6 +31,7 @@ import { ModelTokenDetailBarShape } from "./ModelTokenDetailBarShape";
 import { ModelTokenDetailTooltipContent } from "./ModelTokenDetailTooltipContent";
 import {
   buildModelTokenDetailChartData,
+  getCostChartEmptyStateMessage,
   getModelTokenDetailColors,
   getModelTokenDetailLabel,
 } from "./tokenDetails";
@@ -48,6 +49,13 @@ export function TopModelsByCost({
       query TopModelsByCostQuery($projectId: ID!, $timeRange: TimeRange!) {
         project: node(id: $projectId) {
           ... on Project {
+            # Tokens recorded in the range whether or not their model is
+            # priced, which tells an empty range apart from an unpriced one
+            costSummary(timeRange: $timeRange) {
+              total {
+                tokens
+              }
+            }
             topModelsByCost(timeRange: $timeRange) {
               name
               costSummary(projectId: $projectId, timeRange: $timeRange) {
@@ -95,13 +103,10 @@ export function TopModelsByCost({
   // A model with no measured usage contributes no series, and a chart with no
   // series has nothing to draw, so it counts as empty however many rows it has.
   const hasData = series.length > 0;
-  // Models ran in this range but none of them cost anything, which means their
-  // pricing is missing rather than the range being empty. Blaming the time
-  // range there sends people to widen a range that was never the problem.
-  const emptyStateMessage =
-    models.length > 0
-      ? "No cost data. Model pricing may not be configured."
-      : "No data in this time range";
+  const emptyStateMessage = getCostChartEmptyStateMessage({
+    modelCount: models.length,
+    tokenCount: data.project.costSummary?.total?.tokens ?? 0,
+  });
 
   return (
     <ChartEmptyStateOverlay
