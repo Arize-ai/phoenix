@@ -38,6 +38,7 @@ from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
+from phoenix.server.agents.ui_message_stream import build_stream_error_chunk
 from phoenix.server.api.routers.agents import (
     _SERVER_AGENT_ID,
     ChatRequest,
@@ -277,6 +278,12 @@ def create_legacy_agents_router(
                                     emitted_at=datetime.now(timezone.utc),
                                 )
                             yield chunk
+            except Exception as exc:
+                # Surface the failure to the client as an error chunk (e.g. a
+                # rejected API key) instead of letting the connection close
+                # silently, which leaves the agent appearing to hang.
+                logger.exception("Server agent chat stream failed for session %s", session_id)
+                yield build_stream_error_chunk(exc)
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
