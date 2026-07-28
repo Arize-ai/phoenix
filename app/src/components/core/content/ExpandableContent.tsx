@@ -107,6 +107,12 @@ export interface ExpandableContentProps extends PropsWithChildren {
    * Use this with `isExpanded` for controlled mode.
    */
   onExpandedChange?: (isExpanded: boolean) => void;
+  /**
+   * Known overflow state for content that is intentionally previewed while
+   * collapsed. When provided, this avoids requiring the preview itself to
+   * overflow before the expand affordance is shown.
+   */
+  isOverflowing?: boolean;
 }
 
 export function ExpandableContent({
@@ -116,15 +122,17 @@ export function ExpandableContent({
   overlayBackgroundColor = "var(--global-background-color-default)",
   isExpanded: controlledExpanded,
   onExpandedChange,
+  isOverflowing: controlledIsOverflowing,
 }: ExpandableContentProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const isOverflowing = useIsOverflowing({
+  const measuredIsOverflowing = useIsOverflowing({
     contentRef,
     containerRef,
     collapsedHeight: height,
     expandedBehavior,
   });
+  const isOverflowing = controlledIsOverflowing ?? measuredIsOverflowing;
   const [internalExpanded, setInternalExpanded] = useState(false);
 
   // Use controlled value if provided, otherwise use internal state

@@ -57,6 +57,7 @@ afterEach(() => {
 
 function renderExpandable(props: {
   isExpanded?: boolean;
+  isOverflowing?: boolean;
   onExpandedChange?: (next: boolean) => void;
 }) {
   act(() => {
@@ -79,6 +80,12 @@ describe("ExpandableContent", () => {
     mockScrollHeight(100);
     renderExpandable({});
     expect(container.querySelector('[aria-label="Show more"]')).toBeNull();
+  });
+
+  it("shows the expand affordance for a known truncated preview", () => {
+    mockScrollHeight(100);
+    renderExpandable({ isOverflowing: true });
+    expect(container.querySelector('[aria-label="Show more"]')).not.toBeNull();
   });
 
   it("reports changes and swaps the affordance in controlled mode", () => {

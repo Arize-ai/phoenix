@@ -3,6 +3,7 @@ import {
   SemanticAttributePrefixes,
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
+import { useState } from "react";
 
 import {
   Card,
@@ -16,6 +17,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { ExpandableContent } from "@phoenix/components/core/content";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeSelect,
@@ -29,7 +31,38 @@ import {
 } from "@phoenix/utils/jsonUtils";
 
 import { defaultCardProps } from "./constants";
+import { getMessageContentPreview } from "./messageContentPreview";
 import { MessageContentsList } from "./MessageContentsList";
+
+const COLLAPSED_MESSAGE_HEIGHT_PIXELS = 320;
+
+function ExpandableMessageContent({ content }: { content: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const preview = getMessageContentPreview({ content });
+  const displayedContent = isExpanded ? content : preview.content;
+
+  if (!preview.isTruncated) {
+    return (
+      <View width="100%">
+        <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
+      </View>
+    );
+  }
+
+  return (
+    <ExpandableContent
+      height={COLLAPSED_MESSAGE_HEIGHT_PIXELS}
+      expandedBehavior="grow"
+      isExpanded={isExpanded}
+      isOverflowing
+      onExpandedChange={setIsExpanded}
+    >
+      <View width="100%">
+        <ConnectedMarkdownBlock>{displayedContent}</ConnectedMarkdownBlock>
+      </View>
+    </ExpandableContent>
+  );
+}
 
 /**
  * Displays a single LLM message (input or output) including its contents,
@@ -53,6 +86,9 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
   const toolCallDisclosureIds =
     toolCalls?.map((_, idx) => `tool-call-${idx}`) || [];
   const toolResultId = message[MessageAttributePostfixes.tool_call_id];
+  const messageContentView = messageContent ? (
+    <ExpandableMessageContent content={normalizedContent} />
+  ) : null;
 
   return (
     <MarkdownDisplayProvider>
@@ -118,23 +154,11 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
                     <CopyToClipboardButton text={toolResultId} />
                   ) : null}
                 </DisclosureTrigger>
-                <DisclosurePanel>
-                  {messageContent ? (
-                    <View width="100%">
-                      <ConnectedMarkdownBlock>
-                        {normalizedContent}
-                      </ConnectedMarkdownBlock>
-                    </View>
-                  ) : null}
-                </DisclosurePanel>
+                <DisclosurePanel>{messageContentView}</DisclosurePanel>
               </Disclosure>
             ) : // when the message is any other kind, just show the content without a disclosure
             messageContent ? (
-              <View width="100%">
-                <ConnectedMarkdownBlock>
-                  {normalizedContent}
-                </ConnectedMarkdownBlock>
-              </View>
+              messageContentView
             ) : null}
             {(toolCalls?.length ?? 0) > 0
               ? toolCalls?.map((toolCall, idx) => {
