@@ -402,6 +402,21 @@ class CompactAgentSessionResponse(ResponseBody[CompactAgentSessionResponseData])
     pass
 
 
+def _compact_agent_session_response(
+    *,
+    compacted: bool,
+    compaction_message: PhoenixUIMessage | None,
+) -> JSONResponse:
+    """Serialize a compaction result the way the route's response model would."""
+    response = CompactAgentSessionResponse(
+        data=CompactAgentSessionResponseData(
+            compacted=compacted,
+            compaction_message=compaction_message,
+        ),
+    )
+    return JSONResponse(response.model_dump(mode="json", by_alias=True, exclude_none=True))
+
+
 _PydanticAIRequestDataAdapter: TypeAdapter[PydanticAIRequestData] = TypeAdapter(
     PydanticAIRequestData
 )
@@ -1890,7 +1905,7 @@ def create_agents_router(
         session_id: str,
         request: Request,
         request_body: CompactAgentSessionRequest,
-    ) -> CompactAgentSessionResponse | JSONResponse:
+    ) -> JSONResponse:
         if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
@@ -1931,12 +1946,10 @@ def create_agents_router(
                 )
                 latest_row = message_rows[-1] if message_rows else None
                 if latest_row is None or latest_row.message.role != "assistant":
-                    return CompactAgentSessionResponse(
-                        data=CompactAgentSessionResponseData(
-                            compacted=False,
-                            compaction_message=(
-                                latest_compaction.message if latest_compaction is not None else None
-                            ),
+                    return _compact_agent_session_response(
+                        compacted=False,
+                        compaction_message=(
+                            latest_compaction.message if latest_compaction is not None else None
                         ),
                     )
                 boundary_row = latest_row
@@ -1973,11 +1986,9 @@ def create_agents_router(
                 if current_compaction is not None and (
                     latest_compaction is None or current_compaction.id != latest_compaction.id
                 ):
-                    return CompactAgentSessionResponse(
-                        data=CompactAgentSessionResponseData(
-                            compacted=False,
-                            compaction_message=current_compaction.message,
-                        ),
+                    return _compact_agent_session_response(
+                        compacted=False,
+                        compaction_message=current_compaction.message,
                     )
                 current_latest_row = current_history[-1] if current_history else None
                 if (
@@ -1999,11 +2010,9 @@ def create_agents_router(
                     message=compaction_message,
                 )
                 session.add(compaction_message_row)
-            return CompactAgentSessionResponse(
-                data=CompactAgentSessionResponseData(
-                    compacted=True,
-                    compaction_message=compaction_message,
-                ),
+            return _compact_agent_session_response(
+                compacted=True,
+                compaction_message=compaction_message,
             )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
