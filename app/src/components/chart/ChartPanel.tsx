@@ -25,6 +25,9 @@ const COMPACT_HEIGHT_BREAKPOINT = "200px";
 const chartPanelCSS = css`
   display: flex;
   flex-direction: column;
+  /* Keep the border inside the size the layout gives the panel, so a scrolling
+     parent has nothing to clip and side-by-side panels add no stray overflow */
+  box-sizing: border-box;
   height: 100%;
   width: 100%;
   min-width: ${CHART_MIN_WIDTH}px;
