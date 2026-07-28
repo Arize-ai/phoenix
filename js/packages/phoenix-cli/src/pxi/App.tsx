@@ -873,7 +873,7 @@ export function PxiApp({
   const [status, setStatus] = useState<PxiStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   // Another client's turn holds the session's server-side lock (HTTP 409 on
-  // send, or `isTurnActive` on restore); plain sends are blocked while set.
+  // send, or `isActive` on restore); plain sends are blocked while set.
   const [isSessionBusy, setIsSessionBusy] = useState(false);
   // A send was rejected as stale (another client appended to the session) and
   // the transcript was refreshed in place; shown until the next send.
@@ -911,7 +911,7 @@ export function PxiApp({
       void serverSessionClient
         .getSession({ sessionId: busySessionId })
         .then((session) => {
-          if (isStale || session.isTurnActive) {
+          if (isStale || session.isActive) {
             return;
           }
           // The other client's turn completed and its transcript persisted;
@@ -1101,7 +1101,7 @@ export function PxiApp({
         // Another client's turn may already hold the restored session's lock;
         // enter the busy state so the poll refreshes the transcript when it
         // completes.
-        setIsSessionBusy(session.isTurnActive === true);
+        setIsSessionBusy(session.isActive === true);
         setShowStaleRefreshNotice(false);
         setMessages(session.messages);
         setError(null);
@@ -1277,7 +1277,7 @@ export function PxiApp({
               setActiveSession(session);
               setMessages(session.messages);
               setShowStaleRefreshNotice(true);
-              if (session.isTurnActive === true) {
+              if (session.isActive === true) {
                 setIsSessionBusy(true);
               }
             })

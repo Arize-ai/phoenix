@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c385337bd07ff23f6bcebf898474835>>
+ * @generated SignedSource<<f911423ffcf7bfc8b59fb172854cd0d5>>
  * @lightSyntaxTransform
  */
 
@@ -17,8 +17,8 @@ export type agentSessionRelaySessionQuery$data = {
     readonly createdAt: string;
     readonly firstInput: string | null;
     readonly id: string;
+    readonly isActive: boolean;
     readonly isTemporary: boolean;
-    readonly isTurnActive: boolean;
     readonly latestOutput: string | null;
     readonly messages: any;
     readonly title: string;
@@ -85,7 +85,7 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "isTurnActive",
+  "name": "isActive",
   "storageKey": null
 },
 v7 = {
@@ -240,16 +240,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "387258ea3eb5aed3d64fac617029c70f",
+    "cacheID": "d5db0cbad69bfa0a719d1e260e54a6b4",
     "id": null,
     "metadata": {},
     "name": "agentSessionRelaySessionQuery",
     "operationKind": "query",
-    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary\n      isTurnActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n    id\n  }\n}\n"
+    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary\n      isActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a66756784c3747279edc46aa544e007f";
+(node as any).hash = "4c69ea26b4f6bd6062b44c40c90a3b3d";
 
 export default node;

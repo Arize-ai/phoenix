@@ -401,7 +401,7 @@ function AgentSessionTranscript({
     <AgentChatController
       sessionId={sessionId}
       initialMessages={messages}
-      isTurnActive={agentSession.isTurnActive}
+      isActive={agentSession.isActive}
     />
   );
 }
@@ -409,12 +409,12 @@ function AgentSessionTranscript({
 function AgentChatController({
   sessionId,
   initialMessages,
-  isTurnActive,
+  isActive,
 }: {
   sessionId: string;
   initialMessages: AgentUIMessage[];
   /** Relay-derived: another client's turn holds the session's server lock. */
-  isTurnActive?: boolean;
+  isActive?: boolean;
 }) {
   const { menuValue, handleModelChange } = useAgentChatPanelState();
   const {
@@ -436,7 +436,7 @@ function AgentChatController({
   } = useAgentChat({
     sessionId,
     initialMessages,
-    isTurnActive,
+    isActive,
   });
 
   return (

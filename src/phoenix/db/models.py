@@ -3274,7 +3274,7 @@ class AgentSession(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
-    turn_lock_heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     user: Mapped[Optional["User"]] = relationship("User")
     snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
         "AgentSessionSnapshot",

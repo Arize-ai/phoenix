@@ -103,9 +103,9 @@ type AgentSession implements Node {
   isTemporary: Boolean!
 
   """
-  Whether a turn is currently streaming on this session, i.e. its turn lock has a live (non-stale) heartbeat.
+  Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat.
   """
-  isTurnActive: Boolean!
+  isActive: Boolean!
 
   """The persisted transcript as Vercel AI UIMessage JSON objects."""
   messages: JSON!

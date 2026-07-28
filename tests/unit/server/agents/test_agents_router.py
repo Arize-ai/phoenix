@@ -1345,7 +1345,7 @@ async def test_chat_turn_with_stale_last_message_id_is_rejected(
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
         assert stored is not None
-        assert stored.turn_lock_heartbeat_at is None
+        assert stored.heartbeat_at is None
         message_count = await session.scalar(
             select(func.count()).select_from(models.AgentSessionMessage)
         )

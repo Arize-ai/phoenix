@@ -26,7 +26,7 @@ export const agentSessionQuery = graphql`
         id
         title
         isTemporary
-        isTurnActive
+        isActive
         createdAt
         updatedAt
         firstInput

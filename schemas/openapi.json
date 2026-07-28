@@ -8469,10 +8469,10 @@
             "type": "boolean",
             "title": "Is Temporary"
           },
-          "is_turn_active": {
+          "is_active": {
             "type": "boolean",
-            "title": "Is Turn Active",
-            "description": "Whether a turn is currently streaming on this session, i.e. its turn lock has a live (non-stale) heartbeat."
+            "title": "Is Active",
+            "description": "Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat."
           },
           "messages": {
             "items": {
@@ -8489,7 +8489,7 @@
           "created_at",
           "updated_at",
           "is_temporary",
-          "is_turn_active",
+          "is_active",
           "messages"
         ],
         "title": "AgentSessionData"

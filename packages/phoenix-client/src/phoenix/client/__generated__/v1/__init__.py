@@ -1858,7 +1858,7 @@ class AgentSessionData(TypedDict):
     created_at: str
     updated_at: str
     is_temporary: bool
-    is_turn_active: bool
+    is_active: bool
     messages: Sequence[PhoenixUIMessage]
 
 

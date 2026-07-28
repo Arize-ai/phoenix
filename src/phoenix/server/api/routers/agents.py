@@ -142,11 +142,7 @@ from phoenix.server.agents.types import (
     ModelProviderAvailability,
     SandboxAvailability,
 )
-
-# The predicate is aliased because ``AgentSessionData`` declares a field
-# named ``is_turn_active``.
-from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS
-from phoenix.server.api.helpers.agent_sessions import is_turn_active as _is_turn_active
+from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, is_turn_active
 from phoenix.server.api.helpers.playground_registry import (
     PLAYGROUND_CLIENT_REGISTRY,
     PROVIDER_DEFAULT,
@@ -372,10 +368,10 @@ class AgentSessionSummary(V1RoutesBaseModel):
 
 
 class AgentSessionData(AgentSessionSummary):
-    is_turn_active: bool = Field(
+    is_active: bool = Field(
         description=(
-            "Whether a turn is currently streaming on this session, i.e. its "
-            "turn lock has a live (non-stale) heartbeat."
+            "Whether a response is currently streaming on this session, i.e. its "
+            "lock has a live (non-stale) heartbeat."
         ),
     )
     messages: list[PhoenixUIMessage]
@@ -1390,11 +1386,11 @@ async def _claim_agent_session_turn_lock(
         .where(
             models.AgentSession.id == agent_session_rowid,
             or_(
-                models.AgentSession.turn_lock_heartbeat_at.is_(None),
-                models.AgentSession.turn_lock_heartbeat_at < now - TURN_LOCK_STALENESS,
+                models.AgentSession.heartbeat_at.is_(None),
+                models.AgentSession.heartbeat_at < now - TURN_LOCK_STALENESS,
             ),
         )
-        .values(turn_lock_heartbeat_at=now)
+        .values(heartbeat_at=now)
         .returning(models.AgentSession.id)
     )
     return claimed_rowid is not None
@@ -1415,7 +1411,7 @@ async def _release_agent_session_turn_lock(
             await session.execute(
                 update(models.AgentSession)
                 .where(models.AgentSession.id == agent_session_rowid)
-                .values(turn_lock_heartbeat_at=None)
+                .values(heartbeat_at=None)
             )
     except Exception:
         logger.exception(
@@ -1440,7 +1436,7 @@ async def _heartbeat_agent_session_turn_lock(
                 await session.execute(
                     update(models.AgentSession)
                     .where(models.AgentSession.id == agent_session_rowid)
-                    .values(turn_lock_heartbeat_at=datetime.now(timezone.utc))
+                    .values(heartbeat_at=datetime.now(timezone.utc))
                 )
         except Exception:
             logger.exception(
@@ -1876,8 +1872,8 @@ def create_agents_router(
         return GetAgentSessionResponseBody(
             data=AgentSessionData(
                 **summary.model_dump(),
-                is_turn_active=_is_turn_active(
-                    agent_session.turn_lock_heartbeat_at,
+                is_active=is_turn_active(
+                    agent_session.heartbeat_at,
                     now=datetime.now(timezone.utc),
                 ),
                 messages=[message.message for message in agent_session.messages],
@@ -2013,8 +2009,6 @@ def create_agents_router(
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
         body = request_body
-        # Captured into a local so closures below (heartbeat task, stream
-        # generator) do not reach back through the request object.
         db_session_factory: DbSessionFactory = request.app.state.db
         request_received_at = datetime.now(timezone.utc)
         attach_user_id = _resolve_attach_user_id(body.attach_user_id)
@@ -2047,12 +2041,6 @@ def create_agents_router(
                     session,
                     agent_session_rowid=agent_session.id,
                 )
-                # Optimistic concurrency: the client declares the last
-                # transcript message it has rendered. A mismatch (including an
-                # omitted id when the transcript is non-empty) means the
-                # client is viewing a stale transcript — reject before the
-                # merge and lock claim so it refetches instead of appending
-                # onto history it has never seen.
                 expected_last_message_id = (
                     session_history[-1].message_id if session_history else None
                 )
@@ -2062,9 +2050,6 @@ def create_agents_router(
                     old_messages=[row.message for row in session_history],
                     new_message=body.message,
                 )
-                # Claim the session's turn lock as soon as the session row and
-                # submitted message are validated — before any expensive model
-                # or agent construction. A concurrent live turn means busy.
                 if not await _claim_agent_session_turn_lock(
                     session,
                     agent_session_rowid=agent_session.id,

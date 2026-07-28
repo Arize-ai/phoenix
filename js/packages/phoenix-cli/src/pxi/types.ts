@@ -111,10 +111,10 @@ export type PxiSessionSummary = {
 export type PxiSession = PxiSessionSummary & {
   messages: PxiMessage[];
   /**
-   * Whether another client's turn currently holds the session's server-side
-   * turn lock. Absent means no lock is held.
+   * Whether another client currently holds the session's server-side lock.
+   * Absent means no lock is held.
    */
-  isTurnActive?: boolean;
+  isActive?: boolean;
 };
 
 /** Server-side session operations used by the chat UI. */

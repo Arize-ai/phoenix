@@ -106,17 +106,17 @@ class AgentSession(Node):
 
     @strawberry.field(
         description=(
-            "Whether a turn is currently streaming on this session, i.e. its "
-            "turn lock has a live (non-stale) heartbeat."
+            "Whether a response is currently streaming on this session, i.e. its "
+            "lock has a live (non-stale) heartbeat."
         ),
         permission_classes=[CanAccessAgentSession],
     )  # type: ignore
-    async def is_turn_active(self, info: Info[Context, None]) -> bool:
+    async def is_active(self, info: Info[Context, None]) -> bool:
         if self.db_record:
-            heartbeat_at = self.db_record.turn_lock_heartbeat_at
+            heartbeat_at = self.db_record.heartbeat_at
         else:
             heartbeat_at = await info.context.data_loaders.agent_session_fields.load(
-                (self.id, models.AgentSession.turn_lock_heartbeat_at),
+                (self.id, models.AgentSession.heartbeat_at),
             )
         assert heartbeat_at is None or isinstance(heartbeat_at, datetime)
         return is_turn_active(heartbeat_at, now=datetime.now(timezone.utc))

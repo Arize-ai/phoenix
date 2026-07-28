@@ -221,7 +221,7 @@ const branchAgentSessionMutation = graphql`
 export function useAgentChat({
   sessionId,
   initialMessages,
-  isTurnActive = false,
+  isActive = false,
 }: {
   /**
    * The session's Relay node ID, or {@link DRAFT_SESSION_ID} (or null) for a
@@ -235,7 +235,7 @@ export function useAgentChat({
    * another client's turn currently holds the session's server lock. Drives
    * entry into busy-elsewhere mode; the hook then polls until the lock clears.
    */
-  isTurnActive?: boolean;
+  isActive?: boolean;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
@@ -505,7 +505,7 @@ export function useAgentChat({
   // Deriving from it means opening a locked session enters busy-elsewhere mode
   // without a separate imperative status check.
   useEffect(() => {
-    if (!persistedSessionId || !chatInstance || !isTurnActive) {
+    if (!persistedSessionId || !chatInstance || !isActive) {
       return;
     }
     const state = store.getState();
@@ -516,7 +516,7 @@ export function useAgentChat({
     ) {
       state.setSessionBusyElsewhere(persistedSessionId, true);
     }
-  }, [persistedSessionId, chatInstance, isTurnActive, store]);
+  }, [persistedSessionId, chatInstance, isActive, store]);
 
   // While in busy-elsewhere mode, poll the session's canonical Relay record
   // until the other client's turn completes, then swap in the persisted
@@ -539,7 +539,7 @@ export function useAgentChat({
           data?.agentSession.__typename === "AgentSession"
             ? data.agentSession
             : null;
-        if (!agentSession || agentSession.isTurnActive || disposed) {
+        if (!agentSession || agentSession.isActive || disposed) {
           return;
         }
         // The other client's turn completed and its transcript persisted;

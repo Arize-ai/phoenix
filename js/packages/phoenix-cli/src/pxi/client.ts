@@ -214,10 +214,9 @@ export function createPxiSessionClient({
         updatedAt: session.updated_at,
         isTemporary: session.is_temporary,
         // Read defensively: the CLI consumes phoenix-client's built types,
-        // which may not carry `is_turn_active` until that package rebuilds.
+        // which may not carry `is_active` until that package rebuilds.
         // An absent field means no lock is held.
-        isTurnActive:
-          (session as { is_turn_active?: unknown }).is_turn_active === true,
+        isActive: (session as { is_active?: unknown }).is_active === true,
         messages: session.messages as PxiMessage[],
       };
     },

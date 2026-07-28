@@ -62,7 +62,7 @@ def upgrade() -> None:
         ),
         sa.Column("title", sa.String, nullable=False),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("turn_lock_heartbeat_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("heartbeat_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
