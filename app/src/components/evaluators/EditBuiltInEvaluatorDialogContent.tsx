@@ -9,8 +9,11 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { CodeEvaluatorForm } from "@phoenix/components/evaluators/CodeEvaluatorForm";
+import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
 export const EditBuiltInEvaluatorDialogContent = ({
@@ -95,7 +98,15 @@ export const EditBuiltInEvaluatorDialogContent = ({
         <CodeEvaluatorInputVariablesProvider
           evaluatorInputSchema={evaluatorInputSchema}
         >
-          <EvaluatorForm />
+          <EvaluatorForm
+            left={
+              <>
+                <EvaluatorNameAndDescriptionFields />
+                <CodeEvaluatorForm />
+              </>
+            }
+            right={<EvaluatorDatasetTestPanel />}
+          />
         </CodeEvaluatorInputVariablesProvider>
       </fieldset>
     </DialogContent>

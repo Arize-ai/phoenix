@@ -135,6 +135,52 @@ RETENTION_POLICY_EXECUTIONS = Counter(
     labelnames=["status"],
 )
 
+ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_pending_work_units",
+    documentation="Current number of online-eval work units in PENDING status",
+)
+ONLINE_EVAL_RUNNING_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_running_work_units",
+    documentation="Current number of online-eval work units in RUNNING status",
+)
+ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_retryable_error_work_units",
+    documentation="Current number of retryable online-eval work units in ERROR status",
+)
+ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_exhausted_error_work_units",
+    documentation="Current number of exhausted online-eval work units in ERROR status",
+)
+ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_expired_work_units",
+    documentation="Current number of online-eval work units in EXPIRED status: work shed "
+    "unevaluated by the pending TTL and still within the retention window. A nonzero value "
+    "means evaluations were dropped.",
+)
+ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_frontier_gap_span_ids",
+    documentation="Distance in span ids between the online-eval producer's observed "
+    "high-water mark and its produced-through watermark",
+)
+ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_oldest_pending_age_seconds",
+    documentation="Age in seconds of the oldest PENDING or retryable ERROR online-eval work unit "
+    "(0 when the backlog is empty)",
+)
+ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
+    namespace="phoenix",
+    name="online_eval_ingest_spans_per_second",
+    documentation="Span ingest rate derived from successive online-eval cursor "
+    "high-water observations",
+)
+
 
 def _join_paths(prefix: str, path: str) -> str:
     if not prefix:

@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import sqlalchemy
 from sqlalchemy import case, literal
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql.expression import ColumnElement, Select
@@ -459,6 +460,13 @@ def _root_predicate_scope(
         if isinstance(name, ast.Name) and name.id in _ROOT_PREDICATE_SCOPES:
             return _ROOT_PREDICATE_SCOPES[name.id] if _is_none_constant(other) else None
     return None
+
+
+def validate_span_filter_condition(condition: str) -> None:
+    span_filter = SpanFilter(condition=condition)
+    stmt = span_filter(sqlalchemy.select(models.Span))
+    stmt.compile(dialect=sqlite.dialect())
+    stmt.compile(dialect=postgresql.dialect())  # type: ignore[no-untyped-call]
 
 
 _VALID_PROJECTION_NODE_TYPES: tuple[type, ...] = (

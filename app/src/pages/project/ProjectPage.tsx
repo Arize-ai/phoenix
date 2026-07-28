@@ -84,7 +84,14 @@ export function ProjectPage() {
   );
 }
 
-const TABS = ["spans", "traces", "sessions", "config", "metrics"] as const;
+const TABS = [
+  "spans",
+  "traces",
+  "sessions",
+  "config",
+  "metrics",
+  "evaluators",
+] as const;
 
 /**
  * Type guard for the tab path in the URL
@@ -99,6 +106,7 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   sessions: 2,
   metrics: 3,
   config: 4,
+  evaluators: 5,
 };
 
 const TAB_PATH_BY_INDEX = Object.fromEntries(
@@ -253,6 +261,7 @@ function ProjectPageContentBody({
             <Tab id="traces">Traces</Tab>
             <Tab id="sessions">Sessions</Tab>
             <Tab id="metrics">Metrics</Tab>
+            <Tab id="evaluators">Evaluators</Tab>
             <Tab id="config">Config</Tab>
           </TabList>
           <LazyTabPanel padded={false} id="spans">
@@ -268,6 +277,9 @@ function ProjectPageContentBody({
             <Outlet />
           </LazyTabPanel>
           <LazyTabPanel padded={false} id="config">
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="evaluators">
             <Outlet />
           </LazyTabPanel>
         </Tabs>

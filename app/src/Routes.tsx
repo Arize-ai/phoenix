@@ -81,6 +81,7 @@ import {
   ProfileAuthorizedApplicationsPage,
   ProfilePage,
   ProfilePreferencesPage,
+  ProjectEvaluatorsPage,
   ProjectIndexPage,
   projectLoader,
   ProjectMetricsPage,
@@ -412,6 +413,17 @@ export const appRouteObjects = createRoutesFromElements(
                     label: "Project Metrics",
                     description:
                       "View project time-series metrics, token usage breakdowns, cache read/write token charts, and observability panels.",
+                  },
+                }}
+              />
+              <Route
+                path="evaluators"
+                element={<ProjectEvaluatorsPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Project Evaluators",
+                    description:
+                      "View and add project evaluators — online evals that automatically run against live spans, traces, and sessions.",
                   },
                 }}
               />
