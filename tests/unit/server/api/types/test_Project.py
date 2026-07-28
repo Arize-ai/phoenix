@@ -472,6 +472,57 @@ class TestTopModels:
         assert (empty_cost_data := empty_cost_response.data) is not None
         assert len(empty_cost_data["node"]["topModelsByCost"]) == 0
 
+    @pytest.mark.parametrize(
+        "bad_project_id",
+        [
+            pytest.param(
+                str(GlobalID(type_name="Span", node_id="1")),
+                id="wrong_type_numeric_payload",
+            ),
+            pytest.param(
+                str(GlobalID(type_name="SandboxProvider", node_id="not-a-number")),
+                id="wrong_type_non_numeric_payload",
+            ),
+        ],
+    )
+    async def test_token_details_reject_a_project_id_of_another_type(
+        self,
+        bad_project_id: str,
+        _cost_data: _CostTestData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """A non-Project ID is a bad request, whether or not its payload parses as an int."""
+        project_gid = str(GlobalID(type_name="Project", node_id=str(_cost_data.project.id)))
+        query = """
+            query ($projectId: ID!, $scopeProjectId: ID!, $timeRange: TimeRange!) {
+                node(id: $projectId) {
+                    ... on Project {
+                        topModelsByCost(timeRange: $timeRange) {
+                            costDetailSummaryEntries(
+                                projectId: $scopeProjectId
+                                timeRange: $timeRange
+                            ) {
+                                tokenType
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "projectId": project_gid,
+                "scopeProjectId": bad_project_id,
+                "timeRange": {
+                    "start": _cost_data.base_time.isoformat(),
+                    "end": (_cost_data.base_time + timedelta(minutes=15)).isoformat(),
+                },
+            },
+        )
+        assert response.errors
+        assert any("Invalid Project ID" in error.message for error in response.errors)
+
     async def test_token_details_are_aggregated_by_model_project_and_time_range(
         self,
         _cost_data: _CostTestData,

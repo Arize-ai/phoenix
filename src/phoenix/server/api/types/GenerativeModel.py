@@ -21,7 +21,6 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.ModelInterface import ModelInterface
-from phoenix.server.api.types.node import from_global_id
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TokenPrice import TokenKind, TokenPrice
@@ -156,7 +155,15 @@ class GenerativeModel(Node, ModelInterface):
             )
         return token_prices
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            "Total cost for this model. Narrowing by project or time range is only "
+            "answered on the topModelsByCost and topModelsByToken paths, which "
+            "precompute the scoped summary; any other caller passing projectId or "
+            "timeRange gets an error. Unlike costDetailSummaryEntries, this field "
+            "cannot yet resolve an arbitrary scope."
+        )
+    )
     async def cost_summary(
         self,
         info: Info[Context, None],
@@ -191,7 +198,14 @@ class GenerativeModel(Node, ModelInterface):
             ),
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            "Cost and token counts for this model, broken down by token type. "
+            "Both arguments are optional filters: projectId limits the breakdown to "
+            "spans in one project, timeRange to spans that started within it, and "
+            "omitting both returns the model's usage across all projects and time."
+        )
+    )
     async def cost_detail_summary_entries(
         self,
         info: Info[Context, None],
@@ -227,13 +241,20 @@ class GenerativeModel(Node, ModelInterface):
 
 
 def _get_project_rowid(project_id: Optional[GlobalID]) -> Optional[int]:
-    """Resolves a project's row ID, or None when no project narrows the query."""
+    """Resolves a project's row ID, or None when no project narrows the query.
+
+    The type name is checked before the row ID is parsed, so an ID carrying a
+    non-numeric payload is still reported as an invalid project rather than
+    surfacing as an internal error.
+    """
     if not project_id:
         return None
-    type_name, project_rowid = from_global_id(project_id)
-    if type_name != models.Project.__name__:
+    if project_id.type_name != models.Project.__name__:
         raise BadRequest("Invalid Project ID")
-    return project_rowid
+    try:
+        return int(project_id.node_id)
+    except ValueError:
+        raise BadRequest("Invalid Project ID")
 
 
 def _semconv_provider_to_gql_generative_provider_key(

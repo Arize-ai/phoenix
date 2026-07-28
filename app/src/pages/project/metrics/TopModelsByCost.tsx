@@ -86,19 +86,27 @@ export function TopModelsByCost({
     useMetricQueryFetchOptions()
   );
 
+  const models = data.project.topModelsByCost ?? [];
   const { chartData, series } = buildModelTokenDetailChartData({
     metric: "cost",
-    models: data.project.topModelsByCost ?? [],
+    models,
   });
   const colorByDataKey = getModelTokenDetailColors({ colors, series });
   // A model with no measured usage contributes no series, and a chart with no
   // series has nothing to draw, so it counts as empty however many rows it has.
   const hasData = series.length > 0;
+  // Models ran in this range but none of them cost anything, which means their
+  // pricing is missing rather than the range being empty. Blaming the time
+  // range there sends people to widen a range that was never the problem.
+  const emptyStateMessage =
+    models.length > 0
+      ? "No cost data. Model pricing may not be configured."
+      : "No data in this time range";
 
   return (
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
-      message="No data in this time range"
+      message={emptyStateMessage}
       chartType="barHorizontal"
     >
       <ResponsiveContainer width="100%" height="100%">
