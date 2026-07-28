@@ -28,6 +28,18 @@ import type {
 const AGENT_SESSION_CHAT_PATH =
   "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof pathsV1;
 const SERVER_AGENT_ID = "server";
+/**
+ * Error code the chat endpoint returns (HTTP 409) while another client's turn
+ * holds the session lock.
+ */
+const SESSION_BUSY_ERROR_CODE = "agent_session_busy";
+
+/** Whether an error is the chat endpoint's session-busy (HTTP 409) rejection. */
+export function isSessionBusyError({ error }: { error: unknown }): boolean {
+  return (
+    error instanceof Error && error.message.includes(SESSION_BUSY_ERROR_CODE)
+  );
+}
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
@@ -187,6 +199,10 @@ export function createPxiSessionClient({
         title: session.title,
         updatedAt: session.updated_at,
         isTemporary: session.is_temporary,
+        // Read loosely: the generated OpenAPI types don't carry
+        // `isTurnActive` yet, and an absent field means no lock is held.
+        isTurnActive:
+          (session as { isTurnActive?: unknown }).isTurnActive === true,
         messages: session.messages as PxiMessage[],
       };
     },
@@ -424,6 +440,11 @@ export function createPxiChatClient({
           onSessionTitle,
         });
       } catch (error) {
+        // A session-busy rejection (HTTP 409) is not a model/provider
+        // failure: rethrow it unwrapped so the UI can enter its busy state.
+        if (isSessionBusyError({ error })) {
+          throw error;
+        }
         throw formatPxiRuntimeError({
           error,
           modelSelection: options.modelSelection,

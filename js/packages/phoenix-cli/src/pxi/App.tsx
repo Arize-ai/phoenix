@@ -6,6 +6,7 @@ import {
   createPxiChatClient,
   createPxiSessionClient,
   createUserMessage,
+  isSessionBusyError,
 } from "./client";
 import {
   getSlashCommandName,
@@ -110,6 +111,10 @@ const KITTY_BACKSPACE_INPUT_PATTERN =
 const KITTY_FORWARD_DELETE_INPUT_PATTERN = /^\x1B\[3;\d+:[12]~$/;
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
 const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
+/** How often to re-fetch a session while another client's turn holds its lock. */
+const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
+const SESSION_BUSY_STATUS_TEXT =
+  "Session is being used elsewhere, the chat will refresh when complete";
 
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
@@ -811,6 +816,27 @@ export function ThinkingIndicator() {
 }
 
 /**
+ * Spinner and status line shown while another client's turn holds the
+ * session's server-side lock.
+ */
+function SessionBusyIndicator() {
+  const [frameIndex, setFrameIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFrameIndex((value) => (value + 1) % TOOL_SPINNER_FRAMES.length);
+    }, 250);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <Text color="yellow">
+      {TOOL_SPINNER_FRAMES[frameIndex]} {SESSION_BUSY_STATUS_TEXT}
+    </Text>
+  );
+}
+
+/**
  * Root component for the PXI chat.
  *
  * Holds the conversation, draft input, streaming status, and any error, and
@@ -843,6 +869,9 @@ export function PxiApp({
   );
   const [status, setStatus] = useState<PxiStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  // Another client's turn holds the session's server-side lock (HTTP 409 on
+  // send, or `isTurnActive` on restore); plain sends are blocked while set.
+  const [isSessionBusy, setIsSessionBusy] = useState(false);
   const [activeSession, setActiveSession] = useState<PxiSessionSummary | null>(
     null
   );
@@ -861,6 +890,40 @@ export function PxiApp({
     () => sessionClient ?? createPxiSessionClient({ config: options.config }),
     [options.config, sessionClient]
   );
+
+  // While another client's turn holds the session lock, poll the session until
+  // the turn completes, then swap in the persisted transcript. Transient fetch
+  // failures keep the poll alive; switching sessions, /new, and unmounting
+  // (process exit) stop it via the effect cleanup.
+  const busySessionId = isSessionBusy ? (activeSession?.id ?? null) : null;
+  useEffect(() => {
+    if (!busySessionId) {
+      return;
+    }
+    let isStale = false;
+    const pollSession = () => {
+      void serverSessionClient
+        .getSession({ sessionId: busySessionId })
+        .then((session) => {
+          if (isStale || session.isTurnActive) {
+            return;
+          }
+          // The other client's turn completed and its transcript persisted;
+          // mirror the session-restore path by replacing the message list.
+          setActiveSession(session);
+          setMessages(session.messages);
+          setIsSessionBusy(false);
+        })
+        .catch(() => {
+          // Transient failure: wait for the next poll tick.
+        });
+    };
+    const intervalId = setInterval(pollSession, SESSION_BUSY_POLL_INTERVAL_MS);
+    return () => {
+      isStale = true;
+      clearInterval(intervalId);
+    };
+  }, [busySessionId, serverSessionClient]);
 
   const handleExit = () => {
     abortControllerRef.current?.abort();
@@ -894,6 +957,7 @@ export function PxiApp({
     sessionRequestIdRef.current += 1;
     setActiveSession(null);
     setIsDraftTemporary(temporary);
+    setIsSessionBusy(false);
     setModelPicker(null);
     setSessionPicker(null);
     setMessages([]);
@@ -1027,6 +1091,10 @@ export function PxiApp({
         if (sessionRequestIdRef.current !== requestId) return;
         setActiveSession(session);
         setIsDraftTemporary(session.isTemporary);
+        // Another client's turn may already hold the restored session's lock;
+        // enter the busy state so the poll refreshes the transcript when it
+        // completes.
+        setIsSessionBusy(session.isTurnActive === true);
         setMessages(session.messages);
         setError(null);
         setDraft(EMPTY_DRAFT_EDITOR_STATE);
@@ -1086,6 +1154,12 @@ export function PxiApp({
           `Unknown command: /${result.name}. Type /help to see available commands.`
         );
       }
+      return;
+    }
+
+    // Plain sends are blocked while another client's turn holds the session
+    // lock; keep the draft editable so nothing typed is lost.
+    if (isSessionBusy) {
       return;
     }
 
@@ -1149,6 +1223,22 @@ export function PxiApp({
       })
       .catch((err: unknown) => {
         if (abortController.signal.aborted) {
+          return;
+        }
+        if (isSessionBusyError({ error: err })) {
+          // Another client's turn holds the session lock (HTTP 409). Withdraw
+          // the optimistic user message back into the composer (unless the
+          // user already typed something new) and enter the busy state; the
+          // poll refreshes the transcript once the other turn completes.
+          setMessages((currentMessages) =>
+            currentMessages.filter((message) => message.id !== userMessage.id)
+          );
+          setDraft((currentDraft) =>
+            currentDraft.value
+              ? currentDraft
+              : { value: text, cursorIndex: text.length }
+          );
+          setIsSessionBusy(true);
           return;
         }
         setError(err instanceof Error ? err.message : String(err));
@@ -1470,7 +1560,11 @@ export function PxiApp({
           <Text color="red">Error: {error}</Text>
         </Box>
       ) : null}
-      {status === "streaming" ? <ThinkingIndicator /> : null}
+      {status === "streaming" ? (
+        <ThinkingIndicator />
+      ) : isSessionBusy ? (
+        <SessionBusyIndicator />
+      ) : null}
       {modelPicker ? (
         <ModelPicker state={modelPicker} />
       ) : sessionPicker ? (
