@@ -7,8 +7,8 @@ import {
   useDefaultLayout,
 } from "react-resizable-panels";
 
-import { useTimeRange, View } from "@phoenix/components";
-import { ChartPanel } from "@phoenix/components/chart";
+import { useTimeRange } from "@phoenix/components";
+import { ChartPanel, ChartPanelStrip } from "@phoenix/components/chart";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -38,14 +38,6 @@ const chartsResizeHandleCSS = css`
   z-index: 1;
 `;
 
-const chartsGridCSS = css`
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: var(--global-dimension-size-100);
-  height: 100%;
-`;
-
 /**
  * A strip of user-selected metric charts shown above a project table (spans,
  * traces, or sessions) for troubleshooting. Any chart in the chart catalog
@@ -69,35 +61,20 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
   const timeRange = useClosedTimeRange({ refreshKey: fetchKey });
   const charts = getProjectMetricCharts(selectedChartKeys);
   return (
-    <View
-      paddingStart="size-200"
-      paddingEnd="size-200"
-      paddingTop="size-100"
-      height="100%"
-      overflow="visible"
-      position="relative"
-      zIndex={2}
-    >
-      <div css={chartsGridCSS}>
-        {/* Re-fetch the charts on each stream refresh so they stay live */}
-        <MetricFetchKeyProvider value={fetchKey}>
-          {charts.map(({ key, name, description, Component }) => (
-            <ChartPanel
-              key={key}
-              title={name}
-              subtitle={description}
-              fillHeight
-            >
-              <Component
-                projectId={projectId}
-                timeRange={timeRange}
-                onTimeRangeSelected={setCustomTimeRange}
-              />
-            </ChartPanel>
-          ))}
-        </MetricFetchKeyProvider>
-      </div>
-    </View>
+    <ChartPanelStrip chartCount={charts.length}>
+      {/* Re-fetch the charts on each stream refresh so they stay live */}
+      <MetricFetchKeyProvider value={fetchKey}>
+        {charts.map(({ key, name, description, Component }) => (
+          <ChartPanel key={key} title={name} subtitle={description} fillHeight>
+            <Component
+              projectId={projectId}
+              timeRange={timeRange}
+              onTimeRangeSelected={setCustomTimeRange}
+            />
+          </ChartPanel>
+        ))}
+      </MetricFetchKeyProvider>
+    </ChartPanelStrip>
   );
 });
 
