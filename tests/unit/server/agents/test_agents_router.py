@@ -35,7 +35,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     TextStartChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
@@ -54,6 +54,7 @@ from phoenix.server.agents.data_stream_protocol import (
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
+from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS
 from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
     _emit_turn_root_span,
@@ -92,6 +93,10 @@ def _server_agent_chat_url(agent_session_id: str) -> str:
 
 def _compact_url(agent_session_id: str) -> str:
     return f"/agents/assistant/sessions/{agent_session_id}/compact"
+
+
+def _server_agent_compact_url(agent_session_id: str) -> str:
+    return f"/agents/server/sessions/{agent_session_id}/compact"
 
 
 def _compact_body() -> dict[str, Any]:
@@ -538,6 +543,229 @@ async def test_compact_agent_session_without_a_completed_turn_is_a_noop(
     assert response.json() == {"data": {"compacted": False}}
     async with db() as session:
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
+
+
+async def test_compact_is_rejected_while_a_turn_holds_the_session_lock(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Compaction contends for the same turn lock as a chat send: a live
+    heartbeat means another turn is streaming, so compaction is rejected as
+    busy before any model work — and must not release the other turn's lock."""
+
+    async def _unexpected_build_model(*args: object, **kwargs: object) -> FunctionModel:
+        raise AssertionError("a rejected compaction must not build a model")
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _unexpected_build_model)
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id="93939393-9393-4393-8393-939393939393",
+        title="Busy session",
+        messages=[
+            _user_message("Hello", message_id="user-1"),
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "Hi there."}],
+            },
+        ],
+    )
+    live_heartbeat = datetime.now(timezone.utc)
+    async with db() as session:
+        await session.execute(update(models.AgentSession).values(heartbeat_at=live_heartbeat))
+
+    response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
+
+    assert response.status_code == 409
+    assert response.json() == {"code": "agent_session_busy"}
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        assert stored.heartbeat_at is not None
+        compaction_message_count = await session.scalar(
+            select(func.count())
+            .select_from(models.AgentSessionMessage)
+            .where(models.AgentSessionMessage.is_compaction_message)
+        )
+    assert compaction_message_count == 0
+
+
+async def test_compact_takes_over_a_stale_session_lock(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A heartbeat older than the staleness window belongs to an abandoned
+    turn: compaction claims the lock, compacts, and releases it."""
+    checkpoint = {
+        "objectives": ["Recover the session"],
+        "constraints_and_preferences": [],
+        "decisions": [],
+        "completed_work": [],
+        "active_work": [],
+        "blockers": [],
+        "next_steps": [],
+        "important_details": [],
+    }
+
+    def compact_function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(
+            parts=[ToolCallPart(tool_name="conversation_checkpoint", args=checkpoint)]
+        )
+
+    _mock_turn_models(monkeypatch, FunctionModel(function=compact_function))
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id="94949494-9494-4494-8494-949494949494",
+        title="Abandoned turn",
+        messages=[
+            _user_message("Hello", message_id="user-1"),
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "Hi there."}],
+            },
+        ],
+    )
+    stale_heartbeat = datetime.now(timezone.utc) - TURN_LOCK_STALENESS * 2
+    async with db() as session:
+        await session.execute(update(models.AgentSession).values(heartbeat_at=stale_heartbeat))
+
+    response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
+
+    assert response.status_code == 200
+    assert response.json()["data"]["compacted"] is True
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        assert stored.heartbeat_at is None
+
+
+async def test_chat_send_during_compaction_is_rejected_as_busy(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Compaction holds the session's turn lock while summarizing, so a
+    concurrent chat send is rejected as busy; the lock is released once the
+    compaction completes."""
+    session_id = "95959595-9595-4595-8595-959595959595"
+    checkpoint = {
+        "objectives": ["Summarize while locked"],
+        "constraints_and_preferences": [],
+        "decisions": [],
+        "completed_work": [],
+        "active_work": [],
+        "blockers": [],
+        "next_steps": [],
+        "important_details": [],
+    }
+    concurrent_sends: list[tuple[int, dict[str, Any]]] = []
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id=session_id,
+        title="Compacting session",
+        messages=[
+            _user_message("Hello", message_id="user-1"),
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "Hi there."}],
+            },
+        ],
+    )
+
+    async def compact_function(
+        messages: list[ModelMessage], agent_info: AgentInfo
+    ) -> ModelResponse:
+        # The summarization call is in flight: a follow-up send right now
+        # must bounce off the turn lock the compaction is holding.
+        chat_response = await httpx_client.post(
+            _chat_url(agent_session_id),
+            json=_chat_body(
+                session_id,
+                _user_message("follow-up", message_id="user-2"),
+                lastMessageId="assistant-1",
+            ),
+        )
+        concurrent_sends.append((chat_response.status_code, chat_response.json()))
+        return ModelResponse(
+            parts=[ToolCallPart(tool_name="conversation_checkpoint", args=checkpoint)]
+        )
+
+    _mock_turn_models(monkeypatch, FunctionModel(function=compact_function))
+
+    compact_response = await httpx_client.post(_compact_url(agent_session_id), json=_compact_body())
+
+    assert compact_response.status_code == 200
+    assert compact_response.json()["data"]["compacted"] is True
+    assert concurrent_sends == [(409, {"code": "agent_session_busy"})]
+    async with db() as session:
+        stored = await session.scalar(select(models.AgentSession))
+        assert stored is not None
+        assert stored.heartbeat_at is None
+
+
+async def test_server_agent_compact_route_matches_chat_route_gating(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The compact route serves the same agents as chat: the server agent can
+    compact its sessions, unknown agents are 404, and disabling bash turns the
+    route off for the server agent only."""
+    checkpoint = {
+        "objectives": ["Compact a server session"],
+        "constraints_and_preferences": [],
+        "decisions": [],
+        "completed_work": [],
+        "active_work": [],
+        "blockers": [],
+        "next_steps": [],
+        "important_details": [],
+    }
+
+    def compact_function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(
+            parts=[ToolCallPart(tool_name="conversation_checkpoint", args=checkpoint)]
+        )
+
+    _mock_turn_models(monkeypatch, FunctionModel(function=compact_function))
+    agent_session_id = await _create_agent_session_row(
+        db,
+        project_session_id="96969696-9696-4696-8696-969696969696",
+        title="Server session",
+        messages=[
+            _user_message("Hello", message_id="user-1"),
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "Hi there."}],
+            },
+        ],
+    )
+
+    unknown_agent_response = await httpx_client.post(
+        f"/agents/nonexistent/sessions/{agent_session_id}/compact",
+        json=_compact_body(),
+    )
+    assert unknown_agent_response.status_code == 404
+
+    server_response = await httpx_client.post(
+        _server_agent_compact_url(agent_session_id),
+        json=_compact_body(),
+    )
+    assert server_response.status_code == 200
+    assert server_response.json()["data"]["compacted"] is True
+
+    monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "true")
+    disabled_response = await httpx_client.post(
+        _server_agent_compact_url(agent_session_id),
+        json=_compact_body(),
+    )
+    assert disabled_response.status_code == 403
+    assert "Server agent is disabled" in disabled_response.text
 
 
 async def test_chat_turn_persists_session_transcript(

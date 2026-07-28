@@ -7,6 +7,7 @@ import {
   buildPxiHeaders,
   createPxiChatClient,
   createPxiSessionClient,
+  isSessionBusyError,
 } from "../src/pxi/client";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
 import type { PxiMessage, PxiTransport } from "../src/pxi/types";
@@ -282,6 +283,108 @@ describe("PXI client", () => {
         parts: [{ type: "text", text: "What failed?" }],
       },
     ]);
+  });
+
+  it("compacts a session on the server-agent compact route", async () => {
+    const checkpoint = {
+      id: "checkpoint-1",
+      role: "user",
+      metadata: { type: "user", isCompactionMessage: true },
+      parts: [{ type: "text", text: "Summary of the conversation so far." }],
+    };
+    const fetchImpl = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        const request =
+          _input instanceof Request ? _input : new Request(_input, init);
+        expect(request.url).toBe(
+          "http://localhost:6006/agents/server/sessions/session-1/compact"
+        );
+        expect(request.method).toBe("POST");
+        expect(await request.json()).toEqual({
+          model: {
+            providerType: "builtin",
+            provider: "OPENAI",
+            modelName: "gpt-5.4",
+          },
+        });
+        return new Response(
+          JSON.stringify({
+            data: { compacted: true, compaction_message: checkpoint },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    ) as typeof fetch;
+    const sessionClient = createPxiSessionClient({
+      config: { endpoint: "http://localhost:6006" },
+      fetch: fetchImpl,
+    });
+
+    const result = await sessionClient.compactSession({
+      sessionId: "session-1",
+      model: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      },
+    });
+
+    expect(result.compacted).toBe(true);
+    expect(result.compactionMessage).toEqual(checkpoint);
+  });
+
+  it("surfaces a compaction 409 busy rejection as a session-busy error", async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: "agent_session_busy" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      })
+    ) as typeof fetch;
+    const sessionClient = createPxiSessionClient({
+      config: { endpoint: "http://localhost:6006" },
+      fetch: fetchImpl,
+    });
+
+    const compaction = sessionClient.compactSession({
+      sessionId: "session-1",
+      model: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      },
+    });
+
+    await expect(compaction).rejects.toSatisfy((error: unknown) =>
+      isSessionBusyError({ error })
+    );
+  });
+
+  it("surfaces compaction failures with the server's detail message", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ detail: "Conversation compaction failed: boom" }),
+          { status: 502, headers: { "Content-Type": "application/json" } }
+        )
+      ) as typeof fetch;
+    const sessionClient = createPxiSessionClient({
+      config: { endpoint: "http://localhost:6006" },
+      fetch: fetchImpl,
+    });
+
+    const compaction = sessionClient.compactSession({
+      sessionId: "session-1",
+      model: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      },
+    });
+
+    await expect(compaction).rejects.toThrowError(
+      /Conversation compaction failed: boom/
+    );
   });
 
   it("streams assistant text updates", async () => {

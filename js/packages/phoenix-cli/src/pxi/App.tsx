@@ -15,6 +15,7 @@ import {
   runSlashCommand,
   SLASH_COMMANDS,
 } from "./commands";
+import { getCompactionSummary, isCompactionMessage } from "./compaction";
 import {
   deleteDraftTextAtCursor,
   deleteDraftTextBeforeCursor,
@@ -118,6 +119,14 @@ const SESSION_BUSY_STATUS_TEXT =
   "Session is being used elsewhere, the chat will refresh when complete";
 const SESSION_STALE_STATUS_TEXT =
   "Session was updated elsewhere, the chat has been refreshed";
+const COMPACTING_STATUS_TEXT = "Compacting conversation";
+const ALREADY_COMPACT_STATUS_TEXT =
+  "Conversation is already compact. There are no older complete turns to compact.";
+const COMPACT_WHILE_BUSY_ERROR_TEXT =
+  "Session is being used elsewhere. Try again when the other turn completes.";
+const COMPACT_DRAFT_SESSION_ERROR_TEXT =
+  "There is no persisted conversation to compact.";
+const COMPACTION_DIVIDER_TEXT = "── Conversation compacted ──";
 
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
@@ -358,6 +367,18 @@ function Transcript({
   return (
     <Box flexDirection="column">
       {messages.map((message) => {
+        if (isCompactionMessage({ message })) {
+          // A compaction checkpoint is a persisted summary, not something the
+          // user typed: render it as a labeled divider with the summary dimmed.
+          return (
+            <Box key={message.id} flexDirection="column" marginBottom={1}>
+              <Text color="yellow" bold>
+                {COMPACTION_DIVIDER_TEXT}
+              </Text>
+              <Text dimColor>{getCompactionSummary({ message })}</Text>
+            </Box>
+          );
+        }
         const label = message.role === "user" ? "You" : "PXI";
         const color = message.role === "user" ? "cyan" : "green";
         return (
@@ -819,10 +840,10 @@ export function ThinkingIndicator() {
 }
 
 /**
- * Spinner and status line shown while another client's turn holds the
- * session's server-side lock.
+ * Spinner and status line for long-running session states — another client's
+ * turn holding the server-side lock, or an in-flight compaction.
  */
-function SessionBusyIndicator() {
+function StatusSpinnerLine({ text }: { text: string }) {
   const [frameIndex, setFrameIndex] = useState(0);
 
   useEffect(() => {
@@ -834,7 +855,7 @@ function SessionBusyIndicator() {
 
   return (
     <Text color="yellow">
-      {TOOL_SPINNER_FRAMES[frameIndex]} {SESSION_BUSY_STATUS_TEXT}
+      {TOOL_SPINNER_FRAMES[frameIndex]} {text}
     </Text>
   );
 }
@@ -878,6 +899,10 @@ export function PxiApp({
   // A send was rejected as stale (another client appended to the session) and
   // the transcript was refreshed in place; shown until the next send.
   const [showStaleRefreshNotice, setShowStaleRefreshNotice] = useState(false);
+  // A compaction request is in flight; plain sends are blocked while set.
+  const [isCompacting, setIsCompacting] = useState(false);
+  // One-shot notice after a no-op compaction; shown until the next send.
+  const [compactionNotice, setCompactionNotice] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<PxiSessionSummary | null>(
     null
   );
@@ -965,6 +990,7 @@ export function PxiApp({
     setIsDraftTemporary(temporary);
     setIsSessionBusy(false);
     setShowStaleRefreshNotice(false);
+    setCompactionNotice(null);
     setModelPicker(null);
     setSessionPicker(null);
     setMessages([]);
@@ -1103,6 +1129,7 @@ export function PxiApp({
         // completes.
         setIsSessionBusy(session.isActive === true);
         setShowStaleRefreshNotice(false);
+        setCompactionNotice(null);
         setMessages(session.messages);
         setError(null);
         setDraft(EMPTY_DRAFT_EDITOR_STATE);
@@ -1125,6 +1152,85 @@ export function PxiApp({
       });
   };
 
+  /**
+   * Compact the persisted conversation into a checkpoint summary. Mirrors the
+   * web UI's `/compact`: rejected while the session is busy elsewhere, shows a
+   * one-shot notice when there is nothing to compact, and sends `pendingText`
+   * as a follow-up message once the compaction lands.
+   */
+  const compactSession = (pendingText?: string) => {
+    setCompactionNotice(null);
+    const restorePendingText = () => {
+      if (pendingText) {
+        setDraft((currentDraft) =>
+          currentDraft.value
+            ? currentDraft
+            : { value: pendingText, cursorIndex: pendingText.length }
+        );
+      }
+    };
+    if (!activeSession) {
+      restorePendingText();
+      setError(COMPACT_DRAFT_SESSION_ERROR_TEXT);
+      return;
+    }
+    if (isCompacting) {
+      restorePendingText();
+      return;
+    }
+    if (isSessionBusy) {
+      restorePendingText();
+      setError(COMPACT_WHILE_BUSY_ERROR_TEXT);
+      return;
+    }
+    const compactionSessionId = activeSession.id;
+    // A session switch (/new, restore) mid-compaction supersedes this request.
+    const requestId = sessionRequestIdRef.current;
+    const baseMessages = messages;
+    setError(null);
+    setIsCompacting(true);
+    void serverSessionClient
+      .compactSession({
+        sessionId: compactionSessionId,
+        model: activeModelSelection,
+      })
+      .then((result) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        const checkpoint = result.compactionMessage;
+        const nextMessages =
+          checkpoint &&
+          !baseMessages.some((message) => message.id === checkpoint.id)
+            ? [...baseMessages, checkpoint]
+            : baseMessages;
+        setMessages(nextMessages);
+        if (!result.compacted) {
+          setCompactionNotice(ALREADY_COMPACT_STATUS_TEXT);
+        }
+        if (pendingText) {
+          sendUserText({ text: pendingText, baseMessages: nextMessages });
+        }
+      })
+      .catch((compactError: unknown) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        restorePendingText();
+        if (isSessionBusyError({ error: compactError })) {
+          // Another client's turn holds the session lock (HTTP 409): enter
+          // the busy state; the poll refreshes the transcript once the other
+          // turn completes.
+          setIsSessionBusy(true);
+          return;
+        }
+        setError(
+          compactError instanceof Error
+            ? compactError.message
+            : String(compactError)
+        );
+      })
+      .finally(() => {
+        setIsCompacting(false);
+      });
+  };
+
   const submitDraft = () => {
     const text = draft.value.trim();
     if (!text || status === "streaming") {
@@ -1138,6 +1244,7 @@ export function PxiApp({
         startNewSession,
         openModelPicker,
         openSessionPicker,
+        compactSession,
         exit: handleExit,
       });
       if (result.type === "help") {
@@ -1166,19 +1273,32 @@ export function PxiApp({
     }
 
     // Plain sends are blocked while another client's turn holds the session
-    // lock; keep the draft editable so nothing typed is lost.
-    if (isSessionBusy) {
+    // lock or a compaction is in flight; keep the draft editable so nothing
+    // typed is lost.
+    if (isSessionBusy || isCompacting) {
       return;
     }
 
+    setDraft(EMPTY_DRAFT_EDITOR_STATE);
+    sendUserText({ text, baseMessages: messages });
+  };
+
+  /** Append a user message to `baseMessages` and stream the reply. */
+  const sendUserText = ({
+    text,
+    baseMessages,
+  }: {
+    text: string;
+    baseMessages: PxiMessage[];
+  }) => {
     const userMessage = createUserMessage({ text });
-    const nextMessages = [...messages, userMessage];
+    const nextMessages = [...baseMessages, userMessage];
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     streamingAssistantMessageRef.current = null;
-    setDraft(EMPTY_DRAFT_EDITOR_STATE);
     setError(null);
     setShowStaleRefreshNotice(false);
+    setCompactionNotice(null);
     setStatus("streaming");
     setMessages(nextMessages);
     void (async () => {
@@ -1608,8 +1728,12 @@ export function PxiApp({
       ) : null}
       {status === "streaming" ? (
         <ThinkingIndicator />
+      ) : isCompacting ? (
+        <StatusSpinnerLine text={COMPACTING_STATUS_TEXT} />
       ) : isSessionBusy ? (
-        <SessionBusyIndicator />
+        <StatusSpinnerLine text={SESSION_BUSY_STATUS_TEXT} />
+      ) : compactionNotice ? (
+        <Text color="yellow">{compactionNotice}</Text>
       ) : showStaleRefreshNotice ? (
         <Text color="yellow">{SESSION_STALE_STATUS_TEXT}</Text>
       ) : null}

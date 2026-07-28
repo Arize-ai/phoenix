@@ -765,6 +765,15 @@ export function useAgentChat({
       });
       return;
     }
+    if (store.getState().isBusyElsewhereBySessionId[sessionId]) {
+      restorePendingMessage();
+      setOperationError({
+        title: "Conversation could not be compacted",
+        message:
+          "Session is being used elsewhere. Try again when the other turn completes.",
+      });
+      return;
+    }
 
     store.getState().setSessionCompactionPending(sessionId, true);
     void (async () => {
@@ -777,7 +786,22 @@ export function useAgentChat({
           }),
         });
         if (!response.ok) {
-          throw new Error(await getAgentCompactErrorMessage(response));
+          const errorBody: unknown = await response.json().catch(() => null);
+          if (
+            response.status === 409 &&
+            isRecord(errorBody) &&
+            errorBody.code === SESSION_BUSY_ERROR_CODE
+          ) {
+            // Another client's turn holds the session lock: enter
+            // busy-elsewhere mode (the poll swaps in the fresh transcript
+            // when the turn completes) instead of raising a red error.
+            restorePendingMessage();
+            store.getState().setSessionBusyElsewhere(sessionId, true);
+            return;
+          }
+          throw new Error(
+            getAgentCompactErrorMessage(errorBody, response.status)
+          );
         }
         const result: unknown = await response.json();
         const data =
@@ -1106,18 +1130,11 @@ function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
 }
 
-async function getAgentCompactErrorMessage(
-  response: Response
-): Promise<string> {
-  try {
-    const body: unknown = await response.json();
-    if (isRecord(body) && typeof body.detail === "string") {
-      return body.detail;
-    }
-  } catch {
-    // Fall back to the HTTP status when the response is not JSON.
+function getAgentCompactErrorMessage(body: unknown, status: number): string {
+  if (isRecord(body) && typeof body.detail === "string") {
+    return body.detail;
   }
-  return `Compaction failed with status ${response.status}.`;
+  return `Compaction failed with status ${status}.`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

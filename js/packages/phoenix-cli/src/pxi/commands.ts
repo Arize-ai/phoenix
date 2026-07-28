@@ -9,6 +9,11 @@ export type CommandContext = {
   startNewSession: (options: { temporary: boolean }) => void;
   openModelPicker: () => void;
   openSessionPicker: () => void;
+  /**
+   * Compact older conversation context into a checkpoint summary. Any text
+   * after the command is sent as a follow-up message once compaction finishes.
+   */
+  compactSession: (pendingText?: string) => void;
   exit: () => void;
 };
 
@@ -24,6 +29,11 @@ export const SLASH_COMMANDS: PxiCommand[] = [
     name: "clear",
     description: "Start a new persisted session (alias for /new)",
     handler: (_args, ctx) => ctx.startNewSession({ temporary: false }),
+  },
+  {
+    name: "compact",
+    description: "Compact older conversation context",
+    handler: (args, ctx) => ctx.compactSession(args || undefined),
   },
   {
     name: "model",

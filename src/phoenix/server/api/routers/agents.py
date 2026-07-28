@@ -402,6 +402,21 @@ class CompactAgentSessionResponse(ResponseBody[CompactAgentSessionResponseData])
     pass
 
 
+def _compact_agent_session_response(
+    *,
+    compacted: bool,
+    compaction_message: PhoenixUIMessage | None,
+) -> JSONResponse:
+    """Serialize a compaction result the way the route's response model would."""
+    response = CompactAgentSessionResponse(
+        data=CompactAgentSessionResponseData(
+            compacted=compacted,
+            compaction_message=compaction_message,
+        ),
+    )
+    return JSONResponse(response.model_dump(mode="json", by_alias=True, exclude_none=True))
+
+
 _PydanticAIRequestDataAdapter: TypeAdapter[PydanticAIRequestData] = TypeAdapter(
     PydanticAIRequestData
 )
@@ -1890,23 +1905,40 @@ def create_agents_router(
         session_id: str,
         request: Request,
         request_body: CompactAgentSessionRequest,
-    ) -> CompactAgentSessionResponse:
-        if agent_id != _ASSISTANT_AGENT_ID:
+    ) -> JSONResponse:
+        if agent_id not in (_ASSISTANT_AGENT_ID, _SERVER_AGENT_ID):
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
+        db_session_factory: DbSessionFactory = request.app.state.db
 
+        async with db_session_factory() as session:
+            agent_session = await _refresh_and_load_agent_session(
+                session,
+                agent_session_id=session_id,
+                user_id=request_user_id,
+            )
+            agent_session_rowid = agent_session.id
+            if not await _claim_agent_session_turn_lock(
+                session,
+                agent_session_rowid=agent_session_rowid,
+            ):
+                return JSONResponse({"code": "agent_session_busy"}, status_code=409)
+
+        heartbeat_task = asyncio.create_task(
+            _heartbeat_agent_session_turn_lock(
+                db_session_factory,
+                agent_session_rowid=agent_session_rowid,
+            )
+        )
         try:
-            async with request.app.state.db() as session:
-                agent_session = await _refresh_and_load_agent_session(
-                    session,
-                    agent_session_id=session_id,
-                    user_id=request_user_id,
-                )
+            async with db_session_factory() as session:
                 message_rows = await _load_agent_session_history(
                     session,
-                    agent_session_rowid=agent_session.id,
+                    agent_session_rowid=agent_session_rowid,
                 )
                 first_row = message_rows[0] if message_rows else None
                 latest_compaction = (
@@ -1914,12 +1946,10 @@ def create_agents_router(
                 )
                 latest_row = message_rows[-1] if message_rows else None
                 if latest_row is None or latest_row.message.role != "assistant":
-                    return CompactAgentSessionResponse(
-                        data=CompactAgentSessionResponseData(
-                            compacted=False,
-                            compaction_message=(
-                                latest_compaction.message if latest_compaction is not None else None
-                            ),
+                    return _compact_agent_session_response(
+                        compacted=False,
+                        compaction_message=(
+                            latest_compaction.message if latest_compaction is not None else None
                         ),
                     )
                 boundary_row = latest_row
@@ -1929,73 +1959,73 @@ def create_agents_router(
                     session=session,
                     decrypt=request.app.state.decrypt,
                 )
-                agent_session_rowid = agent_session.id
-        except AgentError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-        summary_messages = _to_pydantic_ai_messages(messages_to_summarize)
-        try:
+            summary_messages = _to_pydantic_ai_messages(messages_to_summarize)
             summary = await summarize_messages_for_compaction(
                 messages=summary_messages,
                 model=model,
             )
+
+            async with db_session_factory() as session:
+                await _refresh_and_load_agent_session(
+                    session,
+                    agent_session_id=session_id,
+                    user_id=request_user_id,
+                    for_update=True,
+                )
+                current_history = await _load_agent_session_history(
+                    session,
+                    agent_session_rowid=agent_session_rowid,
+                )
+                current_first_row = current_history[0] if current_history else None
+                current_compaction = (
+                    current_first_row
+                    if current_first_row is not None and current_first_row.is_compaction_point
+                    else None
+                )
+                if current_compaction is not None and (
+                    latest_compaction is None or current_compaction.id != latest_compaction.id
+                ):
+                    return _compact_agent_session_response(
+                        compacted=False,
+                        compaction_message=current_compaction.message,
+                    )
+                current_latest_row = current_history[-1] if current_history else None
+                if (
+                    current_latest_row is None
+                    or current_latest_row.id != boundary_row.id
+                    or current_latest_row.message != boundary_row.message
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="The conversation changed while it was being compacted; try again",
+                    )
+                compaction_message = _build_compaction_message(
+                    message_id=str(uuid4()),
+                    summary=summary,
+                )
+                compaction_message_row = models.AgentSessionMessage(
+                    agent_session_id=agent_session_rowid,
+                    position=boundary_row.position + 1,
+                    message=compaction_message,
+                )
+                session.add(compaction_message_row)
+            return _compact_agent_session_response(
+                compacted=True,
+                compaction_message=compaction_message,
+            )
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
         except CompactionError as exc:
             raise HTTPException(
                 status_code=502, detail=f"Conversation compaction failed: {exc}"
             ) from exc
-
-        async with request.app.state.db() as session:
-            await _refresh_and_load_agent_session(
-                session,
-                agent_session_id=session_id,
-                user_id=request_user_id,
-                for_update=True,
-            )
-            current_history = await _load_agent_session_history(
-                session,
+        finally:
+            heartbeat_task.cancel()
+            await _release_agent_session_turn_lock(
+                db_session_factory,
                 agent_session_rowid=agent_session_rowid,
             )
-            current_first_row = current_history[0] if current_history else None
-            current_compaction = (
-                current_first_row
-                if current_first_row is not None and current_first_row.is_compaction_point
-                else None
-            )
-            if current_compaction is not None and (
-                latest_compaction is None or current_compaction.id != latest_compaction.id
-            ):
-                return CompactAgentSessionResponse(
-                    data=CompactAgentSessionResponseData(
-                        compacted=False,
-                        compaction_message=current_compaction.message,
-                    ),
-                )
-            current_latest_row = current_history[-1] if current_history else None
-            if (
-                current_latest_row is None
-                or current_latest_row.id != boundary_row.id
-                or current_latest_row.message != boundary_row.message
-            ):
-                raise HTTPException(
-                    status_code=409,
-                    detail="The conversation changed while it was being compacted; try again",
-                )
-            compaction_message = _build_compaction_message(
-                message_id=str(uuid4()),
-                summary=summary,
-            )
-            compaction_message_row = models.AgentSessionMessage(
-                agent_session_id=agent_session_rowid,
-                position=boundary_row.position + 1,
-                message=compaction_message,
-            )
-            session.add(compaction_message_row)
-        return CompactAgentSessionResponse(
-            data=CompactAgentSessionResponseData(
-                compacted=True,
-                compaction_message=compaction_message,
-            ),
-        )
 
     @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
     async def chat(
