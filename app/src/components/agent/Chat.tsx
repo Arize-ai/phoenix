@@ -847,7 +847,7 @@ export function ChatView({
                     aria-live="polite"
                   >
                     Session is being used elsewhere, the chat will refresh when
-                    complete
+                    complete.
                   </div>
                 ) : null}
                 {wasRefreshedFromStale && !isBusyElsewhere ? (
