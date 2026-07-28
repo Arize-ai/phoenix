@@ -49,8 +49,7 @@ class SessionIODataLoader(DataLoader[Key, Result]):
                 func.row_number()
                 .over(
                     partition_by=models.Trace.project_session_rowid,
-                    # Span.id breaks ties when a trace has multiple root spans, keeping the picked
-                    # root span in lockstep with the session-filter window (session_aggregates).
+                    # Span.id tie-break keeps this in lockstep with session_aggregates' window.
                     order_by=[
                         models.Trace.start_time.asc(),
                         models.Trace.id.asc(),
@@ -66,8 +65,7 @@ class SessionIODataLoader(DataLoader[Key, Result]):
                 func.row_number()
                 .over(
                     partition_by=models.Trace.project_session_rowid,
-                    # Span.id breaks ties when a trace has multiple root spans, keeping the picked
-                    # root span in lockstep with the session-filter window (session_aggregates).
+                    # Span.id tie-break keeps this in lockstep with session_aggregates' window.
                     order_by=[
                         models.Trace.start_time.desc(),
                         models.Trace.id.desc(),

@@ -40,8 +40,7 @@ class AliasedAnnotationRelation:
     Represents an aliased annotation relation (i.e., SQL table). Used to
     perform joins on annotations during filtering. An alias is required
     because the annotation table may be joined multiple times for different
-    annotation names. ``annotation_model`` and ``table_prefix`` select the grain
-    (span vs. session); they default to the span annotation.
+    annotation names.
     """
 
     index: int
@@ -171,32 +170,13 @@ parent pointer, or a pointer to a span absent from the table).
 
 @dataclass(frozen=True)
 class _FilterBindings:
-    """The entity-specific surface the shared filter compiler is parameterized over.
-
-    The compile pipeline (parse -> validate -> alias -> translate -> eval) is
-    entity-agnostic; everything that couples it to a grain lives here. ``string_names``,
-    ``float_names`` and ``datetime_names`` are the bound scalar columns, consulted both as
-    eval globals and by the ``_is_string``/``_is_float`` type-inference and reserved-keyword
-    passthrough. ``extra_names`` are additional eval globals (e.g. ``attributes``) that are not
-    reserved keywords. ``aggregate_names`` are float-typed names whose SQL is a per-instance
-    join (bound by the caller, not present as a static column) — they participate in type
-    inference and reserved-keyword passthrough but carry no entry in ``names``.
-    ``exists_names`` are operator-restricted pseudo names that compile only from
-    ``<expr> in <name>`` / ``<expr> not in <name>`` into a callable eval-global.
-    ``annotation_model``/``annotation_fk``/``entity_id``/``annotation_table_prefix`` retarget
-    the annotation join. ``uppercase_names`` are names whose string comparands are folded to
-    upper case (``span_kind``, ``status_code``). ``reject_unbound_names`` makes an unbound
-    bare name a did-you-mean error instead of an ``attributes`` lookup. ``quantifiers`` is
-    the set of call names allowed beyond the cast functions; both grains leave it empty.
-    ``supports_parent_keyword`` enables the reserved ``parent_span`` keyword (root-ness by
-    parent existence) — span-only; grains that leave it off reject ``parent_span`` as an
-    unbound name like any other.
-    """
+    """The entity-specific surface the shared filter compiler is parameterized over."""
 
     string_names: NameMap
     float_names: NameMap
     datetime_names: NameMap
     extra_names: NameMap
+    # float-typed in inference but bound per-instance by the caller — no entry in `names`
     aggregate_names: frozenset[str]
     legacy_replacements: typing.Mapping[str, str]
     uppercase_names: frozenset[str]
@@ -261,9 +241,7 @@ SPAN_BINDINGS = _FilterBindings(
 
 class _CompiledCondition(typing.NamedTuple):
     validated: ast.Expression
-    """The pre-aliasing parse tree, as it stood when validation passed — kept so a
-    caller can run additional analyses (e.g. root-scope detection) without paying
-    for a parse of its own."""
+    """The pre-aliasing parse tree, as it stood when validation passed."""
     translated: ast.Expression
     compiled: typing.Any
     aliased_annotation_relations: tuple[AliasedAnnotationRelation, ...]
@@ -275,7 +253,6 @@ def _compile_condition(
     bindings: _FilterBindings,
     valid_annotation_names: typing.Optional[typing.Sequence[str]],
 ) -> _CompiledCondition:
-    """Run the shared parse -> validate -> alias -> translate -> compile pipeline."""
     try:
         validated = ast.parse(source, mode="eval")
         _validate_expression(validated, bindings, valid_eval_names=valid_annotation_names)
@@ -318,7 +295,6 @@ def _join_annotations(
     E.g. for ``evals["Hallucination"].score > 0.5`` an alias ``A`` is generated and
     ``select(Span)`` becomes
     ``select(Span).outerjoin(A, and_(A.span_rowid == Span.id, A.name == "Hallucination"))``.
-    The FK column and entity id are taken from ``bindings`` so the join retargets across grains.
     """
     for annotation_relation in aliased_annotation_relations:
         aliased_annotation = annotation_relation.table
@@ -648,7 +624,6 @@ def _is_string_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
 
 
 def _is_uppercase_name(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Name]:
-    """A bound name whose string comparands are folded to upper case (e.g. ``span_kind``)."""
     return isinstance(node, ast.Name) and node.id in bindings.uppercase_names
 
 
@@ -868,11 +843,8 @@ def _cast_as(
 def _nullif_zero(node: typing.Any) -> ast.Call:
     """Wrap a division denominator so a zero value compiles to SQL ``NULL``.
 
-    ``x / 0`` diverges by dialect — PostgreSQL raises ``division by zero`` while SQLite yields
-    ``NULL``. Aggregate denominators coalesce to 0 (e.g. ``total_cost`` on a session with no cost
-    config, ``num_traces`` on a retention-orphaned session), so a bare ratio predicate hits this.
-    Routing the denominator through ``nullif(y, 0)`` makes ``y == 0`` yield ``NULL`` on both
-    dialects; the outer comparison is then ``NULL`` and the row is excluded consistently.
+    PostgreSQL raises ``division by zero`` where SQLite yields ``NULL``; this excludes the row on
+    both dialects.
     """
     return ast.Call(
         func=ast.Name(id="nullif", ctx=ast.Load()),
@@ -998,8 +970,7 @@ class _FilterTranslator(_ProjectionTranslator):
         Rewrites `parent_span is None` / `parent_span == None` into a root-existence
         predicate (and the negations into non-root). Returns ``None`` when the
         comparison does not involve the bare `parent_span` keyword, or when the
-        grain does not bind it at all (an unsupported `parent_span` then falls
-        through to ordinary name resolution and its loud unbound-name error).
+        grain does not bind it at all.
         """
         if not self._bindings.supports_parent_keyword:
             return None
@@ -1400,8 +1371,7 @@ def _apply_eval_aliasing(
 ]:
     """
     Substitutes `evals[<eval-name>].<attribute>` with aliases. Returns the
-    updated source code in addition to the aliased relations. ``bindings`` selects
-    the annotation model and alias prefix (span vs. session grain).
+    updated source code in addition to the aliased relations.
 
     Example:
 

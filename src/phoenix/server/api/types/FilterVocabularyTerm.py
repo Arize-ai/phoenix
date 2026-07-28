@@ -7,12 +7,10 @@ import strawberry
 
 from phoenix.trace.dsl.session_filter import SESSION_BINDINGS, SESSION_FILTER_DESCRIPTIONS
 
-# Value-type hints served to clients so they know how to write the comparand.
 _STRING = "string"
 _NUMBER = "number"
 _DATETIME = "datetime"
 
-# Groupings for presentation / discovery.
 _INTRINSIC = "session"
 _AGGREGATE = "aggregate"
 _ATTRIBUTE = "attribute"
@@ -27,12 +25,6 @@ _ATTRIBUTE_PROXY_TERMS = ("attributes[...]", "user.id", 'metadata["key"]')
     "these as the single source for UI autocomplete, agent discovery, and docs."
 )
 class FilterVocabularyTerm:
-    """One bindable term in a filter DSL: its name, value type, gloss, and grouping.
-
-    Grain-specific resolvers (e.g. ``Project.sessionFilterVocabulary``) serve these as the single
-    source for UI autocomplete, agent discovery, and docs.
-    """
-
     name: str = strawberry.field(
         description="The bindable name exactly as written in a filter expression."
     )
@@ -54,13 +46,7 @@ def session_filter_vocabulary_terms(
     root_span_attribute_paths: Sequence[Sequence[str]] = (),
     tool_span_names: Sequence[str] = (),
 ) -> list[FilterVocabularyTerm]:
-    """Build the session-filter vocabulary from compiler bindings and project-observed paths.
-
-    Static term names derive from ``SESSION_BINDINGS.binding_names``, and each description is served
-    from ``SESSION_FILTER_DESCRIPTIONS`` — so the vocabulary cannot diverge from what the compiler
-    accepts. Accepted attribute proxy patterns and per-project dynamic names are folded in as
-    fully-typed terms.
-    """
+    """Build the session-filter vocabulary from compiler bindings and project-observed paths."""
     terms: dict[str, FilterVocabularyTerm] = {}
 
     def add(

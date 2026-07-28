@@ -4,14 +4,7 @@ import environment from "@phoenix/RelayEnvironment";
 
 import type { sessionFilterValidationQuery } from "./__generated__/sessionFilterValidationQuery.graphql";
 
-/**
- * Async server-side validation of a session filter condition expression.
- *
- * Lives in its own file (rather than co-located with
- * `SessionFilterConditionField`) so both the field's deferred-validation
- * effect and the `SessionFiltersProvider`'s agent client-action handler can
- * call it without creating a circular import between the field and provider.
- */
+/** Async server-side validation of a session filter condition expression. */
 export async function validateSessionFilterCondition(
   condition: string,
   projectId: string

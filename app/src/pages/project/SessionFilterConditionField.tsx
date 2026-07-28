@@ -19,11 +19,8 @@ export type SessionFilterVocabularyTerm = {
 };
 
 /**
- * Typeahead sections for the served vocabulary categories, in display order
- * after the built-in Recent searches (0) and Suggestions (1) groups. Ranks
- * skip the field's own loaded (2) and Fields (3) ranks so an unknown
- * category — a newer server may serve one — degrades into the generic
- * "Fields" group above these rather than colliding with one of them.
+ * Ranks continue past the field's own built-in sections — Recent searches (0),
+ * Suggestions (1), loaded (2), Fields (3) — see `DSLFilterConditionField`.
  */
 const vocabularyCategorySections: Record<string, CompletionSection> = {
   session: { name: "Session", rank: 4 },
@@ -33,12 +30,9 @@ const vocabularyCategorySections: Record<string, CompletionSection> = {
 };
 
 /**
- * Example conditions shown as a "Suggestions" group in the typeahead —
- * notably when the empty field is focused. `${placeholder}` segments become
- * tab-through fields on insert. Ordered most-useful-first: only the first
- * few show while browsing; the rest surface via fuzzy matching as the user
- * types. Subscripted names use double quotes to match the served vocabulary,
- * so a snippet reads the same as an accepted completion.
+ * Example conditions for the typeahead's "Suggestions" group, ordered
+ * most-useful-first. `${placeholder}` segments become tab-through fields on
+ * insert; subscripted names use double quotes to match the served vocabulary.
  */
 const sessionFilterSnippets: DSLFilterSnippet[] = [
   {
@@ -99,9 +93,8 @@ function getCompletionOption(term: SessionFilterVocabularyTerm): Completion {
   return {
     label: term.name,
     type: "variable",
-    // The comparand's value type (string / number / datetime) renders
-    // right-aligned in the dropdown as a hint for how to write the
-    // comparison; the category itself is conveyed by the section header
+    // `detail` renders right-aligned in the dropdown; the category is
+    // conveyed by the section header
     detail: term.type,
     info: term.description,
     section: vocabularyCategorySections[term.category],
@@ -136,24 +129,19 @@ export function SessionFilterConditionField(
   const { filterCondition, setFilterCondition } = useSessionFilters();
   const projectId = useTracingContext((state) => state.projectId);
 
-  // Ordered by section rank so the capped browse view (empty field focused)
-  // spends its rows on the core vocabulary before observed names
+  // Section-rank order: the field caps the browse view, so the core
+  // vocabulary has to come before observed names
   const completions = useMemo(
     () => vocabulary.map(getCompletionOption).sort(compareBySectionRank),
     [vocabulary]
   );
 
-  // Stable identity: the field's validation effect keys on validateCondition,
-  // so an unstable identity would re-run validation every render
+  // Stable identity: the field's validation effect keys on `validateCondition`
   const validateCondition = useCallback(
     (condition: string) => validateSessionFilterCondition(condition, projectId),
     [projectId]
   );
 
-  // Recent searches are keyed per project rather than globally: session
-  // filter expressions routinely reference project-specific names
-  // (annotations, tool names, attribute paths), so another project's history
-  // would be noise
   const {
     completionSource: recentSearchesCompletionSource,
     recordValidCondition,
@@ -174,9 +162,6 @@ export function SessionFilterConditionField(
     [recordValidCondition, onValidCondition]
   );
 
-  // Session filters cannot yet be advertised through AgentContext: the shared
-  // project context contract only exposes `spanFilter`. Reusing that field
-  // would describe this session expression as a span expression to PXI.
   return (
     <DSLFilterConditionField
       aria-label="Filter sessions"

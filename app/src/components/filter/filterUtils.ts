@@ -1,9 +1,6 @@
 export type DslStringQuote = '"' | "'";
 
-/**
- * Joins two filter expressions without changing either expression's boolean
- * precedence.
- */
+/** Joins two filter expressions without changing either expression's boolean precedence. */
 export function joinFilterConditions({
   existingCondition,
   nextCondition,
@@ -17,9 +14,7 @@ export function joinFilterConditions({
   return `(${existingCondition}) and (${nextCondition})`;
 }
 
-/**
- * Serializes a value as a quoted Python-style DSL string literal.
- */
+/** Serializes a value as a quoted Python-style DSL string literal. */
 export function getDslStringLiteral({
   value,
   quote,

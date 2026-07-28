@@ -1,20 +1,8 @@
 """SessionFilter — the session-grain sibling of :class:`~phoenix.trace.dsl.filter.SpanFilter`.
 
-The filter compiler in ``filter.py`` is entity-agnostic; ``SessionFilter`` reuses it with a
-session ``_FilterBindings`` bundle. Session intrinsics (``session_id``, ``start_time``,
-``end_time``, ``duration_ms``) bind to ``ProjectSession`` columns directly. Per-session aggregate
-names (``num_traces``, token totals, cost, tool/LLM call counts) have no stored column: each is a
-grouped-by-session subquery from :mod:`phoenix.db.session_aggregates` that is LEFT JOINed on demand
-and bound to its value column — the same join-alias phase that ``annotations["Name"].score/.label``
-uses. ``user.id`` and ``metadata["k"]`` read the session's earliest root span.
-
-Like ``SpanFilter``, ``SessionFilter`` applies as a pure ``Select -> Select`` transform;
-``as_session_rowids_subquery`` packages that into a ``ScalarSelect[int]`` of session rowids. Both
-the transform and the subquery accept an optional candidate-rowid restriction that is pushed into
-the aggregate SQL. This is the integration seam designed for the online-evaluator tick: when that
-consumer lands it will pass its candidate session rowids so a candidate-scoped evaluation costs an
-index scan over that set rather than a project-wide group-by. No production consumer passes
-candidate rowids today; the parameter defaults to the whole project.
+Session intrinsics bind to ``ProjectSession`` columns; per-session aggregate names bind to
+grouped-by-session subqueries from :mod:`phoenix.db.session_aggregates` that are LEFT JOINed on
+demand; ``user.id`` and ``metadata["k"]`` read the session's earliest root span.
 """
 
 import ast
@@ -55,21 +43,14 @@ from phoenix.trace.dsl.filter import (
 
 __all__ = ["SessionFilter", "SESSION_BINDINGS", "SESSION_FILTER_DESCRIPTIONS"]
 
-# Two aggregate SQL shapes, picked by the caller's access pattern (benchmarks in
-# scripts/perf/session_filter_perf.py):
-#   - "correlated" scalars serve the paginated sessions page — LIMIT early-exit keeps it ~2ms flat.
-#   - "grouped" subqueries serve counts/sweeps — a grouped JOIN is O(all traces) on the page path
-#     (411ms pg / 1.44s sqlite per page @100k sessions), so it only wins when every row is scanned.
+# Benchmarked in scripts/perf/session_filter_perf.py: "grouped" costs 411ms pg / 1.44s sqlite per
+# page at 100k sessions, where "correlated" stays ~2ms flat; "grouped" only wins when every row is
+# scanned anyway (counts, sweeps).
 AggregateShape: typing.TypeAlias = typing.Literal["grouped", "correlated"]
 
 
 class _AggregateSpec(typing.NamedTuple):
-    """How an aggregate name resolves to a grouped subquery and one of its value columns.
-
-    ``builder_key`` groups names that share a subquery (the three ``token_count_*`` names read
-    three value columns off one ``token_counts_by_session`` scan), so referencing several of them
-    LEFT JOINs the subquery once.
-    """
+    """How an aggregate name resolves to a grouped subquery and one of its value columns."""
 
     builder_key: str
     builder: typing.Callable[[], SessionAggregate]
@@ -158,8 +139,6 @@ SESSION_BINDINGS = _FilterBindings(
     exists_names=frozenset(_EXISTS_ATTRIBUTE_PATHS),
 )
 
-# Served vocabulary glosses; each carries the metric's unit (`*_ms`) and a short semantic gloss
-# (e.g. `num_traces` ≈ turns) for the vocabulary endpoint and autocomplete.
 SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
     {
         "session_id": "Session identifier string.",
@@ -261,14 +240,7 @@ def _tool_call_count_by_name_builder(span_name: str) -> typing.Callable[[], Sess
 
 
 class _ToolCallCountSubscriptAliaser(ast.NodeTransformer):
-    """Rewrites ``tool_call_count["name"]`` subscripts to flat ordinal aggregate names.
-
-    Aliases are assigned by first-appearance ordinal (mirroring the annotation aliaser in
-    ``filter.py``); identical span names collapse to one alias so a repeated subscript LEFT JOINs
-    its subquery once. Aliases never outlive one compile pass, so a content-derived (hash) alias
-    would buy no cross-pass stability — the ordinal is simpler and just as collision-free within a
-    pass.
-    """
+    """Rewrites ``tool_call_count["name"]`` subscripts to flat ordinal aggregate names."""
 
     def __init__(self) -> None:
         self._aliases_by_span_name: dict[str, str] = {}
@@ -345,11 +317,7 @@ def _exists_bindings(
 
 @dataclass(frozen=True)
 class SessionFilter:
-    """Compiles a session-grain filter condition and applies it as a ``Select -> Select`` transform.
-
-    ``valid_annotation_names`` optionally restricts the annotation names an ``annotations["..."]``
-    reference may use, mirroring ``SpanFilter.valid_eval_names``.
-    """
+    """Compiles a session filter condition and applies it as a ``Select -> Select`` transform."""
 
     condition: str = ""
     valid_annotation_names: typing.Optional[typing.Sequence[str]] = None
@@ -413,9 +381,7 @@ class SessionFilter:
     ) -> Select[typing.Any]:
         """Join the referenced aggregate / annotation / root-span relations and apply the predicate.
 
-        ``stmt`` must select from ``ProjectSession`` (the joins key on ``ProjectSession.id``). When
-        scoping parameters are given, aggregate/root-span subqueries are narrowed to the same
-        project/time/candidate universe as the base session scan.
+        ``stmt`` must select from ``ProjectSession`` — the joins key on ``ProjectSession.id``.
         """
         if not self.condition:
             return stmt
@@ -476,21 +442,12 @@ class SessionFilter:
         candidate_session_rowids: CandidateRowids = None,
         aggregate_shape: AggregateShape = "grouped",
     ) -> ScalarSelect[int]:
-        """Build a ``ScalarSelect[int]`` of the matching session rowids.
-
-        Structurally identical to ``session_filters.get_filtered_session_rowids_subquery`` so the
-        existing fan-out consumers absorb the DSL with no signature change.
-        Scoping parameters restrict both the base scan and aggregate/root-span subqueries.
-        """
         stmt: Select[typing.Any] = select(distinct(models.ProjectSession.id))
         if project_rowids is not None:
             stmt = stmt.where(models.ProjectSession.project_id.in_(project_rowids))
         if candidate_session_rowids is not None:
             stmt = stmt.where(models.ProjectSession.id.in_(candidate_session_rowids))
-        # Interval-overlap semantics, matching the sessions connection's time
-        # range filter: a session qualifies iff [start_time, end_time] intersects
-        # [start_time, end_time), so long-running sessions stay visible in every
-        # window they overlap even when a filter is applied.
+        # Interval-overlap time scoping, matching the sessions connection's time range filter.
         if start_time is not None:
             stmt = stmt.where(start_time <= models.ProjectSession.end_time)
         if end_time is not None:

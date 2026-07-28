@@ -73,10 +73,6 @@ from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
 from phoenix.trace.dsl.session_filter import SessionFilter
 
 DEFAULT_PAGE_SIZE = 30
-# Cap on the sessions whose earliest-root-span attributes seed session-filter-vocabulary
-# autocomplete. The attribute discovery walks each session's root span in Python, so an unbounded
-# scan grows with project size; a recency-biased sample of this many sessions keeps the field cheap
-# while still surfacing the attribute shapes an author is likely to filter on.
 _VOCABULARY_ATTRIBUTE_SCAN_LIMIT = 1000
 _TOKEN_COUNT_DETAIL_EPSILON = 1e-9
 _TOKEN_COUNT_DETAIL_SORT_ORDER = {
@@ -229,23 +225,13 @@ def _attribute_leaf_paths(
             yield path
 
 
-# Dynamic names live inside string-literal subscripts (``annotations["x"]``,
-# ``tool_call_count["x"]``) that the compiler's unbound-name rejection never inspects: a typo
-# compiles fine and silently matches nothing. These drive a soft validation warning that compares
-# such names against observed ones. ``evals`` is the compiler's accepted alias for ``annotations``.
+# ``evals`` is the filter compiler's accepted alias for ``annotations``.
 _ANNOTATION_SUBSCRIPT_NAMES = frozenset({"annotations", "evals"})
 _TOOL_CALL_COUNT_SUBSCRIPT_NAMES = frozenset({"tool_call_count"})
 
 
 def _referenced_subscript_names(condition: str, subscript_names: frozenset[str]) -> set[str]:
-    """String-literal subscript keys of ``<name>[...]`` for each ``name`` in ``subscript_names``.
-
-    e.g. ``annotations["typoo"].score`` yields ``{"typoo"}`` for the annotation names, and
-    ``tool_call_count["typo"] > 0`` yields ``{"typo"}`` for the tool names. Only string-literal
-    subscripts are extracted (the same shape the compiler binds), so this cannot surface a name the
-    compiler would itself reject. An unparseable condition returns the empty set — it already fails
-    compile-time validation, where the failure is reported as an error rather than a warning.
-    """
+    """String-literal subscript keys of ``<name>[...]`` for each ``name`` in ``subscript_names``."""
     try:
         tree = ast.parse(condition, mode="eval")
     except SyntaxError:
@@ -264,11 +250,6 @@ def _referenced_subscript_names(condition: str, subscript_names: frozenset[str])
 
 
 def _session_annotation_names_stmt(project_rowid: int) -> Select[Any]:
-    """Distinct session-annotation names in a project.
-
-    Shared by ``sessionFilterVocabulary`` (folded in as ``annotations[...]`` terms) and
-    ``validateSessionFilterCondition`` (checked against referenced annotation names).
-    """
     return (
         select(distinct(models.ProjectSessionAnnotation.name))
         .join(models.ProjectSession)
@@ -277,11 +258,6 @@ def _session_annotation_names_stmt(project_rowid: int) -> Select[Any]:
 
 
 def _session_tool_span_names_stmt(project_rowid: int) -> Select[Any]:
-    """Distinct TOOL span names in a project.
-
-    Shared by ``sessionFilterVocabulary`` (folded in as ``tool_call_count[...]`` terms) and
-    ``validateSessionFilterCondition`` (checked against referenced tool names).
-    """
     return (
         select(distinct(models.Span.name))
         .join(models.Trace)
@@ -825,10 +801,8 @@ class Project(Node):
                     None,
                 ),
             )
-        # Mirror the exact-session-id precedence of the ``sessions`` list resolver so the count
-        # preview never disagrees with the rows shown: an exact match short-circuits to 1 (ignoring
-        # time range / substring / DSL), a miss with no other filters is 0, and a miss with other
-        # filters falls through to the composed count below.
+        # Mirror the ``sessions`` resolver's exact-session-id precedence so the count never
+        # disagrees with the rows shown.
         if session_id:
             async with info.context.db.read() as session:
                 ans = await session.scalar(
@@ -1275,20 +1249,7 @@ class Project(Node):
         info: Info[Context, None],
         condition: str,
     ) -> ValidationResult:
-        """Validate a session filter condition by compiling it for both SQLite and PostgreSQL.
-
-        Mirrors ``validate_span_filter_condition`` for the session grain: the condition is compiled
-        to SQL for both dialects without executing, so any syntax or binding error surfaces as an
-        invalid result.
-
-        A compiling condition may still reference an ``annotations["..."]`` or
-        ``tool_call_count[...]`` name that no session in the project has — a typo lives in a
-        string-literal subscript, so it never trips the compiler's unbound-name rejection and
-        instead silently matches nothing. Such names are surfaced as ``warnings`` (not errors: a
-        name may be about to exist, e.g. a new eval's future annotations), checked against the
-        project's observed annotation and TOOL names. Per-keystroke annotation-name validation as a
-        hard error is intentionally skipped for cost.
-        """
+        """Validate a session filter condition by compiling it for both SQLite and PostgreSQL."""
         try:
             session_filter = SessionFilter(condition=condition)
             stmt = session_filter(select(models.ProjectSession))
@@ -1333,18 +1294,6 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> list[FilterVocabularyTerm]:
-        """The bindable session-filter terms for this project (autocomplete / agent discovery).
-
-        Static terms derive from the ``SessionFilter`` compiler's own name maps, so they cannot
-        drift from what compiles; per-project session-annotation names are folded in as typed
-        ``annotations[...]`` terms, observed root-span attributes, and observed TOOL span names.
-
-        The observed-attribute discovery walks each session's earliest root-span attributes in
-        Python, so it is bounded to the project's most recent ``_VOCABULARY_ATTRIBUTE_SCAN_LIMIT``
-        sessions: a recency-biased sample keeps autocomplete cheap on large projects while still
-        surfacing the attribute shapes an author is likely to filter on. The cheap distinct-name
-        queries (annotations, TOOL names) stay unbounded.
-        """
         annotation_names_stmt = _session_annotation_names_stmt(self.id)
         tool_span_names_stmt = _session_tool_span_names_stmt(self.id)
         recent_session_rowids_stmt = (

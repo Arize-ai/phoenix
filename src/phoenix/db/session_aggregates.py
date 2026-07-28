@@ -1,21 +1,8 @@
 """Single source for per-session aggregate SQL.
 
-Every session metric (`num_traces`, token totals, cost, tool/LLM span-kind counts) is a
-grain-shift aggregation over ``Trace.project_session_rowid``. Each metric is defined once
-here as a :class:`SessionAggregate`, consumed by session sorting, the display dataloaders,
-and the session filter DSL. Each aggregate exposes two SQL shapes:
-
-- :meth:`SessionAggregate.as_grouped_subquery` — one GROUP BY scan yielding a row per session
-  (what the sort join-backs and the display dataloaders consume, and what session-filter
-  predicates LEFT JOIN against).
-- :meth:`SessionAggregate.as_correlated_scalar` — the same value as a per-session correlated
-  subquery.
-
-Both accept an optional ``keys`` / ``session_col`` restriction plus project/time scope so the
-aggregate can be narrowed to the resolver's session universe rather than every session.
-
-:func:`earliest_root_span_by_session` derives the earliest root span per session, the anchor
-for session-level ``user.id`` / ``metadata`` reads.
+Every session metric (``num_traces``, token totals, cost, tool/LLM span-kind counts) is a
+grain-shift aggregation over ``Trace.project_session_rowid``, defined once here and consumed by
+session sorting, the display dataloaders, and the session filter DSL.
 """
 
 from collections.abc import Collection, Sequence
@@ -56,14 +43,7 @@ RootSpanIOKind = Literal["first_input", "last_output"]
 
 @dataclass(frozen=True)
 class SessionAggregate:
-    """A per-session aggregate defined once, adaptable to two SQL shapes.
-
-    The group key is always ``Trace.project_session_rowid``. ``values`` are the labeled
-    aggregate expressions the metric produces (one for counts, several for token/cost
-    breakdowns); ``as_grouped_subquery`` prefixes them with the session rowid, ``.select_from``
-    ``source`` and inner-joins ``joins`` (ON clauses inferred from foreign keys), then applies
-    ``where`` and groups by the session rowid.
-    """
+    """A per-session aggregate defined once, adaptable to two SQL shapes."""
 
     values: tuple[KeyedColumnElement[Any], ...]
     source: Any
@@ -85,12 +65,7 @@ class SessionAggregate:
         start_time: Optional[Any] = None,
         end_time: Optional[Any] = None,
     ) -> Select[Any]:
-        """One GROUP BY scan yielding a row per session: ``(project_session_rowid, *values)``.
-
-        Callers stream this directly or ``.subquery()`` it to join by session rowid. When
-        ``keys`` is given the aggregate is scoped to that candidate session set. ``project_rowids``
-        and time bounds scope resolver-driven filters without changing the returned shape.
-        """
+        """One GROUP BY scan yielding a row per session: ``(project_session_rowid, *values)``."""
         stmt = self._base((_GROUP_KEY.label(SESSION_ROWID), *self.values))
         if keys is not None:
             stmt = stmt.where(_GROUP_KEY.in_(keys))
@@ -107,9 +82,7 @@ class SessionAggregate:
     ) -> ScalarSelect[Any]:
         """The aggregate for a single session as a correlated scalar subquery.
 
-        ``session_col`` is the outer session-rowid column to correlate on (e.g.
-        ``ProjectSession.id``). ``value`` selects which labeled value column to return when the
-        metric produces more than one; it defaults to the first.
+        ``value`` names the labeled value column to return; it defaults to the first.
         """
         column = self.values[0] if value is None else self._value(value)
         stmt = self._base((column,)).where(_GROUP_KEY == session_col)
@@ -133,11 +106,7 @@ def num_traces_by_session() -> SessionAggregate:
 
 def num_traces_with_error_by_session() -> SessionAggregate:
     """Number of traces containing an errored span per session — value column
-    ``num_traces_with_error``.
-
-    Counts distinct traces: a trace surfaces once no matter how many of its spans carry a
-    positive cumulative error count.
-    """
+    ``num_traces_with_error``."""
     return SessionAggregate(
         values=(func.count(distinct(models.Trace.id)).label("num_traces_with_error"),),
         source=models.Trace,
@@ -149,11 +118,8 @@ def num_traces_with_error_by_session() -> SessionAggregate:
 def token_counts_by_session() -> SessionAggregate:
     """LLM token totals per session — value columns ``prompt``, ``completion``, ``total``.
 
-    Sums the per-span ``llm_token_count_*`` of leaf ``LLM`` spans. Summing the cumulative
-    counts on root spans instead multi-counts tokens whenever a framework propagates LLM token
-    attributes up through wrapping agent/tool spans (#12768). ``total`` is the canonical session
-    token total; it equals ``prompt + completion`` because ``Span.llm_token_count_total`` is
-    their coalesced sum.
+    Sums leaf ``LLM`` spans rather than root-span cumulative counts, which multi-count tokens when
+    a framework propagates LLM token attributes up through wrapping agent/tool spans (#12768).
     """
     return SessionAggregate(
         values=(
@@ -190,11 +156,7 @@ def span_kind_count_by_session(
     span_kind: str,
     span_name: Optional[str] = None,
 ) -> SessionAggregate:
-    """Number of spans of a given kind per session — value column ``span_kind_count``.
-
-    ``span_kind`` is matched case-insensitively (e.g. ``"TOOL"``, ``"LLM"``). When
-    ``span_name`` is given, only spans with that exact name are counted.
-    """
+    """Number of spans of a given kind per session — value column ``span_kind_count``."""
     where = [func.upper(models.Span.span_kind) == span_kind.upper()]
     if span_name is not None:
         where.append(models.Span.name == span_name)
@@ -246,9 +208,7 @@ def _apply_scope(
         return stmt
     session_scope = models.ProjectSession.__table__.alias("session_scope")
     stmt = stmt.join(session_scope, session_scope.c.id == _GROUP_KEY)
-    # Interval-overlap semantics, matching the session filter's candidate
-    # universe: a session qualifies iff [start_time, end_time] intersects
-    # [start_time, end_time).
+    # Interval-overlap time scoping, matching the session filter's candidate universe.
     if start_time is not None:
         stmt = stmt.where(start_time <= session_scope.c.end_time)
     if end_time is not None:
@@ -262,18 +222,10 @@ def earliest_root_span_by_session(
     start_time: Optional[Any] = None,
     end_time: Optional[Any] = None,
 ) -> Select[Any]:
-    """Select ``(project_session_rowid, span_rowid)`` of each session's earliest root span.
-
-    A root span has ``parent_id IS NULL``; "earliest" is the lowest ``(start_time, id)`` within
-    the session — the ordering that also picks a session's first input. Callers join ``Span`` on
-    ``span_rowid`` to read attributes (``user.id``, ``metadata``, ...) from that span. ``keys``,
-    ``project_rowids``, and time bounds scope the derivation to the same candidate universe as the
-    session filter.
-    """
+    """Select ``(project_session_rowid, span_rowid)`` of each session's earliest root span."""
     subquery = _ranked_root_span_values_by_session(
         models.Span.id.label(SPAN_ROWID),
-        # Span.id breaks ties when a trace has multiple root spans, so the window picks one
-        # root span deterministically (matches SessionIODataLoader).
+        # Span.id tie-break keeps this in lockstep with SessionIODataLoader's root-span window.
         order_by=[models.Trace.start_time.asc(), models.Trace.id.asc(), models.Span.id.asc()],
         keys=keys,
         project_rowids=project_rowids,
@@ -294,11 +246,8 @@ def root_span_io_value_by_session(
 ) -> Select[Any]:
     """Select ``(project_session_rowid, value)`` for first input or last output.
 
-    ``first_input`` reads ``input.value`` from the earliest root span by
-    ``(Trace.start_time ASC, Trace.id ASC)``. ``last_output`` reads ``output.value`` from the
-    latest root span by ``(Trace.start_time DESC, Trace.id DESC)``. The window shape matches
-    :class:`~phoenix.server.api.dataloaders.session_io.SessionIODataLoader` and intentionally
-    avoids correlated LATERAL plans.
+    The window shape matches
+    :class:`~phoenix.server.api.dataloaders.session_io.SessionIODataLoader`.
     """
     if kind == "first_input":
         attribute_path = SpanAttributes.INPUT_VALUE.split(".")
