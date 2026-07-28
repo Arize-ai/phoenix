@@ -4,18 +4,17 @@
  */
 
 import type { useCategoryChartColors } from "@phoenix/components/chart";
+import {
+  compareTokenTypes,
+  getRemainderTokenType,
+  getTokenDetailColor,
+  getTokenDetailFallbackColors,
+  getTokenDetailLabel,
+  TOKEN_DETAIL_EPSILON,
+} from "@phoenix/utils/tokenDetailUtils";
 
 const TOKEN_DETAIL_DATA_KEY_PREFIX = "tokenDetail:";
-const TOKEN_DETAIL_EPSILON = 1e-9;
 const TOKEN_DETAIL_BAR_RADIUS = 2;
-const TOKEN_DETAIL_SORT_ORDER: Partial<Record<string, number>> = {
-  input: 0,
-  output: 0,
-  cache_read: 1,
-  cache_write: 2,
-  reasoning: 3,
-  audio: 4,
-};
 
 /** Numeric field projected from each token-detail cost breakdown. */
 export type TokenDetailMetric = "tokens" | "cost";
@@ -101,20 +100,6 @@ export function getModelTokenDetailDataKey({
 }
 
 /**
- * Converts a snake-case token type into a user-facing chart label.
- *
- * Sentence case rather than title case, so that a label reads the same whether
- * or not `getModelTokenDetailLabel` prefixes it with its prompt/completion kind.
- *
- * @param tokenType - Raw token type received from the API.
- * @returns A sentence-cased label with underscores replaced by spaces.
- */
-export function getTokenDetailLabel(tokenType: string) {
-  const words = tokenType.split("_").join(" ");
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-/**
  * Returns an unambiguous label for a model token-detail series. The prompt or
  * completion prefix is added only when the same token type exists in both.
  *
@@ -140,83 +125,6 @@ export function getModelTokenDetailLabel({
     return label;
   }
   return `${series.isPrompt ? "Prompt" : "Completion"} ${label.toLowerCase()}`;
-}
-
-/**
- * Compares token types using the canonical chart order, then alphabetically
- * for provider-specific types that are not in the known order.
- *
- * @param left - First token type.
- * @param right - Second token type.
- * @returns A standard array-sort comparison value.
- */
-export function compareTokenTypes(left: string, right: string) {
-  const leftOrder = TOKEN_DETAIL_SORT_ORDER[left] ?? 100;
-  const rightOrder = TOKEN_DETAIL_SORT_ORDER[right] ?? 100;
-  if (leftOrder !== rightOrder) {
-    return leftOrder - rightOrder;
-  }
-  return left.localeCompare(right);
-}
-
-/**
- * Selects a stable color for a token type. Known semantic types retain the
- * same color across charts; provider-specific types cycle through fallbacks.
- *
- * @param params - Color selection context.
- * @param params.colors - Theme-aware categorical chart colors.
- * @param params.index - Position of the series in display order.
- * @param params.tokenType - Raw token type received from the API.
- * @returns A theme-aware CSS color value.
- */
-export function getTokenDetailColor({
-  colors,
-  index,
-  tokenType,
-}: {
-  colors: ReturnType<typeof useCategoryChartColors>;
-  index: number;
-  tokenType: string;
-}) {
-  if (tokenType === "input") {
-    return colors.category1;
-  }
-  if (tokenType === "output") {
-    return colors.category2;
-  }
-  if (tokenType === "cache_read") {
-    return colors.category9;
-  }
-  if (tokenType === "cache_write") {
-    return colors.category7;
-  }
-  if (tokenType === "reasoning") {
-    return colors.category4;
-  }
-  if (tokenType === "audio") {
-    return colors.category3;
-  }
-  const fallbackColors = getTokenDetailFallbackColors(colors);
-  return fallbackColors[index % fallbackColors.length];
-}
-
-/**
- * The colors used for token types with no semantic color of their own.
- *
- * @param colors - Theme-aware categorical chart colors.
- * @returns Fallback colors in assignment order.
- */
-function getTokenDetailFallbackColors(
-  colors: ReturnType<typeof useCategoryChartColors>
-) {
-  return [
-    colors.category5,
-    colors.category6,
-    colors.category8,
-    colors.category10,
-    colors.category11,
-    colors.category12,
-  ];
 }
 
 /**
@@ -424,24 +332,16 @@ export function buildModelTokenDetailChartData({
       });
     });
 
-    const missingInputValue =
-      (model.costSummary.prompt[metric] ?? 0) - detailTotals.prompt;
-    recordTokenDetailValue({
-      chartDatum,
-      isPrompt: true,
-      seriesByDataKey,
-      tokenType: "input",
-      value: missingInputValue,
-    });
-
-    const missingOutputValue =
-      (model.costSummary.completion[metric] ?? 0) - detailTotals.completion;
-    recordTokenDetailValue({
-      chartDatum,
-      isPrompt: false,
-      seriesByDataKey,
-      tokenType: "output",
-      value: missingOutputValue,
+    ([true, false] as const).forEach((isPrompt) => {
+      const tokenKind = isPrompt ? "prompt" : "completion";
+      recordTokenDetailValue({
+        chartDatum,
+        isPrompt,
+        seriesByDataKey,
+        tokenType: getRemainderTokenType(isPrompt),
+        value:
+          (model.costSummary[tokenKind][metric] ?? 0) - detailTotals[tokenKind],
+      });
     });
 
     return chartDatum;

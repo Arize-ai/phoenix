@@ -12,10 +12,9 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { useCategoryChartColors } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
-import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
+import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -99,7 +98,6 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
     project?.traceAnnotationsNames ?? []
   );
   const documentEvaluationNames = project?.documentEvaluationNames ?? [];
-  const colors = useCategoryChartColors();
 
   return (
     <Group orientation="vertical">
@@ -127,22 +125,10 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
                   <RichTooltip placement="bottom">
                     <TooltipArrow />
                     <View width="size-3600">
-                      <RichTokenBreakdown
-                        valueLabel="cost"
-                        totalValue={project?.costSummary?.total?.cost ?? 0}
-                        formatter={costFormatter}
-                        segments={[
-                          {
-                            name: "Prompt",
-                            value: project?.costSummary?.prompt?.cost ?? 0,
-                            color: colors.category1,
-                          },
-                          {
-                            name: "Completion",
-                            value: project?.costSummary?.completion?.cost ?? 0,
-                            color: colors.category2,
-                          },
-                        ]}
+                      <TokenCostsDetails
+                        total={project?.costSummary?.total?.cost ?? 0}
+                        prompt={project?.costSummary?.prompt?.cost ?? 0}
+                        completion={project?.costSummary?.completion?.cost ?? 0}
                       />
                     </View>
                   </RichTooltip>
