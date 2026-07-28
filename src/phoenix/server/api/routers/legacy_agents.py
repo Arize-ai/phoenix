@@ -252,6 +252,7 @@ def create_legacy_agents_router(
             agent=server_agent,
             run_input=body,
             accept=request.headers.get("accept"),
+            sdk_version=7,
         )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
