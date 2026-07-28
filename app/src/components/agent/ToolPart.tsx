@@ -1265,7 +1265,6 @@ function getToolPresentation(
         preview: getSetSessionsFilterToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.ListFilter />,
         details: <GenericToolDetails part={part} />,
       };
     default: {
