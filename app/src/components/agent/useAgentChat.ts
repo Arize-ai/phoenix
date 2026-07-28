@@ -526,7 +526,7 @@ export function useAgentChat({
   // keep the poll alive; unmounting or switching sessions stops it.
   useEffect(() => {
     if (!persistedSessionId || !chatInstance || !isBusyElsewhere) {
-      return;
+      return undefined;
     }
     let disposed = false;
     const pollTurnLock = async () => {
