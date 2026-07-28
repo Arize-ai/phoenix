@@ -220,7 +220,68 @@ export function createPxiSessionClient({
         messages: session.messages as PxiMessage[],
       };
     },
+    async compactSession({ sessionId, model }) {
+      const client = createPhoenixClient({ config, fetch: fetchImpl });
+      try {
+        const { data: payload } = await client.POST(
+          "/agents/{agent_id}/sessions/{session_id}/compact",
+          {
+            params: {
+              path: { agent_id: SERVER_AGENT_ID, session_id: sessionId },
+            },
+            body: { model },
+          }
+        );
+        if (!payload) {
+          throw new Error(
+            "Could not compact the PXI session because Phoenix returned no data."
+          );
+        }
+        return {
+          compacted: payload.data.compacted,
+          compactionMessage: (payload.data.compaction_message ??
+            null) as PxiMessage | null,
+        };
+      } catch (error) {
+        if (error instanceof HttpError) {
+          throw await buildCompactionHttpError({ error });
+        }
+        throw error;
+      }
+    },
   };
+}
+
+/**
+ * Translate a compaction HTTP failure into a printable error. A 409 whose body
+ * carries the session-busy code is rethrown with that code in the message so
+ * {@link isSessionBusyError} recognizes it and the UI can enter its busy state.
+ */
+async function buildCompactionHttpError({
+  error,
+}: {
+  error: HttpError;
+}): Promise<Error> {
+  let code: string | null = null;
+  let detail: string | null = null;
+  try {
+    const body: unknown = await error.response.clone().json();
+    if (body !== null && typeof body === "object") {
+      const record = body as { code?: unknown };
+      if (typeof record.code === "string") {
+        code = record.code;
+      }
+    }
+    detail = formatApiError(body);
+  } catch {
+    // Not JSON: fall through to the status-line message.
+  }
+  if (code === SESSION_BUSY_ERROR_CODE) {
+    return new Error(SESSION_BUSY_ERROR_CODE);
+  }
+  return new Error(
+    `Could not compact the conversation: HTTP ${error.status} ${error.statusText}.${detail ? ` ${detail}` : ""}`
+  );
 }
 
 /**

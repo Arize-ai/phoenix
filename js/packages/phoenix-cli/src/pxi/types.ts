@@ -117,11 +117,25 @@ export type PxiSession = PxiSessionSummary & {
   isActive?: boolean;
 };
 
+/**
+ * The outcome of a compaction request. `compacted` is false when the
+ * conversation had no older complete turns to compact; `compactionMessage` is
+ * the persisted checkpoint (the fresh one, or the existing one for a no-op).
+ */
+export type PxiCompactionResult = {
+  compacted: boolean;
+  compactionMessage: PxiMessage | null;
+};
+
 /** Server-side session operations used by the chat UI. */
 export type PxiSessionClient = {
   createSession: (options: { temporary: boolean }) => Promise<PxiSession>;
   listSessions: () => Promise<PxiSessionSummary[]>;
   getSession: (options: { sessionId: string }) => Promise<PxiSession>;
+  compactSession: (options: {
+    sessionId: string;
+    model: ModelSelection;
+  }) => Promise<PxiCompactionResult>;
 };
 
 /**

@@ -11,6 +11,7 @@ describe("SLASH_COMMANDS", () => {
   it("includes session lifecycle commands", () => {
     const names = SLASH_COMMANDS.map((c) => c.name);
     expect(names).toContain("clear");
+    expect(names).toContain("compact");
     expect(names).toContain("model");
     expect(names).toContain("new");
     expect(names).toContain("sessions");
@@ -26,6 +27,7 @@ describe("runSlashCommand", () => {
       startNewSession: vi.fn(),
       openModelPicker: vi.fn(),
       openSessionPicker: vi.fn(),
+      compactSession: vi.fn(),
       exit: vi.fn(),
     };
   }
@@ -59,6 +61,19 @@ describe("runSlashCommand", () => {
     const context = createContext();
     runSlashCommand("/model", context);
     expect(context.openModelPicker).toHaveBeenCalledOnce();
+  });
+
+  it("compacts the session for /compact", () => {
+    const context = createContext();
+    const result = runSlashCommand("/compact", context);
+    expect(context.compactSession).toHaveBeenCalledWith(undefined);
+    expect(result).toEqual({ type: "handled" });
+  });
+
+  it("passes trailing text to /compact as a pending message", () => {
+    const context = createContext();
+    runSlashCommand("/compact and then continue", context);
+    expect(context.compactSession).toHaveBeenCalledWith("and then continue");
   });
 
   it("calls exit for /exit", () => {
