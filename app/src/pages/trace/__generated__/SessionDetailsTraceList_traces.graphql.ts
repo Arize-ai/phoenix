@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a88d13a67dedfc3ae18b36bc2bdcd3ba>>
+ * @generated SignedSource<<ab9cfd369a02fbb2e0811f1a0fb931a8>>
  * @lightSyntaxTransform
  */
 
@@ -18,25 +18,18 @@ export type SessionDetailsTraceList_traces$data = {
       readonly trace: {
         readonly id: string;
         readonly rootSpan: {
-          readonly attributes: string;
           readonly cumulativeTokenCountTotal: number | null;
-          readonly endTime: string | null;
           readonly id: string;
           readonly input: {
             readonly mimeType: MimeType;
             readonly truncatedValue: string;
-            readonly value: string;
           } | null;
           readonly latencyMs: number | null;
           readonly name: string;
           readonly output: {
             readonly mimeType: MimeType;
             readonly truncatedValue: string;
-            readonly value: string;
           } | null;
-          readonly project: {
-            readonly id: string;
-          };
           readonly spanId: string;
           readonly startTime: string;
           readonly trace: {
@@ -45,10 +38,8 @@ export type SessionDetailsTraceList_traces$data = {
                 readonly cost: number | null;
               };
             };
-            readonly id: string;
-            readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup" | "TraceFeedbackActionToolbar_trace">;
           };
-          readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
+          readonly " $fragmentSpreads": FragmentRefs<"TraceTurnContent_rootSpan">;
         } | null;
         readonly traceId: string;
       };
@@ -75,13 +66,6 @@ v1 = {
   "storageKey": null
 },
 v2 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "value",
-    "storageKey": null
-  },
   {
     "alias": null,
     "args": null,
@@ -189,6 +173,11 @@ return {
                   "plural": false,
                   "selections": [
                     {
+                      "args": null,
+                      "kind": "FragmentSpread",
+                      "name": "TraceTurnContent_rootSpan"
+                    },
+                    {
                       "alias": null,
                       "args": null,
                       "concreteType": "Trace",
@@ -196,17 +185,6 @@ return {
                       "name": "trace",
                       "plural": false,
                       "selections": [
-                        (v1/*:: as any*/),
-                        {
-                          "args": null,
-                          "kind": "FragmentSpread",
-                          "name": "TraceAnnotationSummaryGroup"
-                        },
-                        {
-                          "args": null,
-                          "kind": "FragmentSpread",
-                          "name": "TraceFeedbackActionToolbar_trace"
-                        },
                         {
                           "alias": null,
                           "args": null,
@@ -245,25 +223,6 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "name",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "attributes",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "Project",
-                      "kind": "LinkedField",
-                      "name": "project",
-                      "plural": false,
-                      "selections": [
-                        (v1/*:: as any*/)
-                      ],
                       "storageKey": null
                     },
                     {
@@ -311,20 +270,8 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "endTime",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
                       "name": "spanId",
                       "storageKey": null
-                    },
-                    {
-                      "args": null,
-                      "kind": "FragmentSpread",
-                      "name": "AnnotationSummaryGroup"
                     }
                   ],
                   "storageKey": null
@@ -395,6 +342,6 @@ return {
 };
 })();
 
-(node as any).hash = "f4fcbc5d46909736db5a9388eabe7617";
+(node as any).hash = "f4a68fab0f429f4d34f9f3cbebad1f00";
 
 export default node;

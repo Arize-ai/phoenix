@@ -45,6 +45,7 @@ import { DetailsPanel } from "./DetailsPanel";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 import { DetailPanelAnnotationBarSkeleton } from "./TraceDetailsSkeleton";
+import { TraceTurnContent } from "./TraceTurnContent";
 
 type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -120,6 +121,7 @@ export function TraceDetails({
                     id
                     spanId
                     parentId
+                    ...TraceTurnContent_rootSpan
                   }
                 }
               }
@@ -241,9 +243,7 @@ export function TraceDetails({
         <SpanInfoCardsProvider>
           <SpanDetailsWrapper>
             {isTraceSelected ? (
-              <Suspense fallback={<DetailPanelAnnotationBarSkeleton />}>
-                <TraceDetailPanelAnnotationBar traceNodeId={trace.id} />
-              </Suspense>
+              <TraceTurnDetails traceNodeId={trace.id} rootSpan={rootSpan} />
             ) : selectedSpanNodeId ? (
               <SpanDetailsPaintGate
                 spanNodeId={selectedSpanNodeId}
@@ -254,6 +254,45 @@ export function TraceDetails({
         </SpanInfoCardsProvider>
       </DetailsPanel>
     </main>
+  );
+}
+
+function TraceTurnDetails({
+  traceNodeId,
+  rootSpan,
+}: {
+  traceNodeId: string;
+  rootSpan: RootSpan;
+}) {
+  return (
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      `}
+    >
+      <Suspense fallback={<DetailPanelAnnotationBarSkeleton />}>
+        <TraceDetailPanelAnnotationBar traceNodeId={traceNodeId} />
+      </Suspense>
+      <div
+        css={css`
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow: auto;
+        `}
+      >
+        <View
+          paddingTop="size-100"
+          paddingBottom="size-200"
+          paddingX="size-200"
+        >
+          <TraceTurnContent rootSpan={rootSpan} />
+        </View>
+      </div>
+    </div>
   );
 }
 

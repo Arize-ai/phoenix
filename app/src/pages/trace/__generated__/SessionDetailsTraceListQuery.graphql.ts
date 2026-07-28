@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5878331b9629d874c772ccb54b329066>>
+ * @generated SignedSource<<2517a59a6e07f59eee631282f9a1176a>>
  * @lightSyntaxTransform
  */
 
@@ -181,6 +181,29 @@ v9 = {
   "storageKey": null
 },
 v10 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "truncatedValue",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "mimeType",
+    "storageKey": null
+  }
+],
+v11 = [
   (v5/*:: as any*/),
   (v6/*:: as any*/),
   (v7/*:: as any*/),
@@ -226,7 +249,7 @@ v10 = [
     "storageKey": null
   }
 ],
-v11 = [
+v12 = [
   {
     "alias": null,
     "args": null,
@@ -275,29 +298,6 @@ v11 = [
     "storageKey": null
   },
   (v6/*:: as any*/)
-],
-v12 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "value",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "truncatedValue",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "mimeType",
-    "storageKey": null
-  }
 ];
 return {
   "fragment": {
@@ -405,102 +405,7 @@ return {
                             "name": "rootSpan",
                             "plural": false,
                             "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "Trace",
-                                "kind": "LinkedField",
-                                "name": "trace",
-                                "plural": false,
-                                "selections": [
-                                  (v5/*:: as any*/),
-                                  (v9/*:: as any*/),
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "TraceAnnotation",
-                                    "kind": "LinkedField",
-                                    "name": "traceAnnotations",
-                                    "plural": true,
-                                    "selections": (v10/*:: as any*/),
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "AnnotationSummary",
-                                    "kind": "LinkedField",
-                                    "name": "traceAnnotationSummaries",
-                                    "plural": true,
-                                    "selections": (v11/*:: as any*/),
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": "viewerUserFeedbackAnnotations",
-                                    "args": [
-                                      {
-                                        "kind": "Literal",
-                                        "name": "filter",
-                                        "value": {
-                                          "include": {
-                                            "names": [
-                                              "user_feedback"
-                                            ]
-                                          }
-                                        }
-                                      }
-                                    ],
-                                    "concreteType": "TraceAnnotation",
-                                    "kind": "LinkedField",
-                                    "name": "traceAnnotations",
-                                    "plural": true,
-                                    "selections": [
-                                      (v5/*:: as any*/),
-                                      (v7/*:: as any*/),
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "identifier",
-                                        "storageKey": null
-                                      }
-                                    ],
-                                    "storageKey": "traceAnnotations(filter:{\"include\":{\"names\":[\"user_feedback\"]}})"
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "SpanCostSummary",
-                                    "kind": "LinkedField",
-                                    "name": "costSummary",
-                                    "plural": false,
-                                    "selections": [
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "concreteType": "CostBreakdown",
-                                        "kind": "LinkedField",
-                                        "name": "total",
-                                        "plural": false,
-                                        "selections": [
-                                          {
-                                            "alias": null,
-                                            "args": null,
-                                            "kind": "ScalarField",
-                                            "name": "cost",
-                                            "storageKey": null
-                                          }
-                                        ],
-                                        "storageKey": null
-                                      }
-                                    ],
-                                    "storageKey": null
-                                  }
-                                ],
-                                "storageKey": null
-                              },
                               (v5/*:: as any*/),
-                              (v6/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -516,7 +421,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "input",
                                 "plural": false,
-                                "selections": (v12/*:: as any*/),
+                                "selections": (v10/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -526,7 +431,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "output",
                                 "plural": false,
-                                "selections": (v12/*:: as any*/),
+                                "selections": (v10/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -560,8 +465,95 @@ return {
                               {
                                 "alias": null,
                                 "args": null,
-                                "kind": "ScalarField",
-                                "name": "spanId",
+                                "concreteType": "Trace",
+                                "kind": "LinkedField",
+                                "name": "trace",
+                                "plural": false,
+                                "selections": [
+                                  (v5/*:: as any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "SpanCostSummary",
+                                    "kind": "LinkedField",
+                                    "name": "costSummary",
+                                    "plural": false,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "CostBreakdown",
+                                        "kind": "LinkedField",
+                                        "name": "total",
+                                        "plural": false,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "cost",
+                                            "storageKey": null
+                                          }
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  (v9/*:: as any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "TraceAnnotation",
+                                    "kind": "LinkedField",
+                                    "name": "traceAnnotations",
+                                    "plural": true,
+                                    "selections": (v11/*:: as any*/),
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "AnnotationSummary",
+                                    "kind": "LinkedField",
+                                    "name": "traceAnnotationSummaries",
+                                    "plural": true,
+                                    "selections": (v12/*:: as any*/),
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": "viewerUserFeedbackAnnotations",
+                                    "args": [
+                                      {
+                                        "kind": "Literal",
+                                        "name": "filter",
+                                        "value": {
+                                          "include": {
+                                            "names": [
+                                              "user_feedback"
+                                            ]
+                                          }
+                                        }
+                                      }
+                                    ],
+                                    "concreteType": "TraceAnnotation",
+                                    "kind": "LinkedField",
+                                    "name": "traceAnnotations",
+                                    "plural": true,
+                                    "selections": [
+                                      (v5/*:: as any*/),
+                                      (v7/*:: as any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "identifier",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": "traceAnnotations(filter:{\"include\":{\"names\":[\"user_feedback\"]}})"
+                                  }
+                                ],
                                 "storageKey": null
                               },
                               {
@@ -571,7 +563,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "spanAnnotations",
                                 "plural": true,
-                                "selections": (v10/*:: as any*/),
+                                "selections": (v11/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -581,7 +573,15 @@ return {
                                 "kind": "LinkedField",
                                 "name": "spanAnnotationSummaries",
                                 "plural": true,
-                                "selections": (v11/*:: as any*/),
+                                "selections": (v12/*:: as any*/),
+                                "storageKey": null
+                              },
+                              (v6/*:: as any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "spanId",
                                 "storageKey": null
                               }
                             ],
@@ -660,12 +660,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b2a9a22c03a653f0e015a205d89092f4",
+    "cacheID": "068767af02037de316bf8a06d286064d",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsTraceListQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsTraceListQuery(\n  $id: ID!\n  $first: Int!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      ...SessionDetailsTraceList_traces_3ASum4\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionDetailsTraceList_traces_3ASum4 on ProjectSession {\n  numTraces\n  traces(first: $first) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          trace {\n            id\n            ...TraceAnnotationSummaryGroup\n            ...TraceFeedbackActionToolbar_trace\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n          id\n          name\n          attributes\n          project {\n            id\n          }\n          input {\n            value\n            truncatedValue\n            mimeType\n          }\n          output {\n            value\n            truncatedValue\n            mimeType\n          }\n          cumulativeTokenCountTotal\n          latencyMs\n          startTime\n          endTime\n          spanId\n          ...AnnotationSummaryGroup\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceFeedbackActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n"
+    "text": "query SessionDetailsTraceListQuery(\n  $id: ID!\n  $first: Int!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      ...SessionDetailsTraceList_traces_3ASum4\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionDetailsTraceList_traces_3ASum4 on ProjectSession {\n  numTraces\n  traces(first: $first) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          ...TraceTurnContent_rootSpan\n          trace {\n            costSummary {\n              total {\n                cost\n              }\n            }\n            id\n          }\n          id\n          name\n          input {\n            truncatedValue\n            mimeType\n          }\n          output {\n            truncatedValue\n            mimeType\n          }\n          cumulativeTokenCountTotal\n          latencyMs\n          startTime\n          spanId\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceFeedbackActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n\nfragment TraceTurnContent_rootSpan on Span {\n  id\n  attributes\n  project {\n    id\n  }\n  input {\n    value\n  }\n  output {\n    value\n  }\n  cumulativeTokenCountTotal\n  latencyMs\n  startTime\n  endTime\n  trace {\n    id\n    costSummary {\n      total {\n        cost\n      }\n    }\n    ...TraceAnnotationSummaryGroup\n    ...TraceFeedbackActionToolbar_trace\n  }\n  ...AnnotationSummaryGroup\n}\n"
   }
 };
 })();

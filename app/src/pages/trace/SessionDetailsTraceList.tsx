@@ -1,11 +1,7 @@
-import {
-  SemanticAttributePrefixes,
-  UserAttributePostfixes,
-} from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
-import { isNumber, isString, throttle } from "lodash";
+import throttle from "lodash/throttle";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
 import type { To } from "react-router";
@@ -13,7 +9,6 @@ import { useLocation, useSearchParams } from "react-router";
 
 import {
   Flex,
-  ExpandableContent,
   Icon,
   Icons,
   IDBadge,
@@ -21,21 +16,13 @@ import {
   ListBox,
   ListBoxItem,
   Loading,
-  Modal,
-  ModalOverlay,
   Text,
   Truncate,
   View,
 } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
-import { DynamicContent } from "@phoenix/components/DynamicContent";
-import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
-import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
@@ -51,12 +38,12 @@ import type {
 import type { SessionDetailsTraceListQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListQuery.graphql";
 import type { SessionDetailsTraceListRefetchQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListRefetchQuery.graphql";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
-import { isStringKeyedObject } from "@phoenix/typeUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { DetailsPanel } from "./DetailsPanel";
 import type { SessionNavigationHeaderRenderer } from "./SessionDetails";
-import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
+import { TraceTurnContent } from "./TraceTurnContent";
+
+export { RootSpanMessage } from "./TraceTurnContent";
 
 export const sessionDetailsTraceListQuery = graphql`
   query SessionDetailsTraceListQuery($id: ID!, $first: Int!) {
@@ -67,19 +54,6 @@ export const sessionDetailsTraceListQuery = graphql`
     }
   }
 `;
-
-const getUserFromRootSpanAttributes = (attributes: string) => {
-  const { json: parsedAttributes } = safelyParseJSON(attributes);
-  if (parsedAttributes == null || !isStringKeyedObject(parsedAttributes)) {
-    return null;
-  }
-  const userAttributes = parsedAttributes[SemanticAttributePrefixes.user];
-  if (userAttributes == null || !isStringKeyedObject(userAttributes)) {
-    return null;
-  }
-  const userId = userAttributes[UserAttributePostfixes.id];
-  return isString(userId) || isNumber(userId) ? userId : null;
-};
 
 const getSessionTraceUrl = ({
   pathname,
@@ -102,83 +76,7 @@ const getSessionTraceUrl = ({
   };
 };
 
-const messageWrapCSS = css`
-  width: fit-content;
-  max-width: 80%;
-`;
-
-const outputMetadataMutedCSS = css`
-  .latency-text,
-  .token-count-item,
-  .token-costs-item,
-  .text,
-  .icon-wrap,
-  svg,
-  .token__text {
-    color: var(--global-text-color-700);
-    font-size: var(--global-font-size-xs);
-    line-height: var(--global-line-height-xs);
-  }
-`;
-
-const SESSION_TURN_MESSAGE_MAX_HEIGHT = 280;
-
-/**
- * Max width of the turn content column. Wide enough to read long messages
- * comfortably while keeping the conversation centered in wide panels.
- */
-const SESSION_TURN_MAX_WIDTH = "1000px";
-
 type RootSpanMessageRole = "INPUT" | "OUTPUT";
-
-type RootSpanMessageProps = {
-  label?: string;
-  role: RootSpanMessageRole;
-  value: unknown;
-};
-
-/** Presentational session message bubble used by the turns view and Storybook. */
-export function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
-  const isInput = role === "INPUT";
-  const styles = useChatMessageStyles(isInput ? "user" : "assistant");
-  const defaultLabel = isInput ? "INPUT" : "OUTPUT";
-  const overlayBackgroundColor = isInput
-    ? "var(--global-color-gray-100)"
-    : "var(--global-color-blue-100)";
-  return (
-    <Flex
-      direction="column"
-      gap="size-50"
-      alignItems={isInput ? "start" : "end"}
-      width="100%"
-    >
-      <Flex
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        width="100%"
-      >
-        <Text color="text-700">{label ?? defaultLabel}</Text>
-      </Flex>
-      <View
-        borderRadius={"medium"}
-        borderColor="default"
-        borderWidth={"thin"}
-        padding="size-200"
-        width="100%"
-        {...styles}
-      >
-        <ExpandableContent
-          height={SESSION_TURN_MESSAGE_MAX_HEIGHT}
-          expandedBehavior="grow"
-          overlayBackgroundColor={overlayBackgroundColor}
-        >
-          <DynamicContent value={value} />
-        </ExpandableContent>
-      </View>
-    </Flex>
-  );
-}
 
 type SessionTraceRootSpan = NonNullable<
   NonNullable<
@@ -189,106 +87,6 @@ type SessionTraceRootSpan = NonNullable<
 type RootSpanProps = {
   rootSpan: SessionTraceRootSpan;
 };
-
-function RootSpanStartTime({ rootSpan }: RootSpanProps) {
-  const { fullTimeFormatter } = useTimeFormatters();
-  const startDate = new Date(rootSpan.startTime);
-
-  return (
-    <Text color="text-700" size="XS">
-      {fullTimeFormatter(startDate)}
-    </Text>
-  );
-}
-
-function RootSpanEndTime({ rootSpan }: RootSpanProps) {
-  const { fullTimeFormatter } = useTimeFormatters();
-  if (rootSpan.endTime == null) {
-    return null;
-  }
-  const endDate = new Date(rootSpan.endTime);
-
-  return (
-    <Text color="text-700" size="XS">
-      {fullTimeFormatter(endDate)}
-    </Text>
-  );
-}
-
-function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
-  const [isAnnotationDialogOpen, setIsAnnotationDialogOpen] = useState(false);
-
-  return (
-    <>
-      <Flex
-        direction="row"
-        justifyContent="space-between"
-        alignItems="start"
-        gap="size-200"
-        width="100%"
-      >
-        <RootSpanEndTime rootSpan={rootSpan} />
-        <Flex direction="column" alignItems="end" gap="size-100" minWidth={0}>
-          <Flex
-            direction="row"
-            justifyContent="end"
-            alignItems="center"
-            gap="size-100"
-            wrap
-            css={outputMetadataMutedCSS}
-          >
-            <SpanCumulativeTokenCount
-              tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
-              nodeId={rootSpan.id}
-            />
-            {rootSpan.trace.costSummary?.total?.cost != null && (
-              <TraceTokenCosts
-                totalCost={rootSpan.trace.costSummary.total.cost}
-                nodeId={rootSpan.trace.id}
-              />
-            )}
-            {rootSpan.latencyMs != null ? (
-              <LatencyText latencyMs={rootSpan.latencyMs} />
-            ) : null}
-          </Flex>
-          <TraceFeedbackActionToolbar
-            trace={rootSpan.trace}
-            onAnnotate={() => {
-              setIsAnnotationDialogOpen(true);
-            }}
-          />
-        </Flex>
-      </Flex>
-      <ModalOverlay
-        isOpen={isAnnotationDialogOpen}
-        onOpenChange={setIsAnnotationDialogOpen}
-      >
-        <Modal variant="slideover" size="L">
-          <EditSpanAnnotationsDialog
-            spanNodeId={rootSpan.id}
-            projectId={rootSpan.project.id}
-          />
-        </Modal>
-      </ModalOverlay>
-      <div
-        css={css`
-          align-self: start;
-        `}
-      >
-        <Flex direction="row" gap="size-50" wrap="wrap">
-          <TraceAnnotationSummaryGroupTokens
-            trace={rootSpan.trace}
-            renderEmptyState={() => null}
-          />
-          <AnnotationSummaryGroupTokens
-            span={rootSpan}
-            renderEmptyState={() => null}
-          />
-        </Flex>
-      </div>
-    </>
-  );
-}
 
 const sessionTurnDividerCSS = css`
   .session-turn-divider__rule {
@@ -345,37 +143,17 @@ function SessionTurnDetail({
   traceId,
   rootSpan,
 }: RootSpanProps & { traceId: string; index: number }) {
-  const user = getUserFromRootSpanAttributes(rootSpan.attributes);
-  const inputLabel = user != null ? `USER: ${user}` : "INPUT";
-
   return (
-    <Flex direction="column" gap="size-200">
-      <SessionTurnDivider index={index} traceId={traceId} rootSpan={rootSpan} />
-      <Flex
-        direction="column"
-        gap="size-100"
-        alignSelf="start"
-        alignItems="start"
-        css={messageWrapCSS}
-      >
-        <RootSpanMessage
-          label={inputLabel}
-          role="INPUT"
-          value={rootSpan.input?.value}
+    <TraceTurnContent
+      rootSpan={rootSpan}
+      header={
+        <SessionTurnDivider
+          index={index}
+          traceId={traceId}
+          rootSpan={rootSpan}
         />
-        <RootSpanStartTime rootSpan={rootSpan} />
-      </Flex>
-      <Flex
-        direction="column"
-        gap="size-100"
-        alignSelf="end"
-        alignItems="end"
-        css={messageWrapCSS}
-      >
-        <RootSpanMessage role="OUTPUT" value={rootSpan.output?.value} />
-        <RootSpanOutputMetadata rootSpan={rootSpan} />
-      </Flex>
-    </Flex>
+      }
+    />
   );
 }
 
@@ -593,10 +371,8 @@ export function SessionDetailsTraceList({
               id
               traceId
               rootSpan {
+                ...TraceTurnContent_rootSpan
                 trace {
-                  id
-                  ...TraceAnnotationSummaryGroup
-                  ...TraceFeedbackActionToolbar_trace
                   costSummary {
                     total {
                       cost
@@ -605,26 +381,18 @@ export function SessionDetailsTraceList({
                 }
                 id
                 name
-                attributes
-                project {
-                  id
-                }
                 input {
-                  value
                   truncatedValue
                   mimeType
                 }
                 output {
-                  value
                   truncatedValue
                   mimeType
                 }
                 cumulativeTokenCountTotal
                 latencyMs
                 startTime
-                endTime
                 spanId
-                ...AnnotationSummaryGroup
               }
             }
           }
@@ -757,17 +525,11 @@ export function SessionDetailsTraceList({
               paddingBottom="size-200"
               paddingX="size-200"
             >
-              <View
-                width="100%"
-                maxWidth={SESSION_TURN_MAX_WIDTH}
-                marginX="auto"
-              >
-                <SessionTurnDetail
-                  index={index}
-                  traceId={traceId}
-                  rootSpan={rootSpan}
-                />
-              </View>
+              <SessionTurnDetail
+                index={index}
+                traceId={traceId}
+                rootSpan={rootSpan}
+              />
             </View>
           </div>
         );
@@ -778,7 +540,7 @@ export function SessionDetailsTraceList({
           borderBottomWidth={"thin"}
           padding="size-200"
         >
-          <View width="100%" maxWidth={SESSION_TURN_MAX_WIDTH} marginX="auto">
+          <View width="100%" maxWidth="1000px" marginX="auto">
             <Loading />
           </View>
         </View>
