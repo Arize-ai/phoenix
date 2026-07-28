@@ -182,6 +182,33 @@ describe("DetailPanelAnnotationBar", () => {
     ]);
   });
 
+  it("grades saved scores in the annotation label and summary popover", async () => {
+    const user = userEvent.setup();
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Open quality annotation"]'
+    );
+    const labelScore = trigger?.querySelector('[data-value-kind="score"]');
+
+    expect(labelScore?.textContent).toBe("1.00");
+    expect(labelScore?.getAttribute("data-direction")).toBe("positive");
+    expect(labelScore?.getAttribute("data-optimization-value")).toBe("1");
+    expect(labelScore?.getAttribute("data-appearance")).toBe("compact");
+    expect(
+      trigger
+        ?.querySelector('[data-value-kind="label"]')
+        ?.getAttribute("data-direction")
+    ).toBeNull();
+
+    await act(async () => user.click(trigger!));
+
+    const summaryScore = document
+      .querySelector('[aria-label="Annotation values"]')
+      ?.querySelector('[data-direction="positive"]');
+    expect(summaryScore?.textContent).toBe("1.00");
+    expect(summaryScore?.getAttribute("data-optimization-value")).toBe("1");
+    expect(summaryScore?.getAttribute("data-appearance")).toBe("badge");
+  });
+
   it.each([
     {
       name: "an outside press",

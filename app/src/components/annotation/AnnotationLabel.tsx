@@ -10,7 +10,8 @@ export const baseAnnotationLabelCSS = css`
   position: relative;
   border-radius: var(--global-rounding-small);
   border: 1px solid var(--global-border-color-default);
-  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-50)
+    var(--global-dimension-size-50) var(--global-dimension-size-100);
   transition: background-color 0.2s;
   display: flex;
   flex-direction: row;
@@ -70,6 +71,7 @@ export function AnnotationLabel({
   annotation,
   onClick,
   annotationDisplayPreference = "score",
+  optimizationValue,
   className,
   children,
   clickable: _clickable,
@@ -94,6 +96,8 @@ export function AnnotationLabel({
    * @default "score"
    */
   annotationDisplayPreference?: AnnotationDisplayPreference;
+  /** Signed optimization gradient applied only to the numeric score. */
+  optimizationValue?: number | null;
   className?: string;
   /** A subdued, dashed label for a configured annotation without a value. */
   variant?: "default" | "ghost";
@@ -115,6 +119,7 @@ export function AnnotationLabel({
           variant === "ghost" ? "none" : annotationDisplayPreference
         }
         nameColor={variant === "ghost" ? "inherit" : undefined}
+        optimizationValue={optimizationValue ?? null}
         showColorSwatch={false}
       />
       {variant === "default" ? children : null}

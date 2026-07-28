@@ -151,6 +151,8 @@ interface AnnotationNameAndValueProps {
    * If not provided, the component will not display the optimization information.
    */
   positiveOptimization?: boolean;
+  /** Signed optimization gradient applied only to the numeric score. */
+  optimizationValue?: number | null;
   /**
    * Whether to show the color swatch next to the annotation name
    */
@@ -164,9 +166,39 @@ export function AnnotationNameAndValue({
   maxWidth = "9rem",
   nameColor = "text-700",
   positiveOptimization,
+  optimizationValue,
   showColorSwatch = true,
 }: AnnotationNameAndValueProps) {
   const valueParts = getAnnotationValueParts(annotation, displayPreference);
+  const valueContent = (
+    <span css={valuePartsCSS}>
+      {valueParts.map((part, index) => (
+        <Fragment key={index}>
+          {index > 0 && <span aria-hidden css={valueDividerCSS} />}
+          {part.kind === "score" && optimizationValue !== undefined ? (
+            <AnnotationScoreText
+              appearance="compact"
+              data-value-kind={part.kind}
+              fontFamily={part.fontFamily}
+              optimizationValue={optimizationValue}
+              size={size}
+            >
+              {part.text}
+            </AnnotationScoreText>
+          ) : (
+            <Text
+              data-value-kind={part.kind}
+              fontFamily={part.fontFamily}
+              color="inherit"
+              size={size}
+            >
+              {part.text}
+            </Text>
+          )}
+        </Fragment>
+      ))}
+    </span>
+  );
 
   return (
     <Flex
@@ -189,23 +221,13 @@ export function AnnotationNameAndValue({
       </div>
       {valueParts.length > 0 && (
         <div css={valueCSS(maxWidth)}>
-          <AnnotationScoreText positiveOptimization={positiveOptimization}>
-            <span css={valuePartsCSS}>
-              {valueParts.map((part, index) => (
-                <Fragment key={index}>
-                  {index > 0 && <span aria-hidden css={valueDividerCSS} />}
-                  <Text
-                    data-value-kind={part.kind}
-                    fontFamily={part.fontFamily}
-                    color="inherit"
-                    size={size}
-                  >
-                    {part.text}
-                  </Text>
-                </Fragment>
-              ))}
-            </span>
-          </AnnotationScoreText>
+          {optimizationValue === undefined ? (
+            <AnnotationScoreText positiveOptimization={positiveOptimization}>
+              {valueContent}
+            </AnnotationScoreText>
+          ) : (
+            valueContent
+          )}
         </div>
       )}
     </Flex>

@@ -55,8 +55,10 @@ import {
 } from "@phoenix/components/annotation/annotationBarUtils";
 import { AnnotationConfigStatus } from "@phoenix/components/annotation/AnnotationConfigStatus";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
+import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
 import type { AnnotationValueDraft } from "@phoenix/components/annotation/AnnotationValueDraft";
 import { CategoricalQuickCreate } from "@phoenix/components/annotation/CategoricalQuickCreate";
+import { getOptimizationGradientValueFromConfig } from "@phoenix/components/annotation/optimizationUtils";
 import type {
   Annotation,
   AnnotationConfig,
@@ -591,6 +593,10 @@ function AnnotationValuePopover({
   const aggregate = getAnnotationAggregate({
     annotations: displayedAnnotations,
   });
+  const aggregateOptimizationValue = getOptimizationGradientValueFromConfig({
+    config: config ?? undefined,
+    score: aggregate.score,
+  });
   const isShowingQuickCreate = view === "quick-create";
   const resetPopover = useCallback(() => {
     setView(initialView);
@@ -682,6 +688,7 @@ function AnnotationValuePopover({
         annotationDisplayPreference={
           aggregate.isMixed ? "none" : "score-and-label"
         }
+        optimizationValue={aggregateOptimizationValue}
         clickable
         variant={hasAnnotations ? "default" : "ghost"}
       >
@@ -696,7 +703,13 @@ function AnnotationValuePopover({
               mixed
             </Text>
             {aggregate.score != null ? (
-              <Text fontFamily="mono">{formatFloat(aggregate.score)}</Text>
+              <AnnotationScoreText
+                appearance="compact"
+                fontFamily="mono"
+                optimizationValue={aggregateOptimizationValue}
+              >
+                {formatFloat(aggregate.score)}
+              </AnnotationScoreText>
             ) : null}
           </Flex>
         ) : null}
@@ -823,6 +836,7 @@ function AnnotationValuePopover({
               />
               <AnnotationSummaryList
                 annotations={displayedAnnotations}
+                config={config}
                 deletingAnnotationId={deletingAnnotationId}
                 onCancelDelete={() => setDeletingAnnotationId(null)}
                 onConfirmDelete={async (annotation) => {
@@ -921,6 +935,7 @@ function AnnotationPopoverHeader({
 
 function AnnotationSummaryList({
   annotations,
+  config,
   deletingAnnotationId,
   onCancelDelete,
   onConfirmDelete,
@@ -928,6 +943,7 @@ function AnnotationSummaryList({
   onEdit,
 }: {
   annotations: readonly Annotation[];
+  config: AnnotationConfig | null;
   deletingAnnotationId: string | null;
   onCancelDelete: () => void;
   onConfirmDelete: (annotation: Annotation) => Promise<void>;
@@ -939,6 +955,10 @@ function AnnotationSummaryList({
       {annotations.map((annotation, annotationIndex) => {
         const annotationKey = annotation.id ?? `annotation-${annotationIndex}`;
         const isConfirmingDelete = deletingAnnotationId === annotation.id;
+        const optimizationValue = getOptimizationGradientValueFromConfig({
+          config: config ?? undefined,
+          score: annotation.score,
+        });
         return (
           <li
             key={annotationKey}
@@ -952,9 +972,12 @@ function AnnotationSummaryList({
                 ) : (
                   <>
                     {annotation.score != null ? (
-                      <Text fontFamily="mono">
+                      <AnnotationScoreText
+                        fontFamily="mono"
+                        optimizationValue={optimizationValue}
+                      >
                         {formatFloat(annotation.score)}
-                      </Text>
+                      </AnnotationScoreText>
                     ) : null}
                     {annotation.label ? (
                       <Text>{annotation.label}</Text>
