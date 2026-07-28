@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a54f0a263ce1ffd02e60d02ede498258>>
+ * @generated SignedSource<<b0ed76fbd55c4a730b1d0678c56996f3>>
  * @lightSyntaxTransform
  */
 
@@ -56,7 +56,6 @@ export type SpanDetailsContentQuery$data = {
     readonly spanNotes: ReadonlyArray<{
       readonly id: string;
     }>;
-    readonly statusMessage: string;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -111,14 +110,7 @@ v5 = {
   "name": "spanKind",
   "storageKey": null
 },
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "statusMessage",
-  "storageKey": null
-},
-v7 = [
+v6 = [
   {
     "alias": null,
     "args": null,
@@ -134,41 +126,41 @@ v7 = [
     "storageKey": null
   }
 ],
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v7/*:: as any*/),
+  "selections": (v6/*:: as any*/),
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v7/*:: as any*/),
+  "selections": (v6/*:: as any*/),
   "storageKey": null
 },
-v10 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "attributes",
   "storageKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v12 = {
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanEvent",
@@ -176,11 +168,11 @@ v12 = {
   "name": "events",
   "plural": true,
   "selections": [
-    (v11/*:: as any*/)
+    (v10/*:: as any*/)
   ],
   "storageKey": null
 },
-v13 = {
+v12 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanAnnotation",
@@ -192,7 +184,7 @@ v13 = {
   ],
   "storageKey": null
 },
-v14 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -231,63 +223,63 @@ v14 = {
   ],
   "storageKey": null
 },
-v15 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotatorKind",
   "storageKey": null
 },
-v16 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "documentPosition",
   "storageKey": null
 },
-v17 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v18 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v19 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "explanation",
   "storageKey": null
 },
-v20 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v21 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v22 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "username",
   "storageKey": null
 },
-v23 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -316,17 +308,16 @@ return {
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
-              (v6/*:: as any*/),
+              (v7/*:: as any*/),
               (v8/*:: as any*/),
               (v9/*:: as any*/),
-              (v10/*:: as any*/),
               {
                 "kind": "RequiredField",
-                "field": (v12/*:: as any*/),
+                "field": (v11/*:: as any*/),
                 "action": "THROW"
               },
+              (v12/*:: as any*/),
               (v13/*:: as any*/),
-              (v14/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -336,14 +327,14 @@ return {
                 "plural": true,
                 "selections": [
                   (v3/*:: as any*/),
+                  (v14/*:: as any*/),
                   (v15/*:: as any*/),
+                  (v10/*:: as any*/),
                   (v16/*:: as any*/),
-                  (v11/*:: as any*/),
                   (v17/*:: as any*/),
                   (v18/*:: as any*/),
                   (v19/*:: as any*/),
                   (v20/*:: as any*/),
-                  (v21/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -352,8 +343,8 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v22/*:: as any*/),
-                      (v23/*:: as any*/)
+                      (v21/*:: as any*/),
+                      (v22/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -392,13 +383,12 @@ return {
             "selections": [
               (v4/*:: as any*/),
               (v5/*:: as any*/),
-              (v6/*:: as any*/),
+              (v7/*:: as any*/),
               (v8/*:: as any*/),
               (v9/*:: as any*/),
-              (v10/*:: as any*/),
+              (v11/*:: as any*/),
               (v12/*:: as any*/),
               (v13/*:: as any*/),
-              (v14/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -408,14 +398,14 @@ return {
                 "plural": true,
                 "selections": [
                   (v3/*:: as any*/),
+                  (v14/*:: as any*/),
                   (v15/*:: as any*/),
+                  (v10/*:: as any*/),
                   (v16/*:: as any*/),
-                  (v11/*:: as any*/),
                   (v17/*:: as any*/),
                   (v18/*:: as any*/),
                   (v19/*:: as any*/),
                   (v20/*:: as any*/),
-                  (v21/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -424,8 +414,8 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
+                      (v21/*:: as any*/),
                       (v22/*:: as any*/),
-                      (v23/*:: as any*/),
                       (v3/*:: as any*/)
                     ],
                     "storageKey": null
@@ -443,16 +433,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4579195acc8b0d49846f664e0ec9df86",
+    "cacheID": "a1fa404d1471bc0cfedfb5e4bbb70698",
     "id": null,
     "metadata": {},
     "name": "SpanDetailsContentQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsContentQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      spanKind\n      statusMessage\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n      }\n      spanNotes {\n        id\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        id\n        annotatorKind\n        documentPosition\n        name\n        label\n        score\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanDetailsContentQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      spanKind\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n      }\n      spanNotes {\n        id\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        id\n        annotatorKind\n        documentPosition\n        name\n        label\n        score\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9eda0408276e9400977dddcdbac5e025";
+(node as any).hash = "2cb2652a3bf0d305b01f8691db4c7326";
 
 export default node;

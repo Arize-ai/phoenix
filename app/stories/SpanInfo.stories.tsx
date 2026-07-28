@@ -99,8 +99,7 @@ export const LLMMultiModal: Story = {
 };
 
 /**
- * A failed LLM call: danger status alert with the status message and no
- * output.
+ * A failed LLM call with no output.
  */
 export const LLMError: Story = {
   args: { span: llmErrorSpan },

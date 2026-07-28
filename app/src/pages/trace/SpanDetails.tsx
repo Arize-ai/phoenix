@@ -322,7 +322,6 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             id
             spanId
             spanKind
-            statusMessage
             input {
               value
               mimeType

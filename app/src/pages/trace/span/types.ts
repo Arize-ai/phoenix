@@ -67,7 +67,6 @@ export type RetrievalMetric = {
 export type SpanInfoData = {
   readonly id: string;
   readonly spanKind: string;
-  readonly statusMessage: string;
   readonly attributes: string;
   readonly input: SpanIOValue | null;
   readonly output: SpanIOValue | null;

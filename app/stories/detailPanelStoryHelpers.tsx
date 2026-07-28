@@ -37,7 +37,6 @@ const BASE_SPAN: SpanInfoData = {
   input: null,
   output: null,
   spanKind: "chain",
-  statusMessage: "",
 };
 
 export function createSpanInfoFixture(

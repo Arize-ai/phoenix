@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a0eb8896eab49adbf907c4cfff6eb81d>>
+ * @generated SignedSource<<c84e1cf810d7aca88ce72c1f4ce0744c>>
  * @lightSyntaxTransform
  */
 
@@ -176,6 +176,13 @@ return {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
+                "name": "statusMessage",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
                 "name": "latencyMs",
                 "storageKey": null
               },
@@ -232,12 +239,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ae448e67fbf7acd748d685365b6188bb",
+    "cacheID": "5097e35483cfdefef1a7805a01a09380",
     "id": null,
     "metadata": {},
     "name": "SpanDetailsHeaderQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsHeaderQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        id\n        traceId\n      }\n      spanKind\n      ...SpanHeader_span\n    }\n    id\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  code: statusCode\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
+    "text": "query SpanDetailsHeaderQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        id\n        traceId\n      }\n      spanKind\n      ...SpanHeader_span\n    }\n    id\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  code: statusCode\n  statusMessage\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
   }
 };
 })();

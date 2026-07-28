@@ -2,11 +2,12 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, IDBadge, Text } from "@phoenix/components";
+import { Badge, Flex, IDBadge, Text } from "@phoenix/components";
 import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
-import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
+import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
+import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -25,6 +26,13 @@ const identityRowCSS = css`
   & > :not(.span-header__name, .span-header-skeleton__name) {
     flex: none;
   }
+  .span-status-indicator + .span-header__name {
+    transform: translateY(calc(-1 * var(--global-dimension-size-10)));
+  }
+  .span-header__status-message {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
   .span-header__actions {
     display: flex;
     flex-direction: row;
@@ -40,6 +48,24 @@ const spanHeaderNameCSS = css`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+`;
+
+const spanStatusIndicatorCSS = css`
+  display: block;
+  flex: none;
+  width: var(--global-dimension-size-40);
+  height: var(--global-dimension-size-250);
+  border-radius: var(--global-rounding-xsmall);
+  background-color: var(--span-status-indicator-color);
+`;
+
+const spanStatusMessageBadgeCSS = css`
+  width: 100%;
+  height: var(--global-dimension-size-250);
+  padding: 0 var(--global-dimension-size-75);
+  border-radius: var(--global-rounding-small);
+  font-size: var(--global-dimension-font-size-75);
+  line-height: var(--global-line-height-xs);
 `;
 
 const metaRowCSS = css`
@@ -81,6 +107,7 @@ export function SpanHeader(props: SpanHeaderProps) {
         spanKind
         spanId
         code: statusCode
+        statusMessage
         latencyMs
         startTime
         tokenCountTotal
@@ -111,12 +138,29 @@ export function SpanHeaderContent({
   return (
     <Flex direction="column" gap="size-50" width="100%">
       <SpanHeaderIdentityRow>
-        <SpanKindBadge spanKind={span.spanKind} />
+        <SpanStatusIndicator statusCode={span.code} />
         <SpanHeaderName name={span.name} />
-        <SpanStatusBadge statusCode={span.code} labelVariant="full" />
+        {span.code === "ERROR" && span.statusMessage ? (
+          <span
+            className="span-header__status-message"
+            title={span.statusMessage}
+          >
+            <Badge
+              variant="danger"
+              size="M"
+              overflowMode="truncate"
+              css={spanStatusMessageBadgeCSS}
+            >
+              {span.statusMessage}
+            </Badge>
+          </span>
+        ) : null}
         {actions ? <div className="span-header__actions">{actions}</div> : null}
       </SpanHeaderIdentityRow>
       <SpanHeaderMetaRow>
+        <SpanHeaderMetaItem>
+          <SpanKindBadge spanKind={span.spanKind} />
+        </SpanHeaderMetaItem>
         <SpanHeaderMetaItem>
           <IDBadge id={span.spanId} tooltipText="Copy Span ID" />
         </SpanHeaderMetaItem>
@@ -154,6 +198,29 @@ export function SpanHeaderContent({
         ) : null}
       </SpanHeaderMetaRow>
     </Flex>
+  );
+}
+
+/** Compact color marker for a span's status in a detail header. */
+export function SpanStatusIndicator({
+  statusCode,
+}: {
+  statusCode: SpanStatusCodeType;
+}) {
+  const color = useSpanStatusCodeColor(statusCode);
+
+  return (
+    <span
+      role="img"
+      aria-label={`Span status: ${statusCode}`}
+      className="span-status-indicator"
+      data-status-code={statusCode}
+      css={spanStatusIndicatorCSS}
+      style={{
+        // @ts-expect-error custom CSS property
+        "--span-status-indicator-color": `var(--global-color-${color})`,
+      }}
+    />
   );
 }
 

@@ -4,7 +4,6 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { Flex, IDBadge, Loading, Text, View } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
 import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
-import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { TraceTreePanelToggleButton } from "@phoenix/components/trace/TraceTreePanelToggleButton";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
@@ -18,6 +17,7 @@ import {
   SpanHeaderMetaItem,
   SpanHeaderMetaRow,
   SpanHeaderName,
+  SpanStatusIndicator,
 } from "../SpanHeader";
 import { DetailsPanel } from "./DetailsPanel";
 import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
@@ -270,10 +270,10 @@ export function SpanHeaderSkeleton({
     >
       <Flex direction="column" gap="size-50" width="100%">
         <SpanHeaderIdentityRow>
-          {spanPreview?.spanKind !== undefined ? (
-            <SpanKindBadge spanKind={spanPreview.spanKind} />
+          {spanPreview?.statusCode !== undefined ? (
+            <SpanStatusIndicator statusCode={spanPreview.statusCode} />
           ) : (
-            <Skeleton width={54} height={20} animation="wave" />
+            <Skeleton width={3} height={20} animation="wave" />
           )}
           {spanPreview ? (
             <SpanHeaderName name={spanPreview.name} />
@@ -284,14 +284,6 @@ export function SpanHeaderSkeleton({
               height={22}
               animation="wave"
             />
-          )}
-          {spanPreview?.statusCode !== undefined ? (
-            <SpanStatusBadge
-              statusCode={spanPreview.statusCode}
-              labelVariant="full"
-            />
-          ) : (
-            <Skeleton width={72} height={20} animation="wave" />
           )}
           <div className="span-header__actions">
             <SpanDetailsHeaderActions
@@ -310,6 +302,13 @@ export function SpanHeaderSkeleton({
           </div>
         </SpanHeaderIdentityRow>
         <SpanHeaderMetaRow>
+          <SpanHeaderMetaItem>
+            {spanPreview?.spanKind !== undefined ? (
+              <SpanKindBadge spanKind={spanPreview.spanKind} />
+            ) : (
+              <Skeleton width={54} height={20} animation="wave" />
+            )}
+          </SpanHeaderMetaItem>
           <SpanHeaderMetaItem>
             {spanPreview?.spanId !== undefined ? (
               <IDBadge id={spanPreview.spanId} tooltipText="Copy Span ID" />

@@ -221,6 +221,7 @@ const ROOT_SPAN: SpanHeaderData = {
   spanId: "RootSpan-7f51c3bce0c64a11",
   spanKind: "chain",
   startTime: "2026-07-23T16:00:00.000Z",
+  statusMessage: "",
   tokenCountTotal: 1847,
 };
 
@@ -234,6 +235,7 @@ const CHILD_SPAN: SpanHeaderData = {
   spanId: "NestedSpan-e61d97a3c5084fb2",
   spanKind: "llm",
   startTime: "2026-07-23T16:00:00.420Z",
+  statusMessage: "The model provider rejected the request.",
   tokenCountTotal: 1320,
 };
 

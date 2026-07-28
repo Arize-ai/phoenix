@@ -7,6 +7,7 @@ import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia"
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
+import { SpanStatusIndicator } from "../../SpanHeader";
 import { SpanHeaderSkeleton } from "../TraceDetailsSkeleton";
 
 describe("SpanHeaderSkeleton", () => {
@@ -54,10 +55,16 @@ describe("SpanHeaderSkeleton", () => {
 
     expect(container.textContent).toContain("retriever");
     expect(container.textContent).toContain("retrieval span");
-    expect(container.textContent).toContain("Error");
+    expect(
+      container.querySelector('[aria-label="Span status: ERROR"]')
+    ).not.toBeNull();
+    expect(container.textContent).not.toContain("Error");
     expect(container.textContent).toContain("span-id");
     expect(container.textContent).toContain("125");
     expect(container.textContent).toContain("456");
+    const metadataRow = container.querySelector(".span-header__meta");
+    expect(metadataRow?.firstElementChild?.textContent).toContain("retriever");
+    expect(metadataRow?.children[1]?.textContent).toContain("span-id");
     expect(
       container.querySelector('button[aria-label="Copy Span ID span-id"]')
     ).not.toBeNull();
@@ -104,7 +111,9 @@ describe("SpanHeaderSkeleton", () => {
     const identityRow = container.querySelector(".span-header__identity");
     const shortName = container.querySelector(".span-header__name");
     expect(shortName?.textContent).toBe("short");
-    expect(shortName?.nextElementSibling?.textContent).toBe("OK");
+    expect(shortName?.previousElementSibling?.getAttribute("aria-label")).toBe(
+      "Span status: OK"
+    );
 
     renderPreview("a much longer span name that should truncate when needed");
     const longName = container.querySelector(".span-header__name");
@@ -112,6 +121,36 @@ describe("SpanHeaderSkeleton", () => {
     expect(longName?.textContent).toBe(
       "a much longer span name that should truncate when needed"
     );
-    expect(longName?.nextElementSibling?.textContent).toBe("OK");
+    expect(longName?.previousElementSibling?.getAttribute("aria-label")).toBe(
+      "Span status: OK"
+    );
+  });
+
+  it("maps each span status to its semantic indicator color", () => {
+    act(() => {
+      root.render(
+        <>
+          <SpanStatusIndicator statusCode="OK" />
+          <SpanStatusIndicator statusCode="UNSET" />
+          <SpanStatusIndicator statusCode="ERROR" />
+        </>
+      );
+    });
+
+    const expectedColors = {
+      OK: "success",
+      UNSET: "gray-500",
+      ERROR: "danger",
+    } as const;
+
+    for (const [statusCode, color] of Object.entries(expectedColors)) {
+      expect(
+        container
+          .querySelector(`[data-status-code="${statusCode}"]`)
+          ?.getAttribute("style")
+      ).toContain(
+        `--span-status-indicator-color: var(--global-color-${color})`
+      );
+    }
   });
 });

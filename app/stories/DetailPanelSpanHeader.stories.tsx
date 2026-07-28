@@ -18,8 +18,12 @@ const BASE_SPAN: SpanHeaderData = {
   spanId: "7f51c3bce0c64a11",
   spanKind: "llm",
   startTime: "2026-07-23T16:00:00.000Z",
+  statusMessage: "",
   tokenCountTotal: 1847,
 };
+
+const ERROR_STATUS_MESSAGE =
+  "Embedding request failed because the model provider rejected the input.";
 
 const GENERAL_SPANS: SpanHeaderData[] = [
   BASE_SPAN,
@@ -42,6 +46,7 @@ const GENERAL_SPANS: SpanHeaderData[] = [
     name: "embed documents",
     spanId: "e61d97a3c5084fb2",
     spanKind: "embedding",
+    statusMessage: ERROR_STATUS_MESSAGE,
   },
   {
     ...BASE_SPAN,

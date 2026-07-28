@@ -516,8 +516,6 @@ const excessiveToolCallsSpan = createSpanInfoFixture({
 
 const excessiveToolErrorSpan = createSpanInfoFixture({
   spanKind: "tool",
-  statusMessage:
-    "Tool execution failed after three attempts. The read replica exceeded its statement timeout, the retry budget was exhausted, and the fallback region rejected the request because the incident-scoped database credential had expired.",
   input: {
     mimeType: "json",
     value: JSON.stringify(

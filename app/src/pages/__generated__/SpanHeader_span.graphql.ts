@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c10a9f0447dac9d6484e3e3e61f68266>>
+ * @generated SignedSource<<8837768140436a887498483c2923a4cd>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type SpanHeader_span$data = {
   readonly spanId: string;
   readonly spanKind: SpanKind;
   readonly startTime: string;
+  readonly statusMessage: string;
   readonly tokenCountTotal: number | null;
   readonly " $fragmentType": "SpanHeader_span";
 };
@@ -71,6 +72,13 @@ const node: ReaderFragment = {
       "args": null,
       "kind": "ScalarField",
       "name": "statusCode",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "statusMessage",
       "storageKey": null
     },
     {
@@ -128,6 +136,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "025bebd987c2a5f53ddd66ece8cbc167";
+(node as any).hash = "a224abf82e51cafe79a63807076235f9";
 
 export default node;

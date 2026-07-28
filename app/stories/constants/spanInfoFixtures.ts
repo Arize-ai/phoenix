@@ -21,7 +21,6 @@ export const llmChatSpan: SpanInfoFixture = {
   id: "U3Bhbjo2OTMy",
   name: "OpenAI.chat",
   spanKind: "llm",
-  statusMessage: "",
   attributes: JSON.stringify({
     openinference: {
       span: {
@@ -96,7 +95,6 @@ export const llmToolDefinitionsSpan: SpanInfoFixture = {
   id: "U3BhbjozMjc=",
   name: "InteractionsResource.create",
   spanKind: "llm",
-  statusMessage: "",
   attributes: JSON.stringify({
     openinference: {
       span: {
@@ -187,7 +185,6 @@ export const llmToolCallsSpan: SpanInfoFixture = {
   id: "U3Bhbjo1NDQ3",
   name: "OpenAI.achat",
   spanKind: "llm",
-  statusMessage: "",
   attributes: JSON.stringify({
     openinference: {
       span: {
@@ -294,7 +291,6 @@ export const llmPromptTemplateSpan: SpanInfoFixture = {
   id: "U3Bhbjo2OTQ4",
   name: "LLM.predict",
   spanKind: "llm",
-  statusMessage: "",
   attributes: JSON.stringify({
     openinference: {
       span: {
@@ -338,15 +334,13 @@ export const llmPromptTemplateSpan: SpanInfoFixture = {
 };
 
 /**
- * An LLM span that errored: has a status message, an exception event, input
- * messages, and no output.
+ * An LLM span that errored: has an exception event, input messages, and no
+ * output.
  */
 export const llmErrorSpan: SpanInfoFixture = {
   id: "U3BhbjozMTc=",
   name: "gpt-5.4",
   spanKind: "llm",
-  statusMessage:
-    "ModelHTTPError: status_code: 400, model_name: gpt-5.4, body: {'message': 'No tool output found for function call call_tpvJI04c1251XbFqSTdTtqbF.', 'type': 'invalid_request_error', 'param': 'input', 'code': None}",
   attributes: JSON.stringify({
     openinference: {
       span: {
@@ -416,7 +410,6 @@ export const retrieverSpan: SpanInfoFixture = {
   id: "U3Bhbjo2OTQz",
   name: "BaseRetriever.retrieve",
   spanKind: "retriever",
-  statusMessage: "",
   attributes: JSON.stringify({
     retrieval: {
       documents: [
@@ -594,7 +587,6 @@ export const rerankerSpan: SpanInfoFixture = {
   id: "U3Bhbjo2OTI5",
   name: "CohereRerank._postprocess_nodes",
   spanKind: "reranker",
-  statusMessage: "",
   attributes: JSON.stringify({
     input: {
       value: "Can I persist data in the notebook?",
@@ -727,7 +719,6 @@ export const embeddingSpan: SpanInfoFixture = {
   id: "U3Bhbjo2OTQx",
   name: "BaseEmbedding.get_query_embedding",
   spanKind: "embedding",
-  statusMessage: "",
   attributes: JSON.stringify({
     embedding: {
       embeddings: [
@@ -767,7 +758,6 @@ export const embeddingWithoutEmbeddingsSpan: SpanInfoFixture = {
   id: "U3Bhbjo2OTQw",
   name: "OpenAIEmbedding._get_query_embedding",
   spanKind: "embedding",
-  statusMessage: "",
   attributes: JSON.stringify({
     embedding: {
       model_name: "text-embedding-ada-002",
@@ -799,7 +789,6 @@ export const toolSpan: SpanInfoFixture = {
   id: "U3BhbjozNTM0",
   name: "generate_and_run_sql_query",
   spanKind: "tool",
-  statusMessage: "",
   attributes: JSON.stringify({
     input: {
       value:
@@ -848,7 +837,6 @@ export const toolBashSpan: SpanInfoFixture = {
   id: "U3Bhbjo3OTM1",
   name: "Bash",
   spanKind: "tool",
-  statusMessage: "",
   attributes: JSON.stringify({
     turn: {
       id: "2",
@@ -903,7 +891,6 @@ export const chainTextIOSpan: SpanInfoFixture = {
   id: "U3Bhbjo2OTUw",
   name: "Refine.get_response",
   spanKind: "chain",
-  statusMessage: "",
   attributes: JSON.stringify({
     openinference: {
       span: {
@@ -937,7 +924,6 @@ export const chainJsonIOSpan: SpanInfoFixture = {
   id: "U3Bhbjo2OTQ5",
   name: "DefaultRefineProgram.__call__",
   spanKind: "chain",
-  statusMessage: "",
   attributes: JSON.stringify({
     openinference: {
       span: {
@@ -986,7 +972,6 @@ export const llmMultiModalSpan: SpanInfoFixture = {
   id: "U3BhbjptdWx0aW1vZGFs",
   name: "OpenAI.chat",
   spanKind: "llm",
-  statusMessage: "",
   attributes: JSON.stringify({
     openinference: { span: { kind: "LLM" } },
     llm: {
@@ -1066,7 +1051,6 @@ export const spanWithoutIOSpan: SpanInfoFixture = {
   id: "U3Bhbjpuby1pbw==",
   name: "Workflow.step",
   spanKind: "chain",
-  statusMessage: "",
   attributes: JSON.stringify({
     openinference: { span: { kind: "CHAIN" } },
     session: { id: "9f13fbd2-7f31-4b73-9b6f-6d1a2f6dcb61" },
@@ -1089,7 +1073,6 @@ export const unparsableAttributesSpan: SpanInfoFixture = {
   id: "U3BhbjpiYWQtYXR0cnM=",
   name: "custom_span",
   spanKind: "chain",
-  statusMessage: "",
   attributes: '{"llm": {"model_name": NaN, "token_count": }',
   input: {
     value: "What is the weather in San Francisco?",
