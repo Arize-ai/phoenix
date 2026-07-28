@@ -142,6 +142,11 @@ from phoenix.server.agents.types import (
     ModelProviderAvailability,
     SandboxAvailability,
 )
+
+# The predicate is aliased because ``AgentSessionData`` declares a field
+# named ``is_turn_active``.
+from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS
+from phoenix.server.api.helpers.agent_sessions import is_turn_active as _is_turn_active
 from phoenix.server.api.helpers.playground_registry import (
     PLAYGROUND_CLIENT_REGISTRY,
     PROVIDER_DEFAULT,
@@ -1364,16 +1369,8 @@ async def _refresh_and_load_agent_session(
     return refreshed_agent_session
 
 
-_TURN_LOCK_STALENESS = timedelta(seconds=60)
-"""How long after its last heartbeat a turn lock is considered abandoned."""
-
 _TURN_LOCK_HEARTBEAT_INTERVAL_SECONDS = 15
 """How often a streaming turn refreshes its turn lock heartbeat."""
-
-
-def _is_turn_active(heartbeat_at: datetime | None, *, now: datetime) -> bool:
-    """Whether a turn with a live (non-stale) heartbeat holds the session's lock."""
-    return heartbeat_at is not None and heartbeat_at >= now - _TURN_LOCK_STALENESS
 
 
 async def _claim_agent_session_turn_lock(
@@ -1394,7 +1391,7 @@ async def _claim_agent_session_turn_lock(
             models.AgentSession.id == agent_session_rowid,
             or_(
                 models.AgentSession.turn_lock_heartbeat_at.is_(None),
-                models.AgentSession.turn_lock_heartbeat_at < now - _TURN_LOCK_STALENESS,
+                models.AgentSession.turn_lock_heartbeat_at < now - TURN_LOCK_STALENESS,
             ),
         )
         .values(turn_lock_heartbeat_at=now)

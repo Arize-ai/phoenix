@@ -19,6 +19,7 @@ async def _seed_agent_session(
     messages: list[dict[str, Any]] | None = None,
     expires_at: datetime | None = None,
     user_id: int | None = None,
+    turn_lock_heartbeat_at: datetime | None = None,
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
@@ -29,6 +30,7 @@ async def _seed_agent_session(
             created_at=updated_at,
             updated_at=updated_at,
             expires_at=expires_at,
+            turn_lock_heartbeat_at=turn_lock_heartbeat_at,
         )
         session.add(agent_session)
         await session.flush()
@@ -101,6 +103,38 @@ async def test_agent_sessions_orders_by_recency_and_paginates(
     connection = next_page.data["agentSessions"]
     assert [edge["node"]["title"] for edge in connection["edges"]] == ["oldest session"]
     assert connection["pageInfo"]["hasNextPage"] is False
+
+
+async def test_agent_session_is_turn_active_reflects_heartbeat_liveness(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """``isTurnActive`` derives from the turn lock's heartbeat with the same
+    staleness window the REST claim uses: live within 60s, free otherwise."""
+    now = datetime.now(timezone.utc)
+    query = """
+      query ($id: ID!) {
+        agentSession: node(id: $id) {
+          ... on AgentSession { isTurnActive }
+        }
+      }
+    """
+    expectations = {
+        "unlocked": (None, False),
+        "streaming": (now - timedelta(seconds=5), True),
+        "abandoned": (now - timedelta(seconds=120), False),
+    }
+    for title, (heartbeat_at, expected) in expectations.items():
+        session_id = await _seed_agent_session(
+            db,
+            title=title,
+            updated_at=now,
+            turn_lock_heartbeat_at=heartbeat_at,
+        )
+        response = await gql_client.execute(query=query, variables={"id": session_id})
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["agentSession"]["isTurnActive"] is expected, title
 
 
 async def test_agent_sessions_excludes_temporary_sessions(
