@@ -3,6 +3,8 @@ import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 
 import { SpanInfo } from "@phoenix/pages/trace/span";
+import { SpanAsideProvider } from "@phoenix/pages/trace/SpanAsideContext";
+import { SpanInfoCardsProvider } from "@phoenix/pages/trace/SpanInfoCardsContext";
 
 import {
   chainJsonIOSpan,
@@ -44,7 +46,11 @@ const meta: Meta<typeof SpanInfo> = {
   decorators: [
     (Story) => (
       <RelayEnvironmentProvider environment={mockRelayEnvironment}>
-        <Story />
+        <SpanAsideProvider>
+          <SpanInfoCardsProvider>
+            <Story />
+          </SpanInfoCardsProvider>
+        </SpanAsideProvider>
       </RelayEnvironmentProvider>
     ),
   ],

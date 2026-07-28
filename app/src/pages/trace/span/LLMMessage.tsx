@@ -1,7 +1,4 @@
-import {
-  MessageAttributePostfixes,
-  SemanticAttributePrefixes,
-} from "@arizeai/openinference-semantic-conventions";
+import { MessageAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 
 import {
@@ -30,6 +27,7 @@ import {
 
 import { defaultCardProps } from "./constants";
 import { MessageContentsList } from "./MessageContentsList";
+import { getToolCalls } from "./utils";
 
 /**
  * Displays a single LLM message (input or output) including its contents,
@@ -42,16 +40,13 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
   });
   // as of multi-modal models, a message can also be a list
   const messagesContents = message[MessageAttributePostfixes.contents];
-  const toolCalls = message[MessageAttributePostfixes.tool_calls]
-    ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
-    .filter(Boolean);
+  const toolCalls = getToolCalls(message);
   const hasFunctionCall =
     message[MessageAttributePostfixes.function_call_arguments_json] &&
     message[MessageAttributePostfixes.function_call_name];
   const role = message[MessageAttributePostfixes.role] || "unknown";
   const messageStyles = useChatMessageStyles(role);
-  const toolCallDisclosureIds =
-    toolCalls?.map((_, idx) => `tool-call-${idx}`) || [];
+  const toolCallDisclosureIds = toolCalls.map((_, idx) => `tool-call-${idx}`);
   const toolResultId = message[MessageAttributePostfixes.tool_call_id];
 
   return (
@@ -136,11 +131,8 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
                 </ConnectedMarkdownBlock>
               </View>
             ) : null}
-            {(toolCalls?.length ?? 0) > 0
-              ? toolCalls?.map((toolCall, idx) => {
-                  if (!toolCall) {
-                    return null;
-                  }
+            {toolCalls.length > 0
+              ? toolCalls.map((toolCall, idx) => {
                   const id = toolCall.id;
                   const parsedArguments = safelyParseJSON(
                     toolCall?.function?.arguments as string

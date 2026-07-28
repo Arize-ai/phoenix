@@ -1,6 +1,7 @@
 import {
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
+  MessageAttributePostfixes,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
@@ -13,6 +14,7 @@ import type {
   AttributeLLMToolDefinition,
   AttributeMessage,
   AttributePromptTemplate,
+  AttributeToolCall,
 } from "@phoenix/openInference/tracing/types";
 import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
 import { isStringArray } from "@phoenix/typeUtils";
@@ -67,6 +69,25 @@ function getMessages(messagesValue: unknown): AttributeMessage[] {
   return (messagesValue
     .map((obj) => obj[SemanticAttributePrefixes.message])
     .filter(Boolean) || []) as AttributeMessage[];
+}
+
+/**
+ * Extract the tool call objects from a message's tool calls attribute.
+ */
+export function getToolCalls(message: AttributeMessage): AttributeToolCall[] {
+  return (message[MessageAttributePostfixes.tool_calls]
+    ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
+    .filter(Boolean) || []) as AttributeToolCall[];
+}
+
+/**
+ * Count the tool calls across a set of messages.
+ */
+export function countToolCalls(messages: AttributeMessage[]): number {
+  return messages.reduce(
+    (count, message) => count + getToolCalls(message).length,
+    0
+  );
 }
 
 /**
