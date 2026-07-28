@@ -1,7 +1,13 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 
-import { Flex, IDBadge, Loading, Text, View } from "@phoenix/components";
+import {
+  CopyableIDBadge,
+  Flex,
+  Loading,
+  Text,
+  View,
+} from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
 import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -311,7 +317,10 @@ export function SpanHeaderSkeleton({
           </SpanHeaderMetaItem>
           <SpanHeaderMetaItem>
             {spanPreview?.spanId !== undefined ? (
-              <IDBadge id={spanPreview.spanId} tooltipText="Copy Span ID" />
+              <CopyableIDBadge
+                id={spanPreview.spanId}
+                tooltipText="Copy Span ID"
+              />
             ) : (
               <Skeleton width={104} height={16} animation="wave" />
             )}

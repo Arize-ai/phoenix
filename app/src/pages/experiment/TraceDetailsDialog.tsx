@@ -3,8 +3,8 @@ import { Suspense } from "react";
 import {
   Dialog,
   DialogCloseButton,
+  CopyableIDBadge,
   Flex,
-  IDBadge,
   LinkButton,
   Loading,
 } from "@phoenix/components";
@@ -35,7 +35,7 @@ export function TraceDetailsDialog({
         <DialogHeader>
           <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
             <DialogTitle>{title}</DialogTitle>
-            <IDBadge id={traceId} tooltipText="Copy Trace ID" />
+            <CopyableIDBadge id={traceId} tooltipText="Copy Trace ID" />
           </Flex>
           <DialogTitleExtra>
             <LinkButton

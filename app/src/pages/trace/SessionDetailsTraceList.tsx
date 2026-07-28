@@ -8,10 +8,10 @@ import type { To } from "react-router";
 import { useLocation, useSearchParams } from "react-router";
 
 import {
+  CopyableIDBadge,
   Flex,
   Icon,
   Icons,
-  IDBadge,
   LinkButton,
   ListBox,
   ListBoxItem,
@@ -133,7 +133,7 @@ function SessionTurnDivider({
       >
         Trace
       </LinkButton>
-      <IDBadge id={traceId} tooltipText="Copy Trace ID" />
+      <CopyableIDBadge id={traceId} tooltipText="Copy Trace ID" />
     </Flex>
   );
 }

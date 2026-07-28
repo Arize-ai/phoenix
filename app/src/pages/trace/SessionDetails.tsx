@@ -13,7 +13,7 @@ import {
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { useSearchParams } from "react-router";
 
-import { Flex, IDBadge, Loading, View } from "@phoenix/components";
+import { CopyableIDBadge, Flex, Loading, View } from "@phoenix/components";
 import { SessionDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { ExpandCollapseAllButton } from "@phoenix/components/trace/ExpandCollapseAllButton";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
@@ -97,7 +97,10 @@ function SessionDetailsMainContent({
           </SpanHeaderIdentityRow>
           <SpanHeaderMetaRow>
             <SpanHeaderMetaItem>
-              <IDBadge id={sessionDisplayId} tooltipText="Copy Session ID" />
+              <CopyableIDBadge
+                id={sessionDisplayId}
+                tooltipText="Copy Session ID"
+              />
             </SpanHeaderMetaItem>
             {tokenCountTotal ? (
               <SpanHeaderMetaItem>

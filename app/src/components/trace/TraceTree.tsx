@@ -13,7 +13,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { expandableContentExpandButtonCSS } from "@phoenix/components/core/content/ExpandableContent";
-import { IDBadge } from "@phoenix/components/core/id";
+import { CopyableIDBadge } from "@phoenix/components/core/id";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -205,6 +205,7 @@ export function TraceTree(props: TraceTreeProps) {
   };
   return (
     <div
+      className="trace-tree-navigation"
       css={css`
         display: flex;
         flex-direction: column;
@@ -329,7 +330,7 @@ function SessionTreeItem({ sessionId, to }: { sessionId: string; to: To }) {
       <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
       <Text size="S">Session</Text>
       <div className="trace-tree-entity-item__id">
-        <IDBadge id={sessionId} tooltipText="Copy Session ID" />
+        <CopyableIDBadge id={sessionId} tooltipText="Copy Session ID" />
       </div>
     </div>
   );
@@ -356,7 +357,7 @@ function TraceTreeItem({
       <Icon aria-hidden="true" svg={<Icons.Trace />} />
       <Text size="S">Trace</Text>
       <div className="trace-tree-entity-item__id">
-        <IDBadge id={traceId} tooltipText="Copy Trace ID" />
+        <CopyableIDBadge id={traceId} tooltipText="Copy Trace ID" />
       </div>
     </div>
   );

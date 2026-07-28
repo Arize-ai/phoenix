@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Badge, Flex, IDBadge, Text } from "@phoenix/components";
+import { Badge, CopyableIDBadge, Flex, Text } from "@phoenix/components";
 import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -162,7 +162,7 @@ export function SpanHeaderContent({
           <SpanKindBadge spanKind={span.spanKind} />
         </SpanHeaderMetaItem>
         <SpanHeaderMetaItem>
-          <IDBadge id={span.spanId} tooltipText="Copy Span ID" />
+          <CopyableIDBadge id={span.spanId} tooltipText="Copy Span ID" />
         </SpanHeaderMetaItem>
         {typeof span.latencyMs === "number" ? (
           <SpanHeaderMetaItem>

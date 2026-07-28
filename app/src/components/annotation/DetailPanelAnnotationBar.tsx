@@ -14,7 +14,7 @@ import {
   DialogTitleExtra,
   DialogTrigger,
   Flex,
-  IDBadge,
+  CopyableIDBadge,
   Icon,
   IconButton,
   Icons,
@@ -1321,7 +1321,10 @@ function AnnotationValueEditor({
                 <Text>{username}</Text>
               </Flex>
               {annotation.id ? (
-                <IDBadge id={annotation.id} tooltipText="Copy Annotation ID" />
+                <CopyableIDBadge
+                  id={annotation.id}
+                  tooltipText="Copy Annotation ID"
+                />
               ) : (
                 <Text fontFamily="mono" color="text-500">
                   --
