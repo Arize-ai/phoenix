@@ -12,8 +12,14 @@ from ..llm.prompts import PromptTemplate
 
 class HallucinationEvaluator(ClassificationEvaluator):
     """
-    An evaluator for detecting hallucinations in an assistant response, grounded
-    in the conversation rather than a single retrieved context.
+    An evaluator for detecting hallucinations in an assistant's latest response,
+    judged against the conversation it was produced in.
+
+    Unlike :class:`FaithfulnessEvaluator`, which grounds a response against a
+    specific provided context (e.g. retrieved documents in a RAG pipeline), this
+    evaluator grounds the response against the conversation itself — earlier user
+    and assistant turns, tool calls, and tool results. Use it when the source of
+    truth is the conversation rather than a separately supplied context.
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
@@ -21,15 +27,12 @@ class HallucinationEvaluator(ClassificationEvaluator):
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
     Notes:
-        - Evaluates whether the response contains claims that are unsupported by,
-          or contradict, the conversation. The conversation is the source of
-          truth and may include earlier turns, tool calls, tool results, and
-          retrieved context.
-        - The response under judgment is supplied separately as ``output`` so it
-          is never confused with the conversation and is never truncated by any
-          context-length controls applied to the conversation.
-        - Returns one `Score` with `label` (factual or hallucinated), `score`
-          (1.0 if hallucinated, 0.0 if factual), and an `explanation` from the
+        - ``input`` is the full conversation history the assistant had access to
+          (its last message is the user turn being answered), and ``output`` is
+          the assistant's latest response. The conversation is the source of
+          truth.
+        - Returns one `Score` with `label` (grounded or hallucinated), `score`
+          (1.0 if hallucinated, 0.0 if grounded), and an `explanation` from the
           LLM judge.
         - Requires an LLM that supports tool calling or structured output.
 
@@ -46,12 +49,12 @@ class HallucinationEvaluator(ClassificationEvaluator):
         hallucination_eval = HallucinationEvaluator(llm=llm, temperature=0.0)
 
         eval_input = {
-            "conversation": (
+            "input": (
                 "User: What's our refund window?\\n"
                 "Tool (lookup_policy): Refunds: 30 days from delivery.\\n"
-                "Assistant: 30 days from delivery."
+                "Assistant: 30 days from delivery.\\n"
+                "User: And for electronics?"
             ),
-            "input": "And for electronics?",
             "output": "Electronics can be returned within 90 days.",
             }
         scores = hallucination_eval.evaluate(eval_input)
@@ -72,12 +75,12 @@ class HallucinationEvaluator(ClassificationEvaluator):
     DIRECTION = HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.optimization_direction
 
     class HallucinationInputSchema(BaseModel):
-        conversation: str = Field(
-            description="The conversation available to the assistant: prior turns, "
-            "tool calls, tool results, and any retrieved context."
+        input: str = Field(
+            description="The full conversation history the assistant had access to "
+            "(prior turns, tool calls, and tool results); its last message is the "
+            "user turn being answered."
         )
-        input: str = Field(description="The latest user message the response is answering.")
-        output: str = Field(description="The assistant response to classify.")
+        output: str = Field(description="The assistant's latest response to classify.")
 
     def __init__(
         self,

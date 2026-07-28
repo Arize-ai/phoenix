@@ -18,16 +18,13 @@ export interface HallucinationEvaluatorArgs<
 /** A conversation and the assistant response to evaluate for hallucination. */
 export interface HallucinationEvaluationRecord {
   /**
-   * The conversation available to the assistant: prior turns, tool calls,
-   * tool results, and any retrieved context. Treated as the source of truth.
-   */
-  conversation: string;
-  /**
-   * The latest user message the response is answering.
+   * The full conversation history the assistant had access to (prior turns,
+   * tool calls, and tool results); its last message is the user turn being
+   * answered. Treated as the source of truth.
    */
   input: string;
   /**
-   * The assistant response to classify.
+   * The assistant's latest response to classify.
    */
   output: string;
   [key: string]: unknown;
@@ -36,25 +33,27 @@ export interface HallucinationEvaluationRecord {
 /**
  * Creates a hallucination evaluator function.
  *
- * This function returns an evaluator that detects whether an assistant response
- * contains claims that are unsupported by, or that contradict, the conversation.
+ * This function returns an evaluator that detects whether an assistant's latest
+ * response contains claims that are not grounded in — unsupported by, or
+ * contradicting — the conversation. Unlike the faithfulness evaluator, which
+ * grounds a response against a specific provided context (e.g. retrieved
+ * documents), this grounds it against the conversation itself.
  *
  * @param args - The arguments for creating the hallucination evaluator.
  * @param args.model - The model to use for classification.
- * @param args.choices - The possible classification choices (defaults to hallucinated/factual).
+ * @param args.choices - The possible classification choices (defaults to hallucinated/grounded).
  * @param args.promptTemplate - The prompt template to use (defaults to HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.template).
  * @param args.telemetry - The telemetry to use for the evaluator.
  *
  * @returns An evaluator function that takes a {@link HallucinationEvaluationRecord} and returns a classification result
- * indicating whether the response is factual or hallucinated relative to the conversation.
+ * indicating whether the response is grounded or hallucinated relative to the conversation.
  *
  * @example
  * ```ts
  * const evaluator = createHallucinationEvaluator({ model: openai("gpt-4o-mini") });
  * const result = await evaluator.evaluate({
- *   conversation:
- *     "User: What's our refund window?\nTool (lookup_policy): Refunds: 30 days from delivery.\nAssistant: 30 days from delivery.",
- *   input: "And for electronics?",
+ *   input:
+ *     "User: What's our refund window?\nTool (lookup_policy): Refunds: 30 days from delivery.\nAssistant: 30 days from delivery.\nUser: And for electronics?",
  *   output: "Electronics can be returned within 90 days.",
  * });
  * console.log(result.label); // "hallucinated"

@@ -94,7 +94,7 @@ ALL_EVALUATORS = [
     ),
     pytest.param(
         HallucinationEvaluator,
-        {"conversation": "User: Q\nAssistant: A", "input": "Q", "output": "A"},
+        {"input": "User: Q\nAssistant: A", "output": "A"},
         id="HallucinationEvaluator",
     ),
 ]

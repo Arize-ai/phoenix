@@ -25,35 +25,33 @@ The level of an evaluator determines the scope of the evaluation in OpenTelemetr
 
 | Level | Supported | Notes |
 |-------|-----------|-------|
-| **Span** | Yes | Apply to an LLM span, using its message history as the `conversation` and its response as the `output`. |
+| **Span** | Yes | Apply to an LLM span, using its message history as the `input` and its latest response as the `output`. |
 | **Trace** | Yes | Apply across a trace whose spans form the conversation available to the response. |
-| **Session** | Yes | Apply across a multi-turn session, using the ordered turns as the `conversation`. |
+| **Session** | Yes | Apply across a multi-turn session, using the ordered turns as the `input`. |
 
 **Relevant span kinds:** LLM and agent spans, particularly in multi-turn or tool-using pipelines.
 
 ## Input Requirements
 
-The Hallucination evaluator requires three inputs:
+The Hallucination evaluator requires two inputs:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `conversation` | `string` | The conversation available to the assistant: prior turns, tool calls, tool results, and any retrieved context. Treated as the source of truth. |
-| `input` | `string` | The latest user message the response is answering. |
-| `output` | `string` | The assistant response to classify. |
+| `input` | `string` | The full conversation history the assistant had access to (prior turns, tool calls, and tool results). Its last message is the user turn being answered. Treated as the source of truth. |
+| `output` | `string` | The assistant's latest response to classify. |
 
 ### Formatting Tips
 
 For best results:
 
-- **Use human-readable strings** rather than raw JSON for all inputs
-- **Supply the response under judgment separately** as `output` — keep it out of `conversation` so it is never confused with earlier turns
-- **Format `conversation` as a readable transcript**, labeling each turn by role and including tool results:
+- **Use human-readable strings** rather than raw JSON
+- **Format `input` as a readable transcript**, labeling each turn by role, including tool results, and ending with the latest user turn:
   ```
   User: What's our refund window?
   Tool (lookup_policy): Refunds: 30 days from delivery.
   Assistant: 30 days from delivery.
+  User: And for electronics?
   ```
-- **If you trim the conversation to fit a length limit**, mark elisions (e.g. `[... 6 earlier messages omitted ...]`) so the judge treats missing content as elided rather than as evidence of fabrication
 
 ## Output Interpretation
 
@@ -61,14 +59,14 @@ The evaluator returns a `Score` object with the following properties:
 
 | Property | Value | Description |
 |----------|-------|-------------|
-| `label` | `"hallucinated"` or `"factual"` | Classification result |
-| `score` | `1.0` or `0.0` | Numeric score (1.0 = hallucinated, 0.0 = factual) |
+| `label` | `"hallucinated"` or `"grounded"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = hallucinated, 0.0 = grounded) |
 | `explanation` | `string` | LLM-generated reasoning for the classification |
 | `direction` | `"minimize"` | Lower scores are better |
 | `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
 
 **Interpretation:**
-- **Factual (0.0)**: Every claim in the response is supported by, consistent with, or reasonably inferable from the conversation
+- **Grounded (0.0)**: Every claim in the response is supported by, consistent with, or reasonably inferable from the conversation
 - **Hallucinated (1.0)**: The response contains specifics not present in the conversation, or contradicts it
 
 ## Usage Examples
@@ -90,12 +88,12 @@ The evaluator returns a `Score` object with the following properties:
 
     # Evaluate a single example
     eval_input = {
-        "conversation": (
+        "input": (
             "User: What's our refund window?\n"
             "Tool (lookup_policy): Refunds: 30 days from delivery.\n"
-            "Assistant: 30 days from delivery."
+            "Assistant: 30 days from delivery.\n"
+            "User: And for electronics?"
         ),
-        "input": "And for electronics?",
         "output": "Electronics can be returned within 90 days.",
     }
 
@@ -117,9 +115,8 @@ The evaluator returns a `Score` object with the following properties:
 
     // Evaluate an example
     const result = await hallucinationEvaluator.evaluate({
-      conversation:
-        "User: What's our refund window?\nTool (lookup_policy): Refunds: 30 days from delivery.\nAssistant: 30 days from delivery.",
-      input: "And for electronics?",
+      input:
+        "User: What's our refund window?\nTool (lookup_policy): Refunds: 30 days from delivery.\nAssistant: 30 days from delivery.\nUser: And for electronics?",
       output: "Electronics can be returned within 90 days.",
     });
 
@@ -148,17 +145,16 @@ When your data has different field names or requires transformation, use input m
             {"role": "user", "content": "What's our refund window?"},
             {"role": "tool", "content": "Refunds: 30 days from delivery."},
             {"role": "assistant", "content": "30 days from delivery."},
+            {"role": "user", "content": "And for electronics?"},
         ],
-        "question": "And for electronics?",
         "response": "Electronics can be returned within 90 days.",
     }
 
     # Use input mapping with a lambda to render the conversation as a transcript
     input_mapping = {
-        "conversation": lambda x: "\n".join(
+        "input": lambda x: "\n".join(
             f"{m['role'].capitalize()}: {m['content']}" for m in x["messages"]
         ),
-        "input": "question",
         "output": "response",
     }
 
@@ -180,11 +176,10 @@ When your data has different field names or requires transformation, use input m
     // Bind with input mapping for different field names
     const boundEvaluator = bindEvaluator(hallucinationEvaluator, {
       inputMapping: {
-        conversation: (data) =>
+        input: (data) =>
           data.messages
             .map((m) => `${m.role[0].toUpperCase()}${m.role.slice(1)}: ${m.content}`)
             .join("\n"),
-        input: "question",
         output: "response",
       },
     });
@@ -194,8 +189,8 @@ When your data has different field names or requires transformation, use input m
         { role: "user", content: "What's our refund window?" },
         { role: "tool", content: "Refunds: 30 days from delivery." },
         { role: "assistant", content: "30 days from delivery." },
+        { role: "user", content: "And for electronics?" },
       ],
-      question: "And for electronics?",
       response: "Electronics can be returned within 90 days.",
     });
     ```
@@ -229,7 +224,7 @@ You can view the latest versions of our prompt templates [on GitHub](https://git
         name="hallucination",
         prompt_template=evaluator.prompt_template,  # Modify as needed
         llm=llm,
-        choices={"hallucinated": 1.0, "factual": 0.0},
+        choices={"hallucinated": 1.0, "grounded": 0.0},
         direction="minimize",
     )
     ```

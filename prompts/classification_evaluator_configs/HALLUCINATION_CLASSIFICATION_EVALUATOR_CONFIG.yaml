@@ -1,37 +1,35 @@
 name: hallucination
-description: Detect whether an assistant response contains hallucinations — claims not supported by the conversation.
-labels: []
+description: Detect whether an assistant's latest response contains hallucinations — claims not grounded in the conversation (prior turns, tool calls, and tool results).
+labels:
+  - promoted_dataset_evaluator
 optimization_direction: minimize
 messages:
   - role: user
     content: |-
-      You are an expert evaluator labeling whether an AI assistant's response contains hallucinations. A hallucination is any claim in the response that is not supported by, or that contradicts, the information available in the conversation.
+      You are an expert evaluator labeling whether an AI assistant's latest response contains hallucinations. A hallucination is any claim in the response that is not grounded in — that is, not supported by, or that contradicts — the conversation.
 
-      The conversation contains what the assistant had access to when responding: earlier user and assistant turns, tool calls, tool results, and any retrieved context. Treat it as the source of truth. It may contain markers such as "[... N earlier messages omitted ...]" or "...[truncated]..." indicating that content was elided to fit a length limit. Do not treat elided content as missing or as evidence of fabrication; judge only the claims you can actually check against the visible conversation.
+      The input is the full conversation the assistant had access to when it produced the response: earlier user and assistant turns, tool calls, tool results, and any retrieved context included inline. Treat the conversation as the only source of truth. You are checking whether the response is GROUNDED in that conversation, not whether it is factually true in general.
 
       <rubric>
 
       HALLUCINATED - The response does any of the following:
 
-      - States facts that contradict the conversation
-      - Asserts specific details (names, numbers, dates, quotes, entities, tool results, or events) that are not present in and cannot be reasonably derived from the conversation
+      - States something that contradicts the conversation (a user statement, an earlier turn, or a tool result)
+      - Asserts case-specific details about the subject of the conversation — names, numbers, prices, dates, quotes, IDs, entities, or tool results — that are not present in and cannot be reasonably derived from the conversation
+      - Fabricates a tool result, claims a tool returned information it did not, or claims an action was taken when no tool call in the conversation shows it
       - Attributes claims, sources, or actions to the conversation that never appear in it
 
-      FACTUAL - The response:
+      GROUNDED - The response:
 
       - Makes only claims that are supported by, consistent with, or reasonably inferable from the conversation
-      - Relies on uncontroversial general knowledge that does not conflict with the conversation
+      - Answers with uncontroversial, widely-known general knowledge (common facts, definitions, arithmetic, units of time or measure) — this is grounded even when the conversation does not contain it, as long as it does not contradict the conversation. Only case-specific claims about the conversation's own subject must come from the conversation.
       - Declines to answer, expresses uncertainty, or asks a clarifying question without asserting unsupported facts
 
       </rubric>
 
-      You are evaluating ONLY hallucination. Do NOT judge helpfulness, completeness, relevance, tone, or writing style. A response can be unhelpful or off-topic and still be factual, and a fluent, confident-sounding response can still be hallucinated.
+      You are evaluating ONLY grounding. Do NOT judge helpfulness, completeness, relevance, tone, or writing style. A response can be unhelpful or off-topic and still be grounded, and a fluent, confident-sounding response can still be hallucinated.
 
       <data>
-
-      <conversation>
-      {{conversation}}
-      </conversation>
 
       <input>
       {{input}}
@@ -43,9 +41,11 @@ messages:
 
       </data>
 
-      The input is the latest user message the response is answering. Carefully compare each factual claim in the output against the conversation and reason about whether it is supported before deciding. When the response asserts specifics that the conversation does not support, label it hallucinated.
+      The input is the full conversation, whose last message is the user turn the response is answering; the output is the assistant's latest response. Compare each claim in the output against the conversation and reason about whether it is grounded before deciding.
 
-      Is the response above factual or hallucinated based on the conversation?
+      Is the response grounded or hallucinated based on the conversation?
 choices:
   hallucinated: 1.0
-  factual: 0.0
+  grounded: 0.0
+substitutions:
+  output: output_messages_to_conversation

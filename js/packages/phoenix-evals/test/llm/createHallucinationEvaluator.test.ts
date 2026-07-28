@@ -19,7 +19,8 @@ describe("createHallucinationEvaluator", () => {
   const conversation =
     "User: What's our refund window?\n" +
     "Tool (lookup_policy): Refunds: 30 days from delivery.\n" +
-    "Assistant: 30 days from delivery.";
+    "Assistant: 30 days from delivery.\n" +
+    "User: And for electronics?";
 
   it("should create a hallucination evaluator with default template and choices", async () => {
     const mockGenerateClassification = vi
@@ -32,19 +33,18 @@ describe("createHallucinationEvaluator", () => {
     const evaluator = createHallucinationEvaluator({ model });
 
     const result = await evaluator.evaluate({
-      conversation,
-      input: "And for electronics?",
+      input: conversation,
       output: "Electronics can be returned within 90 days.",
     });
 
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
-        labels: ["hallucinated", "factual"],
+        labels: ["hallucinated", "grounded"],
         prompt: expect.arrayContaining([
           expect.objectContaining({
             role: "user",
             content: expect.stringContaining(
-              "labeling whether an AI assistant's response contains hallucinations"
+              "labeling whether an AI assistant's latest response contains hallucinations"
             ),
           }),
         ]),
@@ -60,11 +60,7 @@ describe("createHallucinationEvaluator", () => {
 
   it("should advertize the variables needed", () => {
     const hallucination = createHallucinationEvaluator({ model });
-    expect(hallucination.promptTemplateVariables).toEqual([
-      "conversation",
-      "input",
-      "output",
-    ]);
+    expect(hallucination.promptTemplateVariables).toEqual(["input", "output"]);
   });
 
   it("should use default optimization direction from config", () => {
@@ -84,22 +80,20 @@ describe("createHallucinationEvaluator", () => {
     const mockGenerateClassification = vi
       .spyOn(generateClassificationModule, "generateClassification")
       .mockResolvedValue({
-        label: "factual",
+        label: "grounded",
         explanation: "Template variables correctly interpolated",
       });
 
     const evaluator = createHallucinationEvaluator({ model });
 
-    const testInput = "And for electronics?";
     const testOutput = "Electronics are 14 days.";
 
     await evaluator.evaluate({
-      conversation,
-      input: testInput,
+      input: conversation,
       output: testOutput,
     });
 
-    for (const expected of [conversation, testInput, testOutput]) {
+    for (const expected of [conversation, testOutput]) {
       expect(mockGenerateClassification).toHaveBeenCalledWith(
         expect.objectContaining({
           prompt: expect.arrayContaining([
