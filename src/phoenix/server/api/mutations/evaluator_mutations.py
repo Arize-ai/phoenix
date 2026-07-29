@@ -74,7 +74,9 @@ _PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
     "rate of 1 are evaluated once per session: evaluation is scheduled after the session "
     "first stays quiet for the evaluation delay, then runs asynchronously. Later activity "
     "does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE "
-    "evaluators are stored but not scheduled."
+    "evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation "
+    "delay without using it. The target can change only until evaluation work exists for the "
+    "project evaluator."
 )
 
 
@@ -479,7 +481,8 @@ class CreateProjectLLMEvaluatorInput:
             "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Omit or use null to store the current "
             f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is "
-            "evaluated only once, and later activity does not schedule another evaluation."
+            "evaluated only once, and later activity does not schedule another evaluation. "
+            "Non-SESSION targets preserve this value without using it."
         ),
     )
 
@@ -504,7 +507,8 @@ class UpdateProjectLLMEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; omit to preserve the current setting "
             f"or use null to store the current default of "
             f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            "once, and later activity does not schedule another evaluation. Non-SESSION targets "
+            "preserve this value without using it."
         ),
     )
 
@@ -531,7 +535,8 @@ class AddProjectCodeEvaluatorInput:
             "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Omit or use null to store the current "
             f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is "
-            "evaluated only once, and later activity does not schedule another evaluation."
+            "evaluated only once, and later activity does not schedule another evaluation. "
+            "Non-SESSION targets preserve this value without using it."
         ),
     )
 
@@ -563,7 +568,8 @@ class CreateProjectCodeEvaluatorInput:
             "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Omit or use null to store the current "
             f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is "
-            "evaluated only once, and later activity does not schedule another evaluation."
+            "evaluated only once, and later activity does not schedule another evaluation. "
+            "Non-SESSION targets preserve this value without using it."
         ),
     )
 
@@ -595,7 +601,8 @@ class UpdateProjectCodeEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; omit to preserve the current setting "
             f"or use null to store the current default of "
             f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            "once, and later activity does not schedule another evaluation. Non-SESSION targets "
+            "preserve this value without using it."
         ),
     )
 

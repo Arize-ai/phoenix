@@ -207,7 +207,7 @@ class TestEvaluatorFields:
         assert resp.data["node"]["datasetEvaluators"] == []
 
 
-async def test_project_evaluator_evaluation_delay_seconds(
+async def test_project_evaluator_scheduling_fields(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -227,6 +227,7 @@ async def test_project_evaluator_evaluation_delay_seconds(
             evaluator_id=evaluator.id,
             name=Identifier(f"criteria-{token_hex(4)}"),
             evaluation_target="SESSION",
+            filter_condition="span_kind == 'LLM'",
             sampling_rate=1.0,
             evaluation_delay_seconds=45,
         )
@@ -238,7 +239,15 @@ async def test_project_evaluator_evaluation_delay_seconds(
         """query ($id: ID!) {
             node(id: $id) {
                 ... on Project {
-                    evaluators { edges { node { evaluationDelaySeconds } } }
+                    evaluators {
+                        edges {
+                            node {
+                                evaluationDelaySeconds
+                                schedulabilityStatus
+                                schedulabilityReason
+                            }
+                        }
+                    }
                 }
             }
         }""",
@@ -248,6 +257,10 @@ async def test_project_evaluator_evaluation_delay_seconds(
     assert not response.errors and response.data
     edges = response.data["node"]["evaluators"]["edges"]
     assert [edge["node"]["evaluationDelaySeconds"] for edge in edges] == [45]
+    assert [edge["node"]["schedulabilityStatus"] for edge in edges] == ["NOT_SCHEDULABLE"]
+    assert [edge["node"]["schedulabilityReason"] for edge in edges] == [
+        "SESSION_FILTER_UNSUPPORTED"
+    ]
 
 
 class TestDatasetEvaluatorDescriptionFallback:

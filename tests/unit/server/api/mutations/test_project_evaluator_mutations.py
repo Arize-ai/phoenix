@@ -18,6 +18,8 @@ filterCondition
 samplingRate
 evaluationTarget
 evaluationDelaySeconds
+schedulabilityStatus
+schedulabilityReason
 enabled
 inputMapping { literalMapping pathMapping }
 evaluator {
@@ -233,6 +235,8 @@ async def test_project_code_evaluator_crud_and_connection(
     created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
     assert created["evaluationTarget"] == "SPAN"
     assert created["evaluationDelaySeconds"] == 300
+    assert created["schedulabilityStatus"] == "SCHEDULABLE"
+    assert created["schedulabilityReason"] is None
     assert created["inputMapping"] == _mapping(output="value")
     assert created["evaluator"]["kind"] == "CODE"
 
@@ -267,6 +271,8 @@ async def test_project_code_evaluator_crud_and_connection(
     assert updated["name"] == "updated-code"
     assert updated["evaluationTarget"] == "SESSION"
     assert updated["evaluationDelaySeconds"] == 30
+    assert updated["schedulabilityStatus"] == "NOT_SCHEDULABLE"
+    assert updated["schedulabilityReason"] == "DISABLED"
     assert updated["inputMapping"] == _mapping(context="override")
     assert updated["evaluator"]["name"] == "updated-code"
 
@@ -312,6 +318,8 @@ async def test_project_code_evaluator_crud_and_connection(
     assert omitted["inputMapping"] == _mapping(context="override")
     assert omitted["enabled"] is False
     assert omitted["evaluationDelaySeconds"] == 30
+    assert omitted["schedulabilityStatus"] == "NOT_SCHEDULABLE"
+    assert omitted["schedulabilityReason"] == "TRACE_TARGET_UNSUPPORTED"
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert criteria is not None
@@ -345,6 +353,8 @@ async def test_project_code_evaluator_crud_and_connection(
     inherited = inherited_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert inherited["inputMapping"] == _mapping(output="inherited")
     assert inherited["evaluationDelaySeconds"] == 300
+    assert inherited["schedulabilityStatus"] == "SCHEDULABLE"
+    assert inherited["schedulabilityReason"] is None
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert criteria is not None
