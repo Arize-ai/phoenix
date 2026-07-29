@@ -227,6 +227,31 @@ async def test_builtin_implementation_version_changes_fingerprint(
     assert config_fingerprint(first) != config_fingerprint(second)
 
 
+async def test_active_criteria_are_bulk_resolved_once(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_id = project.id
+    for _ in range(3):
+        await _seed_criteria(db, project_id)
+
+    call_sizes: list[int] = []
+    resolve_bulk = producer_module.resolve_criteria_bulk
+
+    async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
+        call_sizes.append(len(args[1]))
+        return await resolve_bulk(*args, **kwargs)
+
+    monkeypatch.setattr(producer_module, "resolve_criteria_bulk", _counting_resolver)
+
+    active = await OnlineEvalProducer(db)._load_active_criteria()
+
+    assert len(active) == 3
+    assert call_sizes == [3]
+
+
 async def test_tick_records_latest_activity_for_runnable_sessions(
     db: DbSessionFactory,
     dialect: str,
@@ -1045,7 +1070,7 @@ async def test_unexpected_criteria_load_error_fails_closed(
     async def _transient_boom(*args: Any, **kwargs: Any) -> None:
         raise RuntimeError("transient version-lookup failure")
 
-    monkeypatch.setattr(producer_module, "resolve_criteria", _transient_boom)
+    monkeypatch.setattr(producer_module, "resolve_criteria_bulk", _transient_boom)
 
     producer = OnlineEvalProducer(db)
     with pytest.raises(RuntimeError, match="transient version-lookup failure"):
