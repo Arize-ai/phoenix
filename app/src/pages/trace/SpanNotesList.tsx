@@ -57,6 +57,10 @@ const noteTextCSS = css`
   overflow-wrap: anywhere;
 `;
 
+const emptyStateCSS = css`
+  padding: var(--global-dimension-size-400) var(--global-dimension-size-100);
+`;
+
 export function SpanNotesListContent({
   notes,
 }: {
@@ -66,12 +70,7 @@ export function SpanNotesListContent({
 
   if (notes.length === 0) {
     return (
-      <Flex
-        direction="column"
-        alignItems="center"
-        paddingX="size-100"
-        paddingY="size-400"
-      >
+      <Flex direction="column" alignItems="center" css={emptyStateCSS}>
         <EmptyState
           graphic={<EmptyStateGraphic variant="note" />}
           description="No notes for this span"

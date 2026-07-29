@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { SpanAttributesCard } from "@phoenix/pages/trace/span";
+import { SpanAttributesSection } from "@phoenix/pages/trace/span";
 
 import {
   DetailPanelExample,
@@ -204,11 +204,11 @@ const trashFireAttributes = JSON.stringify(
 
 const meta = {
   title: "Detail panel/Attributes",
-  component: SpanAttributesCard,
+  component: SpanAttributesSection,
   parameters: {
     width: "fill",
   },
-} satisfies Meta<typeof SpanAttributesCard>;
+} satisfies Meta<typeof SpanAttributesSection>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -218,25 +218,25 @@ export const Permutations: Story = {
   render: () => (
     <DetailPanelExamples>
       <DetailPanelExample title="Empty object">
-        <SpanAttributesCard attributes="{}" />
+        <SpanAttributesSection attributes="{}" />
       </DetailPanelExample>
       <DetailPanelExample title="Short and flat">
-        <SpanAttributesCard attributes={shortAttributes} />
+        <SpanAttributesSection attributes={shortAttributes} />
       </DetailPanelExample>
       <DetailPanelExample title="Long and neat">
-        <SpanAttributesCard attributes={longAttributes} />
+        <SpanAttributesSection attributes={longAttributes} />
       </DetailPanelExample>
       <DetailPanelExample
         title="Stringified JSON trash fire"
         description="Valid outer JSON with realistic telemetry whose subdocuments are inconsistently shaped, typed, and stringified."
       >
-        <SpanAttributesCard attributes={trashFireAttributes} />
+        <SpanAttributesSection attributes={trashFireAttributes} />
       </DetailPanelExample>
       <DetailPanelExample
         title="Malformed payload"
         description="The production fallback displays the original value when attributes are not valid JSON."
       >
-        <SpanAttributesCard attributes={'{"valid": true, "truncated":'} />
+        <SpanAttributesSection attributes={'{"valid": true, "truncated":'} />
       </DetailPanelExample>
     </DetailPanelExamples>
   ),

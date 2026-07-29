@@ -74,6 +74,7 @@ const truncationFrameCSS = css`
 
 /** Hover and press each example to compare the adaptive affordance. */
 export const LengthVariants: Story = {
+  args: { id: "c5b943dba87507a2" },
   render: () => (
     <div css={columnCSS}>
       {[
@@ -102,6 +103,7 @@ export const LengthVariants: Story = {
  * of the suffix.
  */
 export const OverflowModes: Story = {
+  args: { id: "c5b943dba87507a2" },
   parameters: {
     themeLayout: "column",
   },
@@ -147,6 +149,7 @@ export const OverflowModes: Story = {
 
 /** The leading icon follows the standard component size scale. */
 export const Sizes: Story = {
+  args: { id: "c5b943dba87507a2" },
   render: () => (
     <div css={columnCSS}>
       <CopyableIDBadge id="a1b2c3d4e5f6" size="S" />

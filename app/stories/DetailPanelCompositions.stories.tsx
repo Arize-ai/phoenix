@@ -49,7 +49,7 @@ import { RootSpanMessage } from "@phoenix/pages/trace/SessionDetailsTraceList";
 import type { SessionView } from "@phoenix/pages/trace/SessionViewTabs";
 import { SessionViewTabs } from "@phoenix/pages/trace/SessionViewTabs";
 import type { SpanInfoData } from "@phoenix/pages/trace/span";
-import { SpanAttributesCard, SpanInfo } from "@phoenix/pages/trace/span";
+import { SpanAttributesSection, SpanInfo } from "@phoenix/pages/trace/span";
 import { SpanEventsListContent } from "@phoenix/pages/trace/SpanEventsList";
 import { SpanInfoCardsProvider } from "@phoenix/pages/trace/SpanInfoCardsContext";
 import { SpanNotesListContent } from "@phoenix/pages/trace/SpanNotesList";
@@ -604,7 +604,7 @@ function SpanDetailsFixture({
               </Text>
             </View>
             <View padding="size-200">
-              <SpanAttributesCard attributes={details.attributes} />
+              <SpanAttributesSection attributes={details.attributes} />
             </View>
           </section>
           <section id={sectionIds.events} aria-label="Events">

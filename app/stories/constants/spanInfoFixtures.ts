@@ -343,7 +343,6 @@ export const llmRawPromptsSpan: SpanInfoFixture = {
   id: "U3Bhbjo0MTI3",
   name: "OpenAI.completion",
   spanKind: "llm",
-  statusMessage: "",
   attributes: JSON.stringify({
     openinference: {
       span: {
@@ -892,7 +891,6 @@ export const toolWithParametersSpan: SpanInfoFixture = {
   id: "U3Bhbjo1MTA4",
   name: "search_documents",
   spanKind: "tool",
-  statusMessage: "",
   attributes: JSON.stringify({
     openinference: {
       span: {
