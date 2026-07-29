@@ -5,14 +5,14 @@ import { CopyableIDBadge, Flex, Loading, Text } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
 import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import { TraceTreePanelToggleButton } from "@phoenix/components/trace/TraceTreePanelToggleButton";
+import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
 import {
   TRACE_TREE_ROW_BORDER_WIDTH,
   TRACE_TREE_ROW_INLINE_START,
 } from "@phoenix/components/trace/traceTreeStyles";
+import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
-import { TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS } from "@phoenix/constants";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -28,27 +28,6 @@ import { DetailsPanelContent } from "./DetailsPanel";
 import { SessionDetailsHeader } from "./SessionDetailsHeader";
 import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
 import { TraceDetailsHeaderSkeleton } from "./TraceDetailsHeader";
-
-const traceTreeToolbarSkeletonCSS = css`
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-100);
-  width: 100%;
-  height: var(--global-dimension-size-600);
-  padding: var(--global-dimension-size-100);
-  border-bottom: var(--global-border-size-thin) solid
-    var(--global-border-color-default);
-
-  .trace-tree-toolbar-skeleton__search {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
-    display: none;
-  }
-`;
 
 const traceTreeEntitySkeletonListCSS = css`
   flex: none;
@@ -93,7 +72,7 @@ const annotationBarSkeletonCSS = css`
     var(--global-border-color-default);
 
   &[data-variant="detail-header"] {
-    min-height: var(--global-dimension-size-300);
+    min-height: var(--global-button-height-s);
     padding: 0;
     border: 0;
   }
@@ -168,7 +147,7 @@ function SkeletonDetailsWrapper({ children }: PropsWithChildren) {
   );
 }
 
-function TraceTreeNavigationSkeleton({
+export function TraceTreeNavigationSkeleton({
   isTreePanelCollapsed,
   onTreePanelCollapsedChange,
 }: {
@@ -176,30 +155,21 @@ function TraceTreeNavigationSkeleton({
   onTreePanelCollapsedChange?: (isCollapsed: boolean) => void;
 }) {
   return (
-    <Flex direction="column" flex="1 1 auto" minHeight={0} aria-busy="true">
-      <div css={traceTreeToolbarSkeletonCSS}>
-        <Skeleton
-          className="trace-tree-toolbar-skeleton__search"
-          height={32}
-          animation="wave"
+    <TraceTreeProvider>
+      <Flex direction="column" flex="1 1 auto" minHeight={0} aria-busy="true">
+        <TraceTreeToolbar
+          isTreePanelCollapsed={isTreePanelCollapsed}
+          onTreePanelCollapsedChange={onTreePanelCollapsedChange}
         />
-        <Skeleton width={32} height={32} animation="wave" />
-        <Skeleton width={32} height={32} animation="wave" />
-        {onTreePanelCollapsedChange ? (
-          <TraceTreePanelToggleButton
-            isCollapsed={isTreePanelCollapsed}
-            onCollapsedChange={onTreePanelCollapsedChange}
-          />
-        ) : null}
-      </div>
-      <ul css={traceTreeEntitySkeletonListCSS}>
-        <TraceTreeEntitySkeleton labelWidth={54} idWidth={104} />
-        <TraceTreeEntitySkeleton labelWidth={42} idWidth={120} />
-      </ul>
-      <Flex flex="1 1 auto" minHeight={0} width="100%">
-        <TraceTreeSkeleton />
+        <ul css={traceTreeEntitySkeletonListCSS}>
+          <TraceTreeEntitySkeleton labelWidth={54} idWidth={104} />
+          <TraceTreeEntitySkeleton labelWidth={42} idWidth={120} />
+        </ul>
+        <Flex flex="1 1 auto" minHeight={0} width="100%">
+          <TraceTreeSkeleton />
+        </Flex>
       </Flex>
-    </Flex>
+    </TraceTreeProvider>
   );
 }
 
@@ -359,7 +329,7 @@ export function SpanHeaderSkeleton({
             ) : null
           ) : (
             <DetailHeaderMetaItem>
-              <Skeleton width={54} height={16} animation="wave" />
+              <Skeleton width={54} height={20} animation="wave" />
             </DetailHeaderMetaItem>
           )}
           <DetailHeaderMetaItem>
@@ -368,7 +338,7 @@ export function SpanHeaderSkeleton({
                 {fullTimeFormatter(new Date(spanPreview.startTime))}
               </Text>
             ) : (
-              <Skeleton width={168} height={16} animation="wave" />
+              <Skeleton width={168} height={20} animation="wave" />
             )}
           </DetailHeaderMetaItem>
           {hasTokenCountPreview ? (
@@ -384,7 +354,7 @@ export function SpanHeaderSkeleton({
             ) : null
           ) : (
             <DetailHeaderMetaItem>
-              <Skeleton width={64} height={16} animation="wave" />
+              <Skeleton width={64} height={20} animation="wave" />
             </DetailHeaderMetaItem>
           )}
         </DetailHeaderMetaRow>
@@ -404,9 +374,9 @@ export function DetailPanelAnnotationBarSkeleton({
       {variant === "default" ? (
         <Skeleton width={68} height={16} animation="wave" />
       ) : null}
-      <Skeleton width={112} height={24} animation="wave" />
-      <Skeleton width={92} height={24} animation="wave" />
-      <Skeleton width={132} height={24} animation="wave" />
+      <Skeleton width={112} height={30} animation="wave" />
+      <Skeleton width={92} height={30} animation="wave" />
+      <Skeleton width={132} height={30} animation="wave" />
     </div>
   );
 }

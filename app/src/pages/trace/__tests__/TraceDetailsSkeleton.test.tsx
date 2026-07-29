@@ -8,9 +8,13 @@ import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { SpanStatusIndicator } from "../../SpanHeader";
-import { SpanHeaderSkeleton } from "../TraceDetailsSkeleton";
+import {
+  DetailPanelAnnotationBarSkeleton,
+  SpanHeaderSkeleton,
+  TraceTreeNavigationSkeleton,
+} from "../TraceDetailsSkeleton";
 
-describe("SpanHeaderSkeleton", () => {
+describe("Trace details skeletons", () => {
   installTestMatchMedia();
 
   let container: HTMLDivElement;
@@ -25,6 +29,59 @@ describe("SpanHeaderSkeleton", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+  });
+
+  it("keeps the real trace-tree search field mounted while trace data loads", () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ThemeProvider>
+            <PreferencesProvider>
+              <TraceTreeNavigationSkeleton isTreePanelCollapsed={false} />
+            </PreferencesProvider>
+          </ThemeProvider>
+        </MemoryRouter>
+      );
+    });
+
+    const search = container.querySelector<HTMLInputElement>(
+      'input[aria-label="Search trace tree"]'
+    );
+    expect(search).not.toBeNull();
+    expect(
+      container.querySelector(".trace-tree-toolbar__search .skeleton")
+    ).toBeNull();
+  });
+
+  it("matches metadata and annotation skeletons to loaded control heights", () => {
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <ThemeProvider>
+            <PreferencesProvider>
+              <SpanHeaderSkeleton />
+              <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+            </PreferencesProvider>
+          </ThemeProvider>
+        </MemoryRouter>
+      );
+    });
+
+    const metadataSkeletons = container.querySelectorAll(
+      ".span-header__meta .skeleton"
+    );
+    expect(metadataSkeletons).toHaveLength(4);
+    metadataSkeletons.forEach((skeleton) => {
+      expect(getComputedStyle(skeleton).height).toBe("20px");
+    });
+
+    const annotationSkeletons = container.querySelectorAll(
+      '[data-variant="detail-header"] > .skeleton'
+    );
+    expect(annotationSkeletons).toHaveLength(3);
+    annotationSkeletons.forEach((skeleton) => {
+      expect(getComputedStyle(skeleton).height).toBe("30px");
+    });
   });
 
   it("renders every available tree field while detail-only fields load", () => {

@@ -101,13 +101,13 @@ export function TraceDetailsHeaderSkeleton({
         </DetailHeaderIdentityRow>
         <DetailHeaderMetaRow>
           <DetailHeaderMetaItem>
-            <Skeleton width={54} height={16} animation="wave" />
+            <Skeleton width={54} height={20} animation="wave" />
           </DetailHeaderMetaItem>
           <DetailHeaderMetaItem>
-            <Skeleton width={168} height={16} animation="wave" />
+            <Skeleton width={168} height={20} animation="wave" />
           </DetailHeaderMetaItem>
           <DetailHeaderMetaItem>
-            <Skeleton width={64} height={16} animation="wave" />
+            <Skeleton width={64} height={20} animation="wave" />
           </DetailHeaderMetaItem>
         </DetailHeaderMetaRow>
       </Flex>

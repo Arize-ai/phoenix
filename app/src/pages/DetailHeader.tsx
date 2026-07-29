@@ -50,6 +50,7 @@ const metaRowCSS = css`
   flex-wrap: wrap;
   gap: var(--global-dimension-size-100);
   min-width: 0;
+  min-height: var(--global-line-height-s);
 
   .detail-header__meta-item {
     display: inline-flex;

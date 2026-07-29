@@ -42,7 +42,7 @@ export function SessionDetailsHeader({
         <DetailHeaderMetaRow>
           {tokenCountTotal === undefined ? (
             <DetailHeaderMetaItem>
-              <Skeleton width={64} height={16} animation="wave" />
+              <Skeleton width={64} height={20} animation="wave" />
             </DetailHeaderMetaItem>
           ) : tokenCountTotal ? (
             <DetailHeaderMetaItem>
@@ -56,7 +56,7 @@ export function SessionDetailsHeader({
           ) : null}
           {totalCost === undefined ? (
             <DetailHeaderMetaItem>
-              <Skeleton width={64} height={16} animation="wave" />
+              <Skeleton width={64} height={20} animation="wave" />
             </DetailHeaderMetaItem>
           ) : totalCost ? (
             <DetailHeaderMetaItem>
