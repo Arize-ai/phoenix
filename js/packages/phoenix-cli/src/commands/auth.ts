@@ -121,6 +121,31 @@ async function fetchViewer(config: PhoenixConfig): Promise<FetchViewerResult> {
 }
 
 /**
+ * Fetch the viewer for `auth status`, accounting for deployments that changed
+ * from OAuth authentication to anonymous access. An expired profile token can
+ * fail during refresh before `/v1/user` is requested, so retry without
+ * credentials and accept the result only when the server explicitly reports
+ * anonymous access.
+ */
+async function fetchViewerForStatus(
+  config: PhoenixConfig
+): Promise<FetchViewerResult> {
+  const result = await fetchViewer(config);
+  const canCheckAnonymousAccess =
+    config.credentialSource === "oauth" &&
+    (result.status === "auth_error" || result.status === "unknown_error");
+  if (!canCheckAnonymousAccess) {
+    return result;
+  }
+
+  const anonymousResult = await fetchViewer({ endpoint: config.endpoint });
+  const isAnonymous =
+    anonymousResult.status === "success" &&
+    anonymousResult.user.auth_method === "ANONYMOUS";
+  return isAnonymous ? anonymousResult : result;
+}
+
+/**
  * Format auth status output in gh-style format.
  */
 export function formatAuthStatus(
@@ -351,7 +376,7 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
       ? getProfileByName(settingsFile, options.profile)?.name
       : getStoredActiveProfile(settingsFile)?.name;
 
-  const result = await fetchViewer(config);
+  const result = await fetchViewerForStatus(config);
   const oauthTokens = loadCurrentOAuthTokens({
     config,
     profileName: activeProfileName,
