@@ -624,10 +624,8 @@ class OnlineEvalProducer(DaemonTask):
             return
         rows = (
             await session.execute(
-                select(
-                    models.Trace.project_session_rowid,
-                    func.max(models.Span.id),
-                )
+                select(models.Trace.project_session_rowid)
+                .select_from(models.Span)
                 .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
                 .where(
                     models.Span.id > low_exclusive,
@@ -635,17 +633,16 @@ class OnlineEvalProducer(DaemonTask):
                     models.Trace.project_rowid.in_(project_ids),
                     models.Trace.project_session_rowid.is_not(None),
                 )
-                .group_by(models.Trace.project_session_rowid)
+                .distinct()
             )
         ).all()
         records = [
             {
                 "project_session_rowid": project_session_rowid,
-                "last_seen_span_rowid": last_seen_span_rowid,
                 "observed_at": func.now(),
             }
-            for project_session_rowid, last_seen_span_rowid in rows
-            if project_session_rowid is not None and last_seen_span_rowid is not None
+            for (project_session_rowid,) in rows
+            if project_session_rowid is not None
         ]
         for start in range(0, len(records), _INSERT_BATCH_SIZE):
             await session.execute(

@@ -121,7 +121,6 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "sampling_rate",
             "evaluation_target",
             "input_mapping",
-            "evaluation_delay_seconds",
             "enabled",
             "created_at",
             "updated_at",
@@ -154,7 +153,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(["input_mapping", "evaluation_delay_seconds"]),
+            nullable_column_names=frozenset(["input_mapping"]),
         )
 
 
@@ -216,81 +215,6 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         )
 
 
-class _WorkUnitsSchemaTest(_OnlineEvalSchemaTest):
-    entity_column: str
-    entity_table: str
-
-    @override
-    @classmethod
-    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
-        index_names = {
-            f"ix_{cls.table_name}_claimable",
-            f"ix_{cls.table_name}_evaluator_id",
-            f"ix_{cls.table_name}_criteria_id",
-            f"ix_{cls.table_name}_error_attempts",
-            f"ix_{cls.table_name}_terminal",
-        }
-        unique_name = _constraint_name(
-            f"uq_{cls.table_name}_{cls.entity_column}_evaluator_id_config_fingerprint_generation",
-            db_backend,
-        )
-        constraint_names = {
-            f"pk_{cls.table_name}",
-            unique_name,
-            _constraint_name(
-                f"fk_{cls.table_name}_{cls.entity_column}_{cls.entity_table}",
-                db_backend,
-            ),
-            _constraint_name(
-                f"fk_{cls.table_name}_evaluator_id_evaluators",
-                db_backend,
-            ),
-            _constraint_name(
-                f"fk_{cls.table_name}_criteria_id_project_evaluator_criteria",
-                db_backend,
-            ),
-            f"ck_{cls.table_name}_`valid_eval_work_status`",
-        }
-        if db_backend == "postgresql":
-            index_names.update({f"pk_{cls.table_name}", unique_name})
-        elif db_backend == "sqlite":
-            index_names.add(f"sqlite_autoindex_{cls.table_name}_1")
-        else:
-            assert_never(db_backend)
-        return _TableSchemaInfo(
-            table_name=cls.table_name,
-            column_names=frozenset(
-                {
-                    "id",
-                    cls.entity_column,
-                    "evaluator_id",
-                    "criteria_id",
-                    "config_fingerprint",
-                    "generation",
-                    "status",
-                    "claimed_at",
-                    "claimed_by",
-                    "attempts",
-                    "error",
-                    "cooldown_until",
-                    "created_at",
-                    "updated_at",
-                }
-            ),
-            index_names=frozenset(index_names),
-            constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(
-                {"claimed_at", "claimed_by", "error", "cooldown_until"}
-            ),
-        )
-
-
-class TestEvalSessionWorkUnits(_WorkUnitsSchemaTest):
-    table_name = "eval_session_work_units"
-    entity_column = "project_session_rowid"
-    entity_table = "project_sessions"
-
-
 class _ActivitySchemaTest(_OnlineEvalSchemaTest):
     entity_column: str
     entity_table: str
@@ -307,7 +231,6 @@ class _ActivitySchemaTest(_OnlineEvalSchemaTest):
                 f"fk_{cls.table_name}_{cls.entity_column}_{cls.entity_table}",
                 db_backend,
             ),
-            f"fk_{cls.table_name}_last_seen_span_rowid_spans",
         }
         if db_backend == "postgresql":
             index_names.update({f"pk_{cls.table_name}", unique_name})
@@ -317,12 +240,10 @@ class _ActivitySchemaTest(_OnlineEvalSchemaTest):
             assert_never(db_backend)
         return _TableSchemaInfo(
             table_name=cls.table_name,
-            column_names=frozenset(
-                {"id", cls.entity_column, "last_seen_span_rowid", "observed_at"}
-            ),
+            column_names=frozenset({"id", cls.entity_column, "observed_at"}),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset({"last_seen_span_rowid"}),
+            nullable_column_names=frozenset(),
         )
 
 

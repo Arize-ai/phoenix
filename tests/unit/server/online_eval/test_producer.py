@@ -198,11 +198,11 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
         project = await _add_project(session)
         first_project_session = await _add_project_session(session, project)
         first_trace = await _add_trace(session, project, first_project_session)
-        first_span = await _add_span(session, first_trace)
-        latest_first_span = await _add_span(session, first_trace)
+        await _add_span(session, first_trace)
+        await _add_span(session, first_trace)
         second_project_session = await _add_project_session(session, project)
         second_trace = await _add_trace(session, project, second_project_session)
-        second_span = await _add_span(session, second_trace)
+        await _add_span(session, second_trace)
         ungrouped_trace = await _add_trace(session, project)
         await _add_span(session, ungrouped_trace)
         other_project = await _add_project(session)
@@ -213,9 +213,6 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
         first_project_session_id = first_project_session.id
         first_trace_id = first_trace.id
         second_project_session_id = second_project_session.id
-        first_span_id = first_span.id
-        latest_first_span_id = latest_first_span.id
-        second_span_id = second_span.id
         high_water_span_id = high_water_span.id
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     cursor_id = await _seed_cursor(
@@ -229,19 +226,14 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
 
     async with db() as session:
         activity = list(await session.scalars(select(models.EvalSessionActivity)))
-        session_work_count = await session.scalar(
-            select(func.count()).select_from(models.EvalSessionWorkUnit)
-        )
-    assert {row.project_session_rowid: row.last_seen_span_rowid for row in activity} == {
-        first_project_session_id: latest_first_span_id,
-        second_project_session_id: second_span_id,
+    assert {row.project_session_rowid for row in activity} == {
+        first_project_session_id,
+        second_project_session_id,
     }
     first_observed_at = next(
         row.observed_at for row in activity if row.project_session_rowid == first_project_session_id
     )
-    assert first_span_id != latest_first_span_id
     assert all(row.observed_at is not None for row in activity)
-    assert session_work_count == 0
     assert await _work_unit_span_rowids(db) == []
     assert (await _get_cursor(db, cursor_id)).produced_through_id == high_water_span_id
 
@@ -267,9 +259,9 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
     await producer._tick()
     async with db() as session:
         replayed = list(await session.scalars(select(models.EvalSessionActivity)))
-    assert {row.project_session_rowid: row.last_seen_span_rowid for row in replayed} == {
-        first_project_session_id: newer_first_span_id,
-        second_project_session_id: second_span_id,
+    assert {row.project_session_rowid for row in replayed} == {
+        first_project_session_id,
+        second_project_session_id,
     }
     updated_first_activity = next(
         row for row in replayed if row.project_session_rowid == first_project_session_id
@@ -317,9 +309,6 @@ async def test_ineligible_criteria_do_not_record_activity_or_work(
     async with db() as session:
         assert (
             await session.scalar(select(func.count()).select_from(models.EvalSessionActivity)) == 0
-        )
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
         )
     assert await _work_unit_span_rowids(db) == []
 
