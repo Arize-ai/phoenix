@@ -29,34 +29,29 @@ const MAX_INPUT_LINES = 6;
 
 const spanNoteBarCSS = css`
   flex: none;
-  display: grid;
-  grid-template-rows: 1fr;
   border-top: 1px solid var(--global-border-color-default);
-
-  // The bar slides up from the bottom edge: the row rides the top of the
-  // growing track, so it rises smoothly into place while the content above
-  // compresses rather than jumping.
-  @media (prefers-reduced-motion: no-preference) {
-    animation: span-note-bar-enter 0.25s ease-out;
-  }
-
-  @keyframes span-note-bar-enter {
-    from {
-      grid-template-rows: 0fr;
-    }
-  }
-
-  .span-note-bar__clip {
-    overflow: hidden;
-    min-height: 0;
-  }
+  // Clips the row while it rises in from under the bottom edge.
+  overflow: hidden;
 
   .span-note-bar__row {
     display: flex;
     flex-direction: row;
     align-items: flex-end;
     gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
+
+    // The bar claims its space at once; the fully-composed row then slides
+    // up into it, so no control is ever shown partially revealed. Kept quick
+    // and linear-decelerating so the rise reads as one motion, no settle.
+    @media (prefers-reduced-motion: no-preference) {
+      animation: span-note-bar-rise 0.15s ease-out;
+    }
+  }
+
+  @keyframes span-note-bar-rise {
+    from {
+      transform: translateY(100%);
+    }
   }
 
   .span-note-bar__field {
@@ -176,41 +171,39 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
 
   return (
     <div className="span-note-bar" css={spanNoteBarCSS}>
-      <div className="span-note-bar__clip">
-        <div className="span-note-bar__row">
-          <TooltipTrigger>
-            <IconButton
-              size="M"
-              aria-label="Close notes"
-              onPress={() => setIsTakingSpanNotes(false)}
-            >
-              <Icon svg={<Icons.Close />} />
-            </IconButton>
-            <Tooltip offset={1}>Close notes</Tooltip>
-          </TooltipTrigger>
-          <TextField
-            className="span-note-bar__field"
+      <div className="span-note-bar__row">
+        <TooltipTrigger>
+          <IconButton
             size="M"
-            value={noteText}
-            onChange={setNoteText}
-            aria-label="Add a note to this span"
+            aria-label="Close notes"
+            onPress={() => setIsTakingSpanNotes(false)}
           >
-            <TextArea
-              ref={textareaRef}
-              rows={1}
-              placeholder="Add a note to this span…"
-              onKeyDown={onKeyDown}
-            />
-          </TextField>
-          <Button
-            variant="primary"
-            size="M"
-            isDisabled={!noteText.trim() || isAddingNote}
-            onPress={submitNote}
-          >
-            Add
-          </Button>
-        </div>
+            <Icon svg={<Icons.Close />} />
+          </IconButton>
+          <Tooltip offset={1}>Close notes</Tooltip>
+        </TooltipTrigger>
+        <TextField
+          className="span-note-bar__field"
+          size="M"
+          value={noteText}
+          onChange={setNoteText}
+          aria-label="Add a note to this span"
+        >
+          <TextArea
+            ref={textareaRef}
+            rows={1}
+            placeholder="Add a note to this span…"
+            onKeyDown={onKeyDown}
+          />
+        </TextField>
+        <Button
+          variant="primary"
+          size="M"
+          isDisabled={!noteText.trim() || isAddingNote}
+          onPress={submitNote}
+        >
+          Add
+        </Button>
       </div>
       <Suspense fallback={null}>
         <SpanNotesStoreSync spanNodeId={spanNodeId} fetchKey={fetchKey} />
