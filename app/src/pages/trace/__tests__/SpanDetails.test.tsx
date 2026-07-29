@@ -3,6 +3,7 @@ import { act, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import type * as ReactRouter from "react-router";
+import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
@@ -26,6 +27,7 @@ vi.mock("react-relay", () => ({
           spanId: "span-display-id",
           spanKind: "llm",
           name: "selected span",
+          parentId: "parent-span-display-id",
           code: "OK",
           statusMessage: "",
           latencyMs: 125,
@@ -38,6 +40,18 @@ vi.mock("react-relay", () => ({
             latencyMs: 250,
             startTime: "2026-07-28T11:59:59.000Z",
             costSummary: { total: { cost: 0.02 } },
+            spans: {
+              edges: [
+                {
+                  node: {
+                    id: "parent-span-node-id",
+                    name: "parent span",
+                    spanId: "parent-span-display-id",
+                    parentId: null,
+                  },
+                },
+              ],
+            },
             rootSpan: {
               statusCode: "OK",
               cumulativeTokenCountTotal: 84,
@@ -65,15 +79,23 @@ vi.mock("react-router", async (importOriginal) => {
 vi.mock(
   "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar",
   () => ({
-    SessionDetailPanelAnnotationBar: () => (
-      <div data-testid="session-annotations" />
-    ),
-    TraceDetailPanelAnnotationBar: () => (
-      <div data-testid="trace-annotations" />
-    ),
-    SpanDetailPanelAnnotationBar: () => <div data-testid="span-annotations" />,
-    useSpanDetailPanelAnnotationBarQuery: () => ({
-      queryRef: {},
+    SessionDetailPanelAnnotationBar: ({
+      sessionNodeId,
+    }: {
+      sessionNodeId: string;
+    }) => <div data-testid="session-annotations">{sessionNodeId}</div>,
+    TraceDetailPanelAnnotationBar: ({
+      traceNodeId,
+    }: {
+      traceNodeId: string;
+    }) => <div data-testid="trace-annotations">{traceNodeId}</div>,
+    SpanDetailPanelAnnotationBar: ({
+      queryRef,
+    }: {
+      queryRef: { spanNodeId: string };
+    }) => <div data-testid="span-annotations">{queryRef.spanNodeId}</div>,
+    useSpanDetailPanelAnnotationBarQuery: (spanNodeId: string) => ({
+      queryRef: { spanNodeId },
       refresh: vi.fn(),
     }),
   })
@@ -117,7 +139,7 @@ describe("SpanDetails headers", () => {
     container.remove();
   });
 
-  it("renders session, trace, and span as separate annotated headers", () => {
+  it("shows one span header and replaces its annotations with an ancestor selection", async () => {
     act(() => {
       root.render(
         <TestProviders>
@@ -127,28 +149,42 @@ describe("SpanDetails headers", () => {
     });
 
     const headers = container.querySelectorAll("[data-detail-header]");
-    expect(headers).toHaveLength(3);
-    expect(headers.item(0).textContent).toContain("Session");
+    expect(headers).toHaveLength(1);
+    expect(headers.item(0).textContent).toContain("selected span");
     expect(
-      headers.item(0).querySelector("[data-testid='session-annotations']")
-    ).not.toBeNull();
+      headers.item(0).querySelector("[data-testid='span-annotations']")
+        ?.textContent
+    ).toBe("span-node-id");
+
+    const user = userEvent.setup();
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label^="Annotations for"]'
+    );
+    expect(trigger?.dataset.variant).toBe("quiet");
+    expect(trigger?.textContent).not.toContain("Annotations");
     expect(
-      headers.item(0).querySelector("[data-testid='trace-annotations']")
-    ).toBeNull();
-    expect(headers.item(1).textContent).toContain("Trace");
+      getComputedStyle(
+        headers.item(0).querySelector<HTMLElement>(".detail-header__meta")!
+      ).flexWrap
+    ).toBe("nowrap");
     expect(
-      headers.item(1).querySelector("[data-testid='trace-annotations']")
-    ).not.toBeNull();
+      getComputedStyle(
+        trigger!.querySelector<HTMLElement>(".annotation-target-select__title")!
+      ).textOverflow
+    ).toBe("ellipsis");
+    await act(async () => user.click(trigger!));
+    const parentOption = Array.from(
+      document.querySelectorAll<HTMLElement>("[role='option']")
+    ).find((option) => option.textContent?.includes("parent span"));
+    await act(async () => user.click(parentOption!));
+
     expect(
-      headers.item(1).querySelector("[data-testid='span-annotations']")
-    ).toBeNull();
-    expect(headers.item(2).textContent).toContain("selected span");
-    expect(
-      headers.item(2).querySelector("[data-testid='span-annotations']")
-    ).not.toBeNull();
+      headers.item(0).querySelector("[data-testid='span-annotations']")
+        ?.textContent
+    ).toBe("parent-span-node-id");
   });
 
-  it("omits the session header when an enclosing session panel owns it", () => {
+  it("can omit the session annotation target without adding another header", async () => {
     act(() => {
       root.render(
         <TestProviders>
@@ -158,8 +194,18 @@ describe("SpanDetails headers", () => {
     });
 
     const headers = container.querySelectorAll("[data-detail-header]");
-    expect(headers).toHaveLength(2);
-    expect(headers.item(0).textContent).toContain("Trace");
-    expect(headers.item(1).textContent).toContain("selected span");
+    expect(headers).toHaveLength(1);
+    expect(headers.item(0).textContent).toContain("selected span");
+
+    const user = userEvent.setup();
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label^="Annotations for"]'
+    );
+    await act(async () => user.click(trigger!));
+    const optionLabels = Array.from(
+      document.querySelectorAll<HTMLElement>("[role='option']")
+    ).map((option) => option.textContent);
+    expect(optionLabels).toContain("Trace");
+    expect(optionLabels).not.toContain("Session");
   });
 });

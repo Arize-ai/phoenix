@@ -53,7 +53,10 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { DetailsPanelContent } from "./DetailsPanel";
-import type { SessionNavigationHeaderRenderer } from "./SessionDetails";
+import type {
+  SessionMainContentRenderer,
+  SessionNavigationHeaderRenderer,
+} from "./SessionDetails";
 import { SessionDetailsNavigation } from "./SessionDetailsNavigation";
 import type { SessionDetailsSearchParamsStore } from "./sessionDetailsSearchParamsStore";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
@@ -141,7 +144,7 @@ export function SessionDetailsTracesView({
   isTreePanelCollapsed: boolean;
   isNavigationPointerOpen: boolean;
   onNavigationPointerOpenChange: (isOpen: boolean) => void;
-  renderMainContent: (content: ReactNode) => ReactNode;
+  renderMainContent: SessionMainContentRenderer;
   searchParamsStore: SessionDetailsSearchParamsStore;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTracesViewQuery>(
@@ -439,7 +442,8 @@ export function SessionDetailsTracesView({
               selectedSpanNodeId={selectedSpanNodeId}
               selectionRequestRef={spanSelectionRequestRef}
               onSpanDetailsReady={handleSpanDetailsReady}
-            />
+            />,
+            { isHeaderHidden: selectedSpanNodeId != null }
           )}
         </SpanInfoCardsProvider>
       </DetailsPanelContent>
@@ -832,7 +836,6 @@ function SpanDetailsPanel({
         spanNodeId={localSpanSelection.spanNodeId}
         spanPreview={localSpanSelection.spanPreview}
         onSpanDetailsReady={onSpanDetailsReady}
-        showSessionHeader={false}
       />
     </div>
   );

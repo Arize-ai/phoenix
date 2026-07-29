@@ -46,6 +46,10 @@ type SpanHeaderProps = {
    * Actions rendered at the trailing edge of the identity row
    */
   actions?: ReactNode;
+  /**
+   * Control rendered at the trailing edge of the metadata row
+   */
+  metadataAction?: ReactNode;
 };
 
 /**
@@ -74,16 +78,24 @@ export function SpanHeader(props: SpanHeaderProps) {
     props.span
   );
 
-  return <SpanHeaderContent span={span} actions={props.actions} />;
+  return (
+    <SpanHeaderContent
+      span={span}
+      actions={props.actions}
+      metadataAction={props.metadataAction}
+    />
+  );
 }
 
 /** Presentational span identity header used by the details page and Storybook. */
 export function SpanHeaderContent({
   span,
   actions,
+  metadataAction,
 }: {
   span: SpanHeaderData;
   actions?: ReactNode;
+  metadataAction?: ReactNode;
 }) {
   const { fullTimeFormatter } = useTimeFormatters();
   const startTime = new Date(span.startTime);
@@ -119,7 +131,7 @@ export function SpanHeaderContent({
           </div>
         ) : null}
       </DetailHeaderIdentityRow>
-      <DetailHeaderMetaRow>
+      <DetailHeaderMetaRow trailing={metadataAction}>
         <DetailHeaderMetaItem>
           <SpanKindBadge spanKind={span.spanKind} />
         </DetailHeaderMetaItem>

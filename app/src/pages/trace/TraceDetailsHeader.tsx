@@ -30,9 +30,11 @@ export type TraceDetailsHeaderData = {
 /** Shared trace title, metadata, and annotation header. */
 export function TraceDetailsHeader({
   annotationBar,
+  metadataAction,
   trace,
 }: {
   annotationBar?: ReactNode;
+  metadataAction?: ReactNode;
   trace: TraceDetailsHeaderData;
 }) {
   const { fullTimeFormatter } = useTimeFormatters();
@@ -49,7 +51,7 @@ export function TraceDetailsHeader({
             tooltipText="Copy Trace ID"
           />
         </DetailHeaderIdentityRow>
-        <DetailHeaderMetaRow>
+        <DetailHeaderMetaRow trailing={metadataAction}>
           {typeof trace.latencyMs === "number" ? (
             <DetailHeaderMetaItem>
               <Text size="S" color="text-500" fontFamily="mono">

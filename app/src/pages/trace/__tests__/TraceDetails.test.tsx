@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const searchParams = new URLSearchParams("selectedTraceId=trace-display-id");
@@ -48,11 +49,14 @@ vi.mock("react-router", () => ({
 vi.mock(
   "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar",
   () => ({
+    SessionDetailPanelAnnotationButton: () => null,
     SessionDetailPanelAnnotationBar: ({
       sessionNodeId,
     }: {
       sessionNodeId: string;
     }) => <div data-testid="session-annotation-bar">{sessionNodeId}</div>,
+    SpanDetailPanelAnnotationButton: () => null,
+    TraceDetailPanelAnnotationButton: () => null,
     TraceDetailPanelAnnotationBar: ({
       traceNodeId,
     }: {
@@ -130,7 +134,7 @@ describe("TraceDetails", () => {
     container.remove();
   });
 
-  it("renders the root span turn content when the trace row is selected", () => {
+  it("shows one trace header and can replace its annotations with the session", async () => {
     act(() => {
       root.render(
         <TraceDetails traceId="trace-display-id" projectId="project-node-id" />
@@ -142,16 +146,12 @@ describe("TraceDetails", () => {
         ?.textContent
     ).toBe("trace-node-id");
     const detailHeaders = container.querySelectorAll("[data-detail-header]");
-    const sessionHeader = detailHeaders.item(0);
-    const traceHeader = detailHeaders.item(1);
-    expect(detailHeaders).toHaveLength(2);
-    expect(
-      sessionHeader.querySelector("[data-testid='session-annotation-bar']")
-        ?.textContent
-    ).toBe("session-node-id");
+    const traceHeader = detailHeaders.item(0);
+    expect(detailHeaders).toHaveLength(1);
     expect(
       traceHeader.querySelector("[data-testid='trace-annotation-bar']")
-    ).not.toBeNull();
+        ?.textContent
+    ).toBe("trace-node-id");
     expect(
       traceHeader.querySelector('[aria-label="Copy Trace ID trace-display-id"]')
     ).not.toBeNull();
@@ -160,5 +160,23 @@ describe("TraceDetails", () => {
       container.querySelector("[data-testid='trace-turn-content']")?.textContent
     ).toBe("root-span-node-id");
     expect(container.querySelector("[data-testid='span-details']")).toBeNull();
+
+    const user = userEvent.setup();
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label^="Annotations for"]'
+    );
+    await act(async () => user.click(trigger!));
+    const sessionOption = Array.from(
+      document.querySelectorAll<HTMLElement>("[role='option']")
+    ).find((option) => option.textContent?.includes("Session"));
+    await act(async () => user.click(sessionOption!));
+
+    expect(
+      traceHeader.querySelector("[data-testid='session-annotation-bar']")
+        ?.textContent
+    ).toBe("session-node-id");
+    expect(
+      traceHeader.querySelector("[data-testid='trace-annotation-bar']")
+    ).toBeNull();
   });
 });

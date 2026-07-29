@@ -197,8 +197,6 @@ function TraceTreeEntitySkeleton({
 export function SpanDetailsSkeleton({
   spanPreview,
   isCondensedView = true,
-  showSessionHeader = true,
-  showTraceHeader = true,
 }: {
   spanPreview?: SpanDetailsPreview;
   isCondensedView?: boolean;
@@ -207,11 +205,12 @@ export function SpanDetailsSkeleton({
 }) {
   return (
     <Flex direction="column" flex="1 1 auto" height="100%" aria-busy="true">
-      <SpanDetailsHeadersSkeleton
+      <SpanHeaderSkeleton
+        annotationBar={
+          <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+        }
         spanPreview={spanPreview}
         isCondensedView={isCondensedView}
-        showSessionHeader={showSessionHeader}
-        showTraceHeader={showTraceHeader}
       />
       <SpanDetailsContentSkeleton />
     </Flex>
@@ -310,7 +309,13 @@ export function SpanHeaderSkeleton({
             />
           </div>
         </DetailHeaderIdentityRow>
-        <DetailHeaderMetaRow>
+        <DetailHeaderMetaRow
+          trailing={
+            annotationBar ? (
+              <Skeleton width={220} height={32} animation="wave" />
+            ) : undefined
+          }
+        >
           <DetailHeaderMetaItem>
             {spanPreview?.spanKind !== undefined ? (
               <SpanKindBadge spanKind={spanPreview.spanKind} />

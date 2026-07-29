@@ -53,15 +53,22 @@ export type SessionNavigationHeaderRenderer = (options?: {
   onAllCollapsedChange: (isCollapsed: boolean) => void;
 }) => ReactNode;
 
+export type SessionMainContentRenderer = (
+  content: ReactNode,
+  options?: { isHeaderHidden?: boolean }
+) => ReactNode;
+
 const DEFAULT_SESSION_VIEW: SessionView = "turns";
 
 function SessionDetailsMainContent({
   children,
+  isHeaderHidden = false,
   sessionId,
   sessionDisplayId,
   tokenCountTotal,
   totalCost,
 }: PropsWithChildren<{
+  isHeaderHidden?: boolean;
   sessionId: string;
   sessionDisplayId: string;
   tokenCountTotal: number;
@@ -77,23 +84,25 @@ function SessionDetailsMainContent({
         overflow: hidden;
       `}
     >
-      <SessionDetailsHeader
-        annotationBar={
-          <Suspense
-            fallback={
-              <DetailPanelAnnotationBarSkeleton variant="detail-header" />
-            }
-          >
-            <SessionDetailPanelAnnotationBar sessionNodeId={sessionId} />
-          </Suspense>
-        }
-        preview={{
-          sessionId,
-          sessionDisplayId,
-          tokenCountTotal,
-          totalCost,
-        }}
-      />
+      {isHeaderHidden ? null : (
+        <SessionDetailsHeader
+          annotationBar={
+            <Suspense
+              fallback={
+                <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+              }
+            >
+              <SessionDetailPanelAnnotationBar sessionNodeId={sessionId} />
+            </Suspense>
+          }
+          preview={{
+            sessionId,
+            sessionDisplayId,
+            tokenCountTotal,
+            totalCost,
+          }}
+        />
+      )}
       <div
         css={css`
           flex: 1 1 auto;
@@ -233,8 +242,9 @@ export function SessionDetails({
     });
     searchParamsStore.setSessionViewParam(view);
   };
-  const renderMainContent = (content: ReactNode) => (
+  const renderMainContent: SessionMainContentRenderer = (content, options) => (
     <SessionDetailsMainContent
+      isHeaderHidden={options?.isHeaderHidden}
       sessionId={sessionId}
       sessionDisplayId={sessionDisplayId}
       tokenCountTotal={tokenCountTotal}

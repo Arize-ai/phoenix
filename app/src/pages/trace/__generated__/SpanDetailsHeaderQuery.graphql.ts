@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c7baa729223f2f2abc4061b7792b3749>>
+ * @generated SignedSource<<de4efaa7f9185df7c5f3a25783c51dfd>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,6 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
-export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 export type SpanDetailsHeaderQuery$variables = {
   id: string;
   includeSession: boolean;
@@ -19,33 +18,25 @@ export type SpanDetailsHeaderQuery$data = {
   readonly span: {
     readonly __typename: "Span";
     readonly id: string;
+    readonly name: string;
+    readonly parentId: string | null;
     readonly spanId: string;
     readonly spanKind: SpanKind;
     readonly trace: {
-      readonly costSummary: {
-        readonly total: {
-          readonly cost: number | null;
-        };
-      };
       readonly id: string;
-      readonly latencyMs: number | null;
-      readonly rootSpan: {
-        readonly cumulativeTokenCountTotal: number | null;
-        readonly statusCode: SpanStatusCode;
-      } | null;
       readonly session?: {
-        readonly costSummary: {
-          readonly total: {
-            readonly cost: number | null;
-          };
-        };
         readonly id: string;
-        readonly sessionId: string;
-        readonly tokenUsage: {
-          readonly total: number;
-        };
       } | null;
-      readonly startTime: string;
+      readonly spans: {
+        readonly edges: ReadonlyArray<{
+          readonly node: {
+            readonly id: string;
+            readonly name: string;
+            readonly parentId: string | null;
+            readonly spanId: string;
+          };
+        }>;
+      };
       readonly traceId: string;
     };
     readonly " $fragmentSpreads": FragmentRefs<"SpanHeader_span">;
@@ -98,119 +89,105 @@ v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "spanId",
+  "name": "name",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "traceId",
+  "name": "spanId",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "latencyMs",
+  "name": "parentId",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "startTime",
-  "storageKey": null
-},
-v8 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "SpanCostSummary",
+  "concreteType": "Trace",
   "kind": "LinkedField",
-  "name": "costSummary",
+  "name": "trace",
   "plural": false,
   "selections": [
+    (v3/*:: as any*/),
     {
       "alias": null,
       "args": null,
-      "concreteType": "CostBreakdown",
-      "kind": "LinkedField",
-      "name": "total",
-      "plural": false,
-      "selections": [
+      "kind": "ScalarField",
+      "name": "traceId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": [
         {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "cost",
-          "storageKey": null
+          "kind": "Literal",
+          "name": "first",
+          "value": 1000
         }
       ],
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
-v9 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "statusCode",
-  "storageKey": null
-},
-v10 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "cumulativeTokenCountTotal",
-  "storageKey": null
-},
-v11 = {
-  "condition": "includeSession",
-  "kind": "Condition",
-  "passingValue": true,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "ProjectSession",
+      "concreteType": "SpanConnection",
       "kind": "LinkedField",
-      "name": "session",
+      "name": "spans",
       "plural": false,
       "selections": [
-        (v3/*:: as any*/),
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "sessionId",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "TokenUsage",
+          "concreteType": "SpanEdge",
           "kind": "LinkedField",
-          "name": "tokenUsage",
-          "plural": false,
+          "name": "edges",
+          "plural": true,
           "selections": [
             {
               "alias": null,
               "args": null,
-              "kind": "ScalarField",
-              "name": "total",
+              "concreteType": "Span",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                (v3/*:: as any*/),
+                (v4/*:: as any*/),
+                (v5/*:: as any*/),
+                (v6/*:: as any*/)
+              ],
               "storageKey": null
             }
           ],
           "storageKey": null
-        },
-        (v8/*:: as any*/)
+        }
       ],
-      "storageKey": null
+      "storageKey": "spans(first:1000)"
+    },
+    {
+      "condition": "includeSession",
+      "kind": "Condition",
+      "passingValue": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "ProjectSession",
+          "kind": "LinkedField",
+          "name": "session",
+          "plural": false,
+          "selections": [
+            (v3/*:: as any*/)
+          ],
+          "storageKey": null
+        }
+      ]
     }
-  ]
+  ],
+  "storageKey": null
 },
-v12 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -238,37 +215,10 @@ return {
             "selections": [
               (v3/*:: as any*/),
               (v4/*:: as any*/),
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Trace",
-                "kind": "LinkedField",
-                "name": "trace",
-                "plural": false,
-                "selections": [
-                  (v3/*:: as any*/),
-                  (v5/*:: as any*/),
-                  (v6/*:: as any*/),
-                  (v7/*:: as any*/),
-                  (v8/*:: as any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "Span",
-                    "kind": "LinkedField",
-                    "name": "rootSpan",
-                    "plural": false,
-                    "selections": [
-                      (v9/*:: as any*/),
-                      (v10/*:: as any*/)
-                    ],
-                    "storageKey": null
-                  },
-                  (v11/*:: as any*/)
-                ],
-                "storageKey": null
-              },
-              (v12/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -305,45 +255,10 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v4/*:: as any*/),
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Trace",
-                "kind": "LinkedField",
-                "name": "trace",
-                "plural": false,
-                "selections": [
-                  (v3/*:: as any*/),
-                  (v5/*:: as any*/),
-                  (v6/*:: as any*/),
-                  (v7/*:: as any*/),
-                  (v8/*:: as any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "Span",
-                    "kind": "LinkedField",
-                    "name": "rootSpan",
-                    "plural": false,
-                    "selections": [
-                      (v9/*:: as any*/),
-                      (v10/*:: as any*/),
-                      (v3/*:: as any*/)
-                    ],
-                    "storageKey": null
-                  },
-                  (v11/*:: as any*/)
-                ],
-                "storageKey": null
-              },
-              (v12/*:: as any*/),
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "name",
-                "storageKey": null
-              },
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
               {
                 "alias": "code",
                 "args": null,
@@ -358,8 +273,20 @@ return {
                 "name": "statusMessage",
                 "storageKey": null
               },
-              (v6/*:: as any*/),
-              (v7/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "latencyMs",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "startTime",
+                "storageKey": null
+              },
               {
                 "alias": null,
                 "args": null,
@@ -367,7 +294,35 @@ return {
                 "name": "tokenCountTotal",
                 "storageKey": null
               },
-              (v8/*:: as any*/)
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "SpanCostSummary",
+                "kind": "LinkedField",
+                "name": "costSummary",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
+                    "name": "total",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "cost",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              }
             ],
             "type": "Span",
             "abstractKey": null
@@ -378,16 +333,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f2efa88fef75d42c21ebe02677171b98",
+    "cacheID": "d8ae97782de344efe258b9f22876cfc8",
     "id": null,
     "metadata": {},
     "name": "SpanDetailsHeaderQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsHeaderQuery(\n  $id: ID!\n  $includeSession: Boolean!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        id\n        traceId\n        latencyMs\n        startTime\n        costSummary {\n          total {\n            cost\n          }\n        }\n        rootSpan {\n          statusCode\n          cumulativeTokenCountTotal\n          id\n        }\n        session @include(if: $includeSession) {\n          id\n          sessionId\n          tokenUsage {\n            total\n          }\n          costSummary {\n            total {\n              cost\n            }\n          }\n        }\n      }\n      spanKind\n      ...SpanHeader_span\n    }\n    id\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  code: statusCode\n  statusMessage\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
+    "text": "query SpanDetailsHeaderQuery(\n  $id: ID!\n  $includeSession: Boolean!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      name\n      spanId\n      parentId\n      trace {\n        id\n        traceId\n        spans(first: 1000) {\n          edges {\n            node {\n              id\n              name\n              spanId\n              parentId\n            }\n          }\n        }\n        session @include(if: $includeSession) {\n          id\n        }\n      }\n      spanKind\n      ...SpanHeader_span\n    }\n    id\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  code: statusCode\n  statusMessage\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5baabf46f240954bda379650cd5b4ed3";
+(node as any).hash = "fe06e7bacf8e8c866595e8bc8e4b55ad";
 
 export default node;

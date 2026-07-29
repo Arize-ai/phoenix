@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useSearchParams } from "react-router";
@@ -14,10 +14,6 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import {
-  SessionDetailPanelAnnotationBar,
-  TraceDetailPanelAnnotationBar,
-} from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
@@ -39,12 +35,15 @@ import type {
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
+import {
+  DetailHeaderAnnotationBar,
+  type DetailHeaderAnnotationTarget,
+  DetailHeaderAnnotationTargetSelect,
+} from "./DetailHeaderAnnotationTarget";
 import { DetailsPanelContent } from "./DetailsPanel";
-import { SessionDetailsHeader } from "./SessionDetailsHeader";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 import { TraceDetailsHeader } from "./TraceDetailsHeader";
-import { DetailPanelAnnotationBarSkeleton } from "./TraceDetailsSkeleton";
 import { TraceTurnContent } from "./TraceTurnContent";
 
 type RootSpan = NonNullable<
@@ -258,21 +257,29 @@ export function TraceDetails({
 }
 
 function TraceTurnDetails({
+  rootSpan,
   session,
   traceId,
   traceNodeId,
-  rootSpan,
 }: {
+  rootSpan: RootSpan;
   session: {
-    costSummary: { total: { cost: number | null } };
     id: string;
-    sessionId: string;
-    tokenUsage: { total: number };
   } | null;
   traceId: string;
   traceNodeId: string;
-  rootSpan: RootSpan;
 }) {
+  const annotationTargets: DetailHeaderAnnotationTarget[] = [
+    { id: traceNodeId, kind: "trace", label: "Trace" },
+    ...(session
+      ? [{ id: session.id, kind: "session" as const, label: "Session" }]
+      : []),
+  ];
+  const [selectedTargetId, setSelectedTargetId] = useState(traceNodeId);
+  const selectedTarget =
+    annotationTargets.find((target) => target.id === selectedTargetId) ??
+    annotationTargets[0];
+
   return (
     <div
       css={css`
@@ -283,34 +290,14 @@ function TraceTurnDetails({
         overflow: hidden;
       `}
     >
-      {session ? (
-        <SessionDetailsHeader
-          annotationBar={
-            <Suspense
-              fallback={
-                <DetailPanelAnnotationBarSkeleton variant="detail-header" />
-              }
-            >
-              <SessionDetailPanelAnnotationBar sessionNodeId={session.id} />
-            </Suspense>
-          }
-          preview={{
-            sessionId: session.id,
-            sessionDisplayId: session.sessionId,
-            tokenCountTotal: session.tokenUsage.total,
-            totalCost: session.costSummary.total.cost,
-          }}
-        />
-      ) : null}
       <TraceDetailsHeader
-        annotationBar={
-          <Suspense
-            fallback={
-              <DetailPanelAnnotationBarSkeleton variant="detail-header" />
-            }
-          >
-            <TraceDetailPanelAnnotationBar traceNodeId={traceNodeId} />
-          </Suspense>
+        annotationBar={<DetailHeaderAnnotationBar target={selectedTarget} />}
+        metadataAction={
+          <DetailHeaderAnnotationTargetSelect
+            targets={annotationTargets}
+            selectedTarget={selectedTarget}
+            onTargetChange={setSelectedTargetId}
+          />
         }
         trace={{
           id: traceNodeId,

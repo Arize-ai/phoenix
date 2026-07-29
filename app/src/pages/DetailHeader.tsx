@@ -47,14 +47,16 @@ const metaRowCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--global-dimension-size-100);
   min-width: 0;
   min-height: var(--global-line-height-s);
+  overflow: hidden;
 
   .detail-header__meta-item {
     display: inline-flex;
     align-items: center;
+    flex: none;
   }
   .detail-header__meta-item + .detail-header__meta-item::before {
     content: "·";
@@ -118,10 +120,29 @@ export function DetailHeaderTitle({ title }: { title: string }) {
   );
 }
 
-export function DetailHeaderMetaRow({ children }: PropsWithChildren) {
+export function DetailHeaderMetaRow({
+  children,
+  trailing,
+}: PropsWithChildren<{ trailing?: ReactNode }>) {
   return (
     <div className="detail-header__meta span-header__meta" css={metaRowCSS}>
       {children}
+      {trailing ? (
+        <span
+          className="detail-header__meta-trailing"
+          css={css`
+            display: inline-flex;
+            flex: 1 1 auto;
+            align-items: center;
+            justify-content: flex-end;
+            min-width: 0;
+            margin-left: auto;
+            overflow: hidden;
+          `}
+        >
+          {trailing}
+        </span>
+      ) : null}
     </div>
   );
 }
