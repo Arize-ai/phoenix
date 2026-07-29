@@ -279,9 +279,6 @@ def create_legacy_agents_router(
                                 )
                             yield chunk
             except Exception as exc:
-                # Surface the failure to the client as an error chunk (e.g. a
-                # rejected API key) instead of letting the connection close
-                # silently, which leaves the agent appearing to hang.
                 logger.exception("Server agent chat stream failed for session %s", session_id)
                 yield build_stream_error_chunk(exc)
             finally:

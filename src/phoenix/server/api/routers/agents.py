@@ -2514,15 +2514,10 @@ def create_agents_router(
                             yield message_chunk
                         yield await _persist_turn()
                 except Exception as exc:
-                    # Surface the failure to the client as an error chunk (e.g. a
-                    # rejected API key) instead of letting the connection close
-                    # silently, which leaves the agent appearing to hang.
                     stream_error = exc
                     logger.exception("Agent chat stream failed for session %s", session_id)
                     yield build_stream_error_chunk(exc)
                 except BaseException as exc:
-                    # Cancellation and other non-``Exception`` failures propagate
-                    # so client disconnects are not misreported as agent errors.
                     stream_error = exc
                     raise
                 finally:
