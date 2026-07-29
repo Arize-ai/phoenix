@@ -804,8 +804,8 @@ async def test_lost_lease_rolls_back_sweep(
     sweeper = SessionEvalSweeper(db)
     acquire_lease = sweeper._acquire_lease
 
-    async def acquire_then_lose_lease(**kwargs: object) -> int | None:
-        lease_id = await acquire_lease(**kwargs)  # type: ignore[arg-type]
+    async def acquire_then_lose_lease(**kwargs: bool) -> int | None:
+        lease_id = await acquire_lease(**kwargs)
         assert lease_id is not None
         async with db() as session:
             await session.execute(
