@@ -96,6 +96,8 @@ export function SessionDetailsTracesView({
   renderNavigationHeader,
   sessionViewControl,
   isTreePanelCollapsed,
+  isNavigationPointerOpen,
+  onNavigationPointerOpenChange,
   renderMainContent,
   searchParamsStore,
 }: {
@@ -105,6 +107,8 @@ export function SessionDetailsTracesView({
   renderNavigationHeader: SessionNavigationHeaderRenderer;
   sessionViewControl: ReactNode;
   isTreePanelCollapsed: boolean;
+  isNavigationPointerOpen: boolean;
+  onNavigationPointerOpenChange: (isOpen: boolean) => void;
   renderMainContent: (content: ReactNode) => ReactNode;
   searchParamsStore: SessionDetailsSearchParamsStore;
 }) {
@@ -327,6 +331,8 @@ export function SessionDetailsTracesView({
           <SessionDetailsNavigation
             control={sessionViewControl}
             isCollapsed={isTreePanelCollapsed}
+            isPointerOpen={isNavigationPointerOpen}
+            onPointerOpenChange={onNavigationPointerOpenChange}
           >
             {({ isOverlayOpen }) => (
               <TraceRowList

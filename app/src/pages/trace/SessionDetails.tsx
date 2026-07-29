@@ -178,6 +178,9 @@ export function SessionDetails({
   const sessionView: SessionView = isSessionView(sessionViewParam)
     ? sessionViewParam
     : DEFAULT_SESSION_VIEW;
+  // The view branches below replace their navigation DOM. Keep pointer
+  // ownership here so a stationary hover survives that replacement.
+  const [isNavigationPointerOpen, setIsNavigationPointerOpen] = useState(false);
   const data = useLazyLoadQuery<SessionDetailsQuery>(
     graphql`
       query SessionDetailsQuery($id: ID!) {
@@ -323,6 +326,8 @@ export function SessionDetails({
                 renderNavigationHeader={renderNavigationHeader}
                 sessionViewControl={sessionViewControl}
                 isTreePanelCollapsed={isTreePanelCollapsed}
+                isNavigationPointerOpen={isNavigationPointerOpen}
+                onNavigationPointerOpenChange={setIsNavigationPointerOpen}
                 renderMainContent={renderMainContent}
                 searchParamsStore={searchParamsStore}
               />
@@ -335,6 +340,8 @@ export function SessionDetails({
                 renderNavigationHeader={renderNavigationHeader}
                 sessionViewControl={sessionViewControl}
                 isTreePanelCollapsed={isTreePanelCollapsed}
+                isNavigationPointerOpen={isNavigationPointerOpen}
+                onNavigationPointerOpenChange={setIsNavigationPointerOpen}
                 renderMainContent={renderMainContent}
               />
             )}

@@ -355,6 +355,8 @@ export function SessionDetailsTraceList({
   renderNavigationHeader,
   sessionViewControl,
   isTreePanelCollapsed,
+  isNavigationPointerOpen,
+  onNavigationPointerOpenChange,
   renderMainContent,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
@@ -363,6 +365,8 @@ export function SessionDetailsTraceList({
   renderNavigationHeader: SessionNavigationHeaderRenderer;
   sessionViewControl: ReactNode;
   isTreePanelCollapsed: boolean;
+  isNavigationPointerOpen: boolean;
+  onNavigationPointerOpenChange: (isOpen: boolean) => void;
   renderMainContent: (content: ReactNode) => ReactNode;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
@@ -580,6 +584,8 @@ export function SessionDetailsTraceList({
           <SessionDetailsNavigation
             control={sessionViewControl}
             isCollapsed={isTreePanelCollapsed}
+            isPointerOpen={isNavigationPointerOpen}
+            onPointerOpenChange={onNavigationPointerOpenChange}
           >
             {turnListPanel}
           </SessionDetailsNavigation>

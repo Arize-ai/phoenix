@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, type ComponentProps, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,46 @@ import { SessionDetailsNavigation } from "../SessionDetailsNavigation";
 import { SessionDetailsPaginator } from "../SessionDetailsPaginator";
 import { SessionPaginationContext } from "../SessionPaginationContext";
 import { SessionViewControl, SessionViewTabs } from "../SessionViewTabs";
+
+type StatefulSessionDetailsNavigationProps = Omit<
+  ComponentProps<typeof SessionDetailsNavigation>,
+  "isPointerOpen" | "onPointerOpenChange"
+>;
+
+function StatefulSessionDetailsNavigation(
+  props: StatefulSessionDetailsNavigationProps
+) {
+  const [isPointerOpen, setIsPointerOpen] = useState(false);
+  return (
+    <SessionDetailsNavigation
+      {...props}
+      isPointerOpen={isPointerOpen}
+      onPointerOpenChange={setIsPointerOpen}
+    />
+  );
+}
+
+function SessionNavigationViewSwitchHarness() {
+  const [sessionView, setSessionView] = useState<"turns" | "traces">("turns");
+  const [isPointerOpen, setIsPointerOpen] = useState(false);
+  return (
+    <SessionDetailsNavigation
+      key={sessionView}
+      control={
+        <SessionViewControl
+          sessionView={sessionView}
+          onSessionViewChange={setSessionView}
+          traceCount={2}
+        />
+      }
+      isCollapsed
+      isPointerOpen={isPointerOpen}
+      onPointerOpenChange={setIsPointerOpen}
+    >
+      <div>{sessionView === "turns" ? "Turn list" : "Trace list"}</div>
+    </SessionDetailsNavigation>
+  );
+}
 
 describe("SessionViewTabs", () => {
   let container: HTMLDivElement;
@@ -85,7 +125,7 @@ describe("SessionViewTabs", () => {
             setThemeMode: vi.fn(),
           }}
         >
-          <SessionDetailsNavigation
+          <StatefulSessionDetailsNavigation
             isCollapsed
             control={
               <SessionViewControl
@@ -119,7 +159,7 @@ describe("SessionViewTabs", () => {
                 </div>
               </>
             )}
-          </SessionDetailsNavigation>
+          </StatefulSessionDetailsNavigation>
         </ThemeContext.Provider>
       );
     });
@@ -244,6 +284,60 @@ describe("SessionViewTabs", () => {
     expect(navigation?.dataset.open).toBe("true");
   });
 
+  it("keeps the hover navigation open when switching session views", () => {
+    act(() => {
+      root.render(
+        <ThemeContext.Provider
+          value={{
+            theme: "light",
+            systemTheme: "light",
+            themeMode: "light",
+            setThemeMode: vi.fn(),
+          }}
+        >
+          <SessionNavigationViewSwitchHarness />
+        </ThemeContext.Provider>
+      );
+    });
+
+    const body = container.querySelector<HTMLElement>(
+      ".session-details-navigation__body"
+    );
+    act(() => {
+      body?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+    });
+
+    const initialNavigation = container.querySelector<HTMLElement>(
+      ".session-details-navigation"
+    );
+    expect(initialNavigation?.dataset.open).toBe("true");
+
+    const tracesSegment = Array.from(
+      container.querySelectorAll<HTMLButtonElement>(".segmented-control__item")
+    ).find((button) => button.textContent?.includes("Traces"));
+    act(() => tracesSegment?.click());
+
+    const nextNavigation = container.querySelector<HTMLElement>(
+      ".session-details-navigation"
+    );
+    expect(nextNavigation).not.toBe(initialNavigation);
+    expect(nextNavigation?.dataset.open).toBe("true");
+    expect(nextNavigation?.textContent).toContain("Trace list");
+
+    const nextContent = container.querySelector<HTMLElement>(
+      ".session-details-navigation__content"
+    );
+    act(() => {
+      nextContent?.dispatchEvent(
+        new MouseEvent("pointerout", {
+          bubbles: true,
+          relatedTarget: document.body,
+        })
+      );
+    });
+    expect(nextNavigation?.dataset.open).toBe("false");
+  });
+
   it("offers the inactive view from the compact switcher", () => {
     const onSessionViewChange = vi.fn();
 
@@ -257,7 +351,7 @@ describe("SessionViewTabs", () => {
             setThemeMode: vi.fn(),
           }}
         >
-          <SessionDetailsNavigation
+          <StatefulSessionDetailsNavigation
             isCollapsed
             control={
               <SessionViewControl
@@ -268,7 +362,7 @@ describe("SessionViewTabs", () => {
             }
           >
             <div>Trace list</div>
-          </SessionDetailsNavigation>
+          </StatefulSessionDetailsNavigation>
         </ThemeContext.Provider>
       );
     });

@@ -114,14 +114,17 @@ export function SessionDetailsNavigation({
   children,
   control,
   isCollapsed,
+  isPointerOpen,
+  onPointerOpenChange,
 }: {
   children:
     | ReactNode
     | ((options: SessionDetailsNavigationRenderOptions) => ReactNode);
   control: ReactNode;
   isCollapsed: boolean;
+  isPointerOpen: boolean;
+  onPointerOpenChange: (isOpen: boolean) => void;
 }) {
-  const [isPointerOpen, setIsPointerOpen] = useState(false);
   const [isFocusOpen, setIsFocusOpen] = useState(false);
   const isOpen = isCollapsed && (isPointerOpen || isFocusOpen);
   const navigationBody =
@@ -139,7 +142,7 @@ export function SessionDetailsNavigation({
       <div
         className="session-details-navigation__content"
         data-open={isOpen}
-        onPointerLeave={() => setIsPointerOpen(false)}
+        onPointerLeave={() => onPointerOpenChange(false)}
         onBlur={(event) => {
           const nextFocusedElement = event.relatedTarget;
           if (
@@ -153,7 +156,7 @@ export function SessionDetailsNavigation({
         {control}
         <div
           className="session-details-navigation__body"
-          onPointerEnter={() => setIsPointerOpen(true)}
+          onPointerEnter={() => onPointerOpenChange(true)}
           onFocus={() => setIsFocusOpen(true)}
         >
           {navigationBody}
