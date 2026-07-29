@@ -90,6 +90,22 @@ const staticCSS = css`
     --global-button-height-s: var(--global-input-height-s);
     --global-button-height-m: var(--global-input-height-m);
     --global-button-height-l: var(--global-input-height-l);
+
+    // details-panel navigation geometry
+    --global-details-panel-navigation-row-content-padding-inline-start: var(
+      --global-dimension-size-150
+    );
+
+    // session details navigation top-level turn and trace rows
+    --global-session-details-navigation-top-level-row-padding-block: var(
+      --global-dimension-size-150
+    );
+    --global-session-details-navigation-top-level-row-padding-inline-end: var(
+      --global-dimension-size-200
+    );
+    --global-session-details-navigation-top-level-row-title-gap: var(
+      --global-dimension-size-75
+    );
   }
 `;
 

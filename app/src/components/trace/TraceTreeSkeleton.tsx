@@ -20,45 +20,109 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import {
-  NESTING_INDENT,
-  TRACE_TREE_ROW_BORDER_WIDTH,
-  TRACE_TREE_ROW_INLINE_START,
+  TRACE_TREE_CHILD_NESTING_INDENT_PIXELS,
+  TRACE_TREE_ROW_SELECTION_BORDER_WIDTH,
   traceTreeListCSS,
 } from "./traceTreeStyles";
 
 const NestingLevelContext = createContext(0);
 
 const containerCSS = css`
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   height: 100%;
   align-items: stretch;
   container-type: inline-size;
+
+  &[data-navigation-mode="compact"] .trace-tree-skeleton__full {
+    visibility: hidden;
+  }
+`;
+
+const fullSkeletonCSS = css`
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
 `;
 
 const listOverflowCSS = css`
   overflow: hidden;
 `;
 
+const compactSkeletonIconRailCSS = css`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+
+  li {
+    box-sizing: border-box;
+    display: flex;
+    flex: 0 0 var(--global-dimension-size-450);
+    align-items: center;
+    padding-left: var(
+      --global-details-panel-navigation-row-content-padding-inline-start
+    );
+  }
+`;
+
 export interface TraceTreeSkeletonProps {
   children?: ReactNode;
+  /** Whether to replace the full-width skeleton with a compact icon rail. */
+  isNavigationCollapsed?: boolean;
 }
 
 /**
  * Skeleton placeholder for `TraceTree`. Accepts `TraceTreeNodeSkeleton`
  * children to shape the tree, or renders a default tree when empty.
  */
-export function TraceTreeSkeleton({ children }: TraceTreeSkeletonProps) {
+export function TraceTreeSkeleton({
+  children,
+  isNavigationCollapsed = false,
+}: TraceTreeSkeletonProps) {
   return (
-    <div css={containerCSS}>
-      <ul
-        css={[traceTreeListCSS, listOverflowCSS]}
-        data-testid="trace-tree-skeleton"
-        aria-busy="true"
+    <div
+      css={containerCSS}
+      data-navigation-mode={isNavigationCollapsed ? "compact" : "full"}
+    >
+      <div
+        className="trace-tree-skeleton__full"
+        css={fullSkeletonCSS}
+        aria-hidden={isNavigationCollapsed || undefined}
       >
-        {children ?? <DefaultTraceTreeSkeletonBody />}
-      </ul>
+        <ul
+          css={[traceTreeListCSS, listOverflowCSS]}
+          data-testid="trace-tree-skeleton"
+          aria-busy="true"
+        >
+          {children ?? <DefaultTraceTreeSkeletonBody />}
+        </ul>
+      </div>
+      {isNavigationCollapsed ? (
+        <ul
+          aria-label="Loading trace navigation"
+          aria-busy="true"
+          css={compactSkeletonIconRailCSS}
+        >
+          {Array.from({ length: 6 }, (_, index) => (
+            <li key={index}>
+              <Skeleton
+                width={20}
+                height={20}
+                borderRadius="S"
+                animation="wave"
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -195,13 +259,15 @@ function SpanNodeWrapSkeleton(
         padding-right: var(--global-dimension-size-100);
         padding-top: var(--global-dimension-size-100);
         padding-bottom: var(--global-dimension-size-100);
-        border-left: ${TRACE_TREE_ROW_BORDER_WIDTH} solid transparent;
+        border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid transparent;
         box-sizing: border-box;
         & > *:first-of-type {
           box-sizing: border-box;
           padding-left: calc(
-            (${props.nestingLevel} * var(--trace-tree-nesting-indent)) +
-              ${TRACE_TREE_ROW_INLINE_START}
+            (${props.nestingLevel} * var(--trace-tree-child-nesting-indent)) +
+              var(
+                --global-details-panel-navigation-row-content-padding-inline-start
+              )
           );
         }
       `}
@@ -220,7 +286,10 @@ function EdgeConnectorSkeleton({ nestingLevel }: { nestingLevel: number }) {
         border-left: 1px solid var(--global-color-gray-300);
         top: 0;
         left: calc(
-          ${nestingLevel * NESTING_INDENT}px + ${TRACE_TREE_ROW_INLINE_START} +
+          ${nestingLevel * TRACE_TREE_CHILD_NESTING_INDENT_PIXELS}px +
+            var(
+              --global-details-panel-navigation-row-content-padding-inline-start
+            ) +
             13px
         );
         width: 42px;
@@ -242,7 +311,10 @@ function EdgeSkeleton({ nestingLevel }: { nestingLevel: number }) {
         border-radius: 0 0 0 11px;
         top: -5px;
         left: calc(
-          ${nestingLevel * NESTING_INDENT}px + ${TRACE_TREE_ROW_INLINE_START} +
+          ${nestingLevel * TRACE_TREE_CHILD_NESTING_INDENT_PIXELS}px +
+            var(
+              --global-details-panel-navigation-row-content-padding-inline-start
+            ) +
             13px
         );
         width: 11px;

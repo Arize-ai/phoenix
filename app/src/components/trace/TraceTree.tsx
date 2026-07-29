@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { To } from "react-router";
 import { Link } from "react-router";
 
@@ -33,9 +33,8 @@ import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 import { useTraceTree } from "./TraceTreeContext";
 import {
-  NESTING_INDENT,
-  TRACE_TREE_ROW_BORDER_WIDTH,
-  TRACE_TREE_ROW_INLINE_START,
+  TRACE_TREE_CHILD_NESTING_INDENT_PIXELS,
+  TRACE_TREE_ROW_SELECTION_BORDER_WIDTH,
   traceTreeListCSS,
 } from "./traceTreeStyles";
 import type { ISpanItem, SpanStatusCodeType } from "./types";
@@ -46,6 +45,12 @@ export type TraceTreeProps = {
   spans: ISpanItem[];
   /** Whether to render an icon rail with a separate full-tree hover overlay. */
   isNavigationCollapsed?: boolean;
+  /**
+   * Whether this tree owns the hover overlay while navigation is collapsed.
+   * Disable this when an ancestor already owns compact-navigation hover.
+   * @default true
+   */
+  isHoverOverlayEnabled?: boolean;
   /**
    * Whether large child lists use Show more and Show less disclosure rows.
    * @default false
@@ -268,9 +273,10 @@ const traceTreeIconRailCSS = css`
     justify-content: flex-start;
     width: 100%;
     height: var(--global-dimension-size-450);
-    padding: 0 0 0 ${TRACE_TREE_ROW_INLINE_START};
+    padding: 0 0 0
+      var(--global-details-panel-navigation-row-content-padding-inline-start);
     border: 0;
-    border-left: ${TRACE_TREE_ROW_BORDER_WIDTH} solid transparent;
+    border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid transparent;
     background: transparent;
     color: var(--global-text-color-700);
     cursor: pointer;
@@ -296,6 +302,7 @@ export function TraceTree(props: TraceTreeProps) {
   const {
     spans,
     isNavigationCollapsed = false,
+    isHoverOverlayEnabled = true,
     isChildTruncationEnabled = false,
     session,
     traceSelection,
@@ -305,7 +312,14 @@ export function TraceTree(props: TraceTreeProps) {
     scrollSelectedSpanIntoView = true,
   } = props;
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-  const { searchQuery } = useTraceTree();
+  const [collapsedSpanNodeIds, setCollapsedSpanNodeIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [
+    fullyVisibleChildListSpanNodeIds,
+    setFullyVisibleChildListSpanNodeIds,
+  ] = useState<Set<string>>(() => new Set());
+  const { isCollapsed: isTreeCollapsed, searchQuery } = useTraceTree();
   const spanTree = createSpanTree(spans);
   const filteredSpanTree = filterSpanTree(spanTree, searchQuery);
   const selectedSpanPathNodeIds = getSelectedSpanPathNodeIds({
@@ -315,19 +329,79 @@ export function TraceTree(props: TraceTreeProps) {
   const rootSpan = spanTree[0]?.span;
   const hasSearchQuery = searchQuery.length > 0;
   const noSearchResults = hasSearchQuery && filteredSpanTree.length === 0;
-  const flattenedSpanNodes = flattenSpanTreeNodes({ nodes: filteredSpanTree });
+  const visibleCompactSpanNodes = flattenVisibleSpanTreeNodes({
+    nodes: filteredSpanTree,
+    collapsedSpanNodeIds,
+    fullyVisibleChildListSpanNodeIds,
+    isChildTruncationEnabled,
+    isSearching: hasSearchQuery,
+    selectedSpanPathNodeIds,
+  });
   const overallTimeRange = {
     start: rootSpan ? new Date(rootSpan.startTime) : new Date(),
     end: rootSpan?.endTime ? new Date(rootSpan.endTime) : new Date(),
   };
+  const synchronizeGlobalCollapse = useEffectEvent((isCollapsed: boolean) => {
+    setCollapsedSpanNodeIds(
+      isCollapsed
+        ? new Set(
+            flattenSpanTreeNodes({ nodes: spanTree })
+              .filter((node) => node.children.length > 0)
+              .map((node) => node.span.id)
+          )
+        : new Set()
+    );
+  });
+  useEffect(() => {
+    synchronizeGlobalCollapse(isTreeCollapsed);
+  }, [isTreeCollapsed]);
+
+  const handleSpanCollapsedChange = ({
+    isCollapsed,
+    spanNodeId,
+  }: {
+    isCollapsed: boolean;
+    spanNodeId: string;
+  }) => {
+    setCollapsedSpanNodeIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+      if (isCollapsed) {
+        nextIds.add(spanNodeId);
+      } else {
+        nextIds.delete(spanNodeId);
+      }
+      return nextIds;
+    });
+  };
+
+  const handleAllChildrenVisibleChange = ({
+    areAllChildrenVisible,
+    spanNodeId,
+  }: {
+    areAllChildrenVisible: boolean;
+    spanNodeId: string;
+  }) => {
+    setFullyVisibleChildListSpanNodeIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+      if (areAllChildrenVisible) {
+        nextIds.add(spanNodeId);
+      } else {
+        nextIds.delete(spanNodeId);
+      }
+      return nextIds;
+    });
+  };
+
+  const canOpenHoverOverlay = isNavigationCollapsed && isHoverOverlayEnabled;
+  const isHoverOverlayOpen = canOpenHoverOverlay && isOverlayOpen;
   const fullTree = (
     <div
       className={classNames("trace-tree-navigation__full", {
         "trace-tree-navigation__overlay": isNavigationCollapsed,
       })}
-      data-open={isNavigationCollapsed ? isOverlayOpen : undefined}
-      aria-hidden={isNavigationCollapsed ? !isOverlayOpen : undefined}
-      inert={isNavigationCollapsed && !isOverlayOpen ? true : undefined}
+      data-open={isNavigationCollapsed ? isHoverOverlayOpen : undefined}
+      aria-hidden={isNavigationCollapsed ? !isHoverOverlayOpen : undefined}
+      inert={isNavigationCollapsed && !isHoverOverlayOpen ? true : undefined}
       css={[traceTreeFullCSS, isNavigationCollapsed && traceTreeOverlayCSS]}
     >
       <ul
@@ -370,6 +444,10 @@ export function TraceTree(props: TraceTreeProps) {
             onSpanSelectionStart={onSpanSelectionStart}
             selectedSpanNodeId={selectedSpanNodeId}
             selectedSpanPathNodeIds={selectedSpanPathNodeIds}
+            collapsedSpanNodeIds={collapsedSpanNodeIds}
+            fullyVisibleChildListSpanNodeIds={fullyVisibleChildListSpanNodeIds}
+            onAllChildrenVisibleChange={handleAllChildrenVisibleChange}
+            onCollapsedChange={handleSpanCollapsedChange}
             scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
             isChildTruncationEnabled={isChildTruncationEnabled}
           />
@@ -378,83 +456,83 @@ export function TraceTree(props: TraceTreeProps) {
     </div>
   );
 
-  if (!isNavigationCollapsed) {
-    return (
-      <div className="trace-tree-navigation" css={traceTreeNavigationCSS}>
-        {fullTree}
-      </div>
-    );
-  }
-
   return (
     <div
-      className="trace-tree-navigation trace-tree-navigation--collapsed"
+      className={classNames("trace-tree-navigation", {
+        "trace-tree-navigation--collapsed": isNavigationCollapsed,
+      })}
       css={traceTreeNavigationCSS}
-      onPointerEnter={() => setIsOverlayOpen(true)}
-      onPointerLeave={() => setIsOverlayOpen(false)}
+      onPointerEnter={
+        canOpenHoverOverlay ? () => setIsOverlayOpen(true) : undefined
+      }
+      onPointerLeave={
+        canOpenHoverOverlay ? () => setIsOverlayOpen(false) : undefined
+      }
     >
-      <ul
-        aria-label="Trace navigation"
-        aria-hidden={isOverlayOpen || undefined}
-        inert={isOverlayOpen || undefined}
-        className="trace-tree-icon-rail"
-        css={traceTreeIconRailCSS}
-        data-trace-tree-root
-        data-testid="trace-tree-icon-rail"
-      >
-        {session ? (
-          <li>
-            <Link
-              className="trace-tree-icon-rail__item"
-              to={session.to}
-              aria-label={`View session ${session.sessionId}`}
-            >
-              <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
-            </Link>
-          </li>
-        ) : null}
-        {traceSelection ? (
-          <li>
-            <button
-              type="button"
-              className="trace-tree-icon-rail__item"
-              data-selected={traceSelection.isSelected}
-              aria-label={`View trace ${traceSelection.traceId}`}
-              aria-pressed={traceSelection.isSelected}
-              onClick={traceSelection.onSelect}
-            >
-              <Icon aria-hidden="true" svg={<Icons.Trace />} />
-            </button>
-          </li>
-        ) : null}
-        {flattenedSpanNodes.map(({ span }) => {
-          const isSelected = selectedSpanNodeId === span.id;
-          return (
-            <li key={span.id}>
+      {fullTree}
+      {isNavigationCollapsed ? (
+        <ul
+          aria-label="Trace navigation"
+          aria-hidden={isHoverOverlayOpen || undefined}
+          inert={isHoverOverlayOpen || undefined}
+          className="trace-tree-icon-rail"
+          css={traceTreeIconRailCSS}
+          data-trace-tree-root
+          data-testid="trace-tree-icon-rail"
+        >
+          {session ? (
+            <li>
+              <Link
+                className="trace-tree-icon-rail__item"
+                to={session.to}
+                aria-label={`View session ${session.sessionId}`}
+              >
+                <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
+              </Link>
+            </li>
+          ) : null}
+          {traceSelection ? (
+            <li>
               <button
                 type="button"
                 className="trace-tree-icon-rail__item"
-                data-selected={isSelected}
-                data-trace-tree-span-node-id={span.id}
-                aria-label={`View span ${span.name}`}
-                aria-pressed={isSelected}
-                onClick={(event) => {
-                  if (!onSpanClick) return;
-                  onSpanSelectionStart?.(span);
-                  beginOptimisticSpanNavigation({
-                    onNavigate: () => onSpanClick(span),
-                    spanNodeId: span.id,
-                    trigger: event.currentTarget,
-                  });
-                }}
+                data-selected={traceSelection.isSelected}
+                aria-label={`View trace ${traceSelection.traceId}`}
+                aria-pressed={traceSelection.isSelected}
+                onClick={traceSelection.onSelect}
               >
-                <SpanKindIcon spanKind={span.spanKind} />
+                <Icon aria-hidden="true" svg={<Icons.Trace />} />
               </button>
             </li>
-          );
-        })}
-      </ul>
-      {fullTree}
+          ) : null}
+          {visibleCompactSpanNodes.map(({ span }) => {
+            const isSelected = selectedSpanNodeId === span.id;
+            return (
+              <li key={span.id}>
+                <button
+                  type="button"
+                  className="trace-tree-icon-rail__item"
+                  data-selected={isSelected}
+                  data-trace-tree-span-node-id={span.id}
+                  aria-label={`View span ${span.name}`}
+                  aria-pressed={isSelected}
+                  onClick={(event) => {
+                    if (!onSpanClick) return;
+                    onSpanSelectionStart?.(span);
+                    beginOptimisticSpanNavigation({
+                      onNavigate: () => onSpanClick(span),
+                      spanNodeId: span.id,
+                      trigger: event.currentTarget,
+                    });
+                  }}
+                >
+                  <SpanKindIcon spanKind={span.spanKind} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -467,8 +545,10 @@ const entityTreeItemCSS = css`
   width: 100%;
   gap: var(--global-dimension-size-100);
   padding: var(--global-dimension-size-100);
-  padding-left: ${TRACE_TREE_ROW_INLINE_START};
-  border-left: ${TRACE_TREE_ROW_BORDER_WIDTH} solid transparent;
+  padding-left: var(
+    --global-details-panel-navigation-row-content-padding-inline-start
+  );
+  border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid transparent;
   overflow: hidden;
 
   &:hover {
@@ -763,8 +843,70 @@ function buildChildRenderNodes<TSpan extends ISpanItem>({
   ];
 }
 
+/**
+ * Projects the full tree's current disclosure and truncation state into the
+ * compact icon rail. Synthetic Show more/less rows are actions rather than
+ * spans, so they are intentionally omitted from the compact projection.
+ */
+function flattenVisibleSpanTreeNodes<TSpan extends ISpanItem>({
+  nodes,
+  collapsedSpanNodeIds,
+  fullyVisibleChildListSpanNodeIds,
+  isChildTruncationEnabled,
+  isSearching,
+  selectedSpanPathNodeIds,
+  nestingLevel = 0,
+}: {
+  nodes: SpanTreeNode<TSpan>[];
+  collapsedSpanNodeIds: Set<string>;
+  fullyVisibleChildListSpanNodeIds: Set<string>;
+  isChildTruncationEnabled: boolean;
+  isSearching: boolean;
+  selectedSpanPathNodeIds: Set<string>;
+  nestingLevel?: number;
+}): SpanTreeNode<TSpan>[] {
+  return nodes.flatMap((node) => {
+    const isCollapsed = !isSearching && collapsedSpanNodeIds.has(node.span.id);
+    if (isCollapsed) {
+      return [node];
+    }
+
+    const childNestingLevel = nestingLevel + 1;
+    const areAllChildrenVisible = fullyVisibleChildListSpanNodeIds.has(
+      node.span.id
+    );
+    const childRenderNodes = buildChildRenderNodes({
+      childNodes: node.children,
+      childLimit: getChildLimit({ childNestingLevel }),
+      selectedSpanPathNodeIds,
+      shouldShowAllChildren:
+        !isChildTruncationEnabled || isSearching || areAllChildrenVisible,
+      shouldShowLess:
+        isChildTruncationEnabled && areAllChildrenVisible && !isSearching,
+    });
+    const visibleChildNodes = childRenderNodes.flatMap((childRenderNode) =>
+      childRenderNode.type === "span" ? [childRenderNode.node] : []
+    );
+
+    return [
+      node,
+      ...flattenVisibleSpanTreeNodes({
+        nodes: visibleChildNodes,
+        collapsedSpanNodeIds,
+        fullyVisibleChildListSpanNodeIds,
+        isChildTruncationEnabled,
+        isSearching,
+        selectedSpanPathNodeIds,
+        nestingLevel: childNestingLevel,
+      }),
+    ];
+  });
+}
+
 interface SpanTreeItemProps<TSpan extends ISpanItem> {
   node: SpanTreeNode<TSpan>;
+  collapsedSpanNodeIds: Set<string>;
+  fullyVisibleChildListSpanNodeIds: Set<string>;
   isChildTruncationEnabled: boolean;
   selectedSpanNodeId: string;
   selectedSpanPathNodeIds: Set<string>;
@@ -772,6 +914,14 @@ interface SpanTreeItemProps<TSpan extends ISpanItem> {
   overallTimeRange: TimeRange;
   onSpanClick?: (span: ISpanItem) => void;
   onSpanSelectionStart?: (span: ISpanItem) => void;
+  onAllChildrenVisibleChange: (options: {
+    areAllChildrenVisible: boolean;
+    spanNodeId: string;
+  }) => void;
+  onCollapsedChange: (options: {
+    isCollapsed: boolean;
+    spanNodeId: string;
+  }) => void;
   /**
    * How deep the item is nested in the tree. Starts at 0.
    * @default 0
@@ -784,19 +934,25 @@ function SpanTreeItem<TSpan extends ISpanItem>(
 ) {
   const {
     node,
+    collapsedSpanNodeIds,
+    fullyVisibleChildListSpanNodeIds,
     isChildTruncationEnabled,
     selectedSpanNodeId,
     selectedSpanPathNodeIds,
     scrollSelectedSpanIntoView,
     onSpanClick,
     onSpanSelectionStart,
+    onAllChildrenVisibleChange,
+    onCollapsedChange,
     nestingLevel = 0,
     overallTimeRange,
   } = props;
   const childNodes = node.children;
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [areAllChildrenVisible, setAreAllChildrenVisible] = useState(false);
-  const { isCollapsed: treeIsCollapsed, searchQuery } = useTraceTree();
+  const { searchQuery } = useTraceTree();
+  const isCollapsed = collapsedSpanNodeIds.has(node.span.id);
+  const areAllChildrenVisible = fullyVisibleChildListSpanNodeIds.has(
+    node.span.id
+  );
   const hasChildren = childNodes.length > 0;
   const isSearching = searchQuery.length > 0;
   const effectiveIsCollapsed = isSearching ? false : isCollapsed;
@@ -828,11 +984,6 @@ function SpanTreeItem<TSpan extends ISpanItem>(
       });
     }
   }, [isSelected, scrollSelectedSpanIntoView]);
-
-  // React to global changes to the trace tree state and change local state
-  useEffect(() => {
-    setIsCollapsed(treeIsCollapsed);
-  }, [treeIsCollapsed]);
 
   const { name, latencyMs, statusCode, tokenCountTotal } = node.span;
   return (
@@ -926,7 +1077,10 @@ function SpanTreeItem<TSpan extends ISpanItem>(
               <CollapseToggleButton
                 isCollapsed={isCollapsed}
                 onClick={() => {
-                  setIsCollapsed(!isCollapsed);
+                  onCollapsedChange({
+                    isCollapsed: !isCollapsed,
+                    spanNodeId: node.span.id,
+                  });
                 }}
               />
             ) : null}
@@ -976,10 +1130,16 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                 {childRenderNode.type === "span" ? (
                   <SpanTreeItem
                     node={childRenderNode.node}
+                    collapsedSpanNodeIds={collapsedSpanNodeIds}
+                    fullyVisibleChildListSpanNodeIds={
+                      fullyVisibleChildListSpanNodeIds
+                    }
                     isChildTruncationEnabled={isChildTruncationEnabled}
                     overallTimeRange={overallTimeRange}
                     onSpanClick={onSpanClick}
                     onSpanSelectionStart={onSpanSelectionStart}
+                    onAllChildrenVisibleChange={onAllChildrenVisibleChange}
+                    onCollapsedChange={onCollapsedChange}
                     selectedSpanNodeId={selectedSpanNodeId}
                     selectedSpanPathNodeIds={selectedSpanPathNodeIds}
                     scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
@@ -994,11 +1154,13 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                         : "Show less"
                     }
                     isExpanded={childRenderNode.type === "show-less"}
-                    onClick={() =>
-                      setAreAllChildrenVisible(
-                        childRenderNode.type === "show-more"
-                      )
-                    }
+                    onClick={() => {
+                      onAllChildrenVisibleChange({
+                        areAllChildrenVisible:
+                          childRenderNode.type === "show-more",
+                        spanNodeId: node.span.id,
+                      });
+                    }}
                   />
                 )}
               </li>
@@ -1083,13 +1245,15 @@ function TraceTreeDisclosureNode({
           css`
             /* Begin at this node's elbow so ancestor connectors stay visible. */
             left: calc(
-              (${nestingLevel} * var(--trace-tree-nesting-indent)) +
+              (${nestingLevel} * var(--trace-tree-child-nesting-indent)) +
                 var(--global-dimension-size-50)
             );
             width: auto;
             /* Align the label after the unknown-kind icon and row gap. */
             padding-left: calc(
-              ${TRACE_TREE_ROW_INLINE_START} +
+              var(
+                  --global-details-panel-navigation-row-content-padding-inline-start
+                ) +
                 var(--global-dimension-size-250) +
                 var(--global-dimension-size-100)
             );
@@ -1128,7 +1292,7 @@ function SpanNodeWrap(
         padding-right: var(--global-dimension-size-100);
         padding-top: var(--global-dimension-size-100);
         padding-bottom: var(--global-dimension-size-100);
-        border-left: ${TRACE_TREE_ROW_BORDER_WIDTH} solid transparent;
+        border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid transparent;
         box-sizing: border-box;
         &:hover {
           background-color: var(--global-color-gray-75);
@@ -1141,8 +1305,10 @@ function SpanNodeWrap(
         & > *:first-of-type {
           box-sizing: border-box;
           padding-left: calc(
-            (${props.nestingLevel} * var(--trace-tree-nesting-indent)) +
-              ${TRACE_TREE_ROW_INLINE_START}
+            (${props.nestingLevel} * var(--trace-tree-child-nesting-indent)) +
+              var(
+                --global-details-panel-navigation-row-content-padding-inline-start
+              )
           );
         }
       `}
@@ -1178,7 +1344,10 @@ function SpanTreeEdgeConnector({
         z-index: ${isError ? 1 : 0};
         top: 0;
         left: calc(
-          ${nestingLevel * NESTING_INDENT}px + ${TRACE_TREE_ROW_INLINE_START} +
+          ${nestingLevel * TRACE_TREE_CHILD_NESTING_INDENT_PIXELS}px +
+            var(
+              --global-details-panel-navigation-row-content-padding-inline-start
+            ) +
             13px
         );
         width: 42px;
@@ -1213,7 +1382,10 @@ function SpanTreeEdge({
         border-radius: 0 0 0 11px;
         top: -5px;
         left: calc(
-          ${nestingLevel * NESTING_INDENT}px + ${TRACE_TREE_ROW_INLINE_START} +
+          ${nestingLevel * TRACE_TREE_CHILD_NESTING_INDENT_PIXELS}px +
+            var(
+              --global-details-panel-navigation-row-content-padding-inline-start
+            ) +
             13px
         );
         width: 11px;

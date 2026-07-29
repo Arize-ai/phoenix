@@ -202,7 +202,6 @@ const turnListCSS = css`
 
   .react-aria-ListBoxItem {
     margin: 0;
-    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
     border-radius: 0;
     border-left: 4px solid transparent;
     border-bottom: 1px solid var(--global-border-color-default);
@@ -280,9 +279,9 @@ function SessionTurnList({
                 gap="size-100"
               >
                 <Flex
+                  className="session-turn-row__title"
                   direction="row"
                   alignItems="center"
-                  gap="size-75"
                   flex={1}
                   minWidth={0}
                 >

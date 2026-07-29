@@ -46,6 +46,11 @@ const detailsPanelSlotHostCSS = css`
   overflow: hidden;
 `;
 
+const detailsPanelNavigationSlotHostCSS = css`
+  ${detailsPanelSlotHostCSS}
+  overflow: visible;
+`;
+
 type DetailsPanelPortalTargets = {
   main: HTMLDivElement;
   navigation: HTMLDivElement;
@@ -58,14 +63,20 @@ type DetailsPanelPortalController = {
 const DetailsPanelPortalContext =
   createContext<DetailsPanelPortalController | null>(null);
 
-function createDetailsPanelPortalTarget(className: string): HTMLDivElement {
+function createDetailsPanelPortalTarget({
+  className,
+  overflow,
+}: {
+  className: string;
+  overflow: "hidden" | "visible";
+}): HTMLDivElement {
   const target = document.createElement("div");
   target.className = className;
   target.style.display = "flex";
   target.style.flexDirection = "column";
   target.style.width = "100%";
   target.style.height = "100%";
-  target.style.overflow = "hidden";
+  target.style.overflow = overflow;
   return target;
 }
 
@@ -80,10 +91,14 @@ export function DetailsPanelContent({
 }: PropsWithChildren<{ navigation: ReactNode }>) {
   const controller = useContext(DetailsPanelPortalContext);
   const [targets] = useState<DetailsPanelPortalTargets>(() => ({
-    main: createDetailsPanelPortalTarget("details-panel-main-content"),
-    navigation: createDetailsPanelPortalTarget(
-      "details-panel-navigation-content"
-    ),
+    main: createDetailsPanelPortalTarget({
+      className: "details-panel-main-content",
+      overflow: "hidden",
+    }),
+    navigation: createDetailsPanelPortalTarget({
+      className: "details-panel-navigation-content",
+      overflow: "visible",
+    }),
   }));
   useLayoutEffect(() => controller?.register(targets), [controller, targets]);
 
@@ -428,7 +443,10 @@ export function DetailsPanel({
             expandedWidth={treeOverlayWidth}
             isCollapsed={isTreeCollapsed}
           >
-            <div ref={navigationHostRef} css={detailsPanelSlotHostCSS} />
+            <div
+              ref={navigationHostRef}
+              css={detailsPanelNavigationSlotHostCSS}
+            />
           </ResizableTraceTreePanelContent>
         </Panel>
         <ResizableTraceTreeSeparator

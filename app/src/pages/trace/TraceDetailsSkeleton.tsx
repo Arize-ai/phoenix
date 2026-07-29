@@ -7,10 +7,7 @@ import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
-import {
-  TRACE_TREE_ROW_BORDER_WIDTH,
-  TRACE_TREE_ROW_INLINE_START,
-} from "@phoenix/components/trace/traceTreeStyles";
+import { TRACE_TREE_ROW_SELECTION_BORDER_WIDTH } from "@phoenix/components/trace/traceTreeStyles";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
 import { useTimeFormatters } from "@phoenix/hooks";
@@ -44,8 +41,10 @@ const traceTreeEntitySkeletonCSS = css`
   width: 100%;
   min-height: var(--global-dimension-size-500);
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
-  padding-left: ${TRACE_TREE_ROW_INLINE_START};
-  border-left: ${TRACE_TREE_ROW_BORDER_WIDTH} solid transparent;
+  padding-left: var(
+    --global-details-panel-navigation-row-content-padding-inline-start
+  );
+  border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid transparent;
 
   .trace-tree-entity-skeleton__id {
     flex: none;

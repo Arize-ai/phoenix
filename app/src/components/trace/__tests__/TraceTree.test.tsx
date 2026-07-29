@@ -92,6 +92,7 @@ describe("TraceTree", () => {
     onSpanSelectionStart,
     searchQuery,
     isChildTruncationEnabled = false,
+    isHoverOverlayEnabled = true,
     isNavigationCollapsed = false,
     session,
     traceSelection,
@@ -102,6 +103,7 @@ describe("TraceTree", () => {
     onSpanSelectionStart?: (span: ISpanItem) => void;
     searchQuery?: string;
     isChildTruncationEnabled?: boolean;
+    isHoverOverlayEnabled?: boolean;
     isNavigationCollapsed?: boolean;
     session?: TraceTreeProps["session"];
     traceSelection?: TraceTreeProps["traceSelection"];
@@ -110,6 +112,7 @@ describe("TraceTree", () => {
       <TraceTree
         spans={spans}
         isChildTruncationEnabled={isChildTruncationEnabled}
+        isHoverOverlayEnabled={isHoverOverlayEnabled}
         isNavigationCollapsed={isNavigationCollapsed}
         session={session}
         traceSelection={traceSelection}
@@ -167,6 +170,8 @@ describe("TraceTree", () => {
     );
     const overlay = container.querySelector(".trace-tree-navigation__overlay");
     const fullTree = overlay?.querySelector('[data-testid="trace-tree"]');
+    const rootSpanName =
+      fullTree?.querySelector<HTMLElement>(".span-tree-name");
 
     expect(rail).not.toBeNull();
     expect(overlay).not.toBeNull();
@@ -203,7 +208,10 @@ describe("TraceTree", () => {
     expect(overlayStyle.visibility).toBe("hidden");
     expect(getComputedStyle(rail!).position).toBe("absolute");
     expect(railItemStyleRule?.style.padding).toBe(
-      "0 0 0 var(--global-dimension-size-125)"
+      "0 0 0 var(--global-details-panel-navigation-row-content-padding-inline-start)"
+    );
+    expect(getComputedStyle(rootSpanName!).paddingLeft).toContain(
+      "--global-details-panel-navigation-row-content-padding-inline-start"
     );
     expect(railItemStyleRule?.style.borderLeft).toBe("3px solid transparent");
     expect(overlay.getAttribute("data-open")).toBe("false");
@@ -226,6 +234,93 @@ describe("TraceTree", () => {
     expect(openOverlayStyle.borderRadius).toBe("var(--global-rounding-small)");
     expect(openOverlayStyle.boxShadow).toContain("8px 16px");
     expect(getComputedStyle(rail!).visibility).toBe("hidden");
+  });
+
+  it("preserves span disclosure state while switching between full and compact navigation", () => {
+    const renderNavigation = (isNavigationCollapsed: boolean) =>
+      renderTraceTree({
+        spans: [ROOT_SPAN, CHILD_SPAN],
+        isNavigationCollapsed,
+      });
+    const getFullTreeChildList = () =>
+      container
+        .querySelector(
+          `.trace-tree-navigation__full [data-trace-tree-span-node-id="${CHILD_SPAN.id}"]`
+        )
+        ?.closest("ul");
+
+    renderNavigation(false);
+    const rootSpan = container.querySelector(
+      `.trace-tree-navigation__full [data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+    );
+    const collapseButton = rootSpan?.parentElement?.querySelector(
+      ".collapse-toggle-button"
+    );
+    act(() => {
+      collapseButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(getComputedStyle(getFullTreeChildList()!).display).toBe("none");
+
+    renderNavigation(true);
+    expect(getComputedStyle(getFullTreeChildList()!).display).toBe("none");
+    expect(
+      Array.from(
+        container.querySelectorAll(
+          '[data-testid="trace-tree-icon-rail"] a, [data-testid="trace-tree-icon-rail"] button'
+        )
+      ).map((action) => action.getAttribute("aria-label"))
+    ).toEqual(["View span root span"]);
+
+    const navigation = container.querySelector(".trace-tree-navigation");
+    act(() => {
+      navigation?.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+    });
+    expect(
+      container
+        .querySelector(".trace-tree-navigation__full")
+        ?.getAttribute("data-open")
+    ).toBe("true");
+    expect(getComputedStyle(getFullTreeChildList()!).display).toBe("none");
+
+    renderNavigation(false);
+    expect(getComputedStyle(getFullTreeChildList()!).display).toBe("none");
+  });
+
+  it("defers compact hover ownership to an ancestor when disabled", () => {
+    const renderNavigation = (isNavigationCollapsed: boolean) =>
+      renderTraceTree({
+        spans: [ROOT_SPAN, CHILD_SPAN],
+        isHoverOverlayEnabled: false,
+        isNavigationCollapsed,
+      });
+
+    renderNavigation(true);
+    const navigation = container.querySelector(".trace-tree-navigation");
+    act(() => {
+      navigation?.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+    });
+    expect(
+      container
+        .querySelector(".trace-tree-navigation__full")
+        ?.getAttribute("data-open")
+    ).toBe("false");
+
+    renderNavigation(false);
+    renderNavigation(true);
+    expect(
+      container
+        .querySelector(".trace-tree-navigation__full")
+        ?.getAttribute("data-open")
+    ).toBe("false");
+    expect(
+      container
+        .querySelector('[data-testid="trace-tree-icon-rail"]')
+        ?.hasAttribute("aria-hidden")
+    ).toBe(false);
   });
 
   it("renders the session, trace, and root span in order", () => {
@@ -503,6 +598,31 @@ describe("TraceTree", () => {
       )
     ).not.toBeNull();
     expect(container.querySelector(".trace-tree-disclosure-node")).toBeNull();
+  });
+
+  it("applies full-tree truncation to the compact icon rail", () => {
+    const directChildren = Array.from({ length: 13 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `compact-child-${index + 1}`,
+        parent: ROOT_SPAN,
+        startOffsetMs: index + 1,
+      })
+    );
+
+    renderTraceTree({
+      spans: [ROOT_SPAN, ...directChildren],
+      isChildTruncationEnabled: true,
+      isNavigationCollapsed: true,
+    });
+
+    const compactSpanLabels = Array.from(
+      container.querySelectorAll(
+        '[data-testid="trace-tree-icon-rail"] button[aria-label^="View span"]'
+      )
+    ).map((button) => button.getAttribute("aria-label"));
+    expect(compactSpanLabels).toHaveLength(13);
+    expect(compactSpanLabels).toContain("View span compact-child-12");
+    expect(compactSpanLabels).not.toContain("View span compact-child-13");
   });
 
   it("restores child truncation after a global expansion override ends", () => {

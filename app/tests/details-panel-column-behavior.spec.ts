@@ -404,6 +404,111 @@ test.describe("Details panel column behavior assertions", () => {
     expect(await getDetailsPanelLayout(page)).toEqual(initialLayout);
   });
 
+  test("keeps a span-only deep link unfolded through cold compact and hover states", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 680, height: 900 });
+    let hasBlockedTreeQuery = false;
+    let releaseTreeQuery: () => void = () => {};
+    const pendingTreeQuery = new Promise<void>((resolve) => {
+      releaseTreeQuery = resolve;
+    });
+    await page.route("**/graphql", async (route) => {
+      const postData = route.request().postData();
+      if (
+        !hasBlockedTreeQuery &&
+        postData?.includes("SessionDetailsTracesViewTreeQuery")
+      ) {
+        const response = await route.fetch();
+        hasBlockedTreeQuery = true;
+        await pendingTreeQuery;
+        await route.fulfill({ response });
+        return;
+      }
+      await route.continue();
+    });
+
+    try {
+      await page.goto(
+        `/projects/${fixture.projectId}/sessions/${encodeURIComponent(fixture.sessionId)}?sessionView=traces&selectedSpanNodeId=${encodeURIComponent(fixture.childSpanNodeId)}`
+      );
+      await expect.poll(() => hasBlockedTreeQuery).toBe(true);
+      await expect
+        .poll(() => new URL(page.url()).searchParams.get("selectedTraceId"))
+        .toBe(fixture.traceId);
+
+      const traceHeader = page.getByTestId("session-trace-row-header").first();
+      const sessionNavigation = page.locator(".session-details-navigation");
+      const sessionNavigationBody = page.locator(
+        ".session-details-navigation__body"
+      );
+      const compactLoadingList = page.getByRole("list", {
+        name: "Loading trace navigation",
+      });
+      await expect(traceHeader).toHaveAttribute("aria-expanded", "true");
+      await page
+        .getByRole("button", { name: "Collapse trace navigation" })
+        .click();
+      await expect(sessionNavigation).toHaveAttribute("data-collapsed", "true");
+      await expect(sessionNavigation).toHaveAttribute("data-open", "false");
+      await expect(compactLoadingList).toBeVisible();
+
+      await sessionNavigationBody.hover({ position: { x: 24, y: 24 } });
+      await expect(sessionNavigation).toHaveAttribute("data-open", "true");
+      await expect(compactLoadingList).toHaveCount(0);
+      await expect(page.getByTestId("trace-tree-skeleton")).toBeVisible();
+
+      await page
+        .getByTestId("details-panel-main-column")
+        .hover({ position: { x: 100, y: 100 } });
+      await expect(sessionNavigation).toHaveAttribute("data-open", "false");
+      await expect(compactLoadingList).toBeVisible();
+
+      await sessionNavigationBody.hover({ position: { x: 24, y: 24 } });
+      await expect(sessionNavigation).toHaveAttribute("data-open", "true");
+    } finally {
+      releaseTreeQuery();
+    }
+
+    const sessionNavigation = page.locator(".session-details-navigation");
+    const sessionNavigationBody = page.locator(
+      ".session-details-navigation__body"
+    );
+    const fullTree = page.locator(".trace-tree-navigation__full");
+    const childSpan = fullTree.locator(
+      `[data-trace-tree-span-node-id="${fixture.childSpanNodeId}"]`
+    );
+    const compactTree = page.getByTestId("trace-tree-icon-rail");
+    const mainDetailView = page.getByTestId("details-panel-main-column");
+    await expect(childSpan).toBeVisible();
+
+    await mainDetailView.hover({ position: { x: 100, y: 100 } });
+    await expect(compactTree).toBeVisible();
+    await compactTree.getByRole("button").first().hover();
+    await expect(sessionNavigation).toHaveAttribute("data-open", "true");
+    await mainDetailView.hover({ position: { x: 100, y: 100 } });
+    await expect(sessionNavigation).toHaveAttribute("data-open", "false");
+    await expect(compactTree).toBeVisible();
+
+    await sessionNavigationBody.hover({ position: { x: 24, y: 24 } });
+    await expect(sessionNavigation).toHaveAttribute("data-open", "true");
+    await fullTree.locator(".collapse-toggle-button").first().click();
+    await expect(childSpan).not.toBeVisible();
+
+    await mainDetailView.hover({ position: { x: 100, y: 100 } });
+    await expect(sessionNavigation).toHaveAttribute("data-open", "false");
+    await mainDetailView.click({ position: { x: 300, y: 400 } });
+    await expect(sessionNavigation).toHaveAttribute("data-open", "false");
+    await expect(compactTree).toBeVisible();
+    await expect(
+      compactTree.getByRole("button", {
+        name: "View span Details panel child",
+      })
+    ).toHaveCount(0);
+    await sessionNavigationBody.hover({ position: { x: 24, y: 24 } });
+    await expect(childSpan).not.toBeVisible();
+  });
+
   test("shows trace navigation feedback without replacing the column shell after hotkey", async ({
     page,
   }) => {

@@ -16,6 +16,15 @@ import { SessionDetailsSkeleton } from "../SessionDetailsSkeleton";
 import { SessionPaginationContext } from "../SessionPaginationContext";
 import { SessionViewControl, SessionViewTabs } from "../SessionViewTabs";
 
+const detailsPanelNavigationRowContentPaddingInlineStart =
+  "var(--global-details-panel-navigation-row-content-padding-inline-start)";
+const sessionDetailsNavigationTopLevelRowPaddingBlock =
+  "var(--global-session-details-navigation-top-level-row-padding-block)";
+
+function normalizeCSSValue(value: string) {
+  return value.replace(/\s/g, "");
+}
+
 type StatefulSessionDetailsNavigationProps = Omit<
   ComponentProps<typeof SessionDetailsNavigation>,
   "isPointerOpen" | "onPointerOpenChange"
@@ -32,6 +41,14 @@ function StatefulSessionDetailsNavigation(
       onPointerOpenChange={setIsPointerOpen}
     />
   );
+}
+
+function dispatchPointerDown(element: Element) {
+  const event =
+    typeof PointerEvent === "function"
+      ? new PointerEvent("pointerdown", { bubbles: true })
+      : new MouseEvent("mousedown", { bubbles: true });
+  element.dispatchEvent(event);
 }
 
 function SessionNavigationViewSwitchHarness() {
@@ -124,6 +141,36 @@ describe("SessionViewTabs", () => {
       addComparisonButton?.closest(".details-panel-main-controls")
     ).not.toBeNull();
     expect(addComparisonButton?.getAttribute("data-variant")).toBe("quiet");
+  });
+
+  it("allows collapsed navigation to overlay the main panel through portal hosts", () => {
+    act(() => {
+      root.render(
+        <DetailsPanel
+          preferredTreeWidth={48}
+          onPreferredTreeWidthChange={() => {}}
+          treeMaximumWidth={480}
+        >
+          <DetailsPanelContent navigation={<div>Navigation</div>}>
+            <div>Main content</div>
+          </DetailsPanelContent>
+        </DetailsPanel>
+      );
+    });
+
+    const navigationContent = container.querySelector<HTMLElement>(
+      ".details-panel-navigation-content"
+    );
+    const navigationHost = navigationContent?.parentElement;
+    const mainContent = container.querySelector<HTMLElement>(
+      ".details-panel-main-content"
+    );
+    const mainHost = mainContent?.parentElement;
+    expect(navigationContent).not.toBeNull();
+    expect(getComputedStyle(navigationHost!).overflow).toBe("visible");
+    expect(getComputedStyle(navigationContent!).overflow).toBe("visible");
+    expect(getComputedStyle(mainHost!).overflow).toBe("hidden");
+    expect(getComputedStyle(mainContent!).overflow).toBe("hidden");
   });
 
   it("keeps both panel elements mounted while suspended content resolves", async () => {
@@ -347,30 +394,30 @@ describe("SessionViewTabs", () => {
     expect(getComputedStyle(compactControl!).display).toBe("flex");
     expect(getComputedStyle(expandedControl!).display).toBe("none");
     expect(getComputedStyle(compactIndex!).display).toBe("inline-flex");
-    expect(getComputedStyle(compactIndex!).top).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(compactIndex!).top)).toBe(
+      sessionDetailsNavigationTopLevelRowPaddingBlock
     );
-    expect(getComputedStyle(compactIndex!).left).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(compactIndex!).left)).toBe(
+      detailsPanelNavigationRowContentPaddingInlineStart
     );
-    expect(getComputedStyle(compactTraceIndex!).top).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(compactTraceIndex!).top)).toBe(
+      sessionDetailsNavigationTopLevelRowPaddingBlock
     );
-    expect(getComputedStyle(compactTraceIndex!).left).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(compactTraceIndex!).left)).toBe(
+      detailsPanelNavigationRowContentPaddingInlineStart
     );
     expect(getComputedStyle(compactIndex!).textAlign).toBe("left");
-    expect(getComputedStyle(turnRow!).paddingTop).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingTop)).toBe(
+      sessionDetailsNavigationTopLevelRowPaddingBlock
     );
-    expect(getComputedStyle(turnRow!).paddingLeft).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingLeft)).toBe(
+      detailsPanelNavigationRowContentPaddingInlineStart
     );
-    expect(getComputedStyle(traceRow!).paddingTop).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingTop)).toBe(
+      sessionDetailsNavigationTopLevelRowPaddingBlock
     );
-    expect(getComputedStyle(traceRow!).paddingLeft).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingLeft)).toBe(
+      detailsPanelNavigationRowContentPaddingInlineStart
     );
     expect(getComputedStyle(expandedTurnContent!).display).not.toBe("none");
     expect(getComputedStyle(expandedTurnContent!).visibility).toBe("hidden");
@@ -393,17 +440,17 @@ describe("SessionViewTabs", () => {
     expect(getComputedStyle(expandedTurnContent!).visibility).toBe("visible");
     expect(traceTree?.dataset.navigationMode).toBe("full");
     expect(getComputedStyle(content!).boxShadow).toContain("8px 16px");
-    expect(getComputedStyle(turnRow!).paddingTop).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingTop)).toBe(
+      sessionDetailsNavigationTopLevelRowPaddingBlock
     );
-    expect(getComputedStyle(turnRow!).paddingLeft).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingLeft)).toBe(
+      detailsPanelNavigationRowContentPaddingInlineStart
     );
-    expect(getComputedStyle(traceRow!).paddingTop).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingTop)).toBe(
+      sessionDetailsNavigationTopLevelRowPaddingBlock
     );
-    expect(getComputedStyle(traceRow!).paddingLeft).toBe(
-      "var(--global-dimension-size-150)"
+    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingLeft)).toBe(
+      detailsPanelNavigationRowContentPaddingInlineStart
     );
 
     act(() => {
@@ -422,6 +469,144 @@ describe("SessionViewTabs", () => {
     });
 
     expect(navigation?.dataset.open).toBe("true");
+  });
+
+  it("does not latch a hovered navigation open after a pointer-focused tree action", () => {
+    act(() => {
+      root.render(
+        <>
+          <StatefulSessionDetailsNavigation
+            isCollapsed
+            control={<div>View control</div>}
+          >
+            <button type="button">Expand subtree</button>
+          </StatefulSessionDetailsNavigation>
+          <button type="button">Outside action</button>
+        </>
+      );
+    });
+
+    const navigation = container.querySelector<HTMLElement>(
+      ".session-details-navigation"
+    );
+    const content = container.querySelector<HTMLElement>(
+      ".session-details-navigation__content"
+    );
+    const body = container.querySelector<HTMLElement>(
+      ".session-details-navigation__body"
+    );
+    const expandButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Expand subtree"
+    );
+    const outsideButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Outside action"
+    );
+
+    act(() => {
+      body?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+    });
+    expect(navigation?.dataset.open).toBe("true");
+
+    act(() => {
+      if (expandButton) {
+        dispatchPointerDown(expandButton);
+        expandButton.focus();
+      }
+    });
+    expect(document.activeElement).toBe(expandButton);
+
+    act(() => {
+      content?.dispatchEvent(
+        new MouseEvent("pointerout", {
+          bubbles: true,
+          relatedTarget: document.body,
+        })
+      );
+    });
+    expect(navigation?.dataset.open).toBe("false");
+
+    act(() => {
+      if (outsideButton) {
+        dispatchPointerDown(outsideButton);
+        outsideButton.focus();
+      }
+    });
+    expect(navigation?.dataset.open).toBe("false");
+  });
+
+  it("keeps collapsed navigation available to keyboard focus", () => {
+    act(() => {
+      root.render(
+        <>
+          <StatefulSessionDetailsNavigation
+            isCollapsed
+            control={<div>View control</div>}
+          >
+            <button type="button">Keyboard tree action</button>
+          </StatefulSessionDetailsNavigation>
+          <button type="button">Outside action</button>
+        </>
+      );
+    });
+
+    const navigation = container.querySelector<HTMLElement>(
+      ".session-details-navigation"
+    );
+    const treeButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Keyboard tree action"
+    );
+    const outsideButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Outside action"
+    );
+
+    act(() => {
+      treeButton?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Tab" })
+      );
+      treeButton?.focus();
+    });
+    expect(navigation?.dataset.open).toBe("true");
+
+    act(() => outsideButton?.focus());
+    expect(navigation?.dataset.open).toBe("false");
+  });
+
+  it("aligns turn and trace row content in the open navigation", () => {
+    act(() => {
+      root.render(
+        <SessionDetailsNavigation
+          control={<div>View control</div>}
+          isCollapsed={false}
+          isPointerOpen={false}
+          onPointerOpenChange={() => {}}
+        >
+          <button type="button" className="session-turn-row">
+            Turn
+          </button>
+          <button type="button" className="session-trace-row-header">
+            Trace
+          </button>
+        </SessionDetailsNavigation>
+      );
+    });
+
+    const turnRow = container.querySelector<HTMLElement>(".session-turn-row");
+    const traceRow = container.querySelector<HTMLElement>(
+      ".session-trace-row-header"
+    );
+
+    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingTop)).toBe(
+      sessionDetailsNavigationTopLevelRowPaddingBlock
+    );
+    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingTop)).toBe(
+      sessionDetailsNavigationTopLevelRowPaddingBlock
+    );
+    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingLeft)).toBe(
+      detailsPanelNavigationRowContentPaddingInlineStart
+    );
+    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingLeft)).toBe(
+      detailsPanelNavigationRowContentPaddingInlineStart
+    );
   });
 
   it("keeps the hover navigation open when switching session views", () => {

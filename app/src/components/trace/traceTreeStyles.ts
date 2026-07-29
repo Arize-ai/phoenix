@@ -1,9 +1,8 @@
 import { css } from "@emotion/react";
 
-export const NESTING_INDENT = 25;
-export const COMPACT_BREAKPOINT = "300px";
-export const TRACE_TREE_ROW_INLINE_START = "var(--global-dimension-size-125)";
-export const TRACE_TREE_ROW_BORDER_WIDTH = "3px";
+export const TRACE_TREE_CHILD_NESTING_INDENT_PIXELS = 25;
+export const TRACE_TREE_COMPACT_LAYOUT_BREAKPOINT = "300px";
+export const TRACE_TREE_ROW_SELECTION_BORDER_WIDTH = "3px";
 
 /**
  * Content for the resizable trace-tree column. The sizing machine guarantees
@@ -28,9 +27,9 @@ export const traceTreeListCSS = css`
   display: flex;
   flex-direction: column;
   width: 100%;
-  --trace-tree-nesting-indent: ${NESTING_INDENT}px;
-  @container (width < ${COMPACT_BREAKPOINT}) {
-    --trace-tree-nesting-indent: 0;
+  --trace-tree-child-nesting-indent: ${TRACE_TREE_CHILD_NESTING_INDENT_PIXELS}px;
+  @container (width < ${TRACE_TREE_COMPACT_LAYOUT_BREAKPOINT}) {
+    --trace-tree-child-nesting-indent: var(--global-dimension-size-0);
     .span-controls,
     .latency-text,
     .token-count-item,
