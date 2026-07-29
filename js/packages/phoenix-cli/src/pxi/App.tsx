@@ -935,7 +935,7 @@ export function PxiApp({
   const busySessionId = isSessionBusy ? (activeSession?.id ?? null) : null;
   useEffect(() => {
     if (!busySessionId) {
-      return;
+      return undefined;
     }
     let isStale = false;
     const pollSession = () => {
