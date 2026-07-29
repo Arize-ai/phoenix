@@ -10,7 +10,7 @@ import type {
 } from "./types";
 
 export const DEFAULT_PXI_PROVIDER: BuiltInProvider = "ANTHROPIC";
-export const DEFAULT_PXI_MODEL = "claude-opus-4-8";
+export const DEFAULT_PXI_MODEL = "claude-opus-5";
 
 export const BUILT_IN_PROVIDERS = [
   "ANTHROPIC",
@@ -69,7 +69,7 @@ type RawPxiOptions = {
    * {@link DEFAULT_PXI_MODEL} for built-in providers; required when
    * `customProviderId` is set.
    *
-   * @example "claude-opus-4-8"
+   * @example "claude-opus-5"
    */
   model?: string;
   /**

@@ -8636,6 +8636,8 @@ export interface operations {
                 end_time?: string | null;
                 /** @description Filter by one or more trace IDs */
                 trace_id?: string[] | null;
+                /** @description Filter by one or more span IDs */
+                span_id?: string[] | null;
                 /** @description Filter by parent span ID. Use "null" to get root spans only. */
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */
@@ -8705,6 +8707,8 @@ export interface operations {
                 end_time?: string | null;
                 /** @description Filter by one or more trace IDs */
                 trace_id?: string[] | null;
+                /** @description Filter by one or more span IDs */
+                span_id?: string[] | null;
                 /** @description Filter by parent span ID. Use "null" to get root spans only. */
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */

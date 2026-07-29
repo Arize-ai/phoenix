@@ -21,11 +21,7 @@ This guide contains the grail of essential Phoenix methods and how to use them f
 from phoenix.otel import register
 
 # Register tracer with Phoenix
-tracer_provider = register(
-    project_name="recipe-agent",
-    batch=True,
-    auto_instrument=True
-)
+tracer_provider = register(project_name="recipe-agent", batch=True, auto_instrument=True)
 tracer = tracer_provider.get_tracer(__name__)
 ```
 
@@ -85,7 +81,7 @@ all_spans = Client().spans.get_spans_dataframe()
 
 # Query specific spans
 query = SpanQuery().where("span_kind == 'CHAIN'")
-chain_spans = Client().spans.get_spans_dataframe(query=query, project_name='recipe-agent')
+chain_spans = Client().spans.get_spans_dataframe(query=query, project_name="recipe-agent")
 ```
 
 ### [Advanced Querying](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries)
@@ -94,38 +90,26 @@ chain_spans = Client().spans.get_spans_dataframe(query=query, project_name='reci
 
 ```python
 # Filter by span kind and attributes
-query = SpanQuery().where(
-    "span_kind == 'CHAIN' and 'vegan' in attributes.dietary_restriction"
-)
+query = SpanQuery().where("span_kind == 'CHAIN' and 'vegan' in attributes.dietary_restriction")
 
 # Filter by evaluation results
-query = SpanQuery().where(
-    "evals['correctness'].label == 'incorrect'"
-)
+query = SpanQuery().where("evals['correctness'].label == 'incorrect'")
 
 # Filter spans without evaluations
-query = SpanQuery().where(
-    "evals['correctness'].label is None"
-)
+query = SpanQuery().where("evals['correctness'].label is None")
 ```
 
 #### Selecting Specific Attributes
 
 ```python
 # Select input and output values
-query = SpanQuery().where("span_kind == 'LLM'").select(
-    "input.value",
-    "output.value"
-)
+query = SpanQuery().where("span_kind == 'LLM'").select("input.value", "output.value")
 # Then rename after querying:
 # df = client.spans.get_spans_dataframe(query=query)
 # df = df.rename(columns={"input.value": "input", "output.value": "output"})
 
 # Rename columns to custom names
-query = SpanQuery().select(
-    "input.value",
-    "output.value"
-)
+query = SpanQuery().select("input.value", "output.value")
 # df = df.rename(columns={"input.value": "user_query", "output.value": "bot_response"})
 ```
 
@@ -145,10 +129,10 @@ phoenix_client = Client()
 
 # Upload dataset with key mappings
 dataset = phoenix_client.datasets.create_dataset(
-    dataframe=your_dataframe, #CSV or Pandas Dataframe
+    dataframe=your_dataframe,  # CSV or Pandas Dataframe
     name="my_dataset",
     input_keys=["query"],  # Columns that serve as inputs
-    output_keys=[],        # Columns that serve as outputs (empty for evaluation)
+    output_keys=[],  # Columns that serve as outputs (empty for evaluation)
     metadata_keys=["ground_truth", "explanation", "category"],  # Additional metadata
 )
 ```
@@ -175,7 +159,7 @@ train_dataset = phoenix_client.datasets.create_dataset(
         "ground_truth_label",
         "ground_truth_explanation",
         "attributes.dietary_restriction",
-        "attributes.trace_num"
+        "attributes.trace_num",
     ],
 )
 
@@ -190,7 +174,7 @@ test_dataset = phoenix_client.datasets.create_dataset(
         "ground_truth_label",
         "ground_truth_explanation",
         "attributes.dietary_restriction",
-        "attributes.trace_num"
+        "attributes.trace_num",
     ],
 )
 ```
@@ -206,21 +190,24 @@ Phoenix experiments allow you to evaluate your models systematically with custom
 ```python
 from phoenix.client.experiments import run_experiment
 
+
 # Create task function
 def task(input, metadata):
     # Your model logic here
     return {"prediction": "result"}
 
+
 # Define evaluators
 def accuracy(metadata, output):
     return metadata["ground_truth"] == output["prediction"]
+
 
 # Run experiment
 experiment = run_experiment(
     dataset=dataset,
     task=task,
     evaluators=[accuracy],
-    concurrency=3  # Number of parallel workers
+    concurrency=3,  # Number of parallel workers
 )
 ```
 
@@ -229,12 +216,13 @@ experiment = run_experiment(
 ```python
 def create_task_function(base_prompt: str):
     """Create a task function that uses a specific prompt."""
+
     def task(input, metadata):
         # Format prompt with input and metadata
         formatted_prompt = base_prompt.format(
             query=input.get("attributes.query"),
             dietary_restriction=metadata.get("attributes.dietary_restriction"),
-            output=metadata.get("attributes.output.value")
+            output=metadata.get("attributes.output.value"),
         )
 
         # Call LLM
@@ -247,6 +235,7 @@ def create_task_function(base_prompt: str):
         return json.loads(completion.choices[0].message.content)
 
     return task
+
 
 # Usage
 task = create_task_function(judge_prompt)
@@ -263,11 +252,13 @@ def eval_tp(metadata, output):
     tp = (metadata["ground_truth_label"] == "PASS") & (label.lower() == "pass")
     return tp
 
+
 def eval_tn(metadata, output):
     """True negative evaluator."""
     label = output.get("label")
     tn = (metadata["ground_truth_label"] == "FAIL") & (label.lower() == "fail")
     return tn
+
 
 def eval_fp(metadata, output):
     """False positive evaluator."""
@@ -275,16 +266,18 @@ def eval_fp(metadata, output):
     fp = (metadata["ground_truth_label"] == "FAIL") & (label.lower() == "pass")
     return fp
 
+
 def eval_fn(metadata, output):
     """False negative evaluator."""
     label = output.get("label")
     fn = (metadata["ground_truth_label"] == "PASS") & (label.lower() == "fail")
     return fn
 
+
 def accuracy(metadata, output):
     """Overall accuracy evaluator."""
     label = output.get("label")
-    accuracy = (metadata["ground_truth_label"].lower() == label.lower())
+    accuracy = metadata["ground_truth_label"].lower() == label.lower()
     return accuracy
 ```
 
@@ -303,15 +296,15 @@ results = response.json()
 # Process results
 metrics_count = defaultdict(int)
 for entry in results:
-    for ann in entry['annotations']:
-        if ann['name'] in ('eval_tp', 'eval_tn', 'eval_fp', 'eval_fn') and ann['label'] == 'True':
-            metrics_count[ann['name']] += 1
+    for ann in entry["annotations"]:
+        if ann["name"] in ("eval_tp", "eval_tn", "eval_fp", "eval_fn") and ann["label"] == "True":
+            metrics_count[ann["name"]] += 1
 
 # Calculate metrics
-TP = metrics_count['eval_tp']
-TN = metrics_count['eval_tn']
-FP = metrics_count['eval_fp']
-FN = metrics_count['eval_fn']
+TP = metrics_count["eval_tp"]
+TN = metrics_count["eval_tn"]
+FP = metrics_count["eval_fp"]
+FN = metrics_count["eval_fn"]
 
 TPR = TP / (TP + FN) if (TP + FN) > 0 else 0
 TNR = TN / (TN + FP) if (TN + FP) > 0 else 0
@@ -331,12 +324,7 @@ def run_llm_evaluation(dataset, judge_prompt: str):
     evaluators = [eval_tp, eval_tn, eval_fp, eval_fn, accuracy]
 
     # Run experiment
-    experiment = run_experiment(
-        dataset=dataset,
-        task=task,
-        evaluators=evaluators,
-        concurrency=3
-    )
+    experiment = run_experiment(dataset=dataset, task=task, evaluators=evaluators, concurrency=3)
 
     # Get results
     experiment_id = experiment.id
@@ -348,29 +336,28 @@ def run_llm_evaluation(dataset, judge_prompt: str):
     # Process and return metrics
     return process_experiment_results(results)
 
+
 def process_experiment_results(results):
     """Process experiment results to extract metrics."""
     metrics_count = defaultdict(int)
     for entry in results:
-        for ann in entry['annotations']:
-            if ann['name'] in ('eval_tp', 'eval_tn', 'eval_fp', 'eval_fn') and ann['label'] == 'True':
-                metrics_count[ann['name']] += 1
+        for ann in entry["annotations"]:
+            if (
+                ann["name"] in ("eval_tp", "eval_tn", "eval_fp", "eval_fn")
+                and ann["label"] == "True"
+            ):
+                metrics_count[ann["name"]] += 1
 
-    TP = metrics_count['eval_tp']
-    TN = metrics_count['eval_tn']
-    FP = metrics_count['eval_fp']
-    FN = metrics_count['eval_fn']
+    TP = metrics_count["eval_tp"]
+    TN = metrics_count["eval_tn"]
+    FP = metrics_count["eval_fp"]
+    FN = metrics_count["eval_fn"]
 
     TPR = TP / (TP + FN) if (TP + FN) > 0 else 0
     TNR = TN / (TN + FP) if (TN + FP) > 0 else 0
     balanced_acc = (TPR + TNR) / 2
 
-    return {
-        "tpr": TPR,
-        "tnr": TNR,
-        "balanced_accuracy": balanced_acc,
-        "raw_results": results
-    }
+    return {"tpr": TPR, "tnr": TNR, "balanced_accuracy": balanced_acc, "raw_results": results}
 ```
 
 ## [Evaluation Methods](https://arize.com/docs/phoenix/evaluation/how-to-evals/bring-your-own-evaluator)
@@ -394,8 +381,8 @@ Return only: PASS or FAIL
 results = llm_classify(
     dataframe=your_dataframe,
     template=template,
-    model=OpenAIModel('gpt-4o', api_key=os.getenv("OPENAI_API_KEY")),
-    rails=["PASS", "FAIL"]
+    model=OpenAIModel("gpt-4o", api_key=os.getenv("OPENAI_API_KEY")),
+    rails=["PASS", "FAIL"],
 )
 ```
 
@@ -414,20 +401,22 @@ Response: {output}
 Return only: "score: X" where X is a number 1-10
 """
 
+
 # Output parser function
 def score_parser(output: str, row_index: int):
     pattern = r"score:\s*(\d+)"
     match = re.search(pattern, output, re.IGNORECASE)
     return {"score": int(match.group(1)) if match else None}
 
+
 # Run evaluation
 results = llm_generate(
     dataframe=your_dataframe,
     template=template,
-    model=OpenAIModel('gpt-4o', api_key=os.getenv("OPENAI_API_KEY")),
+    model=OpenAIModel("gpt-4o", api_key=os.getenv("OPENAI_API_KEY")),
     output_parser=score_parser,
     include_prompt=True,
-    include_response=True
+    include_response=True,
 )
 ```
 
@@ -447,14 +436,15 @@ def output_parser(output: str, row_index: int) -> Dict[str, Any]:
         "explanation": explanation_match.group(1) if explanation_match else None,
     }
 
+
 # Use in evaluation
 results = llm_generate(
     dataframe=df,
     template=your_template,
-    model=OpenAIModel('gpt-4o', api_key=os.getenv("OPENAI_API_KEY")),
+    model=OpenAIModel("gpt-4o", api_key=os.getenv("OPENAI_API_KEY")),
     output_parser=output_parser,
     include_prompt=True,
-    include_response=True
+    include_response=True,
 )
 ```
 
@@ -491,7 +481,7 @@ import os
 
 # 1. Load traces from Phoenix
 query = SpanQuery().where("span_kind == 'CHAIN'")
-traces_df = Client().spans.get_spans_dataframe(query=query, project_name='recipe-agent')
+traces_df = Client().spans.get_spans_dataframe(query=query, project_name="recipe-agent")
 
 # 2. Define evaluation template
 template = """
@@ -503,9 +493,11 @@ Response: {attributes.output.value}
 Return: {"label": "PASS/FAIL", "explanation": "your reasoning"}
 """
 
+
 # 3. Define output parser
 def output_parser(output: str, row_index: int):
     import re
+
     label_pattern = r'"label":\s*"([^"]*)"'
     explanation_pattern = r'"explanation":\s*"([^"]*)"'
 
@@ -517,14 +509,15 @@ def output_parser(output: str, row_index: int):
         "explanation": explanation_match.group(1) if explanation_match else None,
     }
 
+
 # 4. Run evaluation
 results = llm_generate(
     dataframe=traces_df,
     template=template,
-    model=OpenAIModel('gpt-4o', api_key=os.getenv("OPENAI_API_KEY")),
+    model=OpenAIModel("gpt-4o", api_key=os.getenv("OPENAI_API_KEY")),
     output_parser=output_parser,
     include_prompt=True,
-    include_response=True
+    include_response=True,
 )
 
 # 5. Merge with original data
@@ -546,7 +539,7 @@ px_client.spans.log_span_annotations_dataframe(
 ```python
 def validate_traces_df(df):
     """Validate that traces dataframe has required columns."""
-    required_columns = ['attributes.query', 'attributes.output.value']
+    required_columns = ["attributes.query", "attributes.output.value"]
     missing_columns = [col for col in required_columns if col not in df.columns]
 
     if missing_columns:

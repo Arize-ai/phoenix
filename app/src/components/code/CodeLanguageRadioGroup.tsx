@@ -1,4 +1,4 @@
-import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
+import { SegmentedControl, SegmentedControlItem } from "@phoenix/components";
 import type { SizingProps } from "@phoenix/components/core/types";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { isProgrammingLanguage } from "@phoenix/types/code";
@@ -12,28 +12,24 @@ export function CodeLanguageRadioGroup({
   onChange: (language: ProgrammingLanguage) => void;
 } & SizingProps) {
   return (
-    <ToggleButtonGroup
+    <SegmentedControl
       size={size}
-      selectedKeys={[language]}
+      selectedKey={language}
       aria-label="Code Language"
-      onSelectionChange={(v) => {
-        if (v.size === 0) {
-          return;
-        }
-        const language = v.keys().next().value;
-        if (isProgrammingLanguage(language)) {
-          onChange(language);
+      onSelectionChange={(selectedLanguage) => {
+        if (isProgrammingLanguage(selectedLanguage)) {
+          onChange(selectedLanguage);
         } else {
-          throw new Error(`Unknown language: ${language}`);
+          throw new Error(`Unknown language: ${selectedLanguage}`);
         }
       }}
     >
-      <ToggleButton aria-label="Python" id="Python">
+      <SegmentedControlItem aria-label="Python" id="Python">
         Python
-      </ToggleButton>
-      <ToggleButton aria-label="TypeScript" id="TypeScript">
+      </SegmentedControlItem>
+      <SegmentedControlItem aria-label="TypeScript" id="TypeScript">
         TypeScript
-      </ToggleButton>
-    </ToggleButtonGroup>
+      </SegmentedControlItem>
+    </SegmentedControl>
   );
 }

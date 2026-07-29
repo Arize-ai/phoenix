@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Card, Flex, Icon, Icons, Link } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -55,7 +56,9 @@ export function PromptVersionTagsConfigCard({
           const { promptId, promptVersionId } = row.original;
           return (
             <Link to={`/prompts/${promptId}/versions/${promptVersionId}`}>
-              {row.original.promptVersionId}
+              <Truncate maxWidth="100%">
+                {row.original.promptVersionId}
+              </Truncate>
             </Link>
           );
         },

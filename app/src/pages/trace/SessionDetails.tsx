@@ -348,16 +348,6 @@ export function SessionDetails(props: SessionDetailsProps) {
         overflow: hidden;
       `}
     >
-      <SessionDetailsHeader
-        session={data.session}
-        costSummary={data.session.costSummary}
-        tokenUsage={data.session.tokenUsage}
-        latencyP50={data.session.latencyP50}
-        sessionId={sessionId}
-        projectId={projectId}
-        isAnnotating={isAnnotating}
-        onIsAnnotatingChange={setIsAnnotating}
-      />
       <Group
         orientation="horizontal"
         id="session-details-layout"
@@ -368,6 +358,16 @@ export function SessionDetails(props: SessionDetailsProps) {
       >
         <Panel>
           <Flex direction="column" height="100%">
+            <SessionDetailsHeader
+              session={data.session}
+              costSummary={data.session.costSummary}
+              tokenUsage={data.session.tokenUsage}
+              latencyP50={data.session.latencyP50}
+              sessionId={sessionId}
+              projectId={projectId}
+              isAnnotating={isAnnotating}
+              onIsAnnotatingChange={setIsAnnotating}
+            />
             <SessionViewTabs
               sessionView={sessionView}
               onSessionViewChange={handleSessionViewChange}

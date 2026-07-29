@@ -93,6 +93,7 @@ from phoenix.server.agents.context import (
     ResolvedContexts,
     resolve_contexts,
 )
+from phoenix.server.agents.data_stream_protocol import build_stream_error_chunk
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
@@ -124,6 +125,7 @@ from phoenix.server.api.types.SandboxConfig import (
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
+from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import (
     Tracer,
@@ -852,9 +854,11 @@ async def _load_available_sandbox_backend_types(
     *,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
+    runtime: SandboxRuntimeContext,
 ) -> frozenset[models.SandboxBackendType]:
     backend_info = await get_sandbox_backend_info(
         secrets=SecretsContext(session=session, decrypt=decrypt),
+        runtime=runtime,
     )
     return frozenset(
         info.backend_type.value
@@ -1270,6 +1274,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                     emitted_at=datetime.now(timezone.utc),
                                 )
                             yield chunk
+            except Exception as exc:
+                # Surface the failure to the client as an error chunk (e.g. a
+                # rejected API key) instead of letting the connection close
+                # silently, which leaves the agent appearing to hang.
+                logger.exception("Server agent chat stream failed for session %s", session_id)
+                yield build_stream_error_chunk(exc)
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
@@ -1343,6 +1353,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     available_backend_types = await _load_available_sandbox_backend_types(
                         session=session,
                         decrypt=request.app.state.decrypt,
+                        runtime=request.app.state.sandbox_runtime,
                     )
                     sandbox_availability = await _load_sandbox_availability(
                         session,
@@ -1574,7 +1585,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
                     ):
                         yield message_chunk
+            except Exception as exc:
+                # Surface the failure to the client as an error chunk (e.g. a
+                # rejected API key) instead of letting the connection close
+                # silently, which leaves the agent appearing to hang.
+                stream_error = exc
+                logger.exception("Agent chat stream failed for session %s", session_id)
+                yield build_stream_error_chunk(exc)
             except BaseException as exc:
+                # Cancellation and other non-``Exception`` failures propagate so
+                # client disconnects are not misreported as agent errors.
                 stream_error = exc
                 raise
             finally:

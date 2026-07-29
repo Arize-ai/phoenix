@@ -49,11 +49,12 @@ filter_str = f"(&(objectClass=user)(uid={username}))"
 ```python
 from ldap3.utils.conv import escape_filter_chars
 
+
 def test_ldap_injection_prevention():
     # Test special characters
     assert escape_filter_chars("admin)(uid=*") == "admin\\29\\28uid=\\2a"
     assert escape_filter_chars("user\\admin") == "user\\5cadmin"
-    
+
     # Test null byte
     assert escape_filter_chars("user\x00admin") == "user\\00admin"
 ```
@@ -95,6 +96,7 @@ def _dummy_bind_for_timing(self, server: Server, password: str) -> None:
     except Exception:
         pass  # Expected to fail - we only care about the timing
 
+
 def _authenticate(self, username: str, password: str) -> Optional[LDAPUserInfo]:
     # ... search for user ...
     user_entry = self._search_user(conn, escaped_username)
@@ -103,7 +105,7 @@ def _authenticate(self, username: str, password: str) -> Optional[LDAPUserInfo]:
         # Both "user not found" and "wrong password" now perform the same network I/O
         self._dummy_bind_for_timing(server, password)
         return None
-    
+
     # User found - verify password as normal
     if not self._verify_user_password(server, user_dn, password):
         return None
@@ -158,8 +160,7 @@ failed_attempts = {}  # In production: use Redis
 
 if failed_attempts.get(username, 0) >= 5:
     raise HTTPException(
-        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-        detail="Account temporarily locked"
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Account temporarily locked"
     )
 
 # Increment on failure
@@ -183,13 +184,13 @@ if not success:
 ```python
 # ldap3/core/server.py - DEFAULT allows ANY host with credentials!
 if allowed_referral_hosts is None:
-    allowed_referral_hosts = [('*', True)]  # Allow all hosts, send credentials
+    allowed_referral_hosts = [("*", True)]  # Allow all hosts, send credentials
 ```
 
 **Additional Risk with STARTTLS**:
 ```python
 # ldap3/strategy/base.py - Referral TLS config ignores original settings!
-tls=Tls(...) if selected_referral['ssl'] else None  # STARTTLS referrals get NO TLS config!
+tls = Tls(...) if selected_referral["ssl"] else None  # STARTTLS referrals get NO TLS config!
 ```
 
 For STARTTLS referrals to `ldap://` URLs:
@@ -226,9 +227,7 @@ Connection(
 **Phoenix TLS Implementation** (see `_create_servers()` in `ldap.py`):
 ```python
 # Certificate validation configuration
-tls_kwargs: dict[str, Any] = {
-    "validate": ssl.CERT_REQUIRED if config.tls_verify else ssl.CERT_NONE
-}
+tls_kwargs: dict[str, Any] = {"validate": ssl.CERT_REQUIRED if config.tls_verify else ssl.CERT_NONE}
 
 # Custom CA certificate for private/internal CAs
 if config.tls_ca_cert_file:
@@ -261,8 +260,7 @@ logger.warning("LDAP authentication rejected: empty password")
 
 # Server failure (warning - includes only error type, not details)
 logger.warning(
-    f"LDAP server {server.host} failed during authentication. "
-    f"Error type: {type(e).__name__}"
+    f"LDAP server {server.host} failed during authentication. Error type: {type(e).__name__}"
 )
 
 # All servers exhausted (error)

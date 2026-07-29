@@ -87,13 +87,14 @@ async def _add_span_cost_detail(
     token_type: str,
     is_prompt: bool,
     tokens: Optional[float],
+    cost: Optional[float] = None,
 ) -> models.SpanCostDetail:
     span_cost_detail = models.SpanCostDetail(
         span_cost_id=span_cost.id,
         token_type=token_type,
         is_prompt=is_prompt,
         tokens=tokens,
-        cost=None,
+        cost=cost,
         cost_per_token=None,
     )
     session.add(span_cost_detail)
@@ -470,6 +471,192 @@ class TestTopModels:
         assert not empty_cost_response.errors
         assert (empty_cost_data := empty_cost_response.data) is not None
         assert len(empty_cost_data["node"]["topModelsByCost"]) == 0
+
+    @pytest.mark.parametrize(
+        "bad_project_id",
+        [
+            pytest.param(
+                str(GlobalID(type_name="Span", node_id="1")),
+                id="wrong_type_numeric_payload",
+            ),
+            pytest.param(
+                str(GlobalID(type_name="SandboxProvider", node_id="not-a-number")),
+                id="wrong_type_non_numeric_payload",
+            ),
+        ],
+    )
+    async def test_token_details_reject_a_project_id_of_another_type(
+        self,
+        bad_project_id: str,
+        _cost_data: _CostTestData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """A non-Project ID is a bad request, whether or not its payload parses as an int."""
+        project_gid = str(GlobalID(type_name="Project", node_id=str(_cost_data.project.id)))
+        query = """
+            query ($projectId: ID!, $scopeProjectId: ID!, $timeRange: TimeRange!) {
+                node(id: $projectId) {
+                    ... on Project {
+                        topModelsByCost(timeRange: $timeRange) {
+                            costDetailSummaryEntries(
+                                projectId: $scopeProjectId
+                                timeRange: $timeRange
+                            ) {
+                                tokenType
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "projectId": project_gid,
+                "scopeProjectId": bad_project_id,
+                "timeRange": {
+                    "start": _cost_data.base_time.isoformat(),
+                    "end": (_cost_data.base_time + timedelta(minutes=15)).isoformat(),
+                },
+            },
+        )
+        assert response.errors
+        assert any("Invalid Project ID" in error.message for error in response.errors)
+
+    async def test_token_details_are_aggregated_by_model_project_and_time_range(
+        self,
+        _cost_data: _CostTestData,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        project = _cost_data.project
+        base_time = _cost_data.base_time
+        gpt4 = _cost_data.generative_models["gpt4"]
+        gpt4_span_costs = _cost_data.span_costs[:3]
+
+        async with db() as session:
+            for span_cost, input_tokens, cache_read_tokens, output_tokens, cost in (
+                (gpt4_span_costs[0], 700, 100, 200, 1.5),
+                (gpt4_span_costs[1], 800, 160, 240, 1.8),
+                (gpt4_span_costs[2], 900, 220, 280, 2.1),
+            ):
+                await _add_span_cost_detail(
+                    session,
+                    span_cost,
+                    token_type="input",
+                    is_prompt=True,
+                    tokens=input_tokens,
+                    cost=cost * 0.55,
+                )
+                await _add_span_cost_detail(
+                    session,
+                    span_cost,
+                    token_type="cache_read",
+                    is_prompt=True,
+                    tokens=cache_read_tokens,
+                    cost=cost * 0.20,
+                )
+                await _add_span_cost_detail(
+                    session,
+                    span_cost,
+                    token_type="output",
+                    is_prompt=False,
+                    tokens=output_tokens,
+                    cost=cost * 0.25,
+                )
+
+            other_project = await _add_project(session, name="other-cost-detail-project")
+            other_trace = await _add_trace(
+                session,
+                other_project,
+                start_time=base_time,
+                end_time=base_time + timedelta(minutes=1),
+            )
+            other_span = await _add_span(
+                session,
+                trace=other_trace,
+                start_time=other_trace.start_time,
+                end_time=other_trace.end_time,
+            )
+            other_span_cost = await _add_span_cost(
+                session,
+                span=other_span,
+                trace=other_trace,
+                model=gpt4,
+                total_cost=100,
+                total_tokens=100_000,
+                prompt_cost=100,
+                prompt_tokens=100_000,
+                completion_cost=0,
+                completion_tokens=0,
+            )
+            await _add_span_cost_detail(
+                session,
+                other_span_cost,
+                token_type="cache_read",
+                is_prompt=True,
+                tokens=100_000,
+                cost=100,
+            )
+            await session.commit()
+
+        query = """
+            query ($projectId: ID!, $timeRange: TimeRange!) {
+                node(id: $projectId) {
+                    ... on Project {
+                        topModelsByTokenCount(timeRange: $timeRange) {
+                            name
+                            costDetailSummaryEntries(
+                                projectId: $projectId
+                                timeRange: $timeRange
+                            ) {
+                                tokenType
+                                isPrompt
+                                value { tokens cost }
+                            }
+                        }
+                        topModelsByCost(timeRange: $timeRange) {
+                            name
+                            costDetailSummaryEntries(
+                                projectId: $projectId
+                                timeRange: $timeRange
+                            ) {
+                                tokenType
+                                isPrompt
+                                value { tokens cost }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        project_id = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "projectId": project_id,
+                "timeRange": {
+                    "start": base_time.isoformat(),
+                    "end": (base_time + timedelta(minutes=15)).isoformat(),
+                },
+            },
+        )
+        assert response.data is not None
+        assert not response.errors
+
+        for field_name in ("topModelsByTokenCount", "topModelsByCost"):
+            model = next(
+                model for model in response.data["node"][field_name] if model["name"] == "gpt-4"
+            )
+            details = {
+                (entry["isPrompt"], entry["tokenType"]): entry["value"]
+                for entry in model["costDetailSummaryEntries"]
+            }
+            assert details == {
+                (True, "cache_read"): {"tokens": 260, "cost": pytest.approx(0.66)},
+                (True, "input"): {"tokens": 1500, "cost": pytest.approx(1.815)},
+                (False, "output"): {"tokens": 440, "cost": pytest.approx(0.825)},
+            }
 
 
 class TestTraceTokenCountTimeSeries:
@@ -2747,6 +2934,192 @@ class TestProject:
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
+
+    async def test_parent_is_none_matches_orphan_aware_root_spans_only(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """The DSL predicate ``filterCondition: "parent_span is None"`` selects the same
+        spans as ``rootSpansOnly: true, orphanSpanAsRootSpan: true`` — verifying the
+        correlated ``NOT EXISTS`` behaves correctly once the resolver's project
+        predicate and query structure are applied, not just in direct SpanFilter
+        execution.
+        """
+        project = _orphan_spans.projects[0]
+
+        # Orphan-aware roots computed directly from the fixture: a NULL parent, or a
+        # parent_id that references no span in the table.
+        existing_span_ids = {s.span_id for s in _orphan_spans.spans}
+        expected = {
+            _gid(s)
+            for s in _orphan_spans.spans
+            if s.parent_id is None or s.parent_id not in existing_span_ids
+        }
+        # The fixture must exercise both kinds of root, or the test proves nothing.
+        assert any(s.parent_id is None for s in _orphan_spans.spans)
+        assert any(
+            s.parent_id is not None and s.parent_id not in existing_span_ids
+            for s in _orphan_spans.spans
+        )
+
+        dsl_res = await self._node(
+            'spans(filterCondition:"parent_span is None",first:100){edges{node{id}}}',
+            project,
+            httpx_client,
+        )
+        flag_res = await self._node(
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
+            project,
+            httpx_client,
+        )
+        dsl_ids = {e["node"]["id"] for e in dsl_res["edges"]}
+        flag_ids = {e["node"]["id"] for e in flag_res["edges"]}
+        assert dsl_ids == expected
+        assert dsl_ids == flag_ids
+
+    @pytest.mark.parametrize(
+        "condition,orphan_span_as_root_span",
+        [
+            pytest.param("parent_span is None", True, id="orphan-aware-both"),
+            pytest.param("parent_id is None", True, id="strict-condition-orphan-aware-flag"),
+            pytest.param("parent_id is None", False, id="strict-both"),
+            pytest.param("parent_span is None", False, id="orphan-aware-condition-strict-flag"),
+            # Disjunction where every branch is strict-scoped: the flag skip now
+            # fires off an `or`, so the rows must still match the flag alone.
+            pytest.param(
+                "(parent_id is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                True,
+                id="disjunction-all-strict-orphan-flag",
+            ),
+            pytest.param(
+                "(parent_id is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                False,
+                id="disjunction-all-strict-strict-flag",
+            ),
+            # Negated root predicate: `not (parent_id is not None)` is strict-scoped,
+            # so the skip fires off a `not` and must not change the result.
+            pytest.param(
+                "not (parent_id is not None) and '1' in input.value",
+                True,
+                id="negated-predicate-strict-orphan-flag",
+            ),
+            pytest.param(
+                "not (parent_id is not None) and '1' in input.value",
+                False,
+                id="negated-predicate-strict-strict-flag",
+            ),
+            # A form the analyzer does *not* recognize (De Morgan over a compound):
+            # it under-claims, so the flag's scoping is applied as well. Pinned
+            # because an under-claim must stay harmless -- redundant SQL, same rows.
+            pytest.param(
+                "not (parent_id is not None or '9' in input.value)",
+                True,
+                id="unrecognized-form-flag-still-applied",
+            ),
+            # Disjunction whose branches mix strict and orphan-aware: scoped to
+            # orphan-aware (the wider), so it may skip the orphan-aware flag but
+            # not the strict one.
+            pytest.param(
+                "(parent_span is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                True,
+                id="disjunction-mixed-orphan-flag",
+            ),
+            pytest.param(
+                "(parent_span is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                False,
+                id="disjunction-mixed-strict-flag",
+            ),
+        ],
+    )
+    async def test_root_predicate_and_flag_together_match_the_flag_alone(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+        condition: str,
+        orphan_span_as_root_span: bool,
+    ) -> None:
+        """Sending `rootSpansOnly` *and* a root predicate must not change the result.
+
+        The resolver drops the flag's scoping when the condition already implies
+        it, so this pins that the optimization is semantics-preserving. The
+        strict-flag/orphan-aware-condition case is the one that must NOT be
+        optimized away: skipping a strict flag there would admit orphans.
+        """
+        project = _orphan_spans.projects[0]
+        orphan_arg = str(orphan_span_as_root_span).lower()
+
+        async def span_ids(field: str) -> set[str]:
+            result = await self._node(field, project, httpx_client)
+            return {e["node"]["id"] for e in result["edges"]}
+
+        both = await span_ids(
+            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
+            f'filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
+        )
+        flag_only = await span_ids(
+            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
+            "first:100){edges{node{id}}}"
+        )
+        condition_only = await span_ids(
+            f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
+        )
+        # Combining them is the intersection, which is what the flag alone gives
+        # whenever the condition is at least as strict.
+        assert both == flag_only & condition_only
+        assert both
+
+    async def test_analyze_span_filter_condition_tracks_actual_query_scope(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """``analyzeSpanFilterCondition`` tells a client whether a filtered view is
+        root-scoped, which is what decides between cumulative and per-span metric
+        columns. Its answer has to match what the query actually returns, so this
+        checks the verdict against the rows for both a scoped and an unscoped
+        condition.
+        """
+        project = _orphan_spans.projects[0]
+        user_condition = "'2' in input.value"
+        root_scoped = f"parent_span is None and {user_condition}"
+
+        async def analyze(condition: str) -> bool:
+            result = await self._node(
+                f'analyzeSpanFilterCondition(condition:"{condition}"){{selectsRootSpansOnly}}',
+                project,
+                httpx_client,
+            )
+            return bool(result["selectsRootSpansOnly"])
+
+        async def span_ids(condition: str) -> set[str]:
+            result = await self._node(
+                f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}',
+                project,
+                httpx_client,
+            )
+            return {e["node"]["id"] for e in result["edges"]}
+
+        assert await analyze(user_condition) is False
+        assert await analyze(root_scoped) is True
+
+        scoped_ids = await span_ids(root_scoped)
+        unscoped_ids = await span_ids(user_condition)
+        # The verdict is only meaningful if the predicate actually narrowed the
+        # result; a silently dropped predicate would make these equal.
+        assert scoped_ids < unscoped_ids
+        # ...and it narrows to exactly what the boolean arguments selected.
+        flag_res = await self._node(
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,"
+            f'filterCondition:"{user_condition}",first:100){{edges{{node{{id}}}}}}',
+            project,
+            httpx_client,
+        )
+        assert scoped_ids == {e["node"]["id"] for e in flag_res["edges"]}
 
     @pytest.fixture
     async def _time_series_data(

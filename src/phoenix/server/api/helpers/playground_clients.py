@@ -1390,6 +1390,7 @@ class TogetherStreamingClient(OpenAIBaseStreamingClient):
     model_names=[
         PROVIDER_DEFAULT,
         "anthropic.claude-fable-5",
+        "anthropic.claude-opus-5",
         "anthropic.claude-opus-4-8",
         "anthropic.claude-opus-4-7",
         "anthropic.claude-sonnet-5",
@@ -2202,14 +2203,41 @@ def _anthropic_beta_headers_for_tools(
     return {"anthropic-beta": ",".join(betas)}
 
 
+# Anthropic models that use adaptive thinking (`thinking: {"type": "adaptive"}`).
+# These models removed `temperature`, `top_p`, `top_k`, and extended thinking
+# (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
+# surface; sending any of them returns a 400.
+ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
+    "claude-fable-5",
+    "claude-opus-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-sonnet-5",
+]
+
+# Older Anthropic models that still accept extended thinking
+# (`thinking: {"type": "enabled", "budget_tokens": N}`) alongside the sampling
+# parameters. Kept as a distinct group because the request surface differs, not
+# because they use a different client.
+ANTHROPIC_EXTENDED_THINKING_MODELS = [
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-opus-4-1",
+    "claude-sonnet-4-0",
+    "claude-opus-4-0",
+    "claude-3-7-sonnet-latest",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-fable-5",
-        "claude-opus-4-8",
-        "claude-opus-4-7",
-        "claude-sonnet-5",
+        *ANTHROPIC_ADAPTIVE_THINKING_MODELS,
+        *ANTHROPIC_EXTENDED_THINKING_MODELS,
     ],
 )
 class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
@@ -2638,27 +2666,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             return tool_use_content
 
         return content
-
-
-ANTHROPIC_REASONING_MODELS = [
-    "claude-opus-4-6",
-    "claude-sonnet-4-6",
-    "claude-opus-4-5",
-    "claude-sonnet-4-5",
-    "claude-haiku-4-5",
-    "claude-opus-4-1",
-    "claude-sonnet-4-0",
-    "claude-opus-4-0",
-    "claude-3-7-sonnet-latest",
-]
-
-
-@register_llm_client(
-    provider_key=GenerativeProviderKey.ANTHROPIC,
-    model_names=ANTHROPIC_REASONING_MODELS,
-)
-class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
-    pass
 
 
 @register_llm_client(
@@ -3522,12 +3529,6 @@ async def _get_builtin_provider_client(
         anthropic_client_factory: ClientFactory["AsyncAnthropic"] = LLMClientFactory(
             create_anthropic_client, anthropic_rate_limit_key(api_key, None)
         )
-        if model_name in ANTHROPIC_REASONING_MODELS:
-            return AnthropicReasoningStreamingClient(
-                client_factory=anthropic_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
         return AnthropicStreamingClient(
             client_factory=anthropic_client_factory,
             model_name=model_name,
@@ -4066,12 +4067,6 @@ async def _get_custom_provider_client(
             anthropic_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        if model_name in ANTHROPIC_REASONING_MODELS:
-            return AnthropicReasoningStreamingClient(
-                client_factory=anthropic_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
         return AnthropicStreamingClient(
             client_factory=anthropic_client_factory,
             model_name=model_name,

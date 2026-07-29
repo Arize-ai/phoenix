@@ -108,6 +108,209 @@ export function safelyStringifyJSON(
 }
 
 /**
+ * Recursively expands stringified JSON throughout nested objects and arrays so
+ * that a value like `{ "messages": "[{\"role\":\"user\"}]" }` reads as a single
+ * JSON tree. Values that are not stringified JSON are left untouched.
+ *
+ * @example
+ * ```ts
+ * expandStringifiedJSON({ a: '{"b": 1}' }) // { a: { b: 1 } }
+ * expandStringifiedJSON({ a: "hello" })    // { a: "hello" }
+ * ```
+ */
+export function expandStringifiedJSON(value: unknown): unknown {
+  if (typeof value === "string") {
+    const parsed = safelyParseJSONObjectString(value);
+    // a string that does not hold an object or array is itself the leaf
+    return parsed === undefined ? value : expandStringifiedJSON(parsed);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(expandStringifiedJSON);
+  }
+
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, val]) => [
+        key,
+        expandStringifiedJSON(val),
+      ])
+    );
+  }
+
+  return value;
+}
+
+/**
+ * Checks whether a value contains stringified JSON that
+ * {@link expandStringifiedJSON} would expand.
+ */
+export function hasStringifiedJSON(value: unknown): boolean {
+  if (typeof value === "string") {
+    return safelyParseJSONObjectString(value) !== undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value.some(hasStringifiedJSON);
+  }
+
+  if (typeof value === "object" && value !== null) {
+    return Object.values(value).some(hasStringifiedJSON);
+  }
+
+  return false;
+}
+
+/**
+ * A single leaf of a JSON tree, addressed by its flattened path.
+ */
+export type FlatJSONEntry = {
+  /**
+   * The delimited path to the value, e.g. `llm.input_messages[0].content`.
+   */
+  key: string;
+  /**
+   * The leaf value at the key. Primitives, plus empty objects and arrays, which
+   * have no leaves of their own but are worth surfacing.
+   */
+  value: unknown;
+};
+
+/**
+ * How an array item is addressed in a flattened key.
+ *
+ * - `bracket` — `messages[0].content`, the JSONPath form
+ * - `dot` — `messages.0.content`, the form OpenTelemetry uses for its
+ *   attribute keys, so the key can be pasted straight into instrumentation
+ */
+export type FlatJSONIndexNotation = "bracket" | "dot";
+
+/** Joins the segments of a flattened key. */
+const KEY_SEPARATOR = ".";
+
+/**
+ * Appends an array index to a flattened key in the requested notation.
+ */
+function appendIndex({
+  parentKey,
+  index,
+  indexNotation,
+}: {
+  parentKey: string;
+  index: number;
+  indexNotation: FlatJSONIndexNotation;
+}): string {
+  if (indexNotation === "bracket") {
+    return `${parentKey}[${index}]`;
+  }
+  // a root array has nothing to separate the index from
+  return parentKey ? `${parentKey}${KEY_SEPARATOR}${index}` : String(index);
+}
+
+/**
+ * Flattens a JSON value into an ordered list of leaf entries, keyed by their
+ * path. Object keys are joined with `.`, array items are addressed according to
+ * `indexNotation`.
+ *
+ * Unlike {@link flattenObject} this preserves the order of the source document
+ * and keeps empty objects and arrays, which would otherwise vanish.
+ *
+ * A root that is not an object or an array yields no entries — there is no key
+ * to flatten it under.
+ *
+ * Keys are not unique: a recorded key holding a `.` collides with a nested one,
+ * so `{ "a.b": 1, a: { b: 2 } }` yields two entries both keyed `a.b`. Callers
+ * that need to round-trip the result must keep it as a list.
+ *
+ * @example
+ * ```ts
+ * toFlatJSONEntries({ value: { a: { b: 1 }, c: [2] } })
+ * // [{ key: "a.b", value: 1 }, { key: "c[0]", value: 2 }]
+ *
+ * toFlatJSONEntries({ value: { c: [2] }, indexNotation: "dot" })
+ * // [{ key: "c.0", value: 2 }]
+ * ```
+ */
+export function toFlatJSONEntries({
+  value,
+  indexNotation = "bracket",
+  parentKey = "",
+}: {
+  value: unknown;
+  /**
+   * How array items are addressed.
+   * @default "bracket"
+   */
+  indexNotation?: FlatJSONIndexNotation;
+  /**
+   * The key the value is nested under. Used when recursing.
+   */
+  parentKey?: string;
+}): FlatJSONEntry[] {
+  if (Array.isArray(value) && value.length > 0) {
+    return value.flatMap((item, index) =>
+      toFlatJSONEntries({
+        value: item,
+        indexNotation,
+        parentKey: appendIndex({ parentKey, index, indexNotation }),
+      })
+    );
+  }
+
+  if (isPlainObject(value) && Object.keys(value).length > 0) {
+    return Object.entries(value).flatMap(([key, val]) =>
+      toFlatJSONEntries({
+        value: val,
+        indexNotation,
+        parentKey: parentKey ? `${parentKey}${KEY_SEPARATOR}${key}` : key,
+      })
+    );
+  }
+
+  return parentKey === "" ? [] : [{ key: parentKey, value }];
+}
+
+/**
+ * Formats a {@link FlatJSONEntry} value for display and copying. Strings are
+ * shown as-is so they stay readable; everything else is JSON encoded.
+ *
+ * @example
+ * ```ts
+ * formatFlatJSONValue("hello") // "hello"
+ * formatFlatJSONValue(null)    // "null"
+ * formatFlatJSONValue([])      // "[]"
+ * ```
+ */
+export function formatFlatJSONValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  return safelyStringifyJSON(value).json ?? String(value);
+}
+
+/**
+ * Filters flattened entries down to those whose key or formatted value contains
+ * the query, case-insensitively. An empty query matches everything.
+ */
+export function filterFlatJSONEntries({
+  entries,
+  query,
+}: {
+  entries: FlatJSONEntry[];
+  query: string;
+}): FlatJSONEntry[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return entries;
+  }
+  return entries.filter(
+    ({ key, value }) =>
+      key.toLowerCase().includes(normalizedQuery) ||
+      formatFlatJSONValue(value).toLowerCase().includes(normalizedQuery)
+  );
+}
+
+/**
  * Flattens an object into a single-level object.
  */
 export function flattenObject({

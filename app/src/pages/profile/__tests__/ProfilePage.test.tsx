@@ -114,19 +114,6 @@ describe("ProfilePage", () => {
     }
   );
 
-  it("renders a tab with an icon for every profile section", async () => {
-    await renderProfilePage("/profile/account");
-
-    const tabs = Array.from(container.querySelectorAll('[role="tab"]'));
-    expect(tabs.map((tab) => tab.textContent)).toEqual([
-      "Account",
-      "API Keys",
-      "Apps",
-      "Preferences",
-    ]);
-    expect(tabs.every((tab) => tab.querySelector("svg"))).toBe(true);
-  });
-
   it("shows preferences when authentication is disabled", async () => {
     viewerState.viewer = null;
 

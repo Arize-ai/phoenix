@@ -7,8 +7,7 @@ import {
   useDefaultLayout,
 } from "react-resizable-panels";
 
-import { View } from "@phoenix/components";
-import { ChartPanel } from "@phoenix/components/chart";
+import { ChartPanelStrip } from "@phoenix/components/chart";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getExperimentMetricCharts } from "@phoenix/pages/dataset/metrics/chartCatalog";
@@ -32,43 +31,28 @@ const chartsResizeHandleCSS = css`
   z-index: 1;
 `;
 
-const chartsGridCSS = css`
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: var(--global-dimension-size-100);
-  height: 100%;
-`;
-
 /**
  * A strip of user-selected metric charts shown above the experiments table.
  * Any chart in the experiment metric chart catalog can be added. The
  * selection is persisted per dataset.
  */
-function ExperimentsMetricsCharts() {
+export function ExperimentsMetricsCharts() {
   const datasetId = useDatasetContext((state) => state.datasetId);
   const selectedChartKeys = useDatasetContext(
     (state) => state.experimentsMetricChartKeys
   );
   const charts = getExperimentMetricCharts(selectedChartKeys);
   return (
-    <View
-      paddingStart="size-200"
-      paddingEnd="size-200"
-      paddingTop="size-100"
-      height="100%"
-      overflow="visible"
-      position="relative"
-      zIndex={2}
-    >
-      <div css={chartsGridCSS}>
-        {charts.map(({ key, name, description, Component }) => (
-          <ChartPanel key={key} title={name} subtitle={description} fillHeight>
-            <Component datasetId={datasetId} />
-          </ChartPanel>
-        ))}
-      </div>
-    </View>
+    <ChartPanelStrip chartCount={charts.length}>
+      {charts.map(({ key, annotationName, Panel }) => (
+        <Panel
+          key={key}
+          datasetId={datasetId}
+          annotationName={annotationName}
+          fillHeight
+        />
+      ))}
+    </ChartPanelStrip>
   );
 }
 

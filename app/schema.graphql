@@ -2116,8 +2116,16 @@ type GenerativeModel implements Node & ModelInterface {
   updatedAt: DateTime!
   startTime: DateTime
   tokenPrices: [TokenPrice!]!
+
+  """
+  Total cost for this model. Narrowing by project or time range is only answered on the topModelsByCost and topModelsByToken paths, which precompute the scoped summary; any other caller passing projectId or timeRange gets an error. Unlike costDetailSummaryEntries, this field cannot yet resolve an arbitrary scope.
+  """
   costSummary(projectId: ID, timeRange: TimeRange): SpanCostSummary!
-  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+
+  """
+  Cost and token counts for this model, broken down by token type. Both arguments are optional filters: projectId limits the breakdown to spans in one project, timeRange to spans that started within it, and omitting both returns the model's usage across all projects and time.
+  """
+  costDetailSummaryEntries(projectId: ID, timeRange: TimeRange): [SpanCostDetailSummaryEntry!]!
   lastUsedAt: DateTime
 }
 
@@ -2397,6 +2405,10 @@ input ModelsInput {
   providerKey: GenerativeProviderKey
   modelName: String = null
   openaiApiType: OpenAIApiType = null
+}
+
+input MontyConfigInput {
+  language: Language! = PYTHON
 }
 
 type Mutation {
@@ -2843,6 +2855,11 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+
+  """
+  How a span filter condition relates to root-span scoping, so clients need not parse the DSL. Structural only; use `validateSpanFilterCondition` to check validity.
+  """
+  analyzeSpanFilterCondition(condition: String!): SpanFilterConditionAnalysis!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
@@ -3679,6 +3696,8 @@ type SandboxBackendInfo {
   supportsEnvVars: Boolean!
   internetAccess: InternetAccessMode!
   supportsDependencies: Boolean!
+  languageDialect: SandboxLanguageDialect!
+  runtimeNotes: String!
   credentialSpecs: [SandboxProviderCredentialSpec!]!
 }
 
@@ -3697,6 +3716,7 @@ enum SandboxBackendType {
   VERCEL
   DENO
   MODAL
+  MONTY
 }
 
 type SandboxConfig implements Node {
@@ -3744,6 +3764,7 @@ input SandboxConfigVariantInput @oneOf {
   vercel: VercelConfigInput
   wasm: WASMConfigInput
   modal: ModalConfigInput
+  monty: MontyConfigInput
 }
 
 """
@@ -3759,6 +3780,11 @@ input SandboxDeploymentVariantInput @oneOf {
 enum SandboxHostingType {
   LOCAL
   HOSTED
+}
+
+enum SandboxLanguageDialect {
+  FULL
+  RESTRICTED
 }
 
 type SandboxProvider implements Node {
@@ -4166,6 +4192,13 @@ type SpanEvent {
   message: String!
   timestamp: DateTime!
   attributes: JSON!
+}
+
+type SpanFilterConditionAnalysis {
+  """
+  Whether a root predicate (`parent_span is None` or `parent_id is None`) binds every row the condition can match. `true` is a guarantee; `false` means not established, not that non-root spans are admitted.
+  """
+  selectsRootSpansOnly: Boolean!
 }
 
 type SpanIOValue {

@@ -78,6 +78,8 @@ describe("trace list", () => {
         "5",
         "--since",
         "2026-07-01T00:00:00Z",
+        "--until",
+        "2026-07-02T00:00:00Z",
         ...PROJECT_ARGS,
         ...BASE_ARGS,
       ],
@@ -89,6 +91,7 @@ describe("trace list", () => {
     // user-facing limit is applied to the assembled traces client-side.
     expect(capturedQuery?.get("limit")).toBe("1000");
     expect(capturedQuery?.get("start_time")).toBe("2026-07-01T00:00:00Z");
+    expect(capturedQuery?.get("end_time")).toBe("2026-07-02T00:00:00Z");
     expect(capturedQuery?.get("cursor")).toBeNull();
 
     const output = io.stdout.mock.calls[0]?.[0];

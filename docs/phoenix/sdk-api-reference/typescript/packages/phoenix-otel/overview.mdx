@@ -97,7 +97,7 @@ import { DiagLogLevel, register } from "@arizeai/phoenix-otel";
 
 const provider = register({
   projectName: "support-bot",
-  url: "https://app.phoenix.arize.com",
+  url: "https://your-phoenix.example.com",
   apiKey: process.env.PHOENIX_API_KEY,
   headers: {
     "x-client-name": "support-bot-api",
@@ -186,7 +186,7 @@ Keep `batch: true` in production. The batch span processor groups spans before e
 ```ts
 const provider = register({
   projectName: "support-bot",
-  url: "https://app.phoenix.arize.com",
+  url: "https://your-phoenix.example.com",
   apiKey: process.env.PHOENIX_API_KEY,
   batch: true,
 });
@@ -220,7 +220,7 @@ import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 
 const exporter = new OTLPTraceExporter({
-  url: "https://app.phoenix.arize.com/v1/traces",
+  url: "https://your-phoenix.example.com/v1/traces",
   headers: { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
 });
 

@@ -12,12 +12,15 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.dataloaders.span_cost_detail_summary_entries_by_model_and_scope import (
+    CostDetailSummaryScope,
+    GenerativeModelCostDetailSummaryKey,
+)
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.ModelInterface import ModelInterface
-from phoenix.server.api.types.node import from_global_id
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TokenPrice import TokenKind, TokenPrice
@@ -152,7 +155,15 @@ class GenerativeModel(Node, ModelInterface):
             )
         return token_prices
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            "Total cost for this model. Narrowing by project or time range is only "
+            "answered on the topModelsByCost and topModelsByToken paths, which "
+            "precompute the scoped summary; any other caller passing projectId or "
+            "timeRange gets an error. Unlike costDetailSummaryEntries, this field "
+            "cannot yet resolve an arbitrary scope."
+        )
+    )  # type: ignore
     async def cost_summary(
         self,
         info: Info[Context, None],
@@ -161,12 +172,7 @@ class GenerativeModel(Node, ModelInterface):
     ) -> SpanCostSummary:
         if self.cached_cost_summary is not None:
             time_range_key = (time_range.start, time_range.end) if time_range else (None, None)
-            project_rowid: Optional[int] = None
-            if project_id:
-                type_name, project_rowid = from_global_id(project_id)
-                if type_name != models.Project.__name__:
-                    raise BadRequest("Invalid Project ID")
-            cache_key = (project_rowid, time_range_key)
+            cache_key = (_get_project_rowid(project_id), time_range_key)
             if cache_key in self.cached_cost_summary:
                 return self.cached_cost_summary[cache_key]
 
@@ -192,13 +198,31 @@ class GenerativeModel(Node, ModelInterface):
             ),
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            "Cost and token counts for this model, broken down by token type. "
+            "Both arguments are optional filters: projectId limits the breakdown to "
+            "spans in one project, timeRange to spans that started within it, and "
+            "omitting both returns the model's usage across all projects and time."
+        )
+    )  # type: ignore
     async def cost_detail_summary_entries(
         self,
         info: Info[Context, None],
+        project_id: Optional[GlobalID] = UNSET,
+        time_range: Optional[TimeRange] = UNSET,
     ) -> list[SpanCostDetailSummaryEntry]:
-        loader = info.context.data_loaders.span_cost_detail_summary_entries_by_generative_model
-        summary = await loader.load(self.id)
+        loader = info.context.data_loaders.span_cost_detail_summary_entries_by_model_and_scope
+        summary = await loader.load(
+            GenerativeModelCostDetailSummaryKey(
+                model_id=self.id,
+                scope=CostDetailSummaryScope(
+                    project_id=_get_project_rowid(project_id),
+                    start_time=time_range.start if time_range else None,
+                    end_time=time_range.end if time_range else None,
+                ),
+            )
+        )
         return [
             SpanCostDetailSummaryEntry(
                 token_type=entry.token_type,
@@ -214,6 +238,23 @@ class GenerativeModel(Node, ModelInterface):
     @strawberry.field
     async def last_used_at(self, info: Info[Context, None]) -> Optional[datetime]:
         return await info.context.data_loaders.last_used_times_by_generative_model_id.load(self.id)
+
+
+def _get_project_rowid(project_id: Optional[GlobalID]) -> Optional[int]:
+    """Resolves a project's row ID, or None when no project narrows the query.
+
+    The type name is checked before the row ID is parsed, so an ID carrying a
+    non-numeric payload is still reported as an invalid project rather than
+    surfacing as an internal error.
+    """
+    if not project_id:
+        return None
+    if project_id.type_name != models.Project.__name__:
+        raise BadRequest("Invalid Project ID")
+    try:
+        return int(project_id.node_id)
+    except ValueError:
+        raise BadRequest("Invalid Project ID")
 
 
 def _semconv_provider_to_gql_generative_provider_key(

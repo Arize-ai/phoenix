@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 2.1.0
+
+### Minor Changes
+
+- 899dece: Add a built-in toxicity evaluator (createToxicityEvaluator) for classifying text as toxic or non-toxic.
+
 ## 2.0.0
 
 ### Major Changes

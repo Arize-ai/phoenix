@@ -43,11 +43,14 @@ export const buttonCSS = css`
   &[data-size="S"][data-childless="false"] {
     padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   }
+  /* Icon-only buttons are square */
   &[data-size="M"][data-childless="true"] {
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-100);
+    padding: 0;
+    min-width: var(--global-button-height-m);
   }
   &[data-size="S"][data-childless="true"] {
-    padding: var(--global-dimension-size-50) var(--global-dimension-size-50);
+    padding: 0;
+    min-width: var(--global-button-height-s);
   }
   // The default style
 

@@ -1,4 +1,5 @@
 import type { components } from "@phoenix/api/__generated__/v1";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
  * Agent context types advertised to the PXI chat agent.
@@ -87,5 +88,7 @@ export function agentContextKey(context: AgentContext): string {
       return "web_access";
     case "subagents":
       return "subagents";
+    default:
+      return assertUnreachable(context);
   }
 }

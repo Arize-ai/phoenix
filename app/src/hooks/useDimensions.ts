@@ -16,7 +16,7 @@ export const useDimensions = (ref: React.RefObject<HTMLElement | null>) => {
   const [dimensions, setDimensions] = useState<MaybeDimensions>(null);
 
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current) return undefined;
 
     const resizeObserver = new ResizeObserver((entries) => {
       if (!entries || entries.length === 0) return;

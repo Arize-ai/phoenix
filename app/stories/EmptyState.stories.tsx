@@ -155,7 +155,7 @@ export const ButtonWithDescriptionLink: Story = {
 
 const twoCards = [
   {
-    icon: <Icon svg={<Icons.Template />} />,
+    icon: <Icon svg={<Icons.LLMOutput />} />,
     title: "LLM Evaluators",
     description: "Use AI to assess correctness, relevance, and tone.",
     href: "https://docs.arize.com/phoenix",
@@ -216,7 +216,7 @@ export const GraphicTwoCardsTwoColumns: Story = {
 
 const sixCards = [
   {
-    icon: <Icon svg={<Icons.Template />} />,
+    icon: <Icon svg={<Icons.LLMOutput />} />,
     title: "correctness",
     description:
       "Assess general correctness and completeness of model outputs.",
@@ -224,7 +224,7 @@ const sixCards = [
     external: true,
   },
   {
-    icon: <Icon svg={<Icons.Template />} />,
+    icon: <Icon svg={<Icons.LLMOutput />} />,
     title: "tool_selection",
     description:
       "Determine if the correct tool was selected for a given context.",
@@ -232,7 +232,7 @@ const sixCards = [
     external: true,
   },
   {
-    icon: <Icon svg={<Icons.Template />} />,
+    icon: <Icon svg={<Icons.LLMOutput />} />,
     title: "tool_invocation",
     description:
       "Verify a tool was invoked correctly with proper arguments and formatting.",

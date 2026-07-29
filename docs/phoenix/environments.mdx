@@ -5,17 +5,14 @@ title: "Environments"
 The Phoenix app can be run in various environments such as Colab and SageMaker notebooks, as well as be served via the terminal or a docker container.
 
 <Columns cols={2}>
-  <Card title="Phoenix Cloud" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/e9f91420-image.jpeg" href="https://app.phoenix.arize.com/login">
-    Connect to a pre-configured, managed Phoenix instance
+  <Card title="From the Terminal" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/96785dbd-image.jpeg" href="/docs/phoenix/environments#terminal">
+    Run Phoenix via the CLI on your local machine
   </Card>
   <Card title="As a Container" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/09a1b0fb-image.jpeg" href="/docs/phoenix/self-hosting">
     Self-host your own Phoenix
   </Card>
   <Card title="In a Notebook" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/bac66bfa-image.jpeg" href="/docs/phoenix/environments#notebooks">
     Run Phoenix in the notebook as you run experiments
-  </Card>
-  <Card title="From the Terminal" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/96785dbd-image.jpeg" href="/docs/phoenix/environments#terminal">
-    Run Phoenix via the CLI on your local machine
   </Card>
 </Columns>
 
@@ -24,22 +21,17 @@ If you are set up, see [Quickstarts](/docs/phoenix/get-started) to start using P
 
 </Check>
 
-### Phoenix Cloud
+### Remote deployments
 
-[Phoenix Cloud](https://app.phoenix.arize.com/) provides free-to-use Phoenix instances that are preconfigured for you with 10GBs of storage space. Phoenix Cloud instances are a great starting point, however if you need more storage or more control over your instance, self-hosting options could be a better fit.
-
-If you're using Phoenix Cloud, be sure to set the proper environment variables to connect to your instance:
+Any Phoenix instance that isn't running on the same machine as your app — a container, a Kubernetes deployment, or a managed host — is reached the same way: point `PHOENIX_COLLECTOR_ENDPOINT` at its hostname, and supply an API key if it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled.
 
 ```python
 import os
 
-# Add Phoenix API Key for tracing
-os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX HOSTNAME"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://your-phoenix.example.com"
 
-# If you created your Phoenix Cloud instance before June 24th, 2025,
-# you also need to set the API key as a header
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.getenv('PHOENIX_API_KEY')}"
+# Only if the deployment has authentication enabled
+os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
 ```
 
 ### Container
@@ -79,9 +71,9 @@ Phoenix reads its connection settings from environment variables. Three of them 
 
 | Variable | What it is | When to set it |
 |----------|------------|----------------|
-| `PHOENIX_COLLECTOR_ENDPOINT` | The base URL of the Phoenix server that **receives your traces** (the OTel collector). Set the base URL only — e.g. `https://app.phoenix.arize.com` or `http://localhost:6006` — not a full `/v1/traces` path. | Whenever your app and the Phoenix server are not on the same machine, or you're using Phoenix Cloud. This is the variable the tracing SDKs (`register()`) use. |
-| `PHOENIX_API_KEY` | The credential used to **authenticate** to a Phoenix instance that has auth enabled (Phoenix Cloud, or a self-hosted instance with authentication turned on). | When connecting to Phoenix Cloud or any authenticated deployment. |
-| `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request. Older Phoenix Cloud instances (created before June 24th, 2025) expect the API key here as `api_key=...`. | Only when a deployment requires custom headers, or for legacy Cloud instances. |
+| `PHOENIX_COLLECTOR_ENDPOINT` | The base URL of the Phoenix server that **receives your traces** (the OTel collector). Set the base URL only — e.g. `http://localhost:6006` or `https://your-phoenix.example.com` — not a full `/v1/traces` path. | Whenever your app and the Phoenix server are not on the same machine. This is the variable the tracing SDKs (`register()`) use. |
+| `PHOENIX_API_KEY` | The credential used to **authenticate** to a Phoenix instance that has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled. | When connecting to any authenticated deployment. A local `phoenix serve` needs none. |
+| `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request, e.g. `api_key=...`. | Only when a deployment requires custom headers. |
 
 <Warning>
 Point `PHOENIX_COLLECTOR_ENDPOINT` at the server's **base URL**. Setting it (or the legacy `PHOENIX_HOST`) to a full endpoint path such as `.../v1/traces` will misconfigure the exporter and your traces will not arrive.

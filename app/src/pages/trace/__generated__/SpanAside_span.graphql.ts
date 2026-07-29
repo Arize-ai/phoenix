@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ba8f0ece98cea789a079d969fdccfd73>>
+ * @generated SignedSource<<376245cef500c79a035f9f171a3fd2cf>>
  * @lightSyntaxTransform
  */
 
@@ -40,7 +40,6 @@ export type SpanAside_span$data = {
   };
   readonly startTime: string;
   readonly tokenCountTotal: number | null;
-  readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "SpanAsideAnnotationList_span" | "TraceHeaderRootSpanAnnotationsFragment">;
   readonly " $fragmentType": "SpanAside_span";
 };
 export type SpanAside_span$key = {
@@ -254,21 +253,6 @@ return {
       "kind": "ScalarField",
       "name": "tokenCountTotal",
       "storageKey": null
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "TraceHeaderRootSpanAnnotationsFragment"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanAsideAnnotationList_span"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "AnnotationSummaryGroup"
     }
   ],
   "type": "Span",
@@ -276,6 +260,6 @@ return {
 };
 })();
 
-(node as any).hash = "87690ad6c936ad1bf3581fd411e71b68";
+(node as any).hash = "733e417c51d5f7a5f000eb7e16c1fc2e";
 
 export default node;

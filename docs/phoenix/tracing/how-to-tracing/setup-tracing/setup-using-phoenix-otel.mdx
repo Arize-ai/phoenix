@@ -65,6 +65,10 @@ The Phoenix OTEL SDK provides a lightweight wrapper around OpenTelemetry with se
   </Tab>
 </Tabs>
 
+<Note>
+**Do I need to match the SDK version to my Phoenix server version?** No. `arize-phoenix-otel` (and `@arizeai/phoenix-otel`) are versioned independently of the Phoenix server. Any recent SDK version works with any Phoenix server version — you don't need to upgrade the server when you upgrade the SDK, or vice versa. The SDK sends traces over OTLP using [OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference), both of which are backward compatible, so there is no version pairing to track. See [The phoenix.otel helpers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers#version-compatibility) for why.
+</Note>
+
 ## Configure
 
 Set environment variables to connect to your Phoenix instance:
@@ -75,8 +79,8 @@ export PHOENIX_API_KEY="your-api-key"
 # Local (default, no API key required)
 export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 
-# Phoenix Cloud
-# export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com/s/your-space-name"
+# A remote Phoenix deployment
+# export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix.example.com"
 
 # Self-hosted
 # export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"

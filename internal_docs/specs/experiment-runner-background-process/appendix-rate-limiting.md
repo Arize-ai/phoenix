@@ -239,16 +239,20 @@ Total: up to 900 Jobs
 ```python
 # Task queue: (row, repetition) pairs
 _task_queue = [
-    (row_1, rep_1), (row_1, rep_2), (row_1, rep_3),
-    (row_2, rep_1), (row_2, rep_2), (row_2, rep_3),
-    ...
+    (row_1, rep_1),
+    (row_1, rep_2),
+    (row_1, rep_3),
+    (row_2, rep_1),
+    (row_2, rep_2),
+    (row_2, rep_3),
+    ...,
 ]
 
 # Eval queue: populated as tasks complete
 _eval_queue = [
     (row_1_rep_1_result, correctness_evaluator),
     (row_1_rep_1_result, relevance_evaluator),
-    ...
+    ...,
 ]
 ```
 
@@ -278,21 +282,21 @@ class TaskJob:
     Execute a task: one dataset row × one repetition.
     Streams chunks to UI during execution.
     """
-    
+
     # Identity
     experiment_id: str
     row_id: str
     repetition: int
-    
+
     # Input
     messages: list[Message]
     invocation_parameters: dict
-    
+
     # Execution context
     client_factory: Callable[[], AsyncContextManager[Client]]
     is_rate_limit_error: Callable[[Exception], bool]
     timeout: float
-    
+
     # Callbacks (closures over Experiment)
     on_chunk: Callable[[Chunk], Awaitable[None]]  # Required - tasks stream
     on_success: Callable[[Result], Awaitable[None]]
@@ -300,14 +304,16 @@ class TaskJob:
     on_network_error: Callable[[Exception], Awaitable[None]]
     on_failure: Callable[[Exception], Awaitable[None]]
     on_timeout: Callable[[], Awaitable[None]]
-    
+
     async def execute(self) -> None:
         """Execute task with streaming."""
         try:
             async with asyncio.timeout(self.timeout):
                 async with self.client_factory() as client:
                     chunks = []
-                    async for chunk in client.chat_stream(self.messages, **self.invocation_parameters):
+                    async for chunk in client.chat_stream(
+                        self.messages, **self.invocation_parameters
+                    ):
                         chunks.append(chunk)
                         await self.on_chunk(chunk)  # Stream to UI
                     result = combine_chunks(chunks)
@@ -329,29 +335,29 @@ class EvalJob:
     Execute an evaluator on a task result.
     No streaming - evaluators run silently.
     """
-    
+
     # Identity
     experiment_id: str
     row_id: str
     repetition: int
     evaluator_id: str
-    
+
     # Input
     task_result: str  # Output from the task
     evaluator_template: str
-    
+
     # Execution context
     client_factory: Callable[[], AsyncContextManager[Client]]
     is_rate_limit_error: Callable[[Exception], bool]
     timeout: float
-    
+
     # Callbacks (no on_chunk - evals don't stream)
     on_success: Callable[[EvalResult], Awaitable[None]]
     on_rate_limit: Callable[[], Awaitable[None]]
     on_network_error: Callable[[Exception], Awaitable[None]]
     on_failure: Callable[[Exception], Awaitable[None]]
     on_timeout: Callable[[], Awaitable[None]]
-    
+
     async def execute(self) -> None:
         """Execute evaluator without streaming."""
         try:
@@ -409,8 +415,10 @@ class Experiment:
             on_failure=lambda e: self._handle_task_failure(row_id, repetition, e),
             on_timeout=lambda: self._handle_timeout(row_id, repetition),
         )
-    
-    def _create_eval_job(self, row_id: str, repetition: int, evaluator: Evaluator, task_result: str) -> EvalJob:
+
+    def _create_eval_job(
+        self, row_id: str, repetition: int, evaluator: Evaluator, task_result: str
+    ) -> EvalJob:
         return EvalJob(
             experiment_id=self.id,
             row_id=row_id,
@@ -422,9 +430,13 @@ class Experiment:
             is_rate_limit_error=self._get_eval_rate_limit_error(evaluator),
             timeout=self._eval_timeout,
             # No on_chunk - evals don't stream
-            on_success=lambda result: self._handle_eval_success(row_id, repetition, evaluator.id, result),
+            on_success=lambda result: self._handle_eval_success(
+                row_id, repetition, evaluator.id, result
+            ),
             on_rate_limit=lambda: self._handle_eval_rate_limit(row_id, repetition, evaluator.id),
-            on_network_error=lambda e: self._handle_eval_network_error(row_id, repetition, evaluator.id, e),
+            on_network_error=lambda e: self._handle_eval_network_error(
+                row_id, repetition, evaluator.id, e
+            ),
             on_failure=lambda e: self._handle_eval_failure(row_id, repetition, evaluator.id, e),
             on_timeout=lambda: self._handle_eval_timeout(row_id, repetition, evaluator.id),
         )
@@ -829,10 +841,7 @@ async def run(self):
     finally:
         # Wait for in-flight jobs (with timeout)
         try:
-            await asyncio.wait_for(
-                self._wait_for_in_flight_jobs(),
-                timeout=30
-            )
+            await asyncio.wait_for(self._wait_for_in_flight_jobs(), timeout=30)
         except asyncio.TimeoutError:
             # Timed out. Let crash recovery handle remaining.
             pass
@@ -852,6 +861,7 @@ class Experiment:
         self._cancelled = True
         # In-flight Jobs will complete, but results ignored
 
+
 class Job:
     async def _handle_success(self, task_id, result):
         if self._experiment._cancelled:
@@ -870,12 +880,15 @@ class Job:
 ```python
 # On startup
 stale_threshold = timedelta(minutes=10)
-stale_experiments = await db.execute("""
+stale_experiments = await db.execute(
+    """
     UPDATE experiment_execution_configs
     SET claimed_by = %(my_id)s, claimed_at = NOW()
     WHERE claimed_at < NOW() - %(threshold)s
     RETURNING id
-""", {"my_id": replica_id, "threshold": stale_threshold})
+""",
+    {"my_id": replica_id, "threshold": stale_threshold},
+)
 ```
 
 **Design survives**: ✅ Jobs are transient; task state lives in DB.
@@ -1051,10 +1064,10 @@ if not task.is_valid():
 ```python
 def is_complete(self) -> bool:
     return (
-        not self._task_queue and
-        not self._eval_queue and
-        not self._in_flight and
-        not self._has_more_in_db()
+        not self._task_queue
+        and not self._eval_queue
+        and not self._in_flight
+        and not self._has_more_in_db()
     )
 ```
 
@@ -1074,6 +1087,7 @@ def _handle_task_success(self, task_id, result):
     # Queue evals
     for evaluator in self._evaluators:
         self._eval_queue.append((task_id, evaluator, result))
+
 
 def _handle_task_failure(self, task_id, error):
     self._record_failure(task_id, error)
@@ -1208,6 +1222,7 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
     def __init__(self, singleton_key, rate_limit_error):
         super().__init__(...)
         # Token bucket is in self._throttler
+
 
 # Access for Experiment
 class Experiment:
@@ -1348,6 +1363,7 @@ def get_rate_limiter_key(provider: str, model_name: str) -> str:
     # Most providers are per-organization
     return provider
 
+
 # In PlaygroundStreamingClient.__init__
 self.rate_limiter = PlaygroundRateLimiter(
     get_rate_limiter_key(provider, model_name),
@@ -1383,11 +1399,12 @@ class Dispatcher:
 async def dispatch(job: Job) -> None:
     await job.execute()
 
+
 # All the "knowing" is in the Job, set at creation time
 job = Job(
-    client_factory=openai_factory,      # Knows how to get client
-    messages=messages,                   # Knows what to send
-    on_success=write_to_db,             # Knows what to do with result
+    client_factory=openai_factory,  # Knows how to get client
+    messages=messages,  # Knows what to send
+    on_success=write_to_db,  # Knows what to do with result
     is_rate_limit_error=is_openai_429,  # Knows how to classify errors
 )
 ```

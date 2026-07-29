@@ -26,9 +26,10 @@ import {
   Icon,
   Icons,
   Link,
+  OverflowRow,
+  SegmentedControl,
+  SegmentedControlItem,
   Text,
-  ToggleButton,
-  ToggleButtonGroup,
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
@@ -43,6 +44,8 @@ import {
   CopyableTextCell,
   createRowSelectionColumn,
   LoadMoreRow,
+  RowExpandToggleButton,
+  useTableRowsExpanded,
   useColumnOrder,
 } from "@phoenix/components/table";
 import {
@@ -50,8 +53,9 @@ import {
   CHECKBOX_COLUMN_PINNING,
 } from "@phoenix/components/table/constants";
 import {
+  expandableSelectableTableCSS,
+  TABLE_DATA_CELL_CLASS,
   getCommonPinningStyles,
-  selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
@@ -95,6 +99,7 @@ import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
 import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
 import {
+  ANNOTATION_COLUMN_SIZING,
   DEFAULT_SORT,
   getGqlSort,
   makeAnnotationColumnId,
@@ -159,15 +164,12 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
               return (
                 <td
                   key={cell.id}
+                  className={TABLE_DATA_CELL_CLASS}
+                  align={cell.column.columnDef.meta?.textAlign}
                   style={{
                     ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                    // prevent all wrapping, just show an ellipsis and let users expand if necessary
-                    textWrap: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                     userSelect:
                       cell.column.id === CHECKBOX_COLUMN_ID
                         ? "none"
@@ -230,6 +232,11 @@ export function SpansTable(props: SpansTableProps) {
   useAdvertiseAgentContext(advertisedRootSpansOnlyContext);
 
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
+  const {
+    isExpanded: areRowsExpanded,
+    setIsExpanded: setAreRowsExpanded,
+    tableProps: rowsExpandedTableProps,
+  } = useTableRowsExpanded();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -337,7 +344,7 @@ export function SpansTable(props: SpansTableProps) {
   const setTraceSequence = pagination?.setTraceSequence;
   useEffect(() => {
     if (!setTraceSequence) {
-      return;
+      return undefined;
     }
     setTraceSequence(
       data.spans.edges.map(({ span }) => ({
@@ -481,10 +488,10 @@ export function SpansTable(props: SpansTableProps) {
       id: "annotations",
       accessorKey: "spanAnnotations",
       enableSorting: false,
-
+      ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
         return (
-          <Flex direction="row" gap="size-50" wrap="wrap">
+          <OverflowRow isExpanded={areRowsExpanded}>
             <AnnotationSummaryGroupTokens
               span={row.original}
               showFilterActions
@@ -513,7 +520,7 @@ export function SpansTable(props: SpansTableProps) {
                 </>
               );
             })}
-          </Flex>
+          </OverflowRow>
         );
       },
     },
@@ -531,11 +538,12 @@ export function SpansTable(props: SpansTableProps) {
       ),
       id: TRACE_ANNOTATIONS_COLUMN_ID,
       enableSorting: false,
+      ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
         return (
-          <Flex direction="row" gap="size-50" wrap="wrap">
+          <OverflowRow isExpanded={areRowsExpanded}>
             <TraceAnnotationSummaryGroupTokens trace={row.original.trace} />
-          </Flex>
+          </OverflowRow>
         );
       },
     },
@@ -584,7 +592,7 @@ export function SpansTable(props: SpansTableProps) {
               searchParams,
             })}
           >
-            {getValue() as string}
+            <Truncate maxWidth="100%">{getValue() as string}</Truncate>
           </Link>
         );
       },
@@ -712,13 +720,13 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "latency",
       accessorKey: "latencyMs",
-
+      meta: { textAlign: "right" },
       cell: ({ getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return null;
         }
-        return <LatencyText latencyMs={value} />;
+        return <LatencyText latencyMs={value} size="S" />;
       },
     },
     {
@@ -726,6 +734,7 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: rootSpansOnly
         ? "cumulativeTokenCountTotal"
         : "tokenCountTotal",
+      meta: { textAlign: "right" },
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null) {
@@ -741,6 +750,7 @@ export function SpansTable(props: SpansTableProps) {
             <SpanCumulativeTokenCount
               tokenCountTotal={tokenCountTotal || 0}
               nodeId={span.id}
+              size="S"
             />
           );
         }
@@ -749,6 +759,7 @@ export function SpansTable(props: SpansTableProps) {
           <SpanTokenCount
             tokenCountTotal={tokenCountTotal || 0}
             nodeId={span.id}
+            size="S"
           />
         );
       },
@@ -759,6 +770,7 @@ export function SpansTable(props: SpansTableProps) {
         ? "trace.costSummary.total.cost"
         : "costSummary.total.cost",
       id: rootSpansOnly ? "cumulativeTokenCostTotal" : "tokenCostTotal",
+      meta: { textAlign: "right" },
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
@@ -862,7 +874,11 @@ export function SpansTable(props: SpansTableProps) {
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedSpans = selectedRows.map((row) => ({
     id: row.original.id,
-    traceId: row.original.trace.id,
+    spanId: row.original.spanId,
+    trace: {
+      id: row.original.trace.id,
+      traceId: row.original.trace.traceId,
+    },
   }));
   const clearSelection = useCallback(() => {
     setRowSelection({});
@@ -913,15 +929,10 @@ export function SpansTable(props: SpansTableProps) {
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
             <SpanFilterConditionField onValidCondition={setFilterCondition} />
 
-            <ToggleButtonGroup
+            <SegmentedControl
               aria-label="Toggle between root and all spans"
-              selectionMode="single"
-              selectedKeys={[rootSpansOnly ? "root" : "all"]}
-              onSelectionChange={(selection) => {
-                if (selection.size === 0) {
-                  return;
-                }
-                const selectedKey = selection.keys().next().value;
+              selectedKey={rootSpansOnly ? "root" : "all"}
+              onSelectionChange={(selectedKey) => {
                 if (isRootSpanFilterValue(selectedKey)) {
                   setRootSpansOnly(selectedKey === "root");
                 } else {
@@ -931,15 +942,19 @@ export function SpansTable(props: SpansTableProps) {
                 }
               }}
             >
-              <ToggleButton aria-label="root spans" id="root">
+              <SegmentedControlItem aria-label="root spans" id="root">
                 Root Spans
-              </ToggleButton>
-              <ToggleButton aria-label="all spans" id="all">
+              </SegmentedControlItem>
+              <SegmentedControlItem aria-label="all spans" id="all">
                 All
-              </ToggleButton>
-            </ToggleButtonGroup>
+              </SegmentedControlItem>
+            </SegmentedControl>
             <TableMetricsChartSelector view="spans" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
+            <RowExpandToggleButton
+              isExpanded={areRowsExpanded}
+              onChange={setAreRowsExpanded}
+            />
             <ProjectFilterConfigButton />
             <TableAsideToggleButton />
           </Flex>
@@ -968,7 +983,8 @@ export function SpansTable(props: SpansTableProps) {
                 onColumnOrderChange={onVisibleColumnOrderChange}
               >
                 <table
-                  css={selectableTableCSS}
+                  css={expandableSelectableTableCSS}
+                  {...rowsExpandedTableProps}
                   style={{
                     ...columnSizeVars,
                     width: table.getTotalSize(),
@@ -1037,6 +1053,7 @@ export function SpansTable(props: SpansTableProps) {
                             return (
                               <ColumnHeaderCell
                                 key={header.id}
+                                align={header.column.columnDef.meta?.textAlign}
                                 columnId={header.column.id}
                                 // Only the top header group is reorderable;
                                 // sub-headers of a group column move with it
@@ -1092,6 +1109,7 @@ export function SpansTable(props: SpansTableProps) {
         </Group>
         {selectedRows.length ? (
           <SpanSelectionToolbar
+            projectName={data.name}
             selectedSpans={selectedSpans}
             onClearSelection={clearSelection}
           />

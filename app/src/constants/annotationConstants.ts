@@ -13,3 +13,9 @@ export const ANNOTATOR_KINDS = [
  * Hotkey that focuses the annotation editor.
  */
 export const EDIT_ANNOTATION_HOTKEY = "e";
+
+/**
+ * The reserved annotation name a note is recorded under. Views that show one
+ * filter out the other.
+ */
+export const NOTE_ANNOTATION_NAME = "note";

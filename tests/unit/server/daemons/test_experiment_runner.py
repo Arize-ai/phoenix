@@ -22,6 +22,7 @@ from phoenix.server.daemons.experiment_runner import (
     TaskWorkItem,
     _NoOpLLMClient,
 )
+from phoenix.server.monty_runtime import MontyBusy
 from phoenix.server.rate_limiters import UnavailableTokensError
 from phoenix.server.types import DbSessionFactory
 
@@ -791,6 +792,41 @@ class TestRunningExperimentQueueLogic:
         assert exp._task_circuit_breaker.is_tripped
 
     @pytest.mark.anyio
+    async def test_on_capacity_error_retries_without_tripping_circuit_breaker(self) -> None:
+        exp = _make_running_experiment()
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = True
+        task = _make_task_work_item(exp, dataset_example_id=1)
+
+        await exp.on_capacity_error(task, RuntimeError("sandbox capacity is busy"))
+
+        assert len(exp._retry_heap) == 1
+        assert task.retry_count == 1
+        assert not exp._task_circuit_breaker.is_tripped
+
+    @pytest.mark.anyio
+    async def test_exhausted_capacity_retries_do_not_trip_evaluator_circuit_breaker(
+        self,
+    ) -> None:
+        exp = _make_running_experiment(max_retries=0)
+        work_item = _make_eval_work_item(exp, dataset_evaluator_id=10)
+        breaker = CircuitBreaker(threshold=1)
+        exp._eval_circuit_breakers[work_item.dataset_evaluator_id] = breaker
+
+        with (
+            patch.object(exp, "_persist_log", new_callable=AsyncMock),
+            patch.object(exp, "_persist_exhausted_retry", new_callable=AsyncMock) as persist,
+            patch.object(exp, "_handle_circuit_trip", new_callable=AsyncMock) as trip,
+        ):
+            await exp.on_capacity_error(work_item, RuntimeError("sandbox capacity is busy"))
+
+        persist.assert_awaited_once()
+        trip.assert_not_awaited()
+        assert exp._evals_failed == 1
+        assert breaker._consecutive_failures == 0
+        assert not breaker.is_tripped
+
+    @pytest.mark.anyio
     async def test_check_completion_fires_on_done(self) -> None:
         """When has_work() returns False, _on_done callback invoked."""
         on_done = _make_on_done()
@@ -885,6 +921,29 @@ class TestEvalWorkItemCancellation:
         with patch.object(eval_work_item._evaluator, "evaluate", side_effect=raise_cancelled):
             with pytest.raises(anyio.get_cancelled_exc_class()):
                 await eval_work_item.execute()
+
+
+class TestEvalWorkItemCapacity:
+    @pytest.mark.anyio
+    async def test_monty_busy_uses_capacity_retry_path(self) -> None:
+        running_experiment = _make_running_experiment()
+        work_item = _make_eval_work_item(running_experiment)
+
+        with (
+            patch.object(
+                work_item._evaluator,
+                "evaluate",
+                new=AsyncMock(side_effect=MontyBusy("sandbox is busy")),
+            ),
+            patch.object(
+                running_experiment, "on_capacity_error", new_callable=AsyncMock
+            ) as on_capacity_error,
+            patch.object(running_experiment, "on_failure", new_callable=AsyncMock) as on_failure,
+        ):
+            await work_item.execute()
+
+        on_capacity_error.assert_awaited_once()
+        on_failure.assert_not_awaited()
 
 
 # ===========================================================================

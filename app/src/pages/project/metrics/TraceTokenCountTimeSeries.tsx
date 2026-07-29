@@ -40,8 +40,14 @@ import {
   intShortFormatter,
   percentFormatter,
 } from "@phoenix/utils/numberFormatUtils";
+import {
+  compareTokenTypes,
+  getTokenDetailColor,
+  getTokenDetailLabel,
+} from "@phoenix/utils/tokenDetailUtils";
 
 import type { TraceTokenCountTimeSeriesQuery } from "./__generated__/TraceTokenCountTimeSeriesQuery.graphql";
+import { getTokenDetailDataKey } from "./tokenDetails";
 
 type TokenCountTimeSeriesDatum = NonNullable<
   NonNullable<
@@ -56,80 +62,6 @@ type TokenDetailsChartDatum = {
   total: number | null;
   [key: string]: number | null;
 };
-
-const TOKEN_DETAIL_DATA_KEY_PREFIX = "tokenDetail:";
-const TOKEN_DETAIL_SORT_ORDER: Record<string, number> = {
-  input: 0,
-  output: 0,
-  cache_read: 1,
-  cache_write: 2,
-  reasoning: 3,
-  audio: 4,
-};
-
-function getTokenDetailDataKey(tokenType: string) {
-  return `${TOKEN_DETAIL_DATA_KEY_PREFIX}${encodeURIComponent(tokenType)}`;
-}
-
-function getTokenDetailLabel(tokenType: string) {
-  if (tokenType === "cache_read") {
-    return "Cache read";
-  }
-  if (tokenType === "cache_write") {
-    return "Cache write";
-  }
-  return tokenType
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function compareTokenTypes(left: string, right: string) {
-  const leftOrder = TOKEN_DETAIL_SORT_ORDER[left] ?? 100;
-  const rightOrder = TOKEN_DETAIL_SORT_ORDER[right] ?? 100;
-  if (leftOrder !== rightOrder) {
-    return leftOrder - rightOrder;
-  }
-  return left.localeCompare(right);
-}
-
-function getTokenDetailColor({
-  colors,
-  index,
-  tokenType,
-}: {
-  colors: ReturnType<typeof useCategoryChartColors>;
-  index: number;
-  tokenType: string;
-}) {
-  if (tokenType === "input") {
-    return colors.category1;
-  }
-  if (tokenType === "output") {
-    return colors.category2;
-  }
-  if (tokenType === "cache_read") {
-    return colors.category9;
-  }
-  if (tokenType === "cache_write") {
-    return colors.category7;
-  }
-  if (tokenType === "reasoning") {
-    return colors.category4;
-  }
-  if (tokenType === "audio") {
-    return colors.category3;
-  }
-  const fallbackColors = [
-    colors.category5,
-    colors.category6,
-    colors.category8,
-    colors.category10,
-    colors.category11,
-    colors.category12,
-  ];
-  return fallbackColors[index % fallbackColors.length];
-}
 
 function getTokenDetails(
   datum: TokenCountTimeSeriesDatum,

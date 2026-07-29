@@ -52,9 +52,8 @@ Operators who do not want the MCP surface exposed can disable it with:
 By default the `/mcp` endpoint now presents FastMCP's **code-mode** tool surface: instead of the `/v1`-derived tool
 list, clients see discovery meta-tools (`search`, `get_schema`, `tags`, `list_tools`) and an `execute` tool that runs
 model-written Python in a `pydantic-monty` sandbox where `call_tool(name, params)` is the only function in scope. The
-`execute` tool can only invoke tools the caller is already authorized for, and each block is bounded by the FastMCP
-sandbox defaults (30s wall clock, 100 MB memory, at most 50 `call_tool` invocations). To restore the previous
-group-gated progressive-disclosure tool list instead, set:
+`execute` tool can only invoke tools the caller is already authorized for, and runs it in sandbox worker subprocesses
+that Phoenix starts on first use. To restore the previous group-gated progressive-disclosure tool list instead, set:
 
 - `PHOENIX_ENABLE_MCP_CODE_MODE` (default `true`). When set to `false`, `/mcp` presents the group-gated tool surface. Has no
   effect unless `PHOENIX_ENABLE_MCP_SERVER` is also set.
@@ -285,9 +284,7 @@ The concept formerly called "evaluations" is now called "annotations" throughout
 ```python
 from phoenix.trace import SpanEvaluations
 
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
-)
+px.Client().log_evaluations(SpanEvaluations(eval_name="Hallucination", dataframe=results_df))
 ```
 
 **After:**
@@ -364,9 +361,7 @@ The old `GET /v1/evaluations` only returned span annotations. Its replacement is
 from phoenix.trace import SpanEvaluations
 import phoenix as px
 
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
-)
+px.Client().log_evaluations(SpanEvaluations(eval_name="Hallucination", dataframe=results_df))
 ```
 
 **After (span annotations):**
@@ -668,7 +663,6 @@ from phoenix.experimental.evals import OpenAIModel
 from phoenix.experimental.evals import llm_classify
 
 model = OpenAIModel()
-
 ```
 
 #### New
@@ -688,7 +682,7 @@ from phoenix.evals import llm_classify
 
 ```python
 from phoenix.experimental.evals import OpenAIModel
-from phoenix.experimental.evals import processing # no longer supported in phoenix.evals
+from phoenix.experimental.evals import processing  # no longer supported in phoenix.evals
 
 model = OpenAIModel()
 model.max_context_size  # no longer supported in phoenix.evals

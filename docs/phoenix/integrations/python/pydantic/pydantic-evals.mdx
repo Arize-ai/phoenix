@@ -3,120 +3,22 @@ title: "Pydantic Evals"
 description: How to use Pydantic Evals with Phoenix to evaluate AI applications using structured evaluation frameworks
 ---
 
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+import ConnectToPhoenixPython from "../../../../snippets/connect-to-phoenix-python.mdx";
+
 [Pydantic Evals](https://github.com/pydantic/pydantic-evals) is an evaluation library that provides preset direct evaluations and LLM Judge evaluations. It can be used to run evaluations over dataframes of cases defined with Pydantic models. This guide shows you how to use Pydantic Evals alongside Arize Phoenix to run evaluations on traces captured from your running application.
 
 ## Launch Phoenix
 
-<Tabs>
-<Tab title="Phoenix Cloud">
-
-**Sign up for Phoenix:**
-
-Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+<StartPhoenix />
 
 **Install packages:**
-
-```sh
-pip install arize-phoenix-otel
-```
-
-**Set your Phoenix endpoint and API Key:**
-
-```python
-import os
-
-# Add Phoenix API Key for tracing
-PHOENIX_API_KEY = "ADD YOUR API KEY"
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-```
-
-Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
-
-**Launch your local Phoenix instance:**
-
-```sh
-pip install arize-phoenix
-phoenix serve
-```
-
-For details on customizing a local terminal deployment, see [Terminal Setup](/docs/phoenix/environments#terminal).
-
-</Tab>
-<Tab title="Command Line">
-
-**Install packages:**
-
-```sh
-pip install arize-phoenix-otel
-```
-
-**Set your Phoenix endpoint:**
-
-```python
-import os
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
-```
-
-See Terminal for more details
-
-</Tab>
-<Tab title="Docker">
-
-**Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
 
 ```bash
-docker pull arizephoenix/phoenix:latest
-```
-
-**Run your containerized instance:**
-
-```bash
-docker run -p 6006:6006 arizephoenix/phoenix:latest
-```
-
-This will expose the Phoenix on `localhost:6006`
-
-**Install packages:**
-
-```sh
 pip install arize-phoenix-otel
 ```
 
-**Set your Phoenix endpoint:**
-
-```python
-import os
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
-```
-
-For more info on using Phoenix with Docker, see [Docker](/docs/phoenix/self-hosting/deployment-options/docker).
-
-</Tab>
-<Tab title="Notebook">
-
-**Install packages:**
-
-```sh
-pip install arize-phoenix
-```
-
-**Launch Phoenix:**
-
-```python
-import phoenix as px
-px.launch_app()
-```
-
-<Info>
-By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](/docs/phoenix/self-hosting) or use one of the other deployment options to retain traces.
-
-</Info>
-
-</Tab>
-</Tabs>
+<ConnectToPhoenixPython />
 
 ## Install
 

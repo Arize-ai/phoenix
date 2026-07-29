@@ -10,7 +10,7 @@ from evals.pxi.online_evals.evaluators.tool_count_per_turn import (
     TOOL_COUNT_PER_TURN,
     evaluate_tool_count_per_turn,
 )
-from evals.pxi.online_evals.topology import InvalidTurnTrace
+from evals.pxi.online_evals.topology import InvalidTurnTrace, classify_tool_spans
 
 
 def _evaluate(root: v1.Span, spans: list[v1.Span]) -> Any:
@@ -42,7 +42,7 @@ def _span(
     return span
 
 
-def test_counts_browser_and_server_tools_but_not_subagent_tools() -> None:
+def test_counts_subagent_tools() -> None:
     root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
     model = _span("model", name="model", kind="LLM", parent_id="root", start=1)
     browser_tool = _span(
@@ -86,12 +86,124 @@ def test_counts_browser_and_server_tools_but_not_subagent_tools() -> None:
         ],
     )
 
-    assert result.score == 4.0
+    assert result.score == 5.0
     assert result.metadata == {
-        "tool_names": ["set_spans_filter", "bash", "read_skill_resource", "call_subagent"]
+        "tool_names": [
+            "set_spans_filter",
+            "bash",
+            "read_skill_resource",
+            "call_subagent",
+            "query_phoenix",
+        ],
+        "top_level_tool_names": [
+            "set_spans_filter",
+            "bash",
+            "read_skill_resource",
+            "call_subagent",
+        ],
+        "nested_tool_names": ["query_phoenix"],
+        "nested_tool_count": 1,
+        "subagent_call_count": 1,
     }
+    assert result.explanation == "5 tool calls in this turn (4 top-level, 1 nested)"
     assert TOOL_COUNT_PER_TURN.annotator_kind == "CODE"
     assert TOOL_COUNT_PER_TURN.sample_rate == 1.0
+    assert TOOL_COUNT_PER_TURN.identifier == "pxi-online-evals:tool-count-per-turn:v2"
+
+
+def test_counts_tools_from_sibling_subagents() -> None:
+    root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
+    first_call = _span("first-call", name="call_subagent", kind="TOOL", parent_id="root", start=1)
+    first_agent = _span("first-agent", name="agent", kind="AGENT", parent_id="first-call", start=2)
+    first_tool = _span("first-tool", name="bash", kind="TOOL", parent_id="first-agent", start=3)
+    second_call = _span("second-call", name="call_subagent", kind="TOOL", parent_id="root", start=4)
+    second_agent = _span(
+        "second-agent", name="agent", kind="AGENT", parent_id="second-call", start=5
+    )
+    second_tool = _span(
+        "second-tool", name="query_phoenix", kind="TOOL", parent_id="second-agent", start=6
+    )
+
+    result = _evaluate(
+        root,
+        [root, first_call, first_agent, first_tool, second_call, second_agent, second_tool],
+    )
+
+    assert result.score == 4.0
+    assert result.metadata == {
+        "tool_names": ["call_subagent", "bash", "call_subagent", "query_phoenix"],
+        "top_level_tool_names": ["call_subagent", "call_subagent"],
+        "nested_tool_names": ["bash", "query_phoenix"],
+        "nested_tool_count": 2,
+        "subagent_call_count": 2,
+    }
+
+
+def test_counts_tools_nested_multiple_levels_deep() -> None:
+    root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
+    outer_tool = _span("outer", name="delegate", kind="TOOL", parent_id="root", start=1)
+    outer_agent = _span("outer-agent", name="agent", kind="AGENT", parent_id="outer", start=2)
+    inner_tool = _span("inner", name="delegate", kind="TOOL", parent_id="outer-agent", start=3)
+    inner_agent = _span("inner-agent", name="agent", kind="AGENT", parent_id="inner", start=4)
+    leaf_tool = _span("leaf", name="bash", kind="TOOL", parent_id="inner-agent", start=5)
+
+    result = _evaluate(
+        root,
+        [root, outer_tool, outer_agent, inner_tool, inner_agent, leaf_tool],
+    )
+
+    assert result.score == 3.0
+    assert result.metadata["top_level_tool_names"] == ["delegate"]
+    assert result.metadata["nested_tool_names"] == ["delegate", "bash"]
+    assert result.metadata["subagent_call_count"] == 0
+
+
+def test_counts_subagent_call_without_nested_tools() -> None:
+    root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
+    call = _span("call", name="call_subagent", kind="TOOL", parent_id="root", start=1)
+    agent = _span("agent", name="agent", kind="AGENT", parent_id="call", start=2)
+
+    result = _evaluate(root, [root, call, agent])
+
+    assert result.score == 1.0
+    assert result.explanation == "1 tool call in this turn"
+    assert result.metadata["nested_tool_count"] == 0
+    assert result.metadata["subagent_call_count"] == 1
+
+
+def test_counts_nested_error_status_tool() -> None:
+    root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
+    call = _span("call", name="call_subagent", kind="TOOL", parent_id="root", start=1)
+    nested = _span(
+        "nested", name="query_phoenix", kind="TOOL", parent_id="call", start=2, status="ERROR"
+    )
+
+    result = _evaluate(root, [root, call, nested])
+
+    assert result.score == 2.0
+    assert result.metadata["nested_tool_names"] == ["query_phoenix"]
+
+
+def test_classifies_tool_span_partition() -> None:
+    root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
+    top_level = _span("top", name="call_subagent", kind="TOOL", parent_id="root", start=1)
+    agent = _span("agent", name="agent", kind="AGENT", parent_id="top", start=2)
+    nested = _span("nested", name="bash", kind="TOOL", parent_id="agent", start=3)
+    sibling = _span("sibling", name="ask_user", kind="TOOL", parent_id="root", start=4)
+
+    breakdown = classify_tool_spans(root, [sibling, nested, agent, root, top_level])
+
+    assert [span["name"] for span in breakdown.all_tools] == [
+        "call_subagent",
+        "bash",
+        "ask_user",
+    ]
+    assert [span["name"] for span in breakdown.top_level] == ["call_subagent", "ask_user"]
+    assert [span["name"] for span in breakdown.nested] == ["bash"]
+    assert len(breakdown.all_tools) == len(breakdown.top_level) + len(breakdown.nested)
+    assert {id(span) for span in breakdown.top_level}.isdisjoint(
+        id(span) for span in breakdown.nested
+    )
 
 
 def test_rejects_incomplete_parent_chain() -> None:
@@ -108,8 +220,14 @@ def test_zero_tool_trace_has_zero_score() -> None:
     result = _evaluate(root, [root])
 
     assert result.score == 0.0
-    assert result.metadata == {"tool_names": []}
-    assert result.explanation == "0 top-level PXI tool calls in this turn"
+    assert result.metadata == {
+        "tool_names": [],
+        "top_level_tool_names": [],
+        "nested_tool_names": [],
+        "nested_tool_count": 0,
+        "subagent_call_count": 0,
+    }
+    assert result.explanation == "0 tool calls in this turn"
 
 
 def test_rejects_a_non_root_turn_span() -> None:

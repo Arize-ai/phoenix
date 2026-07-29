@@ -1,5 +1,23 @@
 # @arizeai/phoenix-client
 
+## 7.1.1
+
+### Patch Changes
+
+- e35712a: Re-release to recover from a failed publish (versions were already on npm)
+
+## 7.1.0
+
+### Minor Changes
+
+- df7057a: Add `spanIds` filter to `getSpans`, allowing spans to be fetched by span ID (requires Phoenix server >= 19.6.0)
+
+## 7.0.1
+
+### Patch Changes
+
+- a6c3f88: Fix `resumeExperiment` and `resumeEvaluation` leaking detached workers on the first error. Both used `Promise.all([producer, ...workers])`, which rejects the instant one worker throws (e.g. under `stopOnFirstError`) while the remaining concurrent workers and the producer keep running — hitting the API and logging after the function has already returned or thrown. They now drain every task with `Promise.allSettled` and classify rejections by priority, so no background work outlives the call. This also fixes intermittent CI teardown errors (`Closing rpc while "onUserConsoleLog" was pending`) caused by that late console output.
+
 ## 7.0.0
 
 ### Major Changes

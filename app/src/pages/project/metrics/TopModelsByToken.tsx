@@ -1,6 +1,4 @@
-import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -11,11 +9,8 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text } from "@phoenix/components";
 import {
   ChartEmptyStateOverlay,
-  ChartTooltip,
-  ChartTooltipItem,
   InteractiveLegend,
   compactChartMargin,
   defaultCartesianGridProps,
@@ -32,31 +27,13 @@ import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TopModelsByTokenQuery } from "./__generated__/TopModelsByTokenQuery.graphql";
-
-function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  if (active && payload && payload.length) {
-    return (
-      <ChartTooltip>
-        {label && (
-          <Text weight="heavy" size="S">
-            {String(label)}
-          </Text>
-        )}
-        {payload.map((entry) => (
-          <ChartTooltipItem
-            color={entry.color ?? "transparent"}
-            key={String(entry.dataKey ?? entry.name)}
-            shape="circle"
-            name={String(entry.name ?? entry.dataKey ?? "unknown")}
-            value={intFormatter(Number(entry.value))}
-          />
-        ))}
-      </ChartTooltip>
-    );
-  }
-
-  return null;
-}
+import { ModelTokenDetailBarShape } from "./ModelTokenDetailBarShape";
+import { ModelTokenDetailTooltipContent } from "./ModelTokenDetailTooltipContent";
+import {
+  buildModelTokenDetailChartData,
+  getModelTokenDetailColors,
+  getModelTokenDetailLabel,
+} from "./tokenDetails";
 
 export function TopModelsByToken({
   projectId,
@@ -83,6 +60,16 @@ export function TopModelsByToken({
                   tokens
                 }
               }
+              costDetailSummaryEntries(
+                projectId: $projectId
+                timeRange: $timeRange
+              ) {
+                tokenType
+                isPrompt
+                value {
+                  tokens
+                }
+              }
             }
           }
         }
@@ -98,22 +85,14 @@ export function TopModelsByToken({
     useMetricQueryFetchOptions()
   );
 
-  const chartData = useMemo(() => {
-    const models = data.project.topModelsByTokenCount ?? [];
-    return models.map((model) => {
-      const costSummary = model.costSummary;
-      const promptTokens = costSummary.prompt.tokens;
-      const completionTokens = costSummary.completion.tokens;
-      const totalTokens = costSummary.total.tokens;
-      return {
-        model: model.name,
-        prompt_tokens: promptTokens,
-        completion_tokens: completionTokens,
-        total_tokens: totalTokens,
-      };
-    });
-  }, [data]);
-  const hasData = chartData.length > 0;
+  const { chartData, series } = buildModelTokenDetailChartData({
+    metric: "tokens",
+    models: data.project.topModelsByTokenCount ?? [],
+  });
+  const colorByDataKey = getModelTokenDetailColors({ colors, series });
+  // A model with no measured usage contributes no series, and a chart with no
+  // series has nothing to draw, so it counts as empty however many rows it has.
+  const hasData = series.length > 0;
 
   return (
     <ChartEmptyStateOverlay
@@ -130,7 +109,12 @@ export function TopModelsByToken({
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <Tooltip
-            content={TooltipContent}
+            content={
+              <ModelTokenDetailTooltipContent
+                totalLabel="Total tokens"
+                valueFormatter={intFormatter}
+              />
+            }
             // TODO formalize this
             {...defaultTooltipProps}
           />
@@ -150,22 +134,26 @@ export function TopModelsByToken({
             tickMargin={4}
             tickFormatter={truncateModelName}
           />
-          <Bar
-            dataKey="prompt_tokens"
-            stackId="a"
-            fill={colors.category1}
-            hide={isDataKeyHidden("prompt_tokens")}
-            name="Prompt tokens"
-            radius={[2, 0, 0, 2]}
-          />
-          <Bar
-            dataKey="completion_tokens"
-            stackId="a"
-            fill={colors.category2}
-            hide={isDataKeyHidden("completion_tokens")}
-            name="Completion tokens"
-            radius={[0, 2, 2, 0]}
-          />
+          {series.map((tokenSeries) => (
+            <Bar
+              dataKey={tokenSeries.dataKey}
+              stackId="a"
+              fill={colorByDataKey.get(tokenSeries.dataKey)}
+              hide={isDataKeyHidden(tokenSeries.dataKey)}
+              key={tokenSeries.dataKey}
+              name={getModelTokenDetailLabel({
+                allSeries: series,
+                series: tokenSeries,
+              })}
+              shape={
+                <ModelTokenDetailBarShape
+                  allSeries={series}
+                  isDataKeyHidden={isDataKeyHidden}
+                  series={tokenSeries}
+                />
+              }
+            />
+          ))}
           <InteractiveLegend
             {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}

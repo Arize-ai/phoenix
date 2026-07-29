@@ -880,7 +880,7 @@ const baseTokensCSS = (theme: Theme) => css`
       ? "var(--global-color-blue-500)"
       : "var(--global-color-blue-900)"};
     --hover-background: var(--global-color-gray-100);
-    --focus-ring-color: var(--global-color-primary-500);
+    --focus-ring-color: var(--global-color-primary);
     --focus-ring-thickness: var(--global-border-size-thick);
     --focus-ring-offset: var(--global-dimension-size-25);
 
@@ -1077,6 +1077,43 @@ const checkboxCSS = (theme: Theme) => css`
     --global-checkbox-border-color: var(--global-color-gray-300);
     --global-checkbox-border-color-pressed: var(--global-color-gray-400);
     --global-checkbox-border-color-hover: var(--global-color-gray-400);
+  }
+`;
+
+const segmentedControlCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    /* The track has to sit one clear step below the thumb, since that gap is
+       the only thing marking which segment is selected. Dark's field surface
+       already sits that far below; light's is within ~3%, so it drops a step. */
+    --global-segmented-control-background-color: ${theme === "dark"
+      ? "var(--global-input-field-background-color)"
+      : "var(--global-color-gray-200)"};
+    --global-segmented-control-border-color: var(
+      --global-input-field-border-color
+    );
+    --global-segmented-control-divider-color: var(
+      --global-segmented-control-border-color
+    );
+    --global-segmented-control-thumb-background-color: ${theme === "dark"
+      ? "var(--global-color-gray-300)"
+      : "var(--global-color-gray-50)"};
+    --global-segmented-control-thumb-border-color: ${theme === "dark"
+      ? "var(--global-color-gray-400)"
+      : "var(--global-color-gray-300)"};
+    --global-segmented-control-item-text-color: var(--global-text-color-700);
+    --global-segmented-control-item-text-color-hover: var(
+      --global-text-color-900
+    );
+    --global-segmented-control-item-text-color-selected: var(
+      --global-text-color-900
+    );
+    --global-segmented-control-item-text-color-disabled: var(
+      --global-text-color-300
+    );
+    --global-segmented-control-item-background-color-hover: var(
+      --global-color-primary-50
+    );
   }
 `;
 
@@ -1335,6 +1372,7 @@ export const derivedCSS = (theme: Theme) =>
     buttonCSS(theme),
     pxiCSS(theme),
     checkboxCSS(theme),
+    segmentedControlCSS(theme),
     disclosureCSS(theme),
     tooltipCSS(theme),
     dndCSS(theme),
@@ -1357,6 +1395,16 @@ const appGlobalStylesCSS = css`
     syntax: "<angle>";
     inherits: false;
     initial-value: 45deg;
+  }
+
+  /* The base layer (see styles/cascade-layers.css) puts the global focus ring
+     above the reset but below unlayered component styles, so components can
+     move or suppress their own focus indicators without out-specifying it. */
+  @layer base {
+    .theme :where(:focus-visible) {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
   }
 
   body,

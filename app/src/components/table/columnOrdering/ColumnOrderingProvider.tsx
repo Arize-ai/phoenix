@@ -1,11 +1,7 @@
-import { move } from "@dnd-kit/helpers";
-import {
-  DragDropProvider,
-  KeyboardSensor,
-  PointerSensor,
-} from "@dnd-kit/react";
-import { useRef } from "react";
+import { KeyboardSensor, PointerSensor } from "@dnd-kit/react";
 import type { ReactNode } from "react";
+
+import { ReorderProvider } from "@phoenix/components/dnd";
 
 /**
  * Elements inside a sortable header that own their own pointer interactions
@@ -45,11 +41,17 @@ const sensors = [
   KeyboardSensor,
 ];
 
+/**
+ * The column-flavored names for `ReorderProviderProps` (in
+ * `components/dnd/ReorderProvider`), which documents what each one does.
+ */
 export interface ColumnOrderingProviderProps {
-  /** Ids of sortable columns in current display order. Every sortable inside must appear here with a matching index. */
+  /** Maps to `order`. */
   columnOrder: string[];
-  /** Called with the new order as it changes during a drag and when a canceled drag restores the original order. */
+  /** Maps to `onOrderChange`. */
   onColumnOrderChange: (columnOrder: string[]) => void;
+  /** Maps to `onOrderCommit`. */
+  onColumnOrderCommit?: (columnOrder: string[]) => void;
   children: ReactNode;
 }
 
@@ -60,43 +62,17 @@ export interface ColumnOrderingProviderProps {
 export function ColumnOrderingProvider({
   columnOrder,
   onColumnOrderChange,
+  onColumnOrderCommit,
   children,
 }: ColumnOrderingProviderProps) {
-  // The order when the current drag started, restored if the drag is canceled
-  const initialColumnOrderRef = useRef<string[] | null>(null);
   return (
-    <DragDropProvider
+    <ReorderProvider
+      order={columnOrder}
+      onOrderChange={onColumnOrderChange}
+      onOrderCommit={onColumnOrderCommit}
       sensors={sensors}
-      onDragStart={() => {
-        initialColumnOrderRef.current = columnOrder;
-      }}
-      onDragOver={(event) => {
-        // Commit each reorder as the drag previews it so the column bodies
-        // move with the headers. Committing state here also makes dnd-kit's
-        // optimistic-sorting plugin defer to React: without a state update it
-        // reorders the header cells directly in the DOM, and a drag released
-        // outside every header (e.g. past the far left of the table) then
-        // left the headers permanently out of sync with the cells (#14609).
-        const newColumnOrder = move(columnOrder, event);
-        if (newColumnOrder === columnOrder) {
-          return;
-        }
-        onColumnOrderChange(newColumnOrder);
-      }}
-      onDragEnd={(event) => {
-        const initialColumnOrder = initialColumnOrderRef.current;
-        initialColumnOrderRef.current = null;
-        // The order the user saw was already committed during the drag;
-        // re-applying move() here would shift the column a second time.
-        if (!event.canceled) {
-          return;
-        }
-        if (initialColumnOrder != null) {
-          onColumnOrderChange(initialColumnOrder);
-        }
-      }}
     >
       {children}
-    </DragDropProvider>
+    </ReorderProvider>
   );
 }

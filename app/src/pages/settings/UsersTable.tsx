@@ -20,6 +20,7 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { Counter } from "@phoenix/components/core/counter";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { RoleSelect } from "@phoenix/components/settings/RoleSelect";
 import { LoadMoreRow } from "@phoenix/components/table";
 import {
@@ -165,7 +166,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                 size={20}
               />
               <Link to={`/settings/users/${row.original.id}`}>
-                {row.original.username}
+                <Truncate maxWidth="100%">{row.original.username}</Truncate>
               </Link>
               {row.original.email && (
                 <a

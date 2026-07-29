@@ -75,6 +75,14 @@ export const GET_SPANS_TRACE_IDS: ParameterRequirement = {
   minServerVersion: [13, 9, 0],
 };
 
+export const GET_SPANS_SPAN_IDS: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "span_id",
+  parameterLocation: "query",
+  route: "GET /v1/projects/{id}/spans",
+  minServerVersion: [19, 6, 0],
+};
+
 export const GET_SPANS_FILTERS: ParameterRequirement = {
   kind: "parameter",
   parameterName: "span_kind",
@@ -145,6 +153,7 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   ADD_TRACE_NOTE,
   ADD_SESSION_NOTE,
   GET_SPANS_TRACE_IDS,
+  GET_SPANS_SPAN_IDS,
   GET_SPANS_FILTERS,
   GET_SPANS_BY_ATTRIBUTE,
   LIST_PROJECT_TRACES,

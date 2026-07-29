@@ -14,12 +14,9 @@ import {
   MenuHeader,
   Popover,
 } from "@phoenix/components";
-import {
-  dndDragFeedbackCSS,
-  dndHandleAppearanceCSS,
-} from "@phoenix/components/dnd";
+import { dndDragFeedbackCSS, dndRowHandleCSS } from "@phoenix/components/dnd";
 
-import { ColumnOrderingProvider } from "../columnOrdering";
+import { ColumnOrderingProvider, orderColumns } from "../columnOrdering";
 
 export interface ColumnSelectorColumn {
   id: string;
@@ -90,14 +87,7 @@ export const columnRowCSS = css`
     min-width: 0;
   }
   .column-selector-row__handle {
-    ${dndHandleAppearanceCSS}
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    width: var(--global-dimension-size-225);
-    height: var(--global-dimension-size-225);
-    font-size: var(--global-font-size-m);
+    ${dndRowHandleCSS}
   }
   &:hover {
     background-color: var(--global-color-gray-200);
@@ -175,15 +165,28 @@ export function ColumnSelectorMenu({
   children,
 }: ColumnSelectorMenuProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  // Order previewed while a drag is in flight. Reorders are applied to this
+  // local draft on every drag-over step so only the popover list re-renders;
+  // the (expensive) table column order is committed once when the drag ends.
+  const [draftColumnOrder, setDraftColumnOrder] = useState<string[] | null>(
+    null
+  );
+  const orderedColumns = useMemo(
+    () =>
+      draftColumnOrder == null
+        ? columns
+        : orderColumns({ columns, columnOrder: draftColumnOrder }),
+    [columns, draftColumnOrder]
+  );
   const filteredColumns = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) {
-      return columns;
+      return orderedColumns;
     }
-    return columns.filter((column) =>
+    return orderedColumns.filter((column) =>
       column.label.toLowerCase().includes(query)
     );
-  }, [columns, searchQuery]);
+  }, [orderedColumns, searchQuery]);
 
   // Reordering a filtered list is ambiguous, so it is only enabled when the
   // full list is shown
@@ -203,10 +206,20 @@ export function ColumnSelectorMenu({
       </MenuHeader>
       <div css={columnSelectorBodyCSS}>
         <ColumnOrderingProvider
-          columnOrder={columns.map((column) => column.id)}
-          onColumnOrderChange={(columnOrder) =>
-            onColumnOrderChange?.(columnOrder)
-          }
+          columnOrder={orderedColumns.map((column) => column.id)}
+          onColumnOrderChange={setDraftColumnOrder}
+          onColumnOrderCommit={(columnOrder) => {
+            setDraftColumnOrder(null);
+            // A canceled or round-trip drag commits the order it started
+            // with; skip the parent update so consumers don't persist and
+            // re-render for an unchanged order.
+            const hasOrderChanged = columnOrder.some(
+              (columnId, index) => columns[index]?.id !== columnId
+            );
+            if (hasOrderChanged) {
+              onColumnOrderChange?.(columnOrder);
+            }
+          }}
         >
           <ul css={columnListCSS}>
             {filteredColumns.map((column, index) => (

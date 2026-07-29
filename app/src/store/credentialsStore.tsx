@@ -100,6 +100,7 @@ export const createCredentialsStore = (
         if (isV0CredentialsProps(state)) {
           return migrateV0CredentialsProps(state);
         }
+        return undefined;
       },
     })
   );
