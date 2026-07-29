@@ -73,6 +73,56 @@ function SessionNavigationViewSwitchHarness() {
   );
 }
 
+function SessionNavigationLoadingViewSwitchHarness() {
+  const [sessionView, setSessionView] = useState<"turns" | "traces">("turns");
+  const [isNavigationPointerOpen, setIsNavigationPointerOpen] = useState(false);
+  const navigationProps = {
+    isCollapsed: true,
+    isPointerOpen: isNavigationPointerOpen,
+    onPointerOpenChange: setIsNavigationPointerOpen,
+  };
+
+  return (
+    <DetailsPanel
+      preferredTreeWidth={320}
+      onPreferredTreeWidthChange={() => {}}
+      treeMaximumWidth={480}
+    >
+      {sessionView === "turns" ? (
+        <DetailsPanelContent
+          navigation={
+            <SessionDetailsNavigation
+              {...navigationProps}
+              control={
+                <SessionViewControl
+                  sessionView={sessionView}
+                  onSessionViewChange={setSessionView}
+                  traceCount={2}
+                />
+              }
+            >
+              <div>Loaded turn list</div>
+            </SessionDetailsNavigation>
+          }
+        >
+          <div>Loaded turn details</div>
+        </DetailsPanelContent>
+      ) : (
+        <SessionDetailsSkeleton
+          isTreePanelCollapsed
+          isNavigationPointerOpen={isNavigationPointerOpen}
+          navigationHeader={<div>Header</div>}
+          onNavigationPointerOpenChange={setIsNavigationPointerOpen}
+          onSessionViewChange={setSessionView}
+          onTreePanelCollapsedChange={() => {}}
+          preview={{ sessionId: "session-node-id", traceCount: 2 }}
+          sessionView={sessionView}
+        />
+      )}
+    </DetailsPanel>
+  );
+}
+
 describe("SessionViewTabs", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -663,6 +713,64 @@ describe("SessionViewTabs", () => {
     expect(nextNavigation?.dataset.open).toBe("false");
   });
 
+  it("keeps the hovered column width while an unseen session view loads", () => {
+    act(() => {
+      root.render(
+        <ThemeContext.Provider
+          value={{
+            theme: "light",
+            systemTheme: "light",
+            themeMode: "light",
+            setThemeMode: vi.fn(),
+          }}
+        >
+          <SessionNavigationLoadingViewSwitchHarness />
+        </ThemeContext.Provider>
+      );
+    });
+
+    const loadedBody = container.querySelector<HTMLElement>(
+      ".session-details-navigation__body"
+    );
+    act(() => {
+      loadedBody?.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+    });
+
+    const loadedNavigation = container.querySelector<HTMLElement>(
+      ".session-details-navigation"
+    );
+    const loadedContent = container.querySelector<HTMLElement>(
+      ".session-details-navigation__content"
+    );
+    expect(loadedNavigation?.dataset.open).toBe("true");
+    expect(getComputedStyle(loadedContent!).width).toBe(
+      "var(--trace-tree-overlay-width)"
+    );
+
+    const tracesSegment = Array.from(
+      container.querySelectorAll<HTMLButtonElement>(".segmented-control__item")
+    ).find((button) => button.textContent?.includes("Traces"));
+    act(() => tracesSegment?.click());
+
+    const loadingNavigation = container.querySelector<HTMLElement>(
+      ".session-details-navigation"
+    );
+    const loadingContent = container.querySelector<HTMLElement>(
+      ".session-details-navigation__content"
+    );
+    expect(container.textContent).not.toContain("Loaded turn details");
+    expect(
+      container.querySelector('[data-testid="session-navigation-skeleton"]')
+    ).not.toBeNull();
+    expect(loadingNavigation).not.toBe(loadedNavigation);
+    expect(loadingNavigation?.dataset.open).toBe("true");
+    expect(getComputedStyle(loadingContent!).width).toBe(
+      getComputedStyle(loadedContent!).width
+    );
+  });
+
   it("offers the inactive view from the compact switcher", () => {
     const onSessionViewChange = vi.fn();
 
@@ -763,7 +871,9 @@ describe("SessionViewTabs", () => {
           >
             <SessionDetailsSkeleton
               isTreePanelCollapsed={false}
+              isNavigationPointerOpen={false}
               navigationHeader={<div data-testid="stable-header">Header</div>}
+              onNavigationPointerOpenChange={() => {}}
               onSessionViewChange={() => {}}
               onTreePanelCollapsedChange={() => {}}
               preview={{

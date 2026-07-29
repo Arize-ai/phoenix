@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   useLocation,
   useNavigate,
@@ -60,6 +61,10 @@ export function SessionPage() {
   const sessionView: SessionView = isSessionView(sessionViewParam)
     ? sessionViewParam
     : "turns";
+  // The loaded view and every loading fallback replace their navigation DOM.
+  // Keep pointer ownership in the stable page shell so the collapsed overlay
+  // cannot lose its width while a first-time view switch suspends.
+  const [isNavigationPointerOpen, setIsNavigationPointerOpen] = useState(false);
   const handleSessionViewChange = (view: SessionView) => {
     setSearchParams(
       (nextSearchParams) => {
@@ -121,7 +126,9 @@ export function SessionPage() {
                   fallback={
                     <SessionDetailsSkeleton
                       isTreePanelCollapsed={isTreeCollapsed}
+                      isNavigationPointerOpen={isNavigationPointerOpen}
                       navigationHeader={navigationHeader}
+                      onNavigationPointerOpenChange={setIsNavigationPointerOpen}
                       onSessionViewChange={handleSessionViewChange}
                       onTreePanelCollapsedChange={onTreeCollapsedChange}
                       preview={preview}
@@ -132,6 +139,8 @@ export function SessionPage() {
                   <SessionDetails
                     sessionId={sessionId}
                     isTreePanelCollapsed={isTreeCollapsed}
+                    isNavigationPointerOpen={isNavigationPointerOpen}
+                    onNavigationPointerOpenChange={setIsNavigationPointerOpen}
                     onTreePanelCollapsedChange={onTreeCollapsedChange}
                     navigationHeader={navigationHeader}
                   />

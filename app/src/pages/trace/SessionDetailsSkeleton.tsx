@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useState } from "react";
 
 import { View } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
@@ -46,21 +45,23 @@ const bodySkeletonCSS = css`
 
 export function SessionDetailsSkeleton({
   isTreePanelCollapsed,
+  isNavigationPointerOpen,
   navigationHeader,
+  onNavigationPointerOpenChange,
   onSessionViewChange,
   onTreePanelCollapsedChange,
   preview,
   sessionView,
 }: {
   isTreePanelCollapsed: boolean;
+  isNavigationPointerOpen: boolean;
   navigationHeader: ReactNode;
+  onNavigationPointerOpenChange: (isOpen: boolean) => void;
   onSessionViewChange: (view: SessionView) => void;
   onTreePanelCollapsedChange: (isCollapsed: boolean) => void;
   preview: SessionPreview;
   sessionView: SessionView;
 }) {
-  const [isNavigationPointerOpen, setIsNavigationPointerOpen] = useState(false);
-
   return (
     <DetailsPanelContent
       navigation={
@@ -84,7 +85,7 @@ export function SessionDetailsSkeleton({
             }
             isCollapsed={isTreePanelCollapsed}
             isPointerOpen={isNavigationPointerOpen}
-            onPointerOpenChange={setIsNavigationPointerOpen}
+            onPointerOpenChange={onNavigationPointerOpenChange}
           >
             <ul
               css={navigationSkeletonCSS}

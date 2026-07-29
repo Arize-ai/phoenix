@@ -42,6 +42,8 @@ import { DetailPanelAnnotationBarSkeleton } from "./TraceDetailsSkeleton";
 export type SessionDetailsProps = {
   sessionId: string;
   isTreePanelCollapsed: boolean;
+  isNavigationPointerOpen: boolean;
+  onNavigationPointerOpenChange: (isOpen: boolean) => void;
   onTreePanelCollapsedChange: (isCollapsed: boolean) => void;
   navigationHeader: ReactNode;
 };
@@ -123,6 +125,8 @@ function SessionDetailsSearchParamsBridge({
 export function SessionDetails({
   sessionId,
   isTreePanelCollapsed,
+  isNavigationPointerOpen,
+  onNavigationPointerOpenChange,
   onTreePanelCollapsedChange,
   navigationHeader,
 }: SessionDetailsProps) {
@@ -139,9 +143,6 @@ export function SessionDetails({
   const sessionView: SessionView = isSessionView(sessionViewParam)
     ? sessionViewParam
     : DEFAULT_SESSION_VIEW;
-  // The view branches below replace their navigation DOM. Keep pointer
-  // ownership here so a stationary hover survives that replacement.
-  const [isNavigationPointerOpen, setIsNavigationPointerOpen] = useState(false);
   const data = useLazyLoadQuery<SessionDetailsQuery>(
     graphql`
       query SessionDetailsQuery($id: ID!) {
@@ -270,7 +271,9 @@ export function SessionDetails({
   const loadingState = (
     <SessionDetailsSkeleton
       isTreePanelCollapsed={isTreePanelCollapsed}
+      isNavigationPointerOpen={isNavigationPointerOpen}
       navigationHeader={navigationHeader}
+      onNavigationPointerOpenChange={onNavigationPointerOpenChange}
       onSessionViewChange={handleSessionViewChange}
       onTreePanelCollapsedChange={onTreePanelCollapsedChange}
       preview={{
@@ -296,7 +299,7 @@ export function SessionDetails({
               sessionViewControl={sessionViewControl}
               isTreePanelCollapsed={isTreePanelCollapsed}
               isNavigationPointerOpen={isNavigationPointerOpen}
-              onNavigationPointerOpenChange={setIsNavigationPointerOpen}
+              onNavigationPointerOpenChange={onNavigationPointerOpenChange}
               renderMainContent={renderMainContent}
               searchParamsStore={searchParamsStore}
             />
@@ -310,7 +313,7 @@ export function SessionDetails({
             sessionViewControl={sessionViewControl}
             isTreePanelCollapsed={isTreePanelCollapsed}
             isNavigationPointerOpen={isNavigationPointerOpen}
-            onNavigationPointerOpenChange={setIsNavigationPointerOpen}
+            onNavigationPointerOpenChange={onNavigationPointerOpenChange}
             renderMainContent={renderMainContent}
           />
         ) : (
