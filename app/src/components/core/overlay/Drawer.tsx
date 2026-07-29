@@ -55,7 +55,9 @@ const drawerCSS = css`
     bottom: 0;
     width: var(--global-border-size-thin);
     cursor: ew-resize;
-    z-index: var(--global-z-index-local-control);
+    /* Keep the drawer edge above descendant overlays that create a higher
+       local stacking context, such as the collapsed trace-tree preview. */
+    z-index: calc(var(--global-z-index-local-control) + 2);
     touch-action: none;
   }
 

@@ -2,6 +2,8 @@ import { css } from "@emotion/react";
 
 export const NESTING_INDENT = 25;
 export const COMPACT_BREAKPOINT = "300px";
+export const TRACE_TREE_ROW_INLINE_START = "var(--global-dimension-size-125)";
+export const TRACE_TREE_ROW_BORDER_WIDTH = "3px";
 
 /**
  * Content for the resizable trace-tree column. The sizing machine guarantees
@@ -38,9 +40,6 @@ export const traceTreeListCSS = css`
       display: none;
       visibility: hidden;
       width: 0;
-    }
-    .span-node-wrap {
-      padding-left: var(--global-dimension-size-200);
     }
   }
 `;

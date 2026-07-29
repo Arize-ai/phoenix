@@ -86,6 +86,19 @@ describe("Drawer", () => {
 
     expect(drawer).not.toBeNull();
     expect(handle).not.toBeNull();
+    const drawerClassName = Array.from(drawer?.classList ?? []).find(
+      (className) => className.startsWith("css-")
+    );
+    const resizeHandleStyleRule = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText === `.${drawerClassName} .drawer__resize-handle`
+      );
+    expect(resizeHandleStyleRule?.style.zIndex).toBe(
+      "calc(var(--global-z-index-local-control) + 2)"
+    );
     expect(handle?.tabIndex).toBe(0);
     expect(handle?.getAttribute("aria-controls")).toBe(drawer?.id);
 

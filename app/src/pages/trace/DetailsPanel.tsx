@@ -25,6 +25,17 @@ const detailsPanelCSS = css`
 const detailsPanelNavigationCSS = css`
   container-name: trace-tree-panel;
   container-type: inline-size;
+  z-index: var(--global-z-index-local-overlay);
+
+  &:has(.trace-tree-navigation__overlay[data-open="true"]) {
+    z-index: calc(var(--global-z-index-local-control) + 1);
+  }
+
+  &:has(+ .details-panel-tree-separator[data-dragging="true"])
+    .trace-tree-navigation__overlay {
+    visibility: hidden;
+    pointer-events: none;
+  }
 `;
 
 const detailsPanelHeaderCSS = css`
@@ -213,6 +224,7 @@ export function DetailsPanel({
     onTreeResizeEnd,
     onTreeResizeStart,
     onTreeToggle,
+    treeOverlayWidth,
     treePanelRef,
   } = usePreferredTreePanel({
     preferredTreeWidth,
@@ -240,7 +252,10 @@ export function DetailsPanel({
         css={detailsPanelNavigationCSS}
         style={resizableTraceTreePanelStyle}
       >
-        <ResizableTraceTreePanelContent>
+        <ResizableTraceTreePanelContent
+          expandedWidth={treeOverlayWidth}
+          isCollapsed={isTreeCollapsed}
+        >
           {navigation}
         </ResizableTraceTreePanelContent>
       </Panel>

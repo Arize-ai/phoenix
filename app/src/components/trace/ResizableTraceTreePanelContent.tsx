@@ -15,7 +15,6 @@ export const resizableTraceTreePanelStyle: CSSProperties = {
   maxWidth: "none",
   overflow: "visible",
   position: "relative",
-  zIndex: "var(--global-z-index-local-overlay)",
 };
 
 const treeSeparatorCSS = css`
@@ -27,6 +26,8 @@ const treeSeparatorCSS = css`
 
 type ResizableTraceTreePanelContentProps = PropsWithChildren<{
   contentCSS?: SerializedStyles;
+  expandedWidth?: number;
+  isCollapsed?: boolean;
 }>;
 
 /**
@@ -35,12 +36,22 @@ type ResizableTraceTreePanelContentProps = PropsWithChildren<{
 export function ResizableTraceTreePanelContent({
   children,
   contentCSS,
+  expandedWidth,
+  isCollapsed = false,
 }: ResizableTraceTreePanelContentProps) {
+  const collapsedContentCSS = isCollapsed
+    ? css`
+        overflow: visible;
+        --trace-tree-overlay-width: ${expandedWidth}px;
+      `
+    : undefined;
+
   return (
     <div
       className="trace-tree-panel-content"
+      data-collapsed={isCollapsed}
       data-testid="scrolling-panel-content"
-      css={[traceTreePanelContentCSS, contentCSS]}
+      css={[traceTreePanelContentCSS, collapsedContentCSS, contentCSS]}
     >
       {children}
     </div>

@@ -19,7 +19,12 @@ import {
 } from "@phoenix/components/trace/traceTreeSizing";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { NESTING_INDENT, traceTreeListCSS } from "./traceTreeStyles";
+import {
+  NESTING_INDENT,
+  TRACE_TREE_ROW_BORDER_WIDTH,
+  TRACE_TREE_ROW_INLINE_START,
+  traceTreeListCSS,
+} from "./traceTreeStyles";
 
 const NestingLevelContext = createContext(0);
 
@@ -190,12 +195,13 @@ function SpanNodeWrapSkeleton(
         padding-right: var(--global-dimension-size-100);
         padding-top: var(--global-dimension-size-100);
         padding-bottom: var(--global-dimension-size-100);
-        border-left: 4px solid transparent;
+        border-left: ${TRACE_TREE_ROW_BORDER_WIDTH} solid transparent;
         box-sizing: border-box;
         & > *:first-of-type {
           box-sizing: border-box;
           padding-left: calc(
-            (${props.nestingLevel} * var(--trace-tree-nesting-indent)) + 16px
+            (${props.nestingLevel} * var(--trace-tree-nesting-indent)) +
+              ${TRACE_TREE_ROW_INLINE_START}
           );
         }
       `}
@@ -213,7 +219,10 @@ function EdgeConnectorSkeleton({ nestingLevel }: { nestingLevel: number }) {
         position: absolute;
         border-left: 1px solid var(--global-color-gray-300);
         top: 0;
-        left: ${nestingLevel * NESTING_INDENT + 29}px;
+        left: calc(
+          ${nestingLevel * NESTING_INDENT}px + ${TRACE_TREE_ROW_INLINE_START} +
+            13px
+        );
         width: 42px;
         bottom: 0;
         z-index: 1;
@@ -232,7 +241,10 @@ function EdgeSkeleton({ nestingLevel }: { nestingLevel: number }) {
         border-bottom: 1px solid var(--global-color-gray-300);
         border-radius: 0 0 0 11px;
         top: -5px;
-        left: ${nestingLevel * NESTING_INDENT + 29}px;
+        left: calc(
+          ${nestingLevel * NESTING_INDENT}px + ${TRACE_TREE_ROW_INLINE_START} +
+            13px
+        );
         width: 11px;
         height: 22px;
       `}

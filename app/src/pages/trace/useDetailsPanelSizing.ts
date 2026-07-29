@@ -39,6 +39,7 @@ import {
   SPAN_DETAILS_MIN_WIDTH_PIXELS,
   TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS,
   TRACE_TREE_COLLAPSED_WIDTH_PIXELS,
+  TRACE_TREE_DEFAULT_WIDTH_PIXELS,
   TRACE_TREE_MIN_WIDTH_PIXELS,
 } from "@phoenix/constants";
 import type { SizeValue } from "@phoenix/types/sizing";
@@ -332,6 +333,8 @@ export function usePreferredTreePanel({
   onTreeResizeStart: (width: number) => void;
   onTreeToggle: (() => void) | undefined;
   onLayoutChanged: (layout: Layout, meta: LayoutChangedMeta) => void;
+  /** Width of the full tree overlaid from the compact icon rail. */
+  treeOverlayWidth: number;
   treePanelRef: RefObject<PanelImperativeHandle | null>;
 } {
   const sizingState = useSizingState();
@@ -648,6 +651,10 @@ export function usePreferredTreePanel({
     onTreeResizeEnd,
     onTreeResizeStart,
     onTreeToggle: isDrawerMode ? onTreeToggle : undefined,
+    treeOverlayWidth: Math.max(
+      TRACE_TREE_DEFAULT_WIDTH_PIXELS,
+      preferredRenderedTreeWidth
+    ),
     treePanelRef,
   };
 }

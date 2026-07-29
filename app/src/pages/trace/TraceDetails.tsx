@@ -187,6 +187,7 @@ export function TraceDetails({
             />
             <ConnectedTraceTree
               trace={trace}
+              isNavigationCollapsed={isTreePanelCollapsed}
               session={treeSession}
               selectedSpanNodeId={selectedSpanNodeId ?? ""}
               traceSelection={{

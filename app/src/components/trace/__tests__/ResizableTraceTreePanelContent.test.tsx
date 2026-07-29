@@ -171,6 +171,45 @@ describe("ResizableTraceTreePanelContent", () => {
     });
   });
 
+  it("provides the preferred overlay width to collapsed navigation", () => {
+    act(() => {
+      root.render(
+        createElement(
+          ResizableTraceTreePanelContent,
+          { expandedWidth: 368, isCollapsed: true },
+          createElement(
+            "div",
+            { className: "trace-tree-navigation" },
+            "Trace tree"
+          )
+        )
+      );
+    });
+
+    const content = container.querySelector(".trace-tree-panel-content");
+    const navigation = container.querySelector(".trace-tree-navigation");
+    expect(content?.getAttribute("data-collapsed")).toBe("true");
+    expect(navigation).toBeInstanceOf(HTMLDivElement);
+    expect(document.head.textContent).toContain(
+      "--trace-tree-overlay-width:368px"
+    );
+  });
+
+  it("does not mark expanded panel content as collapsed", () => {
+    act(() => {
+      root.render(
+        createElement(
+          ResizableTraceTreePanelContent,
+          { expandedWidth: 368 },
+          "Trace tree"
+        )
+      );
+    });
+
+    const content = container.querySelector(".trace-tree-panel-content");
+    expect(content?.getAttribute("data-collapsed")).toBe("false");
+  });
+
   it("owns the complete pointer lifecycle and reports cancellation", () => {
     const onResizeStart = vi.fn();
     const onResize = vi.fn((width: number) => width);

@@ -14,6 +14,7 @@ import {
 } from "@phoenix/components";
 import { expandableContentExpandButtonCSS } from "@phoenix/components/core/content/ExpandableContent";
 import { CopyableIDBadge } from "@phoenix/components/core/id";
+import { popoverSurfaceCSS } from "@phoenix/components/core/overlay/styles";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -31,13 +32,20 @@ import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 import { useTraceTree } from "./TraceTreeContext";
-import { NESTING_INDENT, traceTreeListCSS } from "./traceTreeStyles";
+import {
+  NESTING_INDENT,
+  TRACE_TREE_ROW_BORDER_WIDTH,
+  TRACE_TREE_ROW_INLINE_START,
+  traceTreeListCSS,
+} from "./traceTreeStyles";
 import type { ISpanItem, SpanStatusCodeType } from "./types";
 import type { SpanTreeNode } from "./utils";
 import { createSpanTree, filterSpanTree } from "./utils";
 
 export type TraceTreeProps = {
   spans: ISpanItem[];
+  /** Whether to render an icon rail with a separate full-tree hover overlay. */
+  isNavigationCollapsed?: boolean;
   /**
    * Whether large child lists use Show more and Show less disclosure rows.
    * @default false
@@ -78,7 +86,7 @@ function beginOptimisticSpanNavigation({
   spanNodeId: string;
   trigger: HTMLElement;
 }) {
-  const tree = trigger.closest('[data-testid="trace-tree"]');
+  const tree = trigger.closest("[data-trace-tree-root]");
   if (!tree) {
     onNavigate();
     return;
@@ -92,9 +100,10 @@ function beginOptimisticSpanNavigation({
       node.dataset.selected = "false";
       node.classList.remove("is-selected");
     });
-  const targetNode = trigger.querySelector<HTMLElement>(
-    `[data-trace-tree-span-node-id="${CSS.escape(spanNodeId)}"]`
-  );
+  const targetSelector = `[data-trace-tree-span-node-id="${CSS.escape(spanNodeId)}"]`;
+  const targetNode = trigger.matches(targetSelector)
+    ? trigger
+    : trigger.querySelector<HTMLElement>(targetSelector);
   if (targetNode) {
     targetNode.dataset.selected = "true";
     targetNode.classList.add("is-selected");
@@ -178,9 +187,106 @@ function getSelectedSpanPathNodeIds<TSpan extends ISpanItem>({
   return selectedPathNodeIds;
 }
 
+function flattenSpanTreeNodes<TSpan>({
+  nodes,
+}: {
+  nodes: SpanTreeNode<TSpan>[];
+}): SpanTreeNode<TSpan>[] {
+  return nodes.flatMap((node) => [
+    node,
+    ...flattenSpanTreeNodes({ nodes: node.children }),
+  ]);
+}
+
+const traceTreeNavigationCSS = css`
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  align-items: stretch;
+`;
+
+const traceTreeFullCSS = css`
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  align-items: stretch;
+  container-type: inline-size;
+`;
+
+const traceTreeOverlayCSS = css`
+  ${popoverSurfaceCSS}
+  border-color: var(--global-border-color-default);
+  border-radius: var(--global-rounding-small);
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--global-z-index-local-overlay);
+  width: var(--trace-tree-overlay-width);
+  height: fit-content;
+  max-height: 100%;
+  padding-bottom: var(--global-dimension-size-100);
+  visibility: hidden;
+  pointer-events: none;
+
+  &[data-open="true"] {
+    visibility: visible;
+    pointer-events: auto;
+  }
+`;
+
+const traceTreeIconRailCSS = css`
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  border: var(--global-border-size-thin) solid transparent;
+  overflow-x: hidden;
+  overflow-y: auto;
+  list-style: none;
+
+  .trace-tree-icon-rail__item {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    height: var(--global-dimension-size-450);
+    padding: 0 0 0 ${TRACE_TREE_ROW_INLINE_START};
+    border: 0;
+    border-left: ${TRACE_TREE_ROW_BORDER_WIDTH} solid transparent;
+    background: transparent;
+    color: var(--global-text-color-700);
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .trace-tree-icon-rail__item:hover {
+    background-color: var(--global-color-gray-75);
+  }
+
+  .trace-tree-icon-rail__item[data-selected="true"] {
+    border-left-color: var(--global-color-gray-300);
+    background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
+  }
+
+  .trace-tree-icon-rail__item:focus-visible {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
+  }
+`;
+
 export function TraceTree(props: TraceTreeProps) {
   const {
     spans,
+    isNavigationCollapsed = false,
     isChildTruncationEnabled = false,
     session,
     traceSelection,
@@ -189,6 +295,7 @@ export function TraceTree(props: TraceTreeProps) {
     selectedSpanNodeId,
     scrollSelectedSpanIntoView = true,
   } = props;
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const { searchQuery } = useTraceTree();
   const spanTree = createSpanTree(spans);
   const filteredSpanTree = filterSpanTree(spanTree, searchQuery);
@@ -199,22 +306,20 @@ export function TraceTree(props: TraceTreeProps) {
   const rootSpan = spanTree[0]?.span;
   const hasSearchQuery = searchQuery.length > 0;
   const noSearchResults = hasSearchQuery && filteredSpanTree.length === 0;
+  const flattenedSpanNodes = flattenSpanTreeNodes({ nodes: filteredSpanTree });
   const overallTimeRange = {
     start: rootSpan ? new Date(rootSpan.startTime) : new Date(),
     end: rootSpan?.endTime ? new Date(rootSpan.endTime) : new Date(),
   };
-  return (
+  const fullTree = (
     <div
-      className="trace-tree-navigation"
-      css={css`
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        flex: 1 1 auto;
-        min-height: 0;
-        align-items: stretch;
-        container-type: inline-size;
-      `}
+      className={classNames("trace-tree-navigation__full", {
+        "trace-tree-navigation__overlay": isNavigationCollapsed,
+      })}
+      data-open={isNavigationCollapsed ? isOverlayOpen : undefined}
+      aria-hidden={isNavigationCollapsed ? !isOverlayOpen : undefined}
+      inert={isNavigationCollapsed && !isOverlayOpen ? true : undefined}
+      css={[traceTreeFullCSS, isNavigationCollapsed && traceTreeOverlayCSS]}
     >
       <ul
         css={[
@@ -224,6 +329,7 @@ export function TraceTree(props: TraceTreeProps) {
             overflow-y: var(--trace-tree-overflow-y, auto);
           `,
         ]}
+        data-trace-tree-root
         data-testid="trace-tree"
       >
         {session ? (
@@ -262,6 +368,86 @@ export function TraceTree(props: TraceTreeProps) {
       </ul>
     </div>
   );
+
+  if (!isNavigationCollapsed) {
+    return (
+      <div className="trace-tree-navigation" css={traceTreeNavigationCSS}>
+        {fullTree}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="trace-tree-navigation trace-tree-navigation--collapsed"
+      css={traceTreeNavigationCSS}
+      onPointerEnter={() => setIsOverlayOpen(true)}
+      onPointerLeave={() => setIsOverlayOpen(false)}
+    >
+      <ul
+        aria-label="Trace navigation"
+        aria-hidden={isOverlayOpen || undefined}
+        inert={isOverlayOpen || undefined}
+        className="trace-tree-icon-rail"
+        css={traceTreeIconRailCSS}
+        data-trace-tree-root
+        data-testid="trace-tree-icon-rail"
+      >
+        {session ? (
+          <li>
+            <Link
+              className="trace-tree-icon-rail__item"
+              to={session.to}
+              aria-label={`View session ${session.sessionId}`}
+            >
+              <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
+            </Link>
+          </li>
+        ) : null}
+        {traceSelection ? (
+          <li>
+            <button
+              type="button"
+              className="trace-tree-icon-rail__item"
+              data-selected={traceSelection.isSelected}
+              aria-label={`View trace ${traceSelection.traceId}`}
+              aria-pressed={traceSelection.isSelected}
+              onClick={traceSelection.onSelect}
+            >
+              <Icon aria-hidden="true" svg={<Icons.Trace />} />
+            </button>
+          </li>
+        ) : null}
+        {flattenedSpanNodes.map(({ span }) => {
+          const isSelected = selectedSpanNodeId === span.id;
+          return (
+            <li key={span.id}>
+              <button
+                type="button"
+                className="trace-tree-icon-rail__item"
+                data-selected={isSelected}
+                data-trace-tree-span-node-id={span.id}
+                aria-label={`View span ${span.name}`}
+                aria-pressed={isSelected}
+                onClick={(event) => {
+                  if (!onSpanClick) return;
+                  onSpanSelectionStart?.(span);
+                  beginOptimisticSpanNavigation({
+                    onNavigate: () => onSpanClick(span),
+                    spanNodeId: span.id,
+                    trigger: event.currentTarget,
+                  });
+                }}
+              >
+                <SpanKindIcon spanKind={span.spanKind} />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {fullTree}
+    </div>
+  );
 }
 
 const entityTreeItemCSS = css`
@@ -272,8 +458,9 @@ const entityTreeItemCSS = css`
   width: 100%;
   gap: var(--global-dimension-size-100);
   padding: var(--global-dimension-size-100);
-  padding-left: var(--global-dimension-size-200);
-  border-left: 4px solid transparent;
+  padding-left: ${TRACE_TREE_ROW_INLINE_START};
+  border-left: ${TRACE_TREE_ROW_BORDER_WIDTH} solid transparent;
+  overflow: hidden;
 
   &:hover {
     background-color: var(--global-color-gray-75);
@@ -303,14 +490,20 @@ const entityTreeItemCSS = css`
     position: relative;
     z-index: 1;
     display: flex;
+    flex: 1 1 120px;
     justify-content: flex-end;
     max-width: 120px;
     margin-left: auto;
     min-width: 0;
+    overflow: hidden;
   }
 
   .trace-tree-entity-item__id > button {
+    width: 100%;
     max-width: 100%;
+    justify-content: flex-end;
+    margin-right: 0;
+    overflow: hidden;
   }
 
   .icon-wrap {
@@ -330,7 +523,11 @@ function SessionTreeItem({ sessionId, to }: { sessionId: string; to: To }) {
       <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
       <Text size="S">Session</Text>
       <div className="trace-tree-entity-item__id">
-        <CopyableIDBadge id={sessionId} tooltipText="Copy Session ID" />
+        <CopyableIDBadge
+          id={sessionId}
+          overflowMode="truncate"
+          tooltipText="Copy Session ID"
+        />
       </div>
     </div>
   );
@@ -357,7 +554,11 @@ function TraceTreeItem({
       <Icon aria-hidden="true" svg={<Icons.Trace />} />
       <Text size="S">Trace</Text>
       <div className="trace-tree-entity-item__id">
-        <CopyableIDBadge id={traceId} tooltipText="Copy Trace ID" />
+        <CopyableIDBadge
+          id={traceId}
+          overflowMode="truncate"
+          tooltipText="Copy Trace ID"
+        />
       </div>
     </div>
   );
@@ -879,7 +1080,7 @@ function TraceTreeDisclosureNode({
             width: auto;
             /* Align the label after the unknown-kind icon and row gap. */
             padding-left: calc(
-              var(--global-dimension-size-200) +
+              ${TRACE_TREE_ROW_INLINE_START} +
                 var(--global-dimension-size-250) +
                 var(--global-dimension-size-100)
             );
@@ -918,7 +1119,7 @@ function SpanNodeWrap(
         padding-right: var(--global-dimension-size-100);
         padding-top: var(--global-dimension-size-100);
         padding-bottom: var(--global-dimension-size-100);
-        border-left: 4px solid transparent;
+        border-left: ${TRACE_TREE_ROW_BORDER_WIDTH} solid transparent;
         box-sizing: border-box;
         &:hover {
           background-color: var(--global-color-gray-75);
@@ -931,7 +1132,8 @@ function SpanNodeWrap(
         & > *:first-of-type {
           box-sizing: border-box;
           padding-left: calc(
-            (${props.nestingLevel} * var(--trace-tree-nesting-indent)) + 16px
+            (${props.nestingLevel} * var(--trace-tree-nesting-indent)) +
+              ${TRACE_TREE_ROW_INLINE_START}
           );
         }
       `}
@@ -966,7 +1168,10 @@ function SpanTreeEdgeConnector({
             : "var(--global-color-gray-300)"};
         z-index: ${isError ? 1 : 0};
         top: 0;
-        left: ${nestingLevel * NESTING_INDENT + 29}px;
+        left: calc(
+          ${nestingLevel * NESTING_INDENT}px + ${TRACE_TREE_ROW_INLINE_START} +
+            13px
+        );
         width: 42px;
         bottom: 0;
         z-index: 1;
@@ -998,7 +1203,10 @@ function SpanTreeEdge({
         z-index: ${zIndex};
         border-radius: 0 0 0 11px;
         top: -5px;
-        left: ${nestingLevel * NESTING_INDENT + 29}px;
+        left: calc(
+          ${nestingLevel * NESTING_INDENT}px + ${TRACE_TREE_ROW_INLINE_START} +
+            13px
+        );
         width: 11px;
         height: 22px;
       `}

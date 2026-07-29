@@ -7,7 +7,11 @@ import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia"
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
-import { TraceTree, TraceTreeProvider } from "../TraceTree";
+import {
+  TraceTree,
+  TraceTreeProvider,
+  type TraceTreeProps,
+} from "../TraceTree";
 import { TraceTreeContext } from "../TraceTreeContext";
 import type { ISpanItem } from "../types";
 
@@ -88,6 +92,9 @@ describe("TraceTree", () => {
     onSpanSelectionStart,
     searchQuery,
     isChildTruncationEnabled = false,
+    isNavigationCollapsed = false,
+    session,
+    traceSelection,
   }: {
     spans: ISpanItem[];
     selectedSpanNodeId?: string;
@@ -95,11 +102,17 @@ describe("TraceTree", () => {
     onSpanSelectionStart?: (span: ISpanItem) => void;
     searchQuery?: string;
     isChildTruncationEnabled?: boolean;
+    isNavigationCollapsed?: boolean;
+    session?: TraceTreeProps["session"];
+    traceSelection?: TraceTreeProps["traceSelection"];
   }) {
     const traceTree = (
       <TraceTree
         spans={spans}
         isChildTruncationEnabled={isChildTruncationEnabled}
+        isNavigationCollapsed={isNavigationCollapsed}
+        session={session}
+        traceSelection={traceSelection}
         selectedSpanNodeId={selectedSpanNodeId}
         scrollSelectedSpanIntoView={false}
         onSpanClick={onSpanClick}
@@ -131,6 +144,94 @@ describe("TraceTree", () => {
       );
     });
   }
+
+  it("renders a text-free icon rail and a separate full-tree overlay", () => {
+    renderTraceTree({
+      spans: [ROOT_SPAN, CHILD_SPAN],
+      selectedSpanNodeId: ROOT_SPAN.id,
+      isNavigationCollapsed: true,
+      session: {
+        sessionId: "session-12345678",
+        to: "/projects/project-1/sessions/session-node-id",
+      },
+      traceSelection: {
+        isSelected: false,
+        onSelect: vi.fn(),
+        traceId: "trace-12345678",
+      },
+    });
+
+    const navigation = container.querySelector(".trace-tree-navigation");
+    const rail = container.querySelector(
+      '[data-testid="trace-tree-icon-rail"]'
+    );
+    const overlay = container.querySelector(".trace-tree-navigation__overlay");
+    const fullTree = overlay?.querySelector('[data-testid="trace-tree"]');
+
+    expect(rail).not.toBeNull();
+    expect(overlay).not.toBeNull();
+    if (overlay === null) {
+      throw new Error("Expected the trace tree overlay to render");
+    }
+    const overlayClassName = Array.from(overlay.classList).find((className) =>
+      className.startsWith("css-")
+    );
+    const overlayStyleRule = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText === `.${overlayClassName}`
+      );
+    const overlayStyle = getComputedStyle(overlay);
+    const railClassName = Array.from(rail?.classList ?? []).find((className) =>
+      className.startsWith("css-")
+    );
+    const railItemStyleRule = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText === `.${railClassName} .trace-tree-icon-rail__item`
+      );
+    expect(rail?.textContent).toBe("");
+    expect(
+      Array.from(rail?.querySelectorAll("a, button") ?? []).map((action) =>
+        action.getAttribute("aria-label")
+      )
+    ).toEqual([
+      "View session session-12345678",
+      "View trace trace-12345678",
+      "View span root span",
+      "View span child span",
+    ]);
+    expect(fullTree?.textContent).toContain("root span");
+    expect(fullTree?.textContent).toContain("child span");
+    expect(overlayStyle.height).toBe("fit-content");
+    expect(overlayStyle.maxHeight).toBe("100%");
+    expect(overlayStyle.paddingBottom).toBe("var(--global-dimension-size-100)");
+    expect(overlayStyleRule?.style.borderColor).toBe(
+      "var(--global-border-color-default)"
+    );
+    expect(overlayStyle.borderRadius).toBe("var(--global-rounding-small)");
+    expect(overlayStyle.boxShadow).toContain("8px 16px");
+    expect(railItemStyleRule?.style.padding).toBe(
+      "0 0 0 var(--global-dimension-size-125)"
+    );
+    expect(railItemStyleRule?.style.borderLeft).toBe("3px solid transparent");
+    expect(overlay.getAttribute("data-open")).toBe("false");
+    expect(overlay.hasAttribute("inert")).toBe(true);
+
+    act(() => {
+      navigation?.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+    });
+
+    expect(overlay.getAttribute("data-open")).toBe("true");
+    expect(overlay.hasAttribute("inert")).toBe(false);
+    expect(rail?.getAttribute("aria-hidden")).toBe("true");
+  });
 
   it("renders the session, trace, and root span in order", () => {
     const onTraceSelect = vi.fn();
@@ -169,6 +270,14 @@ describe("TraceTree", () => {
     const traceButton = treeItems[1]?.querySelector<HTMLButtonElement>(
       'button[aria-label="View trace trace-12345678"]'
     );
+    const idContainers = Array.from(
+      container.querySelectorAll<HTMLElement>(".trace-tree-entity-item__id")
+    );
+    const idBadges = idContainers
+      .map((idContainer) =>
+        idContainer.querySelector<HTMLButtonElement>(".copyable-id-badge")
+      )
+      .filter((badge): badge is HTMLButtonElement => badge !== null);
     const textContent = container.textContent ?? "";
 
     expect(treeItems[0]?.textContent).toContain("Sessionsession-12345678");
@@ -183,6 +292,24 @@ describe("TraceTree", () => {
     expect(sessionLink?.querySelector("button")).toBeNull();
     expect(treeItems[1]?.textContent).toContain("Tracetrace-12345678");
     expect(treeItems[1]?.querySelector(".icon-wrap")).not.toBeNull();
+    expect(
+      idContainers.map((idContainer) => ({
+        justifyContent: getComputedStyle(idContainer).justifyContent,
+        overflow: getComputedStyle(idContainer).overflow,
+      }))
+    ).toEqual([
+      { justifyContent: "flex-end", overflow: "hidden" },
+      { justifyContent: "flex-end", overflow: "hidden" },
+    ]);
+    expect(idBadges.map((badge) => badge.dataset.overflowMode)).toEqual([
+      "truncate",
+      "truncate",
+    ]);
+    expect(
+      idBadges.map((badge) =>
+        Number.parseFloat(getComputedStyle(badge).marginRight)
+      )
+    ).toEqual([0, 0]);
     expect(textContent.indexOf("Session")).toBeLessThan(
       textContent.indexOf("Trace")
     );

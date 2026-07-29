@@ -12,15 +12,10 @@ import {
 } from "@phoenix/components/core/zIndex";
 import { classNames } from "@phoenix/utils/classNames";
 
+import { popoverSurfaceCSS } from "./styles";
+
 const popoverCSS = css`
-  box-sizing: border-box;
-  --background-color: var(--global-popover-background-color);
-  border: 1px solid var(--global-popover-border-color);
-  box-shadow: 0px 8px 16px var(--global-overlay-shadow-color);
-  border-radius: var(--global-rounding-small);
-  background: var(--background-color);
-  color: var(--global-text-color-900);
-  outline: none;
+  ${popoverSurfaceCSS}
   z-index: ${PORTALED_OVERLAY_Z_INDEX};
 
   .react-aria-OverlayArrow svg {

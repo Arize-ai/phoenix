@@ -13,6 +13,10 @@ import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { TraceTreePanelToggleButton } from "@phoenix/components/trace/TraceTreePanelToggleButton";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
+import {
+  TRACE_TREE_ROW_BORDER_WIDTH,
+  TRACE_TREE_ROW_INLINE_START,
+} from "@phoenix/components/trace/traceTreeStyles";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
 import { TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS } from "@phoenix/constants";
 import { useTimeFormatters } from "@phoenix/hooks";
@@ -71,7 +75,8 @@ const traceTreeEntitySkeletonCSS = css`
   width: 100%;
   min-height: var(--global-dimension-size-500);
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
-  border-left: 4px solid transparent;
+  padding-left: ${TRACE_TREE_ROW_INLINE_START};
+  border-left: ${TRACE_TREE_ROW_BORDER_WIDTH} solid transparent;
 
   .trace-tree-entity-skeleton__id {
     flex: none;
