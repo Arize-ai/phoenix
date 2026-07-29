@@ -41,7 +41,7 @@ def test_session_work_insert_batch_stays_below_asyncpg_parameter_limit() -> None
         work_records,
         SupportedSQLDialect.POSTGRESQL,
     )
-    compiled = statement.compile(dialect=asyncpg.dialect())
+    compiled = statement.compile(dialect=asyncpg.dialect())  # type: ignore[no-untyped-call]
 
     assert len(compiled.params) == (
         session_sweeper._SESSION_WORK_INSERT_BATCH_SIZE
