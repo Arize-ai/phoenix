@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 
 import { View } from "@phoenix/components";
+import { breakpoints } from "@phoenix/constants";
 
 /**
  * The bordered card that frames auth page content (login, consent, etc.)
@@ -82,24 +83,41 @@ export function AuthLayout({ children }: PropsWithChildren) {
           padding: var(--global-dimension-size-400);
           gap: var(--global-dimension-size-200);
           flex: none;
+          @media (max-width: ${breakpoints.sm}px) {
+            flex-direction: column;
+            align-items: center;
+          }
           a {
             color: var(--global-text-color-700);
             transition: color 0.2s ease-in-out;
             text-decoration: none;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: var(--global-dimension-size-200);
             &:hover {
               color: var(--global-text-color-900);
               text-decoration: underline;
             }
+
+            @media (min-width: ${breakpoints.sm}px) {
+              &:not(:last-child) {
+                ::after {
+                  display: inline-block;
+                  content: "|";
+                }
+              }
+            }
           }
         `}
       >
-        <a href="https://arize.com/docs/phoenix">Documentation</a>|
+        <a href="https://arize.com/docs/phoenix">Documentation</a>
         <a href="https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g">
           Community
         </a>
-        |<a href="https://twitter.com/ArizePhoenix">X</a>|
-        <a href="https://www.linkedin.com/showcase/113218220">LinkedIn</a>|
-        <a href="https://github.com/Arize-ai/phoenix">GitHub</a>|
+        <a href="https://twitter.com/ArizePhoenix">X</a>
+        <a href="https://www.linkedin.com/showcase/113218220">LinkedIn</a>
+        <a href="https://github.com/Arize-ai/phoenix">GitHub</a>
         <a href="https://github.com/Arize-ai/phoenix/releases">{`arize-phoenix v${window.Config.platformVersion}`}</a>
       </footer>
     </main>
