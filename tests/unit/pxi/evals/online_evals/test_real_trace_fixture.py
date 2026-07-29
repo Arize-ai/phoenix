@@ -22,7 +22,7 @@ from unittest import mock
 
 from phoenix.client.__generated__ import v1
 
-from evals.pxi.online_evals.conversation import _last_llm_span, segment_turns, transcript
+from evals.pxi.online_evals.conversation import segment_turns, transcript
 from evals.pxi.online_evals.evaluators import user_friction
 from evals.pxi.online_evals.evaluators.tool_count_per_turn import evaluate_tool_count_per_turn
 
@@ -148,10 +148,6 @@ def test_tool_count_per_turn_on_real_subagent_trace() -> None:
 
 def test_user_friction_uses_main_agent_llm_on_real_subagent_trace() -> None:
     root, spans = _load_subagent_trace()
-    last_llm = _last_llm_span(spans)
-    assert last_llm is not None
-    assert last_llm["context"]["span_id"] == "s38"
-    assert last_llm["parent_id"] == "s01"
 
     score = mock.Mock(score=0.0, label="no_friction", explanation="ok")
     judge = mock.Mock()

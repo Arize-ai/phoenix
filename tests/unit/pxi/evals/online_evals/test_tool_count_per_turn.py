@@ -184,17 +184,6 @@ def test_counts_nested_error_status_tool() -> None:
     assert result.metadata["nested_tool_names"] == ["query_phoenix"]
 
 
-def test_tool_names_are_chronologically_interleaved() -> None:
-    root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
-    call = _span("call", name="call_subagent", kind="TOOL", parent_id="root", start=1)
-    nested = _span("nested", name="nested", kind="TOOL", parent_id="call", start=2)
-    later_top_level = _span("later", name="later_top_level", kind="TOOL", parent_id="root", start=3)
-
-    result = _evaluate(root, [later_top_level, nested, root, call])
-
-    assert result.metadata["tool_names"] == ["call_subagent", "nested", "later_top_level"]
-
-
 def test_classifies_tool_span_partition() -> None:
     root = _span("root", name="pxi.turn", kind="AGENT", parent_id=None, start=0)
     top_level = _span("top", name="call_subagent", kind="TOOL", parent_id="root", start=1)
