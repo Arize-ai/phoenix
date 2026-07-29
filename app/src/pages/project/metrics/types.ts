@@ -1,5 +1,7 @@
 import { createContext, useContext } from "react";
 
+import { useVisibleValue } from "@phoenix/components/chart";
+
 /**
  * Recharts syncId shared by every project metric chart so tooltip hover and
  * brush interactions stay synchronized across chart panels. Every chart in
@@ -31,10 +33,14 @@ export const MetricFetchKeyProvider = MetricFetchKeyContext.Provider;
  * provided fetchKey changes (e.g. when new data is streamed in) while
  * continuing to render cached data. Every chart in the chart catalog must
  * pass this to its query so it stays live when shown above the spans table.
+ *
+ * The fetchKey is frozen while the chart is scrolled out of view, so a
+ * background stream refresh only refetches the charts the user can see; a
+ * chart scrolled back into view picks up the latest fetchKey and catches up.
  */
 export function useMetricQueryFetchOptions() {
-  const fetchKey = useContext(MetricFetchKeyContext);
-  return fetchKey != null
-    ? ({ fetchKey, fetchPolicy: "store-and-network" } as const)
+  const visibleFetchKey = useVisibleValue(useContext(MetricFetchKeyContext));
+  return visibleFetchKey != null
+    ? ({ fetchKey: visibleFetchKey, fetchPolicy: "store-and-network" } as const)
     : undefined;
 }

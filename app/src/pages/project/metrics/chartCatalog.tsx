@@ -1,7 +1,12 @@
 import type { ComponentType } from "react";
 import invariant from "tiny-invariant";
 
-import { ChartPanel, type ChartTypeIconType } from "@phoenix/components/chart";
+import {
+  ChartPanel,
+  type ChartTypeIconType,
+  DeferredChartPanel,
+  useVisibleValue,
+} from "@phoenix/components/chart";
 import type {
   BuiltInProjectMetricChartKey,
   MetricChartTableView,
@@ -180,10 +185,18 @@ function createProjectMetricPanel({
   description,
   Component,
 }: ProjectMetricChartDefinition): ComponentType<ProjectMetricPanelProps> {
-  return function ProjectMetricPanel({ fillHeight = false, ...props }) {
+  return function ProjectMetricPanel({
+    fillHeight = false,
+    timeRange,
+    ...props
+  }) {
+    // Freeze the time range while the chart is out of view: the range is a
+    // query variable, so letting a live range keep advancing would refetch
+    // hidden charts on every stream refresh despite the frozen fetchKey
+    const visibleTimeRange = useVisibleValue(timeRange);
     return (
       <ChartPanel title={name} subtitle={description} fillHeight={fillHeight}>
-        <Component {...props} />
+        <Component {...props} timeRange={visibleTimeRange} />
       </ChartPanel>
     );
   };
@@ -213,6 +226,7 @@ const CHARTS_BY_KEY = Object.fromEntries(
 function ProjectAnnotationChartPanel({
   annotationLevel,
   annotationName,
+  timeRange,
   ...props
 }: ProjectMetricPanelProps) {
   invariant(
@@ -223,12 +237,45 @@ function ProjectAnnotationChartPanel({
     annotationName != null,
     "annotationName is required for a project annotation metric chart"
   );
+  // See ProjectMetricPanel: hidden charts must not refetch as a live range advances
+  const visibleTimeRange = useVisibleValue(timeRange);
   return (
     <ProjectAnnotationMetricPanel
       {...props}
+      timeRange={visibleTimeRange}
       annotationLevel={annotationLevel}
       annotationName={annotationName}
     />
+  );
+}
+
+/**
+ * A catalog chart wrapped in a {@link DeferredChartPanel} so it doesn't fetch
+ * until scrolled into view. The placeholder panel's title and subtitle come
+ * from the same catalog entry as the chart's own panel, so the skeleton and
+ * the mounted chart can never drift apart.
+ */
+export function DeferredProjectMetricPanel({
+  chart,
+  fillHeight = false,
+  ...props
+}: ProjectMetricViewProps & {
+  chart: ProjectMetricChart;
+  fillHeight?: boolean;
+}) {
+  return (
+    <DeferredChartPanel
+      title={chart.name}
+      subtitle={chart.description}
+      fillHeight={fillHeight}
+    >
+      <chart.Panel
+        {...props}
+        annotationLevel={chart.annotationLevel}
+        annotationName={chart.annotationName}
+        fillHeight={fillHeight}
+      />
+    </DeferredChartPanel>
   );
 }
 

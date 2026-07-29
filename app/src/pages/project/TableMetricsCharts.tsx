@@ -15,7 +15,10 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { MetricChartTableView } from "./constants";
-import { getProjectMetricCharts } from "./metrics/chartCatalog";
+import {
+  DeferredProjectMetricPanel,
+  getProjectMetricCharts,
+} from "./metrics/chartCatalog";
 import { MetricFetchKeyProvider } from "./metrics/types";
 import { useClosedTimeRange } from "./metrics/useClosedTimeRange";
 
@@ -64,14 +67,15 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
     <ChartPanelStrip chartCount={charts.length}>
       {/* Re-fetch the charts on each stream refresh so they stay live */}
       <MetricFetchKeyProvider value={fetchKey}>
-        {charts.map(({ key, annotationLevel, annotationName, Panel }) => (
-          <Panel
-            key={key}
+        {charts.map((chart) => (
+          // Charts fetch on mount, so mounting only the visible ones keeps
+          // a long strip of charts from loading data all at once
+          <DeferredProjectMetricPanel
+            key={chart.key}
+            chart={chart}
             projectId={projectId}
             timeRange={timeRange}
             onTimeRangeSelected={setCustomTimeRange}
-            annotationLevel={annotationLevel}
-            annotationName={annotationName}
             fillHeight
           />
         ))}

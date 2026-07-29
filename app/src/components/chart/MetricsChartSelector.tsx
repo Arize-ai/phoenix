@@ -164,7 +164,8 @@ function SortableChartMenuItem<K extends Key>({
 
 /**
  * A searchable menu to select which charts from a catalog are shown, and in
- * what order. Allows up to `maxSelected` charts to be selected at once.
+ * what order. Any number of charts can be selected unless a `maxSelected`
+ * limit is given.
  *
  * Rows do NOT jump between the "Selected" and "Available" sections as they are
  * toggled: the partition is snapshotted when the menu opens (this component
@@ -185,7 +186,7 @@ export function MetricsChartSelector<K extends Key>({
   options,
   selectedKeys,
   onSelectionChange,
-  maxSelected = 3,
+  maxSelected,
 }: {
   /** The charts to choose from, in catalog order. */
   options: readonly ChartSelectorOption<K>[];
@@ -196,8 +197,8 @@ export function MetricsChartSelector<K extends Key>({
   selectedKeys: readonly K[];
   onSelectionChange: (keys: K[]) => void;
   /**
-   * The maximum number of charts that can be selected at once.
-   * @default 3
+   * The maximum number of charts that can be selected at once. Unlimited
+   * when omitted.
    */
   maxSelected?: number;
 }) {
@@ -227,7 +228,7 @@ export function MetricsChartSelector<K extends Key>({
     (option) => !sectionKeySet.has(option.key)
   );
 
-  const isAtMax = selectedKeys.length >= maxSelected;
+  const isAtMax = maxSelected != null && selectedKeys.length >= maxSelected;
   // When at the limit, prevent adding more by disabling the charts that are
   // not currently selected. Already-selected charts stay toggleable so the
   // user can swap one out.
@@ -251,7 +252,7 @@ export function MetricsChartSelector<K extends Key>({
         .filter((key) => !sectionKeySet.has(key) && !selectedKeySet.has(key)),
     ]
       .filter((key) => keys.has(key))
-      .slice(0, maxSelected);
+      .slice(0, maxSelected ?? Infinity);
 
   const handleSelectionChange = (selection: Selection) => {
     const nextKeys =
@@ -339,14 +340,20 @@ export function MetricsChartSelector<K extends Key>({
       <MenuFooter>
         <Flex
           direction="row"
-          justifyContent="space-between"
+          // The counter stays on the right whether or not the max-charts hint
+          // occupies the left side
+          justifyContent={maxSelected != null ? "space-between" : "end"}
           alignItems="center"
         >
-          <Text size="XS" color="text-500">
-            Show up to {maxSelected} charts
-          </Text>
+          {maxSelected != null && (
+            <Text size="XS" color="text-500">
+              Show up to {maxSelected} charts
+            </Text>
+          )}
           <Text size="XS" color="text-700">
-            {selectedKeys.length}/{maxSelected} selected
+            {maxSelected != null
+              ? `${selectedKeys.length}/${maxSelected} selected`
+              : `${selectedKeys.length} selected`}
           </Text>
         </Flex>
       </MenuFooter>

@@ -2,8 +2,10 @@ import { css } from "@emotion/react";
 import React, { Suspense } from "react";
 
 import type { HeadingProps } from "@phoenix/components";
-import { Heading, Loading, Text } from "@phoenix/components";
+import { Heading, Text } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
+
+import { ChartSkeleton } from "./ChartSkeleton";
 
 const DEFAULT_CHART_HEIGHT = 190;
 
@@ -14,7 +16,7 @@ const DEFAULT_CHART_HEIGHT = 190;
  * scroll horizontally at this width instead of shrinking them further, so a
  * chart is the same usable size at every window width.
  */
-export const CHART_MIN_WIDTH = 320;
+export const CHART_MIN_WIDTH = 400;
 
 /**
  * Below this panel height the subtitle is dropped so the chart keeps the
@@ -196,7 +198,7 @@ export function ChartPanel({
         style={fillHeight ? undefined : { height: DEFAULT_CHART_HEIGHT }}
       >
         <ErrorBoundary>
-          <Suspense fallback={<Loading />}>{children}</Suspense>
+          <Suspense fallback={<ChartSkeleton />}>{children}</Suspense>
         </ErrorBoundary>
       </div>
     </section>

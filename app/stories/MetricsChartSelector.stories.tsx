@@ -12,14 +12,13 @@ import {
 } from "@phoenix/components";
 import { MetricsChartSelector } from "@phoenix/components/chart";
 import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
-import { MAX_SELECTED_METRIC_CHARTS } from "@phoenix/pages/project/constants";
 import { PROJECT_METRIC_CHARTS } from "@phoenix/pages/project/metrics/chartCatalog";
 
 /**
  * A generic, store-agnostic chart picker. Given a catalog of chart options it
- * lets the user choose which charts appear in a view, capped at `maxSelected`.
- * Here it is wired to the project metric chart catalog, the same way the strip
- * above a project's spans/traces/sessions table uses it.
+ * lets the user choose which charts appear in a view, optionally capped at
+ * `maxSelected`. Here it is wired to the project metric chart catalog, the
+ * same way the strip above a project's spans/traces/sessions table uses it.
  *
  * The interaction to notice: toggling a chart does NOT make rows jump between
  * the "Selected" and "Available" sections. The partition is frozen when the
@@ -45,8 +44,10 @@ type Story = StoryObj<typeof MetricsChartSelector>;
 
 function InteractiveSelector({
   initialKeys = [],
+  maxSelected,
 }: {
   initialKeys?: ProjectMetricChartKey[];
+  maxSelected?: number;
 }) {
   const [selectedKeys, setSelectedKeys] =
     useState<ProjectMetricChartKey[]>(initialKeys);
@@ -63,7 +64,7 @@ function InteractiveSelector({
           <MetricsChartSelector
             options={PROJECT_METRIC_CHARTS}
             selectedKeys={selectedKeys}
-            maxSelected={MAX_SELECTED_METRIC_CHARTS}
+            maxSelected={maxSelected}
             onSelectionChange={setSelectedKeys}
           />
         </MenuContainer>
@@ -96,11 +97,15 @@ export const Empty: Story = {
 };
 
 /**
- * Opens at the selection limit. The unselected charts are disabled until the
- * user removes one, so the strip never exceeds {@link MAX_SELECTED_METRIC_CHARTS}.
+ * With an explicit `maxSelected` cap, opening at the limit disables the
+ * unselected charts until the user removes one, so the view never exceeds
+ * the cap. Without the prop, any number of charts can be selected.
  */
 export const AtSelectionLimit: Story = {
   render: () => (
-    <InteractiveSelector initialKeys={["traffic", "traces", "latency"]} />
+    <InteractiveSelector
+      initialKeys={["traffic", "traces", "latency"]}
+      maxSelected={3}
+    />
   ),
 };

@@ -9,6 +9,7 @@ import {
   type AnnotationMetricsSeries,
   AnnotationScoreLabelToggle,
   ChartPanel,
+  ChartSkeleton,
   TimeRangeChartBrush,
   compactTimeXAxisProps,
   compactYAxisProps,
@@ -190,7 +191,7 @@ export function ProjectAnnotationMetricPanel({
             subtitle={PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION}
             fillHeight={fillHeight}
           >
-            <Loading />
+            <ChartSkeleton />
           </ChartPanel>
         }
       >

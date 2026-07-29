@@ -11,6 +11,33 @@ class ResizeObserverMock {
 }
 globalThis.ResizeObserver = ResizeObserverMock;
 
+// jsdom does not implement IntersectionObserver, which is used to defer
+// mounting offscreen content (e.g. chart panels). jsdom has no layout, so
+// everything counts as visible: the mock reports every observed element as
+// intersecting, synchronously on observe, and deferred content mounts.
+class IntersectionObserverMock {
+  root = null;
+  rootMargin = "";
+  thresholds = [];
+  #callback: IntersectionObserverCallback;
+  constructor(callback: IntersectionObserverCallback) {
+    this.#callback = callback;
+  }
+  observe(target: Element) {
+    this.#callback(
+      [{ isIntersecting: true, target } as IntersectionObserverEntry],
+      this as unknown as IntersectionObserver
+    );
+  }
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+}
+globalThis.IntersectionObserver =
+  IntersectionObserverMock as unknown as typeof IntersectionObserver;
+
 // jsdom does not implement the Web Animations API, which react-aria's
 // SelectionIndicator uses to settle its slide transition
 if (typeof Element.prototype.getAnimations !== "function") {

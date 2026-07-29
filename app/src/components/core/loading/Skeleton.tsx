@@ -36,7 +36,7 @@ export interface SkeletonProps extends HTMLAttributes<HTMLSpanElement> {
   className?: string;
 }
 
-const pulseKeyframes = keyframes`
+export const pulseKeyframes = keyframes`
   0% {
     opacity: 1;
   }
@@ -48,7 +48,7 @@ const pulseKeyframes = keyframes`
   }
 `;
 
-const waveKeyframes = keyframes`
+export const waveKeyframes = keyframes`
   0% {
     transform: translateX(-100%);
   }

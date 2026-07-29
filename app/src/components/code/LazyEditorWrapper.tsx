@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+
+import { useDeferredVisibility } from "@phoenix/hooks/useDeferredVisibility";
 
 type LazyEditorWrapperProps = {
   /**
@@ -13,9 +14,13 @@ type LazyEditorWrapperProps = {
 } & ComponentPropsWithoutRef<"div">;
 
 /**
- * A wrapper for code mirror editors that lazily initializes the editor when it is scrolled into view.
- * This is necessary in some cases where a code mirror editor is rendered outside of the viewport.
- * In those cases, the editor may not be initialized properly and may be invisible or cut off when it is scrolled into view.
+ * A wrapper for code mirror editors that holds a minimum height until the
+ * editor is scrolled into view. This is necessary in some cases where a code
+ * mirror editor is rendered outside of the viewport: the editor may not
+ * calculate its dimensions correctly and be invisible or cut off when it is
+ * scrolled into view. Holding a minimum height until first visibility lets it
+ * initialize with real dimensions.
+ * For a related issue @see https://github.com/codemirror/dev/issues/1076
  * @param preInitializationMinHeight The minimum height of the container for the JSON editor prior to initialization.
  */
 export function LazyEditorWrapper({
@@ -23,44 +28,12 @@ export function LazyEditorWrapper({
   children,
   ...rest
 }: LazyEditorWrapperProps) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  /**
-   * The two useEffect hooks below are used to initialize the JSON editor.
-   * This is necessary because code mirror needs to calculate its dimensions to initialize properly.
-   * When it is rendered outside of the viewport, the dimensions may not always be calculated correctly,
-   * resulting in the editor being invisible or cut off when it is scrolled into view.
-   * Below we use a combination of an intersection observer and a delay to ensure that the editor is initialized correctly.
-   * For a related issue @see https://github.com/codemirror/dev/issues/1076
-   */
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      setIsVisible(entry.isIntersecting);
-    });
-
-    if (wrapperRef.current) {
-      observer.observe(wrapperRef.current);
-    }
-    const current = wrapperRef.current;
-
-    return () => {
-      if (current) {
-        observer.unobserve(current);
-      }
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    if (isVisible && !isInitialized) {
-      setIsInitialized(true);
-    }
-  }, [isInitialized, isVisible]);
+  const { ref, hasBeenVisible: isInitialized } =
+    useDeferredVisibility<HTMLDivElement>();
 
   return (
     <div
-      ref={wrapperRef}
+      ref={ref}
       {...rest}
       css={css`
         min-height: ${!isInitialized

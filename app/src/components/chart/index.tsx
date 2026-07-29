@@ -1,6 +1,7 @@
 export * from "./ChartEmptyStateOverlay";
 export * from "./ChartPanel";
 export * from "./ChartPanelStrip";
+export * from "./DeferredChartPanel";
 export * from "./ChartTypeIcon";
 export * from "./AnnotationMetricsChart";
 export * from "./AnnotationScoreLabelToggle";
@@ -9,7 +10,7 @@ export * from "./MetricsChartSelector";
 export * from "./ChartTooltip";
 export * from "./SegmentChart";
 export * from "./InteractiveLegend";
-export * from "./SparklineSkeleton";
+export * from "./ChartSkeleton";
 export * from "./TimeRangeChartBrush";
 export * from "./defaults";
 export * from "./formatters";
