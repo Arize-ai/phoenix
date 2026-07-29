@@ -57,6 +57,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     DataChunk,
+    ErrorChunk,
     FinishChunk,
     MessageMetadataChunk,
     StartChunk,
@@ -2512,6 +2513,10 @@ def create_agents_router(
                         ):
                             yield message_chunk
                         yield await _persist_turn()
+                except Exception as exc:
+                    stream_error = exc
+                    logger.exception("Agent chat stream failed for session %s", session_id)
+                    yield ErrorChunk(error_text=str(exc).strip() or type(exc).__name__)
                 except BaseException as exc:
                     stream_error = exc
                     raise

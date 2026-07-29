@@ -922,15 +922,20 @@ async def test_failed_chat_turn_does_not_persist_partial_transcript(
         messages=persisted_messages,
     )
 
-    with pytest.raises(RuntimeError, match="model stream failed"):
-        await httpx_client.post(
-            _chat_url(agent_session_id),
-            json=_chat_body(
-                session_id,
-                _user_message("new message", message_id="msg-user-2"),
-                lastMessageId="msg-user-1",
-            ),
-        )
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            _user_message("new message", message_id="msg-user-2"),
+            lastMessageId="msg-user-1",
+        ),
+    )
+
+    # The failure is surfaced to the client as an error chunk instead of the
+    # connection closing silently.
+    assert response.status_code == 200
+    error_chunk = next(chunk for chunk in _stream_chunks(response.text) if chunk["type"] == "error")
+    assert "model stream failed" in error_chunk["errorText"]
 
     async with db() as session:
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
