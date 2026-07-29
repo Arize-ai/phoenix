@@ -3947,7 +3947,13 @@ class TestProject:
                 session,
                 second_trace,
                 span_kind="TOOL",
-                attributes={"duplicate": {"leaf": "second"}, "flat": "cataloged"},
+                attributes={
+                    "duplicate": {"leaf": "second"},
+                    "flat": "cataloged",
+                    # Whole-literal storage of the key the first session stores
+                    # nested — the same OTel wire key, so one vocabulary term.
+                    "custom.leaf": "whole-literal",
+                },
                 start_time=base_time + timedelta(minutes=2),
                 end_time=base_time + timedelta(minutes=2, seconds=10),
             )
@@ -4011,21 +4017,30 @@ class TestProject:
         num_traces_term = next(t for t in terms if t["name"] == "num_traces")
         assert "conversation turns" in num_traces_term["description"]
         assert "earliest root span" in terms_by_name["attributes[...]"]["description"]
-        assert 'attributes["user"]["id"]' in terms_by_name["user.id"]["description"]
-        assert 'attributes["metadata"]["key"]' in terms_by_name['metadata["key"]']["description"]
+        assert 'attributes["user.id"]' in terms_by_name["user.id"]["description"]
+        assert 'attributes["metadata.key"]' in terms_by_name['metadata["key"]']["description"]
+        # Observed attributes are served in the canonical wire-key spelling,
+        # regardless of how ingestion decomposed each key into nested JSON.
         observed_attribute_terms = {
-            'attributes["custom"]["leaf"]',
-            'attributes["duplicate"]["leaf"]',
+            'attributes["custom.leaf"]',
+            'attributes["duplicate.leaf"]',
             'attributes["flat"]',
-            'attributes["input"]["value"]',
-            'attributes["metadata"]["tenant"]',
-            'attributes["user"]["id"]',
+            'attributes["input.value"]',
+            'attributes["metadata.tenant"]',
+            'attributes["user.id"]',
         }
         for term_name in observed_attribute_terms:
             assert terms_by_name[term_name]["type"] == "string"
             assert terms_by_name[term_name]["category"] == "attribute"
             assert "earliest root span" in terms_by_name[term_name]["description"]
-        assert [term["name"] for term in terms].count('attributes["duplicate"]["leaf"]') == 1
+        # One term per wire key: observed twice nested, and observed nested in
+        # one session but whole-literal in another, both collapse.
+        served_names = [term["name"] for term in terms]
+        assert served_names.count('attributes["duplicate.leaf"]') == 1
+        assert served_names.count('attributes["custom.leaf"]') == 1
+        # The nested storage-path spelling stays an accepted compiler synonym
+        # but is not served as its own term.
+        assert 'attributes["custom"]["leaf"]' not in terms_by_name
         absent_attribute_terms = {
             'attributes["child_only"]',
             'attributes["later_only"]',
