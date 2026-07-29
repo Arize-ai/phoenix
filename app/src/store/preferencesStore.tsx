@@ -117,6 +117,11 @@ export interface PreferencesProps {
    */
   isAnnotatingSpans: boolean;
   /**
+   * Whether the note-taking bar is shown at the bottom of the span details.
+   * Persisted so the bar stays up across spans and sessions until dismissed.
+   */
+  isTakingSpanNotes: boolean;
+  /**
    * The view mode for projects
    */
   projectViewMode: ProjectViewMode;
@@ -216,6 +221,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for enabling/disabling span annotating
    */
   setIsAnnotatingSpans: (isAnnotatingSpans: boolean) => void;
+  /**
+   * Setter for showing/hiding the span note-taking bar
+   */
+  setIsTakingSpanNotes: (isTakingSpanNotes: boolean) => void;
   /**
    * Setter for the project view mode
    */
@@ -335,6 +344,10 @@ export const createPreferencesStore = (
     isAnnotatingSpans: false,
     setIsAnnotatingSpans: (isAnnotatingSpans) => {
       set({ isAnnotatingSpans }, false, { type: "setIsAnnotatingSpans" });
+    },
+    isTakingSpanNotes: false,
+    setIsTakingSpanNotes: (isTakingSpanNotes) => {
+      set({ isTakingSpanNotes }, false, { type: "setIsTakingSpanNotes" });
     },
     projectViewMode: "grid",
     setProjectViewMode: (projectViewMode) => {

@@ -1,7 +1,6 @@
 import { Suspense, useState } from "react";
 
 import {
-  Button,
   Card,
   Counter,
   Flex,
@@ -9,15 +8,17 @@ import {
   Icons,
   Keyboard,
   Loading,
+  ToggleButton,
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { RowExpandToggleButton } from "@phoenix/components/table";
+import { NOTE_HOTKEY } from "@phoenix/constants/annotationConstants";
+import { usePreferencesContext } from "@phoenix/contexts";
 
-import { useOpenSpanAside } from "../SpanAsideContext";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
-import { NOTE_HOTKEY } from "../SpanNotesEditor";
+import { useOpenSpanNoteBar } from "../SpanNoteBarContext";
 import { SpanNotesTable } from "../SpanNotesTable";
 import { defaultCardProps } from "./constants";
 import { useSpanAnnotationCounts } from "./useSpanAnnotationCounts";
@@ -40,7 +41,13 @@ function SpanNotesCardContents({ spanNodeId }: { spanNodeId: string }) {
   const { noteCount } = useSpanAnnotationCounts({ spanNodeId });
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [areRowsExpanded, setAreRowsExpanded] = useState(false);
-  const openSpanAside = useOpenSpanAside();
+  const openSpanNoteBar = useOpenSpanNoteBar();
+  const isTakingSpanNotes = usePreferencesContext(
+    (state) => state.isTakingSpanNotes
+  );
+  const setIsTakingSpanNotes = usePreferencesContext(
+    (state) => state.setIsTakingSpanNotes
+  );
   const cardProps = useSpanInfoCardProps("notes");
   return (
     <Card
@@ -60,15 +67,23 @@ function SpanNotesCardContents({ spanNodeId }: { spanNodeId: string }) {
             />
           )}
           <TooltipTrigger>
-            <Button
+            <ToggleButton
               size="S"
-              aria-label="Add a note"
+              aria-label="Take notes"
+              isSelected={isTakingSpanNotes}
+              onChange={(isSelected) => {
+                if (isSelected) {
+                  openSpanNoteBar();
+                } else {
+                  setIsTakingSpanNotes(false);
+                }
+              }}
               leadingVisual={<Icon svg={<Icons.MessageCirclePlus />} />}
-              onPress={() => openSpanAside("notes")}
             />
             <Tooltip offset={1}>
               <Flex direction="row" gap="size-100" alignItems="center">
-                Add a note <Keyboard>{NOTE_HOTKEY}</Keyboard>
+                {isTakingSpanNotes ? "Stop taking notes" : "Take notes"}{" "}
+                <Keyboard>{NOTE_HOTKEY}</Keyboard>
               </Flex>
             </Tooltip>
           </TooltipTrigger>

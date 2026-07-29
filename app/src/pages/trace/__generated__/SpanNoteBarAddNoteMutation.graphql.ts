@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<087dfc7fee3cbc34f81e3ae79347acfd>>
+ * @generated SignedSource<<c61c048dceb36145897dc0e19862d567>>
  * @lightSyntaxTransform
  */
 
@@ -12,17 +12,17 @@ export type CreateSpanNoteInput = {
   note: string;
   spanId: string;
 };
-export type SpanNotesEditorAddNoteMutation$variables = {
+export type SpanNoteBarAddNoteMutation$variables = {
   input: CreateSpanNoteInput;
 };
-export type SpanNotesEditorAddNoteMutation$data = {
+export type SpanNoteBarAddNoteMutation$data = {
   readonly createSpanNote: {
     readonly __typename: "SpanAnnotationMutationPayload";
   };
 };
-export type SpanNotesEditorAddNoteMutation = {
-  response: SpanNotesEditorAddNoteMutation$data;
-  variables: SpanNotesEditorAddNoteMutation$variables;
+export type SpanNoteBarAddNoteMutation = {
+  response: SpanNoteBarAddNoteMutation$data;
+  variables: SpanNoteBarAddNoteMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -64,7 +64,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SpanNotesEditorAddNoteMutation",
+    "name": "SpanNoteBarAddNoteMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -73,20 +73,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "SpanNotesEditorAddNoteMutation",
+    "name": "SpanNoteBarAddNoteMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "855aa00f68b36e86f375e7765413ac81",
+    "cacheID": "490b67e3e6b1128754926667b835a759",
     "id": null,
     "metadata": {},
-    "name": "SpanNotesEditorAddNoteMutation",
+    "name": "SpanNoteBarAddNoteMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanNotesEditorAddNoteMutation(\n  $input: CreateSpanNoteInput!\n) {\n  createSpanNote(annotationInput: $input) {\n    __typename\n  }\n}\n"
+    "text": "mutation SpanNoteBarAddNoteMutation(\n  $input: CreateSpanNoteInput!\n) {\n  createSpanNote(annotationInput: $input) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fc7452182db44527c3f68ba81dd53e58";
+(node as any).hash = "bdecce115160d024f0cfcbd181ae315e";
 
 export default node;
