@@ -585,6 +585,13 @@
                 ]
               },
               {
+                "group": "Eden AI",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/edenai",
+                  "docs/phoenix/integrations/llm-providers/edenai/openai-tracing"
+                ]
+              },
+              {
                 "group": "VertexAI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/vertexai",

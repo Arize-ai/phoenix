@@ -1,0 +1,69 @@
+---
+title: "Eden AI Tracing"
+description: "Phoenix provides auto-instrumentation for Eden AI through the OpenAI Python Library since Eden AI provides a fully OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+## Install
+
+```bash
+pip install openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your Eden AI API key as an environment variable:
+
+```bash
+export EDENAI_API_KEY='your_edenai_api_key'
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Eden AI
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://api.edenai.run/v3",
+    api_key=os.environ["EDENAI_API_KEY"]
+)
+
+response = client.chat.completions.create(
+    model="mistral/mistral-small-latest",
+    messages=[{"role": "user", "content": "Write a haiku about observability."}],
+)
+print(response.choices[0].message.content)
+```
+
+Eden AI addresses models as `<provider>/<model>` (e.g. `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5`, `mistral/mistral-small-latest`). One key routes to 700+ models across many upstream providers.
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at Eden AI will be streamed to your running Phoenix for observability and evaluation.
+
+## What Gets Traced
+
+All Eden AI model calls are automatically traced and include:
+
+* Request/response data and timing
+* Model name — the resolved `<provider>/<model>` identifier
+* Token usage and cost data
+* Error handling and debugging information
+
+## Common Issues
+
+* **API Key**: Use your Eden AI API key, not an OpenAI key
+* **Model Names**: Use the `<provider>/<model>` format (e.g. `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5`). See [Eden AI's documentation](https://docs.edenai.co) for the full model catalog
+* **Base URL**: Ensure you're using `https://api.edenai.run/v3` as the base URL
+* **EU data residency**: for GDPR-sensitive workloads, Eden AI is EU-headquartered by default; no separate regional endpoint is required
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="Eden AI Documentation" href="https://docs.edenai.co" icon="book" horizontal description="Eden AI setup docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>
