@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 
 import { View } from "@phoenix/components";
+import { breakpoints } from "@phoenix/constants";
 
 /**
  * The bordered card that frames auth page content (login, consent, etc.)
@@ -82,7 +83,7 @@ export function AuthLayout({ children }: PropsWithChildren) {
           padding: var(--global-dimension-size-400);
           gap: var(--global-dimension-size-200);
           flex: none;
-          @media (max-width: 600px) {
+          @media (max-width: ${breakpoints.sm}px) {
             flex-direction: column;
             align-items: center;
           }
@@ -99,7 +100,7 @@ export function AuthLayout({ children }: PropsWithChildren) {
               text-decoration: underline;
             }
 
-            @media (min-width: 600px) {
+            @media (min-width: ${breakpoints.sm}px) {
               &:not(:last-child) {
                 ::after {
                   display: inline-block;
