@@ -35,4 +35,3 @@ async def iter_chunks_with_error_parts(
         if isinstance(chunk, ErrorChunk):
             yield AgentErrorChunk(data=AgentErrorData(error_text=chunk.error_text))
         yield chunk
-
