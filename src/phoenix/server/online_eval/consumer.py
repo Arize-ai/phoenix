@@ -30,6 +30,8 @@ from phoenix.server.online_eval.coordinator import (
 )
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.executor import (
+    ConfigurationSnapshotOutcome,
+    HydratedConfigurationSnapshot,
     HydratedWorkUnit,
     HydrationFailure,
     OnlineEvalExecutor,
@@ -313,7 +315,11 @@ class OnlineEvalConsumer(DaemonTask):
         )
         if not units:
             return
-        tasks = [asyncio.create_task(self._process_unit_with_limit(unit)) for unit in units]
+        configurations = await self._executor.hydrate_configuration_snapshots(units)
+        tasks = [
+            asyncio.create_task(self._process_unit_with_limit(unit, configuration))
+            for unit, configuration in zip(units, configurations, strict=True)
+        ]
         for task in tasks:
             self._pending_tasks.add(task)
             task.add_done_callback(self._pending_tasks.discard)
@@ -330,14 +336,29 @@ class OnlineEvalConsumer(DaemonTask):
         async with self._db_semaphore:
             return await operation()
 
-    async def _process_unit_with_limit(self, unit: ClaimedWorkUnit) -> None:
+    async def _process_unit_with_limit(
+        self,
+        unit: ClaimedWorkUnit,
+        configuration: Optional[ConfigurationSnapshotOutcome] = None,
+    ) -> None:
         async with self._consumer_semaphore:
-            await self._process_unit(unit)
+            await self._process_unit(unit, configuration)
 
-    async def _process_unit(self, unit: ClaimedWorkUnit) -> None:
+    async def _process_unit(
+        self,
+        unit: ClaimedWorkUnit,
+        configuration: Optional[ConfigurationSnapshotOutcome] = None,
+    ) -> None:
         hydrated_work_unit: Optional[HydratedWorkUnit] = None
         try:
-            hydrated = await self._executor.hydrate(unit)
+            if configuration is None:
+                hydrated = await self._executor.hydrate(unit)
+            elif isinstance(configuration, Exception):
+                raise configuration
+            elif isinstance(configuration, HydratedConfigurationSnapshot):
+                hydrated = self._executor.hydrate_from_snapshot(configuration)
+            else:
+                hydrated = configuration
             if isinstance(hydrated, HydrationFailure):
                 error = hydrated.reason.value
                 if hydrated.detail:
