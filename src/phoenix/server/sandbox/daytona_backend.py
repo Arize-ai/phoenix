@@ -83,6 +83,7 @@ class DaytonaSandboxBackend(SandboxBackend):
     """Sandbox backend executing code in Daytona workspaces."""
 
     provider: ClassVar[str] = "DAYTONA"
+    supports_concurrent_session_execution: ClassVar[bool] = True
 
     def __init__(
         self,
