@@ -10,9 +10,10 @@ rather than to True or False, so a session is selected only when the whole condi
 evaluates to exactly True. Reductions skip missing values: `len`/`sum` of nothing is 0, while
 `max`/`min` of nothing is `MISSING`.
 
-Modeled: session intrinsics, the flat aggregate names, and the comprehension grammar over the
-five iterables. Not modeled: the root-span IO names, `attributes[...]` paths, and the
-`annotations[...]` subscript, which have their own tests.
+Modeled: session intrinsics, the flat aggregate names, the comprehension grammar over the five
+iterables, and root-span `attributes[...]` / `metadata[...]` access resolved by OTel wire key.
+Not modeled: the root-span IO names and the `annotations[...]` subscript, which have their own
+tests.
 """
 
 import ast
@@ -70,6 +71,7 @@ class ReferenceSpan:
     llm_token_count_completion: Optional[int] = None
     annotations: tuple[ReferenceAnnotation, ...] = ()
     cost: Optional[ReferenceSpanCost] = None
+    attributes: Optional[Mapping[str, Any]] = None
 
     @property
     def llm_token_count_total(self) -> int:
@@ -99,6 +101,14 @@ class ReferenceSession:
     @property
     def spans(self) -> tuple[ReferenceSpan, ...]:
         return tuple(span for turn in self.turns for span in turn.spans)
+
+    @property
+    def root_span_attributes(self) -> Mapping[str, Any]:
+        """The earliest root span's attributes — what `attributes[...]` / `metadata[...]` read."""
+        for turn in self.turns:
+            for span in turn.spans:
+                return span.attributes or {}
+        return {}
 
     @property
     def span_costs(self) -> tuple[ReferenceSpanCost, ...]:
@@ -283,6 +293,8 @@ class _Evaluator:
             return self._name(node, scope)
         if isinstance(node, ast.Attribute):
             return self._element_field(node, scope)
+        if isinstance(node, ast.Subscript):
+            return self._root_span_attribute(node)
         raise SyntaxError(f"unsupported expression: {ast.unparse(node)}")
 
     def _name(self, node: ast.Name, scope: _Scope) -> Any:
@@ -300,6 +312,19 @@ class _Evaluator:
             raise SyntaxError(f"`{iterable}` elements have no field `{node.attr}`")
         value = getattr(element, node.attr)
         return MISSING if value is None else value
+
+    def _root_span_attribute(self, node: ast.Subscript) -> Any:
+        keys = _attribute_path_keys(node)
+        if keys is None:
+            raise SyntaxError(f"unsupported subscript: {ast.unparse(node)}")
+        attributes = self._session.root_span_attributes
+        if not all(isinstance(key, str) for key in keys):
+            return _traverse(attributes, keys)
+        for path in _wire_key_candidate_paths([str(key) for key in keys]):
+            value = _traverse(attributes, path)
+            if value is not MISSING:
+                return value
+        return MISSING
 
     def _compare_links(self, node: ast.Compare, scope: _Scope) -> Iterator[Any]:
         left = node.left
@@ -444,6 +469,49 @@ class _Evaluator:
             if node.attr in nested:
                 return nested[node.attr], tuple(getattr(outer_element, node.attr))
         raise SyntaxError(f"unknown iterable: {ast.unparse(node)}")
+
+
+def _attribute_path_keys(node: ast.Subscript) -> Optional[tuple[Union[str, int], ...]]:
+    """The key chain of an `attributes[...]` / `metadata[...]` subscript, `metadata` desugared."""
+    keys: list[Union[str, int]] = []
+    current: ast.expr = node
+    while isinstance(current, ast.Subscript):
+        if not (
+            isinstance(current.slice, ast.Constant)
+            and isinstance(current.slice.value, (str, int))
+            and not isinstance(current.slice.value, bool)
+        ):
+            return None
+        keys.append(current.slice.value)
+        current = current.value
+    if not isinstance(current, ast.Name) or current.id not in ("attributes", "metadata"):
+        return None
+    if current.id == "metadata":
+        keys.append("metadata")
+    return tuple(reversed(keys))
+
+
+def _wire_key_candidate_paths(keys: Sequence[str]) -> tuple[tuple[str, ...], ...]:
+    """The compiler's candidate family, derived independently: the fully dot-split path first,
+    then each shape with a literal remainder from one boundary onward."""
+    segments = ".".join(keys).split(".")
+    paths = [tuple(segments)]
+    for j in range(len(segments) - 1, -1, -1):
+        candidate = (*segments[:j], ".".join(segments[j:]))
+        if candidate != paths[0]:
+            paths.append(candidate)
+    return tuple(paths)
+
+
+def _traverse(value: Any, path: Sequence[Union[str, int]]) -> Any:
+    for key in path:
+        if isinstance(value, Mapping) and key in value:
+            value = value[key]
+        elif isinstance(value, (list, tuple)) and isinstance(key, int) and 0 <= key < len(value):
+            value = value[key]
+        else:
+            return MISSING
+    return MISSING if value is None else value
 
 
 def _kleene_and(values: Sequence[Any]) -> Any:
@@ -672,6 +740,88 @@ FIXTURE_SESSIONS: tuple[ReferenceSession, ...] = (
             ReferenceAnnotation(name="Coverage"),
         ),
     ),
+    # Root-span attribute storage shapes for wire-key resolution: fully nested, whole-literal,
+    # both shapes at once (the full split must win), and a prefix collision whose remainder is a
+    # literal key. Every other session misses these keys entirely.
+    ReferenceSession(
+        session_id="attr-nested",
+        start_time=_BASE_TIME,
+        end_time=_BASE_TIME + timedelta(seconds=1),
+        turns=(
+            ReferenceTurn(
+                start_time=_BASE_TIME,
+                latency_ms=100.0,
+                spans=(
+                    ReferenceSpan(
+                        name="chat",
+                        latency_ms=100.0,
+                        attributes={
+                            "llm": {"model_name": "gpt-4o"},
+                            "metadata": {"tier": "gold"},
+                            "docs": [{"score": 0.5}],
+                        },
+                    ),
+                ),
+            ),
+        ),
+    ),
+    ReferenceSession(
+        session_id="attr-literal",
+        start_time=_BASE_TIME,
+        end_time=_BASE_TIME + timedelta(seconds=1),
+        turns=(
+            ReferenceTurn(
+                start_time=_BASE_TIME,
+                latency_ms=100.0,
+                spans=(
+                    ReferenceSpan(
+                        name="chat",
+                        latency_ms=100.0,
+                        attributes={"llm.model_name": "gpt-4o-mini"},
+                    ),
+                ),
+            ),
+        ),
+    ),
+    ReferenceSession(
+        session_id="attr-shadowed",
+        start_time=_BASE_TIME,
+        end_time=_BASE_TIME + timedelta(seconds=1),
+        turns=(
+            ReferenceTurn(
+                start_time=_BASE_TIME,
+                latency_ms=100.0,
+                spans=(
+                    ReferenceSpan(
+                        name="chat",
+                        latency_ms=100.0,
+                        attributes={
+                            "llm": {"model_name": "gpt-4o"},
+                            "llm.model_name": "claude-3-5-sonnet",
+                        },
+                    ),
+                ),
+            ),
+        ),
+    ),
+    ReferenceSession(
+        session_id="attr-collision",
+        start_time=_BASE_TIME,
+        end_time=_BASE_TIME + timedelta(seconds=1),
+        turns=(
+            ReferenceTurn(
+                start_time=_BASE_TIME,
+                latency_ms=100.0,
+                spans=(
+                    ReferenceSpan(
+                        name="chat",
+                        latency_ms=100.0,
+                        attributes={"a": {"b": 1, "b.c": 2}},
+                    ),
+                ),
+            ),
+        ),
+    ),
     ReferenceSession(
         session_id="costed",
         start_time=_BASE_TIME,
@@ -752,4 +902,18 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'duration_ms > 5000 and any(s.span_kind == "TOOL" for s in spans)',
     'num_traces >= 2 or len([s for s in spans if s.status_code == "ERROR"]) > 0',
     "num_traces >= 1 and total_cost > 0.1",
+    # Root-span attributes resolve by wire key: both spellings of one key, either storage shape,
+    # full-split precedence when shapes coexist, the collision remainder, a raw numeric path,
+    # and the miss (a missing key fails every comparison).
+    'attributes["llm.model_name"] == "gpt-4o"',
+    'attributes["llm"]["model_name"] == "gpt-4o"',
+    '"gpt" in attributes["llm.model_name"]',
+    '"gpt" in attributes["llm"]["model_name"]',
+    'attributes["llm.model_name"] == "claude-3-5-sonnet"',
+    'attributes["a.b.c"] == 2',
+    'attributes["a"]["b"] == 1',
+    'attributes["docs"][0]["score"] > 0.4',
+    'attributes["llm.model_name"] is None',
+    'metadata["tier"] == "gold"',
+    'num_traces >= 1 and attributes["llm.model_name"] is not None',
 )

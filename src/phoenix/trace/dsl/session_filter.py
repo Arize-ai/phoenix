@@ -371,10 +371,13 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             "the session, prefer the cheaper any_output."
         ),
         "attributes[...]": (
-            "Open root-span attribute access. Use canonical bracket paths such as "
-            'attributes["input"]["value"]; values are read from the session\'s earliest root span '
-            "and are string-cast unless explicitly cast. A missing attribute is SQL null, so "
-            "comparisons and `not in` exclude those sessions (target them with `is None`)."
+            "Root-span attribute access by OTel wire key: string subscripts are joined with dots, "
+            'so attributes["llm.model_name"] and attributes["llm"]["model_name"] name the same '
+            "key and match it however ingestion nested it (the fully dot-split shape wins if "
+            "several coexist). Numeric subscripts address the stored JSON literally. Values are "
+            "read from the session's earliest root span and are string-cast unless explicitly "
+            "cast. A missing key is SQL null, so comparisons and `not in` exclude those sessions "
+            "(target them with `is None`)."
         ),
         "user.id": (
             'Accepted proxy for attributes["user"]["id"]; reads from the session\'s earliest '
@@ -772,13 +775,62 @@ def _join_root_span_io_values(
     return stmt, bindings_map
 
 
+def _wire_key_candidate_paths(keys: typing.Sequence[str]) -> tuple[tuple[str, ...], ...]:
+    """Candidate storage paths for one OTel wire key, fully dot-split path first.
+
+    Ingestion's unflatten trie either splits every dot or, on a prefix collision, leaves the
+    remainder from one boundary onward as a single literal segment — so those are the only shapes
+    probed, in that order, and the fully split path wins when several coexist.
+    """
+    segments = ".".join(keys).split(".")
+    paths = [tuple(segments)]
+    for j in range(len(segments) - 1, -1, -1):
+        candidate = (*segments[:j], ".".join(segments[j:]))
+        if candidate != paths[0]:
+            paths.append(candidate)
+    return tuple(paths)
+
+
+class _RootSpanAttributeValue:
+    """One ``attributes[...]`` chain, resolved against every candidate storage path at cast time."""
+
+    def __init__(self, column: typing.Any, keys: typing.Sequence[typing.Any]) -> None:
+        self._column = column
+        self._keys = tuple(keys)
+
+    def _cast(self, cast: typing.Callable[[typing.Any], typing.Any]) -> typing.Any:
+        if not all(isinstance(key, str) for key in self._keys):
+            return cast(self._column[list(self._keys)])
+        casted = [cast(self._column[list(path)]) for path in _wire_key_candidate_paths(self._keys)]
+        return casted[0] if len(casted) == 1 else func.coalesce(*casted)
+
+    def as_string(self) -> typing.Any:
+        return self._cast(lambda value: value.as_string())
+
+    def as_float(self) -> typing.Any:
+        return self._cast(lambda value: value.as_float())
+
+    def as_boolean(self) -> typing.Any:
+        return self._cast(lambda value: value.as_boolean())
+
+
+class _RootSpanAttributes:
+    """The session-grain ``attributes`` binding: wire-key access to the earliest root span."""
+
+    def __init__(self, column: typing.Any) -> None:
+        self._column = column
+
+    def __getitem__(self, keys: typing.Sequence[typing.Any]) -> _RootSpanAttributeValue:
+        return _RootSpanAttributeValue(self._column, keys)
+
+
 def _join_root_span(
     stmt: Select[typing.Any],
     candidate_session_rowids: CandidateRowids,
     project_rowids: typing.Optional[typing.Sequence[int]],
     start_time: typing.Optional[typing.Any],
     end_time: typing.Optional[typing.Any],
-) -> tuple[Select[typing.Any], typing.Any]:
+) -> tuple[Select[typing.Any], _RootSpanAttributes]:
     root_span = earliest_root_span_by_session(
         keys=candidate_session_rowids,
         project_rowids=project_rowids,
@@ -788,4 +840,4 @@ def _join_root_span(
     aliased_root_span = aliased(models.Span, name="session_root_span")
     stmt = stmt.outerjoin(root_span, models.ProjectSession.id == root_span.c[SESSION_ROWID])
     stmt = stmt.outerjoin(aliased_root_span, aliased_root_span.id == root_span.c[SPAN_ROWID])
-    return stmt, aliased_root_span.attributes
+    return stmt, _RootSpanAttributes(aliased_root_span.attributes)

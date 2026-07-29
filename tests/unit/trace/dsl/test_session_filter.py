@@ -730,6 +730,9 @@ async def _seed_reference_session(
                 session,
                 trace,
                 span_kind=reference_span.span_kind,
+                attributes=None
+                if reference_span.attributes is None
+                else dict(reference_span.attributes),
                 start_time=turn.start_time,
                 end_time=turn.start_time + timedelta(milliseconds=reference_span.latency_ms),
                 llm_token_count_prompt=reference_span.llm_token_count_prompt,
@@ -809,6 +812,52 @@ async def test_session_filter_agrees_with_reference_evaluator(db: DbSessionFacto
             }
             actual = await _matched_rowids(session, SessionFilter(condition), project)
             assert actual == expected, condition
+
+
+async def test_session_filter_attributes_resolve_by_wire_key(db: DbSessionFactory) -> None:
+    """Both spellings of one wire key match either storage shape, and where the fully split and
+    literal shapes coexist the fully split value wins — pinned directly, not via the reference."""
+    start = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        nested = await _seed_session(
+            session,
+            project,
+            num_traces=1,
+            total_cost=0.0,
+            start_time=start,
+            root_attributes={"llm": {"model_name": "gpt-4o"}},
+        )
+        literal = await _seed_session(
+            session,
+            project,
+            num_traces=1,
+            total_cost=0.0,
+            start_time=start,
+            root_attributes={"llm.model_name": "gpt-4o"},
+        )
+        shadowed = await _seed_session(
+            session,
+            project,
+            num_traces=1,
+            total_cost=0.0,
+            start_time=start,
+            root_attributes={"llm": {"model_name": "gpt-4o"}, "llm.model_name": "claude"},
+        )
+        await _seed_session(session, project, num_traces=1, total_cost=0.0, start_time=start)
+
+        expected = {nested.id, literal.id, shadowed.id}
+        for condition in (
+            'attributes["llm.model_name"] == "gpt-4o"',
+            'attributes["llm"]["model_name"] == "gpt-4o"',
+            '"gpt" in attributes["llm.model_name"]',
+        ):
+            assert await _matched_rowids(session, SessionFilter(condition), project) == expected
+
+        by_shadowed_literal = await _matched_rowids(
+            session, SessionFilter('attributes["llm.model_name"] == "claude"'), project
+        )
+        assert by_shadowed_literal == set()
 
 
 @pytest.mark.parametrize(
