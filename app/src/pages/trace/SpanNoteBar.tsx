@@ -29,22 +29,23 @@ const MAX_INPUT_LINES = 6;
 
 const spanNoteBarCSS = css`
   flex: none;
-  border-top: 1px solid var(--global-border-color-default);
-  // Clips the row while it rises in from under the bottom edge.
+  // Clips the bar while it rises in from under the bottom edge.
   overflow: hidden;
 
+  // The border lives on the row, not the clip, so the whole visible bar —
+  // border and controls together — moves as one unit.
   .span-note-bar__row {
     display: flex;
     flex-direction: row;
     align-items: flex-end;
     gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
+    padding: var(--global-dimension-size-200);
+    border-top: 1px solid var(--global-border-color-default);
 
-    // The bar claims its space at once; the fully-composed row then slides
-    // up into it, so no control is ever shown partially revealed. Kept quick
-    // and linear-decelerating so the rise reads as one motion, no settle.
+    // The slot claims its space at once; the fully-composed bar then rises
+    // uniformly into it, so no control is ever shown partially revealed.
     @media (prefers-reduced-motion: no-preference) {
-      animation: span-note-bar-rise 0.15s ease-out;
+      animation: span-note-bar-rise 0.2s ease-out;
     }
   }
 
