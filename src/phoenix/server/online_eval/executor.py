@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from enum import Enum
@@ -65,6 +66,19 @@ EvaluatorKind = Literal["LLM", "CODE", "BUILTIN"]
 
 class EvalExecutionError(Exception):
     """The evaluator ran but produced no writable result."""
+
+
+class EvaluatorResultValidationError(EvalExecutionError):
+    """The evaluator returned a result that violates its output contract."""
+
+    online_eval_error_code = "EVALUATOR_RESULT_INVALID"
+    online_eval_count_attempt = True
+
+
+class PublicationClaimLostError(EvalExecutionError):
+    """The work unit is no longer eligible for publication."""
+
+    online_eval_terminal_code = "PUBLICATION_CLAIM_LOST"
 
 
 class TranscriptTooLargeError(Exception):
@@ -589,22 +603,37 @@ class OnlineEvalExecutor:
         if hydrated.evaluator_kind != "BUILTIN":
             # Built-ins retain their evaluator-defined result-name contract.
             multi_output = len(hydrated.output_configs) > 1
-            expected_names = {
+            output_configs_by_name = {
                 (
                     f"{hydrated.annotation_name}.{config.name}"
                     if multi_output
                     else hydrated.annotation_name
-                )
+                ): config
                 for config in hydrated.output_configs
             }
-            returned_names = {result["name"] for result in results}
-            if returned_names != expected_names:
-                missing = sorted(expected_names - returned_names)
-                unexpected = sorted(returned_names - expected_names)
-                raise EvalExecutionError(
-                    "evaluator returned an incomplete result set: "
-                    f"missing={missing}, unexpected={unexpected}"
+            returned_name_counts = Counter(result["name"] for result in results)
+            invalid_counts = {
+                name: returned_name_counts.get(name, 0)
+                for name in output_configs_by_name
+                if returned_name_counts.get(name, 0) != 1
+            }
+            unexpected = sorted(returned_name_counts.keys() - output_configs_by_name.keys())
+            if invalid_counts or unexpected:
+                raise EvaluatorResultValidationError(
+                    "evaluator returned an invalid result set: "
+                    f"counts={invalid_counts}, unexpected={unexpected}"
                 )
+            for result in results:
+                output_config = output_configs_by_name[result["name"]]
+                if not isinstance(output_config, CategoricalOutputConfig):
+                    continue
+                label = result["label"]
+                allowed_labels = {value.label for value in output_config.values}
+                if not isinstance(label, str) or label not in allowed_labels:
+                    raise EvaluatorResultValidationError(
+                        f"categorical output {result['name']!r} returned invalid label "
+                        f"{label!r}; expected one of {sorted(allowed_labels)!r}"
+                    )
         if unit.evaluation_target == "SPAN":
             target_values = {"span_rowid": unit.target_rowid}
         elif unit.evaluation_target == "SESSION":
@@ -636,6 +665,28 @@ class OnlineEvalExecutor:
                 if self._db.should_not_insert_or_update:
                     raise OnlineEvalStoragePaused
                 async with self._db() as session:
+                    work_unit_model = (
+                        models.EvalWorkUnit
+                        if unit.evaluation_target == "SPAN"
+                        else models.EvalSessionWorkUnit
+                    )
+                    owned_work_unit_id = await session.scalar(
+                        select(work_unit_model.id)
+                        .join(
+                            models.ProjectEvaluatorCriteria,
+                            models.ProjectEvaluatorCriteria.id == work_unit_model.criteria_id,
+                        )
+                        .where(
+                            work_unit_model.id == unit.work_unit_id,
+                            work_unit_model.status == "RUNNING",
+                            work_unit_model.claimed_by == unit.claimed_by,
+                            models.ProjectEvaluatorCriteria.enabled,
+                        )
+                    )
+                    if owned_work_unit_id is None:
+                        raise PublicationClaimLostError(
+                            f"work unit {unit.work_unit_id} is no longer owned and live"
+                        )
                     if unit.evaluation_target == "SPAN":
                         inserted_ids = (
                             await session.scalars(
