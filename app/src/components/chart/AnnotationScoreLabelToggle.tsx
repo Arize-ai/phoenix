@@ -29,8 +29,8 @@ export function AnnotationScoreLabelToggle({
         }
       }}
     >
-      <SegmentedControlItem id="labels">Labels</SegmentedControlItem>
       <SegmentedControlItem id="scores">Scores</SegmentedControlItem>
+      <SegmentedControlItem id="labels">Labels</SegmentedControlItem>
     </SegmentedControl>
   );
 }

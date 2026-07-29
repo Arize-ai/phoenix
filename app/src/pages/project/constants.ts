@@ -36,17 +36,8 @@ export const PROJECT_METRIC_CHART_KEYS = [
   "session_annotations",
 ] as const;
 
-export type ProjectMetricChartKey = (typeof PROJECT_METRIC_CHART_KEYS)[number];
-
-export const isProjectMetricChartKey = (
-  key: string
-): key is ProjectMetricChartKey =>
-  PROJECT_METRIC_CHART_KEYS.includes(key as ProjectMetricChartKey);
-
-/**
- * The maximum number of metric charts that can be shown above a table at once.
- */
-export const MAX_SELECTED_METRIC_CHARTS = 3;
+export type BuiltInProjectMetricChartKey =
+  (typeof PROJECT_METRIC_CHART_KEYS)[number];
 
 /**
  * The project table views that show a strip of metric charts above the table.
@@ -58,6 +49,54 @@ export const METRIC_CHART_TABLE_VIEWS = [
 ] as const;
 
 export type MetricChartTableView = (typeof METRIC_CHART_TABLE_VIEWS)[number];
+
+export const PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION =
+  "Evaluation results over time";
+
+// The table view identifies which entity-level metrics query should render an
+// annotation name that may also exist on another level.
+const PROJECT_ANNOTATION_METRIC_CHART_KEY_SEPARATOR = "_annotation:";
+
+export type ProjectAnnotationMetricChartKey =
+  `${MetricChartTableView}${typeof PROJECT_ANNOTATION_METRIC_CHART_KEY_SEPARATOR}${string}`;
+
+export type ProjectMetricChartKey =
+  | BuiltInProjectMetricChartKey
+  | ProjectAnnotationMetricChartKey;
+
+export function getProjectAnnotationMetricChartKey({
+  view,
+  annotationName,
+}: {
+  view: MetricChartTableView;
+  annotationName: string;
+}): ProjectAnnotationMetricChartKey {
+  return `${view}${PROJECT_ANNOTATION_METRIC_CHART_KEY_SEPARATOR}${annotationName}`;
+}
+
+export function getProjectAnnotationMetricChartInfo(
+  key: string
+): { view: MetricChartTableView; annotationName: string } | undefined {
+  for (const view of METRIC_CHART_TABLE_VIEWS) {
+    const prefix = `${view}${PROJECT_ANNOTATION_METRIC_CHART_KEY_SEPARATOR}`;
+    if (key.startsWith(prefix)) {
+      const annotationName = key.slice(prefix.length);
+      return { view, annotationName };
+    }
+  }
+  return undefined;
+}
+
+export const isProjectMetricChartKey = (
+  key: string
+): key is ProjectMetricChartKey =>
+  PROJECT_METRIC_CHART_KEYS.includes(key as BuiltInProjectMetricChartKey) ||
+  getProjectAnnotationMetricChartInfo(key) != null;
+
+/**
+ * The maximum number of metric charts that can be shown above a table at once.
+ */
+export const MAX_SELECTED_METRIC_CHARTS = 3;
 
 /**
  * The default metric charts shown above each table view.

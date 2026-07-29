@@ -8,7 +8,7 @@ import {
 } from "react-resizable-panels";
 
 import { useTimeRange } from "@phoenix/components";
-import { ChartPanel, ChartPanelStrip } from "@phoenix/components/chart";
+import { ChartPanelStrip } from "@phoenix/components/chart";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -64,14 +64,16 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
     <ChartPanelStrip chartCount={charts.length}>
       {/* Re-fetch the charts on each stream refresh so they stay live */}
       <MetricFetchKeyProvider value={fetchKey}>
-        {charts.map(({ key, name, description, Component }) => (
-          <ChartPanel key={key} title={name} subtitle={description} fillHeight>
-            <Component
-              projectId={projectId}
-              timeRange={timeRange}
-              onTimeRangeSelected={setCustomTimeRange}
-            />
-          </ChartPanel>
+        {charts.map(({ key, annotationLevel, annotationName, Panel }) => (
+          <Panel
+            key={key}
+            projectId={projectId}
+            timeRange={timeRange}
+            onTimeRangeSelected={setCustomTimeRange}
+            annotationLevel={annotationLevel}
+            annotationName={annotationName}
+            fillHeight
+          />
         ))}
       </MetricFetchKeyProvider>
     </ChartPanelStrip>
