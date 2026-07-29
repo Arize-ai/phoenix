@@ -510,6 +510,40 @@ describe("TraceTree", () => {
     expect(container.querySelector(".trace-tree-disclosure-node")).toBeNull();
   });
 
+  it("restores child truncation after a global expansion override ends", () => {
+    const directChildren = Array.from({ length: 13 }, (_value, index) =>
+      createTestSpan({
+        nodeId: `global-expansion-child-${index + 1}`,
+        parent: ROOT_SPAN,
+        startOffsetMs: index + 1,
+      })
+    );
+    const spans = [ROOT_SPAN, ...directChildren];
+    const lastChildSelector =
+      '[data-trace-tree-span-node-id="global-expansion-child-13"]';
+
+    renderTraceTree({ spans, isChildTruncationEnabled: true });
+
+    expect(container.querySelector(lastChildSelector)).toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Show more"]')
+    ).not.toBeNull();
+
+    renderTraceTree({ spans, isChildTruncationEnabled: false });
+
+    expect(container.querySelector(lastChildSelector)).not.toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Show more"]')
+    ).toBeNull();
+
+    renderTraceTree({ spans, isChildTruncationEnabled: true });
+
+    expect(container.querySelector(lastChildSelector)).toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Show more"]')
+    ).not.toBeNull();
+  });
+
   it("uses a limit of 8 at level three and deeper", () => {
     const levelOne = createTestSpan({
       nodeId: "level-one",

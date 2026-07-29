@@ -162,6 +162,10 @@ export function SessionDetailsTracesView({
     );
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [
+    isTraceTreeChildTruncationEnabled,
+    setIsTraceTreeChildTruncationEnabled,
+  ] = useState(true);
   const { spanNodeId: selectedSpanNodeId, traceId: selectedTraceId } =
     searchParamsStore.getSpanSelection();
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -189,6 +193,7 @@ export function SessionDetailsTracesView({
     traces.length > 0 && traces.every((trace) => expandedIds.has(trace.id));
   const handleAllTraceRowsCollapsedChange = (isCollapsed: boolean) => {
     startTransition(() => {
+      setIsTraceTreeChildTruncationEnabled(isCollapsed);
       setExpandedIds(
         isCollapsed ? new Set() : new Set(traces.map((trace) => trace.id))
       );
@@ -319,6 +324,9 @@ export function SessionDetailsTracesView({
             expandedIds={expandedIds}
             selectedTraceId={selectedTraceId}
             selectedSpanNodeId={selectedSpanNodeId}
+            isTraceTreeChildTruncationEnabled={
+              isTraceTreeChildTruncationEnabled
+            }
             onToggleExpanded={toggleExpanded}
             onTraceSelect={handleTraceSelect}
             onSpanClick={handleSpanClick}
@@ -350,6 +358,7 @@ function TraceRowList({
   expandedIds,
   selectedTraceId,
   selectedSpanNodeId,
+  isTraceTreeChildTruncationEnabled,
   onToggleExpanded,
   onTraceSelect,
   onSpanClick,
@@ -362,6 +371,7 @@ function TraceRowList({
   expandedIds: Set<string>;
   selectedTraceId: string | null;
   selectedSpanNodeId: string | null;
+  isTraceTreeChildTruncationEnabled: boolean;
   onToggleExpanded: (id: string) => void;
   onTraceSelect: TraceSelectHandler;
   onSpanClick: SpanClickHandler;
@@ -393,6 +403,9 @@ function TraceRowList({
               isSelected={trace.traceId === selectedTraceId}
               isExpanded={expandedIds.has(trace.id)}
               selectedSpanNodeId={selectedSpanNodeId}
+              isTraceTreeChildTruncationEnabled={
+                isTraceTreeChildTruncationEnabled
+              }
               onToggleExpanded={() => onToggleExpanded(trace.id)}
               onTraceSelect={() =>
                 onTraceSelect({
@@ -437,6 +450,7 @@ function TraceRow({
   isSelected,
   isExpanded,
   selectedSpanNodeId,
+  isTraceTreeChildTruncationEnabled,
   onToggleExpanded,
   onTraceSelect,
   onSpanClick,
@@ -448,6 +462,7 @@ function TraceRow({
   isSelected: boolean;
   isExpanded: boolean;
   selectedSpanNodeId: string | null;
+  isTraceTreeChildTruncationEnabled: boolean;
   onToggleExpanded: () => void;
   onTraceSelect: () => void;
   onSpanClick: SpanClickHandler;
@@ -482,6 +497,7 @@ function TraceRow({
           traceId={trace.traceId}
           projectId={trace.rootSpan.project.id}
           selectedSpanNodeId={selectedSpanNodeId}
+          isTraceTreeChildTruncationEnabled={isTraceTreeChildTruncationEnabled}
           onSpanClick={onSpanClick}
           onSpanSelectionStart={onSpanSelectionStart}
         />
@@ -618,12 +634,14 @@ function TraceTreeContainer({
   traceId,
   projectId,
   selectedSpanNodeId,
+  isTraceTreeChildTruncationEnabled,
   onSpanClick,
   onSpanSelectionStart,
 }: {
   traceId: string;
   projectId: string;
   selectedSpanNodeId: string | null;
+  isTraceTreeChildTruncationEnabled: boolean;
   onSpanClick: SpanClickHandler;
   onSpanSelectionStart: SpanClickHandler;
 }) {
@@ -634,6 +652,7 @@ function TraceTreeContainer({
           traceId={traceId}
           projectId={projectId}
           selectedSpanNodeId={selectedSpanNodeId}
+          isTraceTreeChildTruncationEnabled={isTraceTreeChildTruncationEnabled}
           onSpanClick={onSpanClick}
           onSpanSelectionStart={onSpanSelectionStart}
         />
@@ -695,12 +714,14 @@ function LazyTraceTree({
   traceId,
   projectId,
   selectedSpanNodeId,
+  isTraceTreeChildTruncationEnabled,
   onSpanClick,
   onSpanSelectionStart,
 }: {
   traceId: string;
   projectId: string;
   selectedSpanNodeId: string | null;
+  isTraceTreeChildTruncationEnabled: boolean;
   onSpanClick: SpanClickHandler;
   onSpanSelectionStart: SpanClickHandler;
 }) {
@@ -724,7 +745,7 @@ function LazyTraceTree({
     <TraceTreeProvider>
       <ConnectedTraceTree
         trace={trace}
-        isChildTruncationEnabled
+        isChildTruncationEnabled={isTraceTreeChildTruncationEnabled}
         selectedSpanNodeId={selectedSpanNodeId ?? ""}
         scrollSelectedSpanIntoView={false}
         onSpanClick={(span) =>
