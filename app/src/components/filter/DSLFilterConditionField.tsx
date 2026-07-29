@@ -150,7 +150,10 @@ export function createLoadedCompletionSection(name: string): CompletionSection {
  * once the user types.
  */
 const MAX_BROWSE_SUGGESTIONS = 5;
-const MAX_BROWSE_FIELDS = 20;
+// Sized to fit a grain's whole core vocabulary, so the cap only trims
+// data-derived names — a lower cap silently evicts the trailing core
+// sections, which callers rank-order expecting all of them to be browsable.
+const MAX_BROWSE_FIELDS = 30;
 
 const defaultSnippets: DSLFilterSnippet[] = [];
 const defaultCompletionSources: CompletionSource[] = [];
