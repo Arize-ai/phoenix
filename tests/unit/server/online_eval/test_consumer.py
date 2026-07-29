@@ -54,10 +54,12 @@ from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import annotation_identifier, config_fingerprint
 from phoenix.server.online_eval.executor import (
     EvalExecutionError,
+    EvaluatorResultValidationError,
     HydratedWorkUnit,
     HydrationFailure,
     HydrationFailureReason,
     OnlineEvalExecutor,
+    PublicationClaimLostError,
     TranscriptTooLargeError,
     session_eval_context,
     span_eval_context,
@@ -230,6 +232,19 @@ def _claimed_session_unit(
         claimed_by="consumer",
         lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
     )
+
+
+async def _claim_materialized_unit(
+    db: DbSessionFactory,
+    *,
+    project_id: int,
+    span_rowid: int,
+) -> ClaimedWorkUnit:
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project_id)
+    await _materialize_unit(db, span_rowid, evaluator_id, criteria_id)
+    coordinator = DbEvalWorkCoordinator(db)
+    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
+    return unit
 
 
 async def _seed_llm_criteria(
@@ -809,6 +824,16 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
         output_configs=[_output_config("quality")],
         annotation_name=annotation_name,
     )
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_id)
+            .values(
+                status="RUNNING",
+                claimed_by=duplicate.claimed_by,
+                claimed_at=datetime.now(timezone.utc),
+            )
+        )
     await consumer._executor.evaluate_and_annotate(duplicate, duplicate_hydrated)
     assert len(await _session_annotations(db)) == 1
     assert events.empty()
@@ -1335,7 +1360,8 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
     assert isinstance(first_hydrated, HydratedWorkUnit)
     assert isinstance(reclaimed_hydrated, HydratedWorkUnit)
 
-    await executor.evaluate_and_annotate(first_claim, first_hydrated)
+    with pytest.raises(PublicationClaimLostError):
+        await executor.evaluate_and_annotate(first_claim, first_hydrated)
     await executor.evaluate_and_annotate(reclaimed, reclaimed_hydrated)
 
     annotations = await _annotations(db)
@@ -1356,9 +1382,69 @@ async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) ->
         output_configs=output_configs,
     )
     executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    unit = await _claim_materialized_unit(
+        db,
+        project_id=project.id,
+        span_rowid=span.id,
+    )
 
-    with pytest.raises(EvalExecutionError, match="incomplete result set"):
-        await executor.evaluate_and_annotate(_claimed_unit(span.id), hydrated)
+    with pytest.raises(EvalExecutionError, match="invalid result set"):
+        await executor.evaluate_and_annotate(unit, hydrated)
+
+    assert await _annotations(db) == []
+
+
+async def test_duplicate_output_name_writes_nothing(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    hydrated = _hydrated_stub(
+        results=[
+            _evaluation_result("criterion"),
+            _evaluation_result("criterion"),
+        ],
+        evaluator_kind="LLM",
+        output_configs=[_output_config("quality")],
+    )
+    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    unit = await _claim_materialized_unit(
+        db,
+        project_id=project.id,
+        span_rowid=span.id,
+    )
+
+    with pytest.raises(EvaluatorResultValidationError, match="'criterion': 2"):
+        await executor.evaluate_and_annotate(unit, hydrated)
+
+    assert await _annotations(db) == []
+
+
+@pytest.mark.parametrize("invalid_label", ["unknown", 1, {"label": "good"}])
+async def test_invalid_categorical_label_writes_nothing(
+    db: DbSessionFactory,
+    invalid_label: Any,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    result = _evaluation_result("criterion")
+    result["label"] = invalid_label
+    hydrated = _hydrated_stub(
+        results=[result],
+        evaluator_kind="LLM",
+        output_configs=[_output_config("quality")],
+    )
+    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    unit = await _claim_materialized_unit(
+        db,
+        project_id=project.id,
+        span_rowid=span.id,
+    )
+
+    with pytest.raises(EvaluatorResultValidationError, match="invalid label"):
+        await executor.evaluate_and_annotate(unit, hydrated)
 
     assert await _annotations(db) == []
 
@@ -1383,9 +1469,14 @@ async def test_code_mixed_result_set_writes_nothing(db: DbSessionFactory) -> Non
         output_configs=output_configs,
     )
     executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    unit = await _claim_materialized_unit(
+        db,
+        project_id=project.id,
+        span_rowid=span.id,
+    )
 
     with pytest.raises(EvalExecutionError, match="second output failed") as exc_info:
-        await executor.evaluate_and_annotate(_claimed_unit(span.id), hydrated)
+        await executor.evaluate_and_annotate(unit, hydrated)
 
     assert exc_info.value.__cause__ is original_error
     assert await _annotations(db) == []
@@ -1406,14 +1497,47 @@ async def test_complete_result_set_is_written_atomically(db: DbSessionFactory) -
         output_configs=output_configs,
     )
     executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    unit = await _claim_materialized_unit(
+        db,
+        project_id=project.id,
+        span_rowid=span.id,
+    )
 
-    await executor.evaluate_and_annotate(_claimed_unit(span.id), hydrated)
+    await executor.evaluate_and_annotate(unit, hydrated)
 
     annotations = await _annotations(db)
     assert {annotation.name for annotation in annotations} == {
         "criterion.quality",
         "criterion.relevance",
     }
+
+
+async def test_deleted_criteria_cannot_publish_annotation(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    coordinator = DbEvalWorkCoordinator(db)
+    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
+    hydrated = _hydrated_stub(
+        results=[_evaluation_result("criterion")],
+        evaluator_kind="LLM",
+        output_configs=[_output_config("quality")],
+    )
+    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        await session.delete(criteria)
+
+    with pytest.raises(PublicationClaimLostError):
+        await executor.evaluate_and_annotate(unit, hydrated)
+
+    assert await _annotations(db) == []
+    async with db() as session:
+        assert await session.get(models.EvalWorkUnit, unit_id) is None
 
 
 async def test_evaluator_error_fails_unit_with_cooldown_and_no_annotation(
