@@ -11,12 +11,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.dsl.filter import SPAN_BINDINGS
 from phoenix.trace.dsl.session_filter import (
     SESSION_BINDINGS,
     SESSION_FILTER_DESCRIPTIONS,
     SessionFilter,
 )
 from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
+from tests.unit.trace.dsl.session_filter_reference import (
+    DIFFERENTIAL_CONDITIONS,
+    FIXTURE_SESSIONS,
+    ReferenceSession,
+    matches,
+)
 
 _SQLITE_DIALECT = cast(Dialect, sqlite.dialect())
 _POSTGRESQL_DIALECT = cast(Dialect, postgresql.dialect())  # type: ignore[no-untyped-call]
@@ -90,8 +97,18 @@ def test_session_bindings_flavor_audit() -> None:
     assert not any(name.endswith("_seconds") for name in SESSION_BINDINGS.binding_names)
     assert "first_input" in SESSION_BINDINGS.string_names
     assert "last_output" in SESSION_BINDINGS.string_names
-    # Function calls other than casts are rejected; the quantifier whitelist is empty for both grains.
-    assert SESSION_BINDINGS.quantifiers == frozenset()
+    # Function calls other than casts and the v1 comprehension set are rejected; the span grain
+    # keeps no iteration surface at all.
+    assert SESSION_BINDINGS.quantifiers == frozenset({"any", "all", "len", "max", "min", "sum"})
+    assert set(SESSION_BINDINGS.iterables) == {
+        "spans",
+        "turns",
+        "session_annotations",
+        "span_annotations",
+        "cost_details",
+    }
+    assert not SPAN_BINDINGS.quantifiers
+    assert not SPAN_BINDINGS.iterables
     assert SESSION_BINDINGS.exists_names == frozenset({"any_input", "any_output"})
     assert "any_input" not in SESSION_BINDINGS.names
     assert "any_output" not in SESSION_BINDINGS.names
@@ -687,39 +704,159 @@ async def test_session_filter_root_span_and_annotation(db: DbSessionFactory) -> 
         assert silver.id not in by_annotation
 
 
-async def test_session_filter_differential_oracle(db: DbSessionFactory) -> None:
-    """Differential-testing oracle: the compiled filter's row set equals the Python ground
-    truth over a spread of aggregate values that straddle the predicate boundaries."""
-    start = datetime.now(timezone.utc)
-    specs = [
-        (2, 0.05),
-        (3, 0.20),
-        (5, 0.00),
-        (6, 0.50),
-        (4, 0.15),
-        (1, 1.00),
-    ]
+async def _seed_reference_session(
+    session: AsyncSession,
+    project: models.Project,
+    fixture: ReferenceSession,
+) -> models.ProjectSession:
+    """Materialize one fixture session so the compiled filter sees what the reference reads."""
+    project_session = await _add_project_session(
+        session,
+        project,
+        session_id=fixture.session_id,
+        start_time=fixture.start_time,
+        end_time=fixture.end_time,
+    )
+    for turn in fixture.turns:
+        trace = await _add_trace(
+            session,
+            project,
+            project_session,
+            start_time=turn.start_time,
+            end_time=turn.end_time,
+        )
+        for reference_span in turn.spans:
+            span = await _add_span(
+                session,
+                trace,
+                span_kind=reference_span.span_kind,
+                start_time=turn.start_time,
+                end_time=turn.start_time + timedelta(milliseconds=reference_span.latency_ms),
+                llm_token_count_prompt=reference_span.llm_token_count_prompt,
+                llm_token_count_completion=reference_span.llm_token_count_completion,
+                # num_traces_with_error keys off the error count, which the fixtures express
+                # as an errored status code.
+                cumulative_error_count=1 if reference_span.status_code == "ERROR" else 0,
+            )
+            span.name = reference_span.name
+            span.status_code = reference_span.status_code
+            for annotation in reference_span.annotations:
+                session.add(
+                    models.SpanAnnotation(
+                        span_rowid=span.id,
+                        name=annotation.name,
+                        label=annotation.label,
+                        score=annotation.score,
+                        metadata_={},
+                        annotator_kind="HUMAN",
+                        source="APP",
+                        identifier="",
+                    )
+                )
+            if (cost := reference_span.cost) is not None:
+                span_cost = models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=span.start_time,
+                    prompt_cost=cost.prompt_cost,
+                    completion_cost=cost.completion_cost,
+                    total_cost=cost.total_cost,
+                )
+                session.add(span_cost)
+                await session.flush()
+                for detail in cost.details:
+                    session.add(
+                        models.SpanCostDetail(
+                            span_cost_id=span_cost.id,
+                            token_type=detail.token_type,
+                            is_prompt=detail.is_prompt,
+                            cost=detail.cost,
+                            tokens=detail.tokens,
+                            cost_per_token=detail.cost_per_token,
+                        )
+                    )
+    for annotation in fixture.annotations:
+        session.add(
+            models.ProjectSessionAnnotation(
+                project_session_id=project_session.id,
+                name=annotation.name,
+                label=annotation.label,
+                score=annotation.score,
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+                identifier="",
+            )
+        )
+    await session.flush()
+    return project_session
+
+
+async def test_session_filter_agrees_with_reference_evaluator(db: DbSessionFactory) -> None:
+    """Differential suite: for every (fixture, condition) pair the compiled filter's row set
+    equals the Python reference evaluator's selection, on both dialects."""
     async with db() as session:
         project = await _add_project(session)
-        seeded: list[tuple[int, int, float]] = []
-        for num_traces, total_cost in specs:
-            project_session = await _seed_session(
-                session, project, num_traces=num_traces, total_cost=total_cost, start_time=start
-            )
-            seeded.append((project_session.id, num_traces, total_cost))
-
-        def ground_truth(predicate: object) -> set[int]:
-            return {
-                rowid
-                for rowid, num_traces, total_cost in seeded
-                if predicate(num_traces, total_cost)  # type: ignore[operator]
+        rowids = {
+            fixture.session_id: (await _seed_reference_session(session, project, fixture)).id
+            for fixture in FIXTURE_SESSIONS
+        }
+        for condition in DIFFERENTIAL_CONDITIONS:
+            expected = {
+                rowids[fixture.session_id]
+                for fixture in FIXTURE_SESSIONS
+                if matches(condition, fixture)
             }
+            actual = await _matched_rowids(session, SessionFilter(condition), project)
+            assert actual == expected, condition
 
-        expected = ground_truth(lambda n, c: n >= 3 and c > 0.1)
-        actual = await _matched_rowids(
-            session, SessionFilter("num_traces >= 3 and total_cost > 0.1"), project
-        )
-        assert actual == expected
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        # One row per rejected form: ordinal indexing, a set comprehension, nesting past
+        # turn -> span, an unsanctioned nested iterable, `len` of a generator, an undeclared
+        # iterable, and an enclosing-grain name reached from inside a predicate.
+        "turns[0].latency_ms > 100",
+        "len({s.span_kind for s in spans}) > 1",
+        "any(any(any(x.score > 0.5 for x in s.annotations) for s in t.spans) for t in turns)",
+        "any(a.score > 0.5 for s in spans for a in s.annotations)",
+        "len(s.name for s in spans) > 1",
+        'any(e.name == "x" for e in events)',
+        "any(s.latency_ms > duration_ms for s in spans)",
+    ],
+)
+def test_session_filter_rejects_out_of_scope_comprehension_forms(condition: str) -> None:
+    with pytest.raises(SyntaxError):
+        SessionFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "dialect,counterexample",
+    # SQLite has no boolean literal, so the `IS NOT TRUE` counterexample renders against 1;
+    # its `IS NOT` is null-safe either way, which is what makes a NULL field a counterexample.
+    [(_SQLITE_DIALECT, "is not 1"), (_POSTGRESQL_DIALECT, "is not true")],
+)
+def test_session_filter_quantifiers_compile_to_correlated_exists(
+    dialect: Dialect, counterexample: str
+) -> None:
+    """`any` is an EXISTS and `all` a NOT EXISTS whose counterexample is `IS NOT TRUE`, so a
+    NULL element field excludes the session rather than satisfying the quantifier."""
+    subquery = SessionFilter(
+        'any(s.status_code == "ERROR" for s in spans) '
+        "and all(s.llm_token_count_prompt < 1000 for s in spans)"
+    ).as_session_rowids_subquery(project_rowids=[1])
+    compiled = str(
+        select(models.ProjectSession.id)
+        .where(models.ProjectSession.id.in_(subquery))
+        .compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    assert "exists" in compiled
+    assert "not (exists" in compiled
+    assert counterexample in compiled
+    assert "traces.project_session_rowid = project_sessions.id" in compiled
+    assert "traces.project_rowid in (1)" in compiled
 
 
 async def test_session_filter_ratio_zero_denominator_excludes_without_error(

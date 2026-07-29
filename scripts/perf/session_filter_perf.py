@@ -9,6 +9,10 @@ scalar subqueries) — across cardinality tiers and both dialects, in two load s
 - **sweep-shaped**: the online-eval tick — the filter scoped to a small candidate set
   (10/100/1000 sessions), asserting per-tick latency stays ~flat as total session count grows.
 
+Both shapes also measure the two comprehension forms — a quantifier (``any(... for s in spans)``,
+which compiles to a correlated ``EXISTS``) and a filtered reduction (``len([...]) >= 3``, a
+correlated ``COUNT``) — against the aggregate baselines.
+
 Each measured query runs ``--runs`` times in randomized order; we report median + p95 wall-clock
 and a structural plan check (SQLite: no ``CORRELATED SCALAR SUBQUERY`` for Option A; PostgreSQL:
 HashAggregate + Hash/Merge Join, no per-row ``SubPlan``).
@@ -42,6 +46,10 @@ from phoenix.trace.dsl.session_filter import SessionFilter
 _EPOCH = datetime(2024, 1, 1, tzinfo=timezone.utc)
 _SINGLE = "num_traces >= 5"
 _COMBINED = "num_traces >= 5 and total_cost > 0.1"
+# Comprehension shapes, which compile to correlated subqueries over the span table regardless of
+# `aggregate_shape` — the quantifier can early-exit, the reduction has to count every match.
+_QUANTIFIER = 'any(s.span_kind == "TOOL" for s in spans)'
+_REDUCTION = 'len([s for s in spans if s.span_kind == "TOOL"]) >= 3'
 
 
 # --- seeding ---------------------------------------------------------------------------------
@@ -308,6 +316,8 @@ def run_tier(engine: Engine, dialect: str, n_sessions: int, runs: int, rng: rand
         "B single (num_traces>=5)": lambda: view(option_b, _SINGLE),
         "A combined": lambda: view(option_a, _COMBINED),
         "B combined": lambda: view(option_b, _COMBINED),
+        "quantifier EXISTS (any TOOL span)": lambda: view(option_a, _QUANTIFIER),
+        "filtered reduction (>=3 TOOL spans)": lambda: view(option_a, _REDUCTION),
         "unfiltered page": lambda: (
             select(models.ProjectSession.id)
             .where(models.ProjectSession.project_id == project_id)
@@ -347,8 +357,14 @@ def run_tier(engine: Engine, dialect: str, n_sessions: int, runs: int, rng: rand
         sweep_tasks[f"B sweep k={k}"] = lambda cond=_COMBINED, cands=candidates: option_b(
             cond, project_id, cands
         )
+        sweep_tasks[f"quantifier sweep k={k}"] = lambda cond=_QUANTIFIER, cands=candidates: (
+            option_a(cond, project_id, cands)
+        )
+        sweep_tasks[f"reduction sweep k={k}"] = lambda cond=_REDUCTION, cands=candidates: option_a(
+            cond, project_id, cands
+        )
     sweep_results = measure(engine, sweep_tasks, runs)
-    lines.append("**Sweep-shaped** (candidate-scoped, combined predicate):\n")
+    lines.append("**Sweep-shaped** (candidate-scoped):\n")
     lines.append("| query | median ms | p95 ms |")
     lines.append("|---|---|---|")
     for label, result in sweep_results.items():
