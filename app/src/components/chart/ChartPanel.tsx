@@ -8,6 +8,15 @@ import { ErrorBoundary } from "@phoenix/components/exception";
 const DEFAULT_CHART_HEIGHT = 190;
 
 /**
+ * The narrowest a chart panel gets. Below this the x axis thins out to a tick
+ * or two, the legend crowds the plot, and the title is mostly ellipsis — the
+ * chart stops carrying any reading. Layouts that place charts side by side
+ * scroll horizontally at this width instead of shrinking them further, so a
+ * chart is the same usable size at every window width.
+ */
+export const CHART_MIN_WIDTH = 320;
+
+/**
  * Below this panel height the subtitle is dropped so the chart keeps the
  * space; the title alone still identifies the chart.
  */
@@ -16,20 +25,43 @@ const COMPACT_HEIGHT_BREAKPOINT = "200px";
 const chartPanelCSS = css`
   display: flex;
   flex-direction: column;
+  /* Keep the border inside the size the layout gives the panel, so a scrolling
+     parent has nothing to clip and side-by-side panels add no stray overflow */
+  box-sizing: border-box;
   height: 100%;
   width: 100%;
-  min-width: 0;
+  min-width: ${CHART_MIN_WIDTH}px;
+  --chart-panel-tooltip-z-index: 1;
   border: var(--global-border-size-thin) solid var(--chart-panel-border-color);
   border-radius: var(--global-rounding-medium);
   background-color: var(--chart-panel-background-color);
 
+  &:hover,
+  &:focus-within {
+    /* Lift only the active tooltip above synchronized sibling tooltips. */
+    --chart-panel-tooltip-z-index: 2;
+  }
+
   .chart-panel__header {
     flex: none;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--global-dimension-size-100);
     min-width: 0;
     padding: var(--global-dimension-size-100) var(--global-dimension-size-150) 0
       var(--global-dimension-size-150);
+  }
+
+  .chart-panel__header-content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .chart-panel__actions {
+    flex: none;
   }
 
   .chart-panel__title,
@@ -80,6 +112,7 @@ const fillHeightPanelCSS = css`
 interface ChartPanelHeaderProps {
   title: string;
   subtitle?: string;
+  actions?: React.ReactNode;
   /**
    * Semantic heading level for the chart title. The visual size remains
    * consistent with the compact chart panel title treatment.
@@ -91,28 +124,32 @@ interface ChartPanelHeaderProps {
 function ChartPanelHeader({
   title,
   subtitle,
+  actions,
   headingLevel = 4,
 }: ChartPanelHeaderProps) {
   return (
     <div className="chart-panel__header">
-      <Heading
-        level={headingLevel}
-        weight="heavy"
-        className="chart-panel__title"
-        title={title}
-      >
-        {title}
-      </Heading>
-      {subtitle && (
-        <Text
-          size="XS"
-          color="gray-600"
-          className="chart-panel__subtitle"
-          title={subtitle}
+      <div className="chart-panel__header-content">
+        <Heading
+          level={headingLevel}
+          weight="heavy"
+          className="chart-panel__title"
+          title={title}
         >
-          {subtitle}
-        </Text>
-      )}
+          {title}
+        </Heading>
+        {subtitle && (
+          <Text
+            size="XS"
+            color="gray-600"
+            className="chart-panel__subtitle"
+            title={subtitle}
+          >
+            {subtitle}
+          </Text>
+        )}
+      </div>
+      {actions && <div className="chart-panel__actions">{actions}</div>}
     </div>
   );
 }
@@ -137,6 +174,7 @@ interface ChartPanelProps extends ChartPanelHeaderProps {
 export function ChartPanel({
   title,
   subtitle,
+  actions,
   headingLevel,
   fillHeight = false,
   children,
@@ -150,6 +188,7 @@ export function ChartPanel({
       <ChartPanelHeader
         title={title}
         subtitle={subtitle}
+        actions={actions}
         headingLevel={headingLevel}
       />
       <div

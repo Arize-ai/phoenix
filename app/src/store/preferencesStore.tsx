@@ -97,8 +97,9 @@ export interface PreferencesProps {
    */
   showMetricsInTraceTree: boolean;
   /**
-   * Whether tracing tables' rows wrap their content or clip it to a single
-   * line. A reading preference, so it spans projects and tabs.
+   * Whether the tracing and experiments tables' rows wrap their content or
+   * clip it to a single line. A reading preference, so it spans datasets,
+   * projects and tabs.
    * @default false
    */
   areTableRowsExpanded: boolean;
@@ -128,7 +129,8 @@ export interface PreferencesProps {
    */
   lastSelectedDashboardProjectId?: string;
   /**
-   * Whether the side nav is open or closed
+   * Whether the user prefers the side nav to be open or closed. Responsive
+   * layout constraints can temporarily override this preference.
    * @default true
    */
   isSideNavExpanded: boolean;
@@ -227,7 +229,7 @@ export interface PreferencesState extends PreferencesProps {
    */
   setLastSelectedDashboardProjectId: (projectId: string) => void;
   /**
-   * Setter for the side nav open state
+   * Setter for the user's preferred side nav open state
    */
   setIsSideNavExpanded: (isSideNavExpanded: boolean) => void;
   /**

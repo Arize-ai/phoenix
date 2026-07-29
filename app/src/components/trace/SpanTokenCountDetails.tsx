@@ -31,17 +31,17 @@ export function SpanTokenCountDetails(props: { spanNodeId: string }) {
       const prompt = data.node.tokenCountPrompt ?? 0;
       const completion = data.node.tokenCountCompletion ?? 0;
       const total = data.node.tokenCountTotal ?? 0;
+      // Keyed by the token types the API reports elsewhere, so a token type
+      // keeps the label, order, and color it carries in the metrics charts.
       const promptDetails: Record<string, number> = {};
-
-      // Add available prompt details
       if (data.node.tokenPromptDetails?.audio) {
         promptDetails.audio = data.node.tokenPromptDetails.audio;
       }
       if (data.node.tokenPromptDetails?.cacheRead) {
-        promptDetails["cache read"] = data.node.tokenPromptDetails.cacheRead;
+        promptDetails.cache_read = data.node.tokenPromptDetails.cacheRead;
       }
       if (data.node.tokenPromptDetails?.cacheWrite) {
-        promptDetails["cache write"] = data.node.tokenPromptDetails.cacheWrite;
+        promptDetails.cache_write = data.node.tokenPromptDetails.cacheWrite;
       }
 
       return {

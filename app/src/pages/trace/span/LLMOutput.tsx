@@ -12,6 +12,7 @@ import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
 import { LLMMessagesList } from "./LLMMessagesList";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanIOValue } from "./types";
+import { countToolCalls, formatJSONForCopy } from "./utils";
 
 /**
  * The output side of an LLM span — a card with a view select for the output
@@ -28,6 +29,7 @@ export function LLMOutput({
 }) {
   const hasOutput = output != null && output.value != null;
   const hasOutputMessages = outputMessages.length > 0;
+  const toolCallCount = countToolCalls(outputMessages);
 
   const views: LLMIOView[] = [];
   if (hasOutputMessages)
@@ -42,20 +44,32 @@ export function LLMOutput({
 
   const isRawView = view === "output" && hasOutput;
 
+  // Whatever the card is showing is what its copy button copies, so the reader
+  // never has to switch views to get at the content in front of them
+  let copyText: string | null = null;
+  switch (view) {
+    case "output-messages":
+      copyText = formatJSONForCopy(outputMessages);
+      break;
+    case "output":
+      copyText = output?.value ?? null;
+      break;
+  }
+
   return (
     <MarkdownDisplayProvider>
       <Card
         {...defaultCardProps}
         {...cardProps}
         title="Output"
+        subTitle={
+          toolCallCount > 0
+            ? `${toolCallCount} ${toolCallCount === 1 ? "tool call" : "tool calls"}`
+            : undefined
+        }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
-            {isRawView && (
-              <>
-                <ConnectedMarkdownModeSelect />
-                <CopyToClipboardButton text={output.value} />
-              </>
-            )}
+            {isRawView && <ConnectedMarkdownModeSelect />}
             {views.length > 0 && (
               <LLMIOViewSelect
                 label="Output view"
@@ -64,6 +78,9 @@ export function LLMOutput({
                 onChange={setView}
               />
             )}
+            {/* the view switch sits immediately before copy, and copy remains
+                last so both controls stay in a consistent place */}
+            {copyText != null && <CopyToClipboardButton text={copyText} />}
           </Flex>
         }
       >

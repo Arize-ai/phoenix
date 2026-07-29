@@ -1,5 +1,37 @@
 # Changelog
 
+## [19.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.9.0...arize-phoenix-v19.10.0) (2026-07-28)
+
+
+### Features
+
+* add experiment evaluation metrics charts ([#14446](https://github.com/Arize-ai/phoenix/issues/14446)) ([661cf9e](https://github.com/Arize-ai/phoenix/commit/661cf9e6435f1cff1aaa66339cfb06d502815cc8))
+* breakdown token charts by sub-type ([#14791](https://github.com/Arize-ai/phoenix/issues/14791)) ([4e161f7](https://github.com/Arize-ai/phoenix/commit/4e161f7726093b32f43d61611ddb466318ce639f))
+* **charts:** reorder selected charts by dragging in the chart menu ([#14818](https://github.com/Arize-ai/phoenix/issues/14818)) ([3599c77](https://github.com/Arize-ai/phoenix/commit/3599c7764aa89c34e20ee44a08026dd751d0bfa9)), closes [#14793](https://github.com/Arize-ai/phoenix/issues/14793)
+* **experiments:** collapse experiment table rows to a single line ([#14813](https://github.com/Arize-ai/phoenix/issues/14813)) ([e0c97cd](https://github.com/Arize-ai/phoenix/commit/e0c97cd84d6ca690c367e9dd8f6e18e414dc8390))
+* **sandbox:** add Monty provider with shared runtime ([#14632](https://github.com/Arize-ai/phoenix/issues/14632)) ([342b229](https://github.com/Arize-ai/phoenix/commit/342b229884468a05c5fc55d42644d8a0e6cd84c4))
+* show cost and token breakdown bars in tooltips ([#14832](https://github.com/Arize-ai/phoenix/issues/14832)) ([a60f819](https://github.com/Arize-ai/phoenix/commit/a60f81901cbc79d45660e1492a506a8c36266e75))
+
+
+### Bug Fixes
+
+* constrain experiment chart tooltip content ([#14820](https://github.com/Arize-ai/phoenix/issues/14820)) ([62c1b41](https://github.com/Arize-ai/phoenix/commit/62c1b41d60aed92145d5bd369011e9a9e428c566))
+
+## [19.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.8.0...arize-phoenix-v19.9.0) (2026-07-28)
+
+
+### Features
+
+* **charts:** keep chart panels readable at narrow widths ([#14804](https://github.com/Arize-ai/phoenix/issues/14804)) ([1af5b91](https://github.com/Arize-ai/phoenix/commit/1af5b913498fd54d7b889a481a1de130db9f765a))
+* **trace:** expand or collapse all span info sections at once ([#14796](https://github.com/Arize-ai/phoenix/issues/14796)) ([632e2c4](https://github.com/Arize-ai/phoenix/commit/632e2c41b3767821b540f0d4d340d8d6ce92e0cf))
+
+
+### Bug Fixes
+
+* clarify empty span annotation tool input ([#13533](https://github.com/Arize-ai/phoenix/issues/13533)) ([2931734](https://github.com/Arize-ai/phoenix/commit/29317340dd09d3edaed08c06b49eb6a07a5c5a89))
+* preserve floating agent location on new chat. ([#14795](https://github.com/Arize-ai/phoenix/issues/14795)) ([6d87936](https://github.com/Arize-ai/phoenix/commit/6d87936a13561aff27dcd8a1d21ac031adada37f))
+* **server:** isolate MCP code-mode execution in subprocesses ([#14784](https://github.com/Arize-ai/phoenix/issues/14784)) ([ed25b59](https://github.com/Arize-ai/phoenix/commit/ed25b594ece87af1831b4f02eeee3d828b4f000b))
+
 ## [19.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.7.0...arize-phoenix-v19.8.0) (2026-07-27)
 
 

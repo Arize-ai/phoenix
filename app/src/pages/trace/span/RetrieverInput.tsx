@@ -23,11 +23,8 @@ export function RetrieverInput({ value, mimeType }: SpanIOValue) {
         {...cardProps}
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
-            {isText ? (
-              <ConnectedMarkdownModeSelect />
-            ) : (
-              <CopyToClipboardButton text={value} />
-            )}
+            {isText ? <ConnectedMarkdownModeSelect /> : null}
+            <CopyToClipboardButton text={value} />
           </Flex>
         }
       >

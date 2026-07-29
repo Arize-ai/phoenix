@@ -1894,6 +1894,7 @@ class Query:
         async with info.context.db.read() as session:
             return await get_sandbox_backend_info(
                 secrets=SecretsContext(session=session, decrypt=info.context.decrypt),
+                runtime=info.context.sandbox_runtime,
             )
 
     @strawberry.field

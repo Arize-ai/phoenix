@@ -24,6 +24,7 @@ import {
   Icons,
   Link,
   LinkButton,
+  OverflowRow,
   ProgressBar,
   RichTooltip,
   Text,
@@ -58,7 +59,9 @@ import {
   createRowSelectionColumn,
   IntCell,
   LoadMoreRow,
+  RowExpandToggleButton,
   useColumnOrder,
+  useTableRowsExpanded,
 } from "@phoenix/components/table";
 import { CellWithControlsWrap } from "@phoenix/components/table/CellWithControlsWrap";
 import {
@@ -66,8 +69,9 @@ import {
   CHECKBOX_COLUMN_PINNING,
 } from "@phoenix/components/table/constants";
 import {
+  expandableSelectableTableCSS,
   getCommonPinningStyles,
-  selectableTableCSS,
+  TABLE_DATA_CELL_CLASS,
 } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -140,6 +144,7 @@ const TableBody = <T extends { id: string }>({
               return (
                 <td
                   key={cell.id}
+                  className={TABLE_DATA_CELL_CLASS}
                   style={{
                     ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
@@ -182,6 +187,11 @@ export function ExperimentsTable({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
   const [, setSearchText] = useState("");
+  const {
+    isExpanded: areRowsExpanded,
+    setIsExpanded: setAreRowsExpanded,
+    tableProps: rowsExpandedTableProps,
+  } = useTableRowsExpanded();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
       graphql`
@@ -419,13 +429,13 @@ export function ExperimentsTable({
           return <>all examples</>;
         }
         return (
-          <Flex direction="row" gap="size-100" alignItems="center" wrap="wrap">
+          <OverflowRow isExpanded={areRowsExpanded}>
             {datasetSplits.edges.map((edge) => (
               <Token key={edge.node.id} color={edge.node.color}>
                 {edge.node.name}
               </Token>
             ))}
-          </Flex>
+          </OverflowRow>
         );
       },
     },
@@ -527,7 +537,7 @@ export function ExperimentsTable({
         if (value === null || typeof value !== "number") {
           return "--";
         }
-        return <LatencyText latencyMs={value} />;
+        return <LatencyText latencyMs={value} size="S" />;
       },
     },
     {
@@ -730,6 +740,10 @@ export function ExperimentsTable({
             columnOrder={storedColumnOrder}
             onColumnOrderChange={setStoredColumnOrder}
           />
+          <RowExpandToggleButton
+            isExpanded={areRowsExpanded}
+            onChange={setAreRowsExpanded}
+          />
         </Flex>
       </View>
       <div
@@ -745,7 +759,8 @@ export function ExperimentsTable({
           onColumnOrderChange={onVisibleColumnOrderChange}
         >
           <table
-            css={selectableTableCSS}
+            css={expandableSelectableTableCSS}
+            {...rowsExpandedTableProps}
             style={{
               ...columnSizeVars,
               width: table.getTotalSize(),

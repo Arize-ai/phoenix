@@ -334,8 +334,63 @@ export const llmPromptTemplateSpan: SpanInfoFixture = {
 };
 
 /**
- * An LLM span that errored: has an exception event, input messages, and no
- * output.
+ * A completion-style LLM call (`OpenAI.completion`): the rendered prompts are
+ * recorded under `llm.prompts` rather than as chat messages, so the input card
+ * offers a Prompts view alongside the raw input. Two prompts, as a batched
+ * completion request records them.
+ */
+export const llmRawPromptsSpan: SpanInfoFixture = {
+  id: "U3Bhbjo0MTI3",
+  name: "OpenAI.completion",
+  spanKind: "llm",
+  statusMessage: "",
+  attributes: JSON.stringify({
+    openinference: {
+      span: {
+        kind: "LLM",
+      },
+    },
+    input: {
+      value:
+        "Context information is below.\n---------------------\nsource: https://docs.arize.com/phoenix/deployment/persistence\ntitle: Persistence\n\nPhoenix is backed by a SQL database. By default, if you run phoenix with no configuration, it uses SQLite.\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: Which databases can back Phoenix?\nAnswer: ",
+    },
+    llm: {
+      model_name: "gpt-3.5-turbo-instruct",
+      provider: "openai",
+      prompts: [
+        "Context information is below.\n---------------------\nsource: https://docs.arize.com/phoenix/deployment/persistence\ntitle: Persistence\n\nPhoenix is backed by a SQL database. By default, if you run phoenix with no configuration, it uses SQLite.\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: Which databases can back Phoenix?\nAnswer: ",
+        "Context information is below.\n---------------------\nsource: https://docs.arize.com/phoenix/deployment/configuration\ntitle: Configuration\n\nSet PHOENIX_SQL_DATABASE_URL to point Phoenix at PostgreSQL instead of SQLite.\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: How do I point Phoenix at PostgreSQL?\nAnswer: ",
+      ],
+      invocation_parameters:
+        '{"temperature": 0.0, "max_tokens": 256, "model": "gpt-3.5-turbo-instruct"}',
+      token_count: {
+        prompt: 312,
+        completion: 48,
+        total: 360,
+      },
+    },
+    output: {
+      value:
+        "Phoenix can be backed by SQLite, which it uses by default, or by PostgreSQL.",
+    },
+  }),
+  input: {
+    value:
+      "Context information is below.\n---------------------\nsource: https://docs.arize.com/phoenix/deployment/persistence\ntitle: Persistence\n\nPhoenix is backed by a SQL database. By default, if you run phoenix with no configuration, it uses SQLite.\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: Which databases can back Phoenix?\nAnswer: ",
+    mimeType: "text",
+  },
+  output: {
+    value:
+      "Phoenix can be backed by SQLite, which it uses by default, or by PostgreSQL.",
+    mimeType: "text",
+  },
+  documentRetrievalMetrics: [],
+  documentEvaluations: [],
+};
+
+/**
+ * An LLM span that errored: has a status message, an exception event, input
+ * messages, and no output.
  */
 export const llmErrorSpan: SpanInfoFixture = {
   id: "U3BhbjozMTc=",
@@ -823,6 +878,51 @@ export const toolSpan: SpanInfoFixture = {
   output: {
     value:
       "{\"output\": \"content='[(0,)]' name='generate_and_run_sql_query' tool_call_id='call_hBOwBetmNpL88BIiqlDeypLs'\"}",
+    mimeType: "json",
+  },
+  documentRetrievalMetrics: [],
+  documentEvaluations: [],
+};
+
+/**
+ * A tool span whose tool definition carries a JSON parameter schema, so the
+ * Tool card shows the schema below the description.
+ */
+export const toolWithParametersSpan: SpanInfoFixture = {
+  id: "U3Bhbjo1MTA4",
+  name: "search_documents",
+  spanKind: "tool",
+  statusMessage: "",
+  attributes: JSON.stringify({
+    openinference: {
+      span: {
+        kind: "TOOL",
+      },
+    },
+    input: {
+      mime_type: "application/json",
+      value: '{"query": "phoenix persistence", "top_k": 3}',
+    },
+    output: {
+      mime_type: "application/json",
+      value:
+        '{"documents": [{"title": "Persistence", "score": 0.83}, {"title": "Configuration", "score": 0.71}, {"title": "Kubernetes", "score": 0.64}]}',
+    },
+    tool: {
+      name: "search_documents",
+      description:
+        "Searches the documentation index and returns the most relevant passages for a query.",
+      parameters:
+        '{"type": "object", "properties": {"query": {"type": "string", "description": "The natural language search query"}, "top_k": {"type": "integer", "description": "How many passages to return", "default": 4, "minimum": 1, "maximum": 20}}, "required": ["query"]}',
+    },
+  }),
+  input: {
+    value: '{"query": "phoenix persistence", "top_k": 3}',
+    mimeType: "json",
+  },
+  output: {
+    value:
+      '{"documents": [{"title": "Persistence", "score": 0.83}, {"title": "Configuration", "score": 0.71}, {"title": "Kubernetes", "score": 0.64}]}',
     mimeType: "json",
   },
   documentRetrievalMetrics: [],

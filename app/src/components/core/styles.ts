@@ -17,6 +17,18 @@ export const outlinedPillCSS = css`
 `;
 
 /**
+ * A thin vertical separator between inline text pieces (e.g. an annotation
+ * label and its score, or a model name and its tool count). Tinted with the
+ * current text color so it inherits the surrounding text's color.
+ */
+export const inlineDividerCSS = css`
+  width: 1px;
+  height: 0.7em;
+  background-color: currentColor;
+  opacity: 0.2;
+`;
+
+/**
  * Hover invitation for quiet interactive text (click-to-copy IDs, values that
  * reveal a tooltip): a subtle background wash that appears on hover without
  * shifting the text's position. Matches the quiet Button hover treatment.

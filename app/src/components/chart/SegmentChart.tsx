@@ -63,6 +63,11 @@ export const SegmentChart = ({
     minimumSegmentPercentage > 0
       ? segments.filter((segment) => segment.value > 0)
       : segments;
+  // An all-zero breakdown has nothing to draw, and a bar of pure background
+  // reads as a rendering failure rather than as an empty total.
+  if (!visibleSegments.some((segment) => segment.value > 0)) {
+    return null;
+  }
 
   return (
     <div style={{ height: `${height}px` }} css={chartContainerCSS}>

@@ -1,6 +1,7 @@
 import {
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
+  MessageAttributePostfixes,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
@@ -13,6 +14,7 @@ import type {
   AttributeLLMToolDefinition,
   AttributeMessage,
   AttributePromptTemplate,
+  AttributeToolCall,
 } from "@phoenix/openInference/tracing/types";
 import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
 import { isStringArray } from "@phoenix/typeUtils";
@@ -67,6 +69,25 @@ function getMessages(messagesValue: unknown): AttributeMessage[] {
   return (messagesValue
     .map((obj) => obj[SemanticAttributePrefixes.message])
     .filter(Boolean) || []) as AttributeMessage[];
+}
+
+/**
+ * Extract the tool call objects from a message's tool calls attribute.
+ */
+export function getToolCalls(message: AttributeMessage): AttributeToolCall[] {
+  return (message[MessageAttributePostfixes.tool_calls]
+    ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
+    .filter(Boolean) || []) as AttributeToolCall[];
+}
+
+/**
+ * Count the tool calls across a set of messages.
+ */
+export function countToolCalls(messages: AttributeMessage[]): number {
+  return messages.reduce(
+    (count, message) => count + getToolCalls(message).length,
+    0
+  );
 }
 
 /**
@@ -219,6 +240,43 @@ export function getToolAttributes(
     description: toolAttributes[ToolAttributePostfixes.description],
     parameters: toolAttributes[ToolAttributePostfixes.parameters],
   };
+}
+
+/**
+ * The clipboard text for structured content shown in a card — pretty printed,
+ * so what is copied reads like what the card body renders rather than the
+ * compacted form the attributes arrive in.
+ */
+export function formatJSONForCopy(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+/**
+ * A JSON document that arrived in string form (a tool schema, a tool span's
+ * parameter schema), parsed so it can be nested inside copied JSON rather than
+ * escaped into it. Falls back to the string when it does not parse.
+ */
+export function parseJSONDocument(value: string): unknown {
+  return safelyParseJSON(value).json ?? value;
+}
+
+/**
+ * The clipboard text for content that arrives as a list of JSON documents in
+ * string form (an LLM span's tool schemas) — one JSON array of schemas rather
+ * than an array of escaped strings.
+ */
+export function formatJSONStringsForCopy(values: string[]): string {
+  return formatJSONForCopy(values.map(parseJSONDocument));
+}
+
+/**
+ * The clipboard text for a list of plain text items (an LLM span's raw prompts,
+ * an embedding span's embedded texts). Joined rather than JSON encoded: the
+ * items are prose, and escaping them would leave the reader with something they
+ * cannot paste anywhere. Each item's own card copies it verbatim.
+ */
+export function formatTextListForCopy(values: string[]): string {
+  return values.join("\n\n");
 }
 
 /**

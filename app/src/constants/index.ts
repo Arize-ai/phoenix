@@ -9,3 +9,4 @@ export * from "./annotationConstants";
 export * from "./docsConstants";
 export * from "./retentionPolicyConstants";
 export * from "./traceDetailsConstants";
+export * from "./breakpoints";

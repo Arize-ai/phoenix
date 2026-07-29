@@ -1,5 +1,4 @@
 export * from "./constants";
-export * from "./CopyToClipboardWrap";
 export * from "./EmbeddingInput";
 export * from "./EmbeddingSpanInfo";
 export * from "./LLMInput";

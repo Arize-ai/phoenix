@@ -145,6 +145,7 @@ from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.monty_runtime import MontyBusy
 from phoenix.server.rate_limiters import AdaptiveTokenBucket, UnavailableTokensError
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.utilities.template_formatters import TemplateFormatterError
@@ -158,6 +159,7 @@ if TYPE_CHECKING:
     from phoenix.server.api.helpers.playground_clients import ChatCompletionChunk
     from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
     from phoenix.server.sandbox.session_manager import SandboxSessionManager
+    from phoenix.server.sandbox.types import SandboxRuntimeContext
     from phoenix.tracers import Tracer
 
 
@@ -866,7 +868,12 @@ class EvalWorkItem(WorkItem):
 
         except Exception as e:
             err_type = type(e).__name__
-            if self._is_rate_limit_error(e):
+            if isinstance(e, MontyBusy):
+                logger.warning(
+                    f"EvalWorkItem {self.debug_identifier} sandbox capacity busy ({err_type}): {e}"
+                )
+                await self._running_experiment.on_capacity_error(self, e)
+            elif self._is_rate_limit_error(e):
                 logger.debug(f"EvalWorkItem {self.debug_identifier} hit rate limit ({err_type})")
                 await self._running_experiment.on_rate_limit(self)
             elif self._is_transient_error(e):
@@ -1848,8 +1855,22 @@ class RunningExperiment:
         """Work item timed out. Treat as retryable."""
         await self._retry_or_fail(work_item, "timeout")
 
+    async def on_capacity_error(self, work_item: WorkItem, error: Exception) -> None:
+        """Retry capacity rejection without attributing it to evaluator health."""
+        await self._retry_or_fail(
+            work_item,
+            f"capacity unavailable: {_sanitize_error_message(error)}",
+            error=error,
+            count_toward_circuit_breaker=False,
+        )
+
     async def _retry_or_fail(
-        self, work_item: WorkItem, reason: str, error: Exception | None = None
+        self,
+        work_item: WorkItem,
+        reason: str,
+        error: Exception | None = None,
+        *,
+        count_toward_circuit_breaker: bool = True,
     ) -> None:
         """Requeue with exponential backoff, or record failure if retries exhausted."""
         if work_item.retry_count < self._max_retries:
@@ -1909,6 +1930,8 @@ class RunningExperiment:
                     )
                 )
         self._record_failure(work_item)
+        if not count_toward_circuit_breaker:
+            return
         breaker = self._get_circuit_breaker(work_item)
         if breaker.record_failure(error or RuntimeError(error_msg)):
             await self._handle_circuit_trip(
@@ -2160,6 +2183,7 @@ class ExperimentRunner(DaemonTask):
         decrypt: Callable[[bytes], bytes],
         tracer_factory: Callable[[], Tracer],
         sandbox_session_manager: "SandboxSessionManager",
+        sandbox_runtime: "SandboxRuntimeContext",
     ) -> None:
         super().__init__()
         self._db = db
@@ -2169,6 +2193,7 @@ class ExperimentRunner(DaemonTask):
         # ``get_evaluators`` so dataset-eval sessions participate in the
         # manager's invalidation/eviction coordination.
         self._sandbox_session_manager = sandbox_session_manager
+        self._sandbox_runtime = sandbox_runtime
         self._experiments: dict[ExperimentId, RunningExperiment] = {}
         self._seats = Semaphore(self.MAX_CONCURRENT)
         self._work_available = anyio.Event()
@@ -2551,6 +2576,7 @@ class ExperimentRunner(DaemonTask):
                 experiment_id=experiment_id,
                 credentials=credentials,
                 sandbox_session_manager=self._sandbox_session_manager,
+                sandbox_runtime=self._sandbox_runtime,
             )
             evaluator_run_specs = [
                 EvaluatorRunSpec(

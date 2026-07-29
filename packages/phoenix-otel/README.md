@@ -40,6 +40,7 @@ Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-awar
 - **Production Ready**: Built-in batching and authentication
 - **Phoenix Integration**: Seamless integration with Phoenix Cloud and self-hosted instances
 - **OpenTelemetry Compatible**: Works with existing OpenTelemetry infrastructure
+- **Server Version Independent**: Versioned separately from the Phoenix server — any recent `arize-phoenix-otel` works with any Phoenix server version, with no version pairing to track (traces are sent over OTLP using OpenInference semantic conventions, both backward compatible)
 
 These defaults are aware of environment variables you may have set to configure Phoenix:
 

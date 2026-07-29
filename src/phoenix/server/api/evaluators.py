@@ -61,17 +61,29 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
+from phoenix.server.monty_runtime import MontyServiceError
 from phoenix.server.sandbox import (  # noqa: E402
     MissingSecretError,
     SecretsContext,
     build_sandbox_backend,
+)
+from phoenix.server.sandbox.result_protocol import (
+    PHOENIX_RESULT_BEGIN,
+    PHOENIX_RESULT_END,
+    extract_framed_result,
 )
 from phoenix.server.sandbox.session_manager import (
     SandboxSessionManager,
     SessionInvalidated,
     SessionLimitExceeded,
 )
-from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, UnsupportedOperation
+from phoenix.server.sandbox.types import (
+    BaseNoSessionBackend,
+    ExecutionResult,
+    SandboxBackend,
+    SandboxRuntimeContext,
+    UnsupportedOperation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -743,6 +755,7 @@ async def get_evaluators(
     experiment_id: int,
     credentials: Sequence[GenerativeCredentialInput] | None = None,
     sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: Optional[SandboxRuntimeContext] = None,
 ) -> list[BaseEvaluator]:
     """
     Get all evaluators for the given DatasetEvaluator row IDs.
@@ -873,6 +886,7 @@ async def get_evaluators(
                         backend_by_sandbox_key[sandbox_key] = await build_sandbox_backend(
                             live_sandbox_config,
                             secrets=SecretsContext(session=session, decrypt=decrypt),
+                            runtime=sandbox_runtime,
                         )
                     except (
                         MissingSecretError,
@@ -2467,48 +2481,6 @@ def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any
 _TYPESCRIPT_FUNCTION_SIGNATURE_RE = re.compile(r"function\s+evaluate\s*\(([^)]*)\)")
 _TYPESCRIPT_ARROW_SIGNATURE_RE = re.compile(r"(?:const|let|var)\s+evaluate\s*=\s*\(([^)]*)\)\s*=>")
 
-_PHOENIX_RESULT_BEGIN = "===PHOENIX_RESULT_BEGIN==="
-_PHOENIX_RESULT_END = "===PHOENIX_RESULT_END==="
-_PHOENIX_RESULT_BEGIN_RE = re.compile(
-    r"^" + re.escape(_PHOENIX_RESULT_BEGIN) + r"\s*$", re.MULTILINE
-)
-_PHOENIX_RESULT_END_RE = re.compile(r"^" + re.escape(_PHOENIX_RESULT_END) + r"\s*$", re.MULTILINE)
-
-_TYPESCRIPT_RESULT_BEGIN = _PHOENIX_RESULT_BEGIN
-_TYPESCRIPT_RESULT_END = _PHOENIX_RESULT_END
-
-
-def _extract_fenced_result(stdout: str) -> tuple[Optional[str], str]:
-    """Extract the last complete fenced region from ``stdout``.
-
-    Returns ``(fenced_text, non_fenced_text)`` where ``fenced_text`` is the
-    content between the last complete BEGIN/END pair (or ``None``).
-    """
-    begin_matches = list(_PHOENIX_RESULT_BEGIN_RE.finditer(stdout))
-    end_matches = list(_PHOENIX_RESULT_END_RE.finditer(stdout))
-    if not begin_matches or not end_matches:
-        return None, stdout
-
-    pairs: list[tuple[re.Match[str], re.Match[str]]] = []
-    end_idx = 0
-    for begin in begin_matches:
-        while end_idx < len(end_matches) and end_matches[end_idx].start() <= begin.end():
-            end_idx += 1
-        if end_idx >= len(end_matches):
-            break
-        pairs.append((begin, end_matches[end_idx]))
-        end_idx += 1
-
-    if not pairs:
-        return None, stdout
-
-    last_begin, last_end = pairs[-1]
-    fenced = stdout[last_begin.end() : last_end.start()].strip("\r\n")
-    pre = stdout[: last_begin.start()].rstrip("\r\n")
-    post = stdout[last_end.end() :].lstrip("\r\n")
-    non_fenced = ("\n".join(p for p in (pre, post) if p)).rstrip()
-    return fenced, non_fenced
-
 
 def _extract_typescript_object_parameter_keys(params: str) -> tuple[list[str], list[str]]:
     destructured = re.match(r"^\{([^}]*)\}", params.strip())
@@ -2634,10 +2606,13 @@ class CodeEvaluatorRunner(BaseEvaluator):
             f"import json as _json\n"
             f"_inputs = {mapped_inputs!r}\n"
             f"_result = evaluate(**_inputs)\n"
-            f"print('{_PHOENIX_RESULT_BEGIN}')\n"
+            f"print('{PHOENIX_RESULT_BEGIN}')\n"
             f"print(_json.dumps(_result))\n"
-            f"print('{_PHOENIX_RESULT_END}')\n"
+            f"print('{PHOENIX_RESULT_END}')\n"
         )
+
+    def _build_monty_harness(self) -> str:
+        return f"{self._source_code}\n\nevaluate(**_inputs)\n"
 
     def _build_typescript_harness(self, mapped_inputs: dict[str, Any]) -> str:
         inputs_json = json.dumps(mapped_inputs)
@@ -2646,9 +2621,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
             f"const _inputs = {inputs_json};\n"
             f"const _run = async () => {{\n"
             f"  const _result = await evaluate(_inputs);\n"
-            f"  console.log('{_PHOENIX_RESULT_BEGIN}');\n"
+            f"  console.log('{PHOENIX_RESULT_BEGIN}');\n"
             f"  console.log(JSON.stringify(_result));\n"
-            f"  console.log('{_PHOENIX_RESULT_END}');\n"
+            f"  console.log('{PHOENIX_RESULT_END}');\n"
             f"}};\n"
             f"await _run();\n"
         )
@@ -2755,7 +2730,11 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     ]
 
             if self._language == "PYTHON":
-                code = self._build_python_harness(mapped_inputs)
+                code = (
+                    self._build_monty_harness()
+                    if self._sandbox_backend.provider == "MONTY"
+                    else self._build_python_harness(mapped_inputs)
+                )
             else:
                 code = self._build_typescript_harness(mapped_inputs)
 
@@ -2788,13 +2767,16 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 set_status_on_exception=False,
             ) as sandbox_span:
                 try:
-                    if self._sandbox_session_manager is None:
+                    if self._sandbox_session_manager is None or isinstance(
+                        self._sandbox_backend, BaseNoSessionBackend
+                    ):
                         # Ephemeral path: backend.execute owns the sandbox
                         # lifecycle (created and torn down inside the call).
                         execution = await asyncio.wait_for(
-                            self._sandbox_backend.execute(
+                            self._sandbox_backend.execute_with_inputs(
                                 code,
                                 session_key=session_key,
+                                inputs={"_inputs": mapped_inputs},
                                 timeout=self._timeout,
                             ),
                             timeout=self._timeout,
@@ -2887,6 +2869,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         self._make_error_result(name, err, start_time, trace_id=trace_id)
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
+                except MontyServiceError:
+                    raise
                 except Exception as exc:
                     err = f"Sandbox execution failed: {exc}"
                     sandbox_span.set_attributes(
@@ -2904,7 +2888,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
-                fenced_text, non_fenced_stdout = _extract_fenced_result(execution.stdout)
+                fenced_text, non_fenced_stdout = extract_framed_result(execution.stdout)
 
                 raw_value: Any = None
                 parse_error: Optional[str] = None

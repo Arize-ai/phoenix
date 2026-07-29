@@ -24,6 +24,13 @@ export const defaultCartesianGridProps: CartesianGridProps = {
  */
 const CHART_AXIS_FONT_SIZE = "12px";
 
+/**
+ * Recharts' default 1500ms line animation feels sluggish in compact metric
+ * panels, especially during resize. This matches its 400ms bar default so
+ * score and distribution views settle at the same pace.
+ */
+export const COMPACT_CHART_ANIMATION_DURATION_MS = 400;
+
 export const defaultXAxisProps: XAxisProps = {
   stroke: "var(--chart-axis-stroke-color)",
   style: {
@@ -123,6 +130,11 @@ export const defaultTooltipProps: TooltipProps<any, any> = {
   cursor: {
     fill: "var(--chart-tooltip-cursor-fill-color)",
   },
+  // Recharts renders legends after tooltips, so the tooltip needs an explicit
+  // stacking level to remain above legend content when they overlap.
+  wrapperStyle: {
+    zIndex: 1,
+  },
 };
 
 export const defaultLegendProps: LegendProps = {
@@ -130,16 +142,10 @@ export const defaultLegendProps: LegendProps = {
   wrapperStyle: {
     userSelect: "none",
   },
-  formatter: (value) => (
-    <span
-      style={{
-        color: "var(--chart-legend-text-color)",
-        userSelect: "none",
-      }}
-    >
-      {value}
-    </span>
-  ),
+  labelStyle: {
+    color: "var(--chart-legend-text-color)",
+    userSelect: "none",
+  },
 };
 
 /**

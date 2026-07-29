@@ -1,7 +1,4 @@
-import {
-  MessageAttributePostfixes,
-  SemanticAttributePrefixes,
-} from "@arizeai/openinference-semantic-conventions";
+import { MessageAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import { useState } from "react";
 
@@ -33,6 +30,7 @@ import {
 import { defaultCardProps } from "./constants";
 import { getMessageContentPreview } from "./messageContentPreview";
 import { MessageContentsList } from "./MessageContentsList";
+import { formatJSONForCopy, getToolCalls } from "./utils";
 
 const COLLAPSED_MESSAGE_HEIGHT_PIXELS = 320;
 
@@ -75,16 +73,13 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
   });
   // as of multi-modal models, a message can also be a list
   const messagesContents = message[MessageAttributePostfixes.contents];
-  const toolCalls = message[MessageAttributePostfixes.tool_calls]
-    ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
-    .filter(Boolean);
+  const toolCalls = getToolCalls(message);
   const hasFunctionCall =
     message[MessageAttributePostfixes.function_call_arguments_json] &&
     message[MessageAttributePostfixes.function_call_name];
   const role = message[MessageAttributePostfixes.role] || "unknown";
   const messageStyles = useChatMessageStyles(role);
-  const toolCallDisclosureIds =
-    toolCalls?.map((_, idx) => `tool-call-${idx}`) || [];
+  const toolCallDisclosureIds = toolCalls.map((_, idx) => `tool-call-${idx}`);
   const toolResultId = message[MessageAttributePostfixes.tool_call_id];
   const messageContentView = messageContent ? (
     <ExpandableMessageContent content={normalizedContent} />
@@ -104,8 +99,10 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             <ConnectedMarkdownModeSelect />
+            {/* the message as a whole for anything the content field does not
+                carry on its own -- multi-modal contents, tool calls */}
             <CopyToClipboardButton
-              text={messageContent || JSON.stringify(message)}
+              text={messageContent || formatJSONForCopy(message)}
             />
           </Flex>
         }
@@ -119,19 +116,11 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
           <DisclosureGroup
             css={css`
               width: 100%;
-              // when any .disclosure__trigger is hovered, show the child .copy-to-clipboard-button
+              // the copy buttons in these rows stay visible rather than
+              // appearing on hover: an action a reader has to find by pointing
+              // at it is one touch users cannot reach at all
               .disclosure__trigger {
                 width: 100%;
-                .copy-to-clipboard-button {
-                  visibility: hidden;
-                }
-              }
-              .disclosure__trigger:hover,
-              .disclosure__trigger:focus-within,
-              .disclosure__trigger:focus-visible {
-                .copy-to-clipboard-button {
-                  visibility: visible;
-                }
               }
             `}
             defaultExpandedKeys={[
@@ -160,11 +149,8 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
             messageContent ? (
               messageContentView
             ) : null}
-            {(toolCalls?.length ?? 0) > 0
-              ? toolCalls?.map((toolCall, idx) => {
-                  if (!toolCall) {
-                    return null;
-                  }
+            {toolCalls.length > 0
+              ? toolCalls.map((toolCall, idx) => {
                   const id = toolCall.id;
                   const parsedArguments = safelyParseJSON(
                     toolCall?.function?.arguments as string

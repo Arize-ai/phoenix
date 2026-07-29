@@ -173,7 +173,9 @@ def render_values_w_union(
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
-SandboxBackendType: TypeAlias = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL"]
+SandboxBackendType: TypeAlias = Literal[
+    "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY"
+]
 LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",

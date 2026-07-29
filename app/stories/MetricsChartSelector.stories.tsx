@@ -26,6 +26,10 @@ import { PROJECT_METRIC_CHARTS } from "@phoenix/pages/project/metrics/chartCatal
  * menu opens and only re-snapshots the next time it is opened — GitHub's label
  * picker behavior. Each row carries a small preview glyph of the chart's shape
  * (vertical bars, a ranked horizontal chart, or a line).
+ *
+ * Rows in the "Selected" section can be dragged by the handle that appears on
+ * hover to change the order the charts are displayed in. Charts turned on from
+ * "Available" are appended to the end of that order.
  */
 const meta: Meta<typeof MetricsChartSelector> = {
   title: "Chart/MetricsChartSelector",
@@ -74,7 +78,9 @@ function InteractiveSelector({
 /**
  * Opens with a couple of charts already selected. Note the frozen "Selected"
  * section — unchecking a selected chart keeps it in place rather than dropping
- * it to "Available".
+ * it to "Available". With more than one chart selected, the rows can be
+ * dragged by their handles to reorder them; the order is reported up as the
+ * drag previews it.
  */
 export const Default: Story = {
   render: () => <InteractiveSelector initialKeys={["traces", "latency"]} />,
