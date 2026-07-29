@@ -6,9 +6,10 @@ import {
   DisclosureTrigger,
   Text,
 } from "@phoenix/components";
-import type { AttributePromptTemplate } from "@phoenix/openInference/tracing/types";
 
 import { PreBlock, ReadonlyJSONBlock } from "../ReadonlyJSONBlock";
+import type { SpanPromptTemplate } from "./types";
+import { formatJSONForCopy } from "./utils";
 
 /**
  * Displays the prompt template and its variables for an LLM span.
@@ -16,7 +17,7 @@ import { PreBlock, ReadonlyJSONBlock } from "../ReadonlyJSONBlock";
 export function LLMPromptTemplate({
   promptTemplate,
 }: {
-  promptTemplate: AttributePromptTemplate;
+  promptTemplate: SpanPromptTemplate;
 }) {
   return (
     <DisclosureGroup
@@ -44,12 +45,12 @@ export function LLMPromptTemplate({
           >
             <Text>Template Variables</Text>
             <CopyToClipboardButton
-              text={JSON.stringify(promptTemplate.variables)}
+              text={formatJSONForCopy(promptTemplate.variables)}
             />
           </DisclosureTrigger>
           <DisclosurePanel>
             <ReadonlyJSONBlock>
-              {JSON.stringify(promptTemplate.variables)}
+              {formatJSONForCopy(promptTemplate.variables)}
             </ReadonlyJSONBlock>
           </DisclosurePanel>
         </Disclosure>

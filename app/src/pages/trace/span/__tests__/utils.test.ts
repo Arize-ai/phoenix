@@ -8,6 +8,7 @@ import {
   getRerankerAttributes,
   getRetrieverAttributes,
   getToolAttributes,
+  getToolCalls,
   groupDocumentEvaluationsByPosition,
   parseSpanAttributes,
 } from "../utils";
@@ -24,6 +25,15 @@ describe("parseSpanAttributes", () => {
     expect(result.json).toBeNull();
     expect(result.parseError).toBeInstanceOf(Error);
   });
+
+  it.each(["[]", '"attributes"', "42", "null"])(
+    "rejects a non-object attributes payload: %s",
+    (attributes) => {
+      const result = parseSpanAttributes(attributes);
+      expect(result.json).toBeNull();
+      expect(result.parseError).toBeInstanceOf(Error);
+    }
+  );
 });
 
 describe("getLLMAttributes", () => {
@@ -91,11 +101,80 @@ describe("getLLMAttributes", () => {
   it("ignores prompts that are not a string array", () => {
     const result = getLLMAttributes({
       llm: {
-        // @ts-expect-error intentionally malformed attribute value
         prompts: [{ prompt: "not a string" }],
       },
     });
     expect(result.prompts).toEqual([]);
+  });
+
+  it("normalizes every untrusted display leaf before returning it", () => {
+    const result = getLLMAttributes({
+      llm: {
+        model_name: { family: "gpt" },
+        provider: ["openai"],
+        input_messages: [
+          {
+            message: {
+              role: { name: "assistant" },
+              content: { type: "text", text: "hello" },
+              name: { value: "bot" },
+              function_call_name: { value: "search" },
+              function_call_arguments_json: { query: "phoenix" },
+              tool_call_id: { value: "call-1" },
+              contents: [
+                {
+                  message_content: {
+                    type: { value: "text" },
+                    text: { value: "hello" },
+                    image: { image: { url: { value: "image.png" } } },
+                  },
+                },
+              ],
+              tool_calls: [
+                {
+                  tool_call: {
+                    id: { value: "call-1" },
+                    function: {
+                      name: { value: "search" },
+                      arguments: { query: "phoenix" },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        tools: [{ tool: { json_schema: { type: "object" } } }],
+        prompt_template: {
+          template: { value: "Hello" },
+          variables: { name: { value: "Phoenix" } },
+        },
+        invocation_parameters: { temperature: 0.5 },
+      },
+    });
+
+    expect(result.modelName).toBe('{\n  "family": "gpt"\n}');
+    expect(result.provider).toBe('[\n  "openai"\n]');
+    expect(result.toolSchemas).toEqual(['{\n  "type": "object"\n}']);
+    expect(result.promptTemplate?.template).toBe('{\n  "value": "Hello"\n}');
+    expect(result.invocationParameters).toBe('{\n  "temperature": 0.5\n}');
+
+    const message = result.inputMessages[0];
+    expect(message).toBeDefined();
+    expect(
+      Object.values(message ?? {})
+        .filter(Boolean)
+        .every((value) => typeof value === "string" || Array.isArray(value))
+    ).toBe(true);
+    expect(getToolCalls(message ?? {})).toEqual([
+      {
+        id: '{\n  "value": "call-1"\n}',
+        function: {
+          name: '{\n  "value": "search"\n}',
+          arguments: '{\n  "query": "phoenix"\n}',
+        },
+      },
+    ]);
   });
 });
 
@@ -147,6 +226,29 @@ describe("getRetrieverAttributes", () => {
       { id: "2", content: "doc two" },
     ]);
   });
+
+  it("normalizes object-valued document fields to strings", () => {
+    const result = getRetrieverAttributes({
+      retrieval: {
+        documents: [
+          {
+            document: {
+              id: { value: "1" },
+              content: { text: "document" },
+              metadata: { source: "test" },
+            },
+          },
+        ],
+      },
+    });
+    expect(result.documents).toEqual([
+      {
+        id: '{\n  "value": "1"\n}',
+        content: '{\n  "text": "document"\n}',
+        metadata: '{\n  "source": "test"\n}',
+      },
+    ]);
+  });
 });
 
 describe("getRerankerAttributes", () => {
@@ -172,6 +274,14 @@ describe("getRerankerAttributes", () => {
       outputDocuments: [{ id: "2" }],
     });
   });
+
+  it("normalizes an object-valued query", () => {
+    expect(
+      getRerankerAttributes({
+        reranker: { query: { text: "what is phoenix" } },
+      }).query
+    ).toBe('{\n  "text": "what is phoenix"\n}');
+  });
 });
 
 describe("getEmbeddingAttributes", () => {
@@ -190,6 +300,18 @@ describe("getEmbeddingAttributes", () => {
     });
     expect(result).toEqual({
       embeddings: [{ text: "embedded text" }],
+    });
+  });
+
+  it("normalizes an object-valued embedded text", () => {
+    expect(
+      getEmbeddingAttributes({
+        embedding: {
+          embeddings: [{ embedding: { text: { value: "embedded" } } }],
+        },
+      })
+    ).toEqual({
+      embeddings: [{ text: '{\n  "value": "embedded"\n}' }],
     });
   });
 });
@@ -218,6 +340,23 @@ describe("getToolAttributes", () => {
       name: "search",
       description: "Searches the web",
       parameters: '{"type": "object"}',
+    });
+  });
+
+  it("normalizes object-valued tool fields", () => {
+    expect(
+      getToolAttributes({
+        tool: {
+          name: { value: "search" },
+          description: { value: "Searches" },
+          parameters: { type: "object" },
+        },
+      })
+    ).toEqual({
+      hasToolAttributes: true,
+      name: '{\n  "value": "search"\n}',
+      description: '{\n  "value": "Searches"\n}',
+      parameters: '{\n  "type": "object"\n}',
     });
   });
 });

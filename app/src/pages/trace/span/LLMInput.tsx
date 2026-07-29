@@ -7,10 +7,7 @@ import {
   ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
-import type {
-  AttributeMessage,
-  AttributePromptTemplate,
-} from "@phoenix/openInference/tracing/types";
+import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -24,7 +21,7 @@ import { LLMPromptsList } from "./LLMPromptsList";
 import { LLMPromptTemplate } from "./LLMPromptTemplate";
 import { LLMToolSchemasList } from "./LLMToolSchemasList";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
-import type { SpanIOValue } from "./types";
+import type { SpanIOValue, SpanPromptTemplate } from "./types";
 import {
   formatJSONForCopy,
   formatJSONStringsForCopy,
@@ -55,7 +52,7 @@ export function LLMInput({
   inputMessages: AttributeMessage[];
   /** The JSON schemas of the tools available to the LLM */
   toolSchemas: string[];
-  promptTemplate: AttributePromptTemplate | null;
+  promptTemplate: SpanPromptTemplate | null;
   prompts: string[];
   /** The invocation parameters as a JSON string */
   invocationParameters: string;

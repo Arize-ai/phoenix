@@ -1,13 +1,3 @@
-import type { SemanticAttributePrefixes } from "@arizeai/openinference-semantic-conventions";
-
-import type {
-  AttributeEmbedding,
-  AttributeLlm,
-  AttributeReranker,
-  AttributeRetrieval,
-  AttributeTool,
-} from "@phoenix/openInference/tracing/types";
-
 import type { DocumentAnnotation } from "../DocumentAnnotationItem";
 
 /**
@@ -27,13 +17,7 @@ export type SpanIOValue = {
 /**
  * A span attribute object that is a map of string to an unknown value
  */
-export type AttributeObject = {
-  [SemanticAttributePrefixes.retrieval]?: AttributeRetrieval;
-  [SemanticAttributePrefixes.embedding]?: AttributeEmbedding;
-  [SemanticAttributePrefixes.tool]?: AttributeTool;
-  [SemanticAttributePrefixes.reranker]?: AttributeReranker;
-  [SemanticAttributePrefixes.llm]?: AttributeLlm;
-};
+export type AttributeObject = Record<string, unknown>;
 
 /**
  * The result of safely parsing the span attributes JSON string.
@@ -41,6 +25,15 @@ export type AttributeObject = {
 export type SpanAttributesParseResult = {
   json: { [key: string]: unknown } | null;
   parseError?: unknown;
+};
+
+/**
+ * The prompt-template fields after untrusted span attributes have been
+ * normalized for display.
+ */
+export type SpanPromptTemplate = {
+  template?: string;
+  variables?: unknown;
 };
 
 /**

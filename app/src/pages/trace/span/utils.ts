@@ -1,7 +1,9 @@
 import {
+  DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
   MessageAttributePostfixes,
+  MessageContentsAttributePostfixes,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
@@ -11,19 +13,22 @@ import {
 import type {
   AttributeDocument,
   AttributeEmbeddingEmbedding,
-  AttributeLLMToolDefinition,
   AttributeMessage,
-  AttributePromptTemplate,
+  AttributeMessageContent,
   AttributeToolCall,
 } from "@phoenix/openInference/tracing/types";
-import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
 import { isStringArray } from "@phoenix/typeUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import {
+  formatContentAsString,
+  isPlainObject,
+  safelyParseJSON,
+} from "@phoenix/utils/jsonUtils";
 
 import type {
   AttributeObject,
   DocumentEvaluation,
   SpanAttributesParseResult,
+  SpanPromptTemplate,
 } from "./types";
 
 /**
@@ -40,7 +45,7 @@ export type LLMSpanAttributes = {
    */
   toolSchemas: string[];
   prompts: string[];
-  promptTemplate: AttributePromptTemplate | null;
+  promptTemplate: SpanPromptTemplate | null;
   /**
    * The invocation parameters as a JSON string
    */
@@ -55,29 +60,171 @@ export type LLMSpanAttributes = {
 export function parseSpanAttributes(
   attributes: string
 ): SpanAttributesParseResult {
-  return safelyParseJSON(attributes);
+  const result = safelyParseJSON(attributes);
+  if (result.parseError || isPlainObject(result.json)) {
+    return result;
+  }
+  return {
+    json: null,
+    parseError: new Error("Span attributes must be a JSON object"),
+  };
+}
+
+/**
+ * Converts an untrusted semantic-convention leaf to display-safe text.
+ */
+function formatAttributeValue(value: unknown): string | undefined {
+  if (value == null) {
+    return undefined;
+  }
+  return formatContentAsString(value, { unquotePlainString: true });
+}
+
+/**
+ * Normalizes a tool call so no untrusted object can reach a text-only prop or
+ * JSX child.
+ */
+function normalizeToolCall(value: unknown): AttributeToolCall | null {
+  if (!isPlainObject(value)) {
+    return null;
+  }
+  const functionValue = value.function;
+  const normalizedFunction = isPlainObject(functionValue)
+    ? {
+        name: formatAttributeValue(functionValue.name),
+        arguments: formatAttributeValue(functionValue.arguments),
+      }
+    : undefined;
+  return {
+    id: formatAttributeValue(value.id),
+    function: normalizedFunction,
+  };
+}
+
+/**
+ * Normalizes multi-modal message content into the subset rendered by the span
+ * details panel.
+ */
+function normalizeMessageContent(
+  value: unknown
+): AttributeMessageContent | null {
+  if (!isPlainObject(value)) {
+    return null;
+  }
+  const content = value[SemanticAttributePrefixes.message_content];
+  if (!isPlainObject(content)) {
+    return null;
+  }
+  const imageValue = content[MessageContentsAttributePostfixes.image];
+  const nestedImage = isPlainObject(imageValue)
+    ? imageValue[MessageContentsAttributePostfixes.image]
+    : undefined;
+  const image = isPlainObject(nestedImage)
+    ? {
+        [MessageContentsAttributePostfixes.image]: {
+          url: formatAttributeValue(nestedImage.url),
+        },
+      }
+    : undefined;
+  return {
+    [SemanticAttributePrefixes.message_content]: {
+      [MessageContentsAttributePostfixes.type]: formatAttributeValue(
+        content[MessageContentsAttributePostfixes.type]
+      ),
+      [MessageContentsAttributePostfixes.text]: formatAttributeValue(
+        content[MessageContentsAttributePostfixes.text]
+      ),
+      [MessageContentsAttributePostfixes.image]: image,
+    },
+  };
+}
+
+/**
+ * Normalizes one message into strings and validated arrays before React sees
+ * it. Span attributes are external telemetry and do not honor the TypeScript
+ * declarations at runtime.
+ */
+function normalizeMessage(value: unknown): AttributeMessage | null {
+  if (!isPlainObject(value)) {
+    return null;
+  }
+  const rawContents = value[MessageAttributePostfixes.contents];
+  const contents = Array.isArray(rawContents)
+    ? rawContents
+        .map(normalizeMessageContent)
+        .filter(
+          (content): content is AttributeMessageContent => content != null
+        )
+    : undefined;
+  const rawToolCalls = value[MessageAttributePostfixes.tool_calls];
+  const toolCalls = Array.isArray(rawToolCalls)
+    ? rawToolCalls
+        .map((wrapper) =>
+          isPlainObject(wrapper)
+            ? normalizeToolCall(wrapper[SemanticAttributePrefixes.tool_call])
+            : null
+        )
+        .filter((toolCall): toolCall is AttributeToolCall => toolCall != null)
+        .map((toolCall) => ({
+          [SemanticAttributePrefixes.tool_call]: toolCall,
+        }))
+    : undefined;
+  return {
+    [MessageAttributePostfixes.role]: formatAttributeValue(
+      value[MessageAttributePostfixes.role]
+    ),
+    [MessageAttributePostfixes.content]: formatAttributeValue(
+      value[MessageAttributePostfixes.content]
+    ),
+    [MessageAttributePostfixes.contents]: contents,
+    [MessageAttributePostfixes.name]: formatAttributeValue(
+      value[MessageAttributePostfixes.name]
+    ),
+    [MessageAttributePostfixes.function_call_name]: formatAttributeValue(
+      value[MessageAttributePostfixes.function_call_name]
+    ),
+    [MessageAttributePostfixes.function_call_arguments_json]:
+      formatAttributeValue(
+        value[MessageAttributePostfixes.function_call_arguments_json]
+      ),
+    [MessageAttributePostfixes.tool_call_id]: formatAttributeValue(
+      value[MessageAttributePostfixes.tool_call_id]
+    ),
+    [MessageAttributePostfixes.tool_calls]: toolCalls,
+  };
 }
 
 /**
  * Extract the message objects from an untrusted messages attribute value.
  */
 function getMessages(messagesValue: unknown): AttributeMessage[] {
-  // At this point, we cannot trust the type of the messages value
-  if (!isAttributeMessages(messagesValue)) {
+  if (!Array.isArray(messagesValue)) {
     return [];
   }
-  return (messagesValue
-    .map((obj) => obj[SemanticAttributePrefixes.message])
-    .filter(Boolean) || []) as AttributeMessage[];
+  return messagesValue
+    .map((wrapper) =>
+      isPlainObject(wrapper)
+        ? normalizeMessage(wrapper[SemanticAttributePrefixes.message])
+        : null
+    )
+    .filter((message): message is AttributeMessage => message != null);
 }
 
 /**
  * Extract the tool call objects from a message's tool calls attribute.
  */
 export function getToolCalls(message: AttributeMessage): AttributeToolCall[] {
-  return (message[MessageAttributePostfixes.tool_calls]
-    ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
-    .filter(Boolean) || []) as AttributeToolCall[];
+  const toolCalls = message[MessageAttributePostfixes.tool_calls];
+  if (!Array.isArray(toolCalls)) {
+    return [];
+  }
+  return toolCalls
+    .map((wrapper) =>
+      isPlainObject(wrapper)
+        ? normalizeToolCall(wrapper[SemanticAttributePrefixes.tool_call])
+        : null
+    )
+    .filter((toolCall): toolCall is AttributeToolCall => toolCall != null);
 }
 
 /**
@@ -96,8 +243,8 @@ export function countToolCalls(messages: AttributeMessage[]): number {
 export function getLLMAttributes(
   spanAttributes: AttributeObject
 ): LLMSpanAttributes {
-  const llmAttributes = spanAttributes[SemanticAttributePrefixes.llm] || null;
-  if (llmAttributes == null) {
+  const llmAttributesValue = spanAttributes[SemanticAttributePrefixes.llm];
+  if (!isPlainObject(llmAttributesValue)) {
     return {
       modelName: null,
       provider: null,
@@ -109,22 +256,30 @@ export function getLLMAttributes(
       invocationParameters: "{}",
     };
   }
+  const llmAttributes = llmAttributesValue;
 
-  const maybeModelName = llmAttributes[LLMAttributePostfixes.model_name];
-  const modelName = typeof maybeModelName === "string" ? maybeModelName : null;
-
-  const maybeProvider = llmAttributes[LLMAttributePostfixes.provider];
-  const provider = typeof maybeProvider === "string" ? maybeProvider : null;
+  const modelName =
+    formatAttributeValue(llmAttributes[LLMAttributePostfixes.model_name]) ??
+    null;
+  const provider =
+    formatAttributeValue(llmAttributes[LLMAttributePostfixes.provider]) ?? null;
 
   const tools = llmAttributes[LLMAttributePostfixes.tools];
   const toolDefinitions = Array.isArray(tools)
-    ? (tools
-        .map((obj) => obj[SemanticAttributePrefixes.tool])
-        .filter(Boolean) as AttributeLLMToolDefinition[])
+    ? tools
+        .map((wrapper) =>
+          isPlainObject(wrapper)
+            ? wrapper[SemanticAttributePrefixes.tool]
+            : undefined
+        )
+        .filter(isPlainObject)
     : [];
   const toolSchemas = toolDefinitions.reduce<string[]>((acc, tool) => {
-    if (tool?.json_schema) {
-      acc.push(tool.json_schema);
+    const schema = formatAttributeValue(
+      tool[ToolAttributePostfixes.json_schema]
+    );
+    if (schema != null) {
+      acc.push(schema);
     }
     return acc;
   }, []);
@@ -143,12 +298,56 @@ export function getLLMAttributes(
     ),
     toolSchemas,
     prompts,
-    promptTemplate:
-      llmAttributes[LLMAttributePostfixes.prompt_template] ?? null,
-    invocationParameters: (llmAttributes[
-      LLMAttributePostfixes.invocation_parameters
-    ] || "{}") as string,
+    promptTemplate: getPromptTemplate(
+      llmAttributes[LLMAttributePostfixes.prompt_template]
+    ),
+    invocationParameters:
+      formatAttributeValue(
+        llmAttributes[LLMAttributePostfixes.invocation_parameters]
+      ) ?? "{}",
   };
+}
+
+function getPromptTemplate(value: unknown): SpanPromptTemplate | null {
+  if (!isPlainObject(value)) {
+    return null;
+  }
+  const template = formatAttributeValue(value.template);
+  const variables = value.variables;
+  return template == null && variables == null ? null : { template, variables };
+}
+
+function normalizeDocument(value: unknown): AttributeDocument | null {
+  if (!isPlainObject(value)) {
+    return null;
+  }
+  const score = value[DocumentAttributePostfixes.score];
+  return {
+    [DocumentAttributePostfixes.id]: formatAttributeValue(
+      value[DocumentAttributePostfixes.id]
+    ),
+    [DocumentAttributePostfixes.content]: formatAttributeValue(
+      value[DocumentAttributePostfixes.content]
+    ),
+    [DocumentAttributePostfixes.metadata]: formatAttributeValue(
+      value[DocumentAttributePostfixes.metadata]
+    ),
+    [DocumentAttributePostfixes.score]:
+      typeof score === "number" ? score : undefined,
+  };
+}
+
+function getDocuments(value: unknown): AttributeDocument[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((wrapper) =>
+      isPlainObject(wrapper)
+        ? normalizeDocument(wrapper[SemanticAttributePrefixes.document])
+        : null
+    )
+    .filter((document): document is AttributeDocument => document != null);
 }
 
 /**
@@ -159,14 +358,14 @@ export function getRetrieverAttributes(spanAttributes: AttributeObject): {
   documents: AttributeDocument[];
 } {
   const retrieverAttributes =
-    spanAttributes[SemanticAttributePrefixes.retrieval] || null;
-  if (retrieverAttributes == null) {
+    spanAttributes[SemanticAttributePrefixes.retrieval];
+  if (!isPlainObject(retrieverAttributes)) {
     return { documents: [] };
   }
   return {
-    documents: (retrieverAttributes[RetrievalAttributePostfixes.documents]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[],
+    documents: getDocuments(
+      retrieverAttributes[RetrievalAttributePostfixes.documents]
+    ),
   };
 }
 
@@ -179,23 +378,21 @@ export function getRerankerAttributes(spanAttributes: AttributeObject): {
   inputDocuments: AttributeDocument[];
   outputDocuments: AttributeDocument[];
 } {
-  const rerankerAttributes =
-    spanAttributes[SemanticAttributePrefixes.reranker] || null;
-  if (rerankerAttributes == null) {
+  const rerankerAttributes = spanAttributes[SemanticAttributePrefixes.reranker];
+  if (!isPlainObject(rerankerAttributes)) {
     return { query: null, inputDocuments: [], outputDocuments: [] };
   }
   return {
-    query: rerankerAttributes[RerankerAttributePostfixes.query] || null,
-    inputDocuments: (rerankerAttributes[
-      RerankerAttributePostfixes.input_documents
-    ]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[],
-    outputDocuments: (rerankerAttributes[
-      RerankerAttributePostfixes.output_documents
-    ]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[],
+    query:
+      formatAttributeValue(
+        rerankerAttributes[RerankerAttributePostfixes.query]
+      ) ?? null,
+    inputDocuments: getDocuments(
+      rerankerAttributes[RerankerAttributePostfixes.input_documents]
+    ),
+    outputDocuments: getDocuments(
+      rerankerAttributes[RerankerAttributePostfixes.output_documents]
+    ),
   };
 }
 
@@ -206,14 +403,30 @@ export function getEmbeddingAttributes(spanAttributes: AttributeObject): {
   embeddings: AttributeEmbeddingEmbedding[];
 } {
   const embeddingAttributes =
-    spanAttributes[SemanticAttributePrefixes.embedding] || null;
-  if (embeddingAttributes == null) {
+    spanAttributes[SemanticAttributePrefixes.embedding];
+  if (!isPlainObject(embeddingAttributes)) {
     return { embeddings: [] };
   }
+  const embeddingsValue =
+    embeddingAttributes[EmbeddingAttributePostfixes.embeddings];
   return {
-    embeddings: (embeddingAttributes[EmbeddingAttributePostfixes.embeddings]
-      ?.map((obj) => obj[SemanticAttributePrefixes.embedding])
-      .filter(Boolean) || []) as AttributeEmbeddingEmbedding[],
+    embeddings: Array.isArray(embeddingsValue)
+      ? embeddingsValue.flatMap<AttributeEmbeddingEmbedding>((wrapper) => {
+          const embedding = isPlainObject(wrapper)
+            ? wrapper[SemanticAttributePrefixes.embedding]
+            : undefined;
+          if (!isPlainObject(embedding)) {
+            return [];
+          }
+          return [
+            {
+              [EmbeddingAttributePostfixes.text]: formatAttributeValue(
+                embedding[EmbeddingAttributePostfixes.text]
+              ),
+            },
+          ];
+        })
+      : [],
   };
 }
 
@@ -233,12 +446,19 @@ export type ToolSpanAttributes = {
 export function getToolAttributes(
   spanAttributes: AttributeObject
 ): ToolSpanAttributes {
-  const toolAttributes = spanAttributes[SemanticAttributePrefixes.tool] || {};
+  const toolAttributesValue = spanAttributes[SemanticAttributePrefixes.tool];
+  const toolAttributes = isPlainObject(toolAttributesValue)
+    ? toolAttributesValue
+    : {};
   return {
     hasToolAttributes: Object.keys(toolAttributes).length > 0,
-    name: toolAttributes[ToolAttributePostfixes.name],
-    description: toolAttributes[ToolAttributePostfixes.description],
-    parameters: toolAttributes[ToolAttributePostfixes.parameters],
+    name: formatAttributeValue(toolAttributes[ToolAttributePostfixes.name]),
+    description: formatAttributeValue(
+      toolAttributes[ToolAttributePostfixes.description]
+    ),
+    parameters: formatAttributeValue(
+      toolAttributes[ToolAttributePostfixes.parameters]
+    ),
   };
 }
 
@@ -248,7 +468,7 @@ export function getToolAttributes(
  * compacted form the attributes arrive in.
  */
 export function formatJSONForCopy(value: unknown): string {
-  return JSON.stringify(value, null, 2);
+  return JSON.stringify(value, null, 2) ?? String(value);
 }
 
 /**
