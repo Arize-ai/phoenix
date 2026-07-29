@@ -226,12 +226,13 @@ class DbEvalWorkCoordinator:
         *,
         work_unit_id: int,
         claimed_by: str,
+        error: str,
     ) -> bool:
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
             claimed_by=claimed_by,
             status="EXPIRED",
-            error=STALE_FINGERPRINT_ERROR,
+            error=error,
         )
 
     async def _fenced_transition(
@@ -283,9 +284,7 @@ class DbEvalWorkCoordinator:
                     await session.execute(
                         select(work_unit_model.status, error_exhausted, func.count())
                         .where(
-                            work_unit_model.status.in_(
-                                ["PENDING", "RUNNING", "ERROR", "EXPIRED"]
-                            )
+                            work_unit_model.status.in_(["PENDING", "RUNNING", "ERROR", "EXPIRED"])
                         )
                         .group_by(work_unit_model.status, error_exhausted)
                     )

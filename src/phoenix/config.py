@@ -415,6 +415,11 @@ ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES = "PHOENIX_ONLINE_EVAL_MAX_TRANSCRI
 The maximum UTF-8 byte size of the default transcript supplied to session evaluators.
 Defaults to 32768.
 """
+ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES = "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES"
+"""
+The maximum aggregate UTF-8 byte size of rendered messages sent by an online LLM evaluator.
+Defaults to 65536.
+"""
 ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES = "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES"
 """
 The maximum UTF-8 byte size of a rendered session code-evaluator payload.
@@ -3579,6 +3584,18 @@ def get_env_online_eval_max_transcript_bytes() -> int:
             f"Invalid value for environment variable "
             f"{ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES}: "
             f"{max_bytes}. Value must be an integer of at least 256."
+        )
+    return max_bytes
+
+
+def get_env_online_eval_max_llm_message_bytes() -> int:
+    """Get the rendered online-eval LLM message cap."""
+    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES, 65_536)
+    if max_bytes < 1_024:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES}: "
+            f"{max_bytes}. Value must be an integer of at least 1024."
         )
     return max_bytes
 

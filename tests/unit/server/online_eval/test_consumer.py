@@ -55,7 +55,10 @@ from phoenix.server.online_eval.derivation import annotation_identifier, config_
 from phoenix.server.online_eval.executor import (
     EvalExecutionError,
     HydratedWorkUnit,
+    HydrationFailure,
+    HydrationFailureReason,
     OnlineEvalExecutor,
+    TranscriptTooLargeError,
     session_eval_context,
     span_eval_context,
 )
@@ -562,11 +565,17 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
     assert context["input"] == expected_transcript
     assert len(context["input"].encode("utf-8")) <= len(expected_transcript.encode("utf-8"))
     assert context["output"] == turns[-1]["output"]
-    assert context["metadata"] == {"turns": turns}
+    assert context["metadata"]["turns"] == turns
+    policy = context["metadata"]["phoenix.online_eval.transcript_policy"]
+    assert policy["total_eligible_root_count"] == 3
+    assert policy["loaded_turn_count"] == 3
+    assert policy["retained_turn_count"] == 2
+    assert policy["turn_cap_omitted_count"] == 0
+    assert policy["byte_cap_omitted_count"] == 1
 
     omitted_turn = {"input": "x" * 500, "output": "y" * 500, "metadata": {}}
     omitted_transcript = f"User: {omitted_turn['input']}\nAssistant: {omitted_turn['output']}"
-    with pytest.raises(EvalExecutionError) as exc_info:
+    with pytest.raises(TranscriptTooLargeError) as exc_info:
         session_eval_context(
             turns=[omitted_turn],
             max_transcript_bytes=256,
@@ -582,18 +591,18 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
         max_transcript_bytes=256,
     )
     assert null_values["input"] == "User: \nAssistant: "
-    assert null_values["output"] is None
-    assert null_values["metadata"] == {
-        "turns": [{"input": None, "output": None, "metadata": {"raw": True}}]
-    }
+    assert null_values["output"] == ""
+    assert null_values["metadata"]["turns"] == [
+        {"input": None, "output": None, "metadata": {"raw": True}}
+    ]
 
     empty = session_eval_context(
         turns=[],
         max_transcript_bytes=256,
     )
     assert empty["input"] == ""
-    assert empty["output"] is None
-    assert empty["metadata"] == {"turns": []}
+    assert empty["output"] == ""
+    assert empty["metadata"]["turns"] == []
 
 
 async def test_happy_path_claims_evaluates_annotates_and_completes(
@@ -660,6 +669,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
             session,
             oldest_trace,
             span_kind="CHAIN",
+            start_time=start_time + timedelta(seconds=1),
             attributes={
                 "input": {"value": "omitted oldest question"},
                 "output": {"value": "omitted oldest answer"},
@@ -683,6 +693,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
             session,
             later_trace,
             span_kind="CHAIN",
+            start_time=start_time + timedelta(seconds=20),
             attributes={
                 "input": {"value": "second question"},
                 "output": {"value": "second answer"},
@@ -706,6 +717,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
             session,
             earlier_trace,
             span_kind="CHAIN",
+            start_time=start_time + timedelta(seconds=10),
             attributes={
                 "input": {"value": "first question"},
                 "output": {"value": "first answer"},
@@ -763,6 +775,16 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert annotation.annotator_kind == "LLM"
     assert annotation.source == "API"
     assert annotation.identifier == annotation_identifier(fingerprint)
+    policy = annotation.metadata_["phoenix.online_eval.transcript_policy"]
+    assert policy["ordering"] == "root_span_start_time_then_span_id"
+    assert policy["total_eligible_root_count"] == 3
+    assert policy["loaded_turn_count"] == 2
+    assert policy["retained_turn_count"] == 2
+    assert policy["turn_cap_omitted_count"] == 1
+    assert policy["byte_cap_omitted_count"] == 0
+    assert policy["first_retained_event_time"] is not None
+    assert policy["last_retained_event_time"] is not None
+    assert policy["structured_turns_mapped"] is True
     assert events.get_nowait() == ProjectSessionAnnotationInsertEvent((annotation.id,))
     assert events.empty()
 
@@ -786,7 +808,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert events.empty()
 
 
-async def test_marker_only_session_transcript_counts_attempt_without_evaluation(
+async def test_marker_only_session_transcript_is_terminal_without_counting_attempt(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     input_value = "x" * 500
@@ -827,9 +849,10 @@ async def test_marker_only_session_transcript_counts_attempt_without_evaluation(
     await consumer._cycle()
 
     unit = await _get_session_unit(db, unit_id)
-    assert unit.status == "ERROR"
-    assert unit.attempts == 1
+    assert unit.status == "EXPIRED"
+    assert unit.attempts == 0
     assert unit.error is not None
+    assert unit.error.startswith("TRANSCRIPT_TOO_LARGE: ")
     assert f"{len(transcript.encode('utf-8'))} bytes" in unit.error
     assert "256-byte cap" in unit.error
     assert "PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES" in unit.error
@@ -869,10 +892,58 @@ async def test_cross_project_session_unit_expires_before_evaluator_call(
         claimed_by=consumer._consumer_id,
         limit=1,
     )
-    assert await consumer._executor.hydrate(unit) is None
+    assert await consumer._executor.hydrate(unit) == HydrationFailure(
+        HydrationFailureReason.SESSION_PROJECT_MISMATCH
+    )
     await consumer._process_unit(unit)
 
     assert (await _get_session_unit(db, unit_id)).status == "EXPIRED"
+    assert client.requests == []
+    assert await _session_annotations(db) == []
+
+
+async def test_session_hydration_excludes_transferred_trace_roots(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        criteria_project = await _add_project(session)
+        destination_project = await _add_project(session)
+        project_session = await _add_project_session(session, criteria_project)
+        trace = await _add_trace(session, criteria_project, project_session)
+        await _add_span(session, trace)
+        trace.project_rowid = destination_project.id
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        criteria_project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
+
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+    assert await consumer._executor.hydrate(unit) == HydrationFailure(
+        HydrationFailureReason.NO_ROOT_TURNS
+    )
+    await consumer._process_unit(unit)
+
+    stored = await _get_session_unit(db, unit_id)
+    assert stored.status == "EXPIRED"
+    assert stored.attempts == 0
+    assert stored.error == "NO_ROOT_TURNS"
     assert client.requests == []
     assert await _session_annotations(db) == []
 
@@ -914,7 +985,9 @@ async def test_session_criteria_becoming_unschedulable_expires_before_evaluator_
         claimed_by=consumer._consumer_id,
         limit=1,
     )
-    assert await consumer._executor.hydrate(unit) is None
+    assert await consumer._executor.hydrate(unit) == HydrationFailure(
+        HydrationFailureReason.CRITERIA_NOT_SCHEDULABLE
+    )
     await consumer._process_unit(unit)
 
     assert (await _get_session_unit(db, unit_id)).status == "EXPIRED"
@@ -965,7 +1038,7 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
 
     hydrated = await executor.hydrate(unit)
 
-    assert hydrated is not None
+    assert isinstance(hydrated, HydratedWorkUnit)
     assert captured_runner_arguments["max_payload_bytes"] == 2048
     assert (
         captured_runner_arguments["payload_limit_remediation"]
@@ -1083,7 +1156,7 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
         sandbox_session_manager=cast(Any, manager),
     )
     hydrated = await executor.hydrate(unit)
-    assert hydrated is not None
+    assert isinstance(hydrated, HydratedWorkUnit)
 
     await executor.evaluate_and_annotate(unit, hydrated)
 
@@ -1182,8 +1255,8 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
     executor = OnlineEvalExecutor(db, decrypt=lambda b: b, event_queue=events)
     first_hydrated = await executor.hydrate(first_claim)
     reclaimed_hydrated = await executor.hydrate(reclaimed)
-    assert first_hydrated is not None
-    assert reclaimed_hydrated is not None
+    assert isinstance(first_hydrated, HydratedWorkUnit)
+    assert isinstance(reclaimed_hydrated, HydratedWorkUnit)
 
     await executor.evaluate_and_annotate(first_claim, first_hydrated)
     await executor.evaluate_and_annotate(reclaimed, reclaimed_hydrated)
@@ -1582,6 +1655,7 @@ async def test_staleness_guard_expires_unit_without_annotating(
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "EXPIRED"
+    assert unit.error == "CONFIG_FINGERPRINT_MISMATCH"
     assert await _annotations(db) == []
 
 
@@ -1653,4 +1727,5 @@ async def test_disabled_criteria_expires_unit(db: DbSessionFactory) -> None:
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "EXPIRED"
+    assert unit.error == "CRITERIA_DISABLED"
     assert await _annotations(db) == []

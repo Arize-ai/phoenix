@@ -116,10 +116,9 @@ class EvalWorkCoordinator(Protocol):
         *,
         work_unit_id: int,
         claimed_by: str,
+        error: str,
     ) -> bool:
-        """Transition a claimed unit RUNNING -> EXPIRED. Terminal: for work that must
-        never run (stale config fingerprint, missing or disabled criteria), unlike the
-        retryable ERROR from ``fail``. Returns False if the claim was lost."""
+        """Transition a claimed unit RUNNING -> EXPIRED with a stable terminal reason."""
         ...
 
     async def lag(self) -> QueueLag:
