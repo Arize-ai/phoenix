@@ -13,6 +13,8 @@ that became visible after their window was scanned.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 import time
 from dataclasses import dataclass
@@ -61,6 +63,7 @@ _INSERT_BATCH_SIZE = 1000
 _WORK_UNIT_UNIQUE_BY = ("span_rowid", "evaluator_id", "config_fingerprint")
 _CONSUMER_GROUP = "default"
 _PENDING_TTL_EXCEEDED_ERROR = "pending ttl exceeded"
+_SANDBOX_RUNTIME_POLICY_VERSION = "1"
 
 
 class _CursorLeaseLost(Exception):
@@ -174,6 +177,28 @@ async def resolve_criteria_bulk(
         list(code_evaluators),
         session,
     )
+    sandbox_runtime_fingerprints: dict[int, str] = {}
+    sandbox_config_ids = {
+        evaluator.sandbox_config_id
+        for evaluator in code_evaluators.values()
+        if evaluator.sandbox_config_id is not None
+    }
+    if sandbox_config_ids:
+        sandbox_rows = (
+            await session.execute(
+                select(models.SandboxConfig, models.SandboxProvider)
+                .join(
+                    models.SandboxProvider,
+                    models.SandboxProvider.backend_type == models.SandboxConfig.backend_type,
+                )
+                .where(models.SandboxConfig.id.in_(sandbox_config_ids))
+            )
+        ).all()
+        sandbox_runtime_fingerprints = {
+            sandbox_config.id: _sandbox_runtime_fingerprint(sandbox_config, provider)
+            for sandbox_config, provider in sandbox_rows
+            if sandbox_config.enabled and provider.enabled
+        }
 
     resolved: list[Optional[ResolvedCriteria]] = []
     for criteria, evaluator in criteria_evaluators:
@@ -187,7 +212,16 @@ async def resolve_criteria_bulk(
                 version_ref = [version_ref, *custom_provider_ref]
         elif isinstance(evaluator, models.CodeEvaluator):
             version = latest_code_versions.get(evaluator.id)
-            version_ref = version.id if version is not None else None
+            runtime_fingerprint = (
+                sandbox_runtime_fingerprints.get(evaluator.sandbox_config_id)
+                if evaluator.sandbox_config_id is not None
+                else None
+            )
+            version_ref = (
+                [version.id, runtime_fingerprint]
+                if version is not None and runtime_fingerprint is not None
+                else None
+            )
         elif isinstance(evaluator, models.BuiltinEvaluator):
             evaluator_class = get_builtin_evaluator_by_key(evaluator.key)
             if evaluator_class is None:
@@ -203,6 +237,24 @@ async def resolve_criteria_bulk(
             continue
         resolved.append(_resolved_criteria(criteria, evaluator, version_ref))
     return resolved
+
+
+def _sandbox_runtime_fingerprint(
+    sandbox_config: models.SandboxConfig,
+    provider: models.SandboxProvider,
+) -> str:
+    payload = {
+        "policy_version": _SANDBOX_RUNTIME_POLICY_VERSION,
+        "backend_type": sandbox_config.backend_type,
+        "language": sandbox_config.language,
+        "config": sandbox_config.config,
+        "timeout": sandbox_config.timeout,
+        "config_updated_at": sandbox_config.updated_at.isoformat(),
+        "provider_config": provider.config,
+        "provider_updated_at": provider.updated_at.isoformat(),
+    }
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def _resolved_criteria(

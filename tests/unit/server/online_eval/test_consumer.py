@@ -33,7 +33,7 @@ from phoenix.db.types.prompts import (
     PromptToolFunctionDefinition,
     PromptTools,
 )
-from phoenix.server.api.evaluators import SandboxPayloadTooLargeError
+from phoenix.server.api.evaluators import ContainsEvaluator, SandboxPayloadTooLargeError
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
@@ -1169,6 +1169,42 @@ async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
     assert annotation.score == 1.0
 
 
+async def test_builtin_implementation_mismatch_expires_without_counting_attempt(
+    db: DbSessionFactory,
+    synced_builtin_evaluators: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+        evaluator_id = await session.scalar(
+            select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+        )
+        assert evaluator_id is not None
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator_id,
+            name=Identifier(root="contains-version-check"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+        )
+        session.add(criteria)
+        await session.flush()
+        criteria_id = criteria.id
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    monkeypatch.setattr(ContainsEvaluator, "implementation_version", "mismatched")
+
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    await consumer._cycle()
+
+    unit = await _get_unit(db, unit_id)
+    assert unit.status == "EXPIRED"
+    assert unit.attempts == 0
+    assert unit.error == "CONFIG_FINGERPRINT_MISMATCH"
+
+
 async def test_code_criteria_input_mapping_override_is_used_during_execution(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1217,17 +1253,12 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
 
 
 @pytest.mark.parametrize(
-    ("configuration_state", "error_message"),
-    [
-        ("missing", "has no sandbox config"),
-        ("disabled", "is missing or disabled"),
-        ("provider_disabled", "sandbox provider 'WASM' is missing or disabled"),
-    ],
+    "configuration_state",
+    ["missing", "disabled", "provider_disabled"],
 )
-async def test_code_hydration_configuration_failure_counts_attempt(
+async def test_unavailable_sandbox_runtime_expires_without_counting_attempt(
     db: DbSessionFactory,
     configuration_state: str,
-    error_message: str,
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
@@ -1238,6 +1269,7 @@ async def test_code_hydration_configuration_failure_counts_attempt(
         project.id,
         criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
     )
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
     async with db() as session:
         evaluator = await session.get(models.CodeEvaluator, evaluator_id)
         assert evaluator is not None
@@ -1253,7 +1285,6 @@ async def test_code_hydration_configuration_failure_counts_attempt(
                 provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
                 assert provider is not None
                 provider.enabled = False
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
 
     consumer = OnlineEvalConsumer(
         db,
@@ -1263,10 +1294,9 @@ async def test_code_hydration_configuration_failure_counts_attempt(
     await consumer._cycle()
 
     unit = await _get_unit(db, unit_id)
-    assert unit.status == "ERROR"
-    assert unit.attempts == 1
-    assert unit.error is not None
-    assert error_message in unit.error
+    assert unit.status == "EXPIRED"
+    assert unit.attempts == 0
+    assert unit.error == "SANDBOX_RUNTIME_UNAVAILABLE"
     assert await _annotations(db) == []
 
 

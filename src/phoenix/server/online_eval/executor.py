@@ -75,6 +75,7 @@ class HydrationFailureReason(str, Enum):
     CRITERIA_NOT_SCHEDULABLE = "CRITERIA_NOT_SCHEDULABLE"
     EVALUATOR_MISSING = "EVALUATOR_MISSING"
     EVALUATOR_VERSION_MISSING = "EVALUATOR_VERSION_MISSING"
+    SANDBOX_RUNTIME_UNAVAILABLE = "SANDBOX_RUNTIME_UNAVAILABLE"
     CONFIG_FINGERPRINT_MISMATCH = "CONFIG_FINGERPRINT_MISMATCH"
     SPAN_MISSING = "SPAN_MISSING"
     SESSION_MISSING = "SESSION_MISSING"
@@ -248,6 +249,26 @@ class OnlineEvalExecutor:
             )
             if evaluator_orm is None:
                 return HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
+            if isinstance(evaluator_orm, models.CodeEvaluator):
+                if evaluator_orm.sandbox_config_id is None:
+                    return HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
+                sandbox_runtime = (
+                    await session.execute(
+                        select(models.SandboxConfig, models.SandboxProvider)
+                        .join(
+                            models.SandboxProvider,
+                            models.SandboxProvider.backend_type
+                            == models.SandboxConfig.backend_type,
+                        )
+                        .where(models.SandboxConfig.id == evaluator_orm.sandbox_config_id)
+                    )
+                ).one_or_none()
+                if (
+                    sandbox_runtime is None
+                    or not sandbox_runtime[0].enabled
+                    or not sandbox_runtime[1].enabled
+                ):
+                    return HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
             resolved = await resolve_criteria(session, criteria, evaluator_orm)
             if resolved is None:
                 return HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
@@ -343,11 +364,19 @@ class OnlineEvalExecutor:
                     context,
                 )
             elif isinstance(evaluator_orm, models.CodeEvaluator):
+                code_version_ref = resolved.version_ref
+                if (
+                    not isinstance(code_version_ref, list)
+                    or len(code_version_ref) != 2
+                    or not isinstance(code_version_ref[0], int)
+                    or not isinstance(code_version_ref[1], str)
+                ):
+                    return HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
                 hydrated = await self._hydrate_code(
                     session,
                     evaluator_orm,
                     resolved.name,
-                    resolved.version_ref,
+                    code_version_ref[0],
                     input_mapping,
                     context,
                     max_payload_bytes=max_payload_bytes,

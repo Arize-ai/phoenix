@@ -6,11 +6,13 @@ import pytest
 from sqlalchemy import delete, func, select, update
 
 from phoenix.db import models
+from phoenix.db.insertion.span import insert_span
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
     OptimizationDirection,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
@@ -85,6 +87,49 @@ async def _seed_criteria(
         session.add(criteria)
         await session.flush()
         return evaluator.id, criteria.id
+
+
+async def _seed_code_criteria(
+    db: DbSessionFactory,
+    project_id: int,
+) -> tuple[int, int, int]:
+    async with db() as session:
+        if await session.get(models.Language, "PYTHON") is None:
+            session.add(models.Language(name="PYTHON"))
+        if await session.get(models.SandboxProvider, "WASM") is None:
+            session.add(models.SandboxProvider(backend_type="WASM", enabled=True, config={}))
+        await session.flush()
+        sandbox_config = models.SandboxConfig(
+            backend_type="WASM",
+            language="PYTHON",
+            name=Identifier(root=f"sandbox-{token_hex(4)}"),
+            description=None,
+            config={},
+            timeout=30,
+        )
+        evaluator = models.CodeEvaluator(
+            name=Identifier(root=f"code-{token_hex(4)}"),
+            description=None,
+            kind="CODE",
+            language="PYTHON",
+            sandbox_config=sandbox_config,
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            output_configs=[],
+            versions=[models.CodeEvaluatorVersion(source_code="def evaluate(): return 1")],
+        )
+        session.add(evaluator)
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project_id,
+            evaluator_id=evaluator.id,
+            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+        )
+        session.add(criteria)
+        await session.flush()
+        return evaluator.id, criteria.id, sandbox_config.id
 
 
 async def _seed_cursor(
@@ -410,6 +455,51 @@ async def test_unregistered_builtin_cannot_resolve_criteria(
             evaluation_target="SPAN",
         )
         session.add(criteria)
+        await session.flush()
+
+        assert await resolve_criteria(session, criteria, evaluator) is None
+
+
+async def test_sandbox_runtime_changes_code_criteria_fingerprint(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    evaluator_id, criteria_id, sandbox_config_id = await _seed_code_criteria(db, project.id)
+
+    async with db() as session:
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
+        assert evaluator is not None
+        assert criteria is not None
+        assert sandbox_config is not None
+        first = await resolve_criteria(session, criteria, evaluator)
+        assert first is not None
+        sandbox_config.timeout += 1
+        sandbox_config.updated_at = _now() + timedelta(seconds=1)
+        await session.flush()
+        second = await resolve_criteria(session, criteria, evaluator)
+        assert second is not None
+
+    assert config_fingerprint(first) != config_fingerprint(second)
+
+
+async def test_disabled_sandbox_runtime_does_not_resolve_code_criteria(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    evaluator_id, criteria_id, sandbox_config_id = await _seed_code_criteria(db, project.id)
+
+    async with db() as session:
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
+        assert evaluator is not None
+        assert criteria is not None
+        assert sandbox_config is not None
+        sandbox_config.enabled = False
         await session.flush()
 
         assert await resolve_criteria(session, criteria, evaluator) is None
