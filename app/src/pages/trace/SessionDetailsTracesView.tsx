@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type { PreloadedQuery } from "react-relay";
 import {
@@ -175,8 +176,15 @@ export function SessionDetailsTracesView({
     isTraceTreeChildTruncationEnabled,
     setIsTraceTreeChildTruncationEnabled,
   ] = useState(true);
+  // Render the staged selection before detail hydration finishes and commits
+  // it to the URL. Reading the store without subscribing left the tree stale
+  // until that delayed route update happened.
   const { spanNodeId: selectedSpanNodeId, traceId: selectedTraceId } =
-    searchParamsStore.getSpanSelection();
+    useSyncExternalStore(
+      searchParamsStore.subscribeToSpanSelection,
+      searchParamsStore.getSpanSelection,
+      searchParamsStore.getSpanSelection
+    );
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const initialSelectedTraceIdRef = useRef(selectedTraceId);
   const hasScrolledInitialSelectionRef = useRef(false);

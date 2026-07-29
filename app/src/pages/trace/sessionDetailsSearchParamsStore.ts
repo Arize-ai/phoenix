@@ -29,6 +29,9 @@ export function createSessionDetailsSearchParamsStore(
   };
   let pendingSelection: SessionSpanSelection | null = null;
   const sessionViewListeners = new Set<() => void>();
+  // Navigation renders the optimistic selection immediately. Content-ready
+  // URL synchronization and external router changes remain separate signals.
+  const spanSelectionListeners = new Set<() => void>();
   const externalSelectionListeners = new Set<
     (selection: SessionSpanSelection) => void
   >();
@@ -69,6 +72,7 @@ export function createSessionDetailsSearchParamsStore(
         nextSelection.traceId !== selection.traceId
       ) {
         selection = nextSelection;
+        spanSelectionListeners.forEach((listener) => listener());
         externalSelectionListeners.forEach((listener) => listener(selection));
       }
     },
@@ -84,6 +88,7 @@ export function createSessionDetailsSearchParamsStore(
     }) {
       selection = nextSelection;
       pendingSelection = nextSelection;
+      spanSelectionListeners.forEach((listener) => listener());
     },
     synchronizeSpanSelection(nextSelection: {
       spanNodeId: string;
@@ -118,6 +123,10 @@ export function createSessionDetailsSearchParamsStore(
     ) {
       externalSelectionListeners.add(listener);
       return () => externalSelectionListeners.delete(listener);
+    },
+    subscribeToSpanSelection: (listener: () => void) => {
+      spanSelectionListeners.add(listener);
+      return () => spanSelectionListeners.delete(listener);
     },
     subscribeToSessionView: (listener: () => void) => {
       sessionViewListeners.add(listener);

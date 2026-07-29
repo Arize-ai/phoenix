@@ -10,12 +10,14 @@ describe("sessionDetailsSearchParamsStore", () => {
       )
     );
     const setSearchParams = vi.fn();
+    const onSpanSelectionChange = vi.fn();
     store.connectToRouter(
       new URLSearchParams(
         "sessionView=traces&selectedTraceId=trace-a&selectedSpanNodeId=span-a"
       ),
       setSearchParams
     );
+    store.subscribeToSpanSelection(onSpanSelectionChange);
 
     store.prepareSpanSelection({ traceId: "trace-a", spanNodeId: "span-b" });
 
@@ -23,6 +25,7 @@ describe("sessionDetailsSearchParamsStore", () => {
       traceId: "trace-a",
       spanNodeId: "span-b",
     });
+    expect(onSpanSelectionChange).toHaveBeenCalledOnce();
     expect(setSearchParams).not.toHaveBeenCalled();
 
     store.synchronizeSpanSelection({
@@ -34,6 +37,28 @@ describe("sessionDetailsSearchParamsStore", () => {
     const nextSearchParams = setSearchParams.mock.calls[0]?.[0];
     expect(nextSearchParams).toBeInstanceOf(URLSearchParams);
     expect(nextSearchParams.get("selectedSpanNodeId")).toBe("span-b");
+  });
+
+  it("notifies span selection subscribers for external navigation", () => {
+    const initialSearchParams = new URLSearchParams(
+      "sessionView=traces&selectedTraceId=trace-a&selectedSpanNodeId=span-a"
+    );
+    const store = createSessionDetailsSearchParamsStore(initialSearchParams);
+    const onSpanSelectionChange = vi.fn();
+    store.subscribeToSpanSelection(onSpanSelectionChange);
+
+    store.connectToRouter(
+      new URLSearchParams(
+        "sessionView=traces&selectedTraceId=trace-b&selectedSpanNodeId=span-b"
+      ),
+      vi.fn()
+    );
+
+    expect(onSpanSelectionChange).toHaveBeenCalledOnce();
+    expect(store.getSpanSelection()).toEqual({
+      traceId: "trace-b",
+      spanNodeId: "span-b",
+    });
   });
 
   it("ignores a stale router echo while a newer local selection is pending", () => {
