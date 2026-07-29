@@ -57,6 +57,14 @@ afterEach(() => {
 });
 
 describe("ExpandCollapseAllButton", () => {
+  it("uses icon-only button sizing", () => {
+    renderButton({ isCollapsed: true });
+
+    const button = container.querySelector('button[aria-label="Expand all"]');
+    expect(button?.getAttribute("data-size")).toBe("S");
+    expect(button?.hasAttribute("data-childless")).toBe(false);
+  });
+
   it.each([
     { isCollapsed: true, actionLabel: "Expand all" },
     { isCollapsed: false, actionLabel: "Collapse all" },
