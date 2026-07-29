@@ -65,7 +65,7 @@ const compactSkeletonIconRailCSS = css`
   li {
     box-sizing: border-box;
     display: flex;
-    flex: 0 0 var(--global-dimension-size-450);
+    flex: 0 0 var(--global-details-panel-navigation-row-height);
     align-items: center;
     padding-left: var(
       --global-details-panel-navigation-row-content-padding-inline-start
@@ -252,13 +252,14 @@ function SpanNodeWrapSkeleton(
       className="span-node-wrap"
       css={css`
         width: 100%;
+        height: var(--global-details-panel-navigation-row-height);
         display: flex;
         flex-direction: row;
         justify-content: space-between;
         gap: var(--global-dimension-size-100);
         padding-right: var(--global-dimension-size-100);
-        padding-top: var(--global-dimension-size-100);
-        padding-bottom: var(--global-dimension-size-100);
+        padding-top: 0;
+        padding-bottom: 0;
         border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid transparent;
         box-sizing: border-box;
         & > *:first-of-type {

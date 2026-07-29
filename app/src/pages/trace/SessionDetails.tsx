@@ -13,8 +13,13 @@ import {
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { useSearchParams } from "react-router";
 
-import { SessionDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
+import { Icon, Icons } from "@phoenix/components";
+import {
+  SessionDetailPanelAnnotationBar,
+  SessionDetailPanelAnnotationButton,
+} from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { ExpandCollapseAllButton } from "@phoenix/components/trace/ExpandCollapseAllButton";
+import { TRACE_TREE_ROW_SELECTION_BORDER_WIDTH } from "@phoenix/components/trace/traceTreeStyles";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import type { SessionDetailsQuery } from "./__generated__/SessionDetailsQuery.graphql";
@@ -59,6 +64,41 @@ export type SessionMainContentRenderer = (
 ) => ReactNode;
 
 const DEFAULT_SESSION_VIEW: SessionView = "turns";
+
+const sessionNavigationAnnotationRowCSS = css`
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--global-details-panel-navigation-row-height);
+  gap: var(--global-dimension-size-100);
+  padding: 0 var(--global-dimension-size-100);
+  padding-left: var(
+    --global-details-panel-navigation-row-content-padding-inline-start
+  );
+  border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid
+    var(--global-color-gray-300);
+  background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
+  overflow: hidden;
+
+  .session-navigation-annotation-row__icon {
+    display: inline-flex;
+    flex: none;
+  }
+
+  .session-navigation-annotation-row__expanded-content {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .session-navigation-annotation-row__action {
+    display: flex;
+    flex: none;
+    margin-left: auto;
+  }
+`;
 
 function SessionDetailsMainContent({
   children,
@@ -272,11 +312,28 @@ export function SessionDetails({
     </>
   );
   const sessionViewControl = (
-    <SessionViewControl
-      sessionView={sessionView}
-      onSessionViewChange={handleSessionViewChange}
-      traceCount={traceCount}
-    />
+    <>
+      <SessionViewControl
+        sessionView={sessionView}
+        onSessionViewChange={handleSessionViewChange}
+        traceCount={traceCount}
+      />
+      <div
+        className="session-navigation-annotation-row"
+        css={sessionNavigationAnnotationRowCSS}
+        onPointerEnter={() => onNavigationPointerOpenChange(true)}
+      >
+        <span className="session-navigation-annotation-row__icon">
+          <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
+        </span>
+        <span className="session-navigation-annotation-row__expanded-content">
+          <span>Session</span>
+          <span className="session-navigation-annotation-row__action">
+            <SessionDetailPanelAnnotationButton sessionNodeId={sessionId} />
+          </span>
+        </span>
+      </div>
+    </>
   );
   const loadingState = (
     <SessionDetailsSkeleton

@@ -50,6 +50,7 @@ export function ResizableTraceTreePanelContent({
     <div
       className="trace-tree-panel-content"
       data-collapsed={isCollapsed}
+      data-navigation-scrollbar={isCollapsed ? undefined : "active"}
       data-testid="scrolling-panel-content"
       css={[traceTreePanelContentCSS, collapsedContentCSS, contentCSS]}
     >

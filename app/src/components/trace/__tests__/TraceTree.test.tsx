@@ -90,6 +90,7 @@ describe("TraceTree", () => {
     selectedSpanNodeId = "",
     onSpanClick,
     onSpanSelectionStart,
+    renderSpanActions,
     searchQuery,
     isChildTruncationEnabled = false,
     isHoverOverlayEnabled = true,
@@ -101,6 +102,7 @@ describe("TraceTree", () => {
     selectedSpanNodeId?: string;
     onSpanClick?: (span: ISpanItem) => void;
     onSpanSelectionStart?: (span: ISpanItem) => void;
+    renderSpanActions?: TraceTreeProps["renderSpanActions"];
     searchQuery?: string;
     isChildTruncationEnabled?: boolean;
     isHoverOverlayEnabled?: boolean;
@@ -120,6 +122,7 @@ describe("TraceTree", () => {
         scrollSelectedSpanIntoView={false}
         onSpanClick={onSpanClick}
         onSpanSelectionStart={onSpanSelectionStart}
+        renderSpanActions={renderSpanActions}
       />
     );
     act(() => {
@@ -172,6 +175,12 @@ describe("TraceTree", () => {
     const fullTree = overlay?.querySelector('[data-testid="trace-tree"]');
     const rootSpanName =
       fullTree?.querySelector<HTMLElement>(".span-tree-name");
+    const rootSpanRow = fullTree?.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+    );
+    const compactRootSpanRow = rail?.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+    );
 
     expect(rail).not.toBeNull();
     expect(overlay).not.toBeNull();
@@ -207,6 +216,8 @@ describe("TraceTree", () => {
     expect(overlayStyle.position).toBe("static");
     expect(overlayStyle.visibility).toBe("hidden");
     expect(getComputedStyle(rail!).position).toBe("absolute");
+    expect(getComputedStyle(rail!).overflowY).toBe("auto");
+    expect(getComputedStyle(rail!).scrollbarWidth).toBe("none");
     expect(railItemStyleRule?.style.padding).toBe(
       "0 0 0 var(--global-details-panel-navigation-row-content-padding-inline-start)"
     );
@@ -214,6 +225,12 @@ describe("TraceTree", () => {
       "--global-details-panel-navigation-row-content-padding-inline-start"
     );
     expect(railItemStyleRule?.style.borderLeft).toBe("3px solid transparent");
+    expect(getComputedStyle(rootSpanRow!).height).toBe(
+      "var(--global-details-panel-navigation-row-height)"
+    );
+    expect(getComputedStyle(compactRootSpanRow!).height).toBe(
+      "var(--global-details-panel-navigation-row-height)"
+    );
     expect(overlay.getAttribute("data-open")).toBe("false");
     expect(overlay.hasAttribute("inert")).toBe(true);
 
@@ -234,6 +251,48 @@ describe("TraceTree", () => {
     expect(openOverlayStyle.borderRadius).toBe("var(--global-rounding-small)");
     expect(openOverlayStyle.boxShadow).toContain("8px 16px");
     expect(getComputedStyle(rail!).visibility).toBe("hidden");
+    expect(getComputedStyle(rootSpanRow!).height).toBe(
+      "var(--global-details-panel-navigation-row-height)"
+    );
+  });
+
+  it("synchronizes compact and hover-overlay scroll positions", () => {
+    renderTraceTree({
+      spans: [ROOT_SPAN, CHILD_SPAN, GRANDCHILD_SPAN],
+      isNavigationCollapsed: true,
+    });
+
+    const navigation = container.querySelector<HTMLElement>(
+      ".trace-tree-navigation"
+    );
+    const rail = container.querySelector<HTMLElement>(
+      '[data-testid="trace-tree-icon-rail"]'
+    );
+    const fullTree = container.querySelector<HTMLElement>(
+      '.trace-tree-navigation__overlay [data-testid="trace-tree"]'
+    );
+    if (!navigation || !rail || !fullTree) {
+      throw new Error("Expected collapsed trace navigation");
+    }
+
+    rail.scrollTop = 72;
+    act(() => {
+      navigation.dispatchEvent(
+        new MouseEvent("pointerover", { bubbles: true })
+      );
+    });
+    expect(fullTree.scrollTop).toBe(72);
+
+    fullTree.scrollTop = 144;
+    act(() => {
+      navigation.dispatchEvent(
+        new MouseEvent("pointerout", {
+          bubbles: true,
+          relatedTarget: document.body,
+        })
+      );
+    });
+    expect(rail.scrollTop).toBe(144);
   });
 
   it("preserves span disclosure state while switching between full and compact navigation", () => {
@@ -453,6 +512,32 @@ describe("TraceTree", () => {
     act(() => traceButton?.click());
 
     expect(onTraceSelect).toHaveBeenCalledOnce();
+  });
+
+  it("renders span actions without removing row content or selecting the span", () => {
+    const onSpanClick = vi.fn();
+    const onAction = vi.fn();
+    renderTraceTree({
+      spans: [ROOT_SPAN],
+      onSpanClick,
+      renderSpanActions: () => (
+        <button type="button" aria-label="Add annotation" onClick={onAction}>
+          Add
+        </button>
+      ),
+    });
+
+    const spanRow = container.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+    );
+    const action = spanRow?.querySelector<HTMLButtonElement>(
+      '.span-controls__actions button[aria-label="Add annotation"]'
+    );
+
+    expect(spanRow?.textContent).toContain("root span");
+    act(() => action?.click());
+    expect(onAction).toHaveBeenCalledOnce();
+    expect(onSpanClick).not.toHaveBeenCalled();
   });
 
   it("keeps timing columns independent of span names and nesting", () => {

@@ -210,6 +210,60 @@ describe("ResizableTraceTreePanelContent", () => {
     expect(content?.getAttribute("data-collapsed")).toBe("false");
   });
 
+  it("uses the active navigation-scrollbar driver for expanded and hovered navigation", () => {
+    const renderContent = ({
+      isCollapsed,
+      isHoverOpen = false,
+    }: {
+      isCollapsed: boolean;
+      isHoverOpen?: boolean;
+    }) =>
+      createElement(
+        ResizableTraceTreePanelContent,
+        { expandedWidth: 368, isCollapsed },
+        createElement(
+          "div",
+          {
+            "data-navigation-scrollbar": isHoverOpen ? "active" : undefined,
+          },
+          createElement(
+            "ul",
+            { "data-trace-tree-root": true },
+            createElement("li", null, "Trace")
+          )
+        )
+      );
+
+    act(() => root.render(renderContent({ isCollapsed: false })));
+
+    const scrollContainer = container.querySelector<HTMLElement>(
+      "[data-trace-tree-root]"
+    );
+    const panelContent = container.querySelector<HTMLElement>(
+      ".trace-tree-panel-content"
+    );
+    expect(panelContent?.dataset.navigationScrollbar).toBe("active");
+    expect(getComputedStyle(scrollContainer!).scrollbarGutter).toBe("stable");
+    expect(getComputedStyle(scrollContainer!).scrollbarColor).toBe(
+      "var(--global-color-gray-300) transparent"
+    );
+
+    act(() => root.render(renderContent({ isCollapsed: true })));
+
+    expect(panelContent?.dataset.navigationScrollbar).toBeUndefined();
+    expect(getComputedStyle(scrollContainer!).scrollbarGutter).toBe("auto");
+
+    act(() =>
+      root.render(renderContent({ isCollapsed: true, isHoverOpen: true }))
+    );
+
+    expect(panelContent?.dataset.navigationScrollbar).toBeUndefined();
+    expect(getComputedStyle(scrollContainer!).scrollbarGutter).toBe("stable");
+    expect(getComputedStyle(scrollContainer!).scrollbarColor).toBe(
+      "var(--global-color-gray-300) transparent"
+    );
+  });
+
   it("owns the complete pointer lifecycle and reports cancellation", () => {
     const onResizeStart = vi.fn();
     const onResize = vi.fn((width: number) => width);

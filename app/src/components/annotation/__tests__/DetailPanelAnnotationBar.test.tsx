@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Button } from "@phoenix/components";
 import {
   AnnotationValuePopover,
+  DetailPanelAnnotationButton,
   DetailPanelAnnotationBar,
 } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
 import type { DetailPanelAnnotationBarProps } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
@@ -60,6 +61,7 @@ describe("DetailPanelAnnotationBar", () => {
         score: 1,
       },
     ],
+    variant,
   }: {
     allAnnotationConfigs?: AnnotationConfig[];
     projectAnnotationConfigs?: AnnotationConfig[];
@@ -68,6 +70,7 @@ describe("DetailPanelAnnotationBar", () => {
     onDeleteAnnotation?: DetailPanelAnnotationBarProps["onDeleteAnnotation"];
     onUpdateAnnotation?: DetailPanelAnnotationBarProps["onUpdateAnnotation"];
     annotations?: Annotation[];
+    variant?: DetailPanelAnnotationBarProps["variant"];
   } = {}) => {
     act(() => {
       root.render(
@@ -95,6 +98,7 @@ describe("DetailPanelAnnotationBar", () => {
               onRemoveAnnotationConfigFromProject={mutationResult}
               onUpdateAnnotation={onUpdateAnnotation}
               onUpdateAnnotationConfig={mutationResult}
+              variant={variant}
             />
           </MemoryRouter>
         </ThemeProvider>
@@ -239,6 +243,55 @@ describe("DetailPanelAnnotationBar", () => {
       "Open helpfulness annotation",
       "Open relevance annotation",
     ]);
+  });
+
+  it("opens the annotation bar from its row-action button", async () => {
+    renderAnnotationBar({ variant: "button" });
+
+    await act(async () => {
+      await userEvent.click(
+        container.querySelector<HTMLButtonElement>(
+          'button[aria-label="Add annotation"]'
+        )!
+      );
+    });
+
+    expect(
+      document.querySelector(
+        '[role="dialog"][aria-label="Manage span annotations"]'
+      )
+    ).not.toBeNull();
+  });
+
+  it("does not render row annotation content until the plus button opens", async () => {
+    const onContentRender = vi.fn();
+    function DeferredContent() {
+      onContentRender();
+      return <div>Deferred annotations</div>;
+    }
+
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark" disableBodyTheme>
+          <DetailPanelAnnotationButton targetKind="span">
+            <DeferredContent />
+          </DetailPanelAnnotationButton>
+        </ThemeProvider>
+      );
+    });
+
+    expect(onContentRender).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await userEvent.click(
+        container.querySelector<HTMLButtonElement>(
+          'button[aria-label="Add annotation"]'
+        )!
+      );
+    });
+
+    expect(onContentRender).toHaveBeenCalledOnce();
+    expect(document.body.textContent).toContain("Deferred annotations");
   });
 
   it("does not offer editing for the built-in user feedback config", async () => {

@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { View } from "@phoenix/components";
+import { Icon, Icons, View } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
 
 import {
@@ -32,6 +32,30 @@ const navigationSkeletonCSS = css`
     padding-bottom: var(--global-dimension-size-150);
     border-bottom: var(--global-border-size-thin) solid
       var(--global-border-color-default);
+  }
+`;
+
+const sessionNavigationEntitySkeletonCSS = css`
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--global-details-panel-navigation-row-height);
+  gap: var(--global-dimension-size-100);
+  padding: 0 var(--global-dimension-size-100);
+  padding-left: var(
+    --global-details-panel-navigation-row-content-padding-inline-start
+  );
+
+  .session-navigation-annotation-row__icon {
+    display: inline-flex;
+    flex: none;
+  }
+
+  .session-navigation-annotation-row__expanded-content {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 `;
 
@@ -77,11 +101,25 @@ export function SessionDetailsSkeleton({
           </DetailsPanelNavigationControlsRow>
           <SessionDetailsNavigation
             control={
-              <SessionViewControl
-                sessionView={sessionView}
-                onSessionViewChange={onSessionViewChange}
-                traceCount={preview.traceCount ?? null}
-              />
+              <>
+                <SessionViewControl
+                  sessionView={sessionView}
+                  onSessionViewChange={onSessionViewChange}
+                  traceCount={preview.traceCount ?? null}
+                />
+                <div
+                  className="session-navigation-annotation-row"
+                  css={sessionNavigationEntitySkeletonCSS}
+                  onPointerEnter={() => onNavigationPointerOpenChange(true)}
+                >
+                  <span className="session-navigation-annotation-row__icon">
+                    <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
+                  </span>
+                  <span className="session-navigation-annotation-row__expanded-content">
+                    <Skeleton width={54} height={14} animation="wave" />
+                  </span>
+                </div>
+              </>
             }
             isCollapsed={isTreePanelCollapsed}
             isPointerOpen={isNavigationPointerOpen}

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { To } from "react-router";
 import { Link } from "react-router";
@@ -57,16 +57,19 @@ export type TraceTreeProps = {
    */
   isChildTruncationEnabled?: boolean;
   session?: {
+    actions?: ReactNode;
     sessionId: string;
     to: To;
   };
   traceSelection?: {
+    actions?: ReactNode;
     isSelected: boolean;
     onSelect: () => void;
     traceId: string;
   };
   onSpanClick?: (span: ISpanItem) => void;
   onSpanSelectionStart?: (span: ISpanItem) => void;
+  renderSpanActions?: (span: ISpanItem) => ReactNode;
   selectedSpanNodeId: string;
   scrollSelectedSpanIntoView?: boolean;
 };
@@ -209,7 +212,16 @@ const traceTreeNavigationCSS = css`
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  overflow: visible;
   align-items: stretch;
+
+  &.trace-tree-navigation--collapsed {
+    overflow: hidden;
+  }
+
+  &:has(.trace-tree-navigation__overlay[data-open="true"]) {
+    overflow: visible;
+  }
 `;
 
 const traceTreeFullCSS = css`
@@ -259,7 +271,13 @@ const traceTreeIconRailCSS = css`
   border: var(--global-border-size-thin) solid transparent;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: none;
   list-style: none;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
 
   &[aria-hidden="true"] {
     visibility: hidden;
@@ -272,7 +290,7 @@ const traceTreeIconRailCSS = css`
     align-items: center;
     justify-content: flex-start;
     width: 100%;
-    height: var(--global-dimension-size-450);
+    height: var(--global-details-panel-navigation-row-height);
     padding: 0 0 0
       var(--global-details-panel-navigation-row-content-padding-inline-start);
     border: 0;
@@ -308,10 +326,13 @@ export function TraceTree(props: TraceTreeProps) {
     traceSelection,
     onSpanClick,
     onSpanSelectionStart,
+    renderSpanActions,
     selectedSpanNodeId,
     scrollSelectedSpanIntoView = true,
   } = props;
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  const fullTreeScrollRef = useRef<HTMLUListElement>(null);
+  const iconRailScrollRef = useRef<HTMLUListElement>(null);
   const [collapsedSpanNodeIds, setCollapsedSpanNodeIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -394,6 +415,22 @@ export function TraceTree(props: TraceTreeProps) {
 
   const canOpenHoverOverlay = isNavigationCollapsed && isHoverOverlayEnabled;
   const isHoverOverlayOpen = canOpenHoverOverlay && isOverlayOpen;
+  const handleOverlayPointerEnter = () => {
+    const fullTreeScroll = fullTreeScrollRef.current;
+    const iconRailScroll = iconRailScrollRef.current;
+    if (fullTreeScroll && iconRailScroll) {
+      fullTreeScroll.scrollTop = iconRailScroll.scrollTop;
+    }
+    setIsOverlayOpen(true);
+  };
+  const handleOverlayPointerLeave = () => {
+    const fullTreeScroll = fullTreeScrollRef.current;
+    const iconRailScroll = iconRailScrollRef.current;
+    if (fullTreeScroll && iconRailScroll) {
+      iconRailScroll.scrollTop = fullTreeScroll.scrollTop;
+    }
+    setIsOverlayOpen(false);
+  };
   const fullTree = (
     <div
       className={classNames("trace-tree-navigation__full", {
@@ -405,6 +442,7 @@ export function TraceTree(props: TraceTreeProps) {
       css={[traceTreeFullCSS, isNavigationCollapsed && traceTreeOverlayCSS]}
     >
       <ul
+        ref={fullTreeScrollRef}
         css={[
           traceTreeListCSS,
           css`
@@ -417,7 +455,7 @@ export function TraceTree(props: TraceTreeProps) {
       >
         {session ? (
           <li>
-            <SessionTreeItem sessionId={session.sessionId} to={session.to} />
+            <SessionTreeItem {...session} />
           </li>
         ) : null}
         {traceSelection ? (
@@ -442,6 +480,7 @@ export function TraceTree(props: TraceTreeProps) {
             overallTimeRange={overallTimeRange}
             onSpanClick={onSpanClick}
             onSpanSelectionStart={onSpanSelectionStart}
+            renderSpanActions={renderSpanActions}
             selectedSpanNodeId={selectedSpanNodeId}
             selectedSpanPathNodeIds={selectedSpanPathNodeIds}
             collapsedSpanNodeIds={collapsedSpanNodeIds}
@@ -461,17 +500,21 @@ export function TraceTree(props: TraceTreeProps) {
       className={classNames("trace-tree-navigation", {
         "trace-tree-navigation--collapsed": isNavigationCollapsed,
       })}
+      data-navigation-scrollbar={
+        !isNavigationCollapsed || isHoverOverlayOpen ? "active" : undefined
+      }
       css={traceTreeNavigationCSS}
       onPointerEnter={
-        canOpenHoverOverlay ? () => setIsOverlayOpen(true) : undefined
+        canOpenHoverOverlay ? handleOverlayPointerEnter : undefined
       }
       onPointerLeave={
-        canOpenHoverOverlay ? () => setIsOverlayOpen(false) : undefined
+        canOpenHoverOverlay ? handleOverlayPointerLeave : undefined
       }
     >
       {fullTree}
       {isNavigationCollapsed ? (
         <ul
+          ref={iconRailScrollRef}
           aria-label="Trace navigation"
           aria-hidden={isHoverOverlayOpen || undefined}
           inert={isHoverOverlayOpen || undefined}
@@ -543,8 +586,9 @@ const entityTreeItemCSS = css`
   display: flex;
   align-items: center;
   width: 100%;
+  height: var(--global-details-panel-navigation-row-height);
   gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-100);
+  padding: 0 var(--global-dimension-size-100);
   padding-left: var(
     --global-details-panel-navigation-row-content-padding-inline-start
   );
@@ -587,6 +631,14 @@ const entityTreeItemCSS = css`
     overflow: hidden;
   }
 
+  .trace-tree-entity-item__actions {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: none;
+    align-items: center;
+  }
+
   .trace-tree-entity-item__id > button {
     width: 100%;
     max-width: 100%;
@@ -601,7 +653,15 @@ const entityTreeItemCSS = css`
   }
 `;
 
-function SessionTreeItem({ sessionId, to }: { sessionId: string; to: To }) {
+function SessionTreeItem({
+  actions,
+  sessionId,
+  to,
+}: {
+  actions?: ReactNode;
+  sessionId: string;
+  to: To;
+}) {
   return (
     <div css={entityTreeItemCSS}>
       <Link
@@ -618,15 +678,20 @@ function SessionTreeItem({ sessionId, to }: { sessionId: string; to: To }) {
           tooltipText="Copy Session ID"
         />
       </div>
+      {actions ? (
+        <div className="trace-tree-entity-item__actions">{actions}</div>
+      ) : null}
     </div>
   );
 }
 
 function TraceTreeItem({
+  actions,
   isSelected,
   onSelect,
   traceId,
 }: {
+  actions?: ReactNode;
   isSelected: boolean;
   onSelect: () => void;
   traceId: string;
@@ -649,6 +714,9 @@ function TraceTreeItem({
           tooltipText="Copy Trace ID"
         />
       </div>
+      {actions ? (
+        <div className="trace-tree-entity-item__actions">{actions}</div>
+      ) : null}
     </div>
   );
 }
@@ -914,6 +982,7 @@ interface SpanTreeItemProps<TSpan extends ISpanItem> {
   overallTimeRange: TimeRange;
   onSpanClick?: (span: ISpanItem) => void;
   onSpanSelectionStart?: (span: ISpanItem) => void;
+  renderSpanActions?: (span: ISpanItem) => ReactNode;
   onAllChildrenVisibleChange: (options: {
     areAllChildrenVisible: boolean;
     spanNodeId: string;
@@ -942,6 +1011,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     scrollSelectedSpanIntoView,
     onSpanClick,
     onSpanSelectionStart,
+    renderSpanActions,
     onAllChildrenVisibleChange,
     onCollapsedChange,
     nestingLevel = 0,
@@ -1084,6 +1154,14 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                 }}
               />
             ) : null}
+            {renderSpanActions ? (
+              <span
+                className="span-controls__actions"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {renderSpanActions(node.span)}
+              </span>
+            ) : null}
           </div>
         </SpanNodeWrap>
       </div>
@@ -1138,6 +1216,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                     overallTimeRange={overallTimeRange}
                     onSpanClick={onSpanClick}
                     onSpanSelectionStart={onSpanSelectionStart}
+                    renderSpanActions={renderSpanActions}
                     onAllChildrenVisibleChange={onAllChildrenVisibleChange}
                     onCollapsedChange={onCollapsedChange}
                     selectedSpanNodeId={selectedSpanNodeId}
@@ -1183,7 +1262,7 @@ const traceTreeDisclosureNodeCSS = css`
     z-index: 2;
     justify-content: flex-start;
     box-sizing: border-box;
-    height: var(--global-dimension-size-450);
+    height: var(--global-details-panel-navigation-row-height);
   }
 
   .trace-tree-disclosure-node__action > span {
@@ -1285,13 +1364,14 @@ function SpanNodeWrap(
       })}
       css={css`
         width: 100%;
+        height: var(--global-details-panel-navigation-row-height);
         display: flex;
         flex-direction: row;
         justify-content: space-between;
         gap: var(--global-dimension-size-100);
         padding-right: var(--global-dimension-size-100);
-        padding-top: var(--global-dimension-size-100);
-        padding-bottom: var(--global-dimension-size-100);
+        padding-top: 0;
+        padding-bottom: 0;
         border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid transparent;
         box-sizing: border-box;
         &:hover {
@@ -1396,8 +1476,15 @@ function SpanTreeEdge({
 }
 
 const spanControlsCSS = css`
-  width: 20px;
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-50);
   flex: none;
+
+  .span-controls__actions {
+    display: flex;
+    align-items: center;
+  }
 `;
 
 const spanTimingCSS = css`

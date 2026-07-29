@@ -8,6 +8,20 @@ type SessionDetailsNavigationRenderOptions = {
   isOverlayOpen: boolean;
 };
 
+export const sessionDetailsNavigationTopLevelRowCSS = css`
+  /* ListBox gives its items generic padding through a descendant selector.
+   * Repeat the row selector so this shared geometry wins that cascade. */
+  && {
+    min-height: var(--global-details-panel-navigation-row-height);
+    padding: var(
+        --global-session-details-navigation-top-level-row-padding-block
+      )
+      var(--global-session-details-navigation-top-level-row-padding-inline-end)
+      var(--global-session-details-navigation-top-level-row-padding-block)
+      var(--global-details-panel-navigation-row-content-padding-inline-start);
+  }
+`;
+
 const sessionDetailsNavigationCSS = css`
   position: relative;
   display: flex;
@@ -45,22 +59,10 @@ const sessionDetailsNavigationCSS = css`
     display: none;
   }
 
-  /* Turn and trace headers share one geometry contract. Tree rows consume the
-   * same content inset through the details-panel navigation token. */
-  .session-turn-row,
-  .session-trace-row-header {
-    padding-top: var(
-      --global-session-details-navigation-top-level-row-padding-block
-    );
-    padding-right: var(
-      --global-session-details-navigation-top-level-row-padding-inline-end
-    );
-    padding-bottom: var(
-      --global-session-details-navigation-top-level-row-padding-block
-    );
-    padding-left: var(
-      --global-details-panel-navigation-row-content-padding-inline-start
-    );
+  .session-turn-list,
+  [data-testid="session-trace-row-list"] {
+    scrollbar-color: var(--global-color-gray-300) transparent;
+    scrollbar-gutter: stable;
   }
 
   .session-turn-row__title,
@@ -79,12 +81,31 @@ const sessionDetailsNavigationCSS = css`
   &[data-collapsed="true"][data-open="false"] {
     overflow: hidden;
 
+    .session-turn-list,
+    [data-testid="session-trace-row-list"] {
+      overflow-y: auto;
+      /* Preserve the expanded scrollbar gutter while hiding its paint. A
+       * width change here can wrap row content and change every later offset. */
+      scrollbar-color: transparent transparent;
+    }
+
+    .session-turn-list::-webkit-scrollbar-thumb,
+    .session-turn-list::-webkit-scrollbar-track,
+    [data-testid="session-trace-row-list"]::-webkit-scrollbar-thumb,
+    [data-testid="session-trace-row-list"]::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
     .session-view-control__expanded {
       display: none;
     }
 
     .session-view-control__compact {
       display: flex;
+    }
+
+    .session-navigation-annotation-row__expanded-content {
+      display: none;
     }
 
     .session-turn-row__compact-index,
@@ -118,7 +139,12 @@ const sessionDetailsNavigationCSS = css`
       left: 0;
       z-index: var(--global-z-index-local-overlay);
       height: 100%;
-      border-color: var(--global-border-color-default);
+      /* A real border consumes 1px at the top and bottom of this border-box.
+       * Paint the hover edge outside the box so its children keep the exact
+       * same available height as the resting and expanded navigation. */
+      border: 0;
+      outline: var(--global-border-size-thin) solid
+        var(--global-border-color-default);
       border-radius: var(--global-rounding-small);
     }
   }
@@ -156,6 +182,7 @@ export function SessionDetailsNavigation({
       className="session-details-navigation"
       css={sessionDetailsNavigationCSS}
       data-collapsed={isCollapsed}
+      data-navigation-scrollbar="active"
       data-open={isOpen}
     >
       <div

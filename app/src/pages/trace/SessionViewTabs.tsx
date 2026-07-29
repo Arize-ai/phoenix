@@ -27,11 +27,18 @@ const sessionViewControlCSS = css`
     width: 100%;
   }
 
+  /* The compact button and expanded segmented control are both size S. Keep
+   * their wrappers on that same 30px height contract so switching modes does
+   * not move the navigation body by the 2px spacing-token difference. */
+  .session-view-control__expanded,
+  .session-view-control__compact {
+    height: var(--global-button-height-s);
+  }
+
   .session-view-control__compact {
     display: none;
     align-items: center;
     justify-content: flex-start;
-    min-height: var(--global-dimension-size-400);
   }
 `;
 

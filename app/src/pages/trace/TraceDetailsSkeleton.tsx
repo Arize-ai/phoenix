@@ -39,8 +39,8 @@ const traceTreeEntitySkeletonCSS = css`
   align-items: center;
   gap: var(--global-dimension-size-100);
   width: 100%;
-  min-height: var(--global-dimension-size-500);
-  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+  height: var(--global-details-panel-navigation-row-height);
+  padding: 0 var(--global-dimension-size-200);
   padding-left: var(
     --global-details-panel-navigation-row-content-padding-inline-start
   );
@@ -71,6 +71,12 @@ const annotationBarSkeletonCSS = css`
     var(--global-border-color-default);
 
   &[data-variant="detail-header"] {
+    min-height: var(--global-button-height-s);
+    padding: 0;
+    border: 0;
+  }
+
+  &[data-variant="button"] {
     min-height: var(--global-button-height-s);
     padding: 0;
     border: 0;
@@ -371,8 +377,11 @@ export function SpanHeaderSkeleton({
 export function DetailPanelAnnotationBarSkeleton({
   variant = "default",
 }: {
-  variant?: "default" | "detail-header";
+  variant?: "button" | "default" | "detail-header";
 }) {
+  if (variant === "button") {
+    return <Skeleton width={88} height={32} animation="wave" />;
+  }
   return (
     <div css={annotationBarSkeletonCSS} aria-busy="true" data-variant={variant}>
       {variant === "default" ? (

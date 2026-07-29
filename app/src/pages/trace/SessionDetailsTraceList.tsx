@@ -20,6 +20,7 @@ import {
   Truncate,
   View,
 } from "@phoenix/components";
+import { TraceDetailPanelAnnotationButton } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
@@ -40,7 +41,10 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { DetailsPanelContent } from "./DetailsPanel";
 import type { SessionNavigationHeaderRenderer } from "./SessionDetails";
-import { SessionDetailsNavigation } from "./SessionDetailsNavigation";
+import {
+  SessionDetailsNavigation,
+  sessionDetailsNavigationTopLevelRowCSS,
+} from "./SessionDetailsNavigation";
 import { TraceTurnContent } from "./TraceTurnContent";
 
 export { RootSpanMessage } from "./TraceTurnContent";
@@ -158,6 +162,7 @@ function SessionTurnDetail({
 }
 
 type SessionTurnRow = {
+  id: string;
   traceId: string;
   rootSpan: SessionTraceRootSpan;
 };
@@ -219,6 +224,12 @@ const turnListCSS = css`
       border-left-color: var(--global-list-item-selected-border-color);
     }
   }
+
+  .session-turn-row__annotation-action {
+    display: flex;
+    flex: none;
+    align-items: center;
+  }
 `;
 
 function SessionTurnList({
@@ -259,6 +270,7 @@ function SessionTurnList({
             id={row.traceId}
             textValue={turnLabel}
             className="react-aria-ListBoxItem session-turn-row"
+            css={sessionDetailsNavigationTopLevelRowCSS}
           >
             <Text
               className="session-turn-row__compact-index"
@@ -274,7 +286,7 @@ function SessionTurnList({
             >
               <Flex
                 direction="row"
-                alignItems="center"
+                alignItems="flex-start"
                 justifyContent="space-between"
                 gap="size-100"
               >
@@ -299,6 +311,13 @@ function SessionTurnList({
                     {fullTimeFormatter(new Date(row.rootSpan.startTime))}
                   </Text>
                 </Flex>
+                <span
+                  className="session-turn-row__annotation-action"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <TraceDetailPanelAnnotationButton traceNodeId={row.id} />
+                </span>
               </Flex>
               <Flex direction="column" gap="size-50" minWidth={0}>
                 <RootSpanPreviewLine

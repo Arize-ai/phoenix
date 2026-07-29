@@ -1,6 +1,6 @@
 import type { SerializedStyles } from "@emotion/react";
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import type { ButtonProps } from "react-aria-components";
 import { Button } from "react-aria-components";
 
@@ -22,6 +22,7 @@ const getIconButtonColor = (color: TextColorValue): string => {
 };
 
 export interface IconButtonProps extends Omit<ButtonProps, "children"> {
+  ref?: Ref<HTMLButtonElement>;
   /**
    * The size of the button
    * @default 'M'
@@ -123,6 +124,7 @@ const iconButtonCSS = (color: TextColorValue) => css`
 `;
 
 export function IconButton({
+  ref,
   size = "M",
   color = "text-700",
   variant = "default",
@@ -131,6 +133,7 @@ export function IconButton({
 }: IconButtonProps) {
   return (
     <Button
+      ref={ref}
       css={iconButtonCSS(color)}
       data-size={size}
       data-variant={variant}

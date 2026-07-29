@@ -39,6 +39,7 @@ import {
   type AnnotationBarRow,
   type AnnotationBarTarget,
   type AnnotationValueDraft,
+  DetailPanelAnnotationButton,
   DetailPanelAnnotationBar,
 } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
@@ -94,6 +95,10 @@ const annotationFields = graphql`
     }
   }
 `;
+
+type DetailPanelAnnotationBarVariant = ComponentProps<
+  typeof DetailPanelAnnotationBar
+>["variant"];
 
 const traceAnnotationFields = graphql`
   fragment ConnectedDetailPanelAnnotationBarTraceAnnotationFields on TraceAnnotation
@@ -453,9 +458,11 @@ export function useSpanDetailPanelAnnotationBarQuery(spanNodeId: string) {
 export function SpanDetailPanelAnnotationBar({
   queryRef,
   refresh,
+  variant = "detail-header",
 }: {
   queryRef: PreloadedQuery<ConnectedDetailPanelAnnotationBarSpanQuery>;
   refresh: () => void;
+  variant?: DetailPanelAnnotationBarVariant;
 }) {
   const data = usePreloadedQuery<ConnectedDetailPanelAnnotationBarSpanQuery>(
     spanDetailPanelAnnotationBarQuery,
@@ -473,6 +480,7 @@ export function SpanDetailPanelAnnotationBar({
         ({ node }) => getAnnotationConfig(node)
       )}
       refresh={refresh}
+      variant={variant}
       span={{
         id: data.span.id,
         annotations: getAnnotations(data.span.spanAnnotations),
@@ -487,10 +495,12 @@ function SpanDetailPanelAnnotationBarContent({
   projectAnnotationConfigs,
   refresh,
   span,
+  variant,
 }: {
   allAnnotationConfigs: readonly AnnotationConfig[];
   projectAnnotationConfigs: readonly AnnotationConfig[];
   refresh: () => void;
+  variant: DetailPanelAnnotationBarVariant;
   span: {
     annotations: Annotation[];
     id: string;
@@ -518,10 +528,45 @@ function SpanDetailPanelAnnotationBarContent({
       allAnnotationConfigs={allAnnotationConfigs}
       projectAnnotationConfigs={projectAnnotationConfigs}
       rows={rows}
-      variant="detail-header"
+      variant={variant}
       {...configHandlers}
       {...annotationHandlers}
     />
+  );
+}
+
+/** Fetches and renders a span annotation affordance for the requested variant. */
+export function ConnectedSpanDetailPanelAnnotationBar({
+  spanNodeId,
+  variant = "detail-header",
+}: {
+  spanNodeId: string;
+  variant?: DetailPanelAnnotationBarVariant;
+}) {
+  const { queryRef, refresh } =
+    useSpanDetailPanelAnnotationBarQuery(spanNodeId);
+  if (queryRef == null) {
+    return null;
+  }
+  return (
+    <SpanDetailPanelAnnotationBar
+      queryRef={queryRef}
+      refresh={refresh}
+      variant={variant}
+    />
+  );
+}
+
+/** Loads span annotations only after the row action is opened. */
+export function SpanDetailPanelAnnotationButton({
+  spanNodeId,
+}: {
+  spanNodeId: string;
+}) {
+  return (
+    <DetailPanelAnnotationButton targetKind="span">
+      <ConnectedSpanDetailPanelAnnotationBar spanNodeId={spanNodeId} />
+    </DetailPanelAnnotationButton>
   );
 }
 
@@ -818,8 +863,10 @@ export function useAnnotationMutationHandlers({
 
 export function TraceDetailPanelAnnotationBar({
   traceNodeId,
+  variant = "detail-header",
 }: {
   traceNodeId: string;
+  variant?: DetailPanelAnnotationBarVariant;
 }) {
   const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<ConnectedDetailPanelAnnotationBarTraceQuery>(
@@ -870,11 +917,25 @@ export function TraceDetailPanelAnnotationBar({
       )}
       projectId={data.trace.project.id}
       refresh={refresh}
+      variant={variant}
       trace={{
         id: data.trace.id,
         annotations: getTraceAnnotations(data.trace.traceAnnotations),
       }}
     />
+  );
+}
+
+/** Loads trace annotations only after the row action is opened. */
+export function TraceDetailPanelAnnotationButton({
+  traceNodeId,
+}: {
+  traceNodeId: string;
+}) {
+  return (
+    <DetailPanelAnnotationButton targetKind="trace">
+      <TraceDetailPanelAnnotationBar traceNodeId={traceNodeId} />
+    </DetailPanelAnnotationButton>
   );
 }
 
@@ -884,11 +945,13 @@ function TraceDetailPanelAnnotationBarContent({
   projectId,
   refresh,
   trace,
+  variant,
 }: {
   allAnnotationConfigs: readonly AnnotationConfig[];
   projectAnnotationConfigs: readonly AnnotationConfig[];
   projectId: string;
   refresh: () => void;
+  variant: DetailPanelAnnotationBarVariant;
   trace: { annotations: Annotation[]; id: string };
 }) {
   const configHandlers = useAnnotationConfigMutationHandlers({
@@ -912,7 +975,7 @@ function TraceDetailPanelAnnotationBarContent({
       allAnnotationConfigs={allAnnotationConfigs}
       projectAnnotationConfigs={projectAnnotationConfigs}
       rows={rows}
-      variant="detail-header"
+      variant={variant}
       {...configHandlers}
       {...annotationHandlers}
     />
@@ -921,8 +984,10 @@ function TraceDetailPanelAnnotationBarContent({
 
 export function SessionDetailPanelAnnotationBar({
   sessionNodeId,
+  variant = "detail-header",
 }: {
   sessionNodeId: string;
+  variant?: DetailPanelAnnotationBarVariant;
 }) {
   const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<ConnectedDetailPanelAnnotationBarSessionQuery>(
@@ -973,11 +1038,25 @@ export function SessionDetailPanelAnnotationBar({
       )}
       projectId={data.session.project.id}
       refresh={refresh}
+      variant={variant}
       session={{
         id: data.session.id,
         annotations: getAnnotations(data.session.sessionAnnotations),
       }}
     />
+  );
+}
+
+/** Loads session annotations only after the row action is opened. */
+export function SessionDetailPanelAnnotationButton({
+  sessionNodeId,
+}: {
+  sessionNodeId: string;
+}) {
+  return (
+    <DetailPanelAnnotationButton targetKind="session">
+      <SessionDetailPanelAnnotationBar sessionNodeId={sessionNodeId} />
+    </DetailPanelAnnotationButton>
   );
 }
 
@@ -987,12 +1066,14 @@ function SessionDetailPanelAnnotationBarContent({
   projectId,
   refresh,
   session,
+  variant,
 }: {
   allAnnotationConfigs: readonly AnnotationConfig[];
   projectAnnotationConfigs: readonly AnnotationConfig[];
   projectId: string;
   refresh: () => void;
   session: { annotations: Annotation[]; id: string };
+  variant: DetailPanelAnnotationBarVariant;
 }) {
   const configHandlers = useAnnotationConfigMutationHandlers({
     projectId,
@@ -1015,7 +1096,7 @@ function SessionDetailPanelAnnotationBarContent({
       allAnnotationConfigs={allAnnotationConfigs}
       projectAnnotationConfigs={projectAnnotationConfigs}
       rows={rows}
-      variant="detail-header"
+      variant={variant}
       {...configHandlers}
       {...annotationHandlers}
     />

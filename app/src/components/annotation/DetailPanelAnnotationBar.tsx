@@ -1,6 +1,13 @@
 import { css } from "@emotion/react";
-import type { FormEvent, ReactNode, Ref } from "react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import type { FormEvent, ReactNode, Ref, RefObject } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { useInteractOutside } from "react-aria";
 import { MenuSection } from "react-aria-components";
 
@@ -21,6 +28,7 @@ import {
   Input,
   Label,
   LinkButton,
+  Loading,
   Menu,
   MenuContainer,
   MenuFooter,
@@ -125,8 +133,8 @@ export type DetailPanelAnnotationBarProps = {
   ) => Promise<AnnotationBarMutationResult>;
   projectAnnotationConfigs: readonly AnnotationConfig[];
   rows: readonly AnnotationBarRow[];
-  /** Embeds the bar as the final row of a detail header. */
-  variant?: "default" | "detail-header";
+  /** Embeds the annotations as a bar or behind a compact row action. */
+  variant?: "button" | "default" | "detail-header";
 };
 
 const annotationBarCSS = css`
@@ -153,6 +161,10 @@ const annotationBarCSS = css`
       grid-template-columns: minmax(0, 1fr);
       padding: 0;
     }
+  }
+
+  &[data-variant="button"] {
+    border: 0;
   }
 `;
 
@@ -195,6 +207,12 @@ const annotationMessageCSS = css`
 const annotationPopoverCSS = css`
   width: min(420px, calc(100vw - var(--global-dimension-size-400)));
   max-height: min(620px, calc(100vh - var(--global-dimension-size-800)));
+  overflow: auto;
+`;
+
+const annotationButtonPopoverCSS = css`
+  width: min(460px, calc(100vw - var(--global-dimension-size-400)));
+  max-height: min(680px, calc(100vh - var(--global-dimension-size-800)));
   overflow: auto;
 `;
 
@@ -440,7 +458,7 @@ export function DetailPanelAnnotationBar({
     onUpdateAnnotationConfig,
     projectAnnotationConfigs,
   };
-  return (
+  const annotationRows = (
     <div
       css={annotationBarCSS}
       aria-label="Annotations bar"
@@ -461,6 +479,99 @@ export function DetailPanelAnnotationBar({
         )
       )}
     </div>
+  );
+  if (variant === "button") {
+    const targetKind = rows.find((row) => row.kind === "target")?.target.kind;
+    return (
+      <DetailPanelAnnotationButton targetKind={targetKind}>
+        {annotationRows}
+      </DetailPanelAnnotationButton>
+    );
+  }
+  return annotationRows;
+}
+
+export function DetailPanelAnnotationButton({
+  children,
+  targetKind,
+}: {
+  children: ReactNode;
+  targetKind?: AnnotationTargetKind;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const targetLabel = targetKind ? `${targetKind} annotations` : "annotations";
+
+  return (
+    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+      <IconButton ref={triggerRef} size="S" aria-label="Add annotation">
+        <Icon svg={<Icons.Plus />} />
+      </IconButton>
+      {isOpen ? (
+        <DetailPanelAnnotationPopover
+          onOpenChange={setIsOpen}
+          targetLabel={targetLabel}
+          triggerRef={triggerRef}
+        >
+          {children}
+        </DetailPanelAnnotationPopover>
+      ) : null}
+    </DialogTrigger>
+  );
+}
+
+function DetailPanelAnnotationPopover({
+  children,
+  onOpenChange,
+  targetLabel,
+  triggerRef,
+}: {
+  children: ReactNode;
+  onOpenChange: (isOpen: boolean) => void;
+  targetLabel: string;
+  triggerRef: RefObject<HTMLButtonElement | null>;
+}) {
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const shouldIgnoreOutsideInteraction = (event: PointerEvent) => {
+    if (
+      triggerRef.current &&
+      event.composedPath().includes(triggerRef.current)
+    ) {
+      return true;
+    }
+    return (
+      event.target instanceof Element &&
+      (event.target.closest("[data-annotation-overlay]") != null ||
+        event.target.closest("[data-annotation-actions-menu]") != null)
+    );
+  };
+  useInteractOutside({
+    ref: popoverRef,
+    onInteractOutside: (event) => {
+      if (!shouldIgnoreOutsideInteraction(event)) {
+        onOpenChange(false);
+      }
+    },
+  });
+
+  return (
+    <Popover
+      ref={popoverRef}
+      css={annotationButtonPopoverCSS}
+      data-annotation-overlay
+      isNonModal
+      placement="bottom end"
+      shouldCloseOnInteractOutside={(element) =>
+        !triggerRef.current?.contains(element) &&
+        element.closest("[data-annotation-overlay]") == null &&
+        element.closest("[data-annotation-actions-menu]") == null
+      }
+    >
+      <PopoverArrow />
+      <Dialog aria-label={`Manage ${targetLabel}`}>
+        <Suspense fallback={<Loading />}>{children}</Suspense>
+      </Dialog>
+    </Popover>
   );
 }
 
@@ -793,6 +904,7 @@ export function AnnotationValuePopover({
       )}
       <Popover
         ref={popoverRef}
+        data-annotation-overlay
         placement="bottom start"
         css={
           isShowingQuickCreate ? quickCreatePopoverCSS : annotationPopoverCSS
@@ -1837,6 +1949,7 @@ function AddAnnotationPopover({
           </Button>
         )}
         <MenuContainer
+          data-annotation-overlay
           placement="bottom end"
           layer="non-modal"
           minHeight={0}

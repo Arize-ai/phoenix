@@ -92,6 +92,9 @@ const staticCSS = css`
     --global-button-height-l: var(--global-input-height-l);
 
     // details-panel navigation geometry
+    --global-details-panel-navigation-row-height: var(
+      --global-dimension-size-450
+    );
     --global-details-panel-navigation-row-content-padding-inline-start: var(
       --global-dimension-size-150
     );

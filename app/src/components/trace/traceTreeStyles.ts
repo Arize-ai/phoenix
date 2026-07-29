@@ -20,6 +20,24 @@ export const traceTreePanelContentCSS = css`
   container-type: inline-size;
   background: var(--global-background-color-default);
   --trace-tree-overflow-y: auto;
+
+  &[data-navigation-scrollbar="active"],
+  &:has([data-navigation-scrollbar="active"]) {
+    [data-trace-tree-root],
+    [data-testid="trace-tree-skeleton"],
+    .session-turn-list,
+    [data-testid="session-trace-row-list"] {
+      scrollbar-color: var(--global-color-gray-300) transparent;
+      scrollbar-gutter: stable;
+    }
+
+    [data-trace-tree-root]::-webkit-scrollbar-track,
+    [data-testid="trace-tree-skeleton"]::-webkit-scrollbar-track,
+    .session-turn-list::-webkit-scrollbar-track,
+    [data-testid="session-trace-row-list"]::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
 `;
 
 export const traceTreeListCSS = css`

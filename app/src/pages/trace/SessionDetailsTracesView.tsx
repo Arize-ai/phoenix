@@ -30,6 +30,10 @@ import {
   View,
 } from "@phoenix/components";
 import {
+  SpanDetailPanelAnnotationButton,
+  TraceDetailPanelAnnotationButton,
+} from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
+import {
   EmptyState,
   EmptyStateArea,
   EmptyStateGraphic,
@@ -57,7 +61,10 @@ import type {
   SessionMainContentRenderer,
   SessionNavigationHeaderRenderer,
 } from "./SessionDetails";
-import { SessionDetailsNavigation } from "./SessionDetailsNavigation";
+import {
+  SessionDetailsNavigation,
+  sessionDetailsNavigationTopLevelRowCSS,
+} from "./SessionDetailsNavigation";
 import type { SessionDetailsSearchParamsStore } from "./sessionDetailsSearchParamsStore";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
@@ -587,14 +594,19 @@ function TraceRow({
         setTraceRowRef({ traceId: trace.traceId, el });
       }}
     >
-      <TraceRowHeader
-        trace={trace}
-        index={index}
-        isSelected={isSelected}
-        isExpanded={isExpanded}
-        onToggleExpanded={onToggleExpanded}
-        onTraceSelect={onTraceSelect}
-      />
+      <div className="session-trace-row-header-shell">
+        <TraceRowHeader
+          trace={trace}
+          index={index}
+          isSelected={isSelected}
+          isExpanded={isExpanded}
+          onToggleExpanded={onToggleExpanded}
+          onTraceSelect={onTraceSelect}
+        />
+        <span className="session-trace-row-header__annotation-action">
+          <TraceDetailPanelAnnotationButton traceNodeId={trace.id} />
+        </span>
+      </div>
       {isExpanded ? (
         <TraceTreeContainer
           traceId={trace.traceId}
@@ -630,7 +642,7 @@ function TraceRowHeader({
     <button
       type="button"
       className="session-trace-row-header"
-      css={traceRowHeaderCSS}
+      css={[traceRowHeaderCSS, sessionDetailsNavigationTopLevelRowCSS]}
       aria-expanded={isExpanded}
       onClick={() => {
         if (!isSelected) {
@@ -897,6 +909,9 @@ function LazyTraceTree({
             spanPreview: { ...span, projectId, traceId },
           })
         }
+        renderSpanActions={(span) => (
+          <SpanDetailPanelAnnotationButton spanNodeId={span.id} />
+        )}
       />
     </TraceTreeProvider>
   );
@@ -913,9 +928,30 @@ const traceRowCSS = css`
   flex-direction: column;
   border-bottom: 1px solid var(--global-border-color-default);
 
-  &[data-selected="true"] > button {
+  .session-trace-row-header-shell {
+    display: flex;
+    align-items: flex-start;
+    min-height: var(--global-details-panel-navigation-row-height);
+  }
+
+  .session-trace-row-header__annotation-action {
+    display: flex;
+    flex: none;
+    align-items: center;
+    padding-top: var(
+      --global-session-details-navigation-top-level-row-padding-block
+    );
+    padding-right: var(
+      --global-session-details-navigation-top-level-row-padding-inline-end
+    );
+  }
+
+  &[data-selected="true"] .session-trace-row-header-shell {
     background: var(--global-list-item-selected-background-color);
     color: var(--global-text-color-900);
+  }
+
+  &[data-selected="true"] .session-trace-row-header {
     border-left-color: var(--global-list-item-selected-border-color);
   }
 `;
@@ -931,6 +967,8 @@ const traceRowHeaderCSS = css`
   /* Reserve space for the selected-state indicator so rows do not shift when selected. */
   border-left: 4px solid transparent;
   width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   text-align: left;
   cursor: pointer;
   color: inherit;

@@ -14,6 +14,11 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import {
+  SessionDetailPanelAnnotationButton,
+  SpanDetailPanelAnnotationButton,
+  TraceDetailPanelAnnotationButton,
+} from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
@@ -165,6 +170,9 @@ export function TraceDetails({
   const session = trace.session;
   const treeSession = session
     ? {
+        actions: (
+          <SessionDetailPanelAnnotationButton sessionNodeId={session.id} />
+        ),
         sessionId: session.sessionId,
         to: `/projects/${projectId}/sessions/${getSessionDetailsPath({
           sessionId: session.id,
@@ -188,6 +196,9 @@ export function TraceDetails({
             session={treeSession}
             selectedSpanNodeId={selectedSpanNodeId ?? ""}
             traceSelection={{
+              actions: (
+                <TraceDetailPanelAnnotationButton traceNodeId={trace.id} />
+              ),
               isSelected: isTraceSelected,
               onSelect: () => {
                 setLocalSpanSelection(null);
@@ -230,6 +241,9 @@ export function TraceDetails({
                 },
               });
             }}
+            renderSpanActions={(span) => (
+              <SpanDetailPanelAnnotationButton spanNodeId={span.id} />
+            )}
           />
         </TraceTreeProvider>
       }

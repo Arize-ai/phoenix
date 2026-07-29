@@ -2,6 +2,7 @@ import { act, type ComponentProps, Suspense, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ListBox, ListBoxItem } from "@phoenix/components";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 
 import {
@@ -10,7 +11,10 @@ import {
   DetailsPanelContentBoundary,
 } from "../DetailsPanel";
 import { resetDetailsPanelSizingStoreForTesting } from "../detailsPanelSizing/store";
-import { SessionDetailsNavigation } from "../SessionDetailsNavigation";
+import {
+  SessionDetailsNavigation,
+  sessionDetailsNavigationTopLevelRowCSS,
+} from "../SessionDetailsNavigation";
 import { SessionDetailsPaginator } from "../SessionDetailsPaginator";
 import { SessionDetailsSkeleton } from "../SessionDetailsSkeleton";
 import { SessionPaginationContext } from "../SessionPaginationContext";
@@ -18,11 +22,43 @@ import { SessionViewControl, SessionViewTabs } from "../SessionViewTabs";
 
 const detailsPanelNavigationRowContentPaddingInlineStart =
   "var(--global-details-panel-navigation-row-content-padding-inline-start)";
+const detailsPanelNavigationRowHeight =
+  "var(--global-details-panel-navigation-row-height)";
+const smallButtonHeight = "var(--global-button-height-s)";
 const sessionDetailsNavigationTopLevelRowPaddingBlock =
   "var(--global-session-details-navigation-top-level-row-padding-block)";
+const sessionDetailsNavigationTopLevelRowPaddingInlineEnd =
+  "var(--global-session-details-navigation-top-level-row-padding-inline-end)";
 
 function normalizeCSSValue(value: string) {
   return value.replace(/\s/g, "");
+}
+
+function expectSessionNavigationRowGeometry(row: HTMLElement) {
+  const generatedClassName = Array.from(row.classList).find((className) =>
+    className.startsWith("css-")
+  );
+  if (!generatedClassName) {
+    throw new Error("Expected an Emotion class on the navigation row");
+  }
+  const selector = `.${generatedClassName}.${generatedClassName}`;
+  const rowStyleRule = Array.from(document.styleSheets)
+    .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+    .find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule && rule.selectorText === selector
+    );
+  if (!rowStyleRule) {
+    throw new Error(`Expected shared navigation row styles for ${selector}`);
+  }
+  expect(normalizeCSSValue(rowStyleRule.style.minHeight)).toBe(
+    detailsPanelNavigationRowHeight
+  );
+  expect(normalizeCSSValue(rowStyleRule.style.padding)).toBe(
+    normalizeCSSValue(
+      `${sessionDetailsNavigationTopLevelRowPaddingBlock} ${sessionDetailsNavigationTopLevelRowPaddingInlineEnd} ${sessionDetailsNavigationTopLevelRowPaddingBlock} ${detailsPanelNavigationRowContentPaddingInlineStart}`
+    )
+  );
 }
 
 type StatefulSessionDetailsNavigationProps = Omit<
@@ -374,13 +410,24 @@ describe("SessionViewTabs", () => {
           >
             {({ isOverlayOpen }) => (
               <>
-                <button type="button" className="session-turn-row">
-                  <span className="session-turn-row__compact-index">01</span>
-                  <span className="session-turn-row__expanded-content">
-                    Full turn content
-                  </span>
-                </button>
-                <button type="button" className="session-trace-row-header">
+                <ListBox aria-label="Session turns">
+                  <ListBoxItem
+                    id="turn"
+                    textValue="Turn"
+                    className="react-aria-ListBoxItem session-turn-row"
+                    css={sessionDetailsNavigationTopLevelRowCSS}
+                  >
+                    <span className="session-turn-row__compact-index">01</span>
+                    <span className="session-turn-row__expanded-content">
+                      Full turn content
+                    </span>
+                  </ListBoxItem>
+                </ListBox>
+                <button
+                  type="button"
+                  className="session-trace-row-header"
+                  css={sessionDetailsNavigationTopLevelRowCSS}
+                >
                   <span className="session-trace-row-header__compact-index">
                     01
                   </span>
@@ -435,14 +482,20 @@ describe("SessionViewTabs", () => {
     const switchViewButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Switch to traces view"]'
     );
-
     expect(navigation?.dataset.open).toBe("false");
+    expect(navigation?.dataset.navigationScrollbar).toBe("active");
     expect(getComputedStyle(navigation!).overflow).toBe("hidden");
     expect(getComputedStyle(content!).minWidth).toBe(
       "var(--trace-tree-overlay-width)"
     );
     expect(getComputedStyle(compactControl!).display).toBe("flex");
+    expect(normalizeCSSValue(getComputedStyle(compactControl!).height)).toBe(
+      smallButtonHeight
+    );
     expect(getComputedStyle(expandedControl!).display).toBe("none");
+    expect(normalizeCSSValue(getComputedStyle(expandedControl!).height)).toBe(
+      smallButtonHeight
+    );
     expect(getComputedStyle(compactIndex!).display).toBe("inline-flex");
     expect(normalizeCSSValue(getComputedStyle(compactIndex!).top)).toBe(
       sessionDetailsNavigationTopLevelRowPaddingBlock
@@ -457,18 +510,8 @@ describe("SessionViewTabs", () => {
       detailsPanelNavigationRowContentPaddingInlineStart
     );
     expect(getComputedStyle(compactIndex!).textAlign).toBe("left");
-    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingTop)).toBe(
-      sessionDetailsNavigationTopLevelRowPaddingBlock
-    );
-    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingLeft)).toBe(
-      detailsPanelNavigationRowContentPaddingInlineStart
-    );
-    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingTop)).toBe(
-      sessionDetailsNavigationTopLevelRowPaddingBlock
-    );
-    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingLeft)).toBe(
-      detailsPanelNavigationRowContentPaddingInlineStart
-    );
+    expectSessionNavigationRowGeometry(turnRow!);
+    expectSessionNavigationRowGeometry(traceRow!);
     expect(getComputedStyle(expandedTurnContent!).display).not.toBe("none");
     expect(getComputedStyle(expandedTurnContent!).visibility).toBe("hidden");
     expect(traceTree?.dataset.navigationMode).toBe("compact");
@@ -482,26 +525,25 @@ describe("SessionViewTabs", () => {
     });
 
     expect(navigation?.dataset.open).toBe("true");
+    expect(navigation?.dataset.navigationScrollbar).toBe("active");
     expect(getComputedStyle(navigation!).overflow).toBe("visible");
     expect(content?.dataset.open).toBe("true");
+    console.error("hover-content-styles", {
+      borderTopWidth: getComputedStyle(content!).borderTopWidth,
+      outlineWidth: getComputedStyle(content!).outlineWidth,
+    });
+    expect(getComputedStyle(content!).borderTopWidth).toBe("0px");
+    expect(getComputedStyle(content!).outlineWidth).toBe(
+      "var(--global-border-size-thin)"
+    );
     expect(getComputedStyle(compactControl!).display).toBe("none");
     expect(getComputedStyle(expandedControl!).display).not.toBe("none");
     expect(getComputedStyle(compactIndex!).display).toBe("none");
     expect(getComputedStyle(expandedTurnContent!).visibility).toBe("visible");
     expect(traceTree?.dataset.navigationMode).toBe("full");
     expect(getComputedStyle(content!).boxShadow).toContain("8px 16px");
-    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingTop)).toBe(
-      sessionDetailsNavigationTopLevelRowPaddingBlock
-    );
-    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingLeft)).toBe(
-      detailsPanelNavigationRowContentPaddingInlineStart
-    );
-    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingTop)).toBe(
-      sessionDetailsNavigationTopLevelRowPaddingBlock
-    );
-    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingLeft)).toBe(
-      detailsPanelNavigationRowContentPaddingInlineStart
-    );
+    expectSessionNavigationRowGeometry(turnRow!);
+    expectSessionNavigationRowGeometry(traceRow!);
 
     act(() => {
       content?.dispatchEvent(
@@ -519,6 +561,73 @@ describe("SessionViewTabs", () => {
     });
 
     expect(navigation?.dataset.open).toBe("true");
+  });
+
+  it("preserves session navigation scroll through hover state changes", () => {
+    act(() => {
+      root.render(
+        <StatefulSessionDetailsNavigation
+          isCollapsed
+          control={<div>View control</div>}
+        >
+          <div
+            className="session-turn-list"
+            data-testid="session-navigation-scroll"
+            style={{ height: 100 }}
+          >
+            <div style={{ height: 500 }}>Session navigation</div>
+          </div>
+        </StatefulSessionDetailsNavigation>
+      );
+    });
+
+    const navigation = container.querySelector<HTMLElement>(
+      ".session-details-navigation"
+    );
+    const content = container.querySelector<HTMLElement>(
+      ".session-details-navigation__content"
+    );
+    const body = container.querySelector<HTMLElement>(
+      ".session-details-navigation__body"
+    );
+    const scrollContainer = container.querySelector<HTMLElement>(
+      '[data-testid="session-navigation-scroll"]'
+    );
+    if (!navigation || !content || !body || !scrollContainer) {
+      throw new Error("Expected collapsed session navigation");
+    }
+
+    expect(getComputedStyle(scrollContainer).overflowY).toBe("auto");
+    console.error("resting-scrollbar-styles", {
+      scrollbarColor: getComputedStyle(scrollContainer).scrollbarColor,
+      scrollbarGutter: getComputedStyle(scrollContainer).scrollbarGutter,
+    });
+    expect(getComputedStyle(scrollContainer).scrollbarGutter).toBe("stable");
+    expect(getComputedStyle(scrollContainer).scrollbarColor).toBe(
+      "transparent transparent"
+    );
+    scrollContainer.scrollTop = 72;
+    act(() => {
+      body.dispatchEvent(new MouseEvent("pointerover", { bubbles: true }));
+    });
+    expect(navigation.dataset.open).toBe("true");
+    expect(getComputedStyle(scrollContainer).scrollbarGutter).toBe("stable");
+    expect(getComputedStyle(scrollContainer).scrollbarColor).toBe(
+      "var(--global-color-gray-300) transparent"
+    );
+    expect(scrollContainer.scrollTop).toBe(72);
+
+    scrollContainer.scrollTop = 144;
+    act(() => {
+      content.dispatchEvent(
+        new MouseEvent("pointerout", {
+          bubbles: true,
+          relatedTarget: document.body,
+        })
+      );
+    });
+    expect(navigation.dataset.open).toBe("false");
+    expect(scrollContainer.scrollTop).toBe(144);
   });
 
   it("does not latch a hovered navigation open after a pointer-focused tree action", () => {
@@ -621,43 +730,119 @@ describe("SessionViewTabs", () => {
     expect(navigation?.dataset.open).toBe("false");
   });
 
-  it("aligns turn and trace row content in the open navigation", () => {
-    act(() => {
-      root.render(
-        <SessionDetailsNavigation
-          control={<div>View control</div>}
-          isCollapsed={false}
-          isPointerOpen={false}
-          onPointerOpenChange={() => {}}
-        >
-          <button type="button" className="session-turn-row">
-            Turn
-          </button>
-          <button type="button" className="session-trace-row-header">
-            Trace
-          </button>
-        </SessionDetailsNavigation>
+  it.each([
+    ["uncollapsed", false, false],
+    ["collapsed and unhovered", true, false],
+    ["collapsed and hovered", true, true],
+  ] as const)(
+    "uses shared turn and trace row geometry when %s",
+    (_stateLabel, isCollapsed, isPointerOpen) => {
+      act(() => {
+        root.render(
+          <SessionDetailsNavigation
+            control={<div>View control</div>}
+            isCollapsed={isCollapsed}
+            isPointerOpen={isPointerOpen}
+            onPointerOpenChange={() => {}}
+          >
+            <ListBox aria-label="Session turns">
+              <ListBoxItem
+                id="turn"
+                className="react-aria-ListBoxItem session-turn-row"
+                css={sessionDetailsNavigationTopLevelRowCSS}
+              >
+                Turn
+              </ListBoxItem>
+            </ListBox>
+            <button
+              type="button"
+              className="session-trace-row-header"
+              css={sessionDetailsNavigationTopLevelRowCSS}
+            >
+              Trace
+            </button>
+          </SessionDetailsNavigation>
+        );
+      });
+
+      const turnRow = container.querySelector<HTMLElement>(".session-turn-row");
+      const traceRow = container.querySelector<HTMLElement>(
+        ".session-trace-row-header"
       );
-    });
+      expectSessionNavigationRowGeometry(turnRow!);
+      expectSessionNavigationRowGeometry(traceRow!);
+    }
+  );
 
-    const turnRow = container.querySelector<HTMLElement>(".session-turn-row");
-    const traceRow = container.querySelector<HTMLElement>(
-      ".session-trace-row-header"
-    );
+  it.each([
+    ["uncollapsed", false, false, false],
+    ["collapsed and unhovered", true, false, true],
+    ["collapsed and hovered", true, true, false],
+  ] as const)(
+    "places the session below the view selector when %s",
+    (_stateLabel, isCollapsed, isPointerOpen, isIconOnly) => {
+      act(() => {
+        root.render(
+          <ThemeContext.Provider
+            value={{
+              theme: "light",
+              systemTheme: "light",
+              themeMode: "light",
+              setThemeMode: vi.fn(),
+            }}
+          >
+            <SessionDetailsNavigation
+              control={
+                <>
+                  <SessionViewControl
+                    sessionView="turns"
+                    onSessionViewChange={() => {}}
+                    traceCount={2}
+                  />
+                  <div className="session-navigation-annotation-row">
+                    <span className="session-navigation-annotation-row__icon">
+                      Session icon
+                    </span>
+                    <span className="session-navigation-annotation-row__expanded-content">
+                      Session
+                    </span>
+                  </div>
+                </>
+              }
+              isCollapsed={isCollapsed}
+              isPointerOpen={isPointerOpen}
+              onPointerOpenChange={() => {}}
+            >
+              <div>Navigation body</div>
+            </SessionDetailsNavigation>
+          </ThemeContext.Provider>
+        );
+      });
 
-    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingTop)).toBe(
-      sessionDetailsNavigationTopLevelRowPaddingBlock
-    );
-    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingTop)).toBe(
-      sessionDetailsNavigationTopLevelRowPaddingBlock
-    );
-    expect(normalizeCSSValue(getComputedStyle(turnRow!).paddingLeft)).toBe(
-      detailsPanelNavigationRowContentPaddingInlineStart
-    );
-    expect(normalizeCSSValue(getComputedStyle(traceRow!).paddingLeft)).toBe(
-      detailsPanelNavigationRowContentPaddingInlineStart
-    );
-  });
+      const viewControl = container.querySelector<HTMLElement>(
+        ".session-view-control"
+      );
+      const sessionRow = container.querySelector<HTMLElement>(
+        ".session-navigation-annotation-row"
+      );
+      const sessionIcon = container.querySelector<HTMLElement>(
+        ".session-navigation-annotation-row__icon"
+      );
+      const sessionExpandedContent = container.querySelector<HTMLElement>(
+        ".session-navigation-annotation-row__expanded-content"
+      );
+
+      expect(viewControl?.nextElementSibling).toBe(sessionRow);
+      expect(getComputedStyle(sessionIcon!).display).not.toBe("none");
+      if (isIconOnly) {
+        expect(getComputedStyle(sessionExpandedContent!).display).toBe("none");
+      } else {
+        expect(getComputedStyle(sessionExpandedContent!).display).not.toBe(
+          "none"
+        );
+      }
+    }
+  );
 
   it("keeps the hover navigation open when switching session views", () => {
     act(() => {

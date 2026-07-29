@@ -9,6 +9,8 @@ import type {
 } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
 import { DetailPanelAnnotationBar } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
 import type { Annotation } from "@phoenix/components/annotation/types";
+import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
+import { TraceTreeEntityRow } from "@phoenix/components/trace/TraceTreeEntityRow";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 
 const projectConfigs: AnnotationConfig[] = [
@@ -298,4 +300,36 @@ export const Interactive: Story = {
     onUpdateAnnotation: getSuccessfulMutationResult,
     onUpdateAnnotationConfig: getSuccessfulMutationResult,
   },
+};
+
+export const RowAction: Story = {
+  args: {
+    allAnnotationConfigs: projectConfigs,
+    projectAnnotationConfigs: projectConfigs,
+    rows: [{ id: "span-row", kind: "target", target: initialTargets[2] }],
+    onAddAnnotationConfigToProject: getSuccessfulMutationResult,
+    onCreateAnnotation: getSuccessfulCreateResult,
+    onCreateAnnotationConfig: getSuccessfulMutationResult,
+    onDeleteAnnotation: getSuccessfulMutationResult,
+    onRemoveAnnotationConfigFromProject: getSuccessfulMutationResult,
+    onUpdateAnnotation: getSuccessfulMutationResult,
+    onUpdateAnnotationConfig: getSuccessfulMutationResult,
+    variant: "button",
+  },
+  render: (args) => (
+    <div
+      css={css`
+        width: min(640px, calc(100vw - var(--global-dimension-size-400)));
+        background: var(--global-background-color-default);
+      `}
+    >
+      <TraceTreeEntityRow
+        actions={<DetailPanelAnnotationBar {...args} />}
+        isSelected
+        kind="span"
+        leadingVisual={<SpanKindIcon spanKind="retriever" />}
+        title="retrieve_documents"
+      />
+    </div>
+  ),
 };
