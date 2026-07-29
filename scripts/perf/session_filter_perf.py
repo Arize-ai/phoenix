@@ -50,6 +50,9 @@ _COMBINED = "num_traces >= 5 and total_cost > 0.1"
 # `aggregate_shape` — the quantifier can early-exit, the reduction has to count every match.
 _QUANTIFIER = 'any(s.span_kind == "TOOL" for s in spans)'
 _REDUCTION = 'len([s for s in spans if s.span_kind == "TOOL"]) >= 3'
+# Root-span attribute predicate: wire-key resolution reads the earliest root span's JSON through
+# a COALESCE over the candidate storage paths (unindexed on both dialects).
+_ATTRIBUTE = '"gpt" in attributes["llm.model_name"]'
 
 
 # --- seeding ---------------------------------------------------------------------------------
@@ -133,7 +136,17 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
             spans_in_trace = rng.randint(8, 16)
             root_span_id = f"sp{span_counter:x}"
             root_start = _EPOCH + timedelta(seconds=rng.randint(0, 10_000_000))
-            span_rows.append(_span_row(root_span_id, None, trace_id, "LLM", root_start))
+            model = rng.choice(["gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", None])
+            span_rows.append(
+                _span_row(
+                    root_span_id,
+                    None,
+                    trace_id,
+                    "LLM",
+                    root_start,
+                    attributes=None if model is None else {"llm": {"model_name": model}},
+                )
+            )
             span_counter += 1
             cost_rows.append(
                 {
@@ -177,7 +190,12 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
 
 
 def _span_row(
-    span_id: str, parent_id: Optional[str], trace_rowid: int, kind: str, start: datetime
+    span_id: str,
+    parent_id: Optional[str],
+    trace_rowid: int,
+    kind: str,
+    start: datetime,
+    attributes: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     return {
         "trace_rowid": trace_rowid,
@@ -187,7 +205,7 @@ def _span_row(
         "span_kind": kind,
         "start_time": start,
         "end_time": start + timedelta(seconds=1),
-        "attributes": {},
+        "attributes": attributes or {},
         "events": [],
         "status_code": "OK",
         "status_message": "",
@@ -318,6 +336,7 @@ def run_tier(engine: Engine, dialect: str, n_sessions: int, runs: int, rng: rand
         "B combined": lambda: view(option_b, _COMBINED),
         "quantifier EXISTS (any TOOL span)": lambda: view(option_a, _QUANTIFIER),
         "filtered reduction (>=3 TOOL spans)": lambda: view(option_a, _REDUCTION),
+        "attribute wire-key (gpt in llm.model_name)": lambda: view(option_a, _ATTRIBUTE),
         "unfiltered page": lambda: (
             select(models.ProjectSession.id)
             .where(models.ProjectSession.project_id == project_id)
@@ -375,9 +394,14 @@ def run_tier(engine: Engine, dialect: str, n_sessions: int, runs: int, rng: rand
 
 def build_engine(dialect: str, postgres_url: Optional[str]) -> tuple[Engine, Optional[str]]:
     if dialect == "sqlite":
+        # The production driver: sqlean's `text` extension supplies the `text_contains` UDF the
+        # containment predicates compile to on SQLite.
+        import sqlean  # type: ignore[import-untyped]
+
+        sqlean.extensions.enable("text")
         tmp = NamedTemporaryFile(suffix=".db", delete=False)
         tmp.close()
-        return create_engine(f"sqlite:///{tmp.name}"), tmp.name
+        return create_engine(f"sqlite:///{tmp.name}", module=sqlean), tmp.name
     if not postgres_url:
         raise SystemExit("--postgres-url is required for --dialect postgresql")
     return create_engine(postgres_url), None
