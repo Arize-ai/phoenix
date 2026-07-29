@@ -555,6 +555,7 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
         assert await coordinator.expire(
             work_unit_id=unit.work_unit_id,
             claimed_by="consumer",
+            error=STALE_FINGERPRINT_ERROR,
         )
 
     async with db() as session:

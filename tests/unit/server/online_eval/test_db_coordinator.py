@@ -254,12 +254,20 @@ async def test_expire_is_terminal(db: DbSessionFactory) -> None:
     coordinator = DbEvalWorkCoordinator(db)
 
     await coordinator.claim(claimed_by="consumer-1", limit=1)
-    assert await coordinator.expire(work_unit_id=unit_id, claimed_by="consumer-1")
+    assert await coordinator.expire(
+        work_unit_id=unit_id,
+        claimed_by="consumer-1",
+        error=STALE_FINGERPRINT_ERROR,
+    )
     row = await _get_unit(db, unit_id)
     assert row.status == "EXPIRED"
     assert row.error == STALE_FINGERPRINT_ERROR
     assert await coordinator.claim(claimed_by="consumer-2", limit=1) == []
-    assert not await coordinator.expire(work_unit_id=unit_id, claimed_by="consumer-1")
+    assert not await coordinator.expire(
+        work_unit_id=unit_id,
+        claimed_by="consumer-1",
+        error=STALE_FINGERPRINT_ERROR,
+    )
 
 
 async def test_transitions_return_false_after_lapsed_lease_is_reclaimed(
@@ -284,7 +292,11 @@ async def test_transitions_return_false_after_lapsed_lease_is_reclaimed(
     assert not await coordinator.heartbeat(work_unit_id=unit_id, claimed_by="consumer-1")
     assert not await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer-1")
     assert not await coordinator.fail(work_unit_id=unit_id, claimed_by="consumer-1", error="late")
-    assert not await coordinator.expire(work_unit_id=unit_id, claimed_by="consumer-1")
+    assert not await coordinator.expire(
+        work_unit_id=unit_id,
+        claimed_by="consumer-1",
+        error=STALE_FINGERPRINT_ERROR,
+    )
 
     row = await _get_unit(db, unit_id)
     assert row.status == "RUNNING"

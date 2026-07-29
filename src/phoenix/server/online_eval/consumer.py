@@ -28,7 +28,11 @@ from phoenix.server.online_eval.coordinator import (
     EvalWorkCoordinator,
 )
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
-from phoenix.server.online_eval.executor import HydratedWorkUnit, OnlineEvalExecutor
+from phoenix.server.online_eval.executor import (
+    HydratedWorkUnit,
+    HydrationFailure,
+    OnlineEvalExecutor,
+)
 from phoenix.server.prometheus import (
     ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
     ONLINE_EVAL_EXPIRED_WORK_UNITS,
@@ -232,10 +236,14 @@ class OnlineEvalConsumer(DaemonTask):
     async def _process_unit(self, unit: ClaimedWorkUnit) -> None:
         try:
             hydrated = await self._executor.hydrate(unit)
-            if hydrated is None:
+            if isinstance(hydrated, HydrationFailure):
+                error = hydrated.reason.value
+                if hydrated.detail:
+                    error = f"{error}: {hydrated.detail}"
                 expired = await self._coordinator.expire(
                     work_unit_id=unit.work_unit_id,
                     claimed_by=self._consumer_id,
+                    error=error,
                 )
                 if not expired:
                     logger.warning(

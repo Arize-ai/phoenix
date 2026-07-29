@@ -6,7 +6,8 @@ Work-unit lifecycle transitions (complete/fail/expire) stay with the caller.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
+from enum import Enum
 from typing import Any, Callable, Literal, Optional, Sequence
 
 from sqlalchemy import func, select
@@ -16,6 +17,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+    get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_sandbox_payload_bytes,
     get_env_online_eval_max_transcript_bytes,
 )
@@ -51,6 +53,8 @@ logger = logging.getLogger(__name__)
 
 _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 _MAX_SESSION_EVAL_TURNS = 1_000
+_TRANSCRIPT_POLICY_METADATA_KEY = "phoenix.online_eval.transcript_policy"
+_TRANSCRIPT_POLICY_VERSION = "1"
 
 AnnotatorKind = Literal["LLM", "CODE"]
 EvaluatorKind = Literal["LLM", "CODE", "BUILTIN"]
@@ -58,6 +62,31 @@ EvaluatorKind = Literal["LLM", "CODE", "BUILTIN"]
 
 class EvalExecutionError(Exception):
     """The evaluator ran but produced no writable result."""
+
+
+class TranscriptTooLargeError(Exception):
+    """No complete session turn fits within the transcript limit."""
+
+
+class HydrationFailureReason(str, Enum):
+    CRITERIA_MISSING = "CRITERIA_MISSING"
+    CRITERIA_DISABLED = "CRITERIA_DISABLED"
+    CRITERIA_NOT_SCHEDULABLE = "CRITERIA_NOT_SCHEDULABLE"
+    EVALUATOR_MISSING = "EVALUATOR_MISSING"
+    EVALUATOR_VERSION_MISSING = "EVALUATOR_VERSION_MISSING"
+    CONFIG_FINGERPRINT_MISMATCH = "CONFIG_FINGERPRINT_MISMATCH"
+    SPAN_MISSING = "SPAN_MISSING"
+    SESSION_MISSING = "SESSION_MISSING"
+    SESSION_PROJECT_MISMATCH = "SESSION_PROJECT_MISMATCH"
+    UNSUPPORTED_TARGET = "UNSUPPORTED_TARGET"
+    NO_ROOT_TURNS = "NO_ROOT_TURNS"
+    TRANSCRIPT_TOO_LARGE = "TRANSCRIPT_TOO_LARGE"
+
+
+@dataclass(frozen=True)
+class HydrationFailure:
+    reason: HydrationFailureReason
+    detail: str = ""
 
 
 @dataclass(frozen=True)
@@ -73,6 +102,10 @@ class HydratedWorkUnit:
     input_mapping: InputMapping
     output_configs: Sequence[OutputConfigType]
     context: dict[str, Any]
+    annotation_metadata: dict[str, Any] = field(default_factory=dict)
+
+
+HydrationOutcome = HydratedWorkUnit | HydrationFailure
 
 
 def span_eval_context(span: models.Span) -> dict[str, Any]:
@@ -94,9 +127,13 @@ def session_eval_context(
     *,
     turns: Sequence[dict[str, Any]],
     max_transcript_bytes: int,
+    total_eligible_root_count: Optional[int] = None,
 ) -> dict[str, Any]:
-    """Build evaluator context with a rendered transcript as ``input``, the final turn's
-    output as ``output``, and loaded turns under ``metadata``."""
+    """Build the transcript, turn metadata, and applied transcript policy."""
+    total_root_count = (
+        len(turns) if total_eligible_root_count is None else total_eligible_root_count
+    )
+    turn_cap_omitted_count = max(0, total_root_count - len(turns))
     turn_blocks = [
         "User: "
         f"{'' if turn['input'] is None else turn['input']}\n"
@@ -106,6 +143,7 @@ def session_eval_context(
     ]
     transcript = "\n\n".join(turn_blocks)
     transcript_bytes = len(transcript.encode("utf-8"))
+    byte_cap_omitted_count = 0
     if transcript_bytes > max_transcript_bytes:
         block_sizes = [len(block.encode("utf-8")) for block in turn_blocks]
         suffix_sizes = [0] * (len(turn_blocks) + 1)
@@ -120,7 +158,7 @@ def session_eval_context(
                 candidate_size += 2 + retained_size
             if candidate_size <= max_transcript_bytes:
                 if omitted_turns == len(turn_blocks):
-                    raise EvalExecutionError(
+                    raise TranscriptTooLargeError(
                         f"Session transcript is {transcript_bytes} bytes, exceeding the "
                         f"{max_transcript_bytes}-byte cap, and no complete turns fit after "
                         f"truncation. Raise {ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES} "
@@ -128,13 +166,38 @@ def session_eval_context(
                     )
                 retained = "\n\n".join(turn_blocks[omitted_turns:])
                 transcript = f"{marker}\n\n{retained}"
+                byte_cap_omitted_count = omitted_turns
                 break
 
-    output = turns[-1]["output"] if turns else None
+    retained_turns = list(turns[byte_cap_omitted_count:])
+    first_loaded = turns[0].get("event_time") if turns else None
+    last_loaded = turns[-1].get("event_time") if turns else None
+    first_retained = retained_turns[0].get("event_time") if retained_turns else None
+    last_retained = retained_turns[-1].get("event_time") if retained_turns else None
+    output = turns[-1]["output"] if turns and turns[-1]["output"] is not None else ""
+    policy = {
+        "version": _TRANSCRIPT_POLICY_VERSION,
+        "ordering": "root_span_start_time_then_span_id",
+        "max_turns": _MAX_SESSION_EVAL_TURNS,
+        "max_bytes": max_transcript_bytes,
+        "total_eligible_root_count": total_root_count,
+        "loaded_turn_count": len(turns),
+        "retained_turn_count": len(retained_turns),
+        "turn_cap_omitted_count": turn_cap_omitted_count,
+        "byte_cap_omitted_count": byte_cap_omitted_count,
+        "first_loaded_event_time": first_loaded,
+        "last_loaded_event_time": last_loaded,
+        "first_retained_event_time": first_retained,
+        "last_retained_event_time": last_retained,
+        "structured_turns_mapped": False,
+    }
     return {
         "input": transcript,
         "output": output,
-        "metadata": {"turns": list(turns)},
+        "metadata": {
+            "turns": list(turns),
+            _TRANSCRIPT_POLICY_METADATA_KEY: policy,
+        },
     }
 
 
@@ -154,21 +217,14 @@ class OnlineEvalExecutor:
         self._sandbox_session_manager = sandbox_session_manager
         self._event_queue = event_queue
 
-    async def hydrate(self, unit: ClaimedWorkUnit) -> Optional[HydratedWorkUnit]:
-        """Load and snapshot everything the eval needs, returning None when the
-        unit is stale: the criteria row is gone or disabled, the referenced span
-        is gone, or the fingerprint recomputed from current criteria/evaluator/
-        version state no longer matches the one materialized on the unit. Stale
-        units must be expired, never executed. The session closes before any
-        LLM call happens; hydration failures that are not staleness raise and
-        take the retryable failure path. Session hydration loads at most the
-        ``_MAX_SESSION_EVAL_TURNS`` most recent root turns and restores chronological
-        order before rendering; transcript truncation therefore accounts only for
-        those loaded turns."""
+    async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
+        """Load one immutable execution snapshot or return a stable failure reason."""
         async with self._db() as session:
             criteria = await session.get(models.ProjectEvaluatorCriteria, unit.criteria_id)
-            if criteria is None or not criteria.enabled:
-                return None
+            if criteria is None:
+                return HydrationFailure(HydrationFailureReason.CRITERIA_MISSING)
+            if not criteria.enabled:
+                return HydrationFailure(HydrationFailureReason.CRITERIA_DISABLED)
             if unit.evaluation_target == "SESSION":
                 schedulable = await session.scalar(
                     select(models.ProjectEvaluatorCriteria.id).where(
@@ -177,9 +233,9 @@ class OnlineEvalExecutor:
                     )
                 )
                 if schedulable is None:
-                    return None
+                    return HydrationFailure(HydrationFailureReason.CRITERIA_NOT_SCHEDULABLE)
             elif unit.evaluation_target != "SPAN":
-                return None
+                return HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
             polymorphic = with_polymorphic(
                 models.Evaluator,
                 [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
@@ -188,82 +244,95 @@ class OnlineEvalExecutor:
                 select(polymorphic).where(polymorphic.id == criteria.evaluator_id)
             )
             if evaluator_orm is None:
-                return None
+                return HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
             resolved = await resolve_criteria(session, criteria, evaluator_orm)
-            if resolved is None or config_fingerprint(resolved) != unit.config_fingerprint:
-                return None
+            if resolved is None:
+                return HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
+            if config_fingerprint(resolved) != unit.config_fingerprint:
+                return HydrationFailure(HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH)
             max_payload_bytes: int | None = None
+            annotation_metadata: dict[str, Any] = {}
             if unit.evaluation_target == "SPAN":
                 span = await session.get(models.Span, unit.target_rowid)
                 if span is None:
-                    return None
+                    return HydrationFailure(HydrationFailureReason.SPAN_MISSING)
                 context = span_eval_context(span)
             else:
                 project_session = await session.get(models.ProjectSession, unit.target_rowid)
-                if project_session is None or project_session.project_id != criteria.project_id:
-                    return None
-                root_span_ids = (
-                    select(
-                        models.Span.trace_rowid.label("trace_rowid"),
-                        func.min(models.Span.id).label("span_id"),
-                    )
-                    .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                    .where(
-                        models.Trace.project_session_rowid == project_session.id,
-                        models.Span.parent_id.is_(None),
-                    )
-                    .group_by(models.Span.trace_rowid)
-                    .subquery()
+                if project_session is None:
+                    return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
+                if project_session.project_id != criteria.project_id:
+                    return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
+                root_filters = (
+                    models.Trace.project_session_rowid == project_session.id,
+                    models.Trace.project_rowid == criteria.project_id,
+                    models.Span.parent_id.is_(None),
                 )
-                most_recent_root_spans = (
-                    select(
-                        root_span_ids.c.span_id,
-                        models.Trace.start_time.label("trace_start_time"),
-                        models.Trace.id.label("trace_id"),
+                total_eligible_root_count = (
+                    await session.scalar(
+                        select(func.count())
+                        .select_from(models.Span)
+                        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                        .where(*root_filters)
                     )
-                    .join(models.Trace, root_span_ids.c.trace_rowid == models.Trace.id)
-                    .order_by(
-                        models.Trace.start_time.desc(),
-                        models.Trace.id.desc(),
-                        root_span_ids.c.span_id.desc(),
-                    )
-                    .limit(_MAX_SESSION_EVAL_TURNS)
-                    .subquery()
+                    or 0
                 )
-                root_spans = (
-                    await session.scalars(
-                        select(models.Span)
-                        .join(
-                            most_recent_root_spans,
-                            models.Span.id == most_recent_root_spans.c.span_id,
+                if total_eligible_root_count == 0:
+                    return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+                root_rows = (
+                    await session.execute(
+                        select(
+                            models.Span.input_value,
+                            models.Span.output_value,
+                            models.Span.metadata_,
+                            models.Span.start_time.label("event_time"),
+                            models.Span.span_id,
                         )
+                        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                        .where(*root_filters)
                         .order_by(
-                            most_recent_root_spans.c.trace_start_time.asc(),
-                            most_recent_root_spans.c.trace_id.asc(),
-                            most_recent_root_spans.c.span_id.asc(),
+                            models.Span.start_time.desc(),
+                            models.Span.span_id.desc(),
                         )
+                        .limit(_MAX_SESSION_EVAL_TURNS)
                     )
                 ).all()
                 turns = [
                     {
-                        "input": span.input_value,
-                        "output": span.output_value,
-                        "metadata": span.metadata_,
+                        "input": row.input_value,
+                        "output": row.output_value,
+                        "metadata": row.metadata_,
+                        "event_time": row.event_time.isoformat(),
+                        "span_id": row.span_id,
                     }
-                    for span in root_spans
+                    for row in reversed(root_rows)
                 ]
-                context = session_eval_context(
-                    turns=turns,
-                    max_transcript_bytes=get_env_online_eval_max_transcript_bytes(),
-                )
+                try:
+                    context = session_eval_context(
+                        turns=turns,
+                        max_transcript_bytes=get_env_online_eval_max_transcript_bytes(),
+                        total_eligible_root_count=total_eligible_root_count,
+                    )
+                except TranscriptTooLargeError as error:
+                    return HydrationFailure(
+                        HydrationFailureReason.TRANSCRIPT_TOO_LARGE,
+                        str(error),
+                    )
                 max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
             input_mapping = (
                 InputMapping.model_validate(resolved.input_mapping)
                 if resolved.input_mapping is not None
                 else _EMPTY_INPUT_MAPPING
             )
+            if unit.evaluation_target == "SESSION":
+                policy = context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
+                policy["structured_turns_mapped"] = any(
+                    path_expression.removeprefix("$.").startswith("metadata.turns")
+                    for path_expression in (input_mapping.path_mapping or {}).values()
+                )
+            hydrated: Optional[HydratedWorkUnit]
             if isinstance(evaluator_orm, models.LLMEvaluator):
-                return await self._hydrate_llm(
+                hydrated = await self._hydrate_llm(
                     session,
                     evaluator_orm,
                     resolved.name,
@@ -271,8 +340,8 @@ class OnlineEvalExecutor:
                     input_mapping,
                     context,
                 )
-            if isinstance(evaluator_orm, models.CodeEvaluator):
-                return await self._hydrate_code(
+            elif isinstance(evaluator_orm, models.CodeEvaluator):
+                hydrated = await self._hydrate_code(
                     session,
                     evaluator_orm,
                     resolved.name,
@@ -281,9 +350,25 @@ class OnlineEvalExecutor:
                     context,
                     max_payload_bytes=max_payload_bytes,
                 )
-            if isinstance(evaluator_orm, models.BuiltinEvaluator):
-                return self._hydrate_builtin(evaluator_orm, resolved.name, input_mapping, context)
-            return None
+            elif isinstance(evaluator_orm, models.BuiltinEvaluator):
+                hydrated = self._hydrate_builtin(
+                    evaluator_orm,
+                    resolved.name,
+                    input_mapping,
+                    context,
+                )
+            else:
+                return HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
+            if hydrated is None:
+                return HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
+            if unit.evaluation_target == "SESSION":
+                evaluator_input_schema = getattr(hydrated.evaluator, "input_schema", {})
+                policy["structured_turns_mapped"] = bool(
+                    policy["structured_turns_mapped"]
+                    or "metadata" in evaluator_input_schema.get("properties", {})
+                )
+                annotation_metadata = {_TRANSCRIPT_POLICY_METADATA_KEY: dict(policy)}
+            return replace(hydrated, annotation_metadata=annotation_metadata)
 
     async def _hydrate_llm(
         self,
@@ -329,6 +414,7 @@ class OnlineEvalExecutor:
             llm_client=llm_client,
             output_configs=evaluator_orm.output_configs,
             prompt_name=prompt.name.root,
+            max_message_bytes=get_env_online_eval_max_llm_message_bytes(),
         )
         return HydratedWorkUnit(
             annotation_name=annotation_name,
@@ -482,7 +568,10 @@ class OnlineEvalExecutor:
                 "label": result["label"],
                 "score": result["score"],
                 "explanation": result["explanation"],
-                "metadata_": result["metadata"],
+                "metadata_": {
+                    **result["metadata"],
+                    **hydrated.annotation_metadata,
+                },
                 "annotator_kind": hydrated.annotator_kind,
                 "identifier": unit.identifier,
                 "source": "API",

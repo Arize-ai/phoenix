@@ -76,6 +76,10 @@ from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, Unsupp
 logger = logging.getLogger(__name__)
 
 
+class RenderedMessageTooLargeError(Exception):
+    """Rendered LLM messages exceed the configured online-eval limit."""
+
+
 def _mask_attrs(
     attrs: dict[str, Any],
     masker: SandboxSecretMasker,
@@ -207,6 +211,7 @@ class LLMEvaluator(BaseEvaluator):
         llm_client: PlaygroundStreamingClient[Any],
         output_configs: Sequence[CategoricalOutputConfig],
         prompt_name: str,
+        max_message_bytes: Optional[int] = None,
     ):
         self._name = name
         self._description = description
@@ -218,6 +223,7 @@ class LLMEvaluator(BaseEvaluator):
         self._llm_client = llm_client
         self._output_configs = output_configs
         self._prompt_name = prompt_name
+        self._max_message_bytes = max_message_bytes
 
     @property
     def name(self) -> str:
@@ -368,6 +374,18 @@ class LLMEvaluator(BaseEvaluator):
                                     text_parts.append(formatted_text)
                             formatted_content = "".join(text_parts)
                         messages.append(create_playground_message(role, formatted_content))
+
+                    rendered_message_bytes = sum(
+                        len(message["content"].encode("utf-8")) for message in messages
+                    )
+                    if (
+                        self._max_message_bytes is not None
+                        and rendered_message_bytes > self._max_message_bytes
+                    ):
+                        raise RenderedMessageTooLargeError(
+                            f"Rendered online-eval messages are {rendered_message_bytes} bytes, "
+                            f"exceeding the {self._max_message_bytes}-byte limit"
+                        )
 
                     formatted_messages = [
                         oi.Message(role=msg["role"].value.lower(), content=msg["content"])
