@@ -351,6 +351,43 @@ describe("ChatView", () => {
     expect(container.textContent).toContain("Thinking...");
   });
 
+  it("keeps the thinking indicator until the streaming turn has visible content", () => {
+    const userMessage = {
+      id: "user-message",
+      role: "user",
+      parts: [{ type: "text", text: "What is a trace?" }],
+    } as AgentUIMessage;
+    // The SDK inserts the assistant message before any parts arrive…
+    const emptyAssistantMessage = {
+      id: "assistant-message",
+      role: "assistant",
+      parts: [],
+    } as unknown as AgentUIMessage;
+    renderChatView(root, {
+      sessionId: "session-1",
+      status: "streaming",
+      chatMessages: [userMessage, emptyAssistantMessage],
+    });
+    expect(container.textContent).toContain("Thinking...");
+
+    // …then leads with invisible parts (step-start, reasoning) before text.
+    const invisiblePartsAssistantMessage = {
+      id: "assistant-message",
+      role: "assistant",
+      parts: [
+        { type: "step-start" },
+        { type: "reasoning", text: "Considering the question" },
+        { type: "text", text: "  " },
+      ],
+    } as AgentUIMessage;
+    renderChatView(root, {
+      sessionId: "session-1",
+      status: "streaming",
+      chatMessages: [userMessage, invisiblePartsAssistantMessage],
+    });
+    expect(container.textContent).toContain("Thinking...");
+  });
+
   it("hides the thinking indicator once assistant text is streaming", () => {
     const userMessage = {
       id: "user-message",

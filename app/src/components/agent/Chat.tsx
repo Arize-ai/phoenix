@@ -70,6 +70,7 @@ import {
   type MessageRewindMode,
   type MessageRewindRole,
 } from "./MessageRewindDialog";
+import { isVisibleMessagePart } from "./partitionMessageParts";
 import { PxiGlyph } from "./PxiGlyph";
 import { useScrollAnchor } from "./scrollAnchor";
 import { TemporaryChatToggle } from "./TemporaryChatToggle";
@@ -81,9 +82,13 @@ export type { EmptyStateQuickAction } from "./ChatEmptyState";
 const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
 
 /**
- * Keeps the trailing Thinking indicator visible for the initial request wait
- * (including the gap between the stream opening and the assistant message
- * arriving) and while the latest assistant turn ends in a tool call.
+ * Keeps the trailing Thinking indicator visible whenever a request is in
+ * flight and the latest assistant turn is not already streaming rendered
+ * content — the initial request wait, the gap between the stream opening and
+ * the first visible part (the stream leads with invisible parts such as
+ * `step-start` and reasoning), and while the turn ends in a tool call.
+ * Visibility is decided by the transcript renderer's own predicate so the
+ * two cannot drift.
  */
 function shouldShowThinkingIndicator({
   status,
@@ -105,10 +110,8 @@ function shouldShowThinkingIndicator({
     return true;
   }
 
-  const latestRelevantPart = latestMessage.parts.findLast(
-    (part) => part.type !== "text" || part.text.trim() !== ""
-  );
-  return latestRelevantPart != null && isToolUIPart(latestRelevantPart);
+  const latestVisiblePart = latestMessage.parts.findLast(isVisibleMessagePart);
+  return latestVisiblePart == null || isToolUIPart(latestVisiblePart);
 }
 
 function createPendingElicitationDraft(
