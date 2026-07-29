@@ -351,30 +351,6 @@ describe("ChatView", () => {
     expect(container.textContent).toContain("Thinking...");
   });
 
-  it("keeps the thinking indicator while the streaming turn has no visible content", () => {
-    const userMessage = {
-      id: "user-message",
-      role: "user",
-      parts: [{ type: "text", text: "What is a trace?" }],
-    } as AgentUIMessage;
-    const assistantMessage = {
-      id: "assistant-message",
-      role: "assistant",
-      parts: [
-        { type: "step-start" },
-        { type: "reasoning", text: "Considering the question" },
-        { type: "text", text: "  " },
-      ],
-    } as AgentUIMessage;
-    renderChatView(root, {
-      sessionId: "session-1",
-      status: "streaming",
-      chatMessages: [userMessage, assistantMessage],
-    });
-
-    expect(container.textContent).toContain("Thinking...");
-  });
-
   it("hides the thinking indicator once assistant text is streaming", () => {
     const userMessage = {
       id: "user-message",

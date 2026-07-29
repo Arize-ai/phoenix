@@ -81,10 +81,9 @@ export type { EmptyStateQuickAction } from "./ChatEmptyState";
 const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
 
 /**
- * Keeps the trailing Thinking indicator visible whenever a request is in
- * flight and the latest assistant turn is not already streaming visible
- * content — the initial request wait, the gap between the stream opening and
- * the first rendered part, and while the turn ends in a tool call.
+ * Keeps the trailing Thinking indicator visible for the initial request wait
+ * (including the gap between the stream opening and the assistant message
+ * arriving) and while the latest assistant turn ends in a tool call.
  */
 function shouldShowThinkingIndicator({
   status,
@@ -106,14 +105,10 @@ function shouldShowThinkingIndicator({
     return true;
   }
 
-  // Only parts the transcript renders count as visible content; invisible
-  // parts (reasoning, step-start markers, whitespace-only text) leave the
-  // indicator up.
-  const latestVisiblePart = latestMessage.parts.findLast(
-    (part) =>
-      isToolUIPart(part) || (part.type === "text" && part.text.trim() !== "")
+  const latestRelevantPart = latestMessage.parts.findLast(
+    (part) => part.type !== "text" || part.text.trim() !== ""
   );
-  return latestVisiblePart == null || isToolUIPart(latestVisiblePart);
+  return latestRelevantPart != null && isToolUIPart(latestRelevantPart);
 }
 
 function createPendingElicitationDraft(
