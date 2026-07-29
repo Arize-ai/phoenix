@@ -70,8 +70,8 @@ describe("SpanHeaderSkeleton", () => {
     ).not.toBeNull();
     expect(container.querySelectorAll(".skeleton")).toHaveLength(0);
     expect(
-      container.querySelector('[aria-label="Prompt Playground"]')?.dataset
-        .disabled
+      container.querySelector<HTMLElement>('[aria-label="Prompt Playground"]')
+        ?.dataset.disabled
     ).toBe("true");
     expect(
       container.querySelector<HTMLButtonElement>(

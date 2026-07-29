@@ -8,6 +8,7 @@ import { DetailsPanel } from "../DetailsPanel";
 import { resetDetailsPanelSizingStoreForTesting } from "../detailsPanelSizing/store";
 import { SessionDetailsNavigation } from "../SessionDetailsNavigation";
 import { SessionDetailsPaginator } from "../SessionDetailsPaginator";
+import { SessionDetailsSkeleton } from "../SessionDetailsSkeleton";
 import { SessionPaginationContext } from "../SessionPaginationContext";
 import { SessionViewControl, SessionViewTabs } from "../SessionViewTabs";
 
@@ -418,5 +419,50 @@ describe("SessionViewTabs", () => {
 
     renderPaginator(false);
     expect(getComputedStyle(buttons!).flexDirection).toBe("row");
+  });
+
+  it("keeps the session shell and target preview visible while details load", () => {
+    act(() => {
+      root.render(
+        <ThemeContext.Provider
+          value={{
+            theme: "light",
+            systemTheme: "light",
+            themeMode: "light",
+            setThemeMode: vi.fn(),
+          }}
+        >
+          <SessionDetailsSkeleton
+            isTreePanelCollapsed={false}
+            navigationHeader={<div data-testid="stable-header">Header</div>}
+            onPreferredTreeWidthChange={() => {}}
+            onSessionViewChange={() => {}}
+            onTreePanelCollapsedChange={() => {}}
+            preferredTreeWidth={320}
+            preview={{
+              sessionId: "session-node-id",
+              sessionDisplayId: "customer-session-id",
+              traceCount: 4,
+              tokenCountTotal: 120,
+              totalCost: 0.25,
+            }}
+            sessionView="turns"
+          />
+        </ThemeContext.Provider>
+      );
+    });
+
+    expect(
+      container.querySelector('[data-testid="stable-header"]')
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Session view"]')
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="session-navigation-skeleton"]')
+    ).not.toBeNull();
+    expect(container.textContent).toContain("Session");
+    expect(container.textContent).toContain("customer-session-id");
+    expect(container.textContent).toContain("4");
   });
 });

@@ -275,6 +275,10 @@ export function SessionsTable(props: SessionsTableProps) {
     setSessionSequence(
       data.sessions.edges.map(({ session }) => ({
         sessionId: session.id,
+        sessionDisplayId: session.sessionId,
+        traceCount: session.numTraces,
+        tokenCountTotal: session.tokenUsage.total,
+        totalCost: session.costSummary?.total?.cost ?? null,
       }))
     );
     return () => {

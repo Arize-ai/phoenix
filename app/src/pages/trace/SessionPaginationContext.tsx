@@ -7,7 +7,16 @@ import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 /**
  * A sequence of session node IDs used to navigate between sessions.
  */
-type SessionSequence = { sessionId: string }[];
+export type SessionPreview = {
+  /** Relay node ID used by the session details route. */
+  sessionId: string;
+  sessionDisplayId?: string | null;
+  traceCount?: number;
+  tokenCountTotal?: number;
+  totalCost?: number | null;
+};
+
+type SessionSequence = SessionPreview[];
 
 type SessionPaginationContextType = {
   sessionSequence: SessionSequence;
@@ -38,6 +47,11 @@ export const getNeighbors = (
     nextSessionId: sessionSequence[currentIndex + 1]?.sessionId,
   };
 };
+
+export const getSessionPreview = (
+  sessionSequence: SessionSequence,
+  currentId?: string
+) => sessionSequence.find(({ sessionId }) => sessionId === currentId);
 
 /**
  * Build the next and previous session urls by replacing the last segment of
@@ -77,7 +91,7 @@ export const SessionPaginationProvider = ({ children }: PropsWithChildren) => {
         currentId
       );
       if (nextSessionPath) {
-        navigate(nextSessionPath);
+        void navigate(nextSessionPath);
       }
     },
     [navigate, location, sessionSequence]
@@ -91,7 +105,7 @@ export const SessionPaginationProvider = ({ children }: PropsWithChildren) => {
         currentId
       );
       if (previousSessionPath) {
-        navigate(previousSessionPath);
+        void navigate(previousSessionPath);
       }
     },
     [navigate, location, sessionSequence]

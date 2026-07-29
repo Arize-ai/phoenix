@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3d0d9480cf863c0df3b51fd5c3eed0fe>>
+ * @generated SignedSource<<d8fb7510fe31247feaf8a7198d837f4e>>
  * @lightSyntaxTransform
  */
 
@@ -20,6 +20,7 @@ export type SessionDetailsQuery$data = {
       };
     };
     readonly numTraces: number;
+    readonly sessionId: string;
     readonly tokenUsage: {
       readonly total: number;
     };
@@ -64,6 +65,13 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "numTraces",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "sessionId",
       "storageKey": null
     },
     {
@@ -170,16 +178,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fc4297b32c99a5afef445e494436dd51",
+    "cacheID": "3a78da71c4f2a08e951984a9202e5c22",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      sessionId\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4c0006959ac78d0bc394846658fd98a0";
+(node as any).hash = "29b17edf26b35fa1b62ef86423e8988c";
 
 export default node;

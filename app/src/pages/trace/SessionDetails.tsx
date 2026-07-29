@@ -13,27 +13,20 @@ import {
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { useSearchParams } from "react-router";
 
-import { CopyableIDBadge, Flex, Loading, View } from "@phoenix/components";
 import { SessionDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { ExpandCollapseAllButton } from "@phoenix/components/trace/ExpandCollapseAllButton";
-import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
-import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
-import {
-  SpanHeaderIdentityRow,
-  SpanHeaderMetaItem,
-  SpanHeaderMetaRow,
-  SpanHeaderName,
-} from "../SpanHeader";
 import type { SessionDetailsQuery } from "./__generated__/SessionDetailsQuery.graphql";
 import type { SessionDetailsTraceListQuery } from "./__generated__/SessionDetailsTraceListQuery.graphql";
 import type { SessionDetailsTracesViewQuery } from "./__generated__/SessionDetailsTracesViewQuery.graphql";
 import { DetailsPanelNavigationControlsRow } from "./DetailsPanel";
+import { SessionDetailsHeader } from "./SessionDetailsHeader";
 import {
   createSessionDetailsSearchParamsStore,
   type SessionDetailsSearchParamsStore,
 } from "./sessionDetailsSearchParamsStore";
+import { SessionDetailsSkeleton } from "./SessionDetailsSkeleton";
 import {
   SessionDetailsTraceList,
   sessionDetailsTraceListQuery,
@@ -44,10 +37,10 @@ import {
 } from "./SessionDetailsTracesView";
 import type { SessionView } from "./SessionViewTabs";
 import { isSessionView, SessionViewControl } from "./SessionViewTabs";
+import { DetailPanelAnnotationBarSkeleton } from "./TraceDetailsSkeleton";
 
 export type SessionDetailsProps = {
   sessionId: string;
-  sessionDisplayId: string;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
   isTreePanelCollapsed: boolean;
@@ -84,48 +77,15 @@ function SessionDetailsMainContent({
         overflow: hidden;
       `}
     >
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-150"
-        paddingEnd="size-200"
-        flex="none"
-      >
-        <Flex direction="column" gap="size-50" width="100%">
-          <SpanHeaderIdentityRow>
-            <SpanHeaderName name="Session" />
-          </SpanHeaderIdentityRow>
-          <SpanHeaderMetaRow>
-            <SpanHeaderMetaItem>
-              <CopyableIDBadge
-                id={sessionDisplayId}
-                tooltipText="Copy Session ID"
-              />
-            </SpanHeaderMetaItem>
-            {tokenCountTotal ? (
-              <SpanHeaderMetaItem>
-                <SessionTokenCount
-                  tokenCountTotal={tokenCountTotal}
-                  nodeId={sessionId}
-                  size="S"
-                  color="text-500"
-                />
-              </SpanHeaderMetaItem>
-            ) : null}
-            {totalCost ? (
-              <SpanHeaderMetaItem>
-                <SessionTokenCosts
-                  totalCost={totalCost}
-                  nodeId={sessionId}
-                  size="S"
-                  color="text-500"
-                />
-              </SpanHeaderMetaItem>
-            ) : null}
-          </SpanHeaderMetaRow>
-        </Flex>
-      </View>
-      <Suspense fallback={null}>
+      <SessionDetailsHeader
+        preview={{
+          sessionId,
+          sessionDisplayId,
+          tokenCountTotal,
+          totalCost,
+        }}
+      />
+      <Suspense fallback={<DetailPanelAnnotationBarSkeleton />}>
         <SessionDetailPanelAnnotationBar sessionNodeId={sessionId} />
       </Suspense>
       <div
@@ -158,7 +118,6 @@ function SessionDetailsSearchParamsBridge({
  */
 export function SessionDetails({
   sessionId,
-  sessionDisplayId,
   preferredTreeWidth,
   onPreferredTreeWidthChange,
   isTreePanelCollapsed,
@@ -188,6 +147,7 @@ export function SessionDetails({
           __typename
           ... on ProjectSession {
             numTraces
+            sessionId
             tokenUsage {
               total
             }
@@ -204,7 +164,7 @@ export function SessionDetails({
       id: sessionId,
     },
     {
-      fetchPolicy: "store-and-network",
+      fetchPolicy: "store-or-network",
     }
   );
 
@@ -212,6 +172,7 @@ export function SessionDetails({
     throw new Error("Session not found");
   }
   const traceCount = data.session.numTraces ?? 0;
+  const sessionDisplayId = data.session.sessionId;
   const tokenCountTotal = data.session.tokenUsage.total;
   const totalCost = data.session.costSummary.total.cost;
   const [traceListQueryRef, loadTraceListQuery] =
@@ -304,6 +265,24 @@ export function SessionDetails({
       traceCount={traceCount}
     />
   );
+  const loadingState = (
+    <SessionDetailsSkeleton
+      isTreePanelCollapsed={isTreePanelCollapsed}
+      navigationHeader={navigationHeader}
+      onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+      onSessionViewChange={handleSessionViewChange}
+      onTreePanelCollapsedChange={onTreePanelCollapsedChange}
+      preferredTreeWidth={preferredTreeWidth}
+      preview={{
+        sessionId,
+        sessionDisplayId,
+        traceCount,
+        tokenCountTotal,
+        totalCost,
+      }}
+      sessionView={sessionView}
+    />
+  );
 
   return (
     <main
@@ -316,35 +295,39 @@ export function SessionDetails({
       `}
     >
       <SessionDetailsSearchParamsBridge store={searchParamsStore} />
-      <Suspense fallback={<Loading />}>
-        {sessionView === "traces"
-          ? tracesViewQueryRef != null && (
-              <SessionDetailsTracesView
-                queryRef={tracesViewQueryRef}
-                preferredTreeWidth={preferredTreeWidth}
-                onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                renderNavigationHeader={renderNavigationHeader}
-                sessionViewControl={sessionViewControl}
-                isTreePanelCollapsed={isTreePanelCollapsed}
-                isNavigationPointerOpen={isNavigationPointerOpen}
-                onNavigationPointerOpenChange={setIsNavigationPointerOpen}
-                renderMainContent={renderMainContent}
-                searchParamsStore={searchParamsStore}
-              />
-            )
-          : traceListQueryRef != null && (
-              <SessionDetailsTraceList
-                queryRef={traceListQueryRef}
-                preferredTreeWidth={preferredTreeWidth}
-                onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                renderNavigationHeader={renderNavigationHeader}
-                sessionViewControl={sessionViewControl}
-                isTreePanelCollapsed={isTreePanelCollapsed}
-                isNavigationPointerOpen={isNavigationPointerOpen}
-                onNavigationPointerOpenChange={setIsNavigationPointerOpen}
-                renderMainContent={renderMainContent}
-              />
-            )}
+      <Suspense fallback={loadingState}>
+        {sessionView === "traces" ? (
+          tracesViewQueryRef != null ? (
+            <SessionDetailsTracesView
+              queryRef={tracesViewQueryRef}
+              preferredTreeWidth={preferredTreeWidth}
+              onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+              renderNavigationHeader={renderNavigationHeader}
+              sessionViewControl={sessionViewControl}
+              isTreePanelCollapsed={isTreePanelCollapsed}
+              isNavigationPointerOpen={isNavigationPointerOpen}
+              onNavigationPointerOpenChange={setIsNavigationPointerOpen}
+              renderMainContent={renderMainContent}
+              searchParamsStore={searchParamsStore}
+            />
+          ) : (
+            loadingState
+          )
+        ) : traceListQueryRef != null ? (
+          <SessionDetailsTraceList
+            queryRef={traceListQueryRef}
+            preferredTreeWidth={preferredTreeWidth}
+            onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+            renderNavigationHeader={renderNavigationHeader}
+            sessionViewControl={sessionViewControl}
+            isTreePanelCollapsed={isTreePanelCollapsed}
+            isNavigationPointerOpen={isNavigationPointerOpen}
+            onNavigationPointerOpenChange={setIsNavigationPointerOpen}
+            renderMainContent={renderMainContent}
+          />
+        ) : (
+          loadingState
+        )}
       </Suspense>
     </main>
   );

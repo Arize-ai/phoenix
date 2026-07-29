@@ -9,6 +9,7 @@ import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@phoenix/components";
+import { Skeleton } from "@phoenix/components/core/loading";
 
 export type SessionView = "turns" | "traces";
 
@@ -47,7 +48,7 @@ export function SessionViewControl({
 }: {
   sessionView: SessionView;
   onSessionViewChange: (view: SessionView) => void;
-  traceCount: number;
+  traceCount: number | null;
 }) {
   const nextSessionView: SessionView =
     sessionView === "turns" ? "traces" : "turns";
@@ -69,14 +70,26 @@ export function SessionViewControl({
             <span css={sessionViewControlItemCSS}>
               <Icon svg={<Icons.MessagesSquare />} />
               <span className="session-view-control__label">Turns</span>
-              <Counter variant="quiet">{traceCount}</Counter>
+              <Counter variant="quiet">
+                {traceCount == null ? (
+                  <Skeleton width={16} height={12} animation="wave" />
+                ) : (
+                  traceCount
+                )}
+              </Counter>
             </span>
           </SegmentedControlItem>
           <SegmentedControlItem id="traces">
             <span css={sessionViewControlItemCSS}>
               <Icon svg={<Icons.Trace />} />
               <span className="session-view-control__label">Traces</span>
-              <Counter variant="quiet">{traceCount}</Counter>
+              <Counter variant="quiet">
+                {traceCount == null ? (
+                  <Skeleton width={16} height={12} animation="wave" />
+                ) : (
+                  traceCount
+                )}
+              </Counter>
             </span>
           </SegmentedControlItem>
         </SegmentedControl>
@@ -113,7 +126,7 @@ export function SessionViewTabs({
 }: {
   sessionView: SessionView;
   onSessionViewChange: (view: SessionView) => void;
-  traceCount: number;
+  traceCount: number | null;
   children: ReactNode;
 }) {
   return (

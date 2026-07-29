@@ -122,15 +122,21 @@ export function createSessionDetailsSearchParamsStore(
       listener: (selection: SessionSpanSelection) => void
     ) {
       externalSelectionListeners.add(listener);
-      return () => externalSelectionListeners.delete(listener);
+      return () => {
+        externalSelectionListeners.delete(listener);
+      };
     },
     subscribeToSpanSelection: (listener: () => void) => {
       spanSelectionListeners.add(listener);
-      return () => spanSelectionListeners.delete(listener);
+      return () => {
+        spanSelectionListeners.delete(listener);
+      };
     },
     subscribeToSessionView: (listener: () => void) => {
       sessionViewListeners.add(listener);
-      return () => sessionViewListeners.delete(listener);
+      return () => {
+        sessionViewListeners.delete(listener);
+      };
     },
   };
 }

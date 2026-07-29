@@ -128,7 +128,6 @@ import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
 import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
 import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
 import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
-import { sessionLoader } from "./pages/trace/sessionLoader";
 
 // Skip loader revalidation when only the URL search params or hash change.
 // Why: some pages persist view state (e.g. a selected row) via setSearchParams,
@@ -382,8 +381,6 @@ export const appRouteObjects = createRoutesFromElements(
                 <Route
                   path=":sessionId"
                   element={<SessionPage />}
-                  loader={sessionLoader}
-                  shouldRevalidate={revalidateOnPathChange}
                   handle={{
                     agentRoute: {
                       label: "Session Details",

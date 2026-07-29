@@ -1,4 +1,3 @@
-import { startTransition } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import {
@@ -29,24 +28,18 @@ export const SessionDetailsPaginator = ({
   isCollapsed: boolean;
 }) => {
   const pagination = useSessionPagination();
+  const handleNext = () => pagination?.next(currentId);
+  const handlePrevious = () => pagination?.previous(currentId);
 
-  useHotkeys(NEXT_SESSION_HOTKEY, () => {
-    if (pagination) {
-      pagination.next(currentId);
-    }
-  });
+  useHotkeys(NEXT_SESSION_HOTKEY, handleNext);
 
-  useHotkeys(PREVIOUS_SESSION_HOTKEY, () => {
-    if (pagination) {
-      pagination.previous(currentId);
-    }
-  });
+  useHotkeys(PREVIOUS_SESSION_HOTKEY, handlePrevious);
 
   if (!pagination || !pagination.sessionSequence.length) {
     return null;
   }
 
-  const { previous, next, sessionSequence } = pagination;
+  const { sessionSequence } = pagination;
   const { nextSessionId, previousSessionId } = getNeighbors(
     sessionSequence,
     currentId
@@ -62,11 +55,7 @@ export const SessionDetailsPaginator = ({
         leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
         aria-label="Next session"
         isDisabled={!hasNext}
-        onPress={() => {
-          startTransition(() => {
-            next(currentId);
-          });
-        }}
+        onPress={handleNext}
       />
       <Tooltip placement={isCollapsed ? "right" : undefined} offset={4}>
         <Flex direction="row" gap="size-100" alignItems="center">
@@ -85,11 +74,7 @@ export const SessionDetailsPaginator = ({
         leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
         aria-label="Previous session"
         isDisabled={!hasPrevious}
-        onPress={() => {
-          startTransition(() => {
-            previous(currentId);
-          });
-        }}
+        onPress={handlePrevious}
       />
       <Tooltip placement={isCollapsed ? "right" : undefined} offset={4}>
         <Flex direction="row" gap="size-100" alignItems="center">

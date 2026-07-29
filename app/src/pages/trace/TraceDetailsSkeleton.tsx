@@ -1,13 +1,7 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 
-import {
-  CopyableIDBadge,
-  Flex,
-  Loading,
-  Text,
-  View,
-} from "@phoenix/components";
+import { CopyableIDBadge, Flex, Loading, Text } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
 import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -23,12 +17,13 @@ import { useTimeFormatters } from "@phoenix/hooks";
 import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
-  SpanHeaderIdentityRow,
-  SpanHeaderMetaItem,
-  SpanHeaderMetaRow,
-  SpanHeaderName,
-  SpanStatusIndicator,
-} from "../SpanHeader";
+  DetailHeader,
+  DetailHeaderIdentityRow,
+  DetailHeaderMetaItem,
+  DetailHeaderMetaRow,
+  DetailHeaderTitle,
+} from "../DetailHeader";
+import { SpanStatusIndicator } from "../SpanHeader";
 import { DetailsPanel } from "./DetailsPanel";
 import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
 
@@ -272,31 +267,25 @@ export function SpanHeaderSkeleton({
   const hasTokenCountPreview = spanPreview?.tokenCountTotal !== undefined;
 
   return (
-    <View
-      paddingTop="size-100"
-      paddingBottom="size-100"
-      paddingStart="size-150"
-      paddingEnd="size-200"
-      flex="none"
-    >
+    <DetailHeader>
       <Flex direction="column" gap="size-50" width="100%">
-        <SpanHeaderIdentityRow>
+        <DetailHeaderIdentityRow>
           {spanPreview?.statusCode !== undefined ? (
             <SpanStatusIndicator statusCode={spanPreview.statusCode} />
           ) : (
             <Skeleton width={3} height={20} animation="wave" />
           )}
           {spanPreview ? (
-            <SpanHeaderName name={spanPreview.name} />
+            <DetailHeaderTitle title={spanPreview.name} />
           ) : (
             <Skeleton
-              className="span-header-skeleton__name"
+              className="detail-header-skeleton__title span-header-skeleton__name"
               css={spanHeaderNameSkeletonCSS}
               height={22}
               animation="wave"
             />
           )}
-          <div className="span-header__actions">
+          <div className="detail-header__actions span-header__actions">
             <SpanDetailsHeaderActions
               buttonText={{
                 addToDataset: isCondensedView ? null : "Add to Dataset",
@@ -311,16 +300,16 @@ export function SpanHeaderSkeleton({
               traceId={spanPreview?.traceId}
             />
           </div>
-        </SpanHeaderIdentityRow>
-        <SpanHeaderMetaRow>
-          <SpanHeaderMetaItem>
+        </DetailHeaderIdentityRow>
+        <DetailHeaderMetaRow>
+          <DetailHeaderMetaItem>
             {spanPreview?.spanKind !== undefined ? (
               <SpanKindBadge spanKind={spanPreview.spanKind} />
             ) : (
               <Skeleton width={54} height={20} animation="wave" />
             )}
-          </SpanHeaderMetaItem>
-          <SpanHeaderMetaItem>
+          </DetailHeaderMetaItem>
+          <DetailHeaderMetaItem>
             {spanPreview?.spanId !== undefined ? (
               <CopyableIDBadge
                 id={spanPreview.spanId}
@@ -329,21 +318,21 @@ export function SpanHeaderSkeleton({
             ) : (
               <Skeleton width={104} height={16} animation="wave" />
             )}
-          </SpanHeaderMetaItem>
+          </DetailHeaderMetaItem>
           {hasLatencyPreview ? (
             typeof spanPreview.latencyMs === "number" ? (
-              <SpanHeaderMetaItem>
+              <DetailHeaderMetaItem>
                 <Text size="S" color="text-500" fontFamily="mono">
                   {latencyMsFormatter(spanPreview.latencyMs)}
                 </Text>
-              </SpanHeaderMetaItem>
+              </DetailHeaderMetaItem>
             ) : null
           ) : (
-            <SpanHeaderMetaItem>
+            <DetailHeaderMetaItem>
               <Skeleton width={54} height={16} animation="wave" />
-            </SpanHeaderMetaItem>
+            </DetailHeaderMetaItem>
           )}
-          <SpanHeaderMetaItem>
+          <DetailHeaderMetaItem>
             {spanPreview?.startTime !== undefined ? (
               <Text size="S" color="text-500" fontFamily="mono">
                 {fullTimeFormatter(new Date(spanPreview.startTime))}
@@ -351,26 +340,26 @@ export function SpanHeaderSkeleton({
             ) : (
               <Skeleton width={168} height={16} animation="wave" />
             )}
-          </SpanHeaderMetaItem>
+          </DetailHeaderMetaItem>
           {hasTokenCountPreview ? (
             spanPreview.tokenCountTotal ? (
-              <SpanHeaderMetaItem>
+              <DetailHeaderMetaItem>
                 <SpanTokenCount
                   tokenCountTotal={spanPreview.tokenCountTotal}
                   nodeId={spanPreview.id}
                   size="S"
                   color="text-500"
                 />
-              </SpanHeaderMetaItem>
+              </DetailHeaderMetaItem>
             ) : null
           ) : (
-            <SpanHeaderMetaItem>
+            <DetailHeaderMetaItem>
               <Skeleton width={64} height={16} animation="wave" />
-            </SpanHeaderMetaItem>
+            </DetailHeaderMetaItem>
           )}
-        </SpanHeaderMetaRow>
+        </DetailHeaderMetaRow>
       </Flex>
-    </View>
+    </DetailHeader>
   );
 }
 

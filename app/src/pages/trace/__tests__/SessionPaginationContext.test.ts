@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { makeSessionUrls } from "../SessionPaginationContext";
+import {
+  getSessionPreview,
+  makeSessionUrls,
+} from "../SessionPaginationContext";
 
 describe("makeSessionUrls", () => {
   it("preserves recreatable URL state while clearing session-specific selections", () => {
@@ -40,5 +43,20 @@ describe("makeSessionUrls", () => {
       makeSessionUrls(location, sessionSequence, "current-session")
         .previousSessionPath
     ).toBe("/projects/project-1/sessions/previous-session");
+  });
+});
+
+describe("getSessionPreview", () => {
+  it("returns metadata already loaded by the sessions table", () => {
+    const preview = {
+      sessionId: "session-node-id",
+      sessionDisplayId: "customer-session-id",
+      traceCount: 4,
+      tokenCountTotal: 120,
+      totalCost: 0.25,
+    };
+
+    expect(getSessionPreview([preview], "session-node-id")).toEqual(preview);
+    expect(getSessionPreview([preview], "missing-session")).toBeUndefined();
   });
 });

@@ -5,18 +5,13 @@ import { Suspense, useEffect, useRef } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
-import {
-  Counter,
-  ErrorBoundary,
-  Flex,
-  Loading,
-  View,
-} from "@phoenix/components";
+import { Counter, ErrorBoundary, Flex, Loading } from "@phoenix/components";
 import { SpanDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
 import { SPAN_DETAILS_CONDENSED_WIDTH_PIXELS } from "@phoenix/constants";
 import { useDimensions } from "@phoenix/hooks";
 
+import { DetailHeader } from "../DetailHeader";
 import { SpanHeader } from "../SpanHeader";
 import type { SpanDetailsContentQuery } from "./__generated__/SpanDetailsContentQuery.graphql";
 import type { SpanDetailsHeaderQuery } from "./__generated__/SpanDetailsHeaderQuery.graphql";
@@ -203,33 +198,27 @@ function SpanDetailsHeader({
   }
 
   return (
-    <View
-      data-span-details-header-id={span.id}
-      paddingTop="size-100"
-      paddingBottom="size-100"
-      paddingStart="size-150"
-      paddingEnd="size-200"
-      flex="none"
-      data-testid="span-header-row"
-    >
-      <SpanHeader
-        span={span}
-        actions={
-          <SpanDetailsHeaderActions
-            buttonText={{
-              addToDataset: isCondensedView ? null : "Add to Dataset",
-              download: isCondensedView ? null : "Download",
-              playground: isCondensedView ? null : "Playground",
-            }}
-            projectId={projectId}
-            spanId={span.spanId}
-            spanKind={span.spanKind}
-            spanNodeId={span.id}
-            traceId={span.trace.traceId}
-          />
-        }
-      />
-    </View>
+    <DetailHeader>
+      <div data-span-details-header-id={span.id} data-testid="span-header-row">
+        <SpanHeader
+          span={span}
+          actions={
+            <SpanDetailsHeaderActions
+              buttonText={{
+                addToDataset: isCondensedView ? null : "Add to Dataset",
+                download: isCondensedView ? null : "Download",
+                playground: isCondensedView ? null : "Playground",
+              }}
+              projectId={projectId}
+              spanId={span.spanId}
+              spanKind={span.spanKind}
+              spanNodeId={span.id}
+              traceId={span.trace.traceId}
+            />
+          }
+        />
+      </div>
+    </DetailHeader>
   );
 }
 

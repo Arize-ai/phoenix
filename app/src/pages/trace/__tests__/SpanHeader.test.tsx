@@ -64,14 +64,14 @@ describe("SpanHeaderContent", () => {
     renderHeader({ statusMessage: "The model request failed." });
 
     const title = container.querySelector(".span-header__name");
-    const statusMessage = container.querySelector(
+    const statusMessage = container.querySelector<HTMLElement>(
       ".span-header__status-message"
     );
     expect(title?.nextElementSibling).toBe(statusMessage);
     expect(statusMessage?.textContent).toBe("The model request failed.");
-    expect(statusMessage?.querySelector(".badge")?.dataset.variant).toBe(
-      "danger"
-    );
+    expect(
+      statusMessage?.querySelector<HTMLElement>(".badge")?.dataset.variant
+    ).toBe("danger");
   });
 
   it("does not show a status message badge for a non-error span", () => {
