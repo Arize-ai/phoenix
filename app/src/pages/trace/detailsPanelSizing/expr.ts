@@ -1,3 +1,5 @@
+import { assertUnreachable } from "@phoenix/typeUtils";
+
 /**
  * A tiny expression language over linear integer arithmetic with exactly two
  * interpretations:
@@ -177,6 +179,7 @@ export function evaluateInt(expr: IntExpr, env: Environment): number {
         ? evaluateInt(expr.then, env)
         : evaluateInt(expr.els, env);
   }
+  return assertUnreachable(expr);
 }
 
 export function evaluateBool(expr: BoolExpr, env: Environment): boolean {
@@ -202,7 +205,7 @@ export function evaluateBool(expr: BoolExpr, env: Environment): boolean {
         case "ne":
           return a !== b;
       }
-      break;
+      return assertUnreachable(expr.op);
     }
     case "and":
       return evaluateBool(expr.a, env) && evaluateBool(expr.b, env);
@@ -217,6 +220,7 @@ export function evaluateBool(expr: BoolExpr, env: Environment): boolean {
         ? evaluateBool(expr.then, env)
         : evaluateBool(expr.els, env);
   }
+  return assertUnreachable(expr);
 }
 
 /* ------------------------------ SMT emission ----------------------------- */
@@ -259,6 +263,7 @@ export function intToSmt(
     case "iteInt":
       return `(ite ${boolToSmt(expr.cond, rename)} ${intToSmt(expr.then, rename)} ${intToSmt(expr.els, rename)})`;
   }
+  return assertUnreachable(expr);
 }
 
 const smtComparison: Record<ComparisonOp, (a: string, b: string) => string> = {
@@ -295,4 +300,5 @@ export function boolToSmt(
     case "iteBool":
       return `(ite ${boolToSmt(expr.cond, rename)} ${boolToSmt(expr.then, rename)} ${boolToSmt(expr.els, rename)})`;
   }
+  return assertUnreachable(expr);
 }
