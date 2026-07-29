@@ -1,12 +1,20 @@
 import { css } from "@emotion/react";
 import { animate, useReducedMotion } from "motion/react";
-import type { MouseEvent as ReactMouseEvent, PropsWithChildren } from "react";
+import type {
+  MouseEvent as ReactMouseEvent,
+  PropsWithChildren,
+  ReactNode,
+} from "react";
 import { Suspense, useEffect, useRef } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
 import { Counter, ErrorBoundary, Flex, Loading } from "@phoenix/components";
-import { SpanDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
+import {
+  SessionDetailPanelAnnotationBar,
+  SpanDetailPanelAnnotationBar,
+  TraceDetailPanelAnnotationBar,
+} from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
 import { SPAN_DETAILS_CONDENSED_WIDTH_PIXELS } from "@phoenix/constants";
 import { useDimensions } from "@phoenix/hooks";
@@ -16,6 +24,7 @@ import { SpanHeader } from "../SpanHeader";
 import type { SpanDetailsContentQuery } from "./__generated__/SpanDetailsContentQuery.graphql";
 import type { SpanDetailsHeaderQuery } from "./__generated__/SpanDetailsHeaderQuery.graphql";
 import { DeferredSpanDetailsContent } from "./DeferredSpanDetailsContent";
+import { SessionDetailsHeader } from "./SessionDetailsHeader";
 import { SpanAttributesSection, SpanInfo } from "./span";
 import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
 import { SpanDetailsSectionHeading } from "./SpanDetailsSectionHeading";
@@ -23,10 +32,11 @@ import { SpanEventsList } from "./SpanEventsList";
 import { useSpanInfoCardProps } from "./SpanInfoCardsContext";
 import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
 import { SpanNotesList } from "./SpanNotesList";
+import { TraceDetailsHeader } from "./TraceDetailsHeader";
 import {
   DetailPanelAnnotationBarSkeleton,
   SpanDetailsContentSkeleton,
-  SpanHeaderSkeleton,
+  SpanDetailsHeadersSkeleton,
 } from "./TraceDetailsSkeleton";
 
 const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
@@ -113,10 +123,14 @@ export function SpanDetails({
   spanNodeId,
   spanPreview,
   initialIsCondensedView = true,
+  showSessionHeader = true,
+  showTraceHeader = true,
 }: {
   spanNodeId: string;
   spanPreview?: SpanDetailsPreview;
   initialIsCondensedView?: boolean;
+  showSessionHeader?: boolean;
+  showTraceHeader?: boolean;
 }) {
   const { projectId } = useParams();
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
@@ -128,6 +142,13 @@ export function SpanDetails({
   if (projectId == null) {
     throw new Error("Project ID is required to download a span");
   }
+  const annotationBar = (
+    <Suspense
+      fallback={<DetailPanelAnnotationBarSkeleton variant="detail-header" />}
+    >
+      <SpanDetailPanelAnnotationBar spanNodeId={spanNodeId} />
+    </Suspense>
+  );
 
   return (
     <Flex
@@ -139,20 +160,22 @@ export function SpanDetails({
     >
       <Suspense
         fallback={
-          <SpanHeaderSkeleton
+          <SpanDetailsHeadersSkeleton
             spanPreview={spanPreview}
             isCondensedView={isCondensedView}
+            showSessionHeader={showSessionHeader}
+            showTraceHeader={showTraceHeader}
           />
         }
       >
         <SpanDetailsHeader
+          annotationBar={annotationBar}
           isCondensedView={isCondensedView}
           projectId={projectId}
+          showSessionHeader={showSessionHeader}
+          showTraceHeader={showTraceHeader}
           spanNodeId={spanNodeId}
         />
-      </Suspense>
-      <Suspense fallback={<DetailPanelAnnotationBarSkeleton />}>
-        <SpanDetailPanelAnnotationBar spanNodeId={spanNodeId} />
       </Suspense>
       <Suspense fallback={<SpanDetailsContentSkeleton />}>
         <SpanDetailsContent spanNodeId={spanNodeId} />
@@ -162,17 +185,23 @@ export function SpanDetails({
 }
 
 function SpanDetailsHeader({
+  annotationBar,
   isCondensedView,
   projectId,
+  showSessionHeader,
+  showTraceHeader,
   spanNodeId,
 }: {
+  annotationBar: ReactNode;
   isCondensedView: boolean;
   projectId: string;
+  showSessionHeader: boolean;
+  showTraceHeader: boolean;
   spanNodeId: string;
 }) {
   const { span } = useLazyLoadQuery<SpanDetailsHeaderQuery>(
     graphql`
-      query SpanDetailsHeaderQuery($id: ID!) {
+      query SpanDetailsHeaderQuery($id: ID!, $includeSession: Boolean!) {
         span: node(id: $id) {
           __typename
           ... on Span {
@@ -181,6 +210,29 @@ function SpanDetailsHeader({
             trace {
               id
               traceId
+              latencyMs
+              startTime
+              costSummary {
+                total {
+                  cost
+                }
+              }
+              rootSpan {
+                statusCode
+                cumulativeTokenCountTotal
+              }
+              session @include(if: $includeSession) {
+                id
+                sessionId
+                tokenUsage {
+                  total
+                }
+                costSummary {
+                  total {
+                    cost
+                  }
+                }
+              }
             }
             spanKind
             ...SpanHeader_span
@@ -188,7 +240,7 @@ function SpanDetailsHeader({
         }
       }
     `,
-    { id: spanNodeId }
+    { id: spanNodeId, includeSession: showSessionHeader }
   );
 
   if (span.__typename !== "Span") {
@@ -197,28 +249,77 @@ function SpanDetailsHeader({
     );
   }
 
+  const trace = span.trace;
+  const traceAnnotationBar = (
+    <Suspense
+      fallback={<DetailPanelAnnotationBarSkeleton variant="detail-header" />}
+    >
+      <TraceDetailPanelAnnotationBar traceNodeId={trace.id} />
+    </Suspense>
+  );
+
   return (
-    <DetailHeader>
-      <div data-span-details-header-id={span.id} data-testid="span-header-row">
-        <SpanHeader
-          span={span}
-          actions={
-            <SpanDetailsHeaderActions
-              buttonText={{
-                addToDataset: isCondensedView ? null : "Add to Dataset",
-                download: isCondensedView ? null : "Download",
-                playground: isCondensedView ? null : "Playground",
-              }}
-              projectId={projectId}
-              spanId={span.spanId}
-              spanKind={span.spanKind}
-              spanNodeId={span.id}
-              traceId={span.trace.traceId}
-            />
+    <>
+      {showSessionHeader && trace.session ? (
+        <SessionDetailsHeader
+          annotationBar={
+            <Suspense
+              fallback={
+                <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+              }
+            >
+              <SessionDetailPanelAnnotationBar
+                sessionNodeId={trace.session.id}
+              />
+            </Suspense>
           }
+          preview={{
+            sessionId: trace.session.id,
+            sessionDisplayId: trace.session.sessionId,
+            tokenCountTotal: trace.session.tokenUsage.total,
+            totalCost: trace.session.costSummary.total.cost,
+          }}
         />
-      </div>
-    </DetailHeader>
+      ) : null}
+      {showTraceHeader ? (
+        <TraceDetailsHeader
+          annotationBar={traceAnnotationBar}
+          trace={{
+            id: trace.id,
+            traceId: trace.traceId,
+            statusCode: trace.rootSpan?.statusCode ?? "UNSET",
+            latencyMs: trace.latencyMs,
+            startTime: trace.startTime,
+            tokenCountTotal: trace.rootSpan?.cumulativeTokenCountTotal ?? null,
+            totalCost: trace.costSummary.total.cost,
+          }}
+        />
+      ) : null}
+      <DetailHeader annotationBar={annotationBar}>
+        <div
+          data-span-details-header-id={span.id}
+          data-testid="span-header-row"
+        >
+          <SpanHeader
+            span={span}
+            actions={
+              <SpanDetailsHeaderActions
+                buttonText={{
+                  addToDataset: isCondensedView ? null : "Add to Dataset",
+                  download: isCondensedView ? null : "Download",
+                  playground: isCondensedView ? null : "Playground",
+                }}
+                projectId={projectId}
+                spanId={span.spanId}
+                spanKind={span.spanKind}
+                spanNodeId={span.id}
+                traceId={trace.traceId}
+              />
+            }
+          />
+        </div>
+      </DetailHeader>
+    </>
   );
 }
 

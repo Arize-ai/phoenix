@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0d8f47b4801a668fa9502789efa0698d>>
+ * @generated SignedSource<<635a970bf6a7a9767297a988381e843d>>
  * @lightSyntaxTransform
  */
 
@@ -23,7 +23,6 @@ export type ConnectedDetailPanelAnnotationBarSpanQuery$data = {
   readonly span: {
     readonly __typename: "Span";
     readonly id: string;
-    readonly parentId: string | null;
     readonly project: {
       readonly annotationConfigs: {
         readonly edges: ReadonlyArray<{
@@ -37,18 +36,6 @@ export type ConnectedDetailPanelAnnotationBarSpanQuery$data = {
     readonly spanAnnotations: ReadonlyArray<{
       readonly " $fragmentSpreads": FragmentRefs<"ConnectedDetailPanelAnnotationBarAnnotationFields">;
     }>;
-    readonly trace: {
-      readonly id: string;
-      readonly session: {
-        readonly id: string;
-        readonly sessionAnnotations: ReadonlyArray<{
-          readonly " $fragmentSpreads": FragmentRefs<"ConnectedDetailPanelAnnotationBarAnnotationFields">;
-        }>;
-      } | null;
-      readonly traceAnnotations: ReadonlyArray<{
-        readonly " $fragmentSpreads": FragmentRefs<"ConnectedDetailPanelAnnotationBarTraceAnnotationFields">;
-      }>;
-    };
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -248,45 +235,38 @@ v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "parentId",
+  "name": "explanation",
   "storageKey": null
 },
 v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "explanation",
+  "name": "metadata",
   "storageKey": null
 },
 v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "metadata",
+  "name": "annotatorKind",
   "storageKey": null
 },
 v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "annotatorKind",
+  "name": "source",
   "storageKey": null
 },
 v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "source",
-  "storageKey": null
-},
-v20 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v21 = {
+v20 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -312,46 +292,7 @@ v21 = {
   ],
   "storageKey": null
 },
-v22 = [
-  {
-    "kind": "InlineDataFragmentSpread",
-    "name": "ConnectedDetailPanelAnnotationBarAnnotationFields",
-    "selections": [
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          (v3/*:: as any*/),
-          (v4/*:: as any*/),
-          (v8/*:: as any*/),
-          (v9/*:: as any*/),
-          (v16/*:: as any*/),
-          (v17/*:: as any*/),
-          (v18/*:: as any*/),
-          (v19/*:: as any*/),
-          (v20/*:: as any*/),
-          (v21/*:: as any*/)
-        ],
-        "type": "Annotation",
-        "abstractKey": "__isAnnotation"
-      }
-    ],
-    "args": null,
-    "argumentDefinitions": ([]/*:: as any*/)
-  }
-],
-v23 = [
-  (v2/*:: as any*/),
-  (v4/*:: as any*/),
-  (v8/*:: as any*/),
-  (v9/*:: as any*/),
-  (v16/*:: as any*/),
-  (v17/*:: as any*/),
-  (v18/*:: as any*/),
-  (v19/*:: as any*/),
-  (v20/*:: as any*/),
-  (v21/*:: as any*/)
-],
-v24 = [
+v21 = [
   {
     "alias": null,
     "args": null,
@@ -390,29 +331,6 @@ v24 = [
     ],
     "storageKey": null
   }
-],
-v25 = [
-  (v2/*:: as any*/),
-  {
-    "kind": "InlineFragment",
-    "selections": [
-      (v4/*:: as any*/),
-      (v8/*:: as any*/),
-      (v9/*:: as any*/),
-      (v16/*:: as any*/),
-      (v17/*:: as any*/),
-      (v18/*:: as any*/),
-      (v19/*:: as any*/),
-      (v20/*:: as any*/),
-      (v21/*:: as any*/),
-      {
-        "kind": "TypeDiscriminator",
-        "abstractKey": "__isNode"
-      }
-    ],
-    "type": "Annotation",
-    "abstractKey": "__isAnnotation"
-  }
 ];
 return {
   "fragment": {
@@ -444,7 +362,6 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v2/*:: as any*/),
-              (v15/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -474,57 +391,31 @@ return {
                 "kind": "LinkedField",
                 "name": "spanAnnotations",
                 "plural": true,
-                "selections": (v22/*:: as any*/),
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Trace",
-                "kind": "LinkedField",
-                "name": "trace",
-                "plural": false,
                 "selections": [
-                  (v2/*:: as any*/),
                   {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "TraceAnnotation",
-                    "kind": "LinkedField",
-                    "name": "traceAnnotations",
-                    "plural": true,
+                    "kind": "InlineDataFragmentSpread",
+                    "name": "ConnectedDetailPanelAnnotationBarAnnotationFields",
                     "selections": [
                       {
-                        "kind": "InlineDataFragmentSpread",
-                        "name": "ConnectedDetailPanelAnnotationBarTraceAnnotationFields",
-                        "selections": (v23/*:: as any*/),
-                        "args": null,
-                        "argumentDefinitions": []
+                        "kind": "InlineFragment",
+                        "selections": [
+                          (v3/*:: as any*/),
+                          (v4/*:: as any*/),
+                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
+                          (v15/*:: as any*/),
+                          (v16/*:: as any*/),
+                          (v17/*:: as any*/),
+                          (v18/*:: as any*/),
+                          (v19/*:: as any*/),
+                          (v20/*:: as any*/)
+                        ],
+                        "type": "Annotation",
+                        "abstractKey": "__isAnnotation"
                       }
                     ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
                     "args": null,
-                    "concreteType": "ProjectSession",
-                    "kind": "LinkedField",
-                    "name": "session",
-                    "plural": false,
-                    "selections": [
-                      (v2/*:: as any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "ProjectSessionAnnotation",
-                        "kind": "LinkedField",
-                        "name": "sessionAnnotations",
-                        "plural": true,
-                        "selections": (v22/*:: as any*/),
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
+                    "argumentDefinitions": []
                   }
                 ],
                 "storageKey": null
@@ -553,7 +444,7 @@ return {
         "kind": "LinkedField",
         "name": "annotationConfigs",
         "plural": false,
-        "selections": (v24/*:: as any*/),
+        "selections": (v21/*:: as any*/),
         "storageKey": null
       },
       {
@@ -569,7 +460,6 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v15/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -586,7 +476,7 @@ return {
                     "kind": "LinkedField",
                     "name": "annotationConfigs",
                     "plural": false,
-                    "selections": (v24/*:: as any*/),
+                    "selections": (v21/*:: as any*/),
                     "storageKey": null
                   }
                 ],
@@ -599,49 +489,27 @@ return {
                 "kind": "LinkedField",
                 "name": "spanAnnotations",
                 "plural": true,
-                "selections": (v25/*:: as any*/),
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Trace",
-                "kind": "LinkedField",
-                "name": "trace",
-                "plural": false,
                 "selections": [
                   (v2/*:: as any*/),
                   {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "TraceAnnotation",
-                    "kind": "LinkedField",
-                    "name": "traceAnnotations",
-                    "plural": true,
-                    "selections": (v23/*:: as any*/),
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "ProjectSession",
-                    "kind": "LinkedField",
-                    "name": "session",
-                    "plural": false,
+                    "kind": "InlineFragment",
                     "selections": [
-                      (v2/*:: as any*/),
+                      (v4/*:: as any*/),
+                      (v8/*:: as any*/),
+                      (v9/*:: as any*/),
+                      (v15/*:: as any*/),
+                      (v16/*:: as any*/),
+                      (v17/*:: as any*/),
+                      (v18/*:: as any*/),
+                      (v19/*:: as any*/),
+                      (v20/*:: as any*/),
                       {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "ProjectSessionAnnotation",
-                        "kind": "LinkedField",
-                        "name": "sessionAnnotations",
-                        "plural": true,
-                        "selections": (v25/*:: as any*/),
-                        "storageKey": null
+                        "kind": "TypeDiscriminator",
+                        "abstractKey": "__isNode"
                       }
                     ],
-                    "storageKey": null
+                    "type": "Annotation",
+                    "abstractKey": "__isAnnotation"
                   }
                 ],
                 "storageKey": null
@@ -656,16 +524,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cf5061d9e6c312e2ba426683405587e2",
+    "cacheID": "390f99c564f78a1a81c31d64cbcd064f",
     "id": null,
     "metadata": {},
     "name": "ConnectedDetailPanelAnnotationBarSpanQuery",
     "operationKind": "query",
-    "text": "query ConnectedDetailPanelAnnotationBarSpanQuery(\n  $id: ID!\n) {\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ...ConnectedDetailPanelAnnotationBarConfigFields\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      parentId\n      project {\n        id\n        annotationConfigs {\n          edges {\n            node {\n              __typename\n              ...ConnectedDetailPanelAnnotationBarConfigFields\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n      spanAnnotations {\n        ...ConnectedDetailPanelAnnotationBarAnnotationFields\n        id\n      }\n      trace {\n        id\n        traceAnnotations {\n          ...ConnectedDetailPanelAnnotationBarTraceAnnotationFields\n          id\n        }\n        session {\n          id\n          sessionAnnotations {\n            ...ConnectedDetailPanelAnnotationBarAnnotationFields\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarAnnotationFields on Annotation {\n  __isAnnotation: __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  label\n  score\n  explanation\n  metadata\n  annotatorKind\n  source\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarConfigFields on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  description\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    lowerBound\n    upperBound\n    optimizationDirection\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarTraceAnnotationFields on TraceAnnotation {\n  id\n  name\n  label\n  score\n  explanation\n  metadata\n  annotatorKind\n  source\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n}\n"
+    "text": "query ConnectedDetailPanelAnnotationBarSpanQuery(\n  $id: ID!\n) {\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ...ConnectedDetailPanelAnnotationBarConfigFields\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      project {\n        id\n        annotationConfigs {\n          edges {\n            node {\n              __typename\n              ...ConnectedDetailPanelAnnotationBarConfigFields\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n      spanAnnotations {\n        ...ConnectedDetailPanelAnnotationBarAnnotationFields\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarAnnotationFields on Annotation {\n  __isAnnotation: __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  label\n  score\n  explanation\n  metadata\n  annotatorKind\n  source\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n}\n\nfragment ConnectedDetailPanelAnnotationBarConfigFields on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  __typename\n  ... on Node {\n    __isNode: __typename\n    id\n  }\n  name\n  description\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    lowerBound\n    upperBound\n    optimizationDirection\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c6910cc1ef60e180a2dfb9eb7a2ed6f6";
+(node as any).hash = "8e7e52dda20024a925476fcf65d39399";
 
 export default node;

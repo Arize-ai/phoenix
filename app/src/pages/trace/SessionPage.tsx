@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import {
   useLocation,
   useNavigate,
@@ -7,19 +6,18 @@ import {
 } from "react-router";
 import invariant from "tiny-invariant";
 
-import {
-  Dialog,
-  Drawer,
-  ErrorBoundary,
-  DialogContent,
-} from "@phoenix/components";
+import { Dialog, Drawer, DialogContent } from "@phoenix/components";
 import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
 import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
-import { DetailsPanelHeader } from "./DetailsPanel";
+import {
+  DetailsPanel,
+  DetailsPanelContentBoundary,
+  DetailsPanelHeader,
+} from "./DetailsPanel";
 import { SessionDetails } from "./SessionDetails";
 import { SessionDetailsSkeleton } from "./SessionDetailsSkeleton";
 import {
@@ -106,32 +104,39 @@ export function SessionPage() {
           );
           return (
             <DialogContent>
-              <ErrorBoundary>
-                <Suspense
+              <DetailsPanel
+                dataTestId={
+                  sessionView === "traces" ? "session-traces-view" : undefined
+                }
+                navigationAriaLabel="Resize session turns"
+                preferredTreeWidth={preferredTreeWidth}
+                onPreferredTreeWidthChange={onPreferredTreeWidthChange}
+                treeMaximumWidth={getTraceTreeMaximumWidth({
+                  hasTiming: false,
+                })}
+              >
+                <DetailsPanelContentBoundary
+                  subjectKey={sessionId}
+                  navigation={navigationHeader}
                   fallback={
                     <SessionDetailsSkeleton
                       isTreePanelCollapsed={isTreeCollapsed}
                       navigationHeader={navigationHeader}
-                      onPreferredTreeWidthChange={onPreferredTreeWidthChange}
                       onSessionViewChange={handleSessionViewChange}
                       onTreePanelCollapsedChange={onTreeCollapsedChange}
-                      preferredTreeWidth={preferredTreeWidth}
                       preview={preview}
                       sessionView={sessionView}
                     />
                   }
                 >
                   <SessionDetails
-                    key={sessionId}
                     sessionId={sessionId}
-                    preferredTreeWidth={preferredTreeWidth}
-                    onPreferredTreeWidthChange={onPreferredTreeWidthChange}
                     isTreePanelCollapsed={isTreeCollapsed}
                     onTreePanelCollapsedChange={onTreeCollapsedChange}
                     navigationHeader={navigationHeader}
                   />
-                </Suspense>
-              </ErrorBoundary>
+                </DetailsPanelContentBoundary>
+              </DetailsPanel>
             </DialogContent>
           );
         }}

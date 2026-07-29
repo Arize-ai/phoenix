@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 
 import { Text, View } from "@phoenix/components";
 
@@ -62,17 +62,32 @@ const metaRowCSS = css`
   }
 `;
 
+const annotationRowCSS = css`
+  margin-top: var(--global-dimension-size-50);
+`;
+
 /** Shared frame for loaded, preview, and skeleton detail headers. */
-export function DetailHeader({ children }: PropsWithChildren) {
+export function DetailHeader({
+  annotationBar,
+  children,
+}: PropsWithChildren<{ annotationBar?: ReactNode }>) {
   return (
     <View
+      data-detail-header
       paddingTop="size-100"
       paddingBottom="size-100"
       paddingStart="size-150"
       paddingEnd="size-200"
       flex="none"
+      borderBottomWidth="thin"
+      borderBottomColor="default"
     >
       {children}
+      {annotationBar ? (
+        <div className="detail-header__annotations" css={annotationRowCSS}>
+          {annotationBar}
+        </div>
+      ) : null}
     </View>
   );
 }

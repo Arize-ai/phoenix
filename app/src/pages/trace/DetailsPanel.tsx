@@ -1,8 +1,24 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren, ReactNode } from "react";
+import type { Key, PropsWithChildren, ReactNode } from "react";
+import {
+  createContext,
+  Suspense,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import { Group, Panel } from "react-resizable-panels";
 
-import { DialogCloseButton, Icon, Icons } from "@phoenix/components";
+import {
+  Button,
+  DialogCloseButton,
+  ErrorBoundary,
+  Icon,
+  Icons,
+} from "@phoenix/components";
+import { BugReportErrorBoundaryFallback } from "@phoenix/components/exception/BugReportErrorBoundaryFallback";
 import {
   ResizableTraceTreePanelContent,
   ResizableTraceTreeSeparator,
@@ -21,6 +37,109 @@ const detailsPanelCSS = css`
   flex: 1 1 auto;
   overflow: hidden;
 `;
+
+const detailsPanelSlotHostCSS = css`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+`;
+
+type DetailsPanelPortalTargets = {
+  main: HTMLDivElement;
+  navigation: HTMLDivElement;
+};
+
+type DetailsPanelPortalController = {
+  register: (targets: DetailsPanelPortalTargets) => () => void;
+};
+
+const DetailsPanelPortalContext =
+  createContext<DetailsPanelPortalController | null>(null);
+
+function createDetailsPanelPortalTarget(className: string): HTMLDivElement {
+  const target = document.createElement("div");
+  target.className = className;
+  target.style.display = "flex";
+  target.style.flexDirection = "column";
+  target.style.width = "100%";
+  target.style.height = "100%";
+  target.style.overflow = "hidden";
+  return target;
+}
+
+/**
+ * Projects navigation and main content into a permanently mounted
+ * {@link DetailsPanel}. Loading, error, and resolved states must swap this
+ * content rather than replacing the resizable panel group itself.
+ */
+export function DetailsPanelContent({
+  children,
+  navigation,
+}: PropsWithChildren<{ navigation: ReactNode }>) {
+  const controller = useContext(DetailsPanelPortalContext);
+  const [targets] = useState<DetailsPanelPortalTargets>(() => ({
+    main: createDetailsPanelPortalTarget("details-panel-main-content"),
+    navigation: createDetailsPanelPortalTarget(
+      "details-panel-navigation-content"
+    ),
+  }));
+  useLayoutEffect(() => controller?.register(targets), [controller, targets]);
+
+  if (controller == null) {
+    throw new Error("DetailsPanelContent must be rendered inside DetailsPanel");
+  }
+
+  return (
+    <>
+      {createPortal(navigation, targets.navigation)}
+      {createPortal(children, targets.main)}
+    </>
+  );
+}
+
+export function DetailsPanelErrorContent({
+  error,
+  navigation,
+}: {
+  error?: string | null;
+  navigation: ReactNode;
+}) {
+  return (
+    <DetailsPanelContent navigation={navigation}>
+      <BugReportErrorBoundaryFallback error={error} />
+    </DetailsPanelContent>
+  );
+}
+
+/**
+ * Owns the loading and error lifecycle for one details-panel subject while the
+ * surrounding column state machine remains mounted. A subject change must
+ * reset this boundary so React cannot retain the previous subject's portal
+ * content while the next Relay query suspends.
+ */
+export function DetailsPanelContentBoundary({
+  children,
+  fallback,
+  navigation,
+  subjectKey,
+}: PropsWithChildren<{
+  fallback: ReactNode;
+  navigation: ReactNode;
+  subjectKey: Key;
+}>) {
+  return (
+    <ErrorBoundary
+      key={subjectKey}
+      fallback={({ error }) => (
+        <DetailsPanelErrorContent error={error} navigation={navigation} />
+      )}
+    >
+      <Suspense fallback={fallback}>{children}</Suspense>
+    </ErrorBoundary>
+  );
+}
 
 const detailsPanelNavigationCSS = css`
   container-name: trace-tree-panel;
@@ -174,6 +293,24 @@ const detailsPanelNavigationControlsRowCSS = css`
   }
 `;
 
+const detailsPanelMainColumnCSS = css`
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+`;
+
+const detailsPanelMainControlsRowCSS = css`
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  width: 100%;
+  padding: var(--global-dimension-size-100);
+  border-bottom: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+`;
+
 export function DetailsPanelNavigationControlsRow({
   children,
   isCollapsed,
@@ -199,7 +336,6 @@ export function DetailsPanelNavigationControlsRow({
 export function DetailsPanel({
   children,
   dataTestId,
-  navigation,
   navigationAriaLabel,
   onPreferredTreeWidthChange,
   preferredTreeWidth,
@@ -208,7 +344,6 @@ export function DetailsPanel({
 }: {
   children: ReactNode;
   dataTestId?: string;
-  navigation: ReactNode;
   navigationAriaLabel?: string;
   onPreferredTreeWidthChange: (width: number) => void;
   preferredTreeWidth: number;
@@ -236,50 +371,102 @@ export function DetailsPanel({
     treeMaximumWidth,
   });
 
+  const navigationHostRef = useRef<HTMLDivElement>(null);
+  const mainHostRef = useRef<HTMLDivElement>(null);
+  const registrationsRef = useRef<DetailsPanelPortalTargets[]>([]);
+  const synchronizePortalHosts = () => {
+    const navigationHost = navigationHostRef.current;
+    const mainHost = mainHostRef.current;
+    if (navigationHost == null || mainHost == null) return;
+    const activeTargets = registrationsRef.current.at(-1);
+    if (activeTargets == null) {
+      navigationHost.replaceChildren();
+      mainHost.replaceChildren();
+      return;
+    }
+    navigationHost.replaceChildren(activeTargets.navigation);
+    mainHost.replaceChildren(activeTargets.main);
+  };
+  const portalControllerRef = useRef<DetailsPanelPortalController>(null);
+  if (portalControllerRef.current == null) {
+    portalControllerRef.current = {
+      register: (targets) => {
+        registrationsRef.current.push(targets);
+        synchronizePortalHosts();
+        return () => {
+          const registrationIndex = registrationsRef.current.indexOf(targets);
+          if (registrationIndex >= 0) {
+            registrationsRef.current.splice(registrationIndex, 1);
+          }
+          synchronizePortalHosts();
+        };
+      },
+    };
+  }
+
   return (
-    <Group
-      data-testid={dataTestId}
-      elementRef={groupElementRef}
-      orientation="horizontal"
-      onLayoutChanged={onLayoutChanged}
-      className="details-panel-columns"
-      css={detailsPanelCSS}
-    >
-      <Panel
-        id="details-panel-tree-column"
-        panelRef={treePanelRef}
-        defaultSize={defaultTreeWidth}
-        minSize={minimumTreeWidth}
-        maxSize={maximumTreeWidth}
-        groupResizeBehavior="preserve-pixel-size"
-        css={detailsPanelNavigationCSS}
-        style={resizableTraceTreePanelStyle}
+    <DetailsPanelPortalContext.Provider value={portalControllerRef.current}>
+      <Group
+        data-testid={dataTestId}
+        elementRef={groupElementRef}
+        orientation="horizontal"
+        onLayoutChanged={onLayoutChanged}
+        className="details-panel-columns"
+        css={detailsPanelCSS}
       >
-        <ResizableTraceTreePanelContent
-          expandedWidth={treeOverlayWidth}
-          isCollapsed={isTreeCollapsed}
+        <Panel
+          id="details-panel-tree-column"
+          panelRef={treePanelRef}
+          defaultSize={defaultTreeWidth}
+          minSize={minimumTreeWidth}
+          maxSize={maximumTreeWidth}
+          groupResizeBehavior="preserve-pixel-size"
+          css={detailsPanelNavigationCSS}
+          style={resizableTraceTreePanelStyle}
         >
-          {navigation}
-        </ResizableTraceTreePanelContent>
-      </Panel>
-      <ResizableTraceTreeSeparator
-        ariaLabel={
-          isTreeCollapsed ? "Resize main detail view" : navigationAriaLabel
-        }
-        isCompact={isTreeCollapsed}
-        isDisabled={isTreeSeparatorDisabled}
-        onResize={onTreeResize}
-        onResizeEnd={onTreeResizeEnd}
-        onResizeStart={onTreeResizeStart}
-        onToggle={onTreeToggle}
-      />
-      <Panel
-        id="details-panel-main-column"
-        minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
-        maxSize={SPAN_DETAILS_MAX_WIDTH_PIXELS}
-      >
-        {children}
-      </Panel>
-    </Group>
+          <ResizableTraceTreePanelContent
+            expandedWidth={treeOverlayWidth}
+            isCollapsed={isTreeCollapsed}
+          >
+            <div ref={navigationHostRef} css={detailsPanelSlotHostCSS} />
+          </ResizableTraceTreePanelContent>
+        </Panel>
+        <ResizableTraceTreeSeparator
+          ariaLabel={
+            isTreeCollapsed ? "Resize main detail view" : navigationAriaLabel
+          }
+          isCompact={isTreeCollapsed}
+          isDisabled={isTreeSeparatorDisabled}
+          onResize={onTreeResize}
+          onResizeEnd={onTreeResizeEnd}
+          onResizeStart={onTreeResizeStart}
+          onToggle={onTreeToggle}
+        />
+        <Panel
+          id="details-panel-main-column"
+          minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
+          maxSize={SPAN_DETAILS_MAX_WIDTH_PIXELS}
+          css={detailsPanelMainColumnCSS}
+        >
+          <div
+            className="details-panel-main-controls"
+            css={detailsPanelMainControlsRowCSS}
+          >
+            <Button
+              size="S"
+              variant="quiet"
+              aria-label="Add comparison"
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
+            />
+          </div>
+          <div
+            ref={mainHostRef}
+            css={detailsPanelSlotHostCSS}
+            style={{ flex: "1 1 auto", minHeight: 0 }}
+          />
+        </Panel>
+      </Group>
+      {children}
+    </DetailsPanelPortalContext.Provider>
   );
 }

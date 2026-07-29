@@ -37,7 +37,6 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
-import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
 import { useTimeFormatters } from "@phoenix/hooks";
@@ -51,7 +50,7 @@ import type { SessionDetailsTracesViewTreeQuery } from "@phoenix/pages/trace/__g
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
-import { DetailsPanel } from "./DetailsPanel";
+import { DetailsPanelContent } from "./DetailsPanel";
 import type { SessionNavigationHeaderRenderer } from "./SessionDetails";
 import { SessionDetailsNavigation } from "./SessionDetailsNavigation";
 import type { SessionDetailsSearchParamsStore } from "./sessionDetailsSearchParamsStore";
@@ -92,8 +91,6 @@ type TraceSelectHandler = SpanClickHandler;
 
 export function SessionDetailsTracesView({
   queryRef,
-  preferredTreeWidth,
-  onPreferredTreeWidthChange,
   renderNavigationHeader,
   sessionViewControl,
   isTreePanelCollapsed,
@@ -103,8 +100,6 @@ export function SessionDetailsTracesView({
   searchParamsStore,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTracesViewQuery>;
-  preferredTreeWidth: number;
-  onPreferredTreeWidthChange: (width: number) => void;
   renderNavigationHeader: SessionNavigationHeaderRenderer;
   sessionViewControl: ReactNode;
   isTreePanelCollapsed: boolean;
@@ -325,11 +320,7 @@ export function SessionDetailsTracesView({
   );
 
   return (
-    <DetailsPanel
-      dataTestId="session-traces-view"
-      preferredTreeWidth={preferredTreeWidth}
-      onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-      treeMaximumWidth={getTraceTreeMaximumWidth({ hasTiming: false })}
+    <DetailsPanelContent
       navigation={
         <>
           {renderNavigationHeader({
@@ -376,7 +367,7 @@ export function SessionDetailsTracesView({
           />
         )}
       </SpanInfoCardsProvider>
-    </DetailsPanel>
+    </DetailsPanelContent>
   );
 }
 
@@ -761,6 +752,7 @@ function SpanDetailsPanel({
         spanNodeId={localSpanSelection.spanNodeId}
         spanPreview={localSpanSelection.spanPreview}
         onSpanDetailsReady={onSpanDetailsReady}
+        showSessionHeader={false}
       />
     </div>
   );

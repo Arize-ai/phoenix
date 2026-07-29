@@ -1,16 +1,20 @@
-import { Suspense } from "react";
 import { useNavigate, useParams, useRouteLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Dialog, Drawer, DialogTitle, Loading } from "@phoenix/components";
+import { Dialog, Drawer, DialogTitle } from "@phoenix/components";
 import { DialogContent } from "@phoenix/components/core/dialog";
 import {
   getTraceTreeMaximumWidth,
   TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
 } from "@phoenix/components/trace/traceTreeSizing";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { DetailsPanelHeader } from "@phoenix/pages/trace/DetailsPanel";
+import {
+  DetailsPanel,
+  DetailsPanelContentBoundary,
+  DetailsPanelHeader,
+} from "@phoenix/pages/trace/DetailsPanel";
 import { TraceDetails } from "@phoenix/pages/trace/TraceDetails";
+import { TraceDetailsSkeleton } from "@phoenix/pages/trace/TraceDetailsSkeleton";
 import { useDetailsPanelSizing } from "@phoenix/pages/trace/useDetailsPanelSizing";
 
 import type { datasetEvaluatorDetailsLoader } from "./datasetEvaluatorDetailsLoader";
@@ -33,6 +37,9 @@ export function EvaluatorTracePage() {
   const treeMaximumWidth = getTraceTreeMaximumWidth({
     hasTiming: showMetricsInTraceTree,
   });
+  const treeAddonWidth = showMetricsInTraceTree
+    ? TRACE_TREE_TIMING_MIN_WIDTH_PIXELS
+    : 0;
   const {
     defaultDrawerSize,
     isTreeCollapsed,
@@ -44,9 +51,7 @@ export function EvaluatorTracePage() {
     onTreeCollapsedChange,
     preferredTreeWidth,
   } = useDetailsPanelSizing({
-    treeAddonWidth: showMetricsInTraceTree
-      ? TRACE_TREE_TIMING_MIN_WIDTH_PIXELS
-      : 0,
+    treeAddonWidth,
     treeMaximumWidth,
   });
 
@@ -68,29 +73,47 @@ export function EvaluatorTracePage() {
       onResizeEnd={onDrawerSizeChange}
     >
       <Dialog aria-label="Trace details">
-        {({ close }) => (
-          <DialogContent>
-            <Suspense fallback={<Loading />}>
-              <TraceDetails
-                traceId={traceId}
-                projectId={projectId}
+        {({ close }) => {
+          const treeHeader = (
+            <DetailsPanelHeader
+              close={close}
+              closeLabel="Close trace details"
+              isCollapsed={isTreeCollapsed}
+              onCollapsedChange={onTreeCollapsedChange}
+              title={<DialogTitle>Trace Details</DialogTitle>}
+            />
+          );
+          return (
+            <DialogContent>
+              <DetailsPanel
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                isTreePanelCollapsed={isTreeCollapsed}
-                onTreePanelCollapsedChange={onTreeCollapsedChange}
-                treeHeader={
-                  <DetailsPanelHeader
-                    close={close}
-                    closeLabel="Close trace details"
-                    isCollapsed={isTreeCollapsed}
-                    onCollapsedChange={onTreeCollapsedChange}
-                    title={<DialogTitle>Trace Details</DialogTitle>}
+                treeAddonWidth={treeAddonWidth}
+                treeMaximumWidth={treeMaximumWidth}
+              >
+                <DetailsPanelContentBoundary
+                  subjectKey={JSON.stringify([projectId, traceId])}
+                  navigation={treeHeader}
+                  fallback={
+                    <TraceDetailsSkeleton
+                      isTreePanelCollapsed={isTreeCollapsed}
+                      onTreePanelCollapsedChange={onTreeCollapsedChange}
+                      treeHeader={treeHeader}
+                    />
+                  }
+                >
+                  <TraceDetails
+                    traceId={traceId}
+                    projectId={projectId}
+                    isTreePanelCollapsed={isTreeCollapsed}
+                    onTreePanelCollapsedChange={onTreeCollapsedChange}
+                    treeHeader={treeHeader}
                   />
-                }
-              />
-            </Suspense>
-          </DialogContent>
-        )}
+                </DetailsPanelContentBoundary>
+              </DetailsPanel>
+            </DialogContent>
+          );
+        }}
       </Dialog>
     </Drawer>
   );

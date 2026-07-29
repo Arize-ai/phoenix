@@ -14,15 +14,14 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { TraceDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
+import {
+  SessionDetailPanelAnnotationBar,
+  TraceDetailPanelAnnotationBar,
+} from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
-import {
-  getTraceTreeMaximumWidth,
-  TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
-} from "@phoenix/components/trace/traceTreeSizing";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type {
   SpanDetailsPreview,
@@ -32,7 +31,6 @@ import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
 } from "@phoenix/constants/searchParams";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -41,9 +39,11 @@ import type {
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
-import { DetailsPanel } from "./DetailsPanel";
+import { DetailsPanelContent } from "./DetailsPanel";
+import { SessionDetailsHeader } from "./SessionDetailsHeader";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
+import { TraceDetailsHeader } from "./TraceDetailsHeader";
 import { DetailPanelAnnotationBarSkeleton } from "./TraceDetailsSkeleton";
 import { TraceTurnContent } from "./TraceTurnContent";
 
@@ -61,8 +61,6 @@ export type TraceDetailsProps = {
   defaultToTrace?: boolean;
   traceId: string;
   projectId: string;
-  preferredTreeWidth: number;
-  onPreferredTreeWidthChange: (width: number) => void;
   isTreePanelCollapsed?: boolean;
   onTreePanelCollapsedChange?: (isCollapsed: boolean) => void;
   treeHeader?: ReactNode;
@@ -80,8 +78,6 @@ export function TraceDetails({
   defaultToTrace = false,
   traceId,
   projectId,
-  preferredTreeWidth,
-  onPreferredTreeWidthChange,
   isTreePanelCollapsed,
   onTreePanelCollapsedChange,
   treeHeader,
@@ -89,15 +85,6 @@ export function TraceDetails({
   const [searchParams, setSearchParams] = useSearchParams();
   const [localSpanSelection, setLocalSpanSelection] =
     useState<LocalSpanSelection | null>(null);
-  const showMetricsInTraceTree = usePreferencesContext(
-    (state) => state.showMetricsInTraceTree
-  );
-  const treeAddonWidth = showMetricsInTraceTree
-    ? TRACE_TREE_TIMING_MIN_WIDTH_PIXELS
-    : 0;
-  const treeMaximumWidth = getTraceTreeMaximumWidth({
-    hasTiming: showMetricsInTraceTree,
-  });
   const data = useLazyLoadQuery<TraceDetailsQuery>(
     graphql`
       query TraceDetailsQuery($traceId: ID!, $id: ID!) {
@@ -109,6 +96,14 @@ export function TraceDetails({
               session {
                 id
                 sessionId
+                tokenUsage {
+                  total
+                }
+                costSummary {
+                  total {
+                    cost
+                  }
+                }
               }
               ...ConnectedTraceTree
               rootSpans: spans(
@@ -121,6 +116,17 @@ export function TraceDetails({
                     id
                     spanId
                     parentId
+                    statusCode
+                    latencyMs
+                    startTime
+                    cumulativeTokenCountTotal
+                    trace {
+                      costSummary {
+                        total {
+                          cost
+                        }
+                      }
+                    }
                     ...TraceTurnContent_rootSpan
                   }
                 }
@@ -169,99 +175,101 @@ export function TraceDetails({
     : undefined;
 
   return (
-    <main
-      css={css`
-        flex: 1 1 auto;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      `}
-    >
-      <DetailsPanel
-        navigation={
-          <TraceTreeProvider>
-            {treeHeader}
-            <TraceTreeToolbar
-              isTreePanelCollapsed={isTreePanelCollapsed}
-              onTreePanelCollapsedChange={onTreePanelCollapsedChange}
-            />
-            <ConnectedTraceTree
-              trace={trace}
-              isNavigationCollapsed={isTreePanelCollapsed}
-              session={treeSession}
-              selectedSpanNodeId={selectedSpanNodeId ?? ""}
-              traceSelection={{
-                isSelected: isTraceSelected,
-                onSelect: () => {
-                  setLocalSpanSelection(null);
-                  setSearchParams(
-                    (searchParams) => {
-                      searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-                      searchParams.set(SELECTED_TRACE_ID_PARAM, trace.traceId);
-                      return searchParams;
-                    },
-                    { replace: true, flushSync: true }
-                  );
-                },
-                traceId: trace.traceId,
-              }}
-              onSpanSelectionStart={(span) => {
-                setLocalSpanSelection({
-                  isRouteCommitPending: true,
-                  spanPreview: {
-                    ...span,
-                    projectId,
-                    traceId: trace.traceId,
-                  },
-                });
-              }}
-              onSpanClick={(span) => {
+    <DetailsPanelContent
+      navigation={
+        <TraceTreeProvider>
+          {treeHeader}
+          <TraceTreeToolbar
+            isTreePanelCollapsed={isTreePanelCollapsed}
+            onTreePanelCollapsedChange={onTreePanelCollapsedChange}
+          />
+          <ConnectedTraceTree
+            trace={trace}
+            isNavigationCollapsed={isTreePanelCollapsed}
+            session={treeSession}
+            selectedSpanNodeId={selectedSpanNodeId ?? ""}
+            traceSelection={{
+              isSelected: isTraceSelected,
+              onSelect: () => {
+                setLocalSpanSelection(null);
                 setSearchParams(
                   (searchParams) => {
-                    searchParams.delete(SELECTED_TRACE_ID_PARAM);
-                    searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
+                    searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                    searchParams.set(SELECTED_TRACE_ID_PARAM, trace.traceId);
                     return searchParams;
                   },
                   { replace: true, flushSync: true }
                 );
-                setLocalSpanSelection({
-                  isRouteCommitPending: false,
-                  spanPreview: {
-                    ...span,
-                    projectId,
-                    traceId: trace.traceId,
-                  },
-                });
-              }}
+              },
+              traceId: trace.traceId,
+            }}
+            onSpanSelectionStart={(span) => {
+              setLocalSpanSelection({
+                isRouteCommitPending: true,
+                spanPreview: {
+                  ...span,
+                  projectId,
+                  traceId: trace.traceId,
+                },
+              });
+            }}
+            onSpanClick={(span) => {
+              setSearchParams(
+                (searchParams) => {
+                  searchParams.delete(SELECTED_TRACE_ID_PARAM);
+                  searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
+                  return searchParams;
+                },
+                { replace: true, flushSync: true }
+              );
+              setLocalSpanSelection({
+                isRouteCommitPending: false,
+                spanPreview: {
+                  ...span,
+                  projectId,
+                  traceId: trace.traceId,
+                },
+              });
+            }}
+          />
+        </TraceTreeProvider>
+      }
+    >
+      <SpanInfoCardsProvider>
+        <SpanDetailsWrapper>
+          {isTraceSelected ? (
+            <TraceTurnDetails
+              session={session}
+              traceId={trace.traceId}
+              traceNodeId={trace.id}
+              rootSpan={rootSpan}
             />
-          </TraceTreeProvider>
-        }
-        preferredTreeWidth={preferredTreeWidth}
-        onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-        treeAddonWidth={treeAddonWidth}
-        treeMaximumWidth={treeMaximumWidth}
-      >
-        <SpanInfoCardsProvider>
-          <SpanDetailsWrapper>
-            {isTraceSelected ? (
-              <TraceTurnDetails traceNodeId={trace.id} rootSpan={rootSpan} />
-            ) : selectedSpanNodeId ? (
-              <SpanDetailsPaintGate
-                spanNodeId={selectedSpanNodeId}
-                spanPreview={selectedSpanPreview}
-              />
-            ) : null}
-          </SpanDetailsWrapper>
-        </SpanInfoCardsProvider>
-      </DetailsPanel>
-    </main>
+          ) : selectedSpanNodeId ? (
+            <SpanDetailsPaintGate
+              spanNodeId={selectedSpanNodeId}
+              spanPreview={selectedSpanPreview}
+              showSessionHeader={session != null}
+            />
+          ) : null}
+        </SpanDetailsWrapper>
+      </SpanInfoCardsProvider>
+    </DetailsPanelContent>
   );
 }
 
 function TraceTurnDetails({
+  session,
+  traceId,
   traceNodeId,
   rootSpan,
 }: {
+  session: {
+    costSummary: { total: { cost: number | null } };
+    id: string;
+    sessionId: string;
+    tokenUsage: { total: number };
+  } | null;
+  traceId: string;
   traceNodeId: string;
   rootSpan: RootSpan;
 }) {
@@ -275,9 +283,45 @@ function TraceTurnDetails({
         overflow: hidden;
       `}
     >
-      <Suspense fallback={<DetailPanelAnnotationBarSkeleton />}>
-        <TraceDetailPanelAnnotationBar traceNodeId={traceNodeId} />
-      </Suspense>
+      {session ? (
+        <SessionDetailsHeader
+          annotationBar={
+            <Suspense
+              fallback={
+                <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+              }
+            >
+              <SessionDetailPanelAnnotationBar sessionNodeId={session.id} />
+            </Suspense>
+          }
+          preview={{
+            sessionId: session.id,
+            sessionDisplayId: session.sessionId,
+            tokenCountTotal: session.tokenUsage.total,
+            totalCost: session.costSummary.total.cost,
+          }}
+        />
+      ) : null}
+      <TraceDetailsHeader
+        annotationBar={
+          <Suspense
+            fallback={
+              <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+            }
+          >
+            <TraceDetailPanelAnnotationBar traceNodeId={traceNodeId} />
+          </Suspense>
+        }
+        trace={{
+          id: traceNodeId,
+          traceId,
+          statusCode: rootSpan.statusCode,
+          latencyMs: rootSpan.latencyMs,
+          startTime: rootSpan.startTime,
+          tokenCountTotal: rootSpan.cumulativeTokenCountTotal,
+          totalCost: rootSpan.trace.costSummary.total.cost,
+        }}
+      />
       <div
         css={css`
           flex: 1 1 auto;

@@ -7,17 +7,34 @@ import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
 import { SpanDetailsPaintGate } from "../SpanDetailsPaintGate";
 
 vi.mock("../SpanDetails", () => ({
-  SpanDetails: ({ spanNodeId }: { spanNodeId: string }) => (
-    <div data-span-details-body-id={spanNodeId}>{`Hydrated ${spanNodeId}`}</div>
+  SpanDetails: ({
+    showSessionHeader,
+    spanNodeId,
+  }: {
+    showSessionHeader?: boolean;
+    spanNodeId: string;
+  }) => (
+    <div
+      data-show-session-header={String(showSessionHeader)}
+      data-span-details-body-id={spanNodeId}
+    >
+      {`Hydrated ${spanNodeId}`}
+    </div>
   ),
 }));
 
 vi.mock("../TraceDetailsSkeleton", () => ({
   SpanDetailsSkeleton: ({
+    showSessionHeader,
     spanPreview,
   }: {
+    showSessionHeader?: boolean;
     spanPreview?: SpanDetailsPreview;
-  }) => <div>{spanPreview?.name ?? "Loading span details"}</div>,
+  }) => (
+    <div data-show-session-header={String(showSessionHeader)}>
+      {spanPreview?.name ?? "Loading span details"}
+    </div>
+  ),
 }));
 
 describe("SpanDetailsPaintGate", () => {
@@ -146,6 +163,27 @@ describe("SpanDetailsPaintGate", () => {
     expect(getSkeleton().hidden).toBe(false);
     expect(getSkeleton().textContent).toBe("Span B");
     expect(getRetainedDetails()).toBeNull();
+  });
+
+  it("preserves whether an enclosing panel owns the session header", () => {
+    act(() => {
+      root.render(
+        <SpanDetailsPaintGate spanNodeId="span-a" showSessionHeader={false} />
+      );
+    });
+    expect(
+      getSkeleton()
+        .querySelector("[data-show-session-header]")
+        ?.getAttribute("data-show-session-header")
+    ).toBe("false");
+
+    runNextFrame();
+    runNextFrame();
+    expect(
+      getRetainedDetails("span-a")
+        ?.querySelector("[data-show-session-header]")
+        ?.getAttribute("data-show-session-header")
+    ).toBe("false");
   });
 
   it("reveals a cached span immediately and evicts the least recent span", () => {

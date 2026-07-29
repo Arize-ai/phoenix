@@ -12,7 +12,12 @@ vi.mock("react-relay", () => ({
       trace: {
         id: "trace-node-id",
         traceId: "trace-display-id",
-        session: null,
+        session: {
+          id: "session-node-id",
+          sessionId: "session-display-id",
+          tokenUsage: { total: 84 },
+          costSummary: { total: { cost: 0.02 } },
+        },
         rootSpans: {
           edges: [
             {
@@ -20,6 +25,13 @@ vi.mock("react-relay", () => ({
                 id: "root-span-node-id",
                 spanId: "root-span-id",
                 parentId: null,
+                statusCode: "OK",
+                latencyMs: 125,
+                startTime: "2026-07-28T12:00:00.000Z",
+                cumulativeTokenCountTotal: 42,
+                trace: {
+                  costSummary: { total: { cost: 0.01 } },
+                },
               },
             },
           ],
@@ -36,6 +48,11 @@ vi.mock("react-router", () => ({
 vi.mock(
   "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar",
   () => ({
+    SessionDetailPanelAnnotationBar: ({
+      sessionNodeId,
+    }: {
+      sessionNodeId: string;
+    }) => <div data-testid="session-annotation-bar">{sessionNodeId}</div>,
     TraceDetailPanelAnnotationBar: ({
       traceNodeId,
     }: {
@@ -63,7 +80,7 @@ vi.mock("../ConnectedTraceTree", () => ({
 }));
 
 vi.mock("../DetailsPanel", () => ({
-  DetailsPanel: ({
+  DetailsPanelContent: ({
     children,
     navigation,
   }: {
@@ -116,12 +133,7 @@ describe("TraceDetails", () => {
   it("renders the root span turn content when the trace row is selected", () => {
     act(() => {
       root.render(
-        <TraceDetails
-          traceId="trace-display-id"
-          projectId="project-node-id"
-          preferredTreeWidth={320}
-          onPreferredTreeWidthChange={() => {}}
-        />
+        <TraceDetails traceId="trace-display-id" projectId="project-node-id" />
       );
     });
 
@@ -129,6 +141,21 @@ describe("TraceDetails", () => {
       container.querySelector("[data-testid='trace-annotation-bar']")
         ?.textContent
     ).toBe("trace-node-id");
+    const detailHeaders = container.querySelectorAll("[data-detail-header]");
+    const sessionHeader = detailHeaders.item(0);
+    const traceHeader = detailHeaders.item(1);
+    expect(detailHeaders).toHaveLength(2);
+    expect(
+      sessionHeader.querySelector("[data-testid='session-annotation-bar']")
+        ?.textContent
+    ).toBe("session-node-id");
+    expect(
+      traceHeader.querySelector("[data-testid='trace-annotation-bar']")
+    ).not.toBeNull();
+    expect(
+      traceHeader.querySelector('[aria-label="Copy Trace ID trace-display-id"]')
+    ).not.toBeNull();
+    expect(traceHeader.textContent).not.toContain("trace-display-id");
     expect(
       container.querySelector("[data-testid='trace-turn-content']")?.textContent
     ).toBe("root-span-node-id");

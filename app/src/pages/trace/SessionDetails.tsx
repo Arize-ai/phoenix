@@ -41,8 +41,6 @@ import { DetailPanelAnnotationBarSkeleton } from "./TraceDetailsSkeleton";
 
 export type SessionDetailsProps = {
   sessionId: string;
-  preferredTreeWidth: number;
-  onPreferredTreeWidthChange: (width: number) => void;
   isTreePanelCollapsed: boolean;
   onTreePanelCollapsedChange: (isCollapsed: boolean) => void;
   navigationHeader: ReactNode;
@@ -78,6 +76,15 @@ function SessionDetailsMainContent({
       `}
     >
       <SessionDetailsHeader
+        annotationBar={
+          <Suspense
+            fallback={
+              <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+            }
+          >
+            <SessionDetailPanelAnnotationBar sessionNodeId={sessionId} />
+          </Suspense>
+        }
         preview={{
           sessionId,
           sessionDisplayId,
@@ -85,9 +92,6 @@ function SessionDetailsMainContent({
           totalCost,
         }}
       />
-      <Suspense fallback={<DetailPanelAnnotationBarSkeleton />}>
-        <SessionDetailPanelAnnotationBar sessionNodeId={sessionId} />
-      </Suspense>
       <div
         css={css`
           flex: 1 1 auto;
@@ -118,8 +122,6 @@ function SessionDetailsSearchParamsBridge({
  */
 export function SessionDetails({
   sessionId,
-  preferredTreeWidth,
-  onPreferredTreeWidthChange,
   isTreePanelCollapsed,
   onTreePanelCollapsedChange,
   navigationHeader,
@@ -269,10 +271,8 @@ export function SessionDetails({
     <SessionDetailsSkeleton
       isTreePanelCollapsed={isTreePanelCollapsed}
       navigationHeader={navigationHeader}
-      onPreferredTreeWidthChange={onPreferredTreeWidthChange}
       onSessionViewChange={handleSessionViewChange}
       onTreePanelCollapsedChange={onTreePanelCollapsedChange}
-      preferredTreeWidth={preferredTreeWidth}
       preview={{
         sessionId,
         sessionDisplayId,
@@ -285,23 +285,13 @@ export function SessionDetails({
   );
 
   return (
-    <main
-      css={css`
-        flex: 1 1 auto;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        overflow: hidden;
-      `}
-    >
+    <>
       <SessionDetailsSearchParamsBridge store={searchParamsStore} />
       <Suspense fallback={loadingState}>
         {sessionView === "traces" ? (
           tracesViewQueryRef != null ? (
             <SessionDetailsTracesView
               queryRef={tracesViewQueryRef}
-              preferredTreeWidth={preferredTreeWidth}
-              onPreferredTreeWidthChange={onPreferredTreeWidthChange}
               renderNavigationHeader={renderNavigationHeader}
               sessionViewControl={sessionViewControl}
               isTreePanelCollapsed={isTreePanelCollapsed}
@@ -316,8 +306,6 @@ export function SessionDetails({
         ) : traceListQueryRef != null ? (
           <SessionDetailsTraceList
             queryRef={traceListQueryRef}
-            preferredTreeWidth={preferredTreeWidth}
-            onPreferredTreeWidthChange={onPreferredTreeWidthChange}
             renderNavigationHeader={renderNavigationHeader}
             sessionViewControl={sessionViewControl}
             isTreePanelCollapsed={isTreePanelCollapsed}
@@ -329,6 +317,6 @@ export function SessionDetails({
           loadingState
         )}
       </Suspense>
-    </main>
+    </>
   );
 }

@@ -59,12 +59,15 @@ describe("SpanHeaderSkeleton", () => {
       container.querySelector('[aria-label="Span status: ERROR"]')
     ).not.toBeNull();
     expect(container.textContent).not.toContain("Error");
-    expect(container.textContent).toContain("span-id");
+    expect(
+      container.querySelector('[aria-label="Copy Span ID span-id"]')
+    ).not.toBeNull();
+    expect(container.textContent).not.toContain("span-id");
     expect(container.textContent).toContain("125");
     expect(container.textContent).toContain("456");
     const metadataRow = container.querySelector(".span-header__meta");
     expect(metadataRow?.firstElementChild?.textContent).toContain("retriever");
-    expect(metadataRow?.children[1]?.textContent).toContain("span-id");
+    expect(metadataRow?.children[1]?.textContent).toContain("125");
     expect(
       container.querySelector('button[aria-label="Copy Span ID span-id"]')
     ).not.toBeNull();

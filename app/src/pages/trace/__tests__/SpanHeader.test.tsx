@@ -60,14 +60,18 @@ describe("SpanHeaderContent", () => {
     });
   }
 
-  it("shows an error status message in a danger badge after the title", () => {
+  it("shows the copyable ID after the title and then the error status", () => {
     renderHeader({ statusMessage: "The model request failed." });
 
     const title = container.querySelector(".span-header__name");
     const statusMessage = container.querySelector<HTMLElement>(
       ".span-header__status-message"
     );
-    expect(title?.nextElementSibling).toBe(statusMessage);
+    const copyIdButton = container.querySelector(
+      '[aria-label="Copy Span ID span-id"]'
+    );
+    expect(title?.nextElementSibling).toBe(copyIdButton);
+    expect(copyIdButton?.nextElementSibling).toBe(statusMessage);
     expect(statusMessage?.textContent).toBe("The model request failed.");
     expect(
       statusMessage?.querySelector<HTMLElement>(".badge")?.dataset.variant

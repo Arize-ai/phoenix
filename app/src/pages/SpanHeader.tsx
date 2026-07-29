@@ -93,6 +93,11 @@ export function SpanHeaderContent({
       <DetailHeaderIdentityRow>
         <SpanStatusIndicator statusCode={span.code} />
         <DetailHeaderTitle title={span.name} />
+        <CopyableIDBadge
+          id={span.spanId}
+          showValue={false}
+          tooltipText="Copy Span ID"
+        />
         {span.code === "ERROR" && span.statusMessage ? (
           <span
             className="span-header__status-message"
@@ -117,9 +122,6 @@ export function SpanHeaderContent({
       <DetailHeaderMetaRow>
         <DetailHeaderMetaItem>
           <SpanKindBadge spanKind={span.spanKind} />
-        </DetailHeaderMetaItem>
-        <DetailHeaderMetaItem>
-          <CopyableIDBadge id={span.spanId} tooltipText="Copy Span ID" />
         </DetailHeaderMetaItem>
         {typeof span.latencyMs === "number" ? (
           <DetailHeaderMetaItem>

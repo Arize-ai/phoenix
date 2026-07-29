@@ -43,6 +43,9 @@ async function createDetailsPanelFixture({
   const parentSpanId = `parent-${fixtureId}`;
   const childSpanId = `child-${fixtureId}`;
   const sessionIdentifier = `session-${fixtureId}`;
+  const adjacentTraceId = `adjacent-trace-${fixtureId}`;
+  const adjacentSpanId = `adjacent-span-${fixtureId}`;
+  const adjacentSessionIdentifier = `adjacent-session-${fixtureId}`;
   const startTime = new Date().toISOString();
   const endTime = new Date(Date.now() + 1_000).toISOString();
 
@@ -69,6 +72,18 @@ async function createDetailsPanelFixture({
             end_time: endTime,
             status_code: "OK",
             attributes: { "session.id": sessionIdentifier },
+          },
+          {
+            name: "Adjacent session root",
+            context: {
+              trace_id: adjacentTraceId,
+              span_id: adjacentSpanId,
+            },
+            span_kind: "CHAIN",
+            start_time: startTime,
+            end_time: endTime,
+            status_code: "OK",
+            attributes: { "session.id": adjacentSessionIdentifier },
           },
         ],
       },
@@ -127,8 +142,12 @@ async function createDetailsPanelFixture({
       const body = (await response.json()) as {
         data: Array<{ session_id: string }>;
       };
-      return body.data.some(
-        (session) => session.session_id === sessionIdentifier
+      const sessionIdentifiers = new Set(
+        body.data.map((session) => session.session_id)
+      );
+      return (
+        sessionIdentifiers.has(sessionIdentifier) &&
+        sessionIdentifiers.has(adjacentSessionIdentifier)
       );
     })
     .toBe(true);
@@ -314,6 +333,152 @@ test.describe("Details panel column behavior assertions", () => {
         main: null,
         tree: null,
       });
+  });
+
+  test("shows session loading feedback without replacing the column shell after arrow click", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto(
+      `/projects/${fixture.projectId}/sessions/${encodeURIComponent(fixture.sessionId)}`
+    );
+    await expect(
+      page.getByTestId("session-details-skeleton")
+    ).not.toBeVisible();
+    const initialLayout = await getDetailsPanelLayout(page);
+    const group = page.locator(".details-panel-columns");
+    const tree = page.getByTestId("details-panel-tree-column");
+    const main = page.getByTestId("details-panel-main-column");
+    await group.evaluate((element) => {
+      element.setAttribute("data-stable-shell", "true");
+    });
+    await tree.evaluate((element) => {
+      element.setAttribute("data-stable-tree", "true");
+    });
+    await main.evaluate((element) => {
+      element.setAttribute("data-stable-main", "true");
+    });
+    let hasBlockedDetailsRequest = false;
+    let releaseDetailsRequest: () => void = () => {};
+    await page.route("**/graphql", async (route) => {
+      const postData = route.request().postData();
+      if (
+        !hasBlockedDetailsRequest &&
+        postData?.includes("SessionDetailsTraceListQuery")
+      ) {
+        const response = await route.fetch();
+        hasBlockedDetailsRequest = true;
+        await new Promise<void>((resolve) => {
+          releaseDetailsRequest = resolve;
+        });
+        await route.fulfill({ response });
+        return;
+      }
+      await route.continue();
+    });
+
+    const nextButton = page.getByRole("button", { name: "Next session" });
+    const previousButton = page.getByRole("button", {
+      name: "Previous session",
+    });
+    const navigationButton = (await nextButton.isEnabled())
+      ? nextButton
+      : previousButton;
+    await expect(navigationButton).toBeEnabled();
+    await navigationButton.click();
+
+    await expect.poll(() => hasBlockedDetailsRequest).toBe(true);
+    await expect(page.getByTestId("session-details-skeleton")).toBeVisible();
+    await expect(group).toHaveAttribute("data-stable-shell", "true");
+    await expect(tree).toHaveAttribute("data-stable-tree", "true");
+    await expect(main).toHaveAttribute("data-stable-main", "true");
+    expect(await getDetailsPanelLayout(page)).toEqual(initialLayout);
+
+    releaseDetailsRequest();
+    await expect(
+      page.getByTestId("session-details-skeleton")
+    ).not.toBeVisible();
+    await expect(group).toHaveAttribute("data-stable-shell", "true");
+    await expect(tree).toHaveAttribute("data-stable-tree", "true");
+    await expect(main).toHaveAttribute("data-stable-main", "true");
+    expect(await getDetailsPanelLayout(page)).toEqual(initialLayout);
+  });
+
+  test("shows trace navigation feedback without replacing the column shell after hotkey", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto(`/projects/${fixture.projectId}/traces/${fixture.traceId}`);
+    await expect(page.getByTestId("trace-details-skeleton")).not.toBeVisible();
+    const initialLayout = await getDetailsPanelLayout(page);
+    const group = page.locator(".details-panel-columns");
+    const tree = page.getByTestId("details-panel-tree-column");
+    const main = page.getByTestId("details-panel-main-column");
+    await group.evaluate((element) => {
+      element.setAttribute("data-stable-shell", "true");
+    });
+    await tree.evaluate((element) => {
+      element.setAttribute("data-stable-tree", "true");
+    });
+    await main.evaluate((element) => {
+      element.setAttribute("data-stable-main", "true");
+    });
+    const initialNavigationText = await page
+      .locator(".details-panel-navigation-content")
+      .textContent();
+
+    let hasBlockedDetailsRequest = false;
+    let releaseDetailsRequest: () => void = () => {};
+    await page.route("**/graphql", async (route) => {
+      const postData = route.request().postData();
+      if (
+        !hasBlockedDetailsRequest &&
+        postData?.includes("TraceDetailsQuery")
+      ) {
+        const response = await route.fetch();
+        hasBlockedDetailsRequest = true;
+        await new Promise<void>((resolve) => {
+          releaseDetailsRequest = resolve;
+        });
+        await route.fulfill({ response });
+        return;
+      }
+      await route.continue();
+    });
+
+    const nextButton = page.getByRole("button", { name: "Next trace" });
+    const previousButton = page.getByRole("button", {
+      name: "Previous trace",
+    });
+    const hotkey = (await nextButton.isEnabled()) ? "j" : "k";
+    expect(
+      (await nextButton.isEnabled()) || (await previousButton.isEnabled())
+    ).toBe(true);
+    await page.keyboard.press(hotkey);
+
+    await expect.poll(() => hasBlockedDetailsRequest).toBe(true);
+    await expect
+      .poll(async () => {
+        const isSkeletonVisible = await page
+          .getByTestId("trace-details-skeleton")
+          .isVisible();
+        const navigationText = await page
+          .locator(".details-panel-navigation-content")
+          .textContent();
+        return isSkeletonVisible || navigationText !== initialNavigationText;
+      })
+      .toBe(true);
+    await expect(group).toHaveAttribute("data-stable-shell", "true");
+    await expect(tree).toHaveAttribute("data-stable-tree", "true");
+    await expect(main).toHaveAttribute("data-stable-main", "true");
+    expect(await getDetailsPanelLayout(page)).toEqual(initialLayout);
+
+    releaseDetailsRequest();
+    await expect(page.getByTestId("trace-details-skeleton")).not.toBeVisible();
+    await expect(group).toHaveAttribute("data-stable-shell", "true");
+    await expect(tree).toHaveAttribute("data-stable-tree", "true");
+    await expect(main).toHaveAttribute("data-stable-main", "true");
+    expect(await getDetailsPanelLayout(page)).toEqual(initialLayout);
   });
 
   test("DW-3, CP-2, CP-5, and PS: drawer drag updates only the released main preference", async ({

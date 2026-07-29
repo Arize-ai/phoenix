@@ -23,7 +23,6 @@ import {
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
-import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
@@ -39,7 +38,7 @@ import type { SessionDetailsTraceListQuery } from "@phoenix/pages/trace/__genera
 import type { SessionDetailsTraceListRefetchQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListRefetchQuery.graphql";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
-import { DetailsPanel } from "./DetailsPanel";
+import { DetailsPanelContent } from "./DetailsPanel";
 import type { SessionNavigationHeaderRenderer } from "./SessionDetails";
 import { SessionDetailsNavigation } from "./SessionDetailsNavigation";
 import { TraceTurnContent } from "./TraceTurnContent";
@@ -350,8 +349,6 @@ const turnDetailRowCSS = css`
 
 export function SessionDetailsTraceList({
   queryRef,
-  preferredTreeWidth,
-  onPreferredTreeWidthChange,
   renderNavigationHeader,
   sessionViewControl,
   isTreePanelCollapsed,
@@ -360,8 +357,6 @@ export function SessionDetailsTraceList({
   renderMainContent,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
-  preferredTreeWidth: number;
-  onPreferredTreeWidthChange: (width: number) => void;
   renderNavigationHeader: SessionNavigationHeaderRenderer;
   sessionViewControl: ReactNode;
   isTreePanelCollapsed: boolean;
@@ -573,11 +568,7 @@ export function SessionDetailsTraceList({
   );
 
   return (
-    <DetailsPanel
-      navigationAriaLabel="Resize session turns"
-      preferredTreeWidth={preferredTreeWidth}
-      onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-      treeMaximumWidth={getTraceTreeMaximumWidth({ hasTiming: false })}
+    <DetailsPanelContent
       navigation={
         <>
           {renderNavigationHeader()}
@@ -593,6 +584,6 @@ export function SessionDetailsTraceList({
       }
     >
       {renderMainContent(turnDetails)}
-    </DetailsPanel>
+    </DetailsPanelContent>
   );
 }

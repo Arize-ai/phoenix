@@ -78,7 +78,7 @@ export type AnnotationBarTarget = {
   annotations: readonly Annotation[];
   id: string;
   kind: AnnotationTargetKind;
-  label: string;
+  label?: string;
 };
 
 export type AnnotationBarRow =
@@ -125,6 +125,8 @@ export type DetailPanelAnnotationBarProps = {
   ) => Promise<AnnotationBarMutationResult>;
   projectAnnotationConfigs: readonly AnnotationConfig[];
   rows: readonly AnnotationBarRow[];
+  /** Embeds the bar as the final row of a detail header. */
+  variant?: "default" | "detail-header";
 };
 
 const annotationBarCSS = css`
@@ -141,6 +143,16 @@ const annotationBarCSS = css`
 
   & > * + * {
     border-top: 1px solid var(--global-border-color-default);
+  }
+
+  &[data-variant="detail-header"] {
+    border: 0;
+    background: transparent;
+
+    & > [data-annotation-target] {
+      grid-template-columns: minmax(0, 1fr);
+      padding: 0;
+    }
   }
 `;
 
@@ -407,6 +419,7 @@ export function DetailPanelAnnotationBar({
   onUpdateAnnotationConfig,
   projectAnnotationConfigs,
   rows,
+  variant = "default",
 }: DetailPanelAnnotationBarProps) {
   const hasVisibleAnnotationLabels =
     projectAnnotationConfigs.length > 0 ||
@@ -428,7 +441,11 @@ export function DetailPanelAnnotationBar({
     projectAnnotationConfigs,
   };
   return (
-    <div css={annotationBarCSS} aria-label="Annotations bar">
+    <div
+      css={annotationBarCSS}
+      aria-label="Annotations bar"
+      data-variant={variant}
+    >
       {rows.map((row) =>
         row.kind === "message" ? (
           <div key={row.id} css={annotationMessageCSS} role="note">
@@ -496,10 +513,17 @@ function AnnotationTargetRow({
   );
   const orderedRowConfigs = [...populatedRowConfigs, ...unpopulatedRowConfigs];
   return (
-    <div css={annotationRowCSS} data-annotation-target={target.kind}>
-      <Text size="XS" color="text-500" weight="heavy">
-        {target.label}
-      </Text>
+    <div
+      css={annotationRowCSS}
+      data-annotation-target={target.kind}
+      role="group"
+      aria-label={`${target.kind} annotations`}
+    >
+      {target.label ? (
+        <Text size="XS" color="text-500" weight="heavy">
+          {target.label}
+        </Text>
+      ) : null}
       <div css={annotationLabelsCSS}>
         {orderedRowConfigs.map(({ config, id, name }) => {
           const annotations = annotationsByName[name] ?? [];
@@ -1761,6 +1785,7 @@ function AddAnnotationPopover({
   isAddAnnotationButtonCompact: boolean;
   target: AnnotationBarTarget;
 }) {
+  const targetLabel = target.label ?? target.kind;
   const [isOpen, setIsOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [pendingRemoval, setPendingRemoval] = useState<AnnotationConfig | null>(
@@ -1816,7 +1841,7 @@ function AddAnnotationPopover({
           layer="non-modal"
           minHeight={0}
           maxHeight="min(620px, calc(100vh - var(--global-dimension-size-800)))"
-          aria-label={`Manage ${target.label.toLocaleLowerCase()} annotations`}
+          aria-label={`Manage ${targetLabel.toLocaleLowerCase()} annotations`}
         >
           {error ? (
             <View padding="size-100">

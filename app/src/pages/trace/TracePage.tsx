@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import {
   useLocation,
   useNavigate,
@@ -18,7 +17,11 @@ import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
-import { DetailsPanelHeader } from "./DetailsPanel";
+import {
+  DetailsPanel,
+  DetailsPanelContentBoundary,
+  DetailsPanelHeader,
+} from "./DetailsPanel";
 import { TraceDetails } from "./TraceDetails";
 import { TraceDetailsSkeleton } from "./TraceDetailsSkeleton";
 import { useDetailsPanelSizing } from "./useDetailsPanelSizing";
@@ -86,60 +89,53 @@ export function TracePage({
       onResizeEnd={onDrawerSizeChange}
     >
       <Dialog aria-label="Trace details">
-        {({ close }) => (
-          <DialogContent>
-            <Suspense
-              fallback={
-                <TraceDetailsSkeleton
-                  preferredTreeWidth={preferredTreeWidth}
-                  onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                  isTreePanelCollapsed={isTreeCollapsed}
-                  onTreePanelCollapsedChange={onTreeCollapsedChange}
-                  treeAddonWidth={treeAddonWidth}
-                  treeMaximumWidth={treeMaximumWidth}
-                  treeHeader={
-                    <DetailsPanelHeader
-                      close={close}
-                      closeLabel="Close trace details"
-                      isCollapsed={isTreeCollapsed}
-                      onCollapsedChange={onTreeCollapsedChange}
-                      pagination={
-                        <TraceDetailsPaginator
-                          currentId={paginationSubjectId}
-                          isCollapsed={isTreeCollapsed}
-                        />
-                      }
-                    />
-                  }
+        {({ close }) => {
+          const treeHeader = (
+            <DetailsPanelHeader
+              close={close}
+              closeLabel="Close trace details"
+              isCollapsed={isTreeCollapsed}
+              onCollapsedChange={onTreeCollapsedChange}
+              pagination={
+                <TraceDetailsPaginator
+                  currentId={paginationSubjectId}
+                  isCollapsed={isTreeCollapsed}
                 />
               }
-            >
-              <TraceDetails
-                defaultToTrace={defaultToTrace}
-                traceId={traceId}
-                projectId={projectId}
+            />
+          );
+          return (
+            <DialogContent>
+              <DetailsPanel
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                treeHeader={
-                  <DetailsPanelHeader
-                    close={close}
-                    closeLabel="Close trace details"
-                    isCollapsed={isTreeCollapsed}
-                    onCollapsedChange={onTreeCollapsedChange}
-                    pagination={
-                      <TraceDetailsPaginator
-                        currentId={paginationSubjectId}
-                        isCollapsed={isTreeCollapsed}
-                      />
-                    }
+                treeAddonWidth={treeAddonWidth}
+                treeMaximumWidth={treeMaximumWidth}
+              >
+                <DetailsPanelContentBoundary
+                  subjectKey={JSON.stringify([projectId, traceId])}
+                  navigation={treeHeader}
+                  fallback={
+                    <TraceDetailsSkeleton
+                      isTreePanelCollapsed={isTreeCollapsed}
+                      onTreePanelCollapsedChange={onTreeCollapsedChange}
+                      treeHeader={treeHeader}
+                    />
+                  }
+                >
+                  <TraceDetails
+                    defaultToTrace={defaultToTrace}
+                    traceId={traceId}
+                    projectId={projectId}
+                    treeHeader={treeHeader}
+                    isTreePanelCollapsed={isTreeCollapsed}
+                    onTreePanelCollapsedChange={onTreeCollapsedChange}
                   />
-                }
-                isTreePanelCollapsed={isTreeCollapsed}
-                onTreePanelCollapsedChange={onTreeCollapsedChange}
-              />
-            </Suspense>
-          </DialogContent>
-        )}
+                </DetailsPanelContentBoundary>
+              </DetailsPanel>
+            </DialogContent>
+          );
+        }}
       </Dialog>
     </Drawer>
   );

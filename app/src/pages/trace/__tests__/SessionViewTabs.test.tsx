@@ -1,10 +1,14 @@
-import { act, type ComponentProps, useState } from "react";
+import { act, type ComponentProps, Suspense, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 
-import { DetailsPanel } from "../DetailsPanel";
+import {
+  DetailsPanel,
+  DetailsPanelContent,
+  DetailsPanelContentBoundary,
+} from "../DetailsPanel";
 import { resetDetailsPanelSizingStoreForTesting } from "../detailsPanelSizing/store";
 import { SessionDetailsNavigation } from "../SessionDetailsNavigation";
 import { SessionDetailsPaginator } from "../SessionDetailsPaginator";
@@ -96,12 +100,13 @@ describe("SessionViewTabs", () => {
               traceCount={2}
             >
               <DetailsPanel
-                navigation={<div>Turns</div>}
                 preferredTreeWidth={320}
                 onPreferredTreeWidthChange={() => {}}
                 treeMaximumWidth={480}
               >
-                <div>Turn details</div>
+                <DetailsPanelContent navigation={<div>Turns</div>}>
+                  <div>Turn details</div>
+                </DetailsPanelContent>
               </DetailsPanel>
             </SessionViewTabs>
           </ThemeContext.Provider>
@@ -111,6 +116,140 @@ describe("SessionViewTabs", () => {
 
     const group = container.querySelector("[data-group]");
     expect(group?.ownerDocument.defaultView).toBe(window);
+    const addComparisonButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Add comparison"]'
+    );
+    expect(addComparisonButton).not.toBeNull();
+    expect(
+      addComparisonButton?.closest(".details-panel-main-controls")
+    ).not.toBeNull();
+    expect(addComparisonButton?.getAttribute("data-variant")).toBe("quiet");
+  });
+
+  it("keeps both panel elements mounted while suspended content resolves", async () => {
+    let isResolved = false;
+    let resolveContent: () => void = () => {};
+    const pendingContent = new Promise<void>((resolve) => {
+      resolveContent = resolve;
+    });
+
+    function DelayedContent() {
+      if (!isResolved) throw pendingContent;
+      return (
+        <DetailsPanelContent navigation={<div>Resolved navigation</div>}>
+          <div>Resolved details</div>
+        </DetailsPanelContent>
+      );
+    }
+
+    act(() => {
+      root.render(
+        <DetailsPanel
+          preferredTreeWidth={320}
+          onPreferredTreeWidthChange={() => {}}
+          treeMaximumWidth={480}
+        >
+          <Suspense
+            fallback={
+              <DetailsPanelContent navigation={<div>Loading navigation</div>}>
+                <div>Loading details</div>
+              </DetailsPanelContent>
+            }
+          >
+            <DelayedContent />
+          </Suspense>
+        </DetailsPanel>
+      );
+    });
+
+    const groupBeforeResolution = container.querySelector("[data-group]");
+    const panelsBeforeResolution = Array.from(
+      container.querySelectorAll("[data-panel]")
+    );
+    expect(panelsBeforeResolution).toHaveLength(2);
+    expect(container.textContent).toContain("Loading navigation");
+    expect(container.textContent).toContain("Loading details");
+
+    await act(async () => {
+      isResolved = true;
+      resolveContent();
+      await pendingContent;
+    });
+
+    expect(container.querySelector("[data-group]")).toBe(groupBeforeResolution);
+    expect(Array.from(container.querySelectorAll("[data-panel]"))).toEqual(
+      panelsBeforeResolution
+    );
+    expect(container.textContent).toContain("Resolved navigation");
+    expect(container.textContent).toContain("Resolved details");
+  });
+
+  it("shows the next subject fallback without remounting either panel", async () => {
+    let isNextSubjectResolved = false;
+    let resolveNextSubject: () => void = () => {};
+    const pendingNextSubject = new Promise<void>((resolve) => {
+      resolveNextSubject = resolve;
+    });
+
+    function SubjectContent({ subject }: { subject: string }) {
+      if (subject === "next" && !isNextSubjectResolved) {
+        throw pendingNextSubject;
+      }
+      return (
+        <DetailsPanelContent navigation={<div>{subject} navigation</div>}>
+          <div>{subject} details</div>
+        </DetailsPanelContent>
+      );
+    }
+
+    const renderSubject = (subject: string) => {
+      root.render(
+        <DetailsPanel
+          preferredTreeWidth={320}
+          onPreferredTreeWidthChange={() => {}}
+          treeMaximumWidth={480}
+        >
+          <DetailsPanelContentBoundary
+            subjectKey={subject}
+            navigation={<div>{subject} error navigation</div>}
+            fallback={
+              <DetailsPanelContent navigation={<div>Loading navigation</div>}>
+                <div>Loading details</div>
+              </DetailsPanelContent>
+            }
+          >
+            <SubjectContent subject={subject} />
+          </DetailsPanelContentBoundary>
+        </DetailsPanel>
+      );
+    };
+
+    act(() => renderSubject("current"));
+    const group = container.querySelector("[data-group]");
+    const panels = Array.from(container.querySelectorAll("[data-panel]"));
+    expect(container.textContent).toContain("current details");
+
+    act(() => renderSubject("next"));
+    expect(container.querySelector("[data-group]")).toBe(group);
+    expect(Array.from(container.querySelectorAll("[data-panel]"))).toEqual(
+      panels
+    );
+    expect(container.textContent).not.toContain("current details");
+    expect(container.textContent).toContain("Loading navigation");
+    expect(container.textContent).toContain("Loading details");
+
+    await act(async () => {
+      isNextSubjectResolved = true;
+      resolveNextSubject();
+      await pendingNextSubject;
+    });
+
+    expect(container.querySelector("[data-group]")).toBe(group);
+    expect(Array.from(container.querySelectorAll("[data-panel]"))).toEqual(
+      panels
+    );
+    expect(container.textContent).toContain("next navigation");
+    expect(container.textContent).toContain("next details");
   });
 
   it("reveals the full session navigation over a height-preserving rail", () => {
@@ -432,22 +571,26 @@ describe("SessionViewTabs", () => {
             setThemeMode: vi.fn(),
           }}
         >
-          <SessionDetailsSkeleton
-            isTreePanelCollapsed={false}
-            navigationHeader={<div data-testid="stable-header">Header</div>}
-            onPreferredTreeWidthChange={() => {}}
-            onSessionViewChange={() => {}}
-            onTreePanelCollapsedChange={() => {}}
+          <DetailsPanel
             preferredTreeWidth={320}
-            preview={{
-              sessionId: "session-node-id",
-              sessionDisplayId: "customer-session-id",
-              traceCount: 4,
-              tokenCountTotal: 120,
-              totalCost: 0.25,
-            }}
-            sessionView="turns"
-          />
+            onPreferredTreeWidthChange={() => {}}
+            treeMaximumWidth={480}
+          >
+            <SessionDetailsSkeleton
+              isTreePanelCollapsed={false}
+              navigationHeader={<div data-testid="stable-header">Header</div>}
+              onSessionViewChange={() => {}}
+              onTreePanelCollapsedChange={() => {}}
+              preview={{
+                sessionId: "session-node-id",
+                sessionDisplayId: "customer-session-id",
+                traceCount: 4,
+                tokenCountTotal: 120,
+                totalCost: 0.25,
+              }}
+              sessionView="turns"
+            />
+          </DetailsPanel>
         </ThemeContext.Provider>
       );
     });
@@ -462,7 +605,11 @@ describe("SessionViewTabs", () => {
       container.querySelector('[data-testid="session-navigation-skeleton"]')
     ).not.toBeNull();
     expect(container.textContent).toContain("Session");
-    expect(container.textContent).toContain("customer-session-id");
+    expect(
+      container.querySelector(
+        '[aria-label="Copy Session ID customer-session-id"]'
+      )
+    ).not.toBeNull();
     expect(container.textContent).toContain("4");
   });
 });

@@ -416,7 +416,6 @@ export function SpanDetailPanelAnnotationBar({
           __typename
           ... on Span {
             id
-            parentId
             project {
               id
               annotationConfigs {
@@ -429,18 +428,6 @@ export function SpanDetailPanelAnnotationBar({
             }
             spanAnnotations {
               ...ConnectedDetailPanelAnnotationBarAnnotationFields
-            }
-            trace {
-              id
-              traceAnnotations {
-                ...ConnectedDetailPanelAnnotationBarTraceAnnotationFields
-              }
-              session {
-                id
-                sessionAnnotations {
-                  ...ConnectedDetailPanelAnnotationBarAnnotationFields
-                }
-              }
             }
           }
         }
@@ -464,20 +451,7 @@ export function SpanDetailPanelAnnotationBar({
       refresh={refresh}
       span={{
         id: data.span.id,
-        parentId: data.span.parentId,
         annotations: getAnnotations(data.span.spanAnnotations),
-        trace: {
-          id: data.span.trace.id,
-          annotations: getTraceAnnotations(data.span.trace.traceAnnotations),
-          session: data.span.trace.session
-            ? {
-                id: data.span.trace.session.id,
-                annotations: getAnnotations(
-                  data.span.trace.session.sessionAnnotations
-                ),
-              }
-            : null,
-        },
         projectId: data.span.project.id,
       }}
     />
@@ -496,13 +470,7 @@ function SpanDetailPanelAnnotationBarContent({
   span: {
     annotations: Annotation[];
     id: string;
-    parentId: string | null;
     projectId: string;
-    trace: {
-      annotations: Annotation[];
-      id: string;
-      session: { annotations: Annotation[]; id: string } | null;
-    };
   };
 }) {
   const configHandlers = useAnnotationConfigMutationHandlers({
@@ -510,52 +478,23 @@ function SpanDetailPanelAnnotationBarContent({
     refresh,
   });
   const annotationHandlers = useAnnotationMutationHandlers({ refresh });
-  const rows: AnnotationBarRow[] = [];
-  // Temporarily hide annotation bars for the span's parent elements.
-  // if (span.trace.session) {
-  //   rows.push({
-  //     id: `session-${span.trace.session.id}`,
-  //     kind: "target",
-  //     target: {
-  //       id: span.trace.session.id,
-  //       kind: "session",
-  //       label: "Session",
-  //       annotations: span.trace.session.annotations,
-  //     },
-  //   });
-  // }
-  // rows.push({
-  //   id: `trace-${span.trace.id}`,
-  //   kind: "target",
-  //   target: {
-  //     id: span.trace.id,
-  //     kind: "trace",
-  //     label: "Trace",
-  //     annotations: span.trace.annotations,
-  //   },
-  // });
-  // if (span.parentId) {
-  //   rows.push({
-  //     id: `additional-spans-${span.id}`,
-  //     kind: "message",
-  //     text: "Additional spans",
-  //   });
-  // }
-  rows.push({
-    id: `span-${span.id}`,
-    kind: "target",
-    target: {
-      id: span.id,
-      kind: "span",
-      label: "This span",
-      annotations: span.annotations,
+  const rows: AnnotationBarRow[] = [
+    {
+      id: `span-${span.id}`,
+      kind: "target",
+      target: {
+        id: span.id,
+        kind: "span",
+        annotations: span.annotations,
+      },
     },
-  });
+  ];
   return (
     <DetailPanelAnnotationBar
       allAnnotationConfigs={allAnnotationConfigs}
       projectAnnotationConfigs={projectAnnotationConfigs}
       rows={rows}
+      variant="detail-header"
       {...configHandlers}
       {...annotationHandlers}
     />
@@ -933,22 +872,23 @@ function TraceDetailPanelAnnotationBarContent({
     refresh,
   });
   const annotationHandlers = useAnnotationMutationHandlers({ refresh });
+  const rows: AnnotationBarRow[] = [
+    {
+      id: `trace-${trace.id}`,
+      kind: "target",
+      target: {
+        id: trace.id,
+        kind: "trace",
+        annotations: trace.annotations,
+      },
+    },
+  ];
   return (
     <DetailPanelAnnotationBar
       allAnnotationConfigs={allAnnotationConfigs}
       projectAnnotationConfigs={projectAnnotationConfigs}
-      rows={[
-        {
-          id: `trace-${trace.id}`,
-          kind: "target",
-          target: {
-            id: trace.id,
-            kind: "trace",
-            label: "This trace",
-            annotations: trace.annotations,
-          },
-        },
-      ]}
+      rows={rows}
+      variant="detail-header"
       {...configHandlers}
       {...annotationHandlers}
     />
@@ -1035,22 +975,23 @@ function SessionDetailPanelAnnotationBarContent({
     refresh,
   });
   const annotationHandlers = useAnnotationMutationHandlers({ refresh });
+  const rows: AnnotationBarRow[] = [
+    {
+      id: `session-${session.id}`,
+      kind: "target",
+      target: {
+        id: session.id,
+        kind: "session",
+        annotations: session.annotations,
+      },
+    },
+  ];
   return (
     <DetailPanelAnnotationBar
       allAnnotationConfigs={allAnnotationConfigs}
       projectAnnotationConfigs={projectAnnotationConfigs}
-      rows={[
-        {
-          id: `session-${session.id}`,
-          kind: "target",
-          target: {
-            id: session.id,
-            kind: "session",
-            label: "This session",
-            annotations: session.annotations,
-          },
-        },
-      ]}
+      rows={rows}
+      variant="detail-header"
       {...configHandlers}
       {...annotationHandlers}
     />

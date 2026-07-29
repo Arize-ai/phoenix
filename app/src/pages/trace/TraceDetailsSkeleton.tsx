@@ -24,15 +24,10 @@ import {
   DetailHeaderTitle,
 } from "../DetailHeader";
 import { SpanStatusIndicator } from "../SpanHeader";
-import { DetailsPanel } from "./DetailsPanel";
+import { DetailsPanelContent } from "./DetailsPanel";
+import { SessionDetailsHeader } from "./SessionDetailsHeader";
 import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
-
-const traceDetailsSkeletonCSS = css`
-  flex: 1 1 auto;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-`;
+import { TraceDetailsHeaderSkeleton } from "./TraceDetailsHeader";
 
 const traceTreeToolbarSkeletonCSS = css`
   box-sizing: border-box;
@@ -96,6 +91,12 @@ const annotationBarSkeletonCSS = css`
     var(--global-border-color-default);
   border-bottom: var(--global-border-size-thin) solid
     var(--global-border-color-default);
+
+  &[data-variant="detail-header"] {
+    min-height: var(--global-dimension-size-300);
+    padding: 0;
+    border: 0;
+  }
 `;
 
 const spanDetailsLoadingNavigationCSS = css`
@@ -125,50 +126,37 @@ const spanDetailsLoadingNavigationCSS = css`
 
 /** Loading state for a whole trace, including its tree and selected span. */
 export function TraceDetailsSkeleton({
-  onPreferredTreeWidthChange,
-  preferredTreeWidth,
-  isTreePanelCollapsed,
+  isTreePanelCollapsed = false,
   onTreePanelCollapsedChange,
-  treeAddonWidth,
   treeHeader,
-  treeMaximumWidth,
 }: {
-  onPreferredTreeWidthChange: (width: number) => void;
-  preferredTreeWidth: number;
-  isTreePanelCollapsed: boolean;
-  onTreePanelCollapsedChange: (isCollapsed: boolean) => void;
-  treeAddonWidth: number;
+  isTreePanelCollapsed?: boolean;
+  onTreePanelCollapsedChange?: (isCollapsed: boolean) => void;
   treeHeader?: ReactNode;
-  treeMaximumWidth: number;
 }) {
   return (
-    <main css={traceDetailsSkeletonCSS} aria-busy="true">
-      <DetailsPanel
-        navigation={
-          <>
-            {treeHeader}
-            <TraceTreeNavigationSkeleton
-              isTreePanelCollapsed={isTreePanelCollapsed}
-              onTreePanelCollapsedChange={onTreePanelCollapsedChange}
-            />
-          </>
-        }
-        preferredTreeWidth={preferredTreeWidth}
-        onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-        treeAddonWidth={treeAddonWidth}
-        treeMaximumWidth={treeMaximumWidth}
-      >
-        <SkeletonDetailsWrapper>
-          <SpanDetailsSkeleton />
-        </SkeletonDetailsWrapper>
-      </DetailsPanel>
-    </main>
+    <DetailsPanelContent
+      navigation={
+        <>
+          {treeHeader}
+          <TraceTreeNavigationSkeleton
+            isTreePanelCollapsed={isTreePanelCollapsed}
+            onTreePanelCollapsedChange={onTreePanelCollapsedChange}
+          />
+        </>
+      }
+    >
+      <SkeletonDetailsWrapper>
+        <SpanDetailsSkeleton />
+      </SkeletonDetailsWrapper>
+    </DetailsPanelContent>
   );
 }
 
 function SkeletonDetailsWrapper({ children }: PropsWithChildren) {
   return (
     <div
+      data-testid="trace-details-skeleton"
       css={css`
         width: 100%;
         height: 100%;
@@ -185,7 +173,7 @@ function TraceTreeNavigationSkeleton({
   onTreePanelCollapsedChange,
 }: {
   isTreePanelCollapsed: boolean;
-  onTreePanelCollapsedChange: (isCollapsed: boolean) => void;
+  onTreePanelCollapsedChange?: (isCollapsed: boolean) => void;
 }) {
   return (
     <Flex direction="column" flex="1 1 auto" minHeight={0} aria-busy="true">
@@ -197,10 +185,12 @@ function TraceTreeNavigationSkeleton({
         />
         <Skeleton width={32} height={32} animation="wave" />
         <Skeleton width={32} height={32} animation="wave" />
-        <TraceTreePanelToggleButton
-          isCollapsed={isTreePanelCollapsed}
-          onCollapsedChange={onTreePanelCollapsedChange}
-        />
+        {onTreePanelCollapsedChange ? (
+          <TraceTreePanelToggleButton
+            isCollapsed={isTreePanelCollapsed}
+            onCollapsedChange={onTreePanelCollapsedChange}
+          />
+        ) : null}
       </div>
       <ul css={traceTreeEntitySkeletonListCSS}>
         <TraceTreeEntitySkeleton labelWidth={54} idWidth={104} />
@@ -238,27 +228,68 @@ function TraceTreeEntitySkeleton({
 export function SpanDetailsSkeleton({
   spanPreview,
   isCondensedView = true,
+  showSessionHeader = true,
+  showTraceHeader = true,
 }: {
   spanPreview?: SpanDetailsPreview;
   isCondensedView?: boolean;
+  showSessionHeader?: boolean;
+  showTraceHeader?: boolean;
 }) {
   return (
     <Flex direction="column" flex="1 1 auto" height="100%" aria-busy="true">
-      <SpanHeaderSkeleton
+      <SpanDetailsHeadersSkeleton
         spanPreview={spanPreview}
         isCondensedView={isCondensedView}
+        showSessionHeader={showSessionHeader}
+        showTraceHeader={showTraceHeader}
       />
-      <DetailPanelAnnotationBarSkeleton />
       <SpanDetailsContentSkeleton />
     </Flex>
   );
 }
 
+export function SpanDetailsHeadersSkeleton({
+  spanPreview,
+  isCondensedView = true,
+  showSessionHeader = true,
+  showTraceHeader = true,
+}: {
+  spanPreview?: SpanDetailsPreview;
+  isCondensedView?: boolean;
+  showSessionHeader?: boolean;
+  showTraceHeader?: boolean;
+}) {
+  const annotationBar = (
+    <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+  );
+  return (
+    <>
+      {showSessionHeader ? (
+        <SessionDetailsHeader
+          annotationBar={annotationBar}
+          preview={{ sessionId: "" }}
+        />
+      ) : null}
+      {showTraceHeader ? (
+        <TraceDetailsHeaderSkeleton annotationBar={annotationBar} />
+      ) : null}
+      <SpanHeaderSkeleton
+        annotationBar={annotationBar}
+        spanPreview={spanPreview}
+        isCondensedView={isCondensedView}
+      />
+    </>
+  );
+}
+
 /** Keeps the two-row span identity header stable while its metadata loads. */
 export function SpanHeaderSkeleton({
+  annotationBar,
   spanPreview,
   isCondensedView = true,
 }: {
+  annotationBar?: ReactNode;
   spanPreview?: SpanDetailsPreview;
   isCondensedView?: boolean;
 }) {
@@ -267,7 +298,7 @@ export function SpanHeaderSkeleton({
   const hasTokenCountPreview = spanPreview?.tokenCountTotal !== undefined;
 
   return (
-    <DetailHeader>
+    <DetailHeader annotationBar={annotationBar}>
       <Flex direction="column" gap="size-50" width="100%">
         <DetailHeaderIdentityRow>
           {spanPreview?.statusCode !== undefined ? (
@@ -284,6 +315,15 @@ export function SpanHeaderSkeleton({
               height={22}
               animation="wave"
             />
+          )}
+          {spanPreview?.spanId !== undefined ? (
+            <CopyableIDBadge
+              id={spanPreview.spanId}
+              showValue={false}
+              tooltipText="Copy Span ID"
+            />
+          ) : (
+            <Skeleton width={20} height={20} animation="wave" />
           )}
           <div className="detail-header__actions span-header__actions">
             <SpanDetailsHeaderActions
@@ -307,16 +347,6 @@ export function SpanHeaderSkeleton({
               <SpanKindBadge spanKind={spanPreview.spanKind} />
             ) : (
               <Skeleton width={54} height={20} animation="wave" />
-            )}
-          </DetailHeaderMetaItem>
-          <DetailHeaderMetaItem>
-            {spanPreview?.spanId !== undefined ? (
-              <CopyableIDBadge
-                id={spanPreview.spanId}
-                tooltipText="Copy Span ID"
-              />
-            ) : (
-              <Skeleton width={104} height={16} animation="wave" />
             )}
           </DetailHeaderMetaItem>
           {hasLatencyPreview ? (
@@ -364,10 +394,16 @@ export function SpanHeaderSkeleton({
 }
 
 /** Loading state for trace or span annotation rows. */
-export function DetailPanelAnnotationBarSkeleton() {
+export function DetailPanelAnnotationBarSkeleton({
+  variant = "default",
+}: {
+  variant?: "default" | "detail-header";
+}) {
   return (
-    <div css={annotationBarSkeletonCSS} aria-busy="true">
-      <Skeleton width={68} height={16} animation="wave" />
+    <div css={annotationBarSkeletonCSS} aria-busy="true" data-variant={variant}>
+      {variant === "default" ? (
+        <Skeleton width={68} height={16} animation="wave" />
+      ) : null}
       <Skeleton width={112} height={24} animation="wave" />
       <Skeleton width={92} height={24} animation="wave" />
       <Skeleton width={132} height={24} animation="wave" />
