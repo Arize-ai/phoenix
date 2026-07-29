@@ -94,14 +94,17 @@ function getExamplePredicate(iterableName: string): string {
 }
 
 /**
- * Example conditions for the typeahead's "Suggestions" group, ordered
- * most-useful-first. `${placeholder}` segments become tab-through fields on
- * insert; subscripted names use double quotes to match the served vocabulary.
+ * Example conditions for the typeahead's "Suggestions" group, ordered simple
+ * to complex. `${placeholder}` segments become tab-through fields on insert;
+ * subscripted names use double quotes to match the served vocabulary.
  *
  * Every snippet is valid as inserted — placeholders carry working example
- * values, never blanks. The first `MAX_BROWSE_SUGGESTIONS` are what a
- * browsing user sees, so they are curated to teach one construct each:
- * aggregate, quantifier, compound, nested comprehension, reduction.
+ * values, never blanks — and each teaches something no other snippet (or
+ * plain aggregate) already covers. The first `MAX_BROWSE_SUGGESTIONS` are
+ * what a browsing user sees: one construct each, in rising complexity —
+ * aggregate, quantifier, compound, reduction, nested comprehension. The
+ * remainder runs the one-line field filters before the parameterized
+ * comprehension templates.
  */
 const sessionFilterSnippets: DSLFilterSnippet[] = [
   {
@@ -118,17 +121,61 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
       'num_traces >= ${5} and any(span.status_code == "ERROR" for span in spans)',
   },
   {
+    label: "slowest span in the session",
+    snippet: "max(span.latency_ms for span in spans) > ${5_000}",
+  },
+  {
     label: "any turn used a tool",
     snippet:
       'any(any(span.span_kind == "TOOL" for span in trace.spans) for trace in traces)',
   },
   {
-    label: "slowest span in the session",
-    snippet: "max(span.latency_ms for span in spans) > ${5_000}",
-  },
-  {
     label: "filter by errors",
     snippet: "num_traces_with_error > 0",
+  },
+  {
+    label: "filter by duration",
+    snippet: "duration_ms >= ${10_000}",
+  },
+  {
+    label: "filter by session id",
+    snippet: "session_id == '${session id}'",
+  },
+  {
+    label: "filter by total tokens",
+    snippet: "token_count_total > ${1_000}",
+  },
+  {
+    label: "filter by total cost",
+    snippet: "total_cost > ${1}",
+  },
+  {
+    label: "filter by tool usage",
+    snippet: "tool_span_count > 0",
+  },
+  {
+    label: "filter by user",
+    snippet: "user.id == '${user id}'",
+  },
+  {
+    label: "filter by metadata",
+    snippet: "metadata[\"${key}\"] == '${value}'",
+  },
+  {
+    label: "filter by annotation score",
+    snippet: 'annotations["${name}"].score >= ${0.5}',
+  },
+  {
+    label: "filter by annotation label",
+    snippet: "annotations[\"${name}\"].label == '${label}'",
+  },
+  {
+    label: "search inputs for substring",
+    snippet: "'${search text}' in any_input",
+  },
+  {
+    label: "search outputs for substring",
+    snippet: "'${search text}' in any_output",
   },
   {
     label: "any span matches a condition",
@@ -146,50 +193,6 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
   {
     label: "any turn matches a condition",
     snippet: "any(${trace.latency_ms > 10_000} for trace in ${traces})",
-  },
-  {
-    label: "filter by session id",
-    snippet: "session_id == '${session id}'",
-  },
-  {
-    label: "search inputs for substring",
-    snippet: "'${search text}' in any_input",
-  },
-  {
-    label: "search outputs for substring",
-    snippet: "'${search text}' in any_output",
-  },
-  {
-    label: "filter by duration",
-    snippet: "duration_ms >= ${10_000}",
-  },
-  {
-    label: "filter by annotation score",
-    snippet: 'annotations["${name}"].score >= ${0.5}',
-  },
-  {
-    label: "filter by tool usage",
-    snippet: "tool_span_count > 0",
-  },
-  {
-    label: "filter by total tokens",
-    snippet: "token_count_total > ${1_000}",
-  },
-  {
-    label: "filter by total cost",
-    snippet: "total_cost > ${1}",
-  },
-  {
-    label: "filter by annotation label",
-    snippet: "annotations[\"${name}\"].label == '${label}'",
-  },
-  {
-    label: "filter by metadata",
-    snippet: "metadata[\"${key}\"] == '${value}'",
-  },
-  {
-    label: "filter by user",
-    snippet: "user.id == '${user id}'",
   },
 ];
 
