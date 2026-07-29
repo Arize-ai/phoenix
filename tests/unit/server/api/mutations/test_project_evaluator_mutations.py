@@ -230,7 +230,7 @@ async def test_project_code_evaluator_crud_and_connection(
     assert create_result.data and not create_result.errors
     created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
     assert created["evaluationTarget"] == "SPAN"
-    assert created["evaluationDelaySeconds"] is None
+    assert created["evaluationDelaySeconds"] == 300
     assert created["inputMapping"] == _mapping(output="value")
     assert created["evaluator"]["kind"] == "CODE"
 
@@ -342,12 +342,12 @@ async def test_project_code_evaluator_crud_and_connection(
     assert inherited_result.data and not inherited_result.errors
     inherited = inherited_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert inherited["inputMapping"] == _mapping(output="inherited")
-    assert inherited["evaluationDelaySeconds"] is None
+    assert inherited["evaluationDelaySeconds"] == 300
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert criteria is not None
         assert criteria.input_mapping is None
-        assert criteria.evaluation_delay_seconds is None
+        assert criteria.evaluation_delay_seconds == 300
 
     delete_result = await gql_client.execute(
         _DELETE,
@@ -544,13 +544,13 @@ async def test_project_llm_evaluator_create_update_delete(
     clear_result = await gql_client.execute(_UPDATE_LLM, {"input": clear_input})
     assert clear_result.data and not clear_result.errors
     cleared = clear_result.data["updateProjectLlmEvaluator"]["evaluator"]
-    assert cleared["evaluationDelaySeconds"] is None
+    assert cleared["evaluationDelaySeconds"] == 300
 
     criteria_id = int(GlobalID.from_id(created["id"]).node_id)
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
         assert criteria is not None
-        assert criteria.evaluation_delay_seconds is None
+        assert criteria.evaluation_delay_seconds == 300
 
     delete_result = await gql_client.execute(
         _DELETE,
@@ -803,8 +803,8 @@ async def test_evaluation_delay_rejected_before_project_evaluator_writes(
         code_criteria = await session.get(models.ProjectEvaluatorCriteria, code_criteria_id)
         llm_criteria = await session.get(models.ProjectEvaluatorCriteria, llm_criteria_id)
         assert code_criteria is not None and llm_criteria is not None
-        assert code_criteria.evaluation_delay_seconds is None
-        assert llm_criteria.evaluation_delay_seconds is None
+        assert code_criteria.evaluation_delay_seconds == 300
+        assert llm_criteria.evaluation_delay_seconds == 300
 
 
 async def test_update_code_evaluator_rejects_explicit_null_source_code(

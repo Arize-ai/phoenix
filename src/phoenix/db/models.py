@@ -3291,6 +3291,15 @@ class ProjectEvaluatorCriteria(HasId):
         ),
         nullable=False,
     )
+    evaluation_delay_seconds: Mapped[int] = mapped_column(
+        Integer,
+        CheckConstraint(
+            "evaluation_delay_seconds >= 10",
+            name="valid_evaluation_delay_seconds",
+        ),
+        nullable=False,
+        server_default="300",
+    )
     input_mapping: Mapped[Optional[InputMapping]] = mapped_column(
         _OptionalInputMapping, nullable=True
     )

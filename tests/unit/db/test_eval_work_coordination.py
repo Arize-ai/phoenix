@@ -194,6 +194,7 @@ async def test_project_evaluator_criteria_defaults_and_relationships(
         assert fetched.name.root.startswith("criteria-")
         assert fetched.filter_condition == ""
         assert fetched.evaluation_target == "SPAN"
+        assert fetched.evaluation_delay_seconds == 300
         assert fetched.input_mapping is None
         assert fetched.sampling_rate == 1.0
         assert fetched.evaluator.id == evaluator_id

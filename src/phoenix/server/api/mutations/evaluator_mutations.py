@@ -276,9 +276,9 @@ def _validate_project_evaluator_sampling_rate(sampling_rate: float) -> None:
         raise BadRequest("samplingRate must be between 0.0 and 1.0")
 
 
-def _validate_project_evaluator_evaluation_delay(
+def _materialize_project_evaluator_evaluation_delay(
     evaluation_delay_seconds: Optional[int],
-) -> None:
+) -> int:
     if (
         evaluation_delay_seconds is not None
         and evaluation_delay_seconds < MINIMUM_EVALUATION_DELAY_SECONDS
@@ -286,6 +286,11 @@ def _validate_project_evaluator_evaluation_delay(
         raise BadRequest(
             f"evaluationDelaySeconds must be at least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds"
         )
+    return (
+        DEFAULT_SESSION_EVALUATION_DELAY_SECONDS
+        if evaluation_delay_seconds is None
+        else evaluation_delay_seconds
+    )
 
 
 async def _garbage_collect_evaluators(
@@ -446,9 +451,9 @@ class CreateProjectLLMEvaluatorInput:
         default=None,
         description=(
             "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; null uses the default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Omit or use null to store the current "
+            f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is "
+            "evaluated only once, and later activity does not schedule another evaluation."
         ),
     )
 
@@ -471,9 +476,9 @@ class UpdateProjectLLMEvaluatorInput:
         description=(
             "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; omit to preserve the current setting "
-            f"or use null to restore the default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
-            "seconds. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation."
+            f"or use null to store the current default of "
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            "once, and later activity does not schedule another evaluation."
         ),
     )
 
@@ -498,9 +503,9 @@ class AddProjectCodeEvaluatorInput:
         default=None,
         description=(
             "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; null uses the default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Omit or use null to store the current "
+            f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is "
+            "evaluated only once, and later activity does not schedule another evaluation."
         ),
     )
 
@@ -530,9 +535,9 @@ class CreateProjectCodeEvaluatorInput:
         default=None,
         description=(
             "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; null uses the default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Omit or use null to store the current "
+            f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is "
+            "evaluated only once, and later activity does not schedule another evaluation."
         ),
     )
 
@@ -562,9 +567,9 @@ class UpdateProjectCodeEvaluatorInput:
         description=(
             "Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is "
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds; omit to preserve the current setting "
-            f"or use null to restore the default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
-            "seconds. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation."
+            f"or use null to store the current default of "
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            "once, and later activity does not schedule another evaluation."
         ),
     )
 
@@ -653,7 +658,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid project id: {input.project_id}")
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
-        _validate_project_evaluator_evaluation_delay(input.evaluation_delay_seconds)
+        evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
+            input.evaluation_delay_seconds
+        )
         try:
             name = IdentifierModel.model_validate(input.name)
             prompt_version = input.prompt_version.to_orm_prompt_version(None)
@@ -733,7 +740,7 @@ class EvaluatorMutationMixin:
                     sampling_rate=input.sampling_rate,
                     evaluation_target=input.evaluation_target.value,
                     input_mapping=input.input_mapping.to_orm(),
-                    evaluation_delay_seconds=input.evaluation_delay_seconds,
+                    evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
                 )
                 session.add(criteria)
@@ -764,7 +771,7 @@ class EvaluatorMutationMixin:
         if input.enabled is None:
             raise BadRequest("enabled cannot be set to null")
         if input.evaluation_delay_seconds is not UNSET:
-            _validate_project_evaluator_evaluation_delay(input.evaluation_delay_seconds)
+            _materialize_project_evaluator_evaluation_delay(input.evaluation_delay_seconds)
         try:
             name = IdentifierModel.model_validate(input.name)
             prompt_version = input.prompt_version.to_orm_prompt_version(None)
@@ -865,7 +872,11 @@ class EvaluatorMutationMixin:
                 criteria.evaluation_target = input.evaluation_target.value
                 criteria.input_mapping = input.input_mapping.to_orm()
                 if input.evaluation_delay_seconds is not UNSET:
-                    criteria.evaluation_delay_seconds = input.evaluation_delay_seconds
+                    criteria.evaluation_delay_seconds = (
+                        _materialize_project_evaluator_evaluation_delay(
+                            input.evaluation_delay_seconds
+                        )
+                    )
                 if input.enabled is not UNSET:
                     assert input.enabled is not None
                     criteria.enabled = input.enabled
@@ -905,7 +916,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
-        _validate_project_evaluator_evaluation_delay(input.evaluation_delay_seconds)
+        evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
+            input.evaluation_delay_seconds
+        )
 
         try:
             async with info.context.db() as session:
@@ -923,7 +936,7 @@ class EvaluatorMutationMixin:
                     input_mapping=(
                         input.input_mapping.to_orm() if input.input_mapping is not None else None
                     ),
-                    evaluation_delay_seconds=input.evaluation_delay_seconds,
+                    evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
                 )
                 session.add(criteria)
@@ -950,7 +963,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
-        _validate_project_evaluator_evaluation_delay(input.evaluation_delay_seconds)
+        evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
+            input.evaluation_delay_seconds
+        )
         _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
         if input.output_configs is not None:
             try:
@@ -1007,7 +1022,7 @@ class EvaluatorMutationMixin:
                     input_mapping=(
                         input.input_mapping.to_orm() if input.input_mapping is not None else None
                     ),
-                    evaluation_delay_seconds=input.evaluation_delay_seconds,
+                    evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
                 )
                 session.add(criteria)
@@ -1045,7 +1060,7 @@ class EvaluatorMutationMixin:
         if input.enabled is None:
             raise BadRequest("enabled cannot be set to null")
         if input.evaluation_delay_seconds is not UNSET:
-            _validate_project_evaluator_evaluation_delay(input.evaluation_delay_seconds)
+            _materialize_project_evaluator_evaluation_delay(input.evaluation_delay_seconds)
         if input.source_code is not UNSET and input.source_code is None:
             raise BadRequest("source_code cannot be set to null")
         if input.output_configs is None:
@@ -1149,7 +1164,11 @@ class EvaluatorMutationMixin:
                         input.input_mapping.to_orm() if input.input_mapping is not None else None
                     )
                 if input.evaluation_delay_seconds is not UNSET:
-                    criteria.evaluation_delay_seconds = input.evaluation_delay_seconds
+                    criteria.evaluation_delay_seconds = (
+                        _materialize_project_evaluator_evaluation_delay(
+                            input.evaluation_delay_seconds
+                        )
+                    )
                 if input.enabled is not UNSET:
                     assert input.enabled is not None
                     criteria.enabled = input.enabled

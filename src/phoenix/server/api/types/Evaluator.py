@@ -1141,12 +1141,13 @@ class ProjectEvaluator(Node):
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at "
-            f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Null uses the default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New criteria store the current "
+            f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds when no value is "
+            "provided. A session is evaluated only once, and later activity does not schedule "
+            "another evaluation."
         )
     )
-    async def evaluation_delay_seconds(self, info: Info[Context, None]) -> Optional[int]:
+    async def evaluation_delay_seconds(self, info: Info[Context, None]) -> int:
         return (await self._get_record(info)).evaluation_delay_seconds
 
     @strawberry.field

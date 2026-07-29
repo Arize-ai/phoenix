@@ -18,10 +18,7 @@ from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.derivation import config_fingerprint
 from phoenix.server.online_eval.producer import resolve_criteria
-from phoenix.server.online_eval.session_policy import (
-    effective_session_evaluation_delay_seconds,
-    session_criteria_is_schedulable,
-)
+from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -30,13 +27,11 @@ SESSION_SWEEP_LEASE_TTL_SECONDS = 90.0
 SESSION_SWEEP_INTERVAL_SECONDS = 10.0
 
 _CONSUMER_GROUP = "default"
-_GENERATION = 0
 _MAX_ACTIVITY_ROWS_PER_TICK = 1000
 _SESSION_WORK_UNIQUE_BY = (
     "project_session_rowid",
     "evaluator_id",
     "config_fingerprint",
-    "generation",
 )
 
 
@@ -50,7 +45,7 @@ class _SessionCriteria:
 
 
 class SessionEvalSweeper(DaemonTask):
-    """Create pending generation-0 work for eligible project sessions."""
+    """Create pending work for eligible project sessions."""
 
     def __init__(
         self,
@@ -188,9 +183,7 @@ class SessionEvalSweeper(DaemonTask):
                     project_id=criteria.project_id,
                     evaluator_id=criteria.evaluator_id,
                     fingerprint=config_fingerprint(resolved),
-                    delay_seconds=effective_session_evaluation_delay_seconds(
-                        criteria.evaluation_delay_seconds
-                    ),
+                    delay_seconds=criteria.evaluation_delay_seconds,
                 )
             )
         return criteria_rows
@@ -243,10 +236,8 @@ class SessionEvalSweeper(DaemonTask):
                     models.EvalSessionWorkUnit.project_session_rowid,
                     models.EvalSessionWorkUnit.evaluator_id,
                     models.EvalSessionWorkUnit.config_fingerprint,
-                    models.EvalSessionWorkUnit.generation,
                 ).where(
                     models.EvalSessionWorkUnit.project_session_rowid.in_(project_session_ids),
-                    models.EvalSessionWorkUnit.generation == _GENERATION,
                 )
             )
         }
@@ -260,7 +251,6 @@ class SessionEvalSweeper(DaemonTask):
                     activity.project_session_rowid,
                     criteria.evaluator_id,
                     criteria.fingerprint,
-                    _GENERATION,
                 )
                 if key in existing_work_keys:
                     continue
@@ -273,7 +263,6 @@ class SessionEvalSweeper(DaemonTask):
                         "evaluator_id": criteria.evaluator_id,
                         "criteria_id": criteria.criteria_id,
                         "config_fingerprint": criteria.fingerprint,
-                        "generation": _GENERATION,
                     }
                 )
                 existing_work_keys.add(key)
