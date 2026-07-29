@@ -11,7 +11,7 @@ export interface ParagraphSkeletonProps {
   lines?: number;
   /**
    * The animation effect. If false, no animation is applied.
-   * @default 'pulse'
+   * @default 'wave'
    */
   animation?: AnimationType;
   /**
@@ -49,7 +49,7 @@ const LINE_WIDTHS = ["100%", "95%", "100%", "88%", "92%"];
  */
 export function ParagraphSkeleton({
   lines = 3,
-  animation = "pulse",
+  animation = "wave",
   gap = 8,
 }: ParagraphSkeletonProps) {
   const getWordsForLine = (lineIndex: number, isLastLine: boolean) => {

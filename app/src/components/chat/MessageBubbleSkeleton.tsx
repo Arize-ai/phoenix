@@ -61,7 +61,7 @@ export function MessageBubbleSkeleton({
           width={USER_PICTURE_SIZE}
           height={USER_PICTURE_SIZE}
           borderRadius="circle"
-          animation="pulse"
+          animation="wave"
           css={skeletonPictureCSS}
         />
         <Skeleton

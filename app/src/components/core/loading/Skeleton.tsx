@@ -6,7 +6,7 @@ import { classNames } from "@phoenix/utils/classNames";
 import type { BorderRadiusToken } from "../types/sizing";
 
 // Export the AnimationType so it can be used in stories
-export type AnimationType = "pulse" | "wave" | false;
+export type AnimationType = "wave" | false;
 
 export interface SkeletonProps extends HTMLAttributes<HTMLSpanElement> {
   /**
@@ -27,7 +27,7 @@ export interface SkeletonProps extends HTMLAttributes<HTMLSpanElement> {
   borderRadius?: number | string | BorderRadiusToken;
   /**
    * The animation effect. If false, no animation is applied.
-   * @default 'pulse'
+   * @default 'wave'
    */
   animation?: AnimationType;
   /**
@@ -35,18 +35,6 @@ export interface SkeletonProps extends HTMLAttributes<HTMLSpanElement> {
    */
   className?: string;
 }
-
-const pulseKeyframes = keyframes`
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-  100% {
-    opacity: 1;
-  }
-`;
 
 const waveKeyframes = keyframes`
   0% {
@@ -62,11 +50,8 @@ const waveKeyframes = keyframes`
 
 const skeletonStyles = css`
   display: block;
-  background-color: var(--global-color-gray-200);
-`;
-
-const pulseAnimation = css`
-  animation: ${pulseKeyframes} 2s ease-in-out 0.5s infinite;
+  background-color: var(--global-skeleton-background-color);
+  opacity: var(--global-skeleton-opacity);
 `;
 
 const waveAnimation = css`
@@ -80,10 +65,11 @@ const waveAnimation = css`
     background: linear-gradient(
       90deg,
       transparent,
-      var(--global-color-gray-300),
+      var(--global-skeleton-wave-highlight-color),
       transparent
     );
     content: "";
+    opacity: var(--global-skeleton-wave-highlight-opacity);
     position: absolute;
     transform: translateX(-100%);
     bottom: 0;
@@ -129,7 +115,7 @@ export function Skeleton({
   width = "100%",
   height = "1.2em",
   borderRadius = "S",
-  animation = "pulse",
+  animation = "wave",
   className,
   ...restProps
 }: SkeletonProps & { ref?: Ref<HTMLSpanElement> }) {
@@ -143,7 +129,6 @@ export function Skeleton({
       className={classNames(className, "skeleton")}
       css={[
         skeletonStyles,
-        animation === "pulse" && pulseAnimation,
         animation === "wave" && waveAnimation,
         css`
           width: ${finalWidth};

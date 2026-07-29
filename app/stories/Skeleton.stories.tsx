@@ -14,10 +14,15 @@ export default meta;
 type Story = StoryObj<typeof Skeleton>;
 
 export const Default: Story = {
-  args: {
-    width: 200,
-    height: 20,
+  parameters: {
+    width: 300,
   },
+  render: () => (
+    <Flex direction="column" gap="size-400" width="100%">
+      <ContentSkeleton animation={false} />
+      <ContentSkeleton animation="wave" />
+    </Flex>
+  ),
 };
 
 export const Circular: Story = {
@@ -54,8 +59,4 @@ export const Card: Story = {
       <Skeleton height={16} width="60%" />
     </Flex>
   ),
-};
-
-export const Content: Story = {
-  render: () => <ContentSkeleton />,
 };

@@ -1404,6 +1404,20 @@ const messageTokensCSS = (theme: Theme) => css`
   }
 `;
 
+const skeletonCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --global-skeleton-background-color: ${theme === "dark"
+      ? "var(--global-color-gray-100)"
+      : "var(--global-color-gray-200)"};
+    --global-skeleton-opacity: 0.3;
+    --global-skeleton-wave-highlight-color: ${theme === "dark"
+      ? "var(--global-color-gray-200)"
+      : "var(--global-color-gray-300)"};
+    --global-skeleton-wave-highlight-opacity: ${theme === "dark" ? 0.2 : 1};
+  }
+`;
+
 export const derivedCSS = (theme: Theme) =>
   css(
     baseTokensCSS(theme),
@@ -1427,7 +1441,8 @@ export const derivedCSS = (theme: Theme) =>
     resizeHandleCSS(theme),
     badgeSizingCSS(theme),
     promptInputCSS(theme),
-    messageTokensCSS(theme)
+    messageTokensCSS(theme),
+    skeletonCSS(theme)
   );
 
 const appGlobalStylesCSS = css`
