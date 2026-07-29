@@ -97,17 +97,23 @@ Rules:
    write the API key or any secret into source code, config files, or command arguments.
 3. Configure the Phoenix project name in code: use the SDK's register call with the
    project name "${projectName}".${endpointRule}
-4. Prefer auto-instrumentation packages over hand-written span wrappers. Make the smallest
+4. PHOENIX_COLLECTOR_ENDPOINT is the server's base URL, and the Phoenix SDKs append the OTLP
+   path to it themselves. An exporter that takes a full OTLP URL instead — @mastra/arize's
+   ArizeExporter, a bare OTLPTraceExporter — must be given ${endpoint}/v1/traces. Handed the
+   base URL it posts to the wrong path, and batching exporters swallow the delivery error, so
+   every span is lost with nothing logged. Do not rewrite PHOENIX_COLLECTOR_ENDPOINT to carry
+   the path: \`px\` and the Phoenix clients read that variable as a base URL.
+5. Prefer auto-instrumentation packages over hand-written span wrappers. Make the smallest
    correct change.
-5. Verify your work by emitting exactly one trace: run the app briefly, or a minimal
+6. Verify your work by emitting exactly one trace: run the app briefly, or a minimal
    throwaway script that makes one real LLM call through the instrumented path, then
    delete any throwaway script. Do not run the full test suite or the build.
-6. Install SDK packages with the project's existing package manager, pinned to the latest
+7. Install SDK packages with the project's existing package manager, pinned to the latest
    stable version you can verify. If this is a monorepo, note the root but only modify
    files at or below the current working directory.
-7. Keep changes concise and readable. Do not restructure, reformat, or meaningfully modify
+8. Keep changes concise and readable. Do not restructure, reformat, or meaningfully modify
    existing application code.
-8. Do not use the \`px\` CLI.
+9. Do not use the \`px\` CLI.
 
 When finished, end your final message with a one-line summary of the changes you made and
 this link to the project's traces: ${tracesUrl}

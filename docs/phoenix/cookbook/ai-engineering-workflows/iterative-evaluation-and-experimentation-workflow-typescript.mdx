@@ -88,10 +88,12 @@ Always use multiple tools in sequence to provide comprehensive recommendations. 
     OPENAI_API_KEY=your-openai-api-key-here
 
     # Phoenix Configuration
-    PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
+    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
     PHOENIX_PROJECT_NAME=mastra-project
     PHOENIX_API_KEY=your-api-key  # Only if authentication is enabled
     ```
+
+    `PHOENIX_COLLECTOR_ENDPOINT` is the Phoenix server's base URL. `src/mastra/index.ts` appends `/v1/traces` to it when constructing the `ArizeExporter`, because that exporter POSTs to the URL it is given exactly as given — pointed at the base URL, spans go to the wrong path and Mastra's batching exporter swallows the error, so no trace ever arrives. Leave the variable itself unsuffixed: Phoenix's own SDKs and clients read it as a base URL.
   </Step>
 
   <Step title="Run the Agent">

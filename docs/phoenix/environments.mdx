@@ -77,6 +77,8 @@ Phoenix reads its connection settings from environment variables. Three of them 
 
 <Warning>
 Point `PHOENIX_COLLECTOR_ENDPOINT` at the server's **base URL**. Setting it (or the legacy `PHOENIX_HOST`) to a full endpoint path such as `.../v1/traces` will misconfigure the exporter and your traces will not arrive.
+
+Some third-party exporters — `@mastra/arize`'s `ArizeExporter`, a bare `OTLPTraceExporter` — take the *full* OTLP/HTTP URL and POST to it exactly as given, rather than appending the path the way `register()` does. Append `/v1/traces` where you construct those exporters, not in the variable: everything else Phoenix ships (the clients, the `px` CLI, `register()`) reads `PHOENIX_COLLECTOR_ENDPOINT` as a base URL and builds its own paths on top of it.
 </Warning>
 
 ### Choosing a project
