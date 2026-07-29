@@ -7,7 +7,7 @@ import traceback as _traceback
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar
+from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar, cast
 
 import openinference.instrumentation as oi
 from jsonpath_ng import parse as parse_jsonpath
@@ -2914,7 +2914,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
                             async def _execute(session: Any) -> ExecutionResult:
                                 try:
-                                    return await session.execute(code, timeout=self._timeout)
+                                    return cast(
+                                        ExecutionResult,
+                                        await session.execute(code, timeout=self._timeout),
+                                    )
                                 except asyncio.TimeoutError as exc:
                                     raise SandboxBackendTimeoutError(
                                         "SANDBOX_BACKEND_TIMEOUT: sandbox backend deadline exceeded"
@@ -3093,7 +3096,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
             if execution.error:
                 _set_masked_status(evaluator_span, StatusCode.ERROR, execution.error, masker)
-                error_exc = SandboxBackendExecutionError(
+                execution_error_exc = SandboxBackendExecutionError(
                     f"SANDBOX_BACKEND_ERROR: {execution.error}"
                 )
                 return [
@@ -3102,7 +3105,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         execution.error,
                         start_time,
                         trace_id=trace_id,
-                        error_exc=error_exc,
+                        error_exc=execution_error_exc,
                     )
                     for _ in (output_configs or [None])  # type: ignore[list-item]
                 ]

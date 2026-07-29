@@ -474,7 +474,7 @@ async def test_lost_lease_rolls_back_sweep(
     sweeper = SessionEvalSweeper(db)
     acquire_cursor = sweeper._acquire_cursor
 
-    async def acquire_then_lose_lease(**kwargs: object) -> int | None:
+    async def acquire_then_lose_lease(**kwargs: bool) -> int | None:
         cursor_id = await acquire_cursor(**kwargs)
         assert cursor_id is not None
         async with db() as session:
