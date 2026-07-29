@@ -96,7 +96,6 @@ async def _seed_session_work_units(db: DbSessionFactory, n: int) -> tuple[int, l
                 evaluator_id=evaluator.id,
                 criteria_id=criteria.id,
                 config_fingerprint=f"session-fp-{i}-{token_hex(8)}",
-                generation=0,
             )
             for i in range(n)
         ]
@@ -420,8 +419,7 @@ async def test_session_claim_lifecycle_and_lag(db: DbSessionFactory) -> None:
     (claimed,) = await coordinator.claim(claimed_by="session-consumer", limit=1)
     assert claimed.evaluation_target == "SESSION"
     assert claimed.target_rowid == project_session_id
-    assert claimed.generation == 0
-    assert claimed.identifier == "online:" + claimed.config_fingerprint[:16] + ":0"
+    assert claimed.identifier == "online:" + claimed.config_fingerprint[:16]
     assert await coordinator.heartbeat(
         work_unit_id=claimed.work_unit_id,
         claimed_by="session-consumer",

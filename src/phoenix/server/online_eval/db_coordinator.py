@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Sequence
 
-from sqlalchemy import and_, case, func, literal, or_, select, update
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -135,11 +135,6 @@ class DbEvalWorkCoordinator:
                         select(
                             work_unit_model.id,
                             self._target_row_column.label("target_rowid"),
-                            (
-                                models.EvalSessionWorkUnit.generation
-                                if self._evaluation_target == "SESSION"
-                                else literal(None)
-                            ).label("generation"),
                             work_unit_model.evaluator_id,
                             work_unit_model.criteria_id,
                             work_unit_model.config_fingerprint,
@@ -159,11 +154,10 @@ class DbEvalWorkCoordinator:
                 work_unit_id=row.id,
                 evaluation_target=self._evaluation_target,
                 target_rowid=row.target_rowid,
-                generation=row.generation,
                 evaluator_id=row.evaluator_id,
                 criteria_id=row.criteria_id,
                 config_fingerprint=row.config_fingerprint,
-                identifier=annotation_identifier(row.config_fingerprint, row.generation),
+                identifier=annotation_identifier(row.config_fingerprint),
                 attempts=row.attempts,
                 claimed_by=claimed_by,
                 lease_expires_at=lease_expires_at,

@@ -70,14 +70,9 @@ def config_fingerprint(resolved: ResolvedCriteria) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def annotation_identifier(fingerprint: str, generation: int | None = None) -> str:
-    """Identifier keying the idempotent annotation write for a work unit.
-
-    Span work omits ``generation`` and retains its original identifier. Session work
-    includes its generation so each session work address has a distinct identifier.
-    """
-    identifier = _IDENTIFIER_PREFIX + fingerprint[:_IDENTIFIER_FINGERPRINT_CHARS]
-    return identifier if generation is None else f"{identifier}:{generation}"
+def annotation_identifier(fingerprint: str) -> str:
+    """Identifier keying the idempotent annotation write for a work unit."""
+    return _IDENTIFIER_PREFIX + fingerprint[:_IDENTIFIER_FINGERPRINT_CHARS]
 
 
 def sample_key(span_id: int) -> float:

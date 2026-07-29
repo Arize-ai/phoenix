@@ -170,8 +170,6 @@ class OnlineEvalExecutor:
             if criteria is None or not criteria.enabled:
                 return None
             if unit.evaluation_target == "SESSION":
-                if unit.generation != 0:
-                    return None
                 schedulable = await session.scalar(
                     select(models.ProjectEvaluatorCriteria.id).where(
                         models.ProjectEvaluatorCriteria.id == criteria.id,

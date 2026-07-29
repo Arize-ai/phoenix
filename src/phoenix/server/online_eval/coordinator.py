@@ -28,15 +28,11 @@ LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
 
 @dataclass(frozen=True)
 class ClaimedWorkUnit:
-    """A leased work unit with an idempotent annotation identifier; ``generation`` is None
-    exactly for SPAN units and the zero-based session generation for SESSION units — a SESSION
-    unit with ``generation=None`` is invalid.
-    """
+    """A leased work unit with an idempotent annotation identifier."""
 
     work_unit_id: int
     evaluation_target: models.EvaluationTarget
     target_rowid: int
-    generation: Optional[int]
     evaluator_id: int
     criteria_id: int
     config_fingerprint: str

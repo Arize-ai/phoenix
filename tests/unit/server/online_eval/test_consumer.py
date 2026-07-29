@@ -192,7 +192,6 @@ def _claimed_unit(target_rowid: int, *, work_unit_id: int = 1) -> ClaimedWorkUni
         work_unit_id=work_unit_id,
         evaluation_target="SPAN",
         target_rowid=target_rowid,
-        generation=None,
         evaluator_id=1,
         criteria_id=1,
         config_fingerprint="fingerprint",
@@ -214,7 +213,6 @@ def _claimed_session_unit(
         work_unit_id=work_unit_id,
         evaluation_target="SESSION",
         target_rowid=project_session_rowid,
-        generation=0,
         evaluator_id=1,
         criteria_id=1,
         config_fingerprint="fingerprint",
@@ -461,8 +459,6 @@ async def _materialize_session_unit(
     project_session_rowid: int,
     evaluator_id: int,
     criteria_id: int,
-    *,
-    generation: int = 0,
 ) -> tuple[int, str]:
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
@@ -481,7 +477,6 @@ async def _materialize_session_unit(
             evaluator_id=evaluator_id,
             criteria_id=criteria_id,
             config_fingerprint=fingerprint,
-            generation=generation,
         )
         session.add(unit)
         await session.flush()
@@ -767,7 +762,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert annotation.explanation == "looks good"
     assert annotation.annotator_kind == "LLM"
     assert annotation.source == "API"
-    assert annotation.identifier == annotation_identifier(fingerprint, 0)
+    assert annotation.identifier == annotation_identifier(fingerprint)
     assert events.get_nowait() == ProjectSessionAnnotationInsertEvent((annotation.id,))
     assert events.empty()
 
@@ -777,7 +772,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
         annotation_name = criteria.name.root
     duplicate = _claimed_session_unit(
         project_session.id,
-        identifier=annotation_identifier(fingerprint, 0),
+        identifier=annotation_identifier(fingerprint),
         work_unit_id=unit_id,
     )
     duplicate_hydrated = _hydrated_stub(
@@ -789,46 +784,6 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     await consumer._executor.evaluate_and_annotate(duplicate, duplicate_hydrated)
     assert len(await _session_annotations(db)) == 1
     assert events.empty()
-
-
-async def test_session_generation_above_zero_expires_before_evaluator_call(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project)
-        trace = await _add_trace(session, project, project_session)
-        await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_llm_criteria(
-        db,
-        project.id,
-        evaluation_target="SESSION",
-    )
-    unit_id, _ = await _materialize_session_unit(
-        db,
-        project_session.id,
-        evaluator_id,
-        criteria_id,
-        generation=1,
-    )
-    client = _StubLLMClient()
-    _patch_playground_client(monkeypatch, client)
-
-    consumer = OnlineEvalConsumer(
-        db,
-        decrypt=lambda value: value,
-        evaluation_target="SESSION",
-    )
-    (unit,) = await consumer._coordinator.claim(
-        claimed_by=consumer._consumer_id,
-        limit=1,
-    )
-    assert await consumer._executor.hydrate(unit) is None
-    await consumer._process_unit(unit)
-
-    assert (await _get_session_unit(db, unit_id)).status == "EXPIRED"
-    assert client.requests == []
-    assert await _session_annotations(db) == []
 
 
 async def test_marker_only_session_transcript_counts_attempt_without_evaluation(
