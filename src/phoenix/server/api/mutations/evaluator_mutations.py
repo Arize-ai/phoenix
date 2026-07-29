@@ -5,7 +5,7 @@ from typing import Optional, cast
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -291,6 +291,32 @@ def _materialize_project_evaluator_evaluation_delay(
         if evaluation_delay_seconds is None
         else evaluation_delay_seconds
     )
+
+
+async def _validate_project_evaluator_target_update(
+    session: AsyncSession,
+    criteria: models.ProjectEvaluatorCriteria,
+    evaluation_target: EvaluationTarget,
+) -> None:
+    if criteria.evaluation_target == evaluation_target.value:
+        return
+    work_exists = await session.scalar(
+        select(
+            or_(
+                select(models.EvalWorkUnit.id)
+                .where(models.EvalWorkUnit.criteria_id == criteria.id)
+                .exists(),
+                select(models.EvalSessionWorkUnit.id)
+                .where(models.EvalSessionWorkUnit.criteria_id == criteria.id)
+                .exists(),
+            )
+        )
+    )
+    if work_exists:
+        raise BadRequest(
+            "evaluationTarget cannot be changed after evaluation work has been created "
+            "for this project evaluator"
+        )
 
 
 async def _garbage_collect_evaluators(
@@ -803,6 +829,11 @@ class EvaluatorMutationMixin:
                 if pair is None:
                     raise NotFound(f"LLM project evaluator not found: {input.project_evaluator_id}")
                 criteria, evaluator = pair
+                await _validate_project_evaluator_target_update(
+                    session,
+                    criteria,
+                    input.evaluation_target,
+                )
                 if criteria.name != name:
                     evaluator.name = await _generate_unique_evaluator_name(session, name)
 
@@ -1094,6 +1125,11 @@ class EvaluatorMutationMixin:
                         f"CODE project evaluator not found: {input.project_evaluator_id}"
                     )
                 criteria, evaluator = pair
+                await _validate_project_evaluator_target_update(
+                    session,
+                    criteria,
+                    input.evaluation_target,
+                )
                 shared_evaluator_changed = False
                 if criteria.name != name:
                     evaluator.name = await _generate_unique_evaluator_name(session, name)

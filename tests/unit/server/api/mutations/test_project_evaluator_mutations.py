@@ -9,6 +9,8 @@ from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
+from ...._helpers import _add_span, _add_trace
+
 _PROJECT_EVALUATOR_FIELDS = """
 id
 name
@@ -805,6 +807,59 @@ async def test_evaluation_delay_rejected_before_project_evaluator_writes(
         assert code_criteria is not None and llm_criteria is not None
         assert code_criteria.evaluation_delay_seconds == 300
         assert llm_criteria.evaluation_delay_seconds == 300
+
+
+async def test_evaluation_target_change_rejected_after_work_exists(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    create_input = _code_create_input(project, sandbox_config)
+    create_result = await gql_client.execute(_CREATE_CODE, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+    criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        project_record = await session.get(models.Project, project.id)
+        assert criteria is not None and project_record is not None
+        trace = await _add_trace(session, project_record)
+        span = await _add_span(session, trace)
+        session.add(
+            models.EvalWorkUnit(
+                span_rowid=span.id,
+                evaluator_id=criteria.evaluator_id,
+                criteria_id=criteria.id,
+                config_fingerprint="existing-work",
+            )
+        )
+
+    update_result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": created["id"],
+                "name": created["name"],
+                "evaluatorInputMapping": _mapping(output="value"),
+                "samplingRate": 1.0,
+                "evaluationTarget": "SESSION",
+                "filterCondition": "",
+                "enabled": True,
+            }
+        },
+    )
+
+    assert update_result.errors
+    assert update_result.errors[0].message == (
+        "evaluationTarget cannot be changed after evaluation work has been created "
+        "for this project evaluator"
+    )
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        assert criteria.evaluation_target == "SPAN"
 
 
 async def test_update_code_evaluator_rejects_explicit_null_source_code(
