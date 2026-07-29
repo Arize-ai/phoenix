@@ -28,6 +28,7 @@ import { TemporarySessionIcon } from "./TemporarySessionIcon";
  * @param activeSessionId - ID of the currently active session (for highlight)
  * @param onSelectSession - called when the user clicks a session to switch to
  * @param onDeleteSession - called after the user confirms session deletion
+ * @param onOpenChange - called when the menu opens or closes
  */
 export type SessionListMenuProps = {
   sessions: AgentSessionListItem[];
@@ -37,6 +38,7 @@ export type SessionListMenuProps = {
   hasNextPage?: boolean;
   isLoadingNextPage?: boolean;
   onLoadNextPage?: () => void;
+  onOpenChange?: (isOpen: boolean) => void;
 };
 
 export type AgentSessionListItem = {
@@ -56,8 +58,17 @@ export function SessionListMenu({
   hasNextPage = false,
   isLoadingNextPage = false,
   onLoadNextPage,
+  onOpenChange,
 }: SessionListMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleOpenChange = useCallback(
+    (isOpen: boolean) => {
+      setMenuOpen(isOpen);
+      onOpenChange?.(isOpen);
+    },
+    [onOpenChange]
+  );
 
   // Track which session is currently focused in the menu for keyboard shortcuts
   const focusedSessionRef = useRef<AgentSessionListItem | null>(null);
@@ -72,9 +83,9 @@ export function SessionListMenu({
   const handleDeleteSession = useCallback(
     (sessionId: string) => {
       onDeleteSession(sessionId);
-      setMenuOpen(false);
+      handleOpenChange(false);
     },
-    [onDeleteSession]
+    [onDeleteSession, handleOpenChange]
   );
 
   const handleMenuKeyDown = useCallback(
@@ -95,7 +106,7 @@ export function SessionListMenu({
   const selectedKeys = activeSessionId ? [activeSessionId] : [];
 
   return (
-    <MenuTrigger onOpenChange={setMenuOpen} isOpen={menuOpen}>
+    <MenuTrigger onOpenChange={handleOpenChange} isOpen={menuOpen}>
       <Button
         variant="quiet"
         size="S"

@@ -6,7 +6,7 @@ import {
   isTextUIPart,
   isToolUIPart,
 } from "ai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ConnectionHandler,
   commitLocalUpdate,
@@ -279,6 +279,12 @@ export function useAgentChat({
   // Guards the draft surface against double-submits while the create-session
   // mutation is in flight.
   const isCreatingSessionRef = useRef(false);
+  // The first message of a draft surface, echoed optimistically (with a
+  // "submitted" status, so the Thinking indicator shows) while the
+  // create-session mutation round-trip is in flight. The real message is sent
+  // through the new session's chat once the mutation returns.
+  const [pendingDraftUserMessage, setPendingDraftUserMessage] =
+    useState<AgentUIMessage | null>(null);
 
   /**
    * Builds the imperative AI SDK chat runtime for a persisted session. The
@@ -666,6 +672,15 @@ export function useAgentChat({
     }
     setOperationError(null);
     isCreatingSessionRef.current = true;
+    setPendingDraftUserMessage({
+      id: crypto.randomUUID(),
+      role: "user",
+      parts: [{ type: "text", text }],
+      metadata: buildUserMessageMetadata(),
+    });
+    // Pulse the collapsed-surface glyphs (widget, top nav) for the creation
+    // wait too; clearSessionEphemeralState removes the flag on success.
+    store.getState().setSessionResponsePending(DRAFT_SESSION_ID, true);
     const isTemporary = store.getState().isDraftSessionTemporary;
     commitCreateAgentSession({
       variables: {
@@ -688,6 +703,7 @@ export function useAgentChat({
           { text, metadata: buildUserMessageMetadata() },
           options
         );
+        setPendingDraftUserMessage(null);
         const state = store.getState();
         state.clearSessionEphemeralState(DRAFT_SESSION_ID);
         state.setIsDraftSessionTemporary(state.defaultTemporaryChat);
@@ -695,6 +711,8 @@ export function useAgentChat({
       },
       onError: (mutationError) => {
         isCreatingSessionRef.current = false;
+        setPendingDraftUserMessage(null);
+        store.getState().setSessionResponsePending(DRAFT_SESSION_ID, false);
         // Give the user their message back to retry.
         store.getState().setDraftInput(DRAFT_SESSION_ID, text);
         const errorMessages =
@@ -1052,11 +1070,19 @@ export function useAgentChat({
     ]
   );
 
+  const displayedMessages = useMemo(
+    () =>
+      pendingDraftUserMessage
+        ? [...messages, pendingDraftUserMessage]
+        : messages,
+    [messages, pendingDraftUserMessage]
+  );
+
   return {
-    messages,
+    messages: displayedMessages,
     sendMessage: handleSendMessage,
     stop: handleStopWithToolCleanup,
-    status,
+    status: pendingDraftUserMessage ? "submitted" : status,
     error,
     pendingElicitation,
     handleElicitationSubmit,

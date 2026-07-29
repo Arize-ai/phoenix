@@ -10,6 +10,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import {
   ConnectionHandler,
   commitLocalUpdate,
+  fetchQuery,
   graphql,
   useLazyLoadQuery,
   useMutation,
@@ -270,6 +271,26 @@ function AgentSessionsContent({
     [setActiveSession]
   );
   const panelState = useAgentChatPanelState();
+
+  // Refresh the session list in the background whenever the menu opens so
+  // sessions created elsewhere (e.g. another tab) show up. The store keeps
+  // rendering the cached list while the network response replaces the
+  // connection's first page.
+  const handleSessionMenuOpenChange = useCallback(
+    (isOpen: boolean) => {
+      if (!isOpen) {
+        return;
+      }
+      fetchQuery<AgentSessionsResourceQuery>(relayEnvironment, sessionsQuery, {
+        first: SESSION_PAGE_SIZE,
+      }).subscribe({
+        // Ignore failures — the menu still shows the cached session list.
+        error: () => {},
+      });
+    },
+    [relayEnvironment]
+  );
+
   const handleMissingSession = useCallback(
     (sessionId: string) => {
       commitLocalUpdate(relayEnvironment, (relayStore) => {
@@ -324,6 +345,7 @@ function AgentSessionsContent({
         hasNextSessionPage={hasNext}
         isLoadingNextSessionPage={isLoadingNext}
         onLoadNextSessionPage={() => loadNext(SESSION_PAGE_SIZE)}
+        onSessionMenuOpenChange={handleSessionMenuOpenChange}
         onPositionChange={panelState.setPosition}
         onClose={panelState.closePanel}
       />

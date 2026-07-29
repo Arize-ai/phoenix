@@ -9,19 +9,23 @@ export type MessagePart =
   | { kind: "generative-ui"; part: UIMessage["parts"][number]; index: number };
 
 /**
- * Returns true for parts that should be treated as "invisible" — they carry no
- * user-visible content and are not rendered.
+ * Returns true for parts the transcript actually renders: tool calls
+ * (including generative UI slots, which are tool parts) and non-empty text.
+ * Everything else is invisible —
  *
  * - `step-start` parts are AI SDK step boundary markers that appear between
  *   every auto-send cycle.
  * - Empty text parts (whitespace-only) sometimes appear at step boundaries.
  * - Other assistant parts that this renderer does not display (reasoning,
  *   sources, files, unknown data parts).
+ *
+ * Shared with the chat's Thinking indicator so "has anything visible streamed
+ * yet" stays in lockstep with what this partitioner draws.
  */
-function isTransparentPart(part: UIMessage["parts"][number]): boolean {
-  if (part.type === "step-start") return true;
-  if (isTextUIPart(part) && part.text.trim() === "") return true;
-  return !isTextUIPart(part);
+export function isVisibleMessagePart(
+  part: UIMessage["parts"][number]
+): boolean {
+  return isToolUIPart(part) || (isTextUIPart(part) && part.text.trim() !== "");
 }
 
 /**
@@ -53,7 +57,7 @@ export function partitionMessageParts(
       continue;
     }
 
-    if (isTransparentPart(part)) {
+    if (!isVisibleMessagePart(part)) {
       // Skip invisible parts — they carry no user-visible content.
       continue;
     }

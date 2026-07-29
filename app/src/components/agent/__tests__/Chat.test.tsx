@@ -104,7 +104,7 @@ function renderChatView(
     chatKey?: string;
     chatMessages?: AgentUIMessage[];
     error?: Error;
-    status?: "ready" | "error";
+    status?: "ready" | "error" | "submitted" | "streaming";
     initialDraftInputBySessionId?: Record<string, string>;
     isDraftSessionTemporary?: boolean;
     sendMessage?: ChatViewSendMessage;
@@ -319,6 +319,93 @@ describe("ChatView", () => {
       undefined
     );
     expect(textarea?.value).toBe("");
+  });
+
+  it("shows the thinking indicator as soon as a request is submitted", () => {
+    const userMessage = {
+      id: "user-message",
+      role: "user",
+      parts: [{ type: "text", text: "What is a trace?" }],
+    } as AgentUIMessage;
+    renderChatView(root, {
+      sessionId: "session-1",
+      status: "submitted",
+      chatMessages: [userMessage],
+    });
+
+    expect(container.textContent).toContain("Thinking...");
+  });
+
+  it("keeps the thinking indicator while streaming before assistant output arrives", () => {
+    const userMessage = {
+      id: "user-message",
+      role: "user",
+      parts: [{ type: "text", text: "What is a trace?" }],
+    } as AgentUIMessage;
+    renderChatView(root, {
+      sessionId: "session-1",
+      status: "streaming",
+      chatMessages: [userMessage],
+    });
+
+    expect(container.textContent).toContain("Thinking...");
+  });
+
+  it("keeps the thinking indicator until the streaming turn has visible content", () => {
+    const userMessage = {
+      id: "user-message",
+      role: "user",
+      parts: [{ type: "text", text: "What is a trace?" }],
+    } as AgentUIMessage;
+    // The SDK inserts the assistant message before any parts arrive…
+    const emptyAssistantMessage = {
+      id: "assistant-message",
+      role: "assistant",
+      parts: [],
+    } as unknown as AgentUIMessage;
+    renderChatView(root, {
+      sessionId: "session-1",
+      status: "streaming",
+      chatMessages: [userMessage, emptyAssistantMessage],
+    });
+    expect(container.textContent).toContain("Thinking...");
+
+    // …then leads with invisible parts (step-start, reasoning) before text.
+    const invisiblePartsAssistantMessage = {
+      id: "assistant-message",
+      role: "assistant",
+      parts: [
+        { type: "step-start" },
+        { type: "reasoning", text: "Considering the question" },
+        { type: "text", text: "  " },
+      ],
+    } as AgentUIMessage;
+    renderChatView(root, {
+      sessionId: "session-1",
+      status: "streaming",
+      chatMessages: [userMessage, invisiblePartsAssistantMessage],
+    });
+    expect(container.textContent).toContain("Thinking...");
+  });
+
+  it("hides the thinking indicator once assistant text is streaming", () => {
+    const userMessage = {
+      id: "user-message",
+      role: "user",
+      parts: [{ type: "text", text: "What is a trace?" }],
+    } as AgentUIMessage;
+    const assistantMessage = {
+      id: "assistant-message",
+      role: "assistant",
+      parts: [{ type: "text", text: "A trace is" }],
+    } as AgentUIMessage;
+    renderChatView(root, {
+      sessionId: "session-1",
+      status: "streaming",
+      chatMessages: [userMessage, assistantMessage],
+    });
+
+    expect(container.textContent).not.toContain("Thinking...");
   });
 
   it("runs /compact without sending it as a user message", async () => {
