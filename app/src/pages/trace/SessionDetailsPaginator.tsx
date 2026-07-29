@@ -68,7 +68,7 @@ export const SessionDetailsPaginator = ({
           });
         }}
       />
-      <Tooltip placement={isCollapsed ? "left" : undefined} offset={4}>
+      <Tooltip placement={isCollapsed ? "right" : undefined} offset={4}>
         <Flex direction="row" gap="size-100" alignItems="center">
           <span>Next session</span>
           <KeyboardToken>{NEXT_SESSION_HOTKEY}</KeyboardToken>
@@ -91,7 +91,7 @@ export const SessionDetailsPaginator = ({
           });
         }}
       />
-      <Tooltip placement={isCollapsed ? "left" : undefined} offset={4}>
+      <Tooltip placement={isCollapsed ? "right" : undefined} offset={4}>
         <Flex direction="row" gap="size-100" alignItems="center">
           <span>Previous session</span>
           <KeyboardToken>{PREVIOUS_SESSION_HOTKEY}</KeyboardToken>

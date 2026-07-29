@@ -65,7 +65,7 @@ export const TraceDetailsPaginator = ({
           next(currentId);
         }}
       />
-      <Tooltip placement={isCollapsed ? "left" : undefined} offset={4}>
+      <Tooltip placement={isCollapsed ? "right" : undefined} offset={4}>
         <Flex direction="row" gap="size-100" alignItems="center">
           <span>Next trace</span>
           <KeyboardToken>{NEXT_TRACE_HOTKEY}</KeyboardToken>
@@ -86,7 +86,7 @@ export const TraceDetailsPaginator = ({
           previous(currentId);
         }}
       />
-      <Tooltip placement={isCollapsed ? "left" : undefined} offset={4}>
+      <Tooltip placement={isCollapsed ? "right" : undefined} offset={4}>
         <Flex direction="row" gap="size-100" alignItems="center">
           <span>Previous trace</span>
           <KeyboardToken>{PREVIOUS_TRACE_HOTKEY}</KeyboardToken>
