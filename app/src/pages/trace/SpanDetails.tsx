@@ -1,6 +1,10 @@
 import { css } from "@emotion/react";
 import { animate, useReducedMotion } from "motion/react";
-import type { MouseEvent as ReactMouseEvent, PropsWithChildren } from "react";
+import type {
+  MouseEvent as ReactMouseEvent,
+  PropsWithChildren,
+  Ref,
+} from "react";
 import { startTransition, Suspense, useEffect, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
@@ -102,10 +106,14 @@ const spanDetailsSectionsCSS = css`
   min-height: 0;
   overflow-y: auto;
 
-  & > [data-span-details-sections-content]::after {
-    content: "";
-    display: block;
-    height: var(--global-dimension-size-400);
+  & > [data-span-details-sections-content] {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  [data-span-details-notes] {
+    margin-top: auto;
   }
 `;
 
@@ -131,9 +139,13 @@ const spanDetailsSectionHeadingCSS = css`
 function SpanDetailsSectionHeading({
   children,
   bordered,
-}: PropsWithChildren & { bordered?: boolean }) {
+  ref,
+}: PropsWithChildren & {
+  bordered?: boolean;
+  ref?: Ref<HTMLDivElement>;
+}) {
   return (
-    <div css={spanDetailsSectionHeadingCSS}>
+    <div ref={ref} css={spanDetailsSectionHeadingCSS}>
       <SectionHeading bordered={bordered}>{children}</SectionHeading>
       <span aria-hidden="true" data-section-navigation-feedback />
     </div>
@@ -308,6 +320,11 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const shouldReduceMotion = useReducedMotion();
   const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
   const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
+  const spanDetailsMainRef = useRef<HTMLDivElement>(null);
+  const notesHeadingRef = useRef<HTMLDivElement>(null);
+  const spanDetailsSectionsDimensions = useDimensions(spanDetailsSectionsRef);
+  const spanDetailsMainDimensions = useDimensions(spanDetailsMainRef);
+  const notesHeadingDimensions = useDimensions(notesHeadingRef);
   const scrollAnimationRef = useRef<ReturnType<typeof animate> | null>(null);
   const sectionFeedbackAnimationRef = useRef<ReturnType<typeof animate> | null>(
     null
@@ -383,6 +400,14 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   }
 
   const hasExceptions = span.events.some((event) => event.name === "exception");
+  const isNotesPushedBelowViewport =
+    spanDetailsSectionsDimensions != null &&
+    spanDetailsMainDimensions != null &&
+    notesHeadingDimensions != null &&
+    spanDetailsMainDimensions.height + notesHeadingDimensions.height >
+      spanDetailsSectionsDimensions.height;
+  const shouldRenderNotesContent =
+    span.spanNotes.length > 0 || isNotesPushedBelowViewport;
   const spanDetailsSectionIds = {
     info: `span-details-${span.spanId}-info`,
     attributes: `span-details-${span.spanId}-attributes`,
@@ -549,54 +574,60 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
           ref={spanDetailsSectionsContentRef}
           data-span-details-sections-content
         >
-          <section id={spanDetailsSectionIds.info} aria-label="Info">
-            <SpanDetailsSectionHeading bordered={false}>
-              Info
-            </SpanDetailsSectionHeading>
-            <ErrorBoundary>
-              <SpanInfo span={span} />
-            </ErrorBoundary>
-          </section>
-          <section
-            id={spanDetailsSectionIds.attributes}
-            aria-label="Attributes"
-          >
-            <SpanDetailsSectionHeading>Attributes</SpanDetailsSectionHeading>
-            <DeferredSpanDetailsContent
-              placeholderHeight={ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
+          <div ref={spanDetailsMainRef} data-span-details-main>
+            <section id={spanDetailsSectionIds.info} aria-label="Info">
+              <SpanDetailsSectionHeading bordered={false}>
+                Info
+              </SpanDetailsSectionHeading>
+              <ErrorBoundary>
+                <SpanInfo span={span} />
+              </ErrorBoundary>
+            </section>
+            <section
+              id={spanDetailsSectionIds.attributes}
+              aria-label="Attributes"
             >
-              <View padding="size-200">
-                <SpanAttributesCard
-                  attributes={span.attributes}
-                  {...attributesCardProps}
-                />
-              </View>
-            </DeferredSpanDetailsContent>
-          </section>
-          <section id={spanDetailsSectionIds.events} aria-label="Events">
-            <SpanDetailsSectionHeading>
-              <Flex
-                elementType="span"
-                direction="row"
-                gap="size-100"
-                alignItems="center"
+              <SpanDetailsSectionHeading>Attributes</SpanDetailsSectionHeading>
+              <DeferredSpanDetailsContent
+                placeholderHeight={ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
               >
-                Events
-                <Counter variant={hasExceptions ? "danger" : "default"}>
-                  {span.events.length}
-                </Counter>
-              </Flex>
-            </SpanDetailsSectionHeading>
-            <DeferredSpanDetailsContent
-              placeholderHeight={EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
-            >
-              <Suspense fallback={<Loading />}>
-                <SpanEventsList spanId={span.id} />
-              </Suspense>
-            </DeferredSpanDetailsContent>
-          </section>
-          <section id={spanDetailsSectionIds.notes} aria-label="Notes">
-            <SpanDetailsSectionHeading>
+                <View padding="size-200">
+                  <SpanAttributesCard
+                    attributes={span.attributes}
+                    {...attributesCardProps}
+                  />
+                </View>
+              </DeferredSpanDetailsContent>
+            </section>
+            <section id={spanDetailsSectionIds.events} aria-label="Events">
+              <SpanDetailsSectionHeading>
+                <Flex
+                  elementType="span"
+                  direction="row"
+                  gap="size-100"
+                  alignItems="center"
+                >
+                  Events
+                  <Counter variant={hasExceptions ? "danger" : "default"}>
+                    {span.events.length}
+                  </Counter>
+                </Flex>
+              </SpanDetailsSectionHeading>
+              <DeferredSpanDetailsContent
+                placeholderHeight={EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
+              >
+                <Suspense fallback={<Loading />}>
+                  <SpanEventsList spanId={span.id} />
+                </Suspense>
+              </DeferredSpanDetailsContent>
+            </section>
+          </div>
+          <section
+            id={spanDetailsSectionIds.notes}
+            aria-label="Notes"
+            data-span-details-notes
+          >
+            <SpanDetailsSectionHeading ref={notesHeadingRef}>
               <Flex
                 elementType="span"
                 direction="row"
@@ -607,13 +638,15 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
                 <Counter>{span.spanNotes.length}</Counter>
               </Flex>
             </SpanDetailsSectionHeading>
-            <DeferredSpanDetailsContent
-              placeholderHeight={NOTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
-            >
-              <Suspense fallback={<Loading />}>
-                <SpanNotesList spanId={span.id} />
-              </Suspense>
-            </DeferredSpanDetailsContent>
+            {shouldRenderNotesContent ? (
+              <DeferredSpanDetailsContent
+                placeholderHeight={NOTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
+              >
+                <Suspense fallback={<Loading />}>
+                  <SpanNotesList spanId={span.id} />
+                </Suspense>
+              </DeferredSpanDetailsContent>
+            ) : null}
           </section>
         </div>
       </div>

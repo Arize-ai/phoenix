@@ -2,11 +2,7 @@ import { css } from "@emotion/react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, Text, View } from "@phoenix/components";
-import {
-  EmptyState,
-  EmptyStateArea,
-  EmptyStateGraphic,
-} from "@phoenix/components/core/empty";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { useTimeFormatters } from "@phoenix/hooks";
 
 import type { SpanNotesListQuery } from "./__generated__/SpanNotesListQuery.graphql";
@@ -70,12 +66,17 @@ export function SpanNotesListContent({
 
   if (notes.length === 0) {
     return (
-      <EmptyStateArea>
+      <Flex
+        direction="column"
+        alignItems="center"
+        paddingX="size-200"
+        paddingY="size-400"
+      >
         <EmptyState
           graphic={<EmptyStateGraphic variant="note" />}
           description="No notes for this span"
         />
-      </EmptyStateArea>
+      </Flex>
     );
   }
 
