@@ -147,6 +147,32 @@ async def test_crud_operations(
     assert get_response.status_code == 404
 
 
+async def test_user_feedback_config_cannot_be_updated_or_deleted(
+    httpx_client: AsyncClient,
+) -> None:
+    list_response = await httpx_client.get("/v1/annotation_configs")
+    assert list_response.status_code == 200
+    config = next(
+        config for config in list_response.json()["data"] if config["name"] == "user_feedback"
+    )
+    config_id = config["id"]
+    update_body = {key: value for key, value in config.items() if key != "id"}
+
+    update_response = await httpx_client.put(
+        f"/v1/annotation_configs/{config_id}",
+        json=update_body,
+    )
+    assert update_response.status_code == 409
+    assert "cannot be updated or deleted" in update_response.text
+
+    delete_response = await httpx_client.delete(f"/v1/annotation_configs/{config_id}")
+    assert delete_response.status_code == 409
+    assert "cannot be updated or deleted" in delete_response.text
+
+    get_response = await httpx_client.get(f"/v1/annotation_configs/{config_id}")
+    assert get_response.status_code == 200
+
+
 @pytest.mark.parametrize(
     "annotation_config",
     [

@@ -6,6 +6,10 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.annotation_configs import (
+    USER_FEEDBACK_ANNOTATION_CONFIG_IMMUTABLE_MESSAGE,
+    USER_FEEDBACK_ANNOTATION_NAME,
+)
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     AnnotationType,
@@ -237,6 +241,8 @@ class AnnotationConfigMutationMixin:
             annotation_config = await session.get(models.AnnotationConfig, config_id)
             if not annotation_config:
                 raise NotFound("Annotation config not found")
+            if annotation_config.name == USER_FEEDBACK_ANNOTATION_NAME:
+                raise Conflict(USER_FEEDBACK_ANNOTATION_CONFIG_IMMUTABLE_MESSAGE)
 
             annotation_config.name = name
             annotation_config.config = config
@@ -263,6 +269,13 @@ class AnnotationConfigMutationMixin:
             config_ids.add(int(config_gid.node_id))
 
         async with info.context.db() as session:
+            if await session.scalar(
+                select(models.AnnotationConfig.id).where(
+                    models.AnnotationConfig.id.in_(config_ids),
+                    models.AnnotationConfig.name == USER_FEEDBACK_ANNOTATION_NAME,
+                )
+            ):
+                raise Conflict(USER_FEEDBACK_ANNOTATION_CONFIG_IMMUTABLE_MESSAGE)
             result = await session.scalars(
                 delete(models.AnnotationConfig)
                 .where(models.AnnotationConfig.id.in_(config_ids))

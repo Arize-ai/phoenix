@@ -3,6 +3,7 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
@@ -76,6 +77,46 @@ class TestTraceAnnotationMutations:
       }
     }
     """
+
+    async def test_user_feedback_assigns_config_to_project(
+        self,
+        _trace_data: models.Trace,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            self.QUERY,
+            {
+                "input": [
+                    {
+                        "traceId": str(GlobalID("Trace", str(_trace_data.id))),
+                        "name": "user_feedback",
+                        "label": "positive",
+                        "score": 1,
+                        "annotatorKind": "HUMAN",
+                        "metadata": {},
+                        "source": "APP",
+                    }
+                ]
+            },
+            operation_name="CreateTraceAnnotations",
+        )
+        assert result.data and not result.errors
+
+        async with db() as session:
+            association_id = await session.scalar(
+                select(models.ProjectAnnotationConfig.id)
+                .join(
+                    models.AnnotationConfig,
+                    models.ProjectAnnotationConfig.annotation_config_id
+                    == models.AnnotationConfig.id,
+                )
+                .where(
+                    models.ProjectAnnotationConfig.project_id == _trace_data.project_rowid,
+                    models.AnnotationConfig.name == "user_feedback",
+                )
+            )
+        assert association_id is not None
 
     async def test_trace_annotations_create_upsert_patch_delete(
         self,

@@ -62,6 +62,51 @@ async def test_rest_span_annotation(
     assert orm_annotation.metadata_ == dict()
 
 
+@pytest.mark.parametrize("sync", [False, True])
+async def test_user_feedback_assigns_config_to_span_project(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    sync: bool,
+) -> None:
+    response = await httpx_client.post(
+        f"v1/span_annotations?sync={sync}",
+        json={
+            "data": [
+                {
+                    "span_id": "7e2f08cb43bbf521",
+                    "name": "user_feedback",
+                    "annotator_kind": "HUMAN",
+                    "result": {"label": "positive", "score": 1},
+                    "metadata": {},
+                }
+            ]
+        },
+    )
+    assert response.status_code == 200
+    if not sync:
+        await sleep(0.1)
+
+    async with db() as session:
+        association_id = await session.scalar(
+            select(models.ProjectAnnotationConfig.id)
+            .join(
+                models.AnnotationConfig,
+                models.ProjectAnnotationConfig.annotation_config_id == models.AnnotationConfig.id,
+            )
+            .join(
+                models.Trace,
+                models.ProjectAnnotationConfig.project_id == models.Trace.project_rowid,
+            )
+            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+            .where(
+                models.AnnotationConfig.name == "user_feedback",
+                models.Span.span_id == "7e2f08cb43bbf521",
+            )
+        )
+    assert association_id is not None
+
+
 async def test_rest_span_annotation_rejects_note_name(
     httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span: Any,

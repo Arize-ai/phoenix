@@ -12,6 +12,10 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.db.annotation_configs import (
+    USER_FEEDBACK_ANNOTATION_CONFIG_IMMUTABLE_MESSAGE,
+    USER_FEEDBACK_ANNOTATION_NAME,
+)
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     AnnotationType,
@@ -367,6 +371,11 @@ async def update_annotation_config(
         existing_config = await session.get(models.AnnotationConfig, config_rowid)
         if not existing_config:
             raise HTTPException(status_code=404, detail="Annotation configuration not found")
+        if existing_config.name == USER_FEEDBACK_ANNOTATION_NAME:
+            raise HTTPException(
+                status_code=409,
+                detail=USER_FEEDBACK_ANNOTATION_CONFIG_IMMUTABLE_MESSAGE,
+            )
 
         existing_config.name = input_config.name
         existing_config.config = db_config
@@ -406,14 +415,15 @@ async def delete_annotation_config(
         raise HTTPException(status_code=400, detail="Invalid annotation configuration ID")
     config_rowid = int(config_gid.node_id)
     async with request.app.state.db() as session:
-        stmt = (
-            delete(models.AnnotationConfig)
-            .where(models.AnnotationConfig.id == config_rowid)
-            .returning(models.AnnotationConfig)
-        )
-        annotation_config = await session.scalar(stmt)
+        annotation_config = await session.get(models.AnnotationConfig, config_rowid)
         if annotation_config is None:
             raise HTTPException(status_code=404, detail="Annotation configuration not found")
+        if annotation_config.name == USER_FEEDBACK_ANNOTATION_NAME:
+            raise HTTPException(
+                status_code=409,
+                detail=USER_FEEDBACK_ANNOTATION_CONFIG_IMMUTABLE_MESSAGE,
+            )
+        await session.delete(annotation_config)
         await session.commit()
     return DeleteAnnotationConfigResponseBody(data=db_to_api_annotation_config(annotation_config))
 

@@ -6,6 +6,10 @@ from starlette.requests import Request
 from strawberry import UNSET, Info
 
 from phoenix.db import models
+from phoenix.db.annotation_configs import (
+    USER_FEEDBACK_ANNOTATION_NAME,
+    ensure_user_feedback_config_is_assigned_to_projects,
+)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
@@ -64,11 +68,15 @@ class SpanAnnotationMutationMixin:
             span_rowids.append(span_rowid)
 
         async with info.context.db() as session:
-            existing_span_rowids = set(
-                await session.scalars(
-                    select(models.Span.id).where(models.Span.id.in_(set(span_rowids)))
+            project_ids_by_span_rowid = {
+                span_rowid: project_id
+                async for span_rowid, project_id in await session.stream(
+                    select(models.Span.id, models.Trace.project_rowid)
+                    .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                    .where(models.Span.id.in_(set(span_rowids)))
                 )
-            )
+            }
+            existing_span_rowids = set(project_ids_by_span_rowid)
             missing_span_ids = [
                 str(annotation_input.span_id)
                 for span_rowid, annotation_input in zip(span_rowids, input)
@@ -76,6 +84,15 @@ class SpanAnnotationMutationMixin:
             ]
             if missing_span_ids:
                 raise NotFound(f"Could not find spans with IDs: {missing_span_ids}")
+
+            await ensure_user_feedback_config_is_assigned_to_projects(
+                session,
+                {
+                    project_ids_by_span_rowid[span_rowid]
+                    for span_rowid, annotation_input in zip(span_rowids, input)
+                    if annotation_input.name == USER_FEEDBACK_ANNOTATION_NAME
+                },
+            )
 
             for idx, (span_rowid, annotation_input) in enumerate(zip(span_rowids, input)):
                 resolved_identifier = ""

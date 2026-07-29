@@ -37,6 +37,7 @@ import {
   tableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { USER_FEEDBACK_ANNOTATION_NAME } from "@phoenix/constants";
 import type { AnnotationConfigTableFragment$key } from "@phoenix/pages/settings/__generated__/AnnotationConfigTableFragment.graphql";
 import { AnnotationConfigSelectionToolbar } from "@phoenix/pages/settings/AnnotationConfigSelectionToolbar";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
@@ -48,6 +49,8 @@ const columns = [
     size: 30,
     minSize: 30,
     maxSize: 30,
+    shouldRenderCell: (row) =>
+      row.original.name !== USER_FEEDBACK_ANNOTATION_NAME,
   }),
   {
     id: "name",
@@ -227,7 +230,8 @@ export const AnnotationConfigTable = ({
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    enableRowSelection: true,
+    enableRowSelection: (row) =>
+      row.original.name !== USER_FEEDBACK_ANNOTATION_NAME,
     onRowSelectionChange: setRowSelection,
     getRowId: (row) => row.id,
     state: {

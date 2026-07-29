@@ -7,6 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.db.annotation_configs import (
+    USER_FEEDBACK_ANNOTATION_NAME,
+    ensure_user_feedback_config_is_assigned_to_projects,
+)
 from phoenix.db.helpers import dedup
 from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import (
@@ -57,6 +61,20 @@ class SpanAnnotationQueueInserter(
         session: AsyncSession,
         *insertions: Insertables.SpanAnnotation,
     ) -> list[SpanAnnotationDmlEvent]:
+        feedback_span_rowids = {
+            insertion.span_rowid
+            for insertion in insertions
+            if insertion.obj.name == USER_FEEDBACK_ANNOTATION_NAME
+        }
+        if feedback_span_rowids:
+            project_ids = set(
+                await session.scalars(
+                    select(models.Trace.project_rowid)
+                    .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+                    .where(models.Span.id.in_(feedback_span_rowids))
+                )
+            )
+            await ensure_user_feedback_config_is_assigned_to_projects(session, project_ids)
         records = [{**dict(as_kv(ins.row)), "updated_at": ins.row.updated_at} for ins in insertions]
         stmt = self._insert_on_conflict(*records).returning(self.table.id)
         ids = tuple([_ async for _ in await session.stream_scalars(stmt)])

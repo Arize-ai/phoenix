@@ -34,6 +34,7 @@ from phoenix.config import (
     get_env_oauth2_settings,
 )
 from phoenix.db import models
+from phoenix.db.annotation_configs import USER_FEEDBACK_ANNOTATION_NAME
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.enums import ENUM_COLUMNS
 from phoenix.db.types.annotation_configs import (
@@ -51,8 +52,6 @@ from phoenix.server.email.types import WelcomeEmailSender
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
-
-USER_FEEDBACK_ANNOTATION_NAME = "user_feedback"
 
 
 class Facilitator:

@@ -6,6 +6,10 @@ from starlette.requests import Request
 from strawberry import UNSET, Info
 
 from phoenix.db import models
+from phoenix.db.annotation_configs import (
+    USER_FEEDBACK_ANNOTATION_NAME,
+    ensure_user_feedback_config_is_assigned_to_projects,
+)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
@@ -59,11 +63,15 @@ class TraceAnnotationMutationMixin:
             trace_rowids.append(trace_rowid)
 
         async with info.context.db() as session:
-            existing_trace_rowids = set(
-                await session.scalars(
-                    select(models.Trace.id).where(models.Trace.id.in_(set(trace_rowids)))
+            project_ids_by_trace_rowid = {
+                trace_rowid: project_id
+                async for trace_rowid, project_id in await session.stream(
+                    select(models.Trace.id, models.Trace.project_rowid).where(
+                        models.Trace.id.in_(set(trace_rowids))
+                    )
                 )
-            )
+            }
+            existing_trace_rowids = set(project_ids_by_trace_rowid)
             missing_trace_ids = [
                 str(annotation_input.trace_id)
                 for trace_rowid, annotation_input in zip(trace_rowids, input)
@@ -71,6 +79,15 @@ class TraceAnnotationMutationMixin:
             ]
             if missing_trace_ids:
                 raise NotFound(f"Could not find traces with IDs: {missing_trace_ids}")
+
+            await ensure_user_feedback_config_is_assigned_to_projects(
+                session,
+                {
+                    project_ids_by_trace_rowid[trace_rowid]
+                    for trace_rowid, annotation_input in zip(trace_rowids, input)
+                    if annotation_input.name == USER_FEEDBACK_ANNOTATION_NAME
+                },
+            )
 
             for idx, (trace_rowid, annotation_input) in enumerate(zip(trace_rowids, input)):
                 resolved_identifier = ""

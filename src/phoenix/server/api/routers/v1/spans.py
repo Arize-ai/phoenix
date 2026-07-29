@@ -19,6 +19,10 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import is_timezone_aware, normalize_datetime
 from phoenix.db import models
+from phoenix.db.annotation_configs import (
+    USER_FEEDBACK_ANNOTATION_NAME,
+    ensure_user_feedback_config_is_assigned_to_projects,
+)
 from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
@@ -1174,11 +1178,11 @@ async def annotate_spans(
     span_ids = {p.span_id for p in precursors}
     async with request.app.state.db() as session:
         existing_spans = {
-            span_id: id_
-            async for span_id, id_ in await session.stream(
-                select(models.Span.span_id, models.Span.id).filter(
-                    models.Span.span_id.in_(span_ids)
-                )
+            span_id: (span_rowid, project_id)
+            async for span_id, span_rowid, project_id in await session.stream(
+                select(models.Span.span_id, models.Span.id, models.Trace.project_rowid)
+                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                .filter(models.Span.span_id.in_(span_ids))
             )
         }
 
@@ -1190,8 +1194,9 @@ async def annotate_spans(
             )
         inserted_ids = []
         dialect = SupportedSQLDialect(session.bind.dialect.name)
-        for p in precursors:
-            values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
+        for precursor in precursors:
+            span_rowid, _ = existing_spans[precursor.span_id]
+            values = dict(as_kv(precursor.as_insertable(span_rowid).row))
             span_annotation_id = await session.scalar(
                 insert_on_conflict(
                     values,
@@ -1201,6 +1206,14 @@ async def annotate_spans(
                 ).returning(models.SpanAnnotation.id)
             )
             inserted_ids.append(span_annotation_id)
+        await ensure_user_feedback_config_is_assigned_to_projects(
+            session,
+            {
+                existing_spans[precursor.span_id][1]
+                for precursor in precursors
+                if precursor.obj.name == USER_FEEDBACK_ANNOTATION_NAME
+            },
+        )
     request.state.event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
     return AnnotateSpansResponseBody(
         data=[

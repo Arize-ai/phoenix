@@ -66,6 +66,7 @@ import type {
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { USER_FEEDBACK_ANNOTATION_NAME } from "@phoenix/constants";
 import { classNames } from "@phoenix/utils/classNames";
 import { isPlainObject } from "@phoenix/utils/jsonUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -835,7 +836,11 @@ function AnnotationValuePopover({
                 annotationName={annotationName}
                 config={config}
                 onCreateConfig={config ? undefined : openConfigEditor}
-                onEditConfig={config ? openConfigEditor : undefined}
+                onEditConfig={
+                  config && annotationName !== USER_FEEDBACK_ANNOTATION_NAME
+                    ? openConfigEditor
+                    : undefined
+                }
               />
               <AnnotationSummaryList
                 annotations={displayedAnnotations}

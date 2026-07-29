@@ -83,6 +83,49 @@ class TestSpanAnnotationMutations:
     }
     """
 
+    async def test_user_feedback_assigns_config_to_project(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            self.CREATE_SPAN_ANNOTATIONS_MUTATION,
+            {
+                "input": [
+                    {
+                        "spanId": str(GlobalID("Span", "1")),
+                        "name": "user_feedback",
+                        "label": "positive",
+                        "score": 1,
+                        "annotatorKind": "HUMAN",
+                        "metadata": {},
+                        "source": "APP",
+                    }
+                ]
+            },
+        )
+        assert result.data and not result.errors
+
+        async with db() as session:
+            association_id = await session.scalar(
+                select(models.ProjectAnnotationConfig.id)
+                .join(
+                    models.AnnotationConfig,
+                    models.ProjectAnnotationConfig.annotation_config_id
+                    == models.AnnotationConfig.id,
+                )
+                .join(
+                    models.Trace,
+                    models.ProjectAnnotationConfig.project_id == models.Trace.project_rowid,
+                )
+                .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+                .where(
+                    models.Span.id == 1,
+                    models.AnnotationConfig.name == "user_feedback",
+                )
+            )
+        assert association_id is not None
+
     @pytest.mark.parametrize(
         "variables",
         [

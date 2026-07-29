@@ -390,6 +390,54 @@ class TestAnnotationConfigMutations:
         assert len(configs) == 1  # Only the seeded user_feedback config remains.
         assert configs[0]["node"]["name"] == "user_feedback"
 
+    async def test_user_feedback_config_cannot_be_updated_or_deleted(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        list_response = await gql_client.execute(
+            query=self.QUERY,
+            operation_name="ListAnnotationConfigs",
+        )
+        assert list_response.data and not list_response.errors
+        config = next(
+            edge["node"]
+            for edge in list_response.data["annotationConfigs"]["edges"]
+            if edge["node"]["name"] == "user_feedback"
+        )
+
+        update_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "id": config["id"],
+                    "annotationConfig": {
+                        "categorical": {
+                            "name": "user_feedback",
+                            "description": "changed",
+                            "optimizationDirection": "MAXIMIZE",
+                            "values": [
+                                {"label": "positive", "score": 1},
+                                {"label": "negative", "score": 0},
+                            ],
+                        }
+                    },
+                }
+            },
+            operation_name="UpdateAnnotationConfig",
+        )
+        assert update_response.data is None
+        assert update_response.errors
+        assert "cannot be updated or deleted" in update_response.errors[0].message
+
+        delete_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"input": {"ids": [config["id"]]}},
+            operation_name="DeleteAnnotationConfigs",
+        )
+        assert delete_response.data is None
+        assert delete_response.errors
+        assert "cannot be updated or deleted" in delete_response.errors[0].message
+
     @pytest.mark.parametrize(
         "config,annotation_type",
         [

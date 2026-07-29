@@ -182,6 +182,42 @@ describe("DetailPanelAnnotationBar", () => {
     ]);
   });
 
+  it("does not offer editing for the built-in user feedback config", async () => {
+    const userFeedbackConfig: AnnotationConfig = {
+      ...config,
+      id: "config-user-feedback",
+      name: "user_feedback",
+      values: [
+        { label: "positive", score: 1 },
+        { label: "negative", score: 0 },
+      ],
+    };
+    renderAnnotationBar({
+      allAnnotationConfigs: [userFeedbackConfig],
+      projectAnnotationConfigs: [userFeedbackConfig],
+      annotations: [
+        {
+          id: "annotation-user-feedback",
+          name: "user_feedback",
+          label: "positive",
+          score: 1,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Open user_feedback annotation"]'
+    );
+
+    await act(async () => user.click(trigger!));
+
+    expect(
+      document.querySelector(
+        '[aria-label="Edit user_feedback annotation configuration"]'
+      )
+    ).toBeNull();
+  });
+
   it("grades saved scores in the annotation label and summary popover", async () => {
     const user = userEvent.setup();
     const trigger = document.querySelector<HTMLButtonElement>(
