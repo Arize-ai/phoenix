@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 from sqlalchemy.orm import selectinload
-from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 
 from phoenix.db import models
 from phoenix.db.types.evaluators import InputMapping
@@ -146,7 +146,7 @@ async def test_eval_work_unit_rejects_unknown_status(db: DbSessionFactory) -> No
                     evaluator_id=evaluator_id,
                     criteria_id=criteria_id,
                     config_fingerprint="fp-bad-status",
-                    status="FINISHED",
+                    status="BOGUS",
                 )
             )
             await session.flush()
@@ -317,7 +317,7 @@ async def test_project_evaluator_criteria_rejects_unknown_target(
                     name=Identifier(root=f"criteria-{token_hex(4)}"),
                     filter_condition="",
                     sampling_rate=1.0,
-                    evaluation_target="DOCUMENT",
+                    evaluation_target="BOGUS",
                 )
             )
             await session.flush()
@@ -357,7 +357,7 @@ async def test_eval_work_cursor_rejects_unknown_evaluation_target(db: DbSessionF
         async with db() as session:
             session.add(
                 models.EvalWorkCursor(
-                    evaluation_target="DOCUMENT",
+                    evaluation_target="BOGUS",
                     consumer_group="default",
                 )
             )

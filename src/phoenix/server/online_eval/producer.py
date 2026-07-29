@@ -119,7 +119,9 @@ async def resolve_criteria_bulk(
                         models.PromptVersionTag.prompt_version_id,
                     ).where(models.PromptVersionTag.id.in_(prompt_version_tag_ids))
                 )
-            ).all()
+            )
+            .tuples()
+            .all()
         )
 
     latest_prompt_version_ids: dict[int, int] = {}
@@ -135,7 +137,9 @@ async def resolve_criteria_bulk(
                     .where(models.PromptVersion.prompt_id.in_(prompt_ids))
                     .group_by(models.PromptVersion.prompt_id)
                 )
-            ).all()
+            )
+            .tuples()
+            .all()
         )
 
     latest_code_versions = await latest_code_evaluator_versions_by_evaluator_id(
@@ -173,7 +177,7 @@ async def resolve_criteria_bulk(
 
 def _resolved_criteria(
     criteria: models.ProjectEvaluatorCriteria,
-    evaluator: models.Evaluator,
+    evaluator: models.LLMEvaluator | models.CodeEvaluator | models.BuiltinEvaluator,
     version_ref: Any,
 ) -> Optional[ResolvedCriteria]:
     input_mapping: Any = None
