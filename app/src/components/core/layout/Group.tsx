@@ -5,6 +5,7 @@ import { Group as AriaGroup } from "react-aria-components";
 
 import { SizeProvider } from "@phoenix/components/core/contexts/SizeContext";
 import type { ComponentSize } from "@phoenix/components/core/types";
+import { classNames } from "@phoenix/utils/classNames";
 
 /**
  * A forwardRef wrapper around react-aria-components Group.
@@ -28,6 +29,7 @@ type GroupProps = AriaGroupProps & {
 export function Group({
   ref,
   size,
+  className,
   ...props
 }: GroupProps & { ref?: Ref<HTMLDivElement> }) {
   return (
@@ -36,7 +38,7 @@ export function Group({
         {...props}
         ref={ref}
         css={groupCSS}
-        className="group react-aria-Group"
+        className={classNames("group react-aria-Group", className)}
       />
     </SizeProvider>
   );

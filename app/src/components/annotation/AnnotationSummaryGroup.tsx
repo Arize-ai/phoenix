@@ -1,9 +1,16 @@
-import React, { useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
+import React from "react";
+import { graphql, useRefetchableFragment } from "react-relay";
 
 import { Flex } from "@phoenix/components";
 import type { AnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";
+import type { AnnotationSummaryGroupRefetchQuery } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroupRefetchQuery.graphql";
 import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import {
+  getAnnotationConfig,
+  getAnnotations,
+  useAnnotationConfigMutationHandlers,
+  useAnnotationMutationHandlers,
+} from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { Divider } from "@phoenix/components/core/layout";
 import {
   Summary,
@@ -12,41 +19,26 @@ import {
 import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
 const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
-  const data = useFragment<AnnotationSummaryGroup$key>(
+  const [data, refetch] = useRefetchableFragment<
+    AnnotationSummaryGroupRefetchQuery,
+    AnnotationSummaryGroup$key
+  >(
     graphql`
-      fragment AnnotationSummaryGroup on Span {
+      fragment AnnotationSummaryGroup on Span
+      @refetchable(queryName: "AnnotationSummaryGroupRefetchQuery") {
+        id
         project {
           id
           annotationConfigs {
             edges {
               node {
-                ... on AnnotationConfigBase {
-                  annotationType
-                }
-                ... on CategoricalAnnotationConfig {
-                  id
-                  name
-                  optimizationDirection
-                  values {
-                    label
-                    score
-                  }
-                }
+                ...ConnectedDetailPanelAnnotationBarConfigFields
               }
             }
           }
         }
         spanAnnotations {
-          id
-          name
-          label
-          score
-          annotatorKind
-          createdAt
-          user {
-            username
-            profilePictureUrl
-          }
+          ...ConnectedDetailPanelAnnotationBarAnnotationFields
         }
         spanAnnotationSummaries {
           count
@@ -63,55 +55,59 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
     `,
     span
   );
-  const { spanAnnotations, spanAnnotationSummaries } = data;
-  const sortedSummariesByName = useMemo(
-    () =>
-      spanAnnotationSummaries
-        // Note annotations are not displayed in summary groups
-        .filter((summary) => summary.name !== "note")
-        .sort((a, b) => {
-          return a.name.localeCompare(b.name);
-        }),
-    [spanAnnotationSummaries]
+  const { spanAnnotationSummaries } = data;
+  const spanAnnotations = getAnnotations(data.spanAnnotations);
+  const projectAnnotationConfigs = data.project.annotationConfigs.edges.map(
+    ({ node }) => getAnnotationConfig(node)
   );
+  const sortedSummariesByName = spanAnnotationSummaries
+    // Note annotations are not displayed in summary groups
+    .filter((summary) => summary.name !== "note")
+    .sort((firstSummary, secondSummary) => {
+      return firstSummary.name.localeCompare(secondSummary.name);
+    });
   // newest first
-  const annotationsByName = useMemo(
-    () =>
-      spanAnnotations.reduce<Record<string, typeof spanAnnotations>>(
-        (acc, annotation) => {
-          if (annotation.label == null && annotation.score == null) {
-            return acc;
-          }
-          if (!acc[annotation.name]) {
-            acc[annotation.name] = [annotation];
-          } else {
-            acc[annotation.name] = [annotation, ...acc[annotation.name]].sort(
-              (a, b) => {
-                return (
-                  new Date(b.createdAt).getTime() -
-                  new Date(a.createdAt).getTime()
-                );
-              }
-            );
-          }
-          return acc;
-        },
-        {}
-      ),
-    [spanAnnotations]
+  const annotationsByName = spanAnnotations.reduce<
+    Record<string, typeof spanAnnotations>
+  >((annotationsByName, annotation) => {
+    if (annotation.label == null && annotation.score == null) {
+      return annotationsByName;
+    }
+    if (!annotationsByName[annotation.name]) {
+      annotationsByName[annotation.name] = [annotation];
+    } else {
+      annotationsByName[annotation.name] = [
+        annotation,
+        ...annotationsByName[annotation.name],
+      ].sort((firstAnnotation, secondAnnotation) => {
+        return (
+          new Date(secondAnnotation.createdAt ?? 0).getTime() -
+          new Date(firstAnnotation.createdAt ?? 0).getTime()
+        );
+      });
+    }
+    return annotationsByName;
+  }, {});
+  const categoricalAnnotationConfigsByName = projectAnnotationConfigs.reduce<
+    Record<string, AnnotationConfigCategorical>
+  >((configsByName, annotationConfig) => {
+    if (annotationConfig.annotationType === "CATEGORICAL") {
+      configsByName[annotationConfig.name] = annotationConfig;
+    }
+    return configsByName;
+  }, {});
+  const annotationConfigsByName = Object.fromEntries(
+    projectAnnotationConfigs.map((annotationConfig) => [
+      annotationConfig.name,
+      annotationConfig,
+    ])
   );
-  const categoricalAnnotationConfigsByName = useMemo(() => {
-    return data.project.annotationConfigs.edges.reduce<
-      Record<string, AnnotationConfigCategorical>
-    >((acc, edge) => {
-      const name = edge.node.name;
-      if (name && edge.node.annotationType === "CATEGORICAL") {
-        acc[name] = edge.node as AnnotationConfigCategorical;
-      }
-      return acc;
-    }, {});
-  }, [data.project.annotationConfigs]);
   return {
+    annotationConfigsByName,
+    projectId: data.project.id,
+    refetch,
+    spanAnnotations,
+    spanId: data.id,
     sortedSummariesByName,
     annotationsByName,
     categoricalAnnotationConfigsByName,
@@ -151,10 +147,23 @@ export const AnnotationSummaryGroupTokens = ({
   renderEmptyState,
 }: AnnotationSummaryGroupProps) => {
   const {
+    annotationConfigsByName,
+    projectId,
+    refetch,
+    spanAnnotations,
+    spanId,
     sortedSummariesByName,
     annotationsByName,
     categoricalAnnotationConfigsByName,
   } = useAnnotationSummaryGroup(span);
+  const refresh = () => {
+    refetch({}, { fetchPolicy: "network-only" });
+  };
+  const configHandlers = useAnnotationConfigMutationHandlers({
+    projectId,
+    refresh,
+  });
+  const annotationHandlers = useAnnotationMutationHandlers({ refresh });
 
   // a summary of explanation-only annotations has no label or score to render a
   // token from, so counting it would leave the caller a blank run of tokens
@@ -171,6 +180,22 @@ export const AnnotationSummaryGroupTokens = ({
       summaries={summariesWithTokens}
       annotationsByName={annotationsByName}
       categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
+      editableAnnotationPopover={
+        showFilterActions
+          ? {
+              annotationConfigsByName,
+              onCreateAnnotationConfig: configHandlers.onCreateAnnotationConfig,
+              onUpdateAnnotationConfig: configHandlers.onUpdateAnnotationConfig,
+              ...annotationHandlers,
+              target: {
+                annotations: spanAnnotations,
+                id: spanId,
+                kind: "span",
+                label: "This span",
+              },
+            }
+          : undefined
+      }
       showFilterActions={showFilterActions}
     />
   );

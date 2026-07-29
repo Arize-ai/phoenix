@@ -3,12 +3,17 @@ import { css } from "@emotion/react";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
 import {
+  AnnotationValuePopover,
+  type AnnotationValuePopoverProps,
+  type AnnotationValuePopoverRenderTrigger,
+} from "@phoenix/components/annotation/DetailPanelAnnotationBar";
+import {
   SummaryValueLabelPreview,
   SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
 import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
-import type { Annotation } from "./types";
+import type { Annotation, AnnotationConfig } from "./types";
 
 const annotationLabelCSS = css`
   min-height: 20px;
@@ -23,6 +28,18 @@ type AnnotationSummary = {
   labelFractions: readonly { label: string; fraction: number }[];
 };
 
+type EditableAnnotationPopoverProps = Pick<
+  AnnotationValuePopoverProps,
+  | "onCreateAnnotation"
+  | "onCreateAnnotationConfig"
+  | "onDeleteAnnotation"
+  | "onUpdateAnnotation"
+  | "onUpdateAnnotationConfig"
+  | "target"
+> & {
+  annotationConfigsByName: Partial<Record<string, AnnotationConfig>>;
+};
+
 /**
  * A bare run of annotation tokens — the caller owns the layout (wrap, or
  * `OverflowRow`). Spans, traces and sessions read their annotations from
@@ -32,6 +49,7 @@ export function AnnotationSummaryTokens({
   summaries,
   annotationsByName,
   categoricalAnnotationConfigsByName,
+  editableAnnotationPopover,
   showFilterActions = false,
 }: {
   summaries: readonly AnnotationSummary[];
@@ -41,6 +59,7 @@ export function AnnotationSummaryTokens({
     string,
     AnnotationConfigCategorical | undefined
   >;
+  editableAnnotationPopover?: EditableAnnotationPopoverProps;
   showFilterActions?: boolean;
 }) {
   return (
@@ -51,6 +70,48 @@ export function AnnotationSummaryTokens({
         if (!latestAnnotation) {
           return null;
         }
+        const renderTrigger: AnnotationValuePopoverRenderTrigger = ({
+          ref,
+        }) => (
+          <AnnotationLabel
+            ref={ref}
+            annotation={latestAnnotation}
+            annotationDisplayPreference="none"
+            css={annotationLabelCSS}
+            clickable
+          >
+            {meanScore != null ? (
+              <SummaryValuePreview
+                name={latestAnnotation.name}
+                meanScore={meanScore}
+                size="S"
+                disableAnimation
+                annotationConfig={
+                  categoricalAnnotationConfigsByName[latestAnnotation.name]
+                }
+              />
+            ) : (
+              <SummaryValueLabelPreview
+                labelFractions={summary.labelFractions}
+              />
+            )}
+          </AnnotationLabel>
+        );
+        if (editableAnnotationPopover) {
+          const { annotationConfigsByName, ...annotationValuePopoverProps } =
+            editableAnnotationPopover;
+          return (
+            <AnnotationValuePopover
+              key={latestAnnotation.id}
+              annotationName={summary.name}
+              annotations={annotationsByName[summary.name] ?? []}
+              config={annotationConfigsByName[summary.name] ?? null}
+              displayMode="table"
+              renderTrigger={renderTrigger}
+              {...annotationValuePopoverProps}
+            />
+          );
+        }
         return (
           <AnnotationSummaryPopover
             key={latestAnnotation.id}
@@ -59,28 +120,7 @@ export function AnnotationSummaryTokens({
             meanScore={meanScore}
             showFilterActions={showFilterActions}
           >
-            <AnnotationLabel
-              annotation={latestAnnotation}
-              annotationDisplayPreference="none"
-              css={annotationLabelCSS}
-              clickable
-            >
-              {meanScore != null ? (
-                <SummaryValuePreview
-                  name={latestAnnotation.name}
-                  meanScore={meanScore}
-                  size="S"
-                  disableAnimation
-                  annotationConfig={
-                    categoricalAnnotationConfigsByName[latestAnnotation.name]
-                  }
-                />
-              ) : (
-                <SummaryValueLabelPreview
-                  labelFractions={summary.labelFractions}
-                />
-              )}
-            </AnnotationLabel>
+            {renderTrigger({ ref: null })}
           </AnnotationSummaryPopover>
         );
       })}

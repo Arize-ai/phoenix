@@ -151,7 +151,7 @@ function getMutationError(error: Error) {
   return error.message || "The annotation change could not be saved.";
 }
 
-function getAnnotations(
+export function getAnnotations(
   annotations: readonly ConnectedDetailPanelAnnotationBarAnnotationFields$key[]
 ): Annotation[] {
   return annotations.map((annotationReference) => {
@@ -194,7 +194,7 @@ function getTraceAnnotations(
   });
 }
 
-function getAnnotationConfig(
+export function getAnnotationConfig(
   configReference: ConnectedDetailPanelAnnotationBarConfigFields$key
 ): AnnotationConfig {
   const config = readInlineData(annotationConfigFields, configReference);
@@ -242,7 +242,7 @@ type ConfigMutationHandlers = Pick<
   | "onUpdateAnnotationConfig"
 >;
 
-function useAnnotationConfigMutationHandlers({
+export function useAnnotationConfigMutationHandlers({
   projectId,
   refresh,
 }: {
@@ -562,7 +562,7 @@ function SpanDetailPanelAnnotationBarContent({
   );
 }
 
-function useAnnotationMutationHandlers({
+export function useAnnotationMutationHandlers({
   refresh,
 }: {
   refresh: () => void;

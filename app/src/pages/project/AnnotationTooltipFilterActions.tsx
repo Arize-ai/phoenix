@@ -1,7 +1,6 @@
-import { css } from "@emotion/react";
-import { useMemo } from "react";
+import type { CSSProperties } from "react";
 
-import { Token } from "@phoenix/components";
+import { Group, Icon, IconButton, Icons } from "@phoenix/components";
 
 import { useSpanFilters } from "./SpanFiltersContext";
 
@@ -23,70 +22,101 @@ type FilterDefinition = {
    * The condition that the filter represents using DSL
    */
   filterCondition: string;
+  icon: "equal" | "greater-than" | "less-than" | "not-equal";
 };
+
+const compactIconButtonStyle: CSSProperties = {
+  width: "var(--global-dimension-size-300)",
+  minWidth: "var(--global-dimension-size-300)",
+  height: "var(--global-dimension-size-300)",
+  minHeight: "var(--global-dimension-size-300)",
+};
+
+export function getAnnotationFilterDefinitions({
+  name,
+  label,
+  score,
+}: AnnotationTooltipFilterActionsProps["annotation"]): FilterDefinition[] {
+  if (typeof score === "number") {
+    return [
+      {
+        filterName: "greater than",
+        filterCondition: `annotations['${name}'].score > ${score}`,
+        icon: "greater-than",
+      },
+      {
+        filterName: "less than",
+        filterCondition: `annotations['${name}'].score < ${score}`,
+        icon: "less-than",
+      },
+      {
+        filterName: "equals",
+        filterCondition: `annotations['${name}'].score == ${score}`,
+        icon: "equal",
+      },
+    ];
+  }
+  if (label != null) {
+    return [
+      {
+        filterName: "matches",
+        filterCondition: `annotations['${name}'].label == "${label}"`,
+        icon: "equal",
+      },
+      {
+        filterName: "does not match",
+        filterCondition: `annotations['${name}'].label != "${label}"`,
+        icon: "not-equal",
+      },
+    ];
+  }
+  return [];
+}
+
+function AnnotationFilterIcon({ icon }: Pick<FilterDefinition, "icon">) {
+  switch (icon) {
+    case "equal":
+      return <Icon svg={<Icons.Equal />} />;
+    case "greater-than":
+      return <Icon svg={<Icons.GreaterThan />} />;
+    case "less-than":
+      return <Icon svg={<Icons.LessThan />} />;
+    case "not-equal":
+      return <Icon svg={<Icons.NotEqual />} />;
+  }
+  return null;
+}
 
 export function AnnotationTooltipFilterActions(
   props: AnnotationTooltipFilterActionsProps
 ) {
   const { appendFilterCondition } = useSpanFilters();
   const { annotation, className } = props;
-  const { name, label, score } = annotation;
-
-  const filters = useMemo(() => {
-    const filters: FilterDefinition[] = [];
-    if (typeof score === "number") {
-      filters.push({
-        filterName: "greater than",
-        filterCondition: `annotations['${name}'].score > ${score}`,
-      });
-      filters.push({
-        filterName: "less than",
-        filterCondition: `annotations['${name}'].score < ${score}`,
-      });
-      filters.push({
-        filterName: "equals",
-        filterCondition: `annotations['${name}'].score == ${score}`,
-      });
-    } else if (label != null) {
-      filters.push({
-        filterName: "match",
-        filterCondition: `annotations['${name}'].label == "${label}"`,
-      });
-      filters.push({
-        filterName: "exclude",
-        filterCondition: `annotations['${name}'].label != "${label}"`,
-      });
-    }
-    return filters;
-  }, [name, label, score]);
+  const filters = getAnnotationFilterDefinitions(annotation);
 
   if (filters.length === 0) {
     return null;
   }
 
   return (
-    <ul
+    <Group
+      aria-label="Filter annotation value"
       className={className}
-      css={css`
-        display: flex;
-        height: 100%;
-        flex-direction: row;
-        gap: var(--global-dimension-size-100);
-
-        flex-wrap: wrap;
-      `}
+      style={{ gap: "var(--global-dimension-size-25)" }}
     >
       {filters.map((filter) => (
-        <li key={filter.filterName}>
-          <Token
-            onPress={() => {
-              appendFilterCondition(filter.filterCondition);
-            }}
-          >
-            {filter.filterName}
-          </Token>
-        </li>
+        <IconButton
+          key={filter.filterName}
+          size="S"
+          style={compactIconButtonStyle}
+          aria-label={`Filter annotations ${filter.filterName} this value`}
+          onPress={() => {
+            appendFilterCondition(filter.filterCondition);
+          }}
+        >
+          <AnnotationFilterIcon icon={filter.icon} />
+        </IconButton>
       ))}
-    </ul>
+    </Group>
   );
 }

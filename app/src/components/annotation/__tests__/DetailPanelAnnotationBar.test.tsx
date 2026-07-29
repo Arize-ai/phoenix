@@ -4,13 +4,18 @@ import { MemoryRouter } from "react-router";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DetailPanelAnnotationBar } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
+import { Button } from "@phoenix/components";
+import {
+  AnnotationValuePopover,
+  DetailPanelAnnotationBar,
+} from "@phoenix/components/annotation/DetailPanelAnnotationBar";
 import type { DetailPanelAnnotationBarProps } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
 import type {
   Annotation,
   AnnotationConfig,
 } from "@phoenix/components/annotation/types";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
+import { SpanFiltersContext } from "@phoenix/pages/project/SpanFiltersContext";
 
 const config: AnnotationConfig = {
   id: "config-quality",
@@ -91,6 +96,60 @@ describe("DetailPanelAnnotationBar", () => {
               onUpdateAnnotation={onUpdateAnnotation}
               onUpdateAnnotationConfig={mutationResult}
             />
+          </MemoryRouter>
+        </ThemeProvider>
+      );
+    });
+  };
+
+  const renderTableAnnotationPopover = ({
+    appendFilterCondition,
+  }: {
+    appendFilterCondition: (condition: string) => void;
+  }) => {
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark" disableBodyTheme>
+          <MemoryRouter>
+            <SpanFiltersContext.Provider
+              value={{
+                appendFilterCondition,
+                filterCondition: "",
+                rootSpansOnly: true,
+                setFilterCondition: vi.fn(),
+                setRootSpansOnly: vi.fn(),
+              }}
+            >
+              <AnnotationValuePopover
+                annotationName="quality"
+                annotations={[
+                  {
+                    id: "annotation-1",
+                    name: "quality",
+                    label: "good",
+                    score: 1,
+                  },
+                ]}
+                config={config}
+                displayMode="table"
+                onCreateAnnotation={createMutationResult}
+                onCreateAnnotationConfig={mutationResult}
+                onDeleteAnnotation={mutationResult}
+                onUpdateAnnotation={mutationResult}
+                onUpdateAnnotationConfig={mutationResult}
+                renderTrigger={({ ref }) => (
+                  <Button ref={ref} aria-label="Open quality annotation">
+                    quality
+                  </Button>
+                )}
+                target={{
+                  annotations: [],
+                  id: "span-1",
+                  kind: "span",
+                  label: "Span",
+                }}
+              />
+            </SpanFiltersContext.Provider>
           </MemoryRouter>
         </ThemeProvider>
       );
@@ -819,6 +878,95 @@ describe("DetailPanelAnnotationBar", () => {
     });
   });
 
+  it("groups compact score filters between the score and label", async () => {
+    const appendFilterCondition = vi.fn();
+    renderTableAnnotationPopover({ appendFilterCondition });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+
+    const filterButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(
+        'button[aria-label^="Filter annotations"]'
+      )
+    );
+    expect(filterButtons.map((button) => button.ariaLabel)).toEqual([
+      "Filter annotations greater than this value",
+      "Filter annotations less than this value",
+      "Filter annotations equals this value",
+    ]);
+    const annotationValue = document.querySelector(".annotation-entry__value");
+    const filterGroup = annotationValue?.querySelector(
+      '[role="group"][aria-label="Filter annotation value"]'
+    );
+    expect(filterGroup).not.toBeNull();
+    expect(
+      Array.from(filterGroup?.querySelectorAll("button") ?? []).map(
+        (button) => button.style.width
+      )
+    ).toEqual(Array(3).fill("var(--global-dimension-size-300)"));
+    expect(
+      Array.from(annotationValue?.children ?? []).map((child) =>
+        child.getAttribute("role")
+      )
+    ).toEqual([null, "group", null]);
+    expect(
+      document.querySelector('[aria-label="More annotation actions"]')
+    ).not.toBeNull();
+    expect(document.querySelector('[aria-label="Edit annotation"]')).toBeNull();
+    expect(
+      document.querySelector('[aria-label="Delete annotation"]')
+    ).toBeNull();
+
+    await act(async () => user.click(filterButtons[2]!));
+
+    expect(appendFilterCondition).toHaveBeenCalledWith(
+      "annotations['quality'].score == 1"
+    );
+  });
+
+  it("swallows the outside interaction that dismisses the annotation popover", async () => {
+    const underlyingButton = document.createElement("button");
+    const onUnderlyingPointerDown = vi.fn();
+    const onUnderlyingClick = vi.fn();
+    underlyingButton.textContent = "Underlying action";
+    underlyingButton.addEventListener("pointerdown", onUnderlyingPointerDown);
+    underlyingButton.addEventListener("click", onUnderlyingClick);
+    document.body.appendChild(underlyingButton);
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+    expect(
+      document.querySelector('[role="dialog"][aria-label="quality annotation"]')
+    ).not.toBeNull();
+
+    await act(async () => user.click(underlyingButton));
+
+    expect(onUnderlyingPointerDown).not.toHaveBeenCalled();
+    expect(onUnderlyingClick).not.toHaveBeenCalled();
+    expect(
+      document.querySelector('[role="dialog"][aria-label="quality annotation"]')
+    ).toBeNull();
+
+    await act(async () => user.click(underlyingButton));
+    expect(onUnderlyingPointerDown).toHaveBeenCalledOnce();
+    expect(onUnderlyingClick).toHaveBeenCalledOnce();
+
+    underlyingButton.remove();
+  });
+
   it("confirms deletion in place while dimming the explanation", async () => {
     renderAnnotationBar({
       annotations: [
@@ -847,11 +995,22 @@ describe("DetailPanelAnnotationBar", () => {
     const annotationActions = annotationHeader?.querySelector(
       ":scope > .annotation-entry__actions"
     );
+    expect(
+      annotationActions?.querySelector('[aria-label="Edit annotation"]')
+    ).not.toBeNull();
     const deleteAnnotationButton =
       annotationActions?.querySelector<HTMLButtonElement>(
         '[aria-label="Delete annotation"]'
       );
     expect(deleteAnnotationButton?.dataset.variant).toBe("danger");
+    expect(
+      annotationActions?.querySelector('[aria-label="More annotation actions"]')
+    ).toBeNull();
+    expect(
+      annotationEntry?.querySelector(
+        '[role="group"][aria-label="Filter annotation value"]'
+      )
+    ).toBeNull();
     await act(async () => user.hover(deleteAnnotationButton!));
     expect(
       getComputedStyle(deleteAnnotationButton!).backgroundColor.replace(
@@ -1014,6 +1173,9 @@ describe("DetailPanelAnnotationBar", () => {
         (button) => button.getAttribute("data-size")
       )
     ).toEqual(["S", "S"]);
+    expect(
+      annotationActions?.querySelector('[aria-label="More annotation actions"]')
+    ).toBeNull();
     const explanation = annotationEntry?.querySelector(
       ":scope > .annotation-entry__explanation"
     );

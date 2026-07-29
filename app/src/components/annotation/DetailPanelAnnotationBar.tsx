@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode, Ref } from "react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useInteractOutside } from "react-aria";
 import { MenuSection } from "react-aria-components";
@@ -67,6 +67,7 @@ import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { USER_FEEDBACK_ANNOTATION_NAME } from "@phoenix/constants";
+import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { classNames } from "@phoenix/utils/classNames";
 import { isPlainObject } from "@phoenix/utils/jsonUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -508,6 +509,7 @@ function AnnotationTargetRow({
               annotationName={name}
               annotations={annotations}
               config={config}
+              displayMode="detail"
               target={target}
               {...sharedProps}
             />
@@ -527,17 +529,7 @@ function AnnotationTargetRow({
 
 type AnnotationPopoverView = "config" | "quick-create" | "summary" | "value";
 
-function AnnotationValuePopover({
-  annotationName,
-  annotations,
-  config,
-  onCreateAnnotation,
-  onCreateAnnotationConfig,
-  onDeleteAnnotation,
-  onUpdateAnnotation,
-  onUpdateAnnotationConfig,
-  target,
-}: Pick<
+type AnnotationValuePopoverCommonProps = Pick<
   SharedAnnotationBarProps,
   | "onCreateAnnotation"
   | "onCreateAnnotationConfig"
@@ -549,7 +541,37 @@ function AnnotationValuePopover({
   annotations: readonly Annotation[];
   config: AnnotationConfig | null;
   target: AnnotationBarTarget;
-}) {
+};
+
+export type AnnotationValuePopoverRenderTrigger = (props: {
+  ref: Ref<HTMLButtonElement>;
+}) => ReactNode;
+
+export type AnnotationValuePopoverProps = AnnotationValuePopoverCommonProps &
+  (
+    | {
+        displayMode: "detail";
+        renderTrigger?: never;
+      }
+    | {
+        displayMode: "table";
+        renderTrigger: AnnotationValuePopoverRenderTrigger;
+      }
+  );
+
+export function AnnotationValuePopover({
+  annotationName,
+  annotations,
+  config,
+  displayMode,
+  onCreateAnnotation,
+  onCreateAnnotationConfig,
+  onDeleteAnnotation,
+  onUpdateAnnotation,
+  onUpdateAnnotationConfig,
+  renderTrigger,
+  target,
+}: AnnotationValuePopoverProps) {
   const [createdAnnotation, setCreatedAnnotation] = useState<Annotation | null>(
     null
   );
@@ -639,16 +661,39 @@ function AnnotationValuePopover({
     isOpen,
     onDismiss: handleEscape,
   });
+  const shouldIgnoreOutsideInteraction = useCallback((event: PointerEvent) => {
+    if (
+      triggerRef.current &&
+      event.composedPath().includes(triggerRef.current)
+    ) {
+      return true;
+    }
+    return (
+      event.target instanceof Element &&
+      event.target.closest("[data-annotation-actions-menu]") !== null
+    );
+  }, []);
+  const blockOutsideInteraction = useCallback((event: PointerEvent) => {
+    // This popover is non-modal so the page remains available, but its
+    // dismissing gesture must not also activate a table row or control beneath
+    // it. Consume both the start and completed click of that gesture.
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
   useInteractOutside({
     ref: popoverRef,
     isDisabled: !isOpen,
-    onInteractOutside: (event) => {
-      if (
-        triggerRef.current &&
-        event.composedPath().includes(triggerRef.current)
-      ) {
+    onInteractOutsideStart: (event) => {
+      if (shouldIgnoreOutsideInteraction(event)) {
         return;
       }
+      blockOutsideInteraction(event);
+    },
+    onInteractOutside: (event) => {
+      if (shouldIgnoreOutsideInteraction(event)) {
+        return;
+      }
+      blockOutsideInteraction(event);
       handleOpenChange(false);
     },
   });
@@ -682,42 +727,46 @@ function AnnotationValuePopover({
 
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
-      <AnnotationLabel
-        ref={triggerRef}
-        annotation={{
-          name: annotationName,
-          label: aggregate.label,
-          score: aggregate.score,
-        }}
-        annotationDisplayPreference={
-          aggregate.isMixed ? "none" : "score-and-label"
-        }
-        optimizationValue={aggregateOptimizationValue}
-        clickable
-        variant={hasAnnotations ? "default" : "ghost"}
-      >
-        {aggregate.isMixed ? (
-          <Flex direction="row" gap="size-100" minWidth={0}>
-            <Text
-              color="text-500"
-              css={css`
-                font-style: italic;
-              `}
-            >
-              mixed
-            </Text>
-            {aggregate.score != null ? (
-              <AnnotationScoreText
-                appearance="compact"
-                fontFamily="mono"
-                optimizationValue={aggregateOptimizationValue}
+      {renderTrigger ? (
+        renderTrigger({ ref: triggerRef })
+      ) : (
+        <AnnotationLabel
+          ref={triggerRef}
+          annotation={{
+            name: annotationName,
+            label: aggregate.label,
+            score: aggregate.score,
+          }}
+          annotationDisplayPreference={
+            aggregate.isMixed ? "none" : "score-and-label"
+          }
+          optimizationValue={aggregateOptimizationValue}
+          clickable
+          variant={hasAnnotations ? "default" : "ghost"}
+        >
+          {aggregate.isMixed ? (
+            <Flex direction="row" gap="size-100" minWidth={0}>
+              <Text
+                color="text-500"
+                css={css`
+                  font-style: italic;
+                `}
               >
-                {formatFloat(aggregate.score)}
-              </AnnotationScoreText>
-            ) : null}
-          </Flex>
-        ) : null}
-      </AnnotationLabel>
+                mixed
+              </Text>
+              {aggregate.score != null ? (
+                <AnnotationScoreText
+                  appearance="compact"
+                  fontFamily="mono"
+                  optimizationValue={aggregateOptimizationValue}
+                >
+                  {formatFloat(aggregate.score)}
+                </AnnotationScoreText>
+              ) : null}
+            </Flex>
+          ) : null}
+        </AnnotationLabel>
+      )}
       <Popover
         ref={popoverRef}
         placement="bottom start"
@@ -727,7 +776,8 @@ function AnnotationValuePopover({
         isNonModal
         isKeyboardDismissDisabled={false}
         shouldCloseOnInteractOutside={(element) =>
-          !triggerRef.current?.contains(element)
+          !triggerRef.current?.contains(element) &&
+          !element.closest("[data-annotation-actions-menu]")
         }
       >
         <PopoverArrow />
@@ -869,6 +919,7 @@ function AnnotationValuePopover({
                 }}
                 onDelete={setDeletingAnnotationId}
                 onEdit={openValueEditor}
+                displayMode={displayMode}
               />
               <DialogFooter>
                 <Button
@@ -949,6 +1000,7 @@ function AnnotationSummaryList({
   onConfirmDelete,
   onDelete,
   onEdit,
+  displayMode,
 }: {
   annotations: readonly Annotation[];
   config: AnnotationConfig | null;
@@ -957,6 +1009,7 @@ function AnnotationSummaryList({
   onConfirmDelete: (annotation: Annotation) => Promise<void>;
   onDelete: (annotationId: string) => void;
   onEdit: (annotation: Annotation) => void;
+  displayMode: AnnotationValuePopoverProps["displayMode"];
 }) {
   return (
     <ul css={annotationEntryListCSS} aria-label="Annotation values">
@@ -987,6 +1040,9 @@ function AnnotationSummaryList({
                         {formatFloat(annotation.score)}
                       </AnnotationScoreText>
                     ) : null}
+                    {displayMode === "table" ? (
+                      <AnnotationTooltipFilterActions annotation={annotation} />
+                    ) : null}
                     {annotation.label ? (
                       <Text>{annotation.label}</Text>
                     ) : (
@@ -1013,6 +1069,12 @@ function AnnotationSummaryList({
                       Delete
                     </Button>
                   </>
+                ) : displayMode === "table" ? (
+                  <AnnotationActionsMenu
+                    annotation={annotation}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                  />
                 ) : (
                   <>
                     <IconButton
@@ -1049,6 +1111,42 @@ function AnnotationSummaryList({
         );
       })}
     </ul>
+  );
+}
+
+function AnnotationActionsMenu({
+  annotation,
+  onDelete,
+  onEdit,
+}: {
+  annotation: Annotation;
+  onDelete: (annotationId: string) => void;
+  onEdit: (annotation: Annotation) => void;
+}) {
+  return (
+    <MenuTrigger>
+      <IconButton size="S" aria-label="More annotation actions">
+        <Icon svg={<Icons.MoreHorizontal />} />
+      </IconButton>
+      <Popover placement="bottom end" data-annotation-actions-menu>
+        <Menu
+          aria-label="Annotation actions"
+          css={css`
+            --menu-min-width: 120px;
+          `}
+          onAction={(action) => {
+            if (action === "edit") {
+              onEdit(annotation);
+            } else if (action === "delete" && annotation.id) {
+              onDelete(annotation.id);
+            }
+          }}
+        >
+          <MenuItem id="edit">Edit</MenuItem>
+          <MenuItem id="delete">Delete</MenuItem>
+        </Menu>
+      </Popover>
+    </MenuTrigger>
   );
 }
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6515f7eddabccde944f04a29e545c37>>
+ * @generated SignedSource<<2820e23e75160651454b6a7105ec4f0a>>
  * @lightSyntaxTransform
  */
 
@@ -8,23 +8,14 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationSummaryGroup$data = {
+  readonly id: string;
   readonly project: {
     readonly annotationConfigs: {
       readonly edges: ReadonlyArray<{
         readonly node: {
-          readonly annotationType?: AnnotationType;
-          readonly id?: string;
-          readonly name?: string;
-          readonly optimizationDirection?: OptimizationDirection;
-          readonly values?: ReadonlyArray<{
-            readonly label: string;
-            readonly score: number | null;
-          }>;
+          readonly " $fragmentSpreads": FragmentRefs<"ConnectedDetailPanelAnnotationBarConfigFields">;
         };
       }>;
     };
@@ -42,16 +33,7 @@ export type AnnotationSummaryGroup$data = {
     readonly scoreCount: number;
   }>;
   readonly spanAnnotations: ReadonlyArray<{
-    readonly annotatorKind: AnnotatorKind;
-    readonly createdAt: string;
-    readonly id: string;
-    readonly label: string | null;
-    readonly name: string;
-    readonly score: number | null;
-    readonly user: {
-      readonly profilePictureUrl: string | null;
-      readonly username: string;
-    } | null;
+    readonly " $fragmentSpreads": FragmentRefs<"ConnectedDetailPanelAnnotationBarAnnotationFields">;
   }>;
   readonly " $fragmentType": "AnnotationSummaryGroup";
 };
@@ -59,6 +41,8 @@ export type AnnotationSummaryGroup$key = {
   readonly " $data"?: AnnotationSummaryGroup$data;
   readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
 };
+
+import AnnotationSummaryGroupRefetchQuery_graphql from './AnnotationSummaryGroupRefetchQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = {
@@ -69,20 +53,35 @@ var v0 = {
   "storageKey": null
 },
 v1 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v0/*:: as any*/)
+  ],
+  "type": "Node",
+  "abstractKey": "__isNode"
+},
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v2 = {
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v3 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -92,9 +91,22 @@ v3 = {
 return {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "refetch": {
+      "connection": null,
+      "fragmentPathInResult": [
+        "node"
+      ],
+      "operation": AnnotationSummaryGroupRefetchQuery_graphql,
+      "identifierInfo": {
+        "identifierField": "id",
+        "identifierQueryVariableName": "id"
+      }
+    }
+  },
   "name": "AnnotationSummaryGroup",
   "selections": [
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -129,47 +141,100 @@ return {
                   "plural": false,
                   "selections": [
                     {
-                      "kind": "InlineFragment",
+                      "kind": "InlineDataFragmentSpread",
+                      "name": "ConnectedDetailPanelAnnotationBarConfigFields",
                       "selections": [
                         {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "annotationType",
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "AnnotationConfigBase",
-                      "abstractKey": "__isAnnotationConfigBase"
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        (v0/*:: as any*/),
-                        (v1/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "optimizationDirection",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "CategoricalAnnotationValue",
-                          "kind": "LinkedField",
-                          "name": "values",
-                          "plural": true,
+                          "kind": "InlineFragment",
                           "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "__typename",
+                              "storageKey": null
+                            },
+                            (v1/*:: as any*/),
                             (v2/*:: as any*/),
-                            (v3/*:: as any*/)
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "description",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "annotationType",
+                              "storageKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v3/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": "CategoricalAnnotationValue",
+                                  "kind": "LinkedField",
+                                  "name": "values",
+                                  "plural": true,
+                                  "selections": [
+                                    (v4/*:: as any*/),
+                                    (v5/*:: as any*/)
+                                  ],
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "CategoricalAnnotationConfig",
+                              "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "lowerBound",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "upperBound",
+                                  "storageKey": null
+                                },
+                                (v3/*:: as any*/)
+                              ],
+                              "type": "ContinuousAnnotationConfig",
+                              "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v3/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "threshold",
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "FreeformAnnotationConfig",
+                              "abstractKey": null
+                            }
                           ],
-                          "storageKey": null
+                          "type": "AnnotationConfigBase",
+                          "abstractKey": "__isAnnotationConfigBase"
                         }
                       ],
-                      "type": "CategoricalAnnotationConfig",
-                      "abstractKey": null
+                      "args": null,
+                      "argumentDefinitions": []
                     }
                   ],
                   "storageKey": null
@@ -191,48 +256,85 @@ return {
       "name": "spanAnnotations",
       "plural": true,
       "selections": [
-        (v0/*:: as any*/),
-        (v1/*:: as any*/),
-        (v2/*:: as any*/),
-        (v3/*:: as any*/),
         {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "annotatorKind",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "createdAt",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "User",
-          "kind": "LinkedField",
-          "name": "user",
-          "plural": false,
+          "kind": "InlineDataFragmentSpread",
+          "name": "ConnectedDetailPanelAnnotationBarAnnotationFields",
           "selections": [
             {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "username",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "profilePictureUrl",
-              "storageKey": null
+              "kind": "InlineFragment",
+              "selections": [
+                (v1/*:: as any*/),
+                (v2/*:: as any*/),
+                (v4/*:: as any*/),
+                (v5/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "explanation",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "metadata",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "annotatorKind",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "source",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "createdAt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "user",
+                  "plural": false,
+                  "selections": [
+                    (v0/*:: as any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "username",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "profilePictureUrl",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "type": "Annotation",
+              "abstractKey": "__isAnnotation"
             }
           ],
-          "storageKey": null
+          "args": null,
+          "argumentDefinitions": []
         }
       ],
       "storageKey": null
@@ -281,7 +383,7 @@ return {
               "name": "fraction",
               "storageKey": null
             },
-            (v2/*:: as any*/)
+            (v4/*:: as any*/)
           ],
           "storageKey": null
         },
@@ -292,7 +394,7 @@ return {
           "name": "meanScore",
           "storageKey": null
         },
-        (v1/*:: as any*/)
+        (v2/*:: as any*/)
       ],
       "storageKey": null
     }
@@ -302,6 +404,6 @@ return {
 };
 })();
 
-(node as any).hash = "48c0b4cab3a1c1e4c059652329dc034b";
+(node as any).hash = "cbdf5c0324c88b2c851dbe7531fc0385";
 
 export default node;
