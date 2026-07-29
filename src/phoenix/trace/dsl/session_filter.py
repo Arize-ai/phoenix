@@ -2,16 +2,19 @@
 
 Session intrinsics bind to ``ProjectSession`` columns; per-session aggregate names bind to
 grouped-by-session subqueries from :mod:`phoenix.db.session_aggregates` that are LEFT JOINed on
-demand; ``user.id`` and ``metadata["k"]`` read the session's earliest root span.
+demand; ``user.id`` and ``metadata["k"]`` read the session's earliest root span. Comprehensions
+(``any(s.status_code == "ERROR" for s in spans)``) range over the iterables catalogued below and
+compile to correlated subqueries over the element table.
 """
 
 import ast
 import typing
 from dataclasses import dataclass, field
+from itertools import count
 from types import MappingProxyType
 
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import distinct, func, select
+from sqlalchemy import distinct, func, literal, not_, select
 from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.sql.expression import Select
 from sqlalchemy.sql.selectable import ScalarSelect
@@ -23,6 +26,7 @@ from phoenix.db.session_aggregates import (
     SPAN_ROWID,
     VALUE,
     SessionAggregate,
+    apply_session_scope,
     cost_summary_by_session,
     earliest_root_span_by_session,
     num_traces_by_session,
@@ -33,11 +37,15 @@ from phoenix.db.session_aggregates import (
     token_counts_by_session,
 )
 from phoenix.trace.dsl.filter import (
+    COMPREHENSION_NAMES,
+    QUANTIFIER_NAMES,
     AliasedAnnotationRelation,
+    ComprehensionSpec,
     NameMap,
     _compile_condition,
     _eval_globals,
     _FilterBindings,
+    _IterableGrammar,
     _join_annotations,
 )
 
@@ -119,6 +127,165 @@ _SESSION_DATETIME_NAMES: NameMap = MappingProxyType(
     }
 )
 
+
+class _ElementField(typing.NamedTuple):
+    """One field a loop variable exposes: the element-model attribute and how it is typed."""
+
+    attribute: str
+    kind: typing.Literal["string", "float", "datetime", "boolean"]
+
+
+class _NestedIterable(typing.NamedTuple):
+    """An iterable reached from an element of another one, e.g. ``t.spans`` for a turn ``t``."""
+
+    iterable: str
+    correlate: typing.Callable[[typing.Any, typing.Any], typing.Any]
+
+
+class _IterableSpec(typing.NamedTuple):
+    """How one iterable's elements are found, typed, and tied back to a session.
+
+    ``joins`` walks from the element table toward ``Trace``, which is where ``session_key`` and
+    ``project_key`` read from for every iterable that is not itself session-keyed.
+    """
+
+    model: typing.Any
+    fields: typing.Mapping[str, _ElementField]
+    joins: tuple[typing.Any, ...]
+    session_key: typing.Callable[[typing.Any], typing.Any]
+    project_key: typing.Optional[typing.Callable[[typing.Any], typing.Any]] = None
+    uppercase_fields: frozenset[str] = frozenset()
+    nested: typing.Mapping[str, _NestedIterable] = MappingProxyType({})
+
+
+# Leaf per-span token counts, never the cumulative_* rollups: summing cumulative counts over a
+# session multi-counts tokens through wrapping agent/tool spans (#12768).
+_SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
+    {
+        "name": _ElementField("name", "string"),
+        "span_kind": _ElementField("span_kind", "string"),
+        "status_code": _ElementField("status_code", "string"),
+        "latency_ms": _ElementField("latency_ms", "float"),
+        "llm_token_count_prompt": _ElementField("llm_token_count_prompt", "float"),
+        "llm_token_count_completion": _ElementField("llm_token_count_completion", "float"),
+        "llm_token_count_total": _ElementField("llm_token_count_total", "float"),
+    }
+)
+_TURN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
+    {
+        "start_time": _ElementField("start_time", "datetime"),
+        "end_time": _ElementField("end_time", "datetime"),
+        "latency_ms": _ElementField("latency_ms", "float"),
+    }
+)
+_ANNOTATION_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
+    {
+        "name": _ElementField("name", "string"),
+        "label": _ElementField("label", "string"),
+        "score": _ElementField("score", "float"),
+    }
+)
+_COST_DETAIL_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
+    {
+        "token_type": _ElementField("token_type", "string"),
+        "is_prompt": _ElementField("is_prompt", "boolean"),
+        "cost": _ElementField("cost", "float"),
+        "tokens": _ElementField("tokens", "float"),
+        "cost_per_token": _ElementField("cost_per_token", "float"),
+    }
+)
+
+_ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
+    {
+        "spans": _IterableSpec(
+            model=models.Span,
+            fields=_SPAN_ELEMENT_FIELDS,
+            joins=(models.Trace,),
+            session_key=lambda element: models.Trace.project_session_rowid,
+            project_key=lambda element: models.Trace.project_rowid,
+            uppercase_fields=frozenset({"span_kind", "status_code"}),
+        ),
+        "turns": _IterableSpec(
+            model=models.Trace,
+            fields=_TURN_ELEMENT_FIELDS,
+            joins=(),
+            session_key=lambda element: element.project_session_rowid,
+            project_key=lambda element: element.project_rowid,
+            nested=MappingProxyType(
+                {
+                    "spans": _NestedIterable(
+                        "spans", lambda element, parent: element.trace_rowid == parent.id
+                    ),
+                }
+            ),
+        ),
+        "session_annotations": _IterableSpec(
+            model=models.ProjectSessionAnnotation,
+            fields=_ANNOTATION_ELEMENT_FIELDS,
+            joins=(),
+            session_key=lambda element: element.project_session_id,
+        ),
+        "span_annotations": _IterableSpec(
+            model=models.SpanAnnotation,
+            fields=_ANNOTATION_ELEMENT_FIELDS,
+            joins=(models.Span, models.Trace),
+            session_key=lambda element: models.Trace.project_session_rowid,
+            project_key=lambda element: models.Trace.project_rowid,
+        ),
+        "cost_details": _IterableSpec(
+            model=models.SpanCostDetail,
+            fields=_COST_DETAIL_ELEMENT_FIELDS,
+            joins=(models.SpanCost, models.Trace),
+            session_key=lambda element: models.Trace.project_session_rowid,
+            project_key=lambda element: models.Trace.project_rowid,
+        ),
+    }
+)
+
+
+def _element_bindings(spec: _IterableSpec) -> _FilterBindings:
+    """The language a predicate written against one iterable's loop variable compiles in."""
+
+    def columns(kind: str) -> NameMap:
+        return MappingProxyType(
+            {
+                name: getattr(spec.model, field.attribute)
+                for name, field in spec.fields.items()
+                if field.kind == kind
+            }
+        )
+
+    return _FilterBindings(
+        string_names=columns("string"),
+        float_names=columns("float"),
+        datetime_names=columns("datetime"),
+        boolean_names=columns("boolean"),
+        extra_names=MappingProxyType({}),
+        aggregate_names=frozenset(),
+        legacy_replacements=MappingProxyType({}),
+        uppercase_names=spec.uppercase_fields,
+        # Annotations are not reachable from inside a comprehension, so the annotation-join
+        # surface below is never consulted for element bindings.
+        annotation_model=models.SpanAnnotation,
+        annotation_fk="span_rowid",
+        entity_id=models.Span.id,
+        annotation_table_prefix="span_annotation",
+        reject_unbound_names=True,
+    )
+
+
+_SESSION_ITERABLES: typing.Mapping[str, _IterableGrammar] = MappingProxyType(
+    {
+        name: _IterableGrammar(
+            element_bindings=_element_bindings(spec),
+            nested=MappingProxyType(
+                {attribute: nested.iterable for attribute, nested in spec.nested.items()}
+            ),
+        )
+        for name, spec in _ITERABLE_SPECS.items()
+    }
+)
+
 SESSION_BINDINGS = _FilterBindings(
     string_names=_SESSION_STRING_NAMES,
     float_names=_SESSION_FLOAT_NAMES,
@@ -133,8 +300,9 @@ SESSION_BINDINGS = _FilterBindings(
     entity_id=models.ProjectSession.id,
     annotation_table_prefix="project_session_annotation",
     reject_unbound_names=True,
-    quantifiers=frozenset(),
+    quantifiers=frozenset(COMPREHENSION_NAMES),
     exists_names=frozenset(_EXISTS_ATTRIBUTE_PATHS),
+    iterables=_SESSION_ITERABLES,
 )
 
 SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
@@ -216,6 +384,54 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             'Accepted proxy for attributes["metadata"]["key"]; reads from the session\'s '
             "earliest root span. Missing on that span is SQL null (target it with `is None`)."
         ),
+        "spans": (
+            "Every span in the session. Iterate it with any/all/len/max/min/sum, e.g. "
+            'any(s.status_code == "ERROR" for s in spans).'
+        ),
+        "turns": (
+            "The session's traces — ≈ conversation turns (one trace records one exchange). "
+            "A turn element also iterates its spans, e.g. "
+            'any(any(s.span_kind == "TOOL" for s in t.spans) for t in turns).'
+        ),
+        "session_annotations": (
+            "Annotations attached to the session itself, e.g. "
+            'any(a.name == "Quality" and a.score > 0.8 for a in session_annotations).'
+        ),
+        "span_annotations": (
+            "Every annotation on any span in the session, flattened to session scope, e.g. "
+            'any(a.label == "hallucinated" for a in span_annotations).'
+        ),
+        "cost_details": (
+            "Per-token-type cost rows for the session's spans, flattened to session scope, e.g. "
+            'sum(c.tokens for c in cost_details if c.token_type == "cache_read").'
+        ),
+        "spans.name": "Span name.",
+        "spans.span_kind": "Span kind, e.g. LLM, TOOL, RETRIEVER; comparands are uppercased.",
+        "spans.status_code": "Span status: OK, ERROR, or UNSET; comparands are uppercased.",
+        "spans.latency_ms": "Span duration in milliseconds.",
+        "spans.llm_token_count_prompt": (
+            "Prompt tokens recorded on this span; null on spans that record none."
+        ),
+        "spans.llm_token_count_completion": (
+            "Completion tokens recorded on this span; null on spans that record none."
+        ),
+        "spans.llm_token_count_total": (
+            "Prompt plus completion tokens recorded on this span; 0 when it records none."
+        ),
+        "turns.start_time": "Turn start timestamp. Compare against ISO 8601 strings.",
+        "turns.end_time": "Turn end timestamp. Compare against ISO 8601 strings.",
+        "turns.latency_ms": "Turn duration in milliseconds.",
+        "session_annotations.name": "Annotation name.",
+        "session_annotations.label": "Annotation label; null when the annotation has none.",
+        "session_annotations.score": "Annotation score; null when the annotation has none.",
+        "span_annotations.name": "Annotation name.",
+        "span_annotations.label": "Annotation label; null when the annotation has none.",
+        "span_annotations.score": "Annotation score; null when the annotation has none.",
+        "cost_details.token_type": "Token type this cost row covers, e.g. input, output, audio.",
+        "cost_details.is_prompt": "Whether this cost row counts toward the prompt side.",
+        "cost_details.cost": "Cost of this row; null when no cost is configured.",
+        "cost_details.tokens": "Token count for this row; null when unrecorded.",
+        "cost_details.cost_per_token": "Cost per token for this row; null when unrecorded.",
     }
 )
 
@@ -256,6 +472,88 @@ def _exists_bindings(
     return bindings_map
 
 
+_REDUCTION_FUNCTIONS: typing.Mapping[str, typing.Any] = MappingProxyType(
+    {
+        "sum": func.sum,
+        "max": func.max,
+        "min": func.min,
+    }
+)
+
+
+def _comprehension_bindings(
+    specs: typing.Iterable[ComprehensionSpec],
+    candidate_session_rowids: CandidateRowids,
+    project_rowids: typing.Optional[typing.Sequence[int]],
+    start_time: typing.Optional[typing.Any],
+    end_time: typing.Optional[typing.Any],
+) -> dict[str, typing.Any]:
+    """Build each comprehension's correlated subquery, keyed by the name it was extracted to."""
+    aliases = count()
+
+    def build(
+        spec: ComprehensionSpec,
+        parent: typing.Optional[ComprehensionSpec] = None,
+        parent_element: typing.Optional[typing.Any] = None,
+    ) -> typing.Any:
+        iterable = _ITERABLE_SPECS[spec.iterable]
+        element = aliased(iterable.model, name=f"{spec.iterable}_{next(aliases)}")
+        columns = {
+            name: getattr(element, field.attribute) for name, field in iterable.fields.items()
+        }
+        nested_bindings = {child.name: build(child, spec, element) for child in spec.children}
+        element_globals = _eval_globals(
+            _SESSION_ITERABLES[spec.iterable].element_bindings,
+            {},
+            {**spec.literal_bindings, **columns, **nested_bindings},
+        )
+        predicate: typing.Any = (
+            None if spec.predicate is None else eval(spec.predicate, element_globals)
+        )
+        if spec.kind in QUANTIFIER_NAMES:
+            stmt = select(literal(1))
+        elif spec.kind == "len":
+            stmt = select(func.count())
+        else:
+            stmt = select(_REDUCTION_FUNCTIONS[spec.kind](predicate))
+        stmt = stmt.select_from(element)
+        if parent is None:
+            for target in iterable.joins:
+                stmt = stmt.join(target)
+            session_key = iterable.session_key(element)
+            stmt = stmt.where(session_key == models.ProjectSession.id)
+            stmt = apply_session_scope(
+                stmt,
+                session_key,
+                project_key=None if iterable.project_key is None else iterable.project_key(element),
+                keys=candidate_session_rowids,
+                project_rowids=project_rowids,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        else:
+            # A nested comprehension is correlated to the enclosing element, which the enclosing
+            # subquery has already scoped to the session.
+            nested = _ITERABLE_SPECS[parent.iterable].nested[
+                typing.cast(str, spec.nested_attribute)
+            ]
+            stmt = stmt.where(nested.correlate(element, parent_element))
+        if spec.condition is not None:
+            stmt = stmt.where(eval(spec.condition, element_globals))
+        if spec.kind == "any":
+            return stmt.where(predicate).exists()
+        if spec.kind == "all":
+            # A missing field fails every comparison, so an element whose predicate is NULL has
+            # to count as a counterexample: `IS NOT TRUE`, never `NOT`.
+            return not_(stmt.where(predicate.is_not(True)).exists())
+        if spec.kind in ("len", "sum"):
+            return func.coalesce(stmt.scalar_subquery(), 0)
+        # `max`/`min` over nothing is SQL NULL, which reads as missing and fails every comparison.
+        return stmt.scalar_subquery()
+
+    return {spec.name: build(spec) for spec in specs}
+
+
 @dataclass(frozen=True)
 class SessionFilter:
     """Compiles a session filter condition and applies it as a ``Select -> Select`` transform."""
@@ -273,6 +571,7 @@ class SessionFilter:
     _referenced_exists_names: frozenset[str] = field(init=False, repr=False)
     _referenced_root_span_io_names: frozenset[str] = field(init=False, repr=False)
     _references_root_span: bool = field(init=False, repr=False)
+    _comprehensions: tuple[ComprehensionSpec, ...] = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
         return bool(self.condition)
@@ -305,6 +604,7 @@ class SessionFilter:
             frozenset(referenced & set(_ROOT_SPAN_IO_NAMES)),
         )
         object.__setattr__(self, "_references_root_span", _ROOT_SPAN_ATTRIBUTES in referenced)
+        object.__setattr__(self, "_comprehensions", compiled_condition.comprehensions)
 
     def __call__(
         self,
@@ -332,6 +632,15 @@ class SessionFilter:
             aggregate_shape=aggregate_shape,
         )
         extra_bindings.update(aggregate_bindings)
+        extra_bindings.update(
+            _comprehension_bindings(
+                self._comprehensions,
+                candidate_session_rowids=candidate_session_rowids,
+                project_rowids=project_rowids,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        )
         extra_bindings.update(
             _exists_bindings(
                 self._referenced_exists_names,

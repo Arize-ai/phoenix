@@ -2810,11 +2810,7 @@ type Project implements Node {
   """
   Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap. sessionFilterCondition is a session filter expression (see sessionFilterVocabulary).
   """
-<<<<<<< HEAD
-  sessions(first: Int!, timeRange: TimeRange, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionFilterCondition: String, sessionId: String): ProjectSessionConnection!
-=======
-  sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, sessionFilterCondition: String): ProjectSessionConnection!
->>>>>>> f5ee368d04 (refactor(session-filters): retire legacy session search surfaces and per-tool subscripts)
+  sessions(first: Int!, timeRange: TimeRange, after: String, sort: ProjectSessionSort, sessionFilterCondition: String): ProjectSessionConnection!
 
   """
   Number of sessions in the project, optionally filtered by a time range or a session filter expression.

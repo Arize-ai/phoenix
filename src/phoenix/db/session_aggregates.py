@@ -28,6 +28,7 @@ __all__ = [
     "SESSION_ROWID",
     "SPAN_ROWID",
     "SessionAggregate",
+    "apply_session_scope",
     "num_traces_by_session",
     "num_traces_with_error_by_session",
     "token_counts_by_session",
@@ -190,24 +191,51 @@ def root_span_attribute_text_contains_by_session(
     return stmt.exists()
 
 
-def _apply_scope(
+def apply_session_scope(
     stmt: Select[Any],
-    project_rowids: Optional[Collection[int]],
-    start_time: Optional[Any],
-    end_time: Optional[Any],
+    session_key: Any,
+    project_key: Optional[Any] = None,
+    keys: Optional[Collection[int]] = None,
+    project_rowids: Optional[Collection[int]] = None,
+    start_time: Optional[Any] = None,
+    end_time: Optional[Any] = None,
 ) -> Select[Any]:
-    if project_rowids is not None:
-        stmt = stmt.where(models.Trace.project_rowid.in_(project_rowids))
+    """Restrict a per-session query to a candidate set, a project set, and a time window.
+
+    ``session_key`` is the column identifying the session a row belongs to, and ``project_key``
+    the column carrying its project; the latter is optional because a table keyed directly on the
+    session (annotations) reaches no project column of its own.
+    """
+    if keys is not None:
+        stmt = stmt.where(session_key.in_(keys))
+    if project_rowids is not None and project_key is not None:
+        stmt = stmt.where(project_key.in_(project_rowids))
     if start_time is None and end_time is None:
         return stmt
     session_scope = models.ProjectSession.__table__.alias("session_scope")
-    stmt = stmt.join(session_scope, session_scope.c.id == _GROUP_KEY)
+    stmt = stmt.join(session_scope, session_scope.c.id == session_key)
     # Interval-overlap time scoping, matching the session filter's candidate universe.
     if start_time is not None:
         stmt = stmt.where(start_time <= session_scope.c.end_time)
     if end_time is not None:
         stmt = stmt.where(session_scope.c.start_time < end_time)
     return stmt
+
+
+def _apply_scope(
+    stmt: Select[Any],
+    project_rowids: Optional[Collection[int]],
+    start_time: Optional[Any],
+    end_time: Optional[Any],
+) -> Select[Any]:
+    return apply_session_scope(
+        stmt,
+        _GROUP_KEY,
+        project_key=models.Trace.project_rowid,
+        project_rowids=project_rowids,
+        start_time=start_time,
+        end_time=end_time,
+    )
 
 
 def earliest_root_span_by_session(

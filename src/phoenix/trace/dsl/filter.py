@@ -3,7 +3,7 @@ import math
 import re
 import typing
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from itertools import chain
 from types import MappingProxyType
@@ -157,6 +157,16 @@ _PARENT_IS_NOT_NULL = "__parent_is_not_null__"
 
 _STRICT_ROOT_KEYWORD = "parent_id"
 
+# Comprehension forms: `any`/`all` yield a boolean, the rest yield a number. Each extracted
+# comprehension is replaced by a reserved name carrying the matching prefix, which is how the
+# translator types the result without a per-instance name map.
+QUANTIFIER_NAMES: frozenset[str] = frozenset({"any", "all"})
+REDUCTION_NAMES: frozenset[str] = frozenset({"len", "max", "min", "sum"})
+COMPREHENSION_NAMES: frozenset[str] = QUANTIFIER_NAMES | REDUCTION_NAMES
+
+_QUANTIFIER_RESULT_PREFIX = "__quantifier_"
+_REDUCTION_RESULT_PREFIX = "__reduction_"
+
 
 RootSpanScope = typing.Literal["strict", "orphan_aware"]
 """Which definition of "root span" a filter condition restricts to.
@@ -189,9 +199,11 @@ class _FilterBindings:
     entity_id: "sqlalchemy.SQLColumnExpression[typing.Any]"
     annotation_table_prefix: str
     reject_unbound_names: bool
+    boolean_names: NameMap = MappingProxyType({})
     quantifiers: frozenset[str] = frozenset()
     exists_names: frozenset[str] = frozenset()
     supports_parent_keyword: bool = False
+    iterables: typing.Mapping[str, "_IterableGrammar"] = MappingProxyType({})
 
     @property
     def names(self) -> NameMap:
@@ -201,6 +213,7 @@ class _FilterBindings:
                 **self.string_names,
                 **self.float_names,
                 **self.datetime_names,
+                **self.boolean_names,
                 **self.extra_names,
             }
         )
@@ -213,10 +226,24 @@ class _FilterBindings:
                 self.string_names,
                 self.float_names,
                 self.datetime_names,
+                self.boolean_names,
                 self.aggregate_names,
                 self.exists_names,
             )
         )
+
+
+class _IterableGrammar(typing.NamedTuple):
+    """One iterable as the compiler sees it: how its elements are named, typed, and nested.
+
+    ``element_bindings`` is the language a predicate inside ``for x in <iterable>`` is compiled
+    against, so an inner predicate inherits the casting, coercion, and did-you-mean behavior of a
+    top-level one. ``nested`` maps a loop-variable attribute to the iterable it stands for
+    (e.g. ``turns`` elements expose ``spans``).
+    """
+
+    element_bindings: _FilterBindings
+    nested: typing.Mapping[str, str] = MappingProxyType({})
 
 
 SPAN_BINDINGS = _FilterBindings(
@@ -243,6 +270,365 @@ SPAN_BINDINGS = _FilterBindings(
 )
 
 
+class ComprehensionSpec(typing.NamedTuple):
+    """One extracted comprehension, ready to be built into a correlated subquery.
+
+    ``predicate`` is the compiled element expression -- the condition for a quantifier, the
+    reduced value for ``sum``/``max``/``min``, and ``None`` for ``len``, which counts rows.
+    ``condition`` is the compiled ``if`` clause, if any. Both are compiled against the
+    iterable's element bindings and are evaluated by the caller against its own element columns.
+    """
+
+    name: str
+    kind: str
+    iterable: str
+    nested_attribute: typing.Optional[str]
+    predicate: typing.Any
+    condition: typing.Any
+    children: tuple["ComprehensionSpec", ...]
+    literal_bindings: typing.Mapping[str, typing.Any]
+    """Safe values bound while compiling ``predicate`` / ``condition`` (e.g.
+    datetime literals); the caller merges them into the element eval globals."""
+
+
+class _ElementScope(typing.NamedTuple):
+    """A loop variable in scope: what it is called and what it ranges over."""
+
+    variable: str
+    iterable: str
+    grammar: _IterableGrammar
+
+
+def _comprehension_argument(
+    node: ast.AST,
+    bindings: _FilterBindings,
+) -> typing.Optional[typing.Union[ast.GeneratorExp, ast.ListComp]]:
+    """The comprehension `node` reduces over, if it is a call of a sanctioned reduction."""
+    if not (
+        isinstance(node, ast.Call)
+        and isinstance(func := node.func, ast.Name)
+        and func.id in bindings.quantifiers
+        and func.id in COMPREHENSION_NAMES
+        and len(node.args) == 1
+        and not node.keywords
+    ):
+        return None
+    argument = node.args[0]
+    return argument if isinstance(argument, (ast.GeneratorExp, ast.ListComp)) else None
+
+
+def _conjoin(nodes: typing.Sequence[ast.expr]) -> ast.expr:
+    return nodes[0] if len(nodes) == 1 else ast.BoolOp(op=ast.And(), values=list(nodes))
+
+
+def _element_access_path(node: ast.expr) -> tuple[typing.Optional[str], list[typing.Optional[str]]]:
+    """Splits an attribute/subscript chain into its root name and one step per link.
+
+    A subscript step is ``None``: elements expose named fields only, so `s["a"]` has to be
+    distinguishable from `s.a` here.
+    """
+    steps: list[typing.Optional[str]] = []
+    current: ast.AST = node
+    while True:
+        if isinstance(current, ast.Attribute):
+            steps.append(current.attr)
+            current = current.value
+        elif isinstance(current, ast.Subscript):
+            steps.append(None)
+            current = current.value
+        else:
+            break
+    return (current.id, steps[::-1]) if isinstance(current, ast.Name) else (None, [])
+
+
+def _scope_of(name: str, scopes: typing.Sequence[_ElementScope]) -> typing.Optional[_ElementScope]:
+    for scope in reversed(scopes):
+        if scope.variable == name:
+            return scope
+    return None
+
+
+def _resolve_iterable(
+    node: ast.expr,
+    scopes: typing.Sequence[_ElementScope],
+    bindings: _FilterBindings,
+) -> tuple[str, typing.Optional[str]]:
+    """The iterable a `for ... in <node>` clause ranges over, plus the attribute that named it.
+
+    The attribute is ``None`` for a top-level iterable and the loop-variable attribute for a
+    nested one (`for s in t.spans`), which is what tells the caller to correlate the subquery to
+    the enclosing element instead of the session.
+    """
+    if isinstance(node, ast.Name):
+        if node.id in bindings.iterables:
+            return node.id, None
+        choice, score = _find_best_match(node.id, bindings.iterables)
+        suggestion = (
+            f', did you mean "{choice}"?'
+            if choice and score > 0.75
+            else f", expected {_disjunction(sorted(bindings.iterables))}"
+        )
+        raise SyntaxError(f"invalid iterable `{node.id}`{suggestion}")
+    if isinstance(node, ast.Attribute) and isinstance(value := node.value, ast.Name):
+        if (scope := _scope_of(value.id, scopes)) is not None:
+            if (nested := scope.grammar.nested.get(node.attr)) is not None:
+                return nested, node.attr
+            expected = _disjunction(sorted(scope.grammar.nested))
+            raise SyntaxError(
+                f"`{ast.unparse(node)}` is not iterable"
+                + (f"; a {scope.iterable} element iterates {expected}" if expected else "")
+            )
+    raise SyntaxError(f"cannot iterate `{ast.unparse(node)}`")
+
+
+def _is_predicate_shaped(
+    node: ast.expr,
+    scope: _ElementScope,
+    bindings: _FilterBindings,
+) -> bool:
+    if isinstance(node, (ast.Compare, ast.BoolOp)):
+        return True
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        return True
+    if _comprehension_argument(node, bindings) is not None:
+        # A nested comprehension is shaped by its own reduction, not by the enclosing one.
+        return typing.cast(ast.Name, typing.cast(ast.Call, node).func).id in QUANTIFIER_NAMES
+    if (
+        isinstance(node, ast.Attribute)
+        and isinstance(value := node.value, ast.Name)
+        and value.id == scope.variable
+    ):
+        return node.attr in scope.grammar.element_bindings.boolean_names
+    return False
+
+
+def _validate_comprehension_shape(
+    comprehension: typing.Union[ast.GeneratorExp, ast.ListComp],
+    kind: str,
+) -> ast.comprehension:
+    if kind == "len" and not isinstance(comprehension, ast.ListComp):
+        # Inherited from CPython, where `len(genexp)` raises TypeError.
+        raise SyntaxError(
+            "`len(...)` takes a list comprehension: write "
+            f"`len([{ast.unparse(comprehension.elt)} for ...])`, not `len(... for ...)`"
+        )
+    if len(comprehension.generators) != 1:
+        raise SyntaxError("a comprehension may have only one `for` clause")
+    generator = comprehension.generators[0]
+    if generator.is_async:
+        raise SyntaxError("`async for` is not supported")
+    if not isinstance(generator.target, ast.Name):
+        raise SyntaxError(
+            f"`for {ast.unparse(generator.target)} in ...` is not supported: "
+            "the loop variable must be a simple name"
+        )
+    return generator
+
+
+def _validate_element_expression(
+    node: ast.expr,
+    kind: str,
+    scope: _ElementScope,
+    bindings: _FilterBindings,
+) -> None:
+    if kind == "len":
+        if not (isinstance(node, ast.Name) and node.id == scope.variable):
+            raise SyntaxError(
+                f"`len(...)` counts elements: write "
+                f"`len([{scope.variable} for {scope.variable} in {scope.iterable} if ...])`"
+            )
+        return
+    if _is_predicate_shaped(node, scope, bindings) is (kind in QUANTIFIER_NAMES):
+        return
+    expected = "a condition" if kind in QUANTIFIER_NAMES else "a value"
+    raise SyntaxError(f"`{kind}(...)` takes {expected} over `{scope.variable}`")
+
+
+def _validate_element_access(
+    node: ast.expr,
+    scopes: typing.Sequence[_ElementScope],
+) -> None:
+    root, steps = _element_access_path(node)
+    if root is None or (scope := _scope_of(root, scopes)) is None:
+        return
+    fields = scope.grammar.element_bindings.binding_names
+    if len(steps) != 1 or (attribute := steps[0]) is None:
+        raise SyntaxError(
+            f"`{ast.unparse(node)}` is not a {scope.iterable} field; "
+            f"a {scope.iterable} element exposes {_disjunction(sorted(fields))}"
+        )
+    if attribute in fields:
+        return
+    choice, score = _find_best_match(attribute, fields)
+    suggestion = (
+        f', did you mean "{choice}"?'
+        if choice and score > 0.75
+        else f", expected {_disjunction(sorted(fields))}"
+    )
+    raise SyntaxError(f"invalid field `{root}.{attribute}`{suggestion}")
+
+
+def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindings) -> None:
+    """Admit comprehensions only in the shapes the compiler can build a subquery from.
+
+    A comprehension has to be the sole argument of one of the sanctioned reductions, range over a
+    declared iterable through a single non-async `for` with a simple loop variable, and reference
+    the loop variable only through its declared fields. Grains that declare no iterables reject
+    comprehensions outright, via the node-type whitelist in :func:`_validate_expression`.
+    """
+    if not bindings.iterables:
+        return
+    iterable_slots: set[int] = set()
+
+    def check(node: ast.AST, scopes: tuple[_ElementScope, ...]) -> None:
+        if (comprehension := _comprehension_argument(node, bindings)) is not None:
+            kind = typing.cast(ast.Name, typing.cast(ast.Call, node).func).id
+            generator = _validate_comprehension_shape(comprehension, kind)
+            iterable, _ = _resolve_iterable(generator.iter, scopes, bindings)
+            iterable_slots.add(id(generator.iter))
+            variable = typing.cast(ast.Name, generator.target).id
+            if _scope_of(variable, scopes) is not None:
+                raise SyntaxError(f"`{variable}` is already in use as a loop variable")
+            scope = _ElementScope(variable, iterable, bindings.iterables[iterable])
+            _validate_element_expression(comprehension.elt, kind, scope, bindings)
+            for inner in (*generator.ifs, comprehension.elt):
+                check(inner, (*scopes, scope))
+            return
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(func := node.func, ast.Name)
+            and func.id in COMPREHENSION_NAMES
+            and func.id in bindings.quantifiers
+        ):
+            raise SyntaxError(
+                f"`{func.id}(...)` takes a comprehension over "
+                f"{_disjunction(sorted(bindings.iterables))}, "
+                f'e.g. `{func.id}(x.<field> == "..." for x in <collection>)`'
+            )
+        if isinstance(node, (ast.GeneratorExp, ast.ListComp, ast.SetComp, ast.DictComp)):
+            raise SyntaxError(
+                f"invalid expression: {ast.unparse(node)}; a comprehension may appear only as the "
+                f"argument of {_disjunction(sorted(COMPREHENSION_NAMES & bindings.quantifiers))}"
+            )
+        if isinstance(node, (ast.Attribute, ast.Subscript)):
+            _validate_element_access(typing.cast(ast.expr, node), scopes)
+        for child in ast.iter_child_nodes(node):
+            check(child, scopes)
+
+    check(expression.body, ())
+    for node in ast.walk(expression.body):
+        if (
+            isinstance(node, ast.Name)
+            and node.id in bindings.iterables
+            and id(node) not in iterable_slots
+        ):
+            raise SyntaxError(
+                f"`{node.id}` is a collection and can only be iterated, "
+                f'e.g. `any(x.<field> == "..." for x in {node.id})`'
+            )
+
+
+class _ComprehensionExtractor(ast.NodeTransformer):
+    """Replaces each sanctioned comprehension with a reserved name and records how to build it.
+
+    The element expression and `if` clause are compiled separately against the iterable's element
+    bindings, so a predicate one scope down speaks exactly the language it does at the top level.
+    Loop-variable field access (`s.latency_ms`) becomes a bare name (`latency_ms`) in that scope,
+    which is what lets the ordinary translator handle it.
+    """
+
+    def __init__(self, bindings: _FilterBindings) -> None:
+        self._bindings = bindings
+        self._scopes: list[_ElementScope] = []
+        self._collected: list[list[ComprehensionSpec]] = [[]]
+        self._count = 0
+
+    @property
+    def specs(self) -> tuple[ComprehensionSpec, ...]:
+        return tuple(self._collected[0])
+
+    def visit_Call(self, node: ast.Call) -> typing.Any:
+        if (comprehension := _comprehension_argument(node, self._bindings)) is None:
+            return self.generic_visit(node)
+        kind = typing.cast(ast.Name, node.func).id
+        generator = comprehension.generators[0]
+        iterable, nested_attribute = _resolve_iterable(generator.iter, self._scopes, self._bindings)
+        grammar = self._bindings.iterables[iterable]
+        variable = typing.cast(ast.Name, generator.target).id
+        self._scopes.append(_ElementScope(variable, iterable, grammar))
+        self._collected.append([])
+        try:
+            condition = self.visit(_conjoin(generator.ifs)) if generator.ifs else None
+            element = None if kind == "len" else self.visit(comprehension.elt)
+        finally:
+            children = tuple(self._collected.pop())
+            self._scopes.pop()
+        reserved = tuple(child.name for child in children)
+        prefix = _QUANTIFIER_RESULT_PREFIX if kind in QUANTIFIER_NAMES else _REDUCTION_RESULT_PREFIX
+        name = f"{prefix}{self._count}__"
+        self._count += 1
+        literal_bindings: dict[str, typing.Any] = {}
+        spec = ComprehensionSpec(
+            name=name,
+            kind=kind,
+            iterable=iterable,
+            nested_attribute=nested_attribute,
+            predicate=None
+            if element is None
+            else _compile_element(element, grammar, reserved, literal_bindings),
+            condition=None
+            if condition is None
+            else _compile_element(condition, grammar, reserved, literal_bindings),
+            children=children,
+            literal_bindings=literal_bindings,
+        )
+        self._collected[-1].append(spec)
+        return ast.Name(id=name, ctx=ast.Load())
+
+    def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
+        if (
+            isinstance(value := node.value, ast.Name)
+            and _scope_of(value.id, self._scopes) is not None
+        ):
+            return ast.Name(id=node.attr, ctx=ast.Load())
+        return self.generic_visit(node)
+
+    def visit_Name(self, node: ast.Name) -> typing.Any:
+        if (scope := _scope_of(node.id, self._scopes)) is not None:
+            raise SyntaxError(
+                f"`{node.id}` is a whole {scope.iterable} element; compare one of its fields"
+            )
+        return node
+
+
+def _compile_element(
+    node: ast.expr,
+    grammar: _IterableGrammar,
+    reserved_keywords: typing.Sequence[str],
+    literal_bindings: dict[str, typing.Any],
+) -> typing.Any:
+    translator = _FilterTranslator(
+        bindings=grammar.element_bindings,
+        reserved_keywords=reserved_keywords,
+    )
+    # Share one bindings dict across the predicate and the `if` clause so the
+    # generated literal names stay unique within the spec's eval globals.
+    translator.literal_bindings = literal_bindings
+    translated = translator.visit(ast.Expression(body=node))
+    ast.fix_missing_locations(translated)
+    return compile(translated, filename="", mode="eval")
+
+
+def _extract_comprehensions(
+    root: ast.Expression,
+    bindings: _FilterBindings,
+) -> tuple[ast.Expression, tuple[ComprehensionSpec, ...]]:
+    if not bindings.iterables:
+        return root, ()
+    extractor = _ComprehensionExtractor(bindings)
+    return ast.Expression(body=extractor.visit(root.body)), extractor.specs
+
+
 class _CompiledCondition(typing.NamedTuple):
     validated: ast.Expression
     """The pre-aliasing parse tree, as it stood when validation passed."""
@@ -253,6 +639,7 @@ class _CompiledCondition(typing.NamedTuple):
     literal_bindings: dict[str, typing.Any]
     """Safe values bound by the translator (e.g. datetime literals) that must be
     present in the eval globals for the compiled expression to evaluate."""
+    comprehensions: tuple["ComprehensionSpec", ...] = ()
 
 
 def _compile_condition(
@@ -265,12 +652,16 @@ def _compile_condition(
         _validate_expression(validated, source, bindings, valid_eval_names=valid_annotation_names)
         source, aliased_annotation_relations = _apply_eval_aliasing(source, bindings)
         root = ast.parse(source, mode="eval")
+        root, comprehensions = _extract_comprehensions(root, bindings)
         translator = _FilterTranslator(
             bindings=bindings,
-            reserved_keywords=(
-                alias
-                for aliased_annotation in aliased_annotation_relations
-                for alias, _ in aliased_annotation.attributes
+            reserved_keywords=chain(
+                (
+                    alias
+                    for aliased_annotation in aliased_annotation_relations
+                    for alias, _ in aliased_annotation.attributes
+                ),
+                (comprehension.name for comprehension in comprehensions),
             ),
             string_keywords=(
                 alias
@@ -303,6 +694,7 @@ def _compile_condition(
         aliased_annotation_relations,
         aliased_annotation_attributes,
         translator.literal_bindings,
+        comprehensions,
     )
 
 
@@ -345,7 +737,6 @@ def _eval_globals(
         "or_": sqlalchemy.or_,
         "nullif": sqlalchemy.func.nullif,
         "cast": sqlalchemy.cast,
-        "nullif": sqlalchemy.func.nullif,
         "Float": sqlalchemy.Float,
         "String": sqlalchemy.String,
         "SafeJsonBoolean": SafeJsonBoolean,
@@ -851,6 +1242,14 @@ def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
         if node.func.id == "str":
             return "string"
         if node.func.id in ("float", "int"):
+            return "number"
+        # Comprehension calls are typed by their kind: quantifiers (`any`/`all`)
+        # are predicates, reductions aggregate to a number. Grains that do not
+        # admit them (`bindings.quantifiers` empty) reject the call by name in
+        # the structural pass before this type is ever consulted.
+        if node.func.id in QUANTIFIER_NAMES:
+            return "boolean"
+        if node.func.id in REDUCTION_NAMES:
             return "number"
     if isinstance(node, ast.BinOp):
         if not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod)):
@@ -1415,7 +1814,11 @@ def _is_string(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Cal
 def _is_float(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Call]:
     return (
         isinstance(node, ast.Name)
-        and (node.id in bindings.float_names or node.id in bindings.aggregate_names)
+        and (
+            node.id in bindings.float_names
+            or node.id in bindings.aggregate_names
+            or node.id.startswith(_REDUCTION_RESULT_PREFIX)
+        )
         or _is_cast(node, "Float")
         or _is_float_constant(node)
         or _is_float_attribute(node)
@@ -1448,6 +1851,7 @@ class _ProjectionTranslator(ast.NodeTransformer):
                 bindings.string_names.keys(),
                 bindings.float_names.keys(),
                 bindings.datetime_names.keys(),
+                bindings.boolean_names.keys(),
                 bindings.aggregate_names,
                 bindings.exists_names,
             )
@@ -1611,6 +2015,9 @@ class _FilterTranslator(_ProjectionTranslator):
                 if _is_bool_constant(left) or _is_bool_sequence(left)
                 else _cast_as("String", right)
             )
+        # `None` is exempt from numeric coercion: casting it produces `= CAST(NULL AS FLOAT)`,
+        # which is NULL rather than the `IS NULL` test `x is None` asks for, so the comparison
+        # would silently match nothing.
         if (
             _is_float(left, self._bindings)
             and not _is_float(right, self._bindings)
@@ -1940,6 +2347,7 @@ def _validate_expression(
         raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
     _validate_python_surface(expression.body, source)
     _validate_exists_name_usage(expression, bindings)
+    _validate_comprehensions(expression, bindings)
     for i, node in enumerate(ast.walk(expression.body)):
         if i == 0:
             if (
@@ -1947,6 +2355,7 @@ def _validate_expression(
                 or isinstance(node, ast.UnaryOp)
                 and isinstance(node.op, ast.Not)
                 or _is_annotation(node)
+                or _comprehension_argument(node, bindings) is not None
             ):
                 continue
             if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript, ast.Constant)):
@@ -2014,6 +2423,12 @@ def _validate_expression(
             and node.func.id in (*_CAST_FUNCTIONS, *bindings.quantifiers)
         ):
             # allow type casting functions
+            continue
+        elif bindings.iterables and isinstance(
+            node, (ast.GeneratorExp, ast.ListComp, ast.comprehension, ast.Store)
+        ):
+            # Comprehension nodes are admitted only for grains that declare iterables, and only
+            # in the shapes `_validate_comprehensions` has already accepted above.
             continue
         elif isinstance(
             node,
