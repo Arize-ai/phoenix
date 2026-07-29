@@ -130,19 +130,20 @@ async function fetchViewer(config: PhoenixConfig): Promise<FetchViewerResult> {
 async function fetchViewerForStatus(
   config: PhoenixConfig
 ): Promise<FetchViewerResult> {
-  const result = await fetchViewer(config);
+  const viewerResult = await fetchViewer(config);
   const canCheckAnonymousAccess =
     config.credentialSource === "oauth" &&
-    (result.status === "auth_error" || result.status === "unknown_error");
+    (viewerResult.status === "auth_error" ||
+      viewerResult.status === "unknown_error");
   if (!canCheckAnonymousAccess) {
-    return result;
+    return viewerResult;
   }
 
   const anonymousResult = await fetchViewer({ endpoint: config.endpoint });
   const isAnonymous =
     anonymousResult.status === "success" &&
     anonymousResult.user.auth_method === "ANONYMOUS";
-  return isAnonymous ? anonymousResult : result;
+  return isAnonymous ? anonymousResult : viewerResult;
 }
 
 /**
