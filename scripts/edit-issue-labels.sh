@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 #
-# Edits labels on a GitHub issue.
-# Usage: ./scripts/edit-issue-labels.sh --add-label bug --add-label needs-triage --remove-label untriaged
+# Edits labels on a GitHub issue during scheduled triage.
+# Usage: ./scripts/edit-issue-labels.sh --issue 123 --add-label bug --remove-label triage
 #
-# The issue number is read from the workflow event payload.
+# The issue number is passed explicitly and MUST be one of the issues the
+# workflow approved for this run (TRIAGE_ALLOWED_ISSUES). This fails closed, so
+# a prompt-injected run can never edit an issue outside the current batch.
 #
 
 set -euo pipefail
 
-# Read from event payload so the issue number is bound to the triggering event
-ISSUE=$(jq -r '.issue.number // empty' "${GITHUB_EVENT_PATH:?GITHUB_EVENT_PATH not set}")
-if ! [[ "$ISSUE" =~ ^[0-9]+$ ]]; then
-  echo "Error: no issue number in event payload" >&2
-  exit 1
-fi
-
+ISSUE=""
 ADD_LABELS=()
 REMOVE_LABELS=()
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
   case $1 in
+    --issue)
+      ISSUE="$2"
+      shift 2
+      ;;
     --add-label)
       ADD_LABELS+=("$2")
       shift 2
@@ -30,11 +30,26 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     *)
-      echo "Error: unknown argument (only --add-label and --remove-label are accepted)" >&2
+      echo "Error: unknown argument (only --issue, --add-label, --remove-label are accepted)" >&2
       exit 1
       ;;
   esac
 done
+
+if ! [[ "$ISSUE" =~ ^[0-9]+$ ]]; then
+  echo "Error: --issue <number> is required" >&2
+  exit 1
+fi
+
+# Fail closed: the issue must be one the workflow approved for this batch.
+if [[ -z "${TRIAGE_ALLOWED_ISSUES:-}" ]]; then
+  echo "Error: TRIAGE_ALLOWED_ISSUES is not set; refusing to edit labels" >&2
+  exit 1
+fi
+if ! printf '%s\n' ${TRIAGE_ALLOWED_ISSUES} | grep -qxF "$ISSUE"; then
+  echo "Error: issue #$ISSUE is not in the approved triage batch" >&2
+  exit 1
+fi
 
 if [[ ${#ADD_LABELS[@]} -eq 0 && ${#REMOVE_LABELS[@]} -eq 0 ]]; then
   exit 1
@@ -76,8 +91,8 @@ done
 gh "${GH_ARGS[@]}"
 
 if [[ ${#FILTERED_ADD[@]} -gt 0 ]]; then
-  echo "Added: ${FILTERED_ADD[*]}"
+  echo "Added to #$ISSUE: ${FILTERED_ADD[*]}"
 fi
 if [[ ${#FILTERED_REMOVE[@]} -gt 0 ]]; then
-  echo "Removed: ${FILTERED_REMOVE[*]}"
+  echo "Removed from #$ISSUE: ${FILTERED_REMOVE[*]}"
 fi
