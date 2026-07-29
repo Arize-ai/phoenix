@@ -119,6 +119,11 @@ export const dslFilterCodeMirrorCSS = css`
     color: var(--global-text-color-700);
     max-width: 300px;
   }
+  /* The sub-expression a validation error was blamed on */
+  .cm-dsl-filter-error-region {
+    text-decoration: underline wavy var(--global-color-danger);
+    text-underline-offset: 3px;
+  }
 `;
 
 /**
