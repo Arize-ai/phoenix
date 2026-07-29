@@ -152,6 +152,7 @@ export function AgentChatHeader({
   hasNextSessionPage,
   isLoadingNextSessionPage,
   onLoadNextSessionPage,
+  onSessionMenuOpenChange,
   onPositionChange,
   onClose,
 }: {
@@ -168,6 +169,7 @@ export function AgentChatHeader({
   hasNextSessionPage?: boolean;
   isLoadingNextSessionPage?: boolean;
   onLoadNextSessionPage?: () => void;
+  onSessionMenuOpenChange?: (isOpen: boolean) => void;
   onPositionChange?: (position: AgentPosition) => void;
   onClose: () => void;
 }) {
@@ -256,6 +258,7 @@ export function AgentChatHeader({
           hasNextPage={hasNextSessionPage}
           isLoadingNextPage={isLoadingNextSessionPage}
           onLoadNextPage={onLoadNextSessionPage}
+          onOpenChange={onSessionMenuOpenChange}
         />
         <Button
           variant="quiet"
