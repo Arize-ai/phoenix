@@ -14,10 +14,11 @@ from sqlalchemy import Insert, and_, delete, func, or_, select, type_coerce, upd
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
+from phoenix.config import get_env_online_eval_max_session_outstanding
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.derivation import config_fingerprint
+from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.types import DaemonTask, DbSessionFactory
@@ -77,6 +78,7 @@ class SessionEvalSweeper(DaemonTask):
         self._db = db
         self._consumer_group = consumer_group
         self._tick_interval_seconds = tick_interval_seconds
+        self._max_outstanding = get_env_online_eval_max_session_outstanding()
         self._sweeper_id = f"session-sweeper-{token_hex(8)}"
         self._lease_held = False
 
@@ -212,6 +214,10 @@ class SessionEvalSweeper(DaemonTask):
         for criteria in await self._load_criteria(session):
             criteria_by_project[criteria.project_id].append(criteria)
 
+        work_budget = await self._admission_budget(session)
+        if work_budget == 0:
+            return
+
         activity_stmt = select(
             models.EvalSessionActivity,
             models.ProjectSession.project_id,
@@ -276,6 +282,9 @@ class SessionEvalSweeper(DaemonTask):
                 if activity.observed_at > database_now - timedelta(seconds=criteria.delay_seconds):
                     activity_resolved = False
                     continue
+                if len(work_records) >= work_budget:
+                    activity_resolved = False
+                    continue
                 work_records.append(
                     {
                         "project_session_rowid": activity.project_session_rowid,
@@ -302,6 +311,32 @@ class SessionEvalSweeper(DaemonTask):
                     models.EvalSessionActivity.id.in_(resolved_activity_ids)
                 )
             )
+
+    async def _admission_budget(self, session: AsyncSession) -> int:
+        outstanding = (
+            select(1)
+            .select_from(models.EvalSessionWorkUnit)
+            .where(
+                or_(
+                    models.EvalSessionWorkUnit.status.in_(("PENDING", "RUNNING")),
+                    and_(
+                        models.EvalSessionWorkUnit.status == "ERROR",
+                        models.EvalSessionWorkUnit.attempts < MAX_ATTEMPTS,
+                    ),
+                )
+            )
+            .limit(self._max_outstanding)
+            .subquery()
+        )
+        outstanding_count = await session.scalar(select(func.count()).select_from(outstanding)) or 0
+        budget = max(0, self._max_outstanding - outstanding_count)
+        if budget == 0:
+            logger.warning(
+                f"Session evaluation admission gate closed: "
+                f"{outstanding_count} outstanding work units reached "
+                f"{self._max_outstanding}"
+            )
+        return budget
 
     async def _release_lease(self) -> None:
         if not self._lease_held:

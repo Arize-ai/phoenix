@@ -323,6 +323,44 @@ async def test_retains_activity_until_each_criteria_delay_elapses(
     assert activity_count == 0
 
 
+async def test_outstanding_work_budget_retains_activity_until_capacity_is_available(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING", "1")
+    project_id, project_session_id, _ = await _add_session_activity(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+
+    async with db() as session:
+        work_units = list(await session.scalars(select(models.EvalSessionWorkUnit)))
+        activity_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionActivity)
+        )
+        assert len(work_units) == 1
+        assert activity_count == 1
+        work_units[0].status = "DONE"
+
+    await sweeper._tick()
+
+    async with db() as session:
+        work_units = list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit).where(
+                    models.EvalSessionWorkUnit.project_session_rowid == project_session_id
+                )
+            )
+        )
+        activity_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionActivity)
+        )
+    assert len(work_units) == 2
+    assert activity_count == 0
+
+
 async def test_reopened_session_is_pruned_without_another_work_unit(
     db: DbSessionFactory,
 ) -> None:
