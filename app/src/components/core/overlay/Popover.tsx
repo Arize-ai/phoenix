@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import type { CSSProperties, Ref } from "react";
+import type { CSSProperties, MouseEvent, Ref } from "react";
+import { mergeProps } from "react-aria";
 import type {
   PopoverProps as AriaPopoverProps,
   PopoverRenderProps,
@@ -86,6 +87,15 @@ type PopoverProps = AriaPopoverProps & {
   layer?: "non-modal" | "portaled";
 };
 
+const popoverInteractionBoundaryProps = {
+  // React events bubble through the component tree even when a popover is
+  // portaled. Keep clicks within the overlay from activating trigger ancestors
+  // such as clickable table rows.
+  onClick: (event: MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+  },
+} satisfies Pick<AriaPopoverProps, "onClick">;
+
 function Popover({
   ref,
   layer = "portaled",
@@ -105,7 +115,7 @@ function Popover({
       : popoverStyle;
   return (
     <AriaPopover
-      {...props}
+      {...mergeProps(props, popoverInteractionBoundaryProps)}
       ref={ref}
       style={style}
       className={classNames("popover react-aria-Popover", props.className)}
