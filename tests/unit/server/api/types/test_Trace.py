@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any, NamedTuple, Optional
 
@@ -81,6 +82,41 @@ class TestTrace:
         assert await self._node(field, traces[1], httpx_client) == {
             "id": str(GlobalID(Span.__name__, str(span.id))),
             "name": span.name,
+        }
+
+    async def test_root_span_treats_orphans_as_roots(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        start_time = datetime(2026, 7, 23, tzinfo=timezone.utc)
+        missing_parent_id = token_hex(8)
+        async with db() as session:
+            project = await _add_project(session)
+            trace = await _add_trace(session, project, start_time=start_time)
+            later_orphan = await _add_span(
+                session,
+                trace,
+                start_time=start_time + timedelta(seconds=2),
+            )
+            later_orphan.parent_id = missing_parent_id
+            earlier_orphan = await _add_span(
+                session,
+                trace,
+                start_time=start_time + timedelta(seconds=1),
+            )
+            earlier_orphan.parent_id = missing_parent_id
+            await _add_span(
+                session,
+                parent_span=earlier_orphan,
+                start_time=start_time + timedelta(seconds=3),
+            )
+
+        field = "rootSpan{id name parentId}"
+        assert await self._node(field, trace, httpx_client) == {
+            "id": str(GlobalID(Span.__name__, str(earlier_orphan.id))),
+            "name": earlier_orphan.name,
+            "parentId": missing_parent_id,
         }
 
     async def test_user_id(
