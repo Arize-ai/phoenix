@@ -575,7 +575,7 @@ export function ChatView({
     );
   }, [sessionId, sendMessage, store]);
 
-  const showsEmptyState = messages.length === 0;
+  const showsEmptyState = messages.length === 0 && !isBusyElsewhere;
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
     useAgentModelCredentialStatus(modelMenuValue);
