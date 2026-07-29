@@ -34,7 +34,10 @@ from phoenix.config import (
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
-from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    latest_code_evaluator_versions_by_evaluator_id,
+)
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.online_eval.db_coordinator import (
@@ -78,9 +81,7 @@ async def resolve_criteria(
 
 async def resolve_criteria_bulk(
     session: AsyncSession,
-    criteria_evaluators: Sequence[
-        tuple[models.ProjectEvaluatorCriteria, models.Evaluator]
-    ],
+    criteria_evaluators: Sequence[tuple[models.ProjectEvaluatorCriteria, models.Evaluator]],
 ) -> list[Optional[ResolvedCriteria]]:
     """Resolve criteria fingerprint inputs in bulk, pinning mutable pointers to
     immutable version identities: the tagged (or latest) PromptVersion id for LLM
@@ -543,8 +544,7 @@ class OnlineEvalProducer(DaemonTask):
                 .subquery()
             )
             outstanding_count = (
-                await session.scalar(select(func.count()).select_from(outstanding))
-                or 0
+                await session.scalar(select(func.count()).select_from(outstanding)) or 0
             )
         budget = max(0, self._max_outstanding - outstanding_count)
         if budget == 0:
@@ -716,10 +716,20 @@ class OnlineEvalProducer(DaemonTask):
                 .distinct()
             )
         ).all()
+        if not rows:
+            return
+        timestamp_expression = (
+            func.statement_timestamp(type_=models.UtcTimeStamp())
+            if self._db.dialect is SupportedSQLDialect.POSTGRESQL
+            else func.current_timestamp(type_=models.UtcTimeStamp())
+        )
+        observed_at = await session.scalar(select(timestamp_expression))
+        if observed_at is None:
+            raise RuntimeError("Database statement timestamp is unavailable")
         records = [
             {
                 "project_session_rowid": project_session_rowid,
-                "observed_at": func.now(),
+                "observed_at": observed_at,
             }
             for (project_session_rowid,) in rows
             if project_session_rowid is not None

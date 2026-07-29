@@ -331,6 +331,42 @@ async def test_tick_records_latest_activity_for_runnable_sessions(
     assert updated_first_activity.observed_at > first_observed_at
 
 
+async def test_session_activity_uses_post_materialization_statement_time(
+    db: DbSessionFactory,
+    dialect: str,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        span = await _add_span(session, trace)
+        project_id = project.id
+        project_session_id = project_session.id
+        span_id = span.id
+
+    producer = OnlineEvalProducer(db)
+    async with db() as session:
+        transaction_started_at = await session.scalar(select(func.now(type_=models.UtcTimeStamp())))
+        assert transaction_started_at is not None
+        await sleep(1.1 if dialect == "sqlite" else 0.01)
+        await producer._record_session_activity(
+            session,
+            [project_id],
+            0,
+            span_id,
+        )
+
+    async with db() as session:
+        observed_at = await session.scalar(
+            select(models.EvalSessionActivity.observed_at).where(
+                models.EvalSessionActivity.project_session_rowid == project_session_id
+            )
+        )
+
+    assert observed_at is not None
+    assert observed_at > transaction_started_at
+
+
 @pytest.mark.parametrize(
     ("evaluation_target", "filter_condition", "sampling_rate"),
     [
