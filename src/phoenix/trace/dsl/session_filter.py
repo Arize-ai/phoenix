@@ -136,7 +136,7 @@ class _ElementField(typing.NamedTuple):
 
 
 class _NestedIterable(typing.NamedTuple):
-    """An iterable reached from an element of another one, e.g. ``t.spans`` for a turn ``t``."""
+    """An iterable reached from an element of another one, e.g. ``trace.spans`` for a trace."""
 
     iterable: str
     correlate: typing.Callable[[typing.Any, typing.Any], typing.Any]
@@ -171,7 +171,7 @@ _SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
         "llm_token_count_total": _ElementField("llm_token_count_total", "float"),
     }
 )
-_TURN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
+_TRACE_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
     {
         "start_time": _ElementField("start_time", "datetime"),
         "end_time": _ElementField("end_time", "datetime"),
@@ -205,9 +205,9 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
             project_key=lambda element: models.Trace.project_rowid,
             uppercase_fields=frozenset({"span_kind", "status_code"}),
         ),
-        "turns": _IterableSpec(
+        "traces": _IterableSpec(
             model=models.Trace,
-            fields=_TURN_ELEMENT_FIELDS,
+            fields=_TRACE_ELEMENT_FIELDS,
             joins=(),
             session_key=lambda element: element.project_session_rowid,
             project_key=lambda element: element.project_rowid,
@@ -232,7 +232,7 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
             session_key=lambda element: models.Trace.project_session_rowid,
             project_key=lambda element: models.Trace.project_rowid,
         ),
-        "cost_details": _IterableSpec(
+        "span_cost_details": _IterableSpec(
             model=models.SpanCostDetail,
             fields=_COST_DETAIL_ELEMENT_FIELDS,
             joins=(models.SpanCost, models.Trace),
@@ -389,24 +389,26 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         ),
         "spans": (
             "Every span in the session. Iterate it with any/all/len/max/min/sum, e.g. "
-            'any(s.status_code == "ERROR" for s in spans).'
+            'any(span.status_code == "ERROR" for span in spans).'
         ),
-        "turns": (
-            "The session's traces — ≈ conversation turns (one trace records one exchange). "
-            "A turn element also iterates its spans, e.g. "
-            'any(any(s.span_kind == "TOOL" for s in t.spans) for t in turns).'
+        "traces": (
+            "The session's traces — each records one conversation turn (one exchange). "
+            "A trace element also iterates its spans, e.g. "
+            'any(any(span.span_kind == "TOOL" for span in trace.spans) for trace in traces).'
         ),
         "session_annotations": (
             "Annotations attached to the session itself, e.g. "
-            'any(a.name == "Quality" and a.score > 0.8 for a in session_annotations).'
+            'any(annotation.name == "Quality" and annotation.score > 0.8 '
+            "for annotation in session_annotations)."
         ),
         "span_annotations": (
             "Every annotation on any span in the session, flattened to session scope, e.g. "
-            'any(a.label == "hallucinated" for a in span_annotations).'
+            'any(annotation.label == "hallucinated" for annotation in span_annotations).'
         ),
-        "cost_details": (
-            "Per-token-type cost rows for the session's spans, flattened to session scope, e.g. "
-            'sum(c.tokens for c in cost_details if c.token_type == "cache_read").'
+        "span_cost_details": (
+            "The per-token-type cost rows of every span in the session, flattened to session "
+            "scope (not rolled up per session), e.g. sum(cost_detail.tokens for cost_detail "
+            'in span_cost_details if cost_detail.token_type == "cache_read").'
         ),
         "spans.name": "Span name.",
         "spans.span_kind": "Span kind, e.g. LLM, TOOL, RETRIEVER; comparands are uppercased.",
@@ -421,20 +423,22 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "spans.llm_token_count_total": (
             "Prompt plus completion tokens recorded on this span; 0 when it records none."
         ),
-        "turns.start_time": "Turn start timestamp. Compare against ISO 8601 strings.",
-        "turns.end_time": "Turn end timestamp. Compare against ISO 8601 strings.",
-        "turns.latency_ms": "Turn duration in milliseconds.",
+        "traces.start_time": "Turn start timestamp. Compare against ISO 8601 strings.",
+        "traces.end_time": "Turn end timestamp. Compare against ISO 8601 strings.",
+        "traces.latency_ms": "Turn duration in milliseconds.",
         "session_annotations.name": "Annotation name.",
         "session_annotations.label": "Annotation label; null when the annotation has none.",
         "session_annotations.score": "Annotation score; null when the annotation has none.",
         "span_annotations.name": "Annotation name.",
         "span_annotations.label": "Annotation label; null when the annotation has none.",
         "span_annotations.score": "Annotation score; null when the annotation has none.",
-        "cost_details.token_type": "Token type this cost row covers, e.g. input, output, audio.",
-        "cost_details.is_prompt": "Whether this cost row counts toward the prompt side.",
-        "cost_details.cost": "Cost of this row; null when no cost is configured.",
-        "cost_details.tokens": "Token count for this row; null when unrecorded.",
-        "cost_details.cost_per_token": "Cost per token for this row; null when unrecorded.",
+        "span_cost_details.token_type": (
+            "Token type this cost row covers, e.g. input, output, audio."
+        ),
+        "span_cost_details.is_prompt": "Whether this cost row counts toward the prompt side.",
+        "span_cost_details.cost": "Cost of this row; null when no cost is configured.",
+        "span_cost_details.tokens": "Token count for this row; null when unrecorded.",
+        "span_cost_details.cost_per_token": "Cost per token for this row; null when unrecorded.",
     }
 )
 

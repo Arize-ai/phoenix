@@ -236,7 +236,7 @@ class _IterableGrammar(typing.NamedTuple):
     ``element_bindings`` is the language a predicate inside ``for x in <iterable>`` is compiled
     against, so an inner predicate inherits the casting, coercion, and did-you-mean behavior of a
     top-level one. ``nested`` maps a loop-variable attribute to the iterable it stands for
-    (e.g. ``turns`` elements expose ``spans``).
+    (e.g. ``traces`` elements expose ``spans``).
     """
 
     element_bindings: _FilterBindings

@@ -17,10 +17,10 @@ import {
 
 const sessionIterableNames = new Set([
   "spans",
-  "turns",
+  "traces",
   "session_annotations",
   "span_annotations",
-  "cost_details",
+  "span_cost_details",
 ]);
 
 /** Splits a condition at the `|` marking the cursor. */
@@ -123,11 +123,13 @@ describe("DSL filter comprehension scope detection", () => {
   });
 
   it("resolves a nested collection to the iterable it names", () => {
-    // `t.spans` inside a turn comprehension exposes the same fields a
-    // top-level `for s in spans` does.
+    // `trace.spans` inside a trace comprehension exposes the same fields a
+    // top-level `for span in spans` does.
     expect(
-      detectScopeAtCursor("any(any(s.| for s in t.spans) for t in turns)")
-    ).toEqual({ iterableName: "spans", loopVariable: "s" });
+      detectScopeAtCursor(
+        "any(any(span.| for span in trace.spans) for trace in traces)"
+      )
+    ).toEqual({ iterableName: "spans", loopVariable: "span" });
   });
 
   it("returns null wherever it cannot classify, so completion is unchanged", () => {
@@ -148,9 +150,10 @@ describe("DSL filter for-clause target detection", () => {
     ).toEqual({ loopVariable: "s" });
     expect(
       detectDSLFilterForClauseTarget({
-        textBeforeCursor: "any(c.cost > 1 for c in cost_",
+        textBeforeCursor:
+          "any(cost_detail.cost > 1 for cost_detail in span_cost_",
       })
-    ).toEqual({ loopVariable: "c" });
+    ).toEqual({ loopVariable: "cost_detail" });
     expect(
       detectDSLFilterForClauseTarget({
         textBeforeCursor: "len([x for x in ",

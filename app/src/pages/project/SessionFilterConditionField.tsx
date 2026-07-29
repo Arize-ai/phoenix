@@ -54,20 +54,23 @@ const elementFieldsSection: CompletionSection = { name: "Fields", rank: 1 };
 
 /**
  * The loop variable each collection's inserted comprehensions (and served
- * descriptions) use — `any(s… for s in spans)`, `sum(c… for c in
- * cost_details)`. A collection the map doesn't know falls back to its first
- * letter.
+ * descriptions) use — `any(span… for span in spans)`, `any(trace… for trace
+ * in traces)`. Whole words, not letters. A collection the map doesn't know
+ * falls back to its singular.
  */
 const canonicalLoopVariables: Record<string, string> = {
-  spans: "s",
-  turns: "t",
-  session_annotations: "a",
-  span_annotations: "a",
-  cost_details: "c",
+  spans: "span",
+  traces: "trace",
+  session_annotations: "annotation",
+  span_annotations: "annotation",
+  span_cost_details: "cost_detail",
 };
 
 function getLoopVariable(iterableName: string): string {
-  return canonicalLoopVariables[iterableName] ?? iterableName[0] ?? "x";
+  return (
+    canonicalLoopVariables[iterableName] ??
+    (iterableName.endsWith("s") ? iterableName.slice(0, -1) : "item")
+  );
 }
 
 /**
@@ -79,11 +82,11 @@ function getLoopVariable(iterableName: string): string {
  * to a bare `condition` placeholder.
  */
 const examplePredicates: Record<string, string> = {
-  spans: "s.latency_ms > 1_000",
-  turns: "t.latency_ms > 10_000",
-  session_annotations: "a.score < 0.5",
-  span_annotations: "a.score < 0.5",
-  cost_details: "c.tokens > 1_000",
+  spans: "span.latency_ms > 1_000",
+  traces: "trace.latency_ms > 10_000",
+  session_annotations: "annotation.score < 0.5",
+  span_annotations: "annotation.score < 0.5",
+  span_cost_details: "cost_detail.tokens > 1_000",
 };
 
 function getExamplePredicate(iterableName: string): string {
@@ -98,7 +101,7 @@ function getExamplePredicate(iterableName: string): string {
  * Every snippet is valid as inserted — placeholders carry working example
  * values, never blanks. The first `MAX_BROWSE_SUGGESTIONS` are what a
  * browsing user sees, so they are curated to teach one construct each:
- * aggregate, quantifier, compound, nested comprehension, filtered reduction.
+ * aggregate, quantifier, compound, nested comprehension, reduction.
  */
 const sessionFilterSnippets: DSLFilterSnippet[] = [
   {
@@ -107,21 +110,21 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
   },
   {
     label: "any span errored",
-    snippet: 'any(s.status_code == "ERROR" for s in spans)',
+    snippet: 'any(span.status_code == "ERROR" for span in spans)',
   },
   {
     label: "combine session and span conditions",
     snippet:
-      'num_traces >= ${5} and any(s.status_code == "ERROR" for s in spans)',
+      'num_traces >= ${5} and any(span.status_code == "ERROR" for span in spans)',
   },
   {
     label: "any turn used a tool",
-    snippet: 'any(any(s.span_kind == "TOOL" for s in t.spans) for t in turns)',
+    snippet:
+      'any(any(span.span_kind == "TOOL" for span in trace.spans) for trace in traces)',
   },
   {
-    label: "sum tokens by token type",
-    snippet:
-      'sum(c.tokens for c in cost_details if c.token_type == "${cache_read}") > ${10_000}',
+    label: "slowest span in the session",
+    snippet: "max(span.latency_ms for span in spans) > ${5_000}",
   },
   {
     label: "filter by errors",
@@ -129,23 +132,20 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
   },
   {
     label: "any span matches a condition",
-    snippet: "any(${s.latency_ms > 1000} for s in ${spans})",
+    snippet: "any(${span.latency_ms > 1000} for span in ${spans})",
   },
   {
     label: "all spans match a condition",
-    snippet: "all(${s.latency_ms < 1000} for s in ${spans})",
+    snippet: "all(${span.latency_ms < 1000} for span in ${spans})",
   },
   {
     label: "count spans matching a condition",
-    snippet: 'len([s for s in spans if s.span_kind == "${TOOL}"]) >= ${2}',
-  },
-  {
-    label: "slowest span in the session",
-    snippet: "max(s.latency_ms for s in spans) > ${5_000}",
+    snippet:
+      'len([span for span in spans if span.span_kind == "${TOOL}"]) >= ${2}',
   },
   {
     label: "any turn matches a condition",
-    snippet: "any(${t.latency_ms > 10_000} for t in ${turns})",
+    snippet: "any(${trace.latency_ms > 10_000} for trace in ${traces})",
   },
   {
     label: "filter by session id",
