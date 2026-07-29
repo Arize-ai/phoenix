@@ -16,11 +16,14 @@ import {
   ProjectPageQueriesSpansQuery,
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
+import type { SpanFilterSeed } from "./spanFilterSeed";
 
 function SpansTabContent({
   queryReference,
+  seed,
 }: {
   queryReference: PreloadedQuery<ProjectPageSpansQueryType>;
+  seed: SpanFilterSeed;
 }) {
   const data = usePreloadedQuery<ProjectPageSpansQueryType>(
     ProjectPageQueriesSpansQuery,
@@ -33,20 +36,32 @@ function SpansTabContent({
     );
   }
 
-  return <SpansTable project={data.project} />;
+  return <SpansTable project={data.project} seed={seed} />;
 }
 
 export const ProjectSpansPage = () => {
-  const { spansQueryReference } = useProjectPageQueryReferenceContext();
+  const { spansQueryReference, spansFilterSeed, spansFilterSeedVersion } =
+    useProjectPageQueryReferenceContext();
+  const hasSpansQuery =
+    spansQueryReference !== null && spansFilterSeed !== null;
+  const seedKey = spansFilterSeed
+    ? `seed-${spansFilterSeedVersion}`
+    : "seed-pending";
   return (
     <TracingRoot>
       <TracePaginationProvider>
         <SpanFiltersProvider
-          defaultFilterCondition={DEFAULT_SPAN_FILTER_CONDITION}
+          key={seedKey}
+          fallbackFilterCondition={
+            spansFilterSeed?.condition ?? DEFAULT_SPAN_FILTER_CONDITION
+          }
         >
           <Suspense fallback={<Loading />}>
-            {spansQueryReference ? (
-              <SpansTabContent queryReference={spansQueryReference} />
+            {hasSpansQuery ? (
+              <SpansTabContent
+                queryReference={spansQueryReference}
+                seed={spansFilterSeed}
+              />
             ) : (
               <Loading />
             )}

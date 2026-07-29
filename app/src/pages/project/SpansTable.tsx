@@ -11,6 +11,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from "react";
@@ -19,11 +20,14 @@ import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
+  Alert,
+  Button,
   Flex,
   Heading,
   Icon,
   Icons,
   Link,
+  Loading,
   OverflowRow,
   Text,
   View,
@@ -89,9 +93,14 @@ import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import {
   SpanFilterConditionField,
+  type SpanFilterValidationFailureReason,
   type SpanFilterValidConditionArgs,
 } from "./SpanFilterConditionField";
-import { useSpanFilters } from "./SpanFiltersContext";
+import type { SpanFilterSeed } from "./spanFilterSeed";
+import {
+  createSpanFilterSeedLoadState,
+  spanFilterSeedLoadReducer,
+} from "./spanFilterSeedLoadState";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { SpansTableAside } from "./SpansTableAside";
@@ -110,6 +119,7 @@ import { TraceNotesTableCell } from "./TraceNotesTableCell";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
+  seed: SpanFilterSeed;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -203,50 +213,67 @@ export function SpansTable(props: SpansTableProps) {
   const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
-  // The applied (last-valid) filter condition that drives the query. Seeded
-  // from the URL so a shared/reloaded link restores the filtered view.
-  const { filterCondition: draftCondition } = useSpanFilters();
-  const [filterCondition, setFilterCondition] = useState<string>(
-    () => draftCondition
+  // The seed is classified once by the owner that preloads `props.project`,
+  // then passed through to this table. Keeping the preload variables and the
+  // table's initial state in one value prevents the two from disagreeing.
+  const [seedLoadState, dispatchSeedLoad] = useReducer(
+    spanFilterSeedLoadReducer,
+    props.seed,
+    createSpanFilterSeedLoadState
   );
-  // Root-ness is a property of the filter condition, not state of its own, so
-  // it is read back from the condition rather than tracked separately. It
-  // decides which token/cost columns are fetched and shown: a cumulative
-  // rollup only makes sense on a root span, since on a nested span it
-  // double-counts against its ancestors' rows. Starts `true` because the
-  // table's default filter is root-scoped; the first analysis confirms it.
-  const [rootSpansOnly, setRootSpansOnly] = useState<boolean>(true);
+  const {
+    appliedQuery: { condition: filterCondition, rootSpansOnly },
+    isSeedSettled,
+    seedError,
+    retryVersion: seedRetryVersion,
+    validationRetryVersion,
+  } = seedLoadState;
+  const nextRequestIdRef = useRef(0);
 
   // Persist the applied filter to the URL. Written only from the change
   // handler, so in-progress edits and render churn never touch the URL; other
   // params (e.g. the selected span) are preserved.
-  const writeFilterConditionParam = useCallback(
-    (condition: string) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          // Written even when empty. An absent param means "no filter was
-          // applied here", which seeds the default; an empty one means the
-          // filter was deliberately cleared. Deleting it instead would make
-          // those two indistinguishable, so clearing the filter would not
-          // survive a reload -- the default would come back.
-          next.set(SPAN_FILTER_CONDITION_PARAM, condition);
-          return next;
-        },
-        { replace: true }
-      );
+  // React Router 8.2 recreates this setter whenever location.search changes.
+  // Keep the latest one behind a stable callback so unrelated param changes
+  // do not flow into the field's validation effect and revalidate its value.
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+  const writeFilterConditionParam = useCallback((condition: string) => {
+    setSearchParamsRef.current(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        // Written even when empty. An absent param means "no filter was
+        // applied here", which seeds the default; an empty one means the
+        // filter was deliberately cleared. Deleting it instead would make
+        // those two indistinguishable, so clearing the filter would not
+        // survive a reload -- the default would come back.
+        next.set(SPAN_FILTER_CONDITION_PARAM, condition);
+        return next;
+      },
+      { replace: true }
+    );
+  }, []);
+  const handleValidationFailed = useCallback(
+    (reason: SpanFilterValidationFailureReason) => {
+      dispatchSeedLoad({
+        type: reason === "invalid" ? "validationRejected" : "validationErrored",
+      });
     },
-    [setSearchParams]
+    []
   );
+  const handleSeedRetry = useCallback(() => {
+    dispatchSeedLoad({ type: "retryRequested" });
+  }, []);
   const handleValidFilterCondition = useCallback(
     ({ condition, selectsRootSpansOnly }: SpanFilterValidConditionArgs) => {
-      setFilterCondition(condition);
+      dispatchSeedLoad({
+        type: "validationSucceeded",
+        condition,
+        rootSpansOnly: selectsRootSpansOnly,
+      });
       writeFilterConditionParam(condition);
-      // `null` means the server did not answer, in which case the previous
-      // answer is kept rather than flipping the columns on a hiccup.
-      if (selectsRootSpansOnly !== null) {
-        setRootSpansOnly(selectsRootSpansOnly);
-      }
     },
     [writeFilterConditionParam]
   );
@@ -816,18 +843,19 @@ export function SpansTable(props: SpansTableProps) {
   ];
 
   useEffect(() => {
-    // Skip the first render. It's been loaded by the parent — but the parent's
-    // query carries no filter condition, so a seeded one (from the URL or the
-    // page default) still needs a fetch of its own.
+    // Skip the first render. The parent's query already carries what this
+    // table starts from: a seed exempt from server validation and its scope, or
+    // the provisional unfiltered state used while server validation is pending.
     if (isFirstRender.current === true) {
       isFirstRender.current = false;
-      if (!filterCondition) {
-        return;
-      }
+      return;
     }
     //if the sorting changes, we need to reset the pagination
     startTransition(() => {
       const sort = sorting[0];
+      const requestId = ++nextRequestIdRef.current;
+      const query = { condition: filterCondition, rootSpansOnly };
+      dispatchSeedLoad({ type: "requestStarted", requestId, query });
       refetch(
         {
           sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
@@ -837,7 +865,17 @@ export function SpansTable(props: SpansTableProps) {
           rootSpansOnly,
           timeRange: timeRangeISOStrings,
         },
-        { fetchPolicy: "store-and-network" }
+        {
+          fetchPolicy: "store-and-network",
+          onComplete: (error) => {
+            dispatchSeedLoad({
+              type: "requestCompleted",
+              requestId,
+              query,
+              error,
+            });
+          },
+        }
       );
     });
   }, [
@@ -846,6 +884,7 @@ export function SpansTable(props: SpansTableProps) {
     filterCondition,
     fetchKey,
     rootSpansOnly,
+    seedRetryVersion,
     timeRangeISOStrings,
   ]);
   const fetchMoreOnBottomReached = useCallback(
@@ -962,6 +1001,8 @@ export function SpansTable(props: SpansTableProps) {
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
             <SpanFilterConditionField
               onValidCondition={handleValidFilterCondition}
+              onValidationFailed={handleValidationFailed}
+              validationRetryKey={validationRetryVersion}
             />
 
             <TableMetricsChartSelector view="spans" />
@@ -982,143 +1023,166 @@ export function SpansTable(props: SpansTableProps) {
           `}
         >
           <Panel>
-            <div
-              css={css`
-                height: 100%;
-                overflow: auto;
-              `}
-              onScroll={(e) =>
-                fetchMoreOnBottomReached(e.target as HTMLDivElement)
-              }
-              ref={tableContainerRef}
-            >
-              <ColumnOrderingProvider
-                columnOrder={visibleColumnOrder}
-                onColumnOrderChange={onVisibleColumnOrderChange}
+            {!isSeedSettled && seedError ? (
+              <View padding="size-200">
+                <Flex direction="column" gap="size-100">
+                  <Alert variant="danger">{seedError.message}</Alert>
+                  <View>
+                    <Button size="S" onPress={handleSeedRetry}>
+                      Retry
+                    </Button>
+                  </View>
+                </Flex>
+              </View>
+            ) : !isSeedSettled ? (
+              // The rows on hand were fetched without the condition in the
+              // field, so showing them would answer a question the user did
+              // not ask. A valid seed remains hidden until its matching
+              // filtered refetch also succeeds.
+              <Loading />
+            ) : (
+              <div
+                css={css`
+                  height: 100%;
+                  overflow: auto;
+                `}
+                onScroll={(e) =>
+                  fetchMoreOnBottomReached(e.target as HTMLDivElement)
+                }
+                ref={tableContainerRef}
               >
-                <table
-                  css={expandableSelectableTableCSS}
-                  {...rowsExpandedTableProps}
-                  style={{
-                    ...columnSizeVars,
-                    width: table.getTotalSize(),
-                    minWidth: "100%",
-                  }}
+                <ColumnOrderingProvider
+                  columnOrder={visibleColumnOrder}
+                  onColumnOrderChange={onVisibleColumnOrderChange}
                 >
-                  <thead>
-                    {table
-                      .getHeaderGroups()
-                      .map((headerGroup, headerGroupIndex) => (
-                        <tr key={headerGroup.id}>
-                          {headerGroup.headers.map((header) => {
-                            const headerStyle = {
-                              ...getCommonPinningStyles(header.column),
-                              width: `calc(var(--header-${header.id}-size) * 1px)`,
-                            };
-                            const headerContent =
-                              header.isPlaceholder ? null : (
-                                <>
-                                  <div
-                                    {...{
-                                      className: header.column.getCanSort()
-                                        ? "sort"
-                                        : "",
-                                      onClick:
-                                        header.column.getToggleSortingHandler(),
-                                      style: {
-                                        left: header.getStart(),
-                                        width: header.getSize(),
-                                      },
-                                    }}
-                                  >
-                                    <Truncate maxWidth={header.getSize()}>
-                                      {flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext()
-                                      )}
-                                    </Truncate>
-                                    {header.column.getIsSorted() ? (
-                                      <Icon
-                                        className="sort-icon"
-                                        svg={
-                                          header.column.getIsSorted() ===
-                                          "asc" ? (
-                                            <Icons.CaretUpFilled />
-                                          ) : (
-                                            <Icons.CaretDownFilled />
-                                          )
-                                        }
-                                      />
-                                    ) : null}
-                                  </div>
-                                  <div
-                                    {...{
-                                      onMouseDown: header.getResizeHandler(),
-                                      onTouchStart: header.getResizeHandler(),
-                                      className: `resizer ${
-                                        header.column.getIsResizing()
-                                          ? "isResizing"
-                                          : ""
-                                      }`,
-                                    }}
-                                  />
-                                </>
+                  <table
+                    css={expandableSelectableTableCSS}
+                    {...rowsExpandedTableProps}
+                    style={{
+                      ...columnSizeVars,
+                      width: table.getTotalSize(),
+                      minWidth: "100%",
+                    }}
+                  >
+                    <thead>
+                      {table
+                        .getHeaderGroups()
+                        .map((headerGroup, headerGroupIndex) => (
+                          <tr key={headerGroup.id}>
+                            {headerGroup.headers.map((header) => {
+                              const headerStyle = {
+                                ...getCommonPinningStyles(header.column),
+                                width: `calc(var(--header-${header.id}-size) * 1px)`,
+                              };
+                              const headerContent =
+                                header.isPlaceholder ? null : (
+                                  <>
+                                    <div
+                                      {...{
+                                        className: header.column.getCanSort()
+                                          ? "sort"
+                                          : "",
+                                        onClick:
+                                          header.column.getToggleSortingHandler(),
+                                        style: {
+                                          left: header.getStart(),
+                                          width: header.getSize(),
+                                        },
+                                      }}
+                                    >
+                                      <Truncate maxWidth={header.getSize()}>
+                                        {flexRender(
+                                          header.column.columnDef.header,
+                                          header.getContext()
+                                        )}
+                                      </Truncate>
+                                      {header.column.getIsSorted() ? (
+                                        <Icon
+                                          className="sort-icon"
+                                          svg={
+                                            header.column.getIsSorted() ===
+                                            "asc" ? (
+                                              <Icons.CaretUpFilled />
+                                            ) : (
+                                              <Icons.CaretDownFilled />
+                                            )
+                                          }
+                                        />
+                                      ) : null}
+                                    </div>
+                                    <div
+                                      {...{
+                                        onMouseDown: header.getResizeHandler(),
+                                        onTouchStart: header.getResizeHandler(),
+                                        className: `resizer ${
+                                          header.column.getIsResizing()
+                                            ? "isResizing"
+                                            : ""
+                                        }`,
+                                      }}
+                                    />
+                                  </>
+                                );
+                              return (
+                                <ColumnHeaderCell
+                                  key={header.id}
+                                  align={
+                                    header.column.columnDef.meta?.textAlign
+                                  }
+                                  columnId={header.column.id}
+                                  // Only the top header group is reorderable;
+                                  // sub-headers of a group column move with it
+                                  index={
+                                    headerGroupIndex === 0
+                                      ? getColumnOrderIndex(header.column.id)
+                                      : -1
+                                  }
+                                  label={
+                                    typeof header.column.columnDef.header ===
+                                    "string"
+                                      ? header.column.columnDef.header
+                                      : undefined
+                                  }
+                                  colSpan={header.colSpan}
+                                  style={headerStyle}
+                                >
+                                  {headerContent}
+                                </ColumnHeaderCell>
                               );
-                            return (
-                              <ColumnHeaderCell
-                                key={header.id}
-                                align={header.column.columnDef.meta?.textAlign}
-                                columnId={header.column.id}
-                                // Only the top header group is reorderable;
-                                // sub-headers of a group column move with it
-                                index={
-                                  headerGroupIndex === 0
-                                    ? getColumnOrderIndex(header.column.id)
-                                    : -1
-                                }
-                                label={
-                                  typeof header.column.columnDef.header ===
-                                  "string"
-                                    ? header.column.columnDef.header
-                                    : undefined
-                                }
-                                colSpan={header.colSpan}
-                                style={headerStyle}
-                              >
-                                {headerContent}
-                              </ColumnHeaderCell>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                  </thead>
-                  {isEmpty && !hasNext ? (
-                    // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
-                    // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
-                    // spans. This is an undesirable edge case. The optimization is a stopgap solution that
-                    // will be replaced to eliminate this condition.
-                    <ProjectTableEmpty />
-                  ) : columnSizingInfo.isResizingColumn ? (
-                    <MemoizedTableBody
-                      table={table}
-                      hasNext={hasNext}
-                      onLoadNext={() => loadNext(PAGE_SIZE)}
-                      isLoadingNext={isLoadingNext}
-                    />
-                  ) : (
-                    <TableBody
-                      table={table}
-                      hasNext={hasNext}
-                      onLoadNext={() => loadNext(PAGE_SIZE)}
-                      isLoadingNext={isLoadingNext}
-                    />
-                  )}
-                </table>
-              </ColumnOrderingProvider>
-            </div>
+                            })}
+                          </tr>
+                        ))}
+                    </thead>
+                    {isEmpty && !hasNext ? (
+                      // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
+                      // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
+                      // spans. This is an undesirable edge case. The optimization is a stopgap solution that
+                      // will be replaced to eliminate this condition.
+                      <ProjectTableEmpty />
+                    ) : columnSizingInfo.isResizingColumn ? (
+                      <MemoizedTableBody
+                        table={table}
+                        hasNext={hasNext}
+                        onLoadNext={() => loadNext(PAGE_SIZE)}
+                        isLoadingNext={isLoadingNext}
+                      />
+                    ) : (
+                      <TableBody
+                        table={table}
+                        hasNext={hasNext}
+                        onLoadNext={() => loadNext(PAGE_SIZE)}
+                        isLoadingNext={isLoadingNext}
+                      />
+                    )}
+                  </table>
+                </ColumnOrderingProvider>
+              </div>
+            )}
           </Panel>
           <TableAsidePanel>
-            <SpansTableAside filterCondition={filterCondition} />
+            {isSeedSettled ? (
+              <SpansTableAside filterCondition={filterCondition} />
+            ) : null}
           </TableAsidePanel>
         </Group>
         {selectedRows.length ? (

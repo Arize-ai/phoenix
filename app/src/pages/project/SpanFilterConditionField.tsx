@@ -8,6 +8,7 @@ import {
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
   type DSLFilterSnippet,
+  type DSLFilterValidationFailureReason,
   type DSLFilterValidConditionArgs,
   useDSLFilterConditionHistory,
 } from "@phoenix/components/filter";
@@ -266,16 +267,23 @@ export type SpanFilterValidConditionArgs = {
   selectsRootSpansOnly: boolean | null;
 };
 
+export type SpanFilterValidationFailureReason =
+  DSLFilterValidationFailureReason;
+
 type SpanFilterConditionFieldProps = {
   /**
    * Callback when the condition is valid
    */
   onValidCondition: (args: SpanFilterValidConditionArgs) => void;
+  onValidationFailed?: (reason: SpanFilterValidationFailureReason) => void;
+  validationRetryKey?: number;
   placeholder?: string;
 };
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const {
     onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const [isConditionValid, setIsConditionValid] = useState<boolean>(true);
@@ -368,6 +376,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       loadCompletions={loadAnnotationCompletions}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      onValidationFailed={onValidationFailed}
+      validationRetryKey={validationRetryKey}
       onValidationStateChange={setIsConditionValid}
     />
   );

@@ -6,9 +6,16 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
+  useState,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
-import { Outlet, useLocation, useNavigate, useParams } from "react-router";
+import {
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -17,6 +24,7 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
@@ -34,6 +42,8 @@ import {
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
+import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
+import { spanFilterSeed, type SpanFilterSeed } from "./spanFilterSeed";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -154,6 +164,10 @@ function ProjectPageContentBody({
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
   const [spansQueryReference, loadSpansQuery] =
     useQueryLoader<ProjectPageSpansQueryType>(ProjectPageQueriesSpansQuery);
+  const [spansFilterSeedState, setSpansFilterSeedState] = useState<{
+    seed: SpanFilterSeed;
+    version: number;
+  } | null>(null);
   const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
@@ -164,21 +178,41 @@ function ProjectPageContentBody({
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   // Load the preloaded query backing the active tab's table. The time range is
   // read at load time (via an effect event, so it is not a reactive trigger)
   // rather than tracked as a dependency: live "last-N" windows slide forward on
-  // a timer, and these preloaded queries carry no span-filter argument, so
-  // reloading them on every slide would replace the table's filtered rows with
-  // unfiltered data — dropping an applied filter while streaming (see issue
-  // #14216). The tables instead own time-range and filter liveness through
-  // their own `refetch`, so the preloaded query only needs an initial window
-  // and reloads solely on project or tab changes.
+  // a timer. The spans preload carries only its mount-time filter seed, which
+  // can be older than the filter currently applied inside `SpansTable`.
+  // Reloading that parent on every slide could therefore replace the live
+  // connection with stale-seed rows (see issue #14216). The tables instead own
+  // time-range and filter liveness through their own `refetch`; parent preloads
+  // need only an initial window and reload solely on project or tab changes.
   const loadTableQueryForTab = useEffectEvent(
     (currentTabIndex: number, currentProjectId: string) => {
       if (currentTabIndex === TAB_INDEX_MAP.spans) {
+        // Resolve one seed for both this preload and the table that consumes
+        // it. A seed exempt from server validation is already in this payload
+        // and needs no first fetch. A seed requiring validation is withheld
+        // until the server accepts it: rows arrive unfiltered, and the table
+        // waits rather than showing them.
+        const seed = spanFilterSeed(
+          searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
+            DEFAULT_SPAN_FILTER_CONDITION
+        );
+        setSpansFilterSeedState((previous) => ({
+          seed,
+          version: (previous?.version ?? 0) + 1,
+        }));
         loadSpansQuery({
           id: currentProjectId,
           timeRange: timeRangeISOStrings,
+          filterCondition: seed.requiresServerValidation
+            ? null
+            : seed.condition || null,
+          rootSpansOnly: seed.requiresServerValidation
+            ? false
+            : seed.rootSpansOnly,
         });
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
         loadTracesQuery({
@@ -226,6 +260,8 @@ function ProjectPageContentBody({
       <ProjectPageQueryReferenceContext.Provider
         value={{
           spansQueryReference: spansQueryReference ?? null,
+          spansFilterSeed: spansFilterSeedState?.seed ?? null,
+          spansFilterSeedVersion: spansFilterSeedState?.version ?? 0,
           sessionsQueryReference: sessionsQueryReference ?? null,
           tracesQueryReference: tracesQueryReference ?? null,
           projectConfigQueryReference: projectConfigQueryReference ?? null,

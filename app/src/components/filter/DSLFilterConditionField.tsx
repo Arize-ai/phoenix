@@ -133,6 +133,8 @@ export type DSLFilterValidConditionArgs<
   validationResult: TValidationResult | null;
 };
 
+export type DSLFilterValidationFailureReason = "invalid" | "transport";
+
 export type DSLFilterConditionFieldProps<
   TValidationResult extends DSLFilterConditionValidationResult =
     DSLFilterConditionValidationResult,
@@ -194,6 +196,18 @@ export type DSLFilterConditionFieldProps<
     args: DSLFilterValidConditionArgs<TValidationResult>
   ) => void;
   /**
+   * Callback when validation rejects the expression or cannot reach the
+   * validator. Valid conditions use `onValidCondition`, so the two outcomes
+   * cannot be mistaken for the same settlement event. Must be referentially
+   * stable: a new identity re-runs the validation effect.
+   */
+  onValidationFailed?: (reason: DSLFilterValidationFailureReason) => void;
+  /**
+   * Changing this value explicitly re-runs validation for the current text.
+   * Used by callers that offer a retry after a transport failure.
+   */
+  validationRetryKey?: number;
+  /**
    * Callback whenever the validity of the condition changes, including when
    * a validation round-trip is in flight (invalid until proven valid)
    */
@@ -233,6 +247,8 @@ export function DSLFilterConditionField<
     completionSources = defaultCompletionSources,
     validateCondition,
     onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
     onValidationStateChange,
     placeholder = "filter condition",
     "aria-label": ariaLabel = "filter condition",
@@ -240,6 +256,7 @@ export function DSLFilterConditionField<
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const hasSettled = useRef<boolean>(false);
+  const previousValidationRetryKey = useRef(validationRetryKey);
   // null means the condition is not known to be invalid; the empty string
   // means invalid with no server-provided detail
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -384,7 +401,11 @@ export function DSLFilterConditionField<
     // at mount was not typed -- it arrives from a URL or a caller's default --
     // so it is validated at once, which is also what any consumer waiting on
     // the result to render is waiting for.
-    const delay = hasSettled.current ? VALIDATION_DEBOUNCE_MS : 0;
+    const isExplicitRetry =
+      previousValidationRetryKey.current !== validationRetryKey;
+    previousValidationRetryKey.current = validationRetryKey;
+    const delay =
+      hasSettled.current && !isExplicitRetry ? VALIDATION_DEBOUNCE_MS : 0;
     hasSettled.current = true;
     const timeout = setTimeout(() => {
       validateCondition(value)
@@ -396,6 +417,7 @@ export function DSLFilterConditionField<
           if (!result?.isValid) {
             setErrorMessage(result?.errorMessage ?? "");
             onValidationStateChange?.(false);
+            onValidationFailed?.("invalid");
           } else {
             setErrorMessage(null);
             onValidationStateChange?.(true);
@@ -413,6 +435,7 @@ export function DSLFilterConditionField<
           // silently never applied
           setErrorMessage("The condition could not be validated");
           onValidationStateChange?.(false);
+          onValidationFailed?.("transport");
         });
     }, delay);
 
@@ -420,7 +443,14 @@ export function DSLFilterConditionField<
       isCancelled = true;
       clearTimeout(timeout);
     };
-  }, [value, validateCondition, onValidCondition, onValidationStateChange]);
+  }, [
+    value,
+    validateCondition,
+    onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
+    onValidationStateChange,
+  ]);
 
   return (
     <div

@@ -16,6 +16,39 @@ export type SpanFilterConditionValidation = {
   selectsRootSpansOnly: boolean | null;
 };
 
+const MAX_VALIDATION_CACHE_ENTRIES = 100;
+const validationCache = new Map<
+  string,
+  Promise<SpanFilterConditionValidation>
+>();
+
+function validationCacheKey(projectId: string, condition: string) {
+  return JSON.stringify([projectId, condition]);
+}
+
+function readCachedValidation(key: string) {
+  const cached = validationCache.get(key);
+  if (cached) {
+    // Refresh insertion order so the least recently used entry is evicted.
+    validationCache.delete(key);
+    validationCache.set(key, cached);
+  }
+  return cached;
+}
+
+function cacheValidation(
+  key: string,
+  validation: Promise<SpanFilterConditionValidation>
+) {
+  validationCache.set(key, validation);
+  if (validationCache.size > MAX_VALIDATION_CACHE_ENTRIES) {
+    const leastRecentlyUsedKey = validationCache.keys().next().value;
+    if (leastRecentlyUsedKey !== undefined) {
+      validationCache.delete(leastRecentlyUsedKey);
+    }
+  }
+}
+
 /**
  * Async server-side validation of a span filter condition expression, together
  * with the structural facts a caller needs about that same condition. Both are
@@ -40,7 +73,13 @@ export async function validateSpanFilterCondition(
       selectsRootSpansOnly: false,
     };
   }
-  const validationResult = await fetchQuery<spanFilterValidationQuery>(
+  const cacheKey = validationCacheKey(projectId, condition);
+  const cachedValidation = readCachedValidation(cacheKey);
+  if (cachedValidation) {
+    return cachedValidation;
+  }
+
+  const validation = fetchQuery<spanFilterValidationQuery>(
     environment,
     graphql`
       query spanFilterValidationQuery($condition: String!, $id: ID!) {
@@ -58,17 +97,29 @@ export async function validateSpanFilterCondition(
       }
     `,
     { condition, id: projectId }
-  ).toPromise();
-  if (!validationResult) {
-    throw new Error("Filter condition validation is null");
-  }
-  // Both fields are optional on the inline fragment, since `node` need not be a
-  // Project. A missing validation reads as invalid.
-  const { project } = validationResult;
-  return {
-    isValid: project.validateSpanFilterCondition?.isValid ?? false,
-    errorMessage: project.validateSpanFilterCondition?.errorMessage ?? null,
-    selectsRootSpansOnly:
-      project.analyzeSpanFilterCondition?.selectsRootSpansOnly ?? null,
-  };
+  )
+    .toPromise()
+    .then((validationResult) => {
+      if (!validationResult) {
+        throw new Error("Filter condition validation is null");
+      }
+      // Both fields are optional on the inline fragment, since `node` need not
+      // be a Project. A missing validation reads as invalid.
+      const { project } = validationResult;
+      return {
+        isValid: project.validateSpanFilterCondition?.isValid ?? false,
+        errorMessage: project.validateSpanFilterCondition?.errorMessage ?? null,
+        selectsRootSpansOnly:
+          project.analyzeSpanFilterCondition?.selectsRootSpansOnly ?? null,
+      };
+    });
+  cacheValidation(cacheKey, validation);
+  void validation.catch(() => {
+    // A transport failure is not a validation answer. Remove only this promise
+    // so a later attempt can retry even if the key has since been replaced.
+    if (validationCache.get(cacheKey) === validation) {
+      validationCache.delete(cacheKey);
+    }
+  });
+  return validation;
 }

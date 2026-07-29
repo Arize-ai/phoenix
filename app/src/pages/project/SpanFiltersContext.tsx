@@ -47,41 +47,56 @@ export function useSpanFilters() {
 }
 
 /**
- * The condition a span filter starts from: the one carried in the URL, so a
- * shared or reloaded link restores the filtered view, falling back to the
- * caller's default when the URL carries none. Read once at mount, since later
- * writes to the param come from the applied filter itself and must not re-seed
- * it.
+ * Captures the mount-time condition from the URL, falling back to the caller's
+ * supplied value. Whitespace-only text is normalized to the empty condition so
+ * the editor and query seed agree.
  *
- * Split out from the provider so a call site that owns its own filter state can
- * seed it the same way.
+ * This hook is intentionally mount-only for call sites that own query preload
+ * state. `SpanFiltersProvider` separately follows later URL changes so browser
+ * navigation still updates its controlled editor.
  */
-export function useInitialSpanFilterCondition(defaultFilterCondition = "") {
+export function useInitialSpanFilterCondition(fallbackFilterCondition = "") {
   const [searchParams] = useSearchParams();
-  const [initialCondition] = useState<string>(
-    () =>
-      searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? defaultFilterCondition
-  );
+  const [initialCondition] = useState<string>(() => {
+    const condition =
+      searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? fallbackFilterCondition;
+    return condition.trim() === "" ? "" : condition;
+  });
   return initialCondition;
 }
 
 export function SpanFiltersProvider(
   props: PropsWithChildren<{
     /**
-     * The condition to start from when the URL carries none. The spans page
-     * seeds this with the root-spans predicate; views that are inherently
-     * root-scoped already (traces) or unrelated leave it empty.
+     * The condition used whenever the URL carries none. Query-owning callers
+     * pass the same resolved seed used for their preload so the editor and
+     * loaded GraphQL fields start in agreement.
      */
-    defaultFilterCondition?: string;
+    fallbackFilterCondition?: string;
   }>
 ) {
   // Writes back to the URL happen where the state is applied (SpansTable), so
   // only valid conditions are persisted.
+  const [searchParams] = useSearchParams();
   const initialCondition = useInitialSpanFilterCondition(
-    props.defaultFilterCondition
+    props.fallbackFilterCondition
   );
   const [filterCondition, _setFilterCondition] =
     useState<string>(initialCondition);
+  const rawUrlCondition =
+    searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
+    props.fallbackFilterCondition ??
+    "";
+  const urlCondition = rawUrlCondition.trim() === "" ? "" : rawUrlCondition;
+
+  // Follow navigation that explicitly changes the filter while leaving
+  // unrelated search-param updates alone. An applied filter's own URL write is
+  // a no-op here because the draft already contains that same condition.
+  useEffect(() => {
+    startTransition(() => {
+      _setFilterCondition(urlCondition);
+    });
+  }, [urlCondition]);
 
   const setFilterCondition = useCallback((condition: string) => {
     startTransition(() => {
