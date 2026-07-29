@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<10f8fa07eb58bf63347a620f624c0936>>
+ * @generated SignedSource<<6528be05f80c7abbc017e0a5a83acc47>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,7 @@ export type AgentSessionsResourceQuery$variables = {
   first: number;
 };
 export type AgentSessionsResourceQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"AgentSessionsResource_sessions" | "SettingsAgentSessionsCard_sessions">;
+  readonly " $fragmentSpreads": FragmentRefs<"AgentSessionsResource_sessions">;
 };
 export type AgentSessionsResourceQuery = {
   response: AgentSessionsResourceQuery$data;
@@ -28,20 +28,19 @@ var v0 = [
     "name": "first"
   }
 ],
-v1 = [
+v1 = {
+  "kind": "Variable",
+  "name": "first",
+  "variableName": "first"
+},
+v2 = [
+  (v1/*:: as any*/),
   {
-    "kind": "Variable",
-    "name": "first",
-    "variableName": "first"
+    "kind": "Literal",
+    "name": "viewerOnly",
+    "value": true
   }
-],
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-};
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -50,14 +49,11 @@ return {
     "name": "AgentSessionsResourceQuery",
     "selections": [
       {
-        "args": (v1/*:: as any*/),
+        "args": [
+          (v1/*:: as any*/)
+        ],
         "kind": "FragmentSpread",
         "name": "AgentSessionsResource_sessions"
-      },
-      {
-        "args": (v1/*:: as any*/),
-        "kind": "FragmentSpread",
-        "name": "SettingsAgentSessionsCard_sessions"
       }
     ],
     "type": "Query",
@@ -71,7 +67,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "AgentSessionConnection",
         "kind": "LinkedField",
         "name": "agentSessions",
@@ -93,7 +89,13 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "id",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": null,
@@ -127,39 +129,6 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "__typename",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "User",
-                    "kind": "LinkedField",
-                    "name": "user",
-                    "plural": false,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "username",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "profilePictureUrl",
-                        "storageKey": null
-                      },
-                      (v2/*:: as any*/)
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "firstInput",
                     "storageKey": null
                   }
                 ],
@@ -205,35 +174,26 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
-        "filters": null,
+        "args": (v2/*:: as any*/),
+        "filters": [],
         "handle": "connection",
         "key": "AgentSessionsResource_agentSessions",
-        "kind": "LinkedHandle",
-        "name": "agentSessions"
-      },
-      {
-        "alias": null,
-        "args": (v1/*:: as any*/),
-        "filters": null,
-        "handle": "connection",
-        "key": "SettingsAgentSessionsCard_agentSessions",
         "kind": "LinkedHandle",
         "name": "agentSessions"
       }
     ]
   },
   "params": {
-    "cacheID": "cbd0f1f6f2d3f06bf44a736e3c1f968a",
+    "cacheID": "f5e0b4e4e259e818ee95c0a45b60bc3a",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourceQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first, viewerOnly: true) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5eab824b5f213c3560d23fd28eacc731";
+(node as any).hash = "ac090fc7cd97a145fbc9e570373e0a43";
 
 export default node;

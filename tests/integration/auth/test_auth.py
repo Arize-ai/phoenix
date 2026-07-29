@@ -2017,6 +2017,48 @@ class TestApiAccessViaCookiesOrApiKeys:
             == 404
         )
 
+    def test_agent_sessions_viewer_only_restricts_admin_to_own_sessions(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        member = _get_user(_app, UserRoleInput.MEMBER).log_in(_app)
+        admin = _get_user(_app, UserRoleInput.ADMIN).log_in(_app)
+        member_client = _httpx_client(_app, member.tokens)
+        admin_client = _httpx_client(_app, admin.tokens)
+        member_session_response = member_client.post(
+            "agents/assistant/sessions",
+            json={"title": "Member session", "temporary": False},
+        )
+        member_session_response.raise_for_status()
+        member_session_id = member_session_response.json()["data"]["id"]
+        admin_session_response = admin_client.post(
+            "agents/assistant/sessions",
+            json={"title": "Admin session", "temporary": False},
+        )
+        admin_session_response.raise_for_status()
+        admin_session_id = admin_session_response.json()["data"]["id"]
+
+        query = """
+          query ($viewerOnly: Boolean!) {
+            agentSessions(first: 100, viewerOnly: $viewerOnly) {
+              edges { node { id } }
+            }
+          }
+        """
+        all_sessions_response, _ = admin.gql(_app, query=query, variables={"viewerOnly": False})
+        all_session_ids = {
+            edge["node"]["id"] for edge in all_sessions_response["data"]["agentSessions"]["edges"]
+        }
+        assert {member_session_id, admin_session_id} <= all_session_ids
+
+        own_sessions_response, _ = admin.gql(_app, query=query, variables={"viewerOnly": True})
+        own_session_ids = {
+            edge["node"]["id"] for edge in own_sessions_response["data"]["agentSessions"]["edges"]
+        }
+        assert admin_session_id in own_session_ids
+        assert member_session_id not in own_session_ids
+
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_role_based_access_control(
         self,

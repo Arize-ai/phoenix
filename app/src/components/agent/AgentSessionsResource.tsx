@@ -47,7 +47,6 @@ import { useAgentChatPanelState } from "./useAgentChatPanelState";
 const sessionsQuery = graphql`
   query AgentSessionsResourceQuery($first: Int!) {
     ...AgentSessionsResource_sessions @arguments(first: $first)
-    ...SettingsAgentSessionsCard_sessions @arguments(first: $first)
   }
 `;
 
@@ -117,8 +116,8 @@ function AgentSessionsContent({
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 20 }
       ) {
-        agentSessions(first: $first, after: $after)
-          @connection(key: "AgentSessionsResource_agentSessions") {
+        agentSessions(first: $first, after: $after, viewerOnly: true)
+          @connection(key: "AgentSessionsResource_agentSessions", filters: []) {
           edges {
             node {
               id

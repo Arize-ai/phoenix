@@ -47,9 +47,13 @@ class CanAccessAgentSession(BasePermission):
         return True
 
 
-def get_agent_session_owner_filter(context: Context) -> Optional[ColumnElement[bool]]:
+def get_agent_session_owner_filter(
+    context: Context,
+    *,
+    viewer_only: bool = False,
+) -> Optional[ColumnElement[bool]]:
     viewer_id = context.user_id
-    if viewer_id is None or context.user.is_admin:
+    if viewer_id is None or (not viewer_only and context.user.is_admin):
         return None
     return models.AgentSession.user_id == viewer_id
 
