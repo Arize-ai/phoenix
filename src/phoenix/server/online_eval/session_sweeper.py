@@ -8,13 +8,14 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
-from typing import Optional
+from typing import Optional, Sequence
 
-from sqlalchemy import and_, delete, func, or_, select, type_coerce, update
+from sqlalchemy import Insert, and_, delete, func, or_, select, type_coerce, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.derivation import config_fingerprint
 from phoenix.server.online_eval.producer import resolve_criteria
@@ -28,11 +29,29 @@ SESSION_SWEEP_INTERVAL_SECONDS = 10.0
 
 _CONSUMER_GROUP = "default"
 _MAX_ACTIVITY_ROWS_PER_TICK = 1000
+_MAX_SESSION_WORK_INSERT_PARAMETERS = 30_000
+_SESSION_WORK_INSERT_PARAMETERS_PER_ROW = 6
+_SESSION_WORK_INSERT_BATCH_SIZE = (
+    _MAX_SESSION_WORK_INSERT_PARAMETERS // _SESSION_WORK_INSERT_PARAMETERS_PER_ROW
+)
 _SESSION_WORK_UNIQUE_BY = (
     "project_session_rowid",
     "evaluator_id",
     "config_fingerprint",
 )
+
+
+def _session_work_insert_statement(
+    work_records: Sequence[dict[str, object]],
+    dialect: SupportedSQLDialect,
+) -> Insert:
+    return insert_on_conflict(
+        *work_records,
+        table=models.EvalSessionWorkUnit,
+        dialect=dialect,
+        unique_by=_SESSION_WORK_UNIQUE_BY,
+        on_conflict=OnConflict.DO_NOTHING,
+    )
 
 
 @dataclass(frozen=True)
@@ -270,15 +289,13 @@ class SessionEvalSweeper(DaemonTask):
                 resolved_activity_ids.append(activity.id)
 
         if work_records:
-            await session.execute(
-                insert_on_conflict(
-                    *work_records,
-                    table=models.EvalSessionWorkUnit,
-                    dialect=self._db.dialect,
-                    unique_by=_SESSION_WORK_UNIQUE_BY,
-                    on_conflict=OnConflict.DO_NOTHING,
+            for start in range(0, len(work_records), _SESSION_WORK_INSERT_BATCH_SIZE):
+                await session.execute(
+                    _session_work_insert_statement(
+                        work_records[start : start + _SESSION_WORK_INSERT_BATCH_SIZE],
+                        self._db.dialect,
+                    )
                 )
-            )
         if resolved_activity_ids:
             await session.execute(
                 delete(models.EvalSessionActivity).where(

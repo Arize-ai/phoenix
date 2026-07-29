@@ -3,9 +3,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import asyncpg
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval import session_sweeper
 from phoenix.server.online_eval.derivation import ResolvedCriteria
 from phoenix.server.online_eval.producer import resolve_criteria
@@ -21,6 +23,31 @@ from .test_producer import _seed_criteria
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def test_session_work_insert_batch_stays_below_asyncpg_parameter_limit() -> None:
+    work_records = [
+        {
+            "project_session_rowid": index,
+            "evaluator_id": index,
+            "criteria_id": index,
+            "config_fingerprint": f"fingerprint-{index}",
+        }
+        for index in range(session_sweeper._SESSION_WORK_INSERT_BATCH_SIZE)
+    ]
+
+    statement = session_sweeper._session_work_insert_statement(
+        work_records,
+        SupportedSQLDialect.POSTGRESQL,
+    )
+    compiled = statement.compile(dialect=asyncpg.dialect())
+
+    assert len(compiled.params) == (
+        session_sweeper._SESSION_WORK_INSERT_BATCH_SIZE
+        * session_sweeper._SESSION_WORK_INSERT_PARAMETERS_PER_ROW
+    )
+    assert len(compiled.params) <= session_sweeper._MAX_SESSION_WORK_INSERT_PARAMETERS
+    assert len(compiled.params) < 32_767
 
 
 async def _add_session_activity(
