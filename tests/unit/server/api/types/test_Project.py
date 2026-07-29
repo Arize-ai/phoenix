@@ -1843,7 +1843,7 @@ class _Data:
 
 # The `_data` fixture's sessions 1 and 3 are the two whose root-span input/output carry this
 # fragment; the sort tests use it to exercise sorting and cursor paging under a filter.
-_IO_CONDITION_ARG = '"\'\\"\\\\\'f\' in any_input or \'\\"\\\\\'f\' in any_output"'
+_IO_CONDITION_ARG = "\"'\\\"\\\\'f' in any_input or '\\\"\\\\'f' in any_output\""
 
 
 class TestProject:
@@ -3984,6 +3984,7 @@ class TestProject:
                     type
                     description
                     category
+                    iterableName
                   }
                 }
               }
@@ -3994,10 +3995,15 @@ class TestProject:
         assert not response.errors
         assert (data := response.data) is not None
         terms = data["node"]["sessionFilterVocabulary"]
-        term_names = {t["name"] for t in terms}
-        terms_by_name = {term["name"]: term for term in terms}
+        # Element-field names repeat across iterables and collide with top-level ones, so the
+        # top-level view keys only on unscoped terms; scoped terms are keyed by (iterable, name).
+        top_level_terms = [t for t in terms if t["iterableName"] is None]
+        term_names = {t["name"] for t in top_level_terms}
+        terms_by_name = {term["name"]: term for term in top_level_terms}
         # Drift-proof: static session + aggregate terms are exactly the compiler's binding keys.
-        static_names = {t["name"] for t in terms if t["name"] in SESSION_BINDINGS.binding_names}
+        static_names = {
+            t["name"] for t in top_level_terms if t["name"] in SESSION_BINDINGS.binding_names
+        }
         assert static_names == set(SESSION_BINDINGS.binding_names)
         assert {"any_input", "any_output"}.issubset(static_names)
         # Every served term carries a non-empty gloss.
@@ -4031,6 +4037,33 @@ class TestProject:
         assert 'annotations["quality"].label' in term_names
         # Span counts are session totals only — no per-tool-name terms are served.
         assert not any(name.startswith("tool_span_count[") for name in term_names)
+        # The comprehension surface is served from the compiler's own catalog, so the iterables
+        # and their element fields cannot drift from what actually compiles.
+        iterable_terms = {t["name"]: t for t in terms if t["category"] == "iterable"}
+        assert iterable_terms.keys() == set(SESSION_BINDINGS.iterables)
+        assert all(
+            t["type"] == "iterable" and t["iterableName"] is None for t in iterable_terms.values()
+        )
+        element_fields: dict[str, dict[str, str]] = {}
+        for term in terms:
+            if term["iterableName"] is not None:
+                assert term["category"] == "element"
+                element_fields.setdefault(term["iterableName"], {})[term["name"]] = term["type"]
+        for iterable_name, grammar in SESSION_BINDINGS.iterables.items():
+            element_bindings = grammar.element_bindings
+            assert element_fields[iterable_name] == {
+                **{n: "string" for n in element_bindings.string_names},
+                **{n: "number" for n in element_bindings.float_names},
+                **{n: "datetime" for n in element_bindings.datetime_names},
+                **{n: "boolean" for n in element_bindings.boolean_names},
+            }
+        # A scoped name may repeat across iterables and shadow a top-level one; each is its
+        # own term, distinguished only by iterableName.
+        assert element_fields["spans"]["latency_ms"] == "number"
+        assert element_fields["turns"]["latency_ms"] == "number"
+        assert element_fields["turns"]["start_time"] == "datetime"
+        assert "start_time" in term_names
+        assert element_fields["cost_details"]["is_prompt"] == "boolean"
 
     async def test_session_count_shares_dsl_path_with_sessions_and_record_count(
         self,

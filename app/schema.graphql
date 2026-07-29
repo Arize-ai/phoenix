@@ -2078,16 +2078,23 @@ type FilterVocabularyTerm {
   """The bindable name exactly as written in a filter expression."""
   name: String!
 
-  """Value-type hint for the comparand: 'string', 'number', or 'datetime'."""
+  """
+  Value-type hint for the comparand: 'string', 'number', 'datetime', or 'boolean'. Collections carry 'iterable' — they are looped over rather than compared.
+  """
   type: String!
 
   """Human-readable gloss of what the term means and how it evaluates."""
   description: String!
 
   """
-  Presentation/discovery grouping: 'session' (intrinsic column), 'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), or 'annotation' (session annotation access).
+  Presentation/discovery grouping: 'session' (intrinsic column), 'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), 'annotation' (session annotation access), 'iterable' (a collection a comprehension can loop over), or 'element' (a field of one such collection's elements).
   """
   category: String!
+
+  """
+  Name of the iterable term whose elements expose this name, or null when the term binds at the top level. An 'element' term is only writable inside a comprehension over that iterable, qualified by the loop variable — e.g. latency_ms with iterableName 'spans' is written any(s.latency_ms > 1000 for s in spans), never bare.
+  """
+  iterableName: String
 }
 
 type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
