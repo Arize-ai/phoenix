@@ -9,7 +9,7 @@ import asyncio
 import logging
 from collections import Counter
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, AsyncIterator, Callable, Literal, Optional, Sequence
 
@@ -46,7 +46,7 @@ from phoenix.server.dml_event import (
 )
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit
 from phoenix.server.online_eval.derivation import config_fingerprint
-from phoenix.server.online_eval.producer import resolve_criteria
+from phoenix.server.online_eval.producer import resolve_criteria_bulk
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
@@ -128,6 +128,30 @@ class HydratedWorkUnit:
 
 
 HydrationOutcome = HydratedWorkUnit | HydrationFailure
+
+
+@dataclass(frozen=True)
+class _HydratedEvaluatorSnapshot:
+    annotator_kind: AnnotatorKind
+    evaluator_kind: EvaluatorKind
+    evaluator: BaseEvaluator
+    output_configs: tuple[OutputConfigType, ...]
+
+
+@dataclass(frozen=True)
+class HydratedConfigurationSnapshot:
+    """Immutable evaluator configuration observed for one claim batch."""
+
+    project_id: int
+    fingerprint: str
+    annotation_name: str
+    evaluator: _HydratedEvaluatorSnapshot
+    input_mapping: InputMapping
+    context: dict[str, Any]
+    annotation_metadata: dict[str, Any]
+
+
+ConfigurationSnapshotOutcome = HydratedConfigurationSnapshot | HydrationFailure | Exception
 
 
 def span_eval_context(span: models.Span) -> dict[str, Any]:
@@ -244,198 +268,375 @@ class OnlineEvalExecutor:
         self._db_semaphore = db_semaphore
 
     async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
-        async with self._db_phase():
-            return await self._hydrate(unit)
+        configuration = (await self.hydrate_configuration_snapshots([unit]))[0]
+        if isinstance(configuration, Exception):
+            raise configuration
+        if isinstance(configuration, HydrationFailure):
+            return configuration
+        return self.hydrate_from_snapshot(configuration)
 
-    async def _hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
-        """Load one immutable execution snapshot or return a stable failure reason."""
-        async with self._db() as session:
-            criteria = await session.get(models.ProjectEvaluatorCriteria, unit.criteria_id)
-            if criteria is None:
-                return HydrationFailure(HydrationFailureReason.CRITERIA_MISSING)
-            if not criteria.enabled:
-                return HydrationFailure(HydrationFailureReason.CRITERIA_DISABLED)
-            if unit.evaluation_target == "SESSION":
-                schedulable = await session.scalar(
-                    select(models.ProjectEvaluatorCriteria.id).where(
-                        models.ProjectEvaluatorCriteria.id == criteria.id,
-                        session_criteria_is_schedulable(models.ProjectEvaluatorCriteria),
-                    )
+    async def hydrate_configuration_snapshots(
+        self,
+        units: Sequence[ClaimedWorkUnit],
+    ) -> list[ConfigurationSnapshotOutcome]:
+        if not units:
+            return []
+        try:
+            async with self._db_phase():
+                async with self._db() as session:
+                    return await self._hydrate_configuration_snapshots(session, units)
+        except Exception as error:
+            return [error for _ in units]
+
+    async def _hydrate_configuration_snapshots(
+        self,
+        session: AsyncSession,
+        units: Sequence[ClaimedWorkUnit],
+    ) -> list[ConfigurationSnapshotOutcome]:
+        criteria_ids = {unit.criteria_id for unit in units}
+        polymorphic = with_polymorphic(
+            models.Evaluator,
+            [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+        )
+        rows = (
+            await session.execute(
+                select(
+                    models.ProjectEvaluatorCriteria,
+                    polymorphic,
+                    session_criteria_is_schedulable(models.ProjectEvaluatorCriteria).label(
+                        "session_schedulable"
+                    ),
                 )
-                if schedulable is None:
-                    return HydrationFailure(HydrationFailureReason.CRITERIA_NOT_SCHEDULABLE)
-            elif unit.evaluation_target != "SPAN":
-                return HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
-            polymorphic = with_polymorphic(
-                models.Evaluator,
-                [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+                .outerjoin(
+                    polymorphic,
+                    models.ProjectEvaluatorCriteria.evaluator_id == polymorphic.id,
+                )
+                .where(models.ProjectEvaluatorCriteria.id.in_(criteria_ids))
             )
-            evaluator_orm = await session.scalar(
-                select(polymorphic).where(polymorphic.id == criteria.evaluator_id)
-            )
-            if evaluator_orm is None:
-                return HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
-            if isinstance(evaluator_orm, models.CodeEvaluator):
-                if evaluator_orm.sandbox_config_id is None:
-                    return HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
-                sandbox_runtime = (
-                    await session.execute(
-                        select(models.SandboxConfig, models.SandboxProvider)
-                        .join(
-                            models.SandboxProvider,
-                            models.SandboxProvider.backend_type
-                            == models.SandboxConfig.backend_type,
-                        )
-                        .where(models.SandboxConfig.id == evaluator_orm.sandbox_config_id)
-                    )
-                ).one_or_none()
-                if (
-                    sandbox_runtime is None
-                    or not sandbox_runtime[0].enabled
-                    or not sandbox_runtime[1].enabled
-                ):
-                    return HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
-            resolved = await resolve_criteria(session, criteria, evaluator_orm)
-            if resolved is None:
-                return HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
-            if config_fingerprint(resolved) != unit.config_fingerprint:
-                return HydrationFailure(HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH)
-            max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
-            annotation_metadata: dict[str, Any] = {}
-            if unit.evaluation_target == "SPAN":
-                span = await session.get(models.Span, unit.target_rowid)
-                if span is None:
-                    return HydrationFailure(HydrationFailureReason.SPAN_MISSING)
-                context = span_eval_context(span)
+        ).all()
+        rows_by_criteria_id = {
+            criteria.id: (criteria, evaluator, bool(session_schedulable))
+            for criteria, evaluator, session_schedulable in rows
+        }
+
+        preliminary: list[Optional[HydrationFailure]] = []
+        criteria_evaluators: dict[
+            int, tuple[models.ProjectEvaluatorCriteria, models.Evaluator]
+        ] = {}
+        for unit in units:
+            row = rows_by_criteria_id.get(unit.criteria_id)
+            failure: Optional[HydrationFailure] = None
+            if row is None:
+                failure = HydrationFailure(HydrationFailureReason.CRITERIA_MISSING)
             else:
-                project_session = await session.get(models.ProjectSession, unit.target_rowid)
-                if project_session is None:
-                    return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
-                if project_session.project_id != criteria.project_id:
-                    return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
-                root_filters = (
-                    models.Trace.project_session_rowid == project_session.id,
-                    models.Trace.project_rowid == criteria.project_id,
-                    models.Span.parent_id.is_(None),
-                )
-                total_eligible_root_count = (
-                    await session.scalar(
-                        select(func.count())
-                        .select_from(models.Span)
-                        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                        .where(*root_filters)
-                    )
-                    or 0
-                )
-                if total_eligible_root_count == 0:
-                    return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
-                root_rows = (
-                    await session.execute(
-                        select(
-                            models.Span.input_value,
-                            models.Span.output_value,
-                            models.Span.metadata_,
-                            models.Span.start_time.label("event_time"),
-                            models.Span.span_id,
-                        )
-                        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                        .where(*root_filters)
-                        .order_by(
-                            models.Span.start_time.desc(),
-                            models.Span.span_id.desc(),
-                        )
-                        .limit(_MAX_SESSION_EVAL_TURNS)
-                    )
-                ).all()
-                turns = [
-                    {
-                        "input": row.input_value,
-                        "output": row.output_value,
-                        "metadata": row.metadata_,
-                        "event_time": row.event_time.isoformat(),
-                        "span_id": row.span_id,
-                    }
-                    for row in reversed(root_rows)
-                ]
-                try:
-                    context = session_eval_context(
-                        turns=turns,
-                        max_transcript_bytes=get_env_online_eval_max_transcript_bytes(),
-                        total_eligible_root_count=total_eligible_root_count,
-                    )
-                except TranscriptTooLargeError as error:
-                    return HydrationFailure(
-                        HydrationFailureReason.TRANSCRIPT_TOO_LARGE,
-                        str(error),
-                    )
-            input_mapping = (
-                InputMapping.model_validate(resolved.input_mapping)
-                if resolved.input_mapping is not None
-                else _EMPTY_INPUT_MAPPING
+                criteria, evaluator, session_schedulable = row
+                if not criteria.enabled:
+                    failure = HydrationFailure(HydrationFailureReason.CRITERIA_DISABLED)
+                elif unit.evaluation_target == "SESSION" and not session_schedulable:
+                    failure = HydrationFailure(HydrationFailureReason.CRITERIA_NOT_SCHEDULABLE)
+                elif unit.evaluation_target not in ("SPAN", "SESSION"):
+                    failure = HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
+                elif evaluator is None:
+                    failure = HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
+                elif (
+                    isinstance(evaluator, models.CodeEvaluator)
+                    and evaluator.sandbox_config_id is None
+                ):
+                    failure = HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
+                else:
+                    criteria_evaluators.setdefault(criteria.id, (criteria, evaluator))
+            preliminary.append(failure)
+
+        criteria_evaluator_rows = list(criteria_evaluators.values())
+        resolved_rows = await resolve_criteria_bulk(session, criteria_evaluator_rows)
+        resolved_by_criteria_id = {
+            criteria.id: resolved
+            for (criteria, _), resolved in zip(
+                criteria_evaluator_rows,
+                resolved_rows,
+                strict=True,
             )
+        }
+        unresolved_failures: dict[int, HydrationFailure] = {}
+        for criteria_id, (_, evaluator) in criteria_evaluators.items():
+            if resolved_by_criteria_id[criteria_id] is not None:
+                continue
+            unresolved_failures[criteria_id] = await self._unresolved_configuration_failure(
+                session,
+                evaluator,
+            )
+
+        matching_criteria_ids: set[int] = set()
+        outcomes: list[Optional[ConfigurationSnapshotOutcome]] = []
+        for unit, failure in zip(units, preliminary, strict=True):
+            if failure is not None:
+                outcomes.append(failure)
+                continue
+            resolved = resolved_by_criteria_id[unit.criteria_id]
+            if resolved is None:
+                outcomes.append(unresolved_failures[unit.criteria_id])
+                continue
+            try:
+                fingerprint = config_fingerprint(resolved)
+            except Exception as error:
+                outcomes.append(error)
+                continue
+            if fingerprint != unit.config_fingerprint:
+                outcomes.append(
+                    HydrationFailure(HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH)
+                )
+                continue
+            outcomes.append(None)
+
+        contexts: list[Optional[dict[str, Any]]] = [None for _ in units]
+        input_mappings: list[Optional[InputMapping]] = [None for _ in units]
+        for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
+            if outcome is not None:
+                continue
+            criteria, _ = criteria_evaluators[unit.criteria_id]
+            try:
+                hydrated_context = await self._hydrate_target_context(
+                    session,
+                    unit,
+                    project_id=criteria.project_id,
+                )
+            except Exception as error:
+                outcomes[index] = error
+                continue
+            if isinstance(hydrated_context, HydrationFailure):
+                outcomes[index] = hydrated_context
+                continue
+            resolved = resolved_by_criteria_id[unit.criteria_id]
+            assert resolved is not None
+            try:
+                resolved_input_mapping = (
+                    InputMapping.model_validate(resolved.input_mapping)
+                    if resolved.input_mapping is not None
+                    else _EMPTY_INPUT_MAPPING
+                )
+            except Exception as error:
+                outcomes[index] = error
+                continue
             if unit.evaluation_target == "SESSION":
-                policy = context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
+                policy = hydrated_context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
                 policy["structured_turns_mapped"] = any(
                     path_expression.removeprefix("$.").startswith("metadata.turns")
-                    for path_expression in (input_mapping.path_mapping or {}).values()
+                    for path_expression in (resolved_input_mapping.path_mapping or {}).values()
                 )
-            hydrated: Optional[HydratedWorkUnit]
-            if isinstance(evaluator_orm, models.LLMEvaluator):
-                hydrated = await self._hydrate_llm(
+            contexts[index] = hydrated_context
+            input_mappings[index] = resolved_input_mapping
+            matching_criteria_ids.add(unit.criteria_id)
+
+        evaluator_snapshots: dict[
+            int, _HydratedEvaluatorSnapshot | HydrationFailure | Exception
+        ] = {}
+        for criteria_id in matching_criteria_ids:
+            _, evaluator = criteria_evaluators[criteria_id]
+            if evaluator.id in evaluator_snapshots:
+                continue
+            resolved = resolved_by_criteria_id[criteria_id]
+            assert resolved is not None
+            try:
+                hydrated_evaluator_snapshot = await self._hydrate_evaluator_snapshot(
                     session,
-                    evaluator_orm,
-                    resolved.name,
+                    evaluator,
                     resolved.version_ref,
-                    input_mapping,
-                    context,
                 )
-            elif isinstance(evaluator_orm, models.CodeEvaluator):
-                code_version_ref = resolved.version_ref
-                if (
-                    not isinstance(code_version_ref, list)
-                    or len(code_version_ref) != 2
-                    or not isinstance(code_version_ref[0], int)
-                    or not isinstance(code_version_ref[1], str)
-                ):
-                    return HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
-                hydrated = await self._hydrate_code(
-                    session,
-                    evaluator_orm,
-                    resolved.name,
-                    code_version_ref[0],
-                    input_mapping,
-                    context,
-                    max_payload_bytes=max_payload_bytes,
-                )
-            elif isinstance(evaluator_orm, models.BuiltinEvaluator):
-                hydrated = self._hydrate_builtin(
-                    evaluator_orm,
-                    resolved.name,
-                    input_mapping,
-                    context,
-                )
+            except Exception as error:
+                evaluator_snapshots[evaluator.id] = error
             else:
-                return HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
-            if hydrated is None:
-                return HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
+                evaluator_snapshots[evaluator.id] = (
+                    hydrated_evaluator_snapshot
+                    if hydrated_evaluator_snapshot is not None
+                    else HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
+                )
+
+        for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
+            if outcome is not None:
+                continue
+            criteria, evaluator = criteria_evaluators[unit.criteria_id]
+            evaluator_snapshot_outcome = evaluator_snapshots[evaluator.id]
+            if isinstance(evaluator_snapshot_outcome, (HydrationFailure, Exception)):
+                outcomes[index] = evaluator_snapshot_outcome
+                continue
+            resolved = resolved_by_criteria_id[unit.criteria_id]
+            assert resolved is not None
+            snapshot_context = contexts[index]
+            if snapshot_context is None:
+                outcomes[index] = RuntimeError("Target context hydration did not produce a result")
+                continue
+            snapshot_input_mapping = input_mappings[index]
+            if snapshot_input_mapping is None:
+                outcomes[index] = RuntimeError("Input mapping hydration did not produce a result")
+                continue
+            annotation_metadata: dict[str, Any] = {}
             if unit.evaluation_target == "SESSION":
-                evaluator_input_schema = getattr(hydrated.evaluator, "input_schema", {})
+                policy = snapshot_context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
+                evaluator_input_schema = getattr(
+                    evaluator_snapshot_outcome.evaluator,
+                    "input_schema",
+                    {},
+                )
                 policy["structured_turns_mapped"] = bool(
                     policy["structured_turns_mapped"]
                     or "metadata" in evaluator_input_schema.get("properties", {})
                 )
                 annotation_metadata = {_TRANSCRIPT_POLICY_METADATA_KEY: dict(policy)}
-            return replace(hydrated, annotation_metadata=annotation_metadata)
+            outcomes[index] = HydratedConfigurationSnapshot(
+                project_id=criteria.project_id,
+                fingerprint=unit.config_fingerprint,
+                annotation_name=resolved.name,
+                evaluator=evaluator_snapshot_outcome,
+                input_mapping=snapshot_input_mapping,
+                context=snapshot_context,
+                annotation_metadata=annotation_metadata,
+            )
+        final_outcomes: list[ConfigurationSnapshotOutcome] = []
+        for outcome in outcomes:
+            assert outcome is not None
+            final_outcomes.append(outcome)
+        return final_outcomes
+
+    async def _unresolved_configuration_failure(
+        self,
+        session: AsyncSession,
+        evaluator: models.Evaluator,
+    ) -> HydrationFailure:
+        if not isinstance(evaluator, models.CodeEvaluator):
+            return HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
+        sandbox_config_id = evaluator.sandbox_config_id
+        if sandbox_config_id is None:
+            return HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
+        sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
+        if sandbox_config is None or not sandbox_config.enabled:
+            return HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
+        provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
+        if provider is None or not provider.enabled:
+            return HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
+        return HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
+
+    async def _hydrate_target_context(
+        self,
+        session: AsyncSession,
+        unit: ClaimedWorkUnit,
+        *,
+        project_id: int,
+    ) -> dict[str, Any] | HydrationFailure:
+        if unit.evaluation_target == "SPAN":
+            span = await session.get(models.Span, unit.target_rowid)
+            if span is None:
+                return HydrationFailure(HydrationFailureReason.SPAN_MISSING)
+            return span_eval_context(span)
+        project_session = await session.get(models.ProjectSession, unit.target_rowid)
+        if project_session is None:
+            return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
+        if project_session.project_id != project_id:
+            return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
+        root_filters = (
+            models.Trace.project_session_rowid == project_session.id,
+            models.Trace.project_rowid == project_id,
+            models.Span.parent_id.is_(None),
+        )
+        total_eligible_root_count = (
+            await session.scalar(
+                select(func.count())
+                .select_from(models.Span)
+                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                .where(*root_filters)
+            )
+            or 0
+        )
+        if total_eligible_root_count == 0:
+            return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+        root_rows = (
+            await session.execute(
+                select(
+                    models.Span.input_value,
+                    models.Span.output_value,
+                    models.Span.metadata_,
+                    models.Span.start_time.label("event_time"),
+                    models.Span.span_id,
+                )
+                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                .where(*root_filters)
+                .order_by(
+                    models.Span.start_time.desc(),
+                    models.Span.span_id.desc(),
+                )
+                .limit(_MAX_SESSION_EVAL_TURNS)
+            )
+        ).all()
+        turns = [
+            {
+                "input": row.input_value,
+                "output": row.output_value,
+                "metadata": row.metadata_,
+                "event_time": row.event_time.isoformat(),
+                "span_id": row.span_id,
+            }
+            for row in reversed(root_rows)
+        ]
+        try:
+            return session_eval_context(
+                turns=turns,
+                max_transcript_bytes=get_env_online_eval_max_transcript_bytes(),
+                total_eligible_root_count=total_eligible_root_count,
+            )
+        except TranscriptTooLargeError as error:
+            return HydrationFailure(
+                HydrationFailureReason.TRANSCRIPT_TOO_LARGE,
+                str(error),
+            )
+
+    def hydrate_from_snapshot(
+        self,
+        configuration: HydratedConfigurationSnapshot,
+    ) -> HydratedWorkUnit:
+        return HydratedWorkUnit(
+            annotation_name=configuration.annotation_name,
+            annotator_kind=configuration.evaluator.annotator_kind,
+            evaluator_kind=configuration.evaluator.evaluator_kind,
+            evaluator=configuration.evaluator.evaluator,
+            input_mapping=configuration.input_mapping,
+            output_configs=configuration.evaluator.output_configs,
+            context=configuration.context,
+            annotation_metadata=configuration.annotation_metadata,
+        )
+
+    async def _hydrate_evaluator_snapshot(
+        self,
+        session: AsyncSession,
+        evaluator_orm: models.Evaluator,
+        version_ref: Any,
+    ) -> Optional[_HydratedEvaluatorSnapshot]:
+        if isinstance(evaluator_orm, models.LLMEvaluator):
+            if not isinstance(version_ref, int):
+                return None
+            return await self._hydrate_llm(session, evaluator_orm, version_ref)
+        if isinstance(evaluator_orm, models.CodeEvaluator):
+            if (
+                not isinstance(version_ref, list)
+                or len(version_ref) != 2
+                or not isinstance(version_ref[0], int)
+                or not isinstance(version_ref[1], str)
+            ):
+                return None
+            return await self._hydrate_code(
+                session,
+                evaluator_orm,
+                version_ref[0],
+                max_payload_bytes=get_env_online_eval_max_sandbox_payload_bytes(),
+            )
+        if isinstance(evaluator_orm, models.BuiltinEvaluator):
+            return self._hydrate_builtin(evaluator_orm)
+        return None
 
     async def _hydrate_llm(
         self,
         session: AsyncSession,
         evaluator_orm: models.LLMEvaluator,
-        annotation_name: str,
         prompt_version_id: int,
-        input_mapping: InputMapping,
-        context: dict[str, Any],
-    ) -> Optional[HydratedWorkUnit]:
+    ) -> Optional[_HydratedEvaluatorSnapshot]:
         prompt_version = await session.get(models.PromptVersion, prompt_version_id)
         if prompt_version is None:
             return None
@@ -473,27 +674,21 @@ class OnlineEvalExecutor:
             prompt_name=prompt.name.root,
             max_message_bytes=get_env_online_eval_max_llm_message_bytes(),
         )
-        return HydratedWorkUnit(
-            annotation_name=annotation_name,
+        return _HydratedEvaluatorSnapshot(
             annotator_kind="LLM",
             evaluator_kind="LLM",
             evaluator=evaluator,
-            input_mapping=input_mapping,
-            output_configs=evaluator_orm.output_configs,
-            context=context,
+            output_configs=tuple(evaluator_orm.output_configs),
         )
 
     async def _hydrate_code(
         self,
         session: AsyncSession,
         evaluator_orm: models.CodeEvaluator,
-        annotation_name: str,
         code_version_id: int,
-        input_mapping: InputMapping,
-        context: dict[str, Any],
         *,
         max_payload_bytes: int | None = None,
-    ) -> Optional[HydratedWorkUnit]:
+    ) -> Optional[_HydratedEvaluatorSnapshot]:
         if self._sandbox_session_manager is None:
             raise ValueError(
                 f"Code evaluator {evaluator_orm.id}: no sandbox session manager available"
@@ -553,34 +748,25 @@ class OnlineEvalExecutor:
                 "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
             ),
         )
-        return HydratedWorkUnit(
-            annotation_name=annotation_name,
+        return _HydratedEvaluatorSnapshot(
             annotator_kind="CODE",
             evaluator_kind="CODE",
             evaluator=evaluator,
-            input_mapping=input_mapping,
-            output_configs=output_configs,
-            context=context,
+            output_configs=tuple(output_configs),
         )
 
     def _hydrate_builtin(
         self,
         evaluator_orm: models.BuiltinEvaluator,
-        annotation_name: str,
-        input_mapping: InputMapping,
-        context: dict[str, Any],
-    ) -> HydratedWorkUnit:
+    ) -> _HydratedEvaluatorSnapshot:
         evaluator_cls = get_builtin_evaluator_by_key(evaluator_orm.key)
         if evaluator_cls is None:
             raise ValueError(f"Built-in evaluator key {evaluator_orm.key!r} is not in the registry")
-        return HydratedWorkUnit(
-            annotation_name=annotation_name,
+        return _HydratedEvaluatorSnapshot(
             annotator_kind="CODE",
             evaluator_kind="BUILTIN",
             evaluator=evaluator_cls(),
-            input_mapping=input_mapping,
-            output_configs=evaluator_orm.output_configs,
-            context=context,
+            output_configs=tuple(evaluator_orm.output_configs),
         )
 
     async def evaluate_and_annotate(

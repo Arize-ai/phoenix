@@ -64,7 +64,7 @@ from phoenix.server.online_eval.executor import (
     session_eval_context,
     span_eval_context,
 )
-from phoenix.server.online_eval.producer import resolve_criteria
+from phoenix.server.online_eval.producer import resolve_criteria, resolve_criteria_bulk
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 
@@ -662,6 +662,76 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
     # Nothing is claimable afterwards; a repeat cycle writes nothing new.
     await consumer._cycle()
     assert len(await _annotations(db)) == 1
+
+
+async def test_configuration_versions_are_resolved_once_per_claim_batch(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(3)]
+    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
+    unit_ids = [
+        (await _materialize_unit(db, span.id, evaluator_id, criteria_id))[0] for span in spans
+    ]
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+    call_sizes: list[int] = []
+
+    async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
+        call_sizes.append(len(args[1]))
+        return await resolve_criteria_bulk(*args, **kwargs)
+
+    monkeypatch.setattr(executor_module, "resolve_criteria_bulk", _counting_resolver)
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        max_concurrency=1,
+    )
+    await consumer._cycle()
+
+    assert call_sizes == [1]
+    units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
+    assert all(unit.status == "DONE" for unit in units)
+    assert len(client.requests) == 3
+
+
+async def test_configuration_snapshot_is_discarded_after_claim_batch(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(2)]
+    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
+    unit_ids = [
+        (await _materialize_unit(db, span.id, evaluator_id, criteria_id))[0] for span in spans
+    ]
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        claim_batch_size=1,
+    )
+
+    await consumer._cycle()
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            .values(sampling_rate=0.5)
+        )
+    await consumer._cycle()
+
+    units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
+    assert [unit.status for unit in units] == ["DONE", "EXPIRED"]
+    assert units[1].error == "CONFIG_FINGERPRINT_MISMATCH"
+    assert len(client.requests) == 1
 
 
 async def test_session_happy_path_builds_context_annotates_and_emits_insert_event(
