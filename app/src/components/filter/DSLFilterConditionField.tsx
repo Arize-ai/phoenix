@@ -10,6 +10,7 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
+import { type Range, StateEffect, StateField } from "@codemirror/state";
 import { css } from "@emotion/react";
 import CodeMirror, {
   type BasicSetupOptions,
@@ -17,9 +18,6 @@ import CodeMirror, {
   type DecorationSet,
   EditorView,
   keymap,
-  type Range,
-  StateEffect,
-  StateField,
 } from "@uiw/react-codemirror";
 import {
   startTransition,
