@@ -1,33 +1,55 @@
 name: hallucination
-description: Detect whether an assistant's latest response contains hallucinations — claims not grounded in the conversation (prior turns, tool calls, and tool results).
+description: Detect whether an assistant's response contains hallucinations — claims not supported by the input it came from (prior turns, tool calls and results, and any content read, retrieved, or provided).
 labels:
   - promoted_dataset_evaluator
 optimization_direction: minimize
 messages:
   - role: user
     content: |-
-      You are an expert evaluator labeling whether an AI assistant's latest response contains hallucinations. A hallucination is any claim in the response that is not grounded in — that is, not supported by, or that contradicts — the conversation.
+      You are an expert evaluator labeling whether an assistant's response is grounded in the input it came from.
 
-      The input is the full conversation the assistant had access to when it produced the response: earlier user and assistant turns, tool calls, tool results, and any retrieved context included inline. Treat the conversation as the only source of truth. You are checking whether the response is GROUNDED in that conversation, not whether it is factually true in general.
+      The input is the complete record of what the assistant had available before it responded: the user's request, any earlier turns, any tool calls and the results they returned, and any content that was read, retrieved, or provided. It may appear as plain text, as structured data, or as a rendered transcript. Whatever form it takes, treat it as the full record of what the assistant knew and did, and as the only source of truth for claims about this situation. You are judging whether the response is GROUNDED in that record, not whether it is factually true about the world. The output is the response you are judging.
 
       <rubric>
 
-      HALLUCINATED - The response does any of the following:
+      HALLUCINATED - The response contains at least one claim that the input does not support. This includes:
 
-      - States something that contradicts the conversation (a user statement, an earlier turn, or a tool result)
-      - Asserts case-specific details about the subject of the conversation — names, numbers, prices, dates, quotes, IDs, entities, or tool results — that are not present in and cannot be reasonably derived from the conversation
-      - Fabricates a tool result, claims a tool returned information it did not, or claims an action was taken when no tool call in the conversation shows it
-      - Attributes claims, sources, or actions to the conversation that never appear in it
+      - Contradiction: the claim conflicts with something in the input.
+      - Invented specifics: names, numbers, prices, dates, quotes, identifiers, entities, or events that do not appear in the input and do not follow from it.
+      - Fabricated tool results: the response reports what a tool returned, but the input shows no such result — or shows a different one.
+      - Unsupported findings: the response presents findings, file contents, search results, sources, or a review of material that the input never shows being read, searched, or returned.
+      - Fabricated completed actions: the response states that an action has already been taken when the input shows no record of it happening.
+      - Misattribution: the response attributes a claim, source, or action to the input that never appears there.
 
-      GROUNDED - The response:
+      GROUNDED - Every claim in the response is supported. The response:
 
-      - Makes only claims that are supported by, consistent with, or reasonably inferable from the conversation
-      - Answers with uncontroversial, widely-known general knowledge (common facts, definitions, arithmetic, units of time or measure) — this is grounded even when the conversation does not contain it, as long as it does not contradict the conversation. Only case-specific claims about the conversation's own subject must come from the conversation.
-      - Declines to answer, expresses uncertainty, or asks a clarifying question without asserting unsupported facts
+      - Restates or summarizes what is in the input, accurately.
+      - Draws conclusions that follow necessarily from the input.
+      - Uses only uncontroversial, widely-known general knowledge — common facts, definitions, arithmetic, units of time or measure — that does not contradict the input. This is the one kind of claim that need not appear in the input (see rule 4).
+      - Declines to answer, reports a failure, expresses uncertainty, or asks a clarifying question without asserting unsupported specifics.
 
       </rubric>
 
-      You are evaluating ONLY grounding. Do NOT judge helpfulness, completeness, relevance, tone, or writing style. A response can be unhelpful or off-topic and still be grounded, and a fluent, confident-sounding response can still be hallucinated.
+      Apply these rules when deciding:
+
+      1. Absence of evidence is enough. You do not need to find a contradiction. If the response asserts situation-specific facts that simply do not appear anywhere in the input, that is a hallucination — however plausible, fluent, or well-organized the response is. A confident report is not evidence that the work behind it was done.
+
+      2. Not everything in the input carries the same weight. User messages, tool results, and content that was read or provided are authoritative evidence. The assistant's own earlier statements are part of the record but are not independent evidence for a claim.
+
+      3. A failed tool is not a source. An error, timeout, empty result, or "not found" is evidence that the lookup failed. It is not evidence about the thing being looked up. A response that supplies the missing value anyway is hallucinating.
+
+      4. Supported means restated or entailed — with one exception. A claim is supported if it restates the input or follows from it necessarily. It is not supported if deriving it requires adding a situation-specific detail the input does not contain — a typical value, a default, a cause, an external lookup, or a plausible completion. The only exception is ordinary general knowledge (definitions, arithmetic, common units and conventions): treat that as grounded as long as it does not contradict the input. You are not judging whether the response is true about the world — only whether its claims about THIS situation (its entities, values, dates, events, sources, and what was returned or done) are supported by the input.
+
+      5. One unsupported claim is enough. If any claim in the response fails these tests, the response is hallucinated. Quote the specific claim in your explanation.
+
+      Out of scope — do not label a response hallucinated for any of these:
+
+      - Being unhelpful, incomplete, poorly written, off-topic, or badly formatted.
+      - Failing to do everything the user asked. Whether the assistant covered the full request is separate from whether what it said is supported.
+      - Stating an intention to do something in the future. "I'll open a ticket" is a plan, not a claim about what happened. Only claims that an action is already complete are checkable here.
+      - Content the input shows was shortened or omitted. If the input contains markers indicating that earlier messages were dropped or text was truncated, judge only the claims you can actually check against what is visible.
+
+      When you are genuinely unsure whether a claim is supported, label the response grounded.
 
       <data>
 
@@ -41,9 +63,9 @@ messages:
 
       </data>
 
-      The input is the full conversation, whose last message is the user turn the response is answering; the output is the assistant's latest response. Compare each claim in the output against the conversation and reason about whether it is grounded before deciding.
+      Work through the claims in the output one at a time, checking each against the input, before you decide.
 
-      Is the response grounded or hallucinated based on the conversation?
+      Is the output above grounded or hallucinated?
 choices:
   hallucinated: 1.0
   grounded: 0.0

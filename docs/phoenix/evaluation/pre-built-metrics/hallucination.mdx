@@ -37,21 +37,23 @@ The Hallucination evaluator requires two inputs:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `input` | `string` | The full conversation history the assistant had access to (prior turns, tool calls, and tool results). Its last message is the user turn being answered. Treated as the source of truth. |
+| `input` | `string` | The full record the assistant had access to before responding — prior user and assistant turns, tool calls, and tool results, plus any retrieved or provided content — rendered as a single, readable transcript with **every turn labeled by its role**. Treated as the only source of truth. |
 | `output` | `string` | The assistant's latest response to classify. |
 
-### Formatting Tips
+### Formatting the input
 
-For best results:
+Pass `input` as a single, human-readable transcript of the whole record — not raw JSON. Label every turn with its role, and mark tool calls and their results clearly:
 
-- **Use human-readable strings** rather than raw JSON
-- **Format `input` as a readable transcript**, labeling each turn by role, including tool results, and ending with the latest user turn:
-  ```
-  User: What's our refund window?
-  Tool (lookup_policy): Refunds: 30 days from delivery.
-  Assistant: 30 days from delivery.
-  User: And for electronics?
-  ```
+```
+User: What's our refund window?
+Tool (lookup_policy): Refunds: 30 days from delivery.
+Assistant: 30 days from delivery.
+User: And for electronics?
+```
+
+<Warning>
+**Keep the role labels on every turn.** The evaluator weighs evidence by its source: user messages, tool results, and retrieved or provided content are treated as authoritative ground truth, while the assistant's own earlier turns are **not** counted as independent evidence for a claim. If you strip the roles and pass an unlabeled blob, the evaluator can't tell an authoritative tool result from an unverified assistant claim, and its grounding judgments degrade. Always keep the role on every turn in the `input`, and label tool outputs as tool results.
+</Warning>
 
 ## Output Interpretation
 
@@ -66,8 +68,8 @@ The evaluator returns a `Score` object with the following properties:
 | `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
 
 **Interpretation:**
-- **Grounded (0.0)**: Every claim in the response is supported by, consistent with, or reasonably inferable from the conversation
-- **Hallucinated (1.0)**: The response contains specifics not present in the conversation, or contradicts it
+- **Grounded (0.0)**: Every claim in the response restates, or follows necessarily from, the input (ordinary general knowledge is allowed as long as it doesn't contradict the input)
+- **Hallucinated (1.0)**: The response asserts situation-specific facts not present in the input, or contradicts it
 
 ## Usage Examples
 
