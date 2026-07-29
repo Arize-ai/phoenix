@@ -21,7 +21,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
-from phoenix.server.mcp_span_analytics import compiler, registry
+from phoenix.server.mcp_span_analytics import compiler, grains, registry
 from phoenix.server.mcp_span_analytics.compiler import TimeRange
 from phoenix.server.mcp_span_analytics.envelope import iso
 
@@ -163,6 +163,66 @@ async def sample_observed_paths(
     return sample_count, stats
 
 
+#: Cap on the (name, kind, target) combinations one annotation scan
+#: reports. Annotation vocabularies are small by nature — a project runs a
+#: handful of evaluators — so this bounds a pathological case rather than a
+#: normal one, and the cap is reported when it binds.
+MAX_ANNOTATION_GROUPS = 200
+
+
+async def observed_annotation_names(
+    session: AsyncSession,
+    project_rowid: int,
+) -> tuple[list[dict[str, Any]], bool]:
+    """The annotation names recorded in a project, with their composition.
+
+    Annotation names are project data, not a fixed vocabulary, so an agent
+    that has to invent one will: this is the enumerate-don't-fabricate
+    contract applied to the annotation namespace. Unlike attribute-path
+    discovery, the scan is exact rather than sampled — it is a grouped
+    count over the annotation tables, which are small relative to spans —
+    so the counts it reports are the project's real counts.
+
+    Each entry carries the per-annotator-kind and per-target breakdown,
+    because those are what decide whether a blended average over the name
+    is trustworthy. Returns the entries and whether the group cap bound.
+    """
+    union = grains.ANNOTATIONS_UNION
+    stmt = (
+        compiler.scoped_base(
+            [
+                union.c.name,
+                union.c.annotator_kind,
+                union.c.target,
+                func.count().label("rows"),
+                func.count(union.c.score).label("scored"),
+            ],
+            project_rowid,
+            None,
+            grains.ANNOTATIONS_GRAIN,
+        )
+        .group_by(union.c.name, union.c.annotator_kind, union.c.target)
+        .order_by(func.count().desc(), union.c.name.asc())
+        .limit(MAX_ANNOTATION_GROUPS + 1)
+    )
+    rows = (await session.execute(stmt)).all()
+    capped = len(rows) > MAX_ANNOTATION_GROUPS
+    entries: dict[str, dict[str, Any]] = {}
+    for name, annotator_kind, target, count, scored in rows[:MAX_ANNOTATION_GROUPS]:
+        entry = entries.setdefault(
+            name,
+            {"name": name, "count": 0, "scored": 0, "annotator_kinds": {}, "targets": {}},
+        )
+        entry["count"] += count
+        entry["scored"] += scored
+        entry["annotator_kinds"][annotator_kind] = (
+            entry["annotator_kinds"].get(annotator_kind, 0) + count
+        )
+        entry["targets"][target] = entry["targets"].get(target, 0) + count
+    ordered = sorted(entries.values(), key=lambda entry: (-entry["count"], entry["name"]))
+    return ordered, capped
+
+
 #: How many observed dimensions augment a field_not_groupable rejection.
 TOP_GROUPABLES_LIMIT = 5
 
@@ -240,25 +300,27 @@ async def zero_result_guidance(
     project_rowid: int,
     time_range: Optional[TimeRange],
     filter_condition: Optional[str],
+    grain: Optional[grains.Grain] = None,
 ) -> dict[str, str]:
     """Diagnose an empty result with bounded checks only.
 
-    The window check counts spans within the queried window — never an
-    unrestricted historical scan — and the path check reads the same
-    bounded time-spread sample discovery uses.
+    The window check counts the grain's own rows within the queried
+    window — never an unrestricted historical scan — and the path check
+    reads the same bounded time-spread sample discovery uses.
     """
+    grain = grain or grains.SPANS_GRAIN
     window_count = await session.scalar(
-        compiler.scoped_base([func.count()], project_rowid, time_range)
+        compiler.scoped_base([func.count()], project_rowid, time_range, grain)
     )
     if not window_count:
-        detail = "The project has no spans"
+        detail = f"The project has no {grain.id}"
         if time_range is not None:
             detail += (
                 f" between {iso(time_range.start)} and {iso(time_range.end)}"
                 " (the check counted only within this window)"
             )
         return {"cause": "window_empty", "detail": detail + "."}
-    if filter_condition:
+    if filter_condition and grain.admits_observed_paths:
         referenced = compiler.attribute_paths_in_filter(filter_condition)
         if referenced:
             sample_count, stats = await sample_observed_paths(session, project_rowid)

@@ -36,6 +36,7 @@ from phoenix.server.mcp_span_analytics import (
     build_span_analytics_tools,
     compiler,
     discovery,
+    grains,
     registry,
 )
 from phoenix.server.mcp_span_analytics.compiler import (
@@ -74,6 +75,15 @@ seed_support_copilot: Any = importlib.util.module_from_spec(_copilot_spec)
 sys.modules["seed_support_copilot"] = seed_support_copilot
 _copilot_spec.loader.exec_module(seed_support_copilot)
 
+_QUALITY_PATH = (
+    Path(__file__).parents[3] / "scripts" / "span_analytics_seeds" / "seed_eval_quality.py"
+)
+_quality_spec = importlib.util.spec_from_file_location("seed_eval_quality", _QUALITY_PATH)
+assert _quality_spec is not None and _quality_spec.loader is not None
+seed_eval_quality: Any = importlib.util.module_from_spec(_quality_spec)
+sys.modules["seed_eval_quality"] = seed_eval_quality
+_quality_spec.loader.exec_module(seed_eval_quality)
+
 FIXED_NOW = datetime(2026, 7, 23, 12, 0, 0, tzinfo=timezone.utc)
 CUT = FIXED_NOW - timedelta(hours=seed_incident.RELEASE_CUT_HOURS_AGO)
 FULL_WINDOW = {
@@ -101,6 +111,33 @@ async def seeded(db: DbSessionFactory, incident: Any) -> Any:
     async with db() as session:
         await seed_incident.insert_incident(session, incident)
     return incident
+
+
+QUALITY_CUT = FIXED_NOW - timedelta(hours=seed_eval_quality.HOURS_PER_VERSION)
+QUALITY_WINDOW = {
+    "start": (FIXED_NOW - timedelta(hours=25)).isoformat(),
+    "end": (FIXED_NOW + timedelta(hours=1)).isoformat(),
+}
+PRE_CUT_QUALITY_WINDOW = {
+    "start": (FIXED_NOW - timedelta(hours=25)).isoformat(),
+    "end": QUALITY_CUT.isoformat(),
+}
+POST_CUT_QUALITY_WINDOW = {
+    "start": QUALITY_CUT.isoformat(),
+    "end": (FIXED_NOW + timedelta(hours=1)).isoformat(),
+}
+
+
+@pytest.fixture(scope="module")
+def quality() -> Any:
+    return seed_eval_quality.build_eval_quality(FIXED_NOW, seed_eval_quality.DEFAULT_SEED)
+
+
+@pytest.fixture
+async def seeded_quality(db: DbSessionFactory, quality: Any) -> Any:
+    async with db() as session:
+        await seed_eval_quality.insert_eval_quality(session, quality)
+    return quality
 
 
 @pytest.fixture(scope="module")
@@ -2210,20 +2247,37 @@ async def test_annotation_filter_end_to_end(mcp_app: Any, seeded: Any) -> None:
         )
         assert labeled["overall"]["n"] == len(incorrect_spans)
 
-        # Annotation values stay refused — with the decomposition route.
+        # Annotation values now resolve as declared reductions, under the
+        # filter grammar's own evals[...] spelling, and every response that
+        # uses one says which rule produced it.
         value_select = _payload(
             await client.call_tool(
                 "querySpanRows",
                 {
                     "project": seed_incident.MAIN_PROJECT_NAME,
                     "time_range": FULL_WINDOW,
-                    "fields": ["evals['correctness'].score"],
+                    "fields": ["span_id", "evals['correctness'].score"],
+                    "filter": "evals['correctness'].score < 0.5",
+                    "limit": 200,
                 },
             )
         )
-        assert value_select["status"] == "error"
-        assert value_select["code"] == "annotation_values_not_supported"
-        assert "listSpanAnnotationsBySpanIds" in value_select["message"]
+        assert value_select["status"] == "ok"
+        canonical = 'annotations["correctness"].score'
+        assert [column["id"] for column in value_select["columns"]] == ["span_id", canonical]
+        assert {row["span_id"] for row in value_select["rows"]} == low_spans
+        # Every returned value is the mean of that span's correctness scores.
+        by_span: dict[str, list[float]] = {}
+        for annotation in annotations:
+            if annotation.name == "correctness" and annotation.score is not None:
+                by_span.setdefault(annotation.span_id, []).append(annotation.score)
+        for row in value_select["rows"]:
+            scores = by_span[row["span_id"]]
+            assert row[canonical] == pytest.approx(sum(scores) / len(scores))
+        disclosure = value_select["annotation_reductions"]
+        assert disclosure[0]["field"] == canonical
+        assert disclosure[0]["reduction"] == "mean_over_annotators"
+        assert disclosure[0]["annotator_kind"] is None
 
         value_calc = _payload(
             await client.call_tool(
@@ -2241,8 +2295,21 @@ async def test_annotation_filter_end_to_end(mcp_app: Any, seeded: Any) -> None:
                 },
             )
         )
-        assert value_calc["status"] == "error"
-        assert value_calc["code"] == "annotation_values_not_supported"
+        assert value_calc["status"] == "ok"
+        span_means = [sum(scores) / len(scores) for scores in by_span.values()]
+        assert value_calc["overall"]["avg_score"] == pytest.approx(
+            sum(span_means) / len(span_means)
+        )
+        # The blended number never travels alone: the annotator composition
+        # behind it rides in the same response.
+        composition = value_calc["overall"]["annotation_composition"]["correctness"]
+        assert composition == {
+            kind: sum(
+                1 for a in annotations if a.name == "correctness" and a.annotator_kind == kind
+            )
+            for kind in ("LLM", "HUMAN")
+            if any(a.name == "correctness" and a.annotator_kind == kind for a in annotations)
+        }
 
 
 async def test_sample_order_is_deterministic_per_seed(mcp_app: Any, seeded: Any) -> None:
@@ -2314,3 +2381,530 @@ async def test_code_mode_catalog_includes_the_tools(
             listing = (await client.call_tool("list_tools", {})).content[0].text
             for name in ANALYTICS_TOOLS:
                 assert name in listing
+
+
+# ---------------------------------------------------------------------------
+# The annotations grain and annotation enrichment
+# ---------------------------------------------------------------------------
+
+
+def _quality_truth(quality: Any) -> dict[str, dict[str, Any]]:
+    return cast("dict[str, dict[str, Any]]", seed_eval_quality.correctness_ground_truth(quality))
+
+
+def _span_reduced_by_kind(quality: Any, version: str, kind: str) -> float:
+    """Mean over spans of each span's mean score from one annotator kind.
+
+    The spans grain reduces per span before averaging, so a kind-restricted
+    reduction is not the same number as that kind's annotation-weighted
+    mean whenever one span carries two annotators of the same kind — which
+    the disagreement span does, deliberately.
+    """
+    version_by_trace = {t.trace_id: t.prompt_version for t in quality.main.traces}
+    trace_by_span = {s.span_id: s.trace_id for s in quality.main.spans}
+    per_span: dict[str, list[float]] = {}
+    for annotation in quality.main.annotations:
+        if annotation.target != "span" or annotation.name != seed_eval_quality.ANNOTATION_NAME:
+            continue
+        if annotation.score is None or annotation.annotator_kind != kind:
+            continue
+        if version_by_trace[trace_by_span[annotation.target_key]] != version:
+            continue
+        per_span.setdefault(annotation.target_key, []).append(annotation.score)
+    means = [sum(scores) / len(scores) for scores in per_span.values()]
+    return sum(means) / len(means)
+
+
+class TestAnnotationsGrainCompilation:
+    @pytest.mark.parametrize("sql_dialect", [sqlite.dialect(), postgresql.dialect()])  # type: ignore[no-untyped-call]
+    def test_every_grain_field_compiles(self, sql_dialect: Any) -> None:
+        supported = SupportedSQLDialect(sql_dialect.name)
+        for field in grains.ANNOTATIONS_GRAIN.fields:
+            compiled = str(sqlalchemy.select(field.expr(supported)).compile(dialect=sql_dialect))
+            assert compiled
+
+    @pytest.mark.parametrize("sql_dialect", [sqlite.dialect(), postgresql.dialect()])  # type: ignore[no-untyped-call]
+    def test_enrichment_expressions_compile(self, sql_dialect: Any) -> None:
+        supported = SupportedSQLDialect(sql_dialect.name)
+        for attribute in registry.ANNOTATION_ATTRIBUTES:
+            for kind in (None, "HUMAN"):
+                field = registry.annotation_enrichment_field(
+                    registry.AnnotationRef(
+                        name="correctness", annotator_kind=kind, attribute=attribute
+                    )
+                )
+                assert str(sqlalchemy.select(field.expr(supported)).compile(dialect=sql_dialect))
+
+    def test_enrichment_identifiers_round_trip(self) -> None:
+        for identifier, expected in (
+            ('annotations["correctness"].score', (None, "score")),
+            ('annotations["correctness", "HUMAN"].score', ("HUMAN", "score")),
+            ("evals['correctness'].label", (None, "label")),
+            ('annotations["correctness"].count', (None, "count")),
+        ):
+            reference = registry.parse_annotation_field(identifier)
+            assert reference is not None
+            assert (reference.annotator_kind, reference.attribute) == expected
+            assert reference.name == "correctness"
+        # Both spellings canonicalize onto one id, so a result column never
+        # depends on which head the caller wrote.
+        eval_spelling = registry.parse_annotation_field("evals['correctness'].score")
+        annotation_spelling = registry.parse_annotation_field('annotations["correctness"].score')
+        assert eval_spelling is not None and annotation_spelling is not None
+        assert eval_spelling.id == annotation_spelling.id
+        assert registry.parse_annotation_field("metadata.release") is None
+
+
+async def test_annotations_grain_returns_every_target(mcp_app: Any, seeded_quality: Any) -> None:
+    """One row per annotation, unioned across the targets Phoenix annotates."""
+    expected = Counter(a.target for a in seeded_quality.main.annotations)
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        counted = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                    "from": "annotations",
+                    "time_range": QUALITY_WINDOW,
+                    "calculations": [{"name": "rows", "fn": "count"}],
+                    "breakdowns": ["target"],
+                },
+            )
+        )
+        assert counted["status"] == "ok"
+        assert {row["target"]: row["rows"] for row in counted["rows"]} == dict(expected)
+
+        rows = _payload(
+            await client.call_tool(
+                "querySpanRows",
+                {
+                    "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                    "from": "annotations",
+                    "time_range": QUALITY_WINDOW,
+                    "filter": "target == 'document'",
+                    "fields": ["target", "target_id", "name", "score", "document_position"],
+                    "order": [{"field": "target_id", "direction": "asc"}],
+                    "limit": 50,
+                },
+            )
+        )
+        assert rows["status"] == "ok"
+        # Identity is added implicitly, and the document arm carries the
+        # position that distinguishes two annotations of one span.
+        assert rows["columns"][0]["id"] == "annotation_id"
+        assert all(row["annotation_id"].startswith("document:") for row in rows["rows"])
+        assert {row["document_position"] for row in rows["rows"]} == {0, 1}
+        assert rows["row_count"] == expected["document"]
+
+
+async def test_annotation_mix_shift_is_visible_on_both_grains(
+    mcp_app: Any, seeded_quality: Any
+) -> None:
+    """The demo's showpiece: a blended average that moved because the
+    annotator mix moved, decomposed per annotator kind on the annotations
+    grain and disclosed by composition metadata on the spans grain."""
+    truth = _quality_truth(seeded_quality)
+    old, new = seed_eval_quality.OLD_VERSION, seed_eval_quality.NEW_VERSION
+
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+
+        async def annotation_grain(window: dict[str, str]) -> dict[str, Any]:
+            return _payload(
+                await client.call_tool(
+                    "aggregateSpans",
+                    {
+                        "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                        "from": "annotations",
+                        "time_range": window,
+                        "filter": "name == 'correctness'",
+                        "calculations": [
+                            {"name": "mean_score", "fn": "avg", "field": "score"},
+                            {"name": "n", "fn": "count", "field": "score"},
+                        ],
+                        "breakdowns": ["annotator_kind"],
+                    },
+                )
+            )
+
+        before = await annotation_grain(PRE_CUT_QUALITY_WINDOW)
+        after = await annotation_grain(POST_CUT_QUALITY_WINDOW)
+        assert before["status"] == "ok" and after["status"] == "ok"
+
+        # The blended number: what an average over annotation rows says.
+        assert before["overall"]["mean_score"] == pytest.approx(truth[old]["annotation_weighted"])
+        assert after["overall"]["mean_score"] == pytest.approx(truth[new]["annotation_weighted"])
+        blended_drop = (truth[old]["annotation_weighted"] - truth[new]["annotation_weighted"]) * 100
+
+        # The decomposed truth: per annotator kind, the drop is far smaller,
+        # and the counts show the mix that produced the difference.
+        for payload, version in ((before, old), (after, new)):
+            by_kind = {row["annotator_kind"]: row for row in payload["rows"]}
+            for kind, expected_mean in truth[version]["by_kind"].items():
+                assert by_kind[kind]["mean_score"] == pytest.approx(expected_mean)
+                assert by_kind[kind]["n"] == truth[version]["counts_by_kind"][kind]
+        per_kind_drops = [
+            (truth[old]["by_kind"][kind] - truth[new]["by_kind"][kind]) * 100
+            for kind in truth[old]["by_kind"]
+        ]
+        assert blended_drop > 2 * max(per_kind_drops)
+
+        # The spans grain reduces per span first, so it answers a third
+        # question — and it reports the reduction and the mix behind it.
+        reduced = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                    "time_range": QUALITY_WINDOW,
+                    "calculations": [
+                        {
+                            "name": "correctness",
+                            "fn": "avg",
+                            "field": 'annotations["correctness"].score',
+                        }
+                    ],
+                    "breakdowns": ["metadata.prompt_version"],
+                },
+            )
+        )
+        assert reduced["status"] == "ok"
+        by_version = {row["metadata.prompt_version"]: row for row in reduced["rows"]}
+        for version in (old, new):
+            assert by_version[version]["correctness"] == pytest.approx(
+                truth[version]["span_reduced"]
+            )
+            assert (
+                by_version[version]["annotation_composition"]["correctness"]
+                == truth[version]["counts_by_kind"]
+            )
+        disclosure = reduced["annotation_reductions"]
+        assert [entry["reduction"] for entry in disclosure] == ["mean_over_annotators"]
+        assert disclosure[0]["annotator_kind"] is None
+        assert "composition" in reduced["note"]
+
+
+async def test_kind_restricted_reduction_carries_no_composition(
+    mcp_app: Any, seeded_quality: Any
+) -> None:
+    """Restricting the reduction to one annotator kind removes the mix, so
+    the disclosure that exists to expose a mix is not attached."""
+    old, new = seed_eval_quality.OLD_VERSION, seed_eval_quality.NEW_VERSION
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        result = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                    "time_range": QUALITY_WINDOW,
+                    "calculations": [
+                        {
+                            "name": "human_only",
+                            "fn": "avg",
+                            "field": 'annotations["correctness", "HUMAN"].score',
+                        }
+                    ],
+                    "breakdowns": ["metadata.prompt_version"],
+                },
+            )
+        )
+        assert result["status"] == "ok"
+        by_version = {row["metadata.prompt_version"]: row for row in result["rows"]}
+        for version in (old, new):
+            assert by_version[version]["human_only"] == pytest.approx(
+                _span_reduced_by_kind(seeded_quality, version, "HUMAN")
+            )
+            assert "annotation_composition" not in by_version[version]
+        assert result["annotation_reductions"][0]["annotator_kind"] == "HUMAN"
+
+
+async def test_label_only_annotations_read_null_not_zero(mcp_app: Any, seeded_quality: Any) -> None:
+    """An annotation name that carries labels and no scores averages to
+    NULL on both backends, and its rows remain countable."""
+    tone_rows = [
+        a
+        for a in seeded_quality.main.annotations
+        if a.name == seed_eval_quality.TONE_ANNOTATION_NAME
+    ]
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        result = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                    "from": "annotations",
+                    "time_range": QUALITY_WINDOW,
+                    "filter": f"name == '{seed_eval_quality.TONE_ANNOTATION_NAME}'",
+                    "calculations": [
+                        {"name": "rows", "fn": "count"},
+                        {"name": "scored", "fn": "count", "field": "score"},
+                        {"name": "mean_score", "fn": "avg", "field": "score"},
+                    ],
+                    "breakdowns": ["label"],
+                },
+            )
+        )
+        assert result["status"] == "ok"
+        assert result["overall"]["rows"] == len(tone_rows)
+        assert result["overall"]["scored"] == 0
+        assert result["overall"]["mean_score"] is None
+        assert {row["label"] for row in result["rows"]} == {a.label for a in tone_rows}
+
+
+async def test_annotations_grain_is_project_isolated(mcp_app: Any, seeded_quality: Any) -> None:
+    """The decoy project's annotations share the name and differ in value;
+    neither grain may leak them."""
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        rows = _payload(
+            await client.call_tool(
+                "querySpanRows",
+                {
+                    "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                    "from": "annotations",
+                    "time_range": QUALITY_WINDOW,
+                    "filter": "identifier == 'decoy-judge'",
+                    "limit": 10,
+                },
+            )
+        )
+        assert rows["status"] == "ok"
+        assert rows["rows"] == []
+        assert rows["guidance"]["cause"] == "no_matches"
+
+        counted = _payload(
+            await client.call_tool(
+                "aggregateSpans",
+                {
+                    "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                    "from": "annotations",
+                    "time_range": QUALITY_WINDOW,
+                    "calculations": [{"name": "rows", "fn": "count"}],
+                },
+            )
+        )
+        assert counted["overall"]["rows"] == len(seeded_quality.main.annotations)
+
+
+async def test_annotation_grain_rejections_teach_the_namespace(
+    mcp_app: Any, seeded_quality: Any
+) -> None:
+    """Each rejection names the legal alternative rather than the failure."""
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+
+        async def rows(**overrides: Any) -> dict[str, Any]:
+            request = {
+                "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                "from": "annotations",
+                "time_range": QUALITY_WINDOW,
+                "limit": 5,
+            }
+            request.update(overrides)
+            return _payload(await client.call_tool("querySpanRows", request))
+
+        # A spans-grain field asked for on the annotations grain names the
+        # grain that has it instead of reporting nonexistence.
+        wrong_grain = await rows(fields=["latency_ms"])
+        assert wrong_grain["code"] == "field_not_on_grain"
+        assert "spans" in wrong_grain["message"]
+
+        # Temporal predicates keep one home on every grain.
+        temporal = await rows(filter="created_at > '2026-01-01'")
+        assert temporal["code"] == "temporal_filter"
+        assert "time_range" in temporal["suggestions"]
+
+        # A type mismatch is refused before the database sees it, where the
+        # two backends would disagree about what to do with it.
+        mistyped = await rows(filter="score == 'high'")
+        assert mistyped["code"] == "invalid_filter"
+        assert "number" in mistyped["message"]
+
+        # The filter grammar admits comparisons, not calls.
+        called = await rows(filter="len(label) > 2")
+        assert called["code"] == "invalid_filter"
+
+        # Sampling is published as absent on this grain, with the route.
+        sampled = await rows(order={"sample": {"seed": 3}})
+        assert sampled["code"] == "sample_not_supported"
+        assert "start_time" in sampled["suggestions"][0]
+
+        # An unknown grain lists what the grains are, not just their names.
+        unknown = await rows(**{"from": "annotation"})
+        assert unknown["code"] == "unknown_grain"
+        assert "annotations" in unknown["suggestions"]
+
+        # Enrichment belongs to the grain where the span is the subject.
+        enrichment = await rows(fields=['annotations["correctness"].score'])
+        assert enrichment["code"] == "field_not_on_grain"
+        assert "score" in enrichment["suggestions"]
+
+
+async def test_enrichment_rejections_name_the_legal_values(
+    mcp_app: Any, seeded_quality: Any
+) -> None:
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+
+        async def rows(fields: list[str]) -> dict[str, Any]:
+            return _payload(
+                await client.call_tool(
+                    "querySpanRows",
+                    {
+                        "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                        "time_range": QUALITY_WINDOW,
+                        "fields": fields,
+                        "limit": 5,
+                    },
+                )
+            )
+
+        bad_attribute = await rows(['annotations["correctness"].value'])
+        assert bad_attribute["code"] == "unknown_annotation_attribute"
+        assert 'annotations["correctness"].score' in bad_attribute["suggestions"]
+
+        bad_kind = await rows(['annotations["correctness", "human"].score'])
+        assert bad_kind["code"] == "unknown_annotator_kind"
+        assert 'annotations["correctness", "HUMAN"].score' in bad_kind["suggestions"]
+
+
+async def test_count_and_label_reductions_are_declared(mcp_app: Any, seeded_quality: Any) -> None:
+    """The non-numeric reductions: cardinality, and recency for labels."""
+    disputed = next(
+        a.target_key for a in seeded_quality.main.annotations if a.identifier == "human-reviewer-b"
+    )
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        rows = _payload(
+            await client.call_tool(
+                "querySpanRows",
+                {
+                    "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                    "time_range": QUALITY_WINDOW,
+                    "fields": [
+                        "span_id",
+                        'annotations["correctness"].count',
+                        'annotations["correctness"].label',
+                    ],
+                    "filter": f"span_id == '{disputed}'",
+                    "limit": 5,
+                },
+            )
+        )
+        assert rows["status"] == "ok"
+        row = rows["rows"][0]
+        expected_count = sum(
+            1
+            for a in seeded_quality.main.annotations
+            if a.target_key == disputed and a.name == seed_eval_quality.ANNOTATION_NAME
+        )
+        assert row['annotations["correctness"].count'] == expected_count
+        # Recency is the declared rule; the most recently written row of the
+        # three wins, ties broken by annotation id.
+        assert row['annotations["correctness"].label'] == "correct"
+        reductions = {entry["field"]: entry["reduction"] for entry in rows["annotation_reductions"]}
+        assert reductions == {
+            'annotations["correctness"].count': "cardinality",
+            'annotations["correctness"].label': "latest_by_updated_at",
+        }
+
+
+async def test_describe_spans_publishes_grains_and_annotation_names(
+    mcp_app: Any, seeded_quality: Any
+) -> None:
+    """Annotation names are project data, so discovery enumerates them —
+    with the composition that decides whether a blended value is safe."""
+    expected_names = Counter(a.name for a in seeded_quality.main.annotations)
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        described = _payload(
+            await client.call_tool(
+                "describeSpans", {"project": seed_eval_quality.MAIN_PROJECT_NAME}
+            )
+        )
+        assert described["status"] == "ok"
+
+        names = {entry["name"]: entry for entry in described["annotations"]["names"]}
+        assert set(names) == set(expected_names)
+        for name, count in expected_names.items():
+            assert names[name]["count"] == count
+        correctness = names[seed_eval_quality.ANNOTATION_NAME]
+        assert correctness["annotator_kinds"]["LLM"] > correctness["annotator_kinds"]["HUMAN"]
+        assert correctness["targets"] == {"span": correctness["count"]}
+        tone = names[seed_eval_quality.TONE_ANNOTATION_NAME]
+        assert tone["scored"] == 0
+
+        # Every advertised enrichment id is usable verbatim.
+        enrichment = {
+            entry["field"]: entry
+            for entry in described["fields"]
+            if entry["source"] == "annotation_enrichment"
+        }
+        assert 'annotations["correctness"].score' in enrichment
+        assert enrichment['annotations["correctness"].score']["reduction"] == (
+            "mean_over_annotators"
+        )
+        assert "aggregate" in enrichment['annotations["correctness"].score']["capabilities"]
+        assert "filter" not in enrichment['annotations["correctness"].score']["capabilities"]
+
+        published = {entry["grain"]: entry for entry in described["grains"]}
+        assert set(published) == {"spans", "annotations"}
+        assert published["annotations"]["identity_field"] == "annotation_id"
+        assert published["annotations"]["supports_sampling"] is False
+        annotation_fields = {f["field"] for f in published["annotations"]["fields"]}
+        assert {"score", "annotator_kind", "target", "explanation"} <= annotation_fields
+        assert published["spans"]["fields"] is None
+
+
+async def test_get_span_recovers_clipped_annotation_explanations(
+    mcp_app: Any, seeded_quality: Any
+) -> None:
+    """A clipped explanation on the annotations grain has a named recovery
+    path, and following it returns the whole text."""
+    long_annotation = max(
+        (a for a in seeded_quality.main.annotations if a.explanation),
+        key=lambda a: len(a.explanation),
+    )
+    async with _mcp_client(mcp_app) as client:
+        await _enable_spans(client)
+        rows = _payload(
+            await client.call_tool(
+                "querySpanRows",
+                {
+                    "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                    "from": "annotations",
+                    "time_range": QUALITY_WINDOW,
+                    "fields": ["target", "target_id", "identifier", "explanation"],
+                    "filter": f"identifier == '{long_annotation.identifier}'",
+                    "max_cell_chars": 200,
+                    "limit": 5,
+                },
+            )
+        )
+        assert rows["status"] == "ok"
+        row = rows["rows"][0]
+        assert "clipped" in row["explanation"]
+        assert rows["clipped"][0]["field"] == "explanation"
+        assert rows["clipped"][0]["row"] == row["annotation_id"]
+        assert "getSpan" in rows["note"]
+
+        recovered = _payload(
+            await client.call_tool(
+                "getSpan",
+                {
+                    "project": seed_eval_quality.MAIN_PROJECT_NAME,
+                    "span_id": row["target_id"],
+                },
+            )
+        )
+        assert recovered["status"] == "ok"
+        annotations = {a["identifier"]: a for a in recovered["span"]["annotations"]}
+        assert annotations[long_annotation.identifier]["explanation"] == (
+            long_annotation.explanation
+        )
+        # The drill-down carries every annotator of the disputed span, which
+        # is what makes the disagreement legible at the end of the loop.
+        assert len(annotations) >= 3

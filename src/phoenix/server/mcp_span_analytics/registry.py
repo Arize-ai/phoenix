@@ -25,6 +25,13 @@ namespace:
   ``max``, percentiles) stay on authored fields: cast and mixed-type
   semantics for arbitrary JSON paths are undefined, so typed arithmetic
   needs declared semantics.
+- **Annotation enrichment fields** (``annotations["correctness"].score``)
+  are authored fields constructed on demand for one annotation name, and
+  they are the to-many case: a span can carry several annotation rows
+  under one name, so every one of them declares the **reduction** that
+  collapses those rows to a scalar. The reduction is part of the field's
+  identity, not an implementation detail, and it is echoed in every
+  response that uses one.
 
 Expressions are built per SQL dialect because JSON access and percentile
 aggregation genuinely differ between PostgreSQL and SQLite; every factory in
@@ -60,6 +67,36 @@ FieldTypeName = str  # "string" | "integer" | "float" | "datetime"
 _ExprFactory = Callable[[SupportedSQLDialect], SQLColumnExpression[Any]]
 
 
+#: The annotator kinds Phoenix records, as constrained by the annotation
+#: tables' own check constraint. A closed set, so composition disclosure can
+#: enumerate it instead of discovering it.
+ANNOTATOR_KINDS: tuple[str, ...] = ("LLM", "CODE", "HUMAN")
+
+
+@dataclass(frozen=True)
+class AnnotationRef:
+    """One annotation enrichment reference: which annotation, whose, and
+    which of its attributes.
+
+    ``annotator_kind`` is ``None`` for the unrestricted form, which reduces
+    over every annotator that scored the span — the form whose blended
+    values shift when the annotator mix shifts, and therefore the form that
+    triggers composition disclosure.
+    """
+
+    name: str
+    annotator_kind: Optional[str]
+    attribute: str
+
+    @property
+    def id(self) -> str:
+        """The field's canonical query spelling."""
+        subscript = f'"{self.name}"'
+        if self.annotator_kind is not None:
+            subscript += f', "{self.annotator_kind}"'
+        return f"annotations[{subscript}].{self.attribute}"
+
+
 @dataclass(frozen=True)
 class AuthoredField:
     """A hand-defined field with declared type, unit, and capabilities.
@@ -74,7 +111,14 @@ class AuthoredField:
     indicators, and ``"openinference_convention"`` for attributes whose
     names and meanings are defined by the OpenInference semantic
     conventions. (Discovered paths report ``"observed_attribute"`` and are
-    project-specific by nature.)
+    project-specific by nature; annotation enrichment reports
+    ``"annotation_enrichment"``.)
+
+    ``reduction`` is set only on fields that collapse a to-many
+    relationship to a scalar. It names the collapsing rule so responses can
+    disclose it: a reduced value is an answer to a question the caller did
+    not fully ask, and the difference between ``mean_over_annotators`` and
+    ``latest_by_updated_at`` changes what the number means.
     """
 
     id: str
@@ -87,6 +131,8 @@ class AuthoredField:
     groupable: bool = False
     aggregatable: bool = False
     source: str = "column"
+    reduction: Optional[str] = None
+    annotation: Optional["AnnotationRef"] = None
 
     def expr(self, dialect: SupportedSQLDialect) -> SQLColumnExpression[Any]:
         return self.factory(dialect)
@@ -615,6 +661,178 @@ def parse_attribute_path(identifier: str) -> Optional[tuple[str, ...]]:
 
 
 # --------------------------------------------------------------------------
+# Annotation enrichment
+# --------------------------------------------------------------------------
+#
+# Annotations are the openly to-many relationship: uniqueness is
+# ``(name, span_rowid, identifier)``, so one span can carry a row per
+# annotator under one name. A join would multiply span rows and corrupt
+# every aggregate around it, so each enrichment field is a correlated
+# scalar subquery with a declared reduction — structurally incapable of
+# row multiplication, exactly as ``cost.total`` is.
+
+
+@dataclass(frozen=True)
+class AnnotationAttribute:
+    """One readable attribute of an annotation, with its declared reduction."""
+
+    type: FieldTypeName
+    reduction: str
+    reduction_note: str
+    label: str
+    groupable: bool = False
+    aggregatable: bool = False
+
+
+ANNOTATION_ATTRIBUTES: Mapping[str, AnnotationAttribute] = MappingProxyType(
+    {
+        "score": AnnotationAttribute(
+            type="float",
+            reduction="mean_over_annotators",
+            reduction_note=(
+                "the mean of the matching annotations' scores, one span at a time "
+                "(annotations without a score are excluded from the mean)"
+            ),
+            label="Annotation score",
+            aggregatable=True,
+        ),
+        "label": AnnotationAttribute(
+            type="string",
+            reduction="latest_by_updated_at",
+            reduction_note=(
+                "the most recently updated matching annotation's label, ties broken by "
+                "annotation id — a mean of labels is meaningless, so recency is the "
+                "declared rule"
+            ),
+            label="Annotation label",
+            groupable=True,
+        ),
+        "count": AnnotationAttribute(
+            type="integer",
+            reduction="cardinality",
+            reduction_note="how many matching annotation rows the span carries",
+            label="Annotation count",
+            groupable=True,
+            aggregatable=True,
+        ),
+    }
+)
+
+#: Names the filter grammar and this registry both accept as the head of an
+#: annotation reference. ``evals`` is the span filter DSL's shipped
+#: spelling; ``annotations`` is what discovery advertises.
+ANNOTATION_HEADS: frozenset[str] = frozenset({"annotations", "evals"})
+
+
+def parse_annotation_field(identifier: str) -> Optional[AnnotationRef]:
+    """Parse an annotation enrichment identifier into its reference.
+
+    Accepts ``annotations["name"].attr`` and the kind-restricted
+    ``annotations["name", "HUMAN"].attr``, with ``evals`` as an accepted
+    alias head. Returns ``None`` when the identifier is not annotation
+    shaped at all; the reference's ``annotator_kind`` and ``attribute`` are
+    returned as written, so the caller can reject unknown ones with a
+    field-anchored error rather than a parse failure.
+    """
+    try:
+        body = ast.parse(identifier.strip(), mode="eval").body
+    except SyntaxError:
+        return None
+    if not isinstance(body, ast.Attribute) or not isinstance(body.value, ast.Subscript):
+        return None
+    subscript = body.value
+    if not isinstance(subscript.value, ast.Name) or subscript.value.id not in ANNOTATION_HEADS:
+        return None
+    slice_node = subscript.slice
+    keys: list[str] = []
+    elements = slice_node.elts if isinstance(slice_node, ast.Tuple) else [slice_node]
+    for element in elements:
+        if not (isinstance(element, ast.Constant) and isinstance(element.value, str)):
+            return None
+        keys.append(element.value)
+    if not 1 <= len(keys) <= 2:
+        return None
+    return AnnotationRef(
+        name=keys[0],
+        annotator_kind=keys[1] if len(keys) == 2 else None,
+        attribute=body.attr,
+    )
+
+
+def _annotation_rows(ref: AnnotationRef) -> Any:
+    """The span's matching annotation rows, as a correlated WHERE clause set."""
+    conditions = [
+        models.SpanAnnotation.span_rowid == models.Span.id,
+        models.SpanAnnotation.name == ref.name,
+    ]
+    if ref.annotator_kind is not None:
+        conditions.append(models.SpanAnnotation.annotator_kind == ref.annotator_kind)
+    return conditions
+
+
+def _annotation_expr(ref: AnnotationRef) -> _ExprFactory:
+    """The reduced scalar for one annotation reference, per its attribute."""
+
+    def factory(dialect: SupportedSQLDialect) -> SQLColumnExpression[Any]:
+        conditions = _annotation_rows(ref)
+        if ref.attribute == "count":
+            selected: Any = func.count()
+        elif ref.attribute == "score":
+            selected = func.avg(models.SpanAnnotation.score)
+        else:
+            selected = models.SpanAnnotation.label
+        statement = sqlalchemy_select(selected).where(*conditions).correlate(models.Span)
+        if ref.attribute == "label":
+            # Recency is the declared reduction for labels; the id breaks
+            # ties so two annotations written in the same instant still
+            # resolve to one deterministic value on both backends.
+            statement = statement.order_by(
+                models.SpanAnnotation.updated_at.desc(), models.SpanAnnotation.id.desc()
+            ).limit(1)
+        return cast(SQLColumnExpression[Any], statement.scalar_subquery())
+
+    return factory
+
+
+def annotation_enrichment_field(ref: AnnotationRef) -> AuthoredField:
+    """Build the authored field for one validated annotation reference.
+
+    The caller validates ``attribute`` and ``annotator_kind`` first; this
+    function assumes both are known.
+    """
+    attribute = ANNOTATION_ATTRIBUTES[ref.attribute]
+    scope = (
+        f"annotations of kind {ref.annotator_kind}"
+        if ref.annotator_kind is not None
+        else "annotations from every annotator"
+    )
+    zero_note = (
+        " Spans with no matching annotation count 0."
+        if ref.attribute == "count"
+        else " Spans with no matching annotation read as NULL."
+    )
+    return AuthoredField(
+        id=ref.id,
+        label=f"{attribute.label} ({ref.name})",
+        type=attribute.type,
+        description=(
+            f"Reduced over the span's {ref.name!r} {scope}: {attribute.reduction_note}. "
+            f"Reduction {attribute.reduction!r} is disclosed in every response that "
+            f"uses this field.{zero_note} Not filterable — annotation predicates have "
+            f"one home, the filter grammar's evals[{ref.name!r}] form, whose "
+            "any-annotator semantics differ from this reduction."
+        ),
+        factory=_annotation_expr(ref),
+        filterable=False,
+        groupable=attribute.groupable,
+        aggregatable=attribute.aggregatable,
+        source="annotation_enrichment",
+        reduction=attribute.reduction,
+        annotation=ref,
+    )
+
+
+# --------------------------------------------------------------------------
 # Aggregations
 # --------------------------------------------------------------------------
 
@@ -722,15 +940,20 @@ def aggregation_expr(
 TIME_BUCKET_ID = "time_bucket"
 
 
-def time_bucket_expr(dialect: SupportedSQLDialect) -> ColumnElement[Any]:
-    """Truncate ``start_time`` to the hour, per dialect.
+def time_bucket_expr(
+    dialect: SupportedSQLDialect, column: Optional[SQLColumnExpression[Any]] = None
+) -> ColumnElement[Any]:
+    """Truncate a timestamp column to the hour, per dialect.
 
-    Timestamps are stored in UTC on both backends, so both renderings
-    produce the same UTC hour boundary.
+    The column defaults to span start time; a grain whose time column is
+    something else passes its own. Timestamps are stored in UTC on both
+    backends, so both renderings produce the same UTC hour boundary.
     """
+    if column is None:
+        column = models.Span.start_time
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        return func.date_trunc("hour", models.Span.start_time)
-    return func.strftime("%Y-%m-%dT%H:00:00", models.Span.start_time)
+        return func.date_trunc("hour", column)
+    return func.strftime("%Y-%m-%dT%H:00:00", column)
 
 
 def normalize_time_bucket_value(value: Any) -> Any:

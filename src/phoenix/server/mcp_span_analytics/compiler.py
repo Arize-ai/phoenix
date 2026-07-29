@@ -4,13 +4,16 @@ Turns validated request models into SQLAlchemy statements. Three invariants
 live here and nowhere else:
 
 - **Single scoping path.** Every statement is built by ``scoped_base``,
-  which joins spans to their project and binds the project row id and the
-  time window. No statement in this package is constructed outside it, so
-  an unscoped query is inexpressible rather than merely forbidden.
-- **One identifier namespace.** ``fields``, ``filter``, and ``breakdowns``
-  all resolve through ``resolve_field``: registry lookup first, then the
-  canonical-attribute-path parse, and only then a nearest-name error. Any
-  identifier discovery returns therefore works verbatim in every clause.
+  which delegates to the grain's own scope: the project row id and the time
+  window are bound there and only there. No statement in this package is
+  constructed outside it, so an unscoped query is inexpressible rather than
+  merely forbidden.
+- **One identifier namespace per grain.** ``fields``, ``filter``, and
+  ``breakdowns`` all resolve through ``resolve_field`` against the grain
+  the request names: grain lookup first, then — on the spans grain only —
+  annotation enrichment and the canonical-attribute-path parse, and only
+  then a nearest-name error. Any identifier discovery returns for a grain
+  therefore works verbatim in every clause of a query on that grain.
 - **Structured errors.** Semantic failures raise :class:`QueryError`, which
   the tools render as a machine-readable error envelope
   (``{status: "error", code, path, message, suggestions}``) instead of a
@@ -27,17 +30,18 @@ from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from datetime import datetime, timedelta, timezone
 from difflib import get_close_matches
-from typing import Any, Literal, Mapping, Optional, Sequence, Union
+from typing import Any, Iterable, Literal, Mapping, Optional, Sequence, Union, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import Select, SQLColumnExpression, and_, exists, select, text
+from sqlalchemy import Select, SQLColumnExpression, and_, exists, not_, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import ColumnElement
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.server.mcp_span_analytics import registry
+from phoenix.server.mcp_span_analytics import grains, registry
+from phoenix.server.mcp_span_analytics.grains import Grain
 from phoenix.trace.dsl.filter import SpanFilter
 
 #: Row/group limits: the default is small enough to survey cheaply, the cap
@@ -251,12 +255,41 @@ def _validate_time_range(time_range: TimeRange) -> TimeRange:
     return TimeRange(start=start, end=end)
 
 
+def resolve_grain(identifier: Optional[str]) -> Grain:
+    """Resolve the grain a request names, defaulting to spans.
+
+    A wrong grain is a wrong question, not a wrong spelling, so the
+    rejection says what each grain's rows *are* rather than only listing
+    names.
+    """
+    if identifier is None:
+        return grains.SPANS_GRAIN
+    grain = grains.GRAINS.get(identifier)
+    if grain is not None:
+        return grain
+    raise QueryError(
+        code="unknown_grain",
+        path="from",
+        message=(
+            f"Unknown grain {identifier!r}. Available: "
+            + "; ".join(
+                f"{g.id} ({g.label.lower()}: {g.description})" for g in grains.GRAINS.values()
+            )
+        ),
+        suggestions=[
+            *get_close_matches(identifier, grains.GRAINS.keys(), n=2),
+            *grains.GRAINS.keys(),
+        ],
+    )
+
+
 class RowQuery(BaseModel):
     """Validated request for a row retrieval."""
 
     model_config = ConfigDict(extra="forbid")
 
     project: str
+    grain: str = grains.SPANS
     time_range: Optional[TimeRange] = None
     fields: Optional[list[str]] = None
     filter: Optional[str] = None
@@ -266,6 +299,7 @@ class RowQuery(BaseModel):
 
     @model_validator(mode="after")
     def _validate(self) -> "RowQuery":
+        resolve_grain(self.grain)
         if self.time_range is not None:
             self.time_range = _validate_time_range(self.time_range)
         if self.fields is not None and not self.fields:
@@ -283,6 +317,7 @@ class AggregateQuery(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     project: str
+    grain: str = grains.SPANS
     time_range: TimeRange
     filter: Optional[str] = None
     calculations: list[Calculation]
@@ -293,6 +328,7 @@ class AggregateQuery(BaseModel):
 
     @model_validator(mode="after")
     def _validate(self) -> "AggregateQuery":
+        resolve_grain(self.grain)
         self.time_range = _validate_time_range(self.time_range)
         if not self.calculations:
             raise QueryError(
@@ -367,10 +403,97 @@ async def project_not_found_error(session: AsyncSession, identifier: str) -> Que
     return error
 
 
-def resolve_field(identifier: str) -> registry.ResolvedField:
-    """Resolve one identifier: registry, then attribute path, then error."""
-    if authored := registry.AUTHORED_BY_ID.get(identifier):
+def _resolve_annotation_enrichment(identifier: str, grain: Grain) -> registry.AuthoredField:
+    """Resolve one annotation enrichment identifier on the spans grain.
+
+    The reference has parsed; what remains is whether its attribute and
+    annotator kind are ones the registry defines. Both rejections are
+    field-anchored and name the legal values, because an agent that guessed
+    ``.value`` or ``"human"`` is one correction away from a working query.
+    """
+    reference = registry.parse_annotation_field(identifier)
+    assert reference is not None
+    if not grain.admits_annotation_enrichment:
+        raise QueryError(
+            code="field_not_on_grain",
+            message=(
+                f"{identifier!r} is a spans-grain enrichment: it reduces a span's "
+                f"annotations to one value. On the {grain.id} grain the annotation "
+                "is already the row, so read its columns directly — 'score', "
+                "'label', 'name', 'annotator_kind'."
+            ),
+            suggestions=["score", "label", "annotator_kind"],
+        )
+    if reference.attribute not in registry.ANNOTATION_ATTRIBUTES:
+        readable = sorted(registry.ANNOTATION_ATTRIBUTES)
+        raise QueryError(
+            code="unknown_annotation_attribute",
+            message=(
+                f"Annotations have no {reference.attribute!r} attribute on this "
+                f"surface. Readable attributes: {', '.join(readable)} — e.g. "
+                f'annotations["{reference.name}"].score.'
+            ),
+            suggestions=[f'annotations["{reference.name}"].{attribute}' for attribute in readable],
+        )
+    if (
+        reference.annotator_kind is not None
+        and reference.annotator_kind not in registry.ANNOTATOR_KINDS
+    ):
+        raise QueryError(
+            code="unknown_annotator_kind",
+            message=(
+                f"{reference.annotator_kind!r} is not an annotator kind. Phoenix "
+                f"records exactly {', '.join(registry.ANNOTATOR_KINDS)} (case "
+                "sensitive); omit the second subscript to reduce over every "
+                "annotator."
+            ),
+            suggestions=[
+                f'annotations["{reference.name}", "{kind}"].{reference.attribute}'
+                for kind in registry.ANNOTATOR_KINDS
+            ],
+        )
+    return registry.annotation_enrichment_field(reference)
+
+
+def resolve_field(identifier: str, grain: Grain = grains.SPANS_GRAIN) -> registry.ResolvedField:
+    """Resolve one identifier against a grain: the grain's own fields, then
+    — on the spans grain only — annotation enrichment and attribute paths,
+    then a nearest-name error."""
+    if authored := grain.fields_by_id.get(identifier):
         return authored
+    if registry.parse_annotation_field(identifier) is not None:
+        return _resolve_annotation_enrichment(identifier, grain)
+    if not grain.admits_observed_paths:
+        # A closed field set: no attribute blob to fall through to, so an
+        # unknown identifier is an error here rather than a discovered path.
+        # Fields of the other grain are the likeliest mistake, so they are
+        # named as such instead of being reported as nonexistent.
+        elsewhere = [
+            other.id
+            for other in grains.GRAINS.values()
+            if other.id != grain.id and identifier in other.fields_by_id
+        ]
+        if elsewhere:
+            raise QueryError(
+                code="field_not_on_grain",
+                message=(
+                    f"{identifier!r} is a field of the {', '.join(elsewhere)} grain, not "
+                    f"of {grain.id}. Query it with from='{elsewhere[0]}', or pick one of "
+                    f"the {grain.id} grain's own fields: "
+                    f"{', '.join(sorted(grain.fields_by_id))}."
+                ),
+                suggestions=sorted(grain.fields_by_id),
+            )
+        close = get_close_matches(identifier, grain.fields_by_id.keys(), n=3)
+        raise QueryError(
+            code="unknown_field",
+            message=(
+                f"Field {identifier!r} does not exist on the {grain.id} grain, whose "
+                f"fields are: {', '.join(sorted(grain.fields_by_id))}."
+                + (f" Did you mean: {', '.join(close)}?" if close else "")
+            ),
+            suggestions=close or sorted(grain.fields_by_id),
+        )
     if identifier in registry.RESERVED_UNEXPOSED:
         raise QueryError(
             code="field_not_exposed",
@@ -381,22 +504,19 @@ def resolve_field(identifier: str) -> registry.ResolvedField:
             suggestions=get_close_matches(identifier, registry.AUTHORED_BY_ID.keys(), n=3),
         )
     if re.match(r"^\s*(evals|annotations)\b", identifier):
-        # Annotation *values* stay out of fields/breakdowns/calculations:
-        # several annotators can score one span under one name, so
-        # projecting or aggregating the value needs a declared reduction
-        # this surface does not implement. The refusal carries its route.
+        # Annotation shaped but not parseable as an enrichment reference:
+        # the supported spellings are worth showing, since the difference is
+        # usually one subscript.
         raise QueryError(
-            code="annotation_values_not_supported",
+            code="invalid_annotation_field",
             message=(
-                f"{identifier!r} cannot be selected, grouped, or aggregated: a span "
-                "can carry several annotation rows under one name, so value use "
-                "requires declared reduction semantics. Decomposition: fetch rows "
-                "with querySpanRows, then call listSpanAnnotationsBySpanIds with "
-                "the returned span_ids and filter or aggregate client-side. "
-                "Annotation *filters* are supported, e.g. "
-                "\"evals['correctness'].score < 0.5\"."
+                f"{identifier!r} is not a readable annotation field. Supported "
+                'spellings: annotations["<name>"].score (mean over every '
+                'annotator), annotations["<name>", "HUMAN"].score (one annotator '
+                "kind), plus .label and .count. Annotation *filters* use the "
+                "predicate form instead, e.g. \"evals['correctness'].score < 0.5\"."
             ),
-            suggestions=["listSpanAnnotationsBySpanIds"],
+            suggestions=['annotations["correctness"].score', 'annotations["correctness"].count'],
         )
     keys = registry.parse_attribute_path(identifier)
     if keys is not None and keys[0] not in ("evals", "annotations"):
@@ -496,6 +616,188 @@ class CompiledFilter:
         return stmt
 
 
+@dataclass(frozen=True)
+class ColumnFilter:
+    """A validated filter compiled to one boolean column expression.
+
+    The annotations grain's columns are typed columns of a relation, so its
+    filter compiles directly instead of routing through the span filter
+    DSL, whose names resolve to span columns and attribute paths that do
+    not exist here.
+    """
+
+    clause: ColumnElement[bool]
+
+    @property
+    def uses_annotations(self) -> bool:
+        # Annotation predicates are a spans-grain construct: on this grain
+        # the annotation is the row, so there is no any-annotator existence
+        # semantics to disclose.
+        return False
+
+    def __call__(self, stmt: Select[Any]) -> Select[Any]:
+        return stmt.where(self.clause)
+
+
+FilterPlan = Union[CompiledFilter, ColumnFilter]
+
+_COMPARE_METHODS: Mapping[type, str] = {
+    ast.Lt: "__lt__",
+    ast.LtE: "__le__",
+    ast.Gt: "__gt__",
+    ast.GtE: "__ge__",
+    ast.Eq: "__eq__",
+    ast.NotEq: "__ne__",
+}
+
+
+def _invalid_filter(message: str, suggestions: Sequence[str] = ()) -> QueryError:
+    return QueryError(
+        code="invalid_filter", path="filter", message=message, suggestions=list(suggestions)
+    )
+
+
+def _grain_filter_field(
+    node: ast.expr, grain: Grain, dialect: SupportedSQLDialect
+) -> Optional[tuple[registry.AuthoredField, SQLColumnExpression[Any]]]:
+    """The field one operand names, or None when the operand is not a field."""
+    if not isinstance(node, ast.Name):
+        return None
+    resolved = resolve_field(node.id, grain)
+    assert isinstance(resolved, registry.AuthoredField)
+    if not resolved.filterable:
+        raise QueryError(
+            code="temporal_filter" if resolved.type == "datetime" else "field_not_filterable",
+            path="filter",
+            message=(
+                f"{resolved.id} is not filterable on the {grain.id} grain. "
+                + (
+                    "Temporal scope has exactly one home, the time_range parameter."
+                    if resolved.type == "datetime"
+                    else "Select or aggregate it instead."
+                )
+            ),
+            suggestions=["time_range"] if resolved.type == "datetime" else [],
+        )
+    return resolved, resolved.expr(dialect)
+
+
+def _grain_literal(node: ast.expr, field: registry.AuthoredField) -> Any:
+    """One comparison operand's literal value, type-checked against the field.
+
+    A type mismatch is caught here rather than at the database, where
+    PostgreSQL aborts the statement and SQLite compares across types by its
+    own storage-class rules — two different wrong answers to one mistake.
+    """
+    if not isinstance(node, ast.Constant) or isinstance(node.value, bool):
+        raise _invalid_filter(
+            f"Comparisons on the {field.id} field take a literal value, not {ast.unparse(node)!r}."
+        )
+    value = node.value
+    numeric = field.type in ("float", "integer")
+    if numeric and not isinstance(value, (int, float)):
+        raise _invalid_filter(f"{field.id} is {field.type}; compare it to a number.")
+    if not numeric and not isinstance(value, str):
+        raise _invalid_filter(f"{field.id} is a string; compare it to a quoted string.")
+    return value
+
+
+def _grain_comparison(
+    node: ast.Compare, grain: Grain, dialect: SupportedSQLDialect
+) -> ColumnElement[bool]:
+    if len(node.ops) != 1:
+        raise _invalid_filter(
+            "Chained comparisons (a < b < c) are not supported; write them as two "
+            "conditions joined by 'and'."
+        )
+    operator_node, left, right = node.ops[0], node.left, node.comparators[0]
+    left_field = _grain_filter_field(left, grain, dialect)
+    right_field = _grain_filter_field(right, grain, dialect)
+
+    if isinstance(operator_node, (ast.Is, ast.IsNot)):
+        if left_field is None or not (isinstance(right, ast.Constant) and right.value is None):
+            raise _invalid_filter("'is' comparisons are supported only as 'field is (not) None'.")
+        column = left_field[1]
+        return column.isnot(None) if isinstance(operator_node, ast.IsNot) else column.is_(None)
+
+    if isinstance(operator_node, (ast.In, ast.NotIn)):
+        # Two readings, both borrowed from the span filter grammar so one
+        # vocabulary carries across grains: a substring test when the left
+        # side is a string literal, membership when the right side is a list.
+        if left_field is None and right_field is not None and isinstance(left, ast.Constant):
+            field, column = right_field
+            if field.type != "string":
+                raise _invalid_filter(f"Substring tests apply to string fields, not {field.id}.")
+            clause = column.contains(_grain_literal(left, field))
+            return ~clause if isinstance(operator_node, ast.NotIn) else clause
+        if left_field is not None and isinstance(right, (ast.List, ast.Tuple)):
+            field, column = left_field
+            values = [_grain_literal(element, field) for element in right.elts]
+            clause = column.in_(values)
+            return ~clause if isinstance(operator_node, ast.NotIn) else clause
+        raise _invalid_filter(
+            "'in' is supported as a substring test (\"'timeout' in explanation\") or "
+            "membership in a literal list (\"annotator_kind in ['HUMAN', 'LLM']\")."
+        )
+
+    method = _COMPARE_METHODS.get(type(operator_node))
+    if method is None:
+        raise _invalid_filter(f"Operator {type(operator_node).__name__} is not supported.")
+    if left_field is not None and right_field is None:
+        field, column = left_field
+        value: Any = _grain_literal(right, field)
+    elif right_field is not None and left_field is None:
+        field, column = right_field
+        value = _grain_literal(left, field)
+        method = {
+            "__lt__": "__gt__",
+            "__le__": "__ge__",
+            "__gt__": "__lt__",
+            "__ge__": "__le__",
+        }.get(method, method)
+    else:
+        raise _invalid_filter(
+            "Each comparison relates one field to one literal value; field-to-field "
+            "and literal-to-literal comparisons are not supported."
+        )
+    return cast("ColumnElement[bool]", getattr(column, method)(value))
+
+
+def _grain_filter_clause(
+    node: ast.expr, grain: Grain, dialect: SupportedSQLDialect
+) -> ColumnElement[bool]:
+    if isinstance(node, ast.BoolOp):
+        clauses = [_grain_filter_clause(value, grain, dialect) for value in node.values]
+        return and_(*clauses) if isinstance(node.op, ast.And) else or_(*clauses)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        return not_(_grain_filter_clause(node.operand, grain, dialect))
+    if isinstance(node, ast.Compare):
+        return _grain_comparison(node, grain, dialect)
+    raise _invalid_filter(
+        f"{ast.unparse(node)!r} is not a supported filter expression: write comparisons "
+        "of a field to a literal, combined with and/or/not."
+    )
+
+
+def grain_filter(
+    condition: Optional[str], grain: Grain, dialect: SupportedSQLDialect
+) -> Optional[ColumnFilter]:
+    """Validate and compile a filter over a closed-field-set grain.
+
+    Every name resolves to one of the grain's declared fields, every
+    comparison relates a field to a type-checked literal, and anything else
+    is refused with the supported forms — the same admission discipline the
+    span filter grammar applies, over a different namespace.
+    """
+    if not condition:
+        return None
+    try:
+        root = ast.parse(condition, mode="eval")
+    except SyntaxError as error:
+        raise _invalid_filter(f"Invalid filter expression: {error.msg}.")
+    return ColumnFilter(clause=_grain_filter_clause(root.body, grain, dialect))
+
+
 def validated_filter(condition: Optional[str]) -> Optional[CompiledFilter]:
     """Validate and compile a filter expression, enforcing surface rules.
 
@@ -543,6 +845,20 @@ def validated_filter(condition: Optional[str]) -> Optional[CompiledFilter]:
                 message=f"Invalid filter expression: {error}.",
             )
     return CompiledFilter(span_filter=span_filter, annotation_predicates=predicates)
+
+
+def filter_for_grain(
+    condition: Optional[str], grain: Grain, dialect: SupportedSQLDialect
+) -> Optional[FilterPlan]:
+    """Compile a filter in the grain's own namespace.
+
+    The spans grain routes through the span filter DSL, which resolves span
+    columns, attribute paths, and annotation existence predicates; every
+    other grain compiles against its declared columns.
+    """
+    if grain.admits_observed_paths:
+        return validated_filter(condition)
+    return grain_filter(condition, grain, dialect)
 
 
 _ANNOTATION_COMPARE_OPS: Mapping[type, str] = {
@@ -719,24 +1035,19 @@ def scoped_base(
     columns: Sequence[Any],
     project_rowid: int,
     time_range: Optional[TimeRange],
+    grain: Grain = grains.SPANS_GRAIN,
 ) -> Select[Any]:
-    """The single statement base: spans joined to traces, bound to one
-    project, restricted to the time window. Deliberately carries no
-    ordering — aggregates must not inherit row ordering, and PostgreSQL
-    rejects ordering by ungrouped columns.
+    """The single statement base, delegated to the grain's own scope: its
+    rows bound to one project and restricted to the time window.
+    Deliberately carries no ordering — aggregates must not inherit row
+    ordering, and PostgreSQL rejects ordering by ungrouped columns.
     """
-    stmt: Select[Any] = (
-        select(*columns)
-        .select_from(models.Span)
-        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-        .where(models.Trace.project_rowid == project_rowid)
+    return grain.scoped(
+        columns,
+        project_rowid,
+        time_range.start if time_range is not None else None,
+        time_range.end if time_range is not None else None,
     )
-    if time_range is not None:
-        stmt = stmt.where(
-            models.Span.start_time >= time_range.start,
-            models.Span.start_time < time_range.end,
-        )
-    return stmt
 
 
 async def apply_statement_timeout(
@@ -782,11 +1093,22 @@ class RowPlan:
     stmt: Optional[Select[Any]]
     #: Sample mode: the bounded id scan feeding the seeded probe.
     ids_stmt: Optional[Select[Any]]
+    grain: Grain = grains.SPANS_GRAIN
     _project_rowid: int = dataclass_field(default=0, repr=False)
     _selected: list[registry.ResolvedField] = dataclass_field(default_factory=list, repr=False)
-    _filter: Optional[CompiledFilter] = dataclass_field(default=None, repr=False)
+    _filter: Optional[FilterPlan] = dataclass_field(default=None, repr=False)
     uses_annotation_filter: bool = False
     _dialect: SupportedSQLDialect = dataclass_field(default=SupportedSQLDialect.SQLITE, repr=False)
+
+    @property
+    def reductions(self) -> list[registry.AuthoredField]:
+        """Selected fields that collapsed a to-many relationship, for
+        disclosure: a reduced value means nothing without its rule."""
+        return [
+            f
+            for f in self._selected
+            if isinstance(f, registry.AuthoredField) and f.reduction is not None
+        ]
 
     def choose_sample_ids(self, ids: Sequence[int]) -> list[int]:
         """Choose up to ``applied_limit`` ids by seeded rowid probing.
@@ -832,6 +1154,7 @@ class RowPlan:
             [f.expr(self._dialect).label(f.id) for f in self._selected],
             self._project_rowid,
             self.time_range,
+            self.grain,
         ).where(models.Span.id.in_(list(ids)))
         if self._filter is not None:
             stmt = self._filter(stmt)
@@ -852,22 +1175,24 @@ def compile_rows(
 ) -> RowPlan:
     """Compile a row query into an ordered, bounded statement."""
     now = now or datetime.now(timezone.utc)
+    grain = resolve_grain(query.grain)
     if query.time_range is not None:
         time_range, defaulted = query.time_range, False
     else:
         time_range = TimeRange(start=now - timedelta(hours=ROW_WINDOW_DEFAULT_HOURS), end=now)
         defaulted = True
 
-    field_ids = list(query.fields) if query.fields else list(DEFAULT_ROW_FIELDS)
-    # Row identity is implicit: span_id is always included whether or not it
-    # was selected, so every row can be recovered in full via getSpan.
-    if "span_id" not in field_ids:
-        field_ids.insert(0, "span_id")
+    field_ids = list(query.fields) if query.fields else list(grain.default_row_fields)
+    # Row identity is implicit: the grain's identity field is always
+    # included whether or not it was selected, so no returned row is
+    # unrecoverable.
+    if grain.identity_field not in field_ids:
+        field_ids.insert(0, grain.identity_field)
     selected: list[registry.ResolvedField] = []
     seen: set[str] = set()
     for index, field_id in enumerate(field_ids):
         try:
-            resolved = resolve_field(field_id)
+            resolved = resolve_field(field_id, grain)
         except QueryError as error:
             error.path = error.path or f"fields[{index}]"
             raise
@@ -875,12 +1200,24 @@ def compile_rows(
             seen.add(resolved.id)
             selected.append(resolved)
 
-    filter_ = validated_filter(query.filter)
+    filter_ = filter_for_grain(query.filter, grain, dialect)
     applied_limit = max(1, min(query.limit, ROW_LIMIT_MAX))
     columns = [_column_spec(f) for f in selected]
 
     if isinstance(query.order, SampleOrder):
-        ids_stmt = scoped_base([models.Span.id], project_rowid, time_range)
+        if not grain.supports_sampling:
+            raise QueryError(
+                code="sample_not_supported",
+                path="order.sample",
+                message=(
+                    f"Seeded sampling is not available on the {grain.id} grain: it "
+                    "probes a dense integer row id, and this grain's rows are unioned "
+                    "across tables that number themselves independently. Order "
+                    "explicitly instead — results stay deterministic."
+                ),
+                suggestions=[f'[{{"field": "{grain.time_field}", "direction": "desc"}}]'],
+            )
+        ids_stmt = scoped_base([models.Span.id], project_rowid, time_range, grain)
         if filter_ is not None:
             ids_stmt = filter_(ids_stmt)
         ids_stmt = ids_stmt.order_by(models.Span.id.asc()).limit(SAMPLE_ID_SCAN_CAP)
@@ -892,6 +1229,7 @@ def compile_rows(
             sample=query.order.sample,
             stmt=None,
             ids_stmt=ids_stmt,
+            grain=grain,
             _project_rowid=project_rowid,
             _selected=selected,
             _filter=filter_,
@@ -924,11 +1262,13 @@ def compile_rows(
                 expr.desc().nulls_last() if entry.direction == "desc" else expr.asc().nulls_last()
             )
     else:
-        order_exprs.append(models.Span.start_time.desc())
-    # Deterministic tie-break: the primary key ends every ordering.
-    order_exprs.append(models.Span.id.asc())
+        order_exprs.append(grain.time_column.desc())
+    # Deterministic tie-break: the grain's unique key ends every ordering.
+    order_exprs.append(grain.tiebreak_column.asc())
 
-    stmt = scoped_base([f.expr(dialect).label(f.id) for f in selected], project_rowid, time_range)
+    stmt = scoped_base(
+        [f.expr(dialect).label(f.id) for f in selected], project_rowid, time_range, grain
+    )
     if filter_ is not None:
         stmt = filter_(stmt)
     stmt = stmt.order_by(*order_exprs).limit(applied_limit)
@@ -940,6 +1280,7 @@ def compile_rows(
         sample=None,
         stmt=stmt,
         ids_stmt=None,
+        grain=grain,
         _project_rowid=project_rowid,
         _selected=selected,
         _filter=filter_,
@@ -969,6 +1310,22 @@ class ResolvedBreakdown:
     column: ColumnSpec
 
 
+@dataclass(frozen=True)
+class CompositionProbe:
+    """One hidden per-group count of the annotations behind a reduced value.
+
+    A blended average moves when the annotator mix moves, with no annotator
+    having changed its scoring. The probe makes the mix a returned number
+    rather than an inference the caller has to think to make: for every
+    kind-unrestricted reduction the query asked for, the response reports
+    how many annotations of each kind each group actually contained.
+    """
+
+    annotation_name: str
+    annotator_kind: str
+    expr: ColumnElement[Any]
+
+
 @dataclass
 class AggregatePlan:
     """Compiled aggregation: the grouped top-K statement, the explicit
@@ -991,6 +1348,47 @@ class AggregatePlan:
     #: Observed attribute fields the query references in breakdowns or
     #: calculations, for admission checks against the discovery sample.
     observed_fields: list[registry.ObservedField] = dataclass_field(default_factory=list)
+    grain: Grain = grains.SPANS_GRAIN
+    #: Fields whose values were reduced from a to-many relationship, for
+    #: disclosure of the rule that produced them.
+    reductions: list[registry.AuthoredField] = dataclass_field(default_factory=list)
+    #: Hidden per-group annotator counts appended after the visible
+    #: calculations; stripped from the result rows into their own block.
+    composition: list[CompositionProbe] = dataclass_field(default_factory=list)
+
+
+def _composition_probes(
+    reductions: Iterable[registry.AuthoredField],
+    dialect: SupportedSQLDialect,
+) -> list[CompositionProbe]:
+    """Per-annotator-kind counts behind every kind-unrestricted reduction.
+
+    Only unrestricted reductions get probes. A caller who already asked for
+    one annotator kind has excluded the mix from the number, so there is no
+    composition artifact left to disclose — and no reason to pay for three
+    extra correlated subqueries.
+    """
+    probes: list[CompositionProbe] = []
+    seen: set[str] = set()
+    for field in reductions:
+        reference = field.annotation
+        if reference is None or reference.annotator_kind is not None:
+            continue
+        if reference.name in seen:
+            continue
+        seen.add(reference.name)
+        for kind in registry.ANNOTATOR_KINDS:
+            counter = registry.annotation_enrichment_field(
+                registry.AnnotationRef(name=reference.name, annotator_kind=kind, attribute="count")
+            )
+            probes.append(
+                CompositionProbe(
+                    annotation_name=reference.name,
+                    annotator_kind=kind,
+                    expr=registry.aggregation_expr("sum", counter.expr(dialect), dialect),
+                )
+            )
+    return probes
 
 
 def compile_aggregate(
@@ -999,7 +1397,9 @@ def compile_aggregate(
     dialect: SupportedSQLDialect,
 ) -> AggregatePlan:
     """Compile an aggregation into its three statements."""
+    grain = resolve_grain(query.grain)
     observed_fields: dict[str, registry.ObservedField] = {}
+    reductions: dict[str, registry.AuthoredField] = {}
     calculations: list[ResolvedCalculation] = []
     for index, calc in enumerate(query.calculations):
         spec = registry.AGGREGATIONS.get(calc.fn)
@@ -1013,7 +1413,7 @@ def compile_aggregate(
         field_expr: Optional[SQLColumnExpression[Any]] = None
         if calc.field is not None:
             try:
-                resolved = resolve_field(calc.field)
+                resolved = resolve_field(calc.field, grain)
             except QueryError as error:
                 error.path = error.path or f"calculations[{index}].field"
                 raise
@@ -1042,6 +1442,8 @@ def compile_aggregate(
                 )
             if isinstance(resolved, registry.ObservedField):
                 observed_fields[resolved.id] = resolved
+            elif resolved.reduction is not None:
+                reductions[resolved.id] = resolved
             field_expr = resolved.expr(dialect)
         elif spec.requires_field:
             raise QueryError(
@@ -1064,19 +1466,19 @@ def compile_aggregate(
             breakdowns.append(
                 ResolvedBreakdown(
                     id=registry.TIME_BUCKET_ID,
-                    expr=registry.time_bucket_expr(dialect),
+                    expr=registry.time_bucket_expr(dialect, grain.time_column),
                     is_time_bucket=True,
                     column=ColumnSpec(id=registry.TIME_BUCKET_ID, type="datetime"),
                 )
             )
             continue
         try:
-            resolved = resolve_field(breakdown)
+            resolved = resolve_field(breakdown, grain)
         except QueryError as error:
             error.path = error.path or f"breakdowns[{index}]"
             raise
         if not resolved.groupable:
-            groupable = sorted(f.id for f in registry.AUTHORED_FIELDS if f.groupable)
+            groupable = sorted(f.id for f in grain.fields if f.groupable)
             alternatives = [*groupable, '{"bucket": "hour"} (hourly time bucket)']
             raise QueryError(
                 code="field_not_groupable",
@@ -1090,6 +1492,8 @@ def compile_aggregate(
             )
         if isinstance(resolved, registry.ObservedField):
             observed_fields[resolved.id] = resolved
+        elif resolved.reduction is not None:
+            reductions[resolved.id] = resolved
         breakdowns.append(
             ResolvedBreakdown(
                 id=resolved.id,
@@ -1153,12 +1557,16 @@ def compile_aggregate(
         if breakdown_entry.id not in ordered_breakdown_ids:
             order_exprs.append(breakdown_entry.expr.asc())
 
-    filter_ = validated_filter(query.filter)
+    filter_ = filter_for_grain(query.filter, grain, dialect)
     applied_limit = max(1, min(query.limit, AGGREGATE_LIMIT_MAX))
+    composition = _composition_probes(reductions.values(), dialect)
 
     select_columns: list[Any] = [b.expr.label(b.id) for b in breakdowns]
     select_columns.extend(c.expr.label(c.name) for c in calculations)
-    stmt = scoped_base(select_columns, project_rowid, query.time_range)
+    select_columns.extend(
+        probe.expr.label(f"_composition_{index}") for index, probe in enumerate(composition)
+    )
+    stmt = scoped_base(select_columns, project_rowid, query.time_range, grain)
     if filter_ is not None:
         stmt = filter_(stmt)
     grouped = stmt.group_by(*(b.expr for b in breakdowns)) if breakdowns else stmt
@@ -1171,7 +1579,11 @@ def compile_aggregate(
         groups_total_stmt = select(sqla_func.count()).select_from(grouped.subquery())
 
     overall_stmt = scoped_base(
-        [c.expr.label(c.name) for c in calculations], project_rowid, query.time_range
+        [c.expr.label(c.name) for c in calculations]
+        + [probe.expr.label(f"_composition_{index}") for index, probe in enumerate(composition)],
+        project_rowid,
+        query.time_range,
+        grain,
     )
     if filter_ is not None:
         overall_stmt = filter_(overall_stmt)
@@ -1189,4 +1601,7 @@ def compile_aggregate(
         project_gid=str(GlobalID("Project", str(project_rowid))),
         uses_annotation_filter=filter_.uses_annotations if filter_ else False,
         observed_fields=list(observed_fields.values()),
+        grain=grain,
+        reductions=list(reductions.values()),
+        composition=composition,
     )

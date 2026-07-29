@@ -37,6 +37,48 @@ ANNOTATION_SEMANTICS_SCHEMA: dict[str, Any] = {
     ),
 }
 
+ANNOTATION_REDUCTIONS_SCHEMA: dict[str, Any] = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "field": {"type": "string", "description": "The field id, as requested."},
+            "annotation": {"type": "string", "description": "Annotation name reduced."},
+            "annotator_kind": {
+                "type": ["string", "null"],
+                "description": "Annotator kind the reduction was restricted to, or null for all.",
+            },
+            "reduction": {
+                "type": "string",
+                "enum": ["mean_over_annotators", "latest_by_updated_at", "cardinality"],
+            },
+            "note": {"type": "string"},
+        },
+        "required": ["field", "annotation", "reduction"],
+    },
+    "description": (
+        "Present when the query read annotation values through the spans grain: one "
+        "entry per reduced field, naming the rule that collapsed a span's several "
+        "annotations into one value. A reduced number means nothing without it."
+    ),
+}
+
+ANNOTATION_COMPOSITION_NOTE = (
+    "Rows carry annotation_composition: how many annotations of each annotator kind "
+    "each group actually contained. A blended average moves when that mix moves, with "
+    "no annotator having changed its scoring, so compare the composition across groups "
+    "before reading a difference as a quality change."
+)
+
+ANNOTATION_COMPOSITION_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "description": (
+        "Per annotation name, the count of contributing annotations by annotator kind "
+        "('LLM', 'CODE', 'HUMAN'), for every reduction that was not already restricted "
+        "to one kind. Kinds with no annotations are omitted."
+    ),
+}
+
 
 # --------------------------------------------------------------------------
 # Output schemas
@@ -158,6 +200,41 @@ GUIDANCE_SCHEMA: dict[str, Any] = {
 # --------------------------------------------------------------------------
 # Serialization
 # --------------------------------------------------------------------------
+
+
+def annotation_reductions(fields: Sequence[Any]) -> list[dict[str, Any]]:
+    """Disclosure entries for the reduced fields a query used."""
+    entries: list[dict[str, Any]] = []
+    for field in fields:
+        reference = getattr(field, "annotation", None)
+        entries.append(
+            {
+                "field": field.id,
+                "annotation": reference.name if reference is not None else None,
+                "annotator_kind": reference.annotator_kind if reference is not None else None,
+                "reduction": field.reduction,
+                "note": field.description,
+            }
+        )
+    return entries
+
+
+def composition_map(
+    probes: Sequence[Any],
+    values: Sequence[Any],
+) -> dict[str, dict[str, int]]:
+    """Fold the hidden per-kind probe values into one nested count map.
+
+    Zero counts are dropped: an annotator kind that wrote nothing is noise
+    in every row, and its absence is what the caller needs to see.
+    """
+    composition: dict[str, dict[str, int]] = {}
+    for probe, value in zip(probes, values):
+        count = int(value or 0)
+        if not count:
+            continue
+        composition.setdefault(probe.annotation_name, {})[probe.annotator_kind] = count
+    return composition
 
 
 def cell(value: Any) -> Any:

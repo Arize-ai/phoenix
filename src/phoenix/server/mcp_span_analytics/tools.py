@@ -1,16 +1,23 @@
 """Hand-authored MCP tools for span analytics.
 
-Five tools over one project-scoped span surface:
+Five tools over one project-scoped surface, whose two query tools read
+either of two grains (:mod:`.grains`) — spans by default, annotations when
+the request says so:
 
-- ``describeSpans`` — the field catalog as data: authored fields merged with
-  attribute paths observed in a recent sample, every entry in canonical
-  query spelling so discovery output is copy-paste usable in every clause.
+- ``describeSpans`` — the field catalog as data: authored fields merged
+  with attribute paths observed in a recent sample and with the annotation
+  enrichment the project's own annotation names generate, plus the grains
+  themselves. Every entry is in canonical query spelling, so discovery
+  output is copy-paste usable in every clause.
 - ``aggregateSpans`` — grouped calculations (counts, sums, averages,
-  percentiles, hourly buckets) with explicit completeness metadata.
+  percentiles, hourly buckets) with explicit completeness metadata, and —
+  where a value was reduced from a span's several annotations — the
+  reduction applied and the annotator mix behind it.
 - ``querySpanRows`` — ordered, bounded row retrieval with per-cell preview
-  clipping and an always-present ``span_id`` row identity.
-- ``getSpan`` — full-fidelity drill-down for one span, the recovery path
-  every clipped preview points at.
+  clipping and an always-present row identity (``span_id`` on spans,
+  ``annotation_id`` on annotations).
+- ``getSpan`` — full-fidelity drill-down for one span, its annotations
+  included: the recovery path every clipped preview points at.
 - ``getTrace`` — the parent/child span tree of one trace.
 
 Every tool returns a discriminated union: ``{status: "ok", ...}`` on
@@ -41,7 +48,14 @@ from mcp.types import ToolAnnotations
 from pydantic import Field, TypeAdapter, ValidationError
 
 from phoenix.db import models
-from phoenix.server.mcp_span_analytics import compiler, discovery, envelope, links, registry
+from phoenix.server.mcp_span_analytics import (
+    compiler,
+    discovery,
+    envelope,
+    grains,
+    links,
+    registry,
+)
 from phoenix.server.mcp_span_analytics.compiler import (
     AggregateOrderEntry,
     AggregateQuery,
@@ -108,7 +122,50 @@ _FILTER_DESCRIPTION = (
     "\"evals['correctness'].score < 0.5\"."
 )
 
+_ANNOTATION_GRAIN_FILTER_DESCRIPTION = (
+    "Boolean expression selecting annotations, written in Python syntax and compiled "
+    "to SQL. Names you can reference are this grain's fields: `name`, `score`, "
+    "`label`, `explanation`, `annotator_kind` ('LLM', 'CODE', 'HUMAN'), `identifier`, "
+    "`source`, `target` ('span', 'trace', 'document', 'session'), `target_id`, "
+    "`trace_id`, `document_position`. Operators: comparisons (==, !=, <, <=, >, >=), "
+    "`and`/`or`/`not`, `is None`/`is not None`, and `in` in two forms — substring test "
+    "(\"'timeout' in explanation\") and membership in a literal list "
+    "(\"annotator_kind in ['HUMAN', 'LLM']\"). Each comparison relates one field to "
+    "one literal of matching type. Temporal predicates are rejected — scope time with "
+    "time_range, its only home, which binds the annotated work's start_time. Examples: "
+    "\"name == 'correctness' and annotator_kind == 'HUMAN'\"; \"score < 0.5\"; "
+    "\"label != 'correct' and target == 'span'\"."
+)
+
+#: The filter parameter serves both grains, so its description carries both
+#: namespaces: the grammar is one grammar, but the names it resolves are the
+#: names of whichever grain the request asked for.
+_FILTER_DESCRIPTION = (
+    _FILTER_DESCRIPTION
+    + " ——— With from='annotations' the namespace changes to that grain's fields: "
+    + _ANNOTATION_GRAIN_FILTER_DESCRIPTION
+)
+
 _PROJECT_DESCRIPTION = "Project id or name (either form works; list projects with getProjects)."
+
+_GRAIN_DESCRIPTION = (
+    "Which relation to query — what one result row is. 'spans' (default): one row per "
+    "span, with span fields, observed attributes, and annotation enrichment such as "
+    "annotations[\"correctness\"].score. 'annotations': one row per annotation (eval "
+    "score, label, or human review) across every target Phoenix annotates, with fields "
+    "name, score, label, explanation, annotator_kind, identifier, target, target_id. "
+    "Pick by the subject of the question: 'correctness by model' is about spans, "
+    "'which annotators scored this, and how often' is about annotations. Each grain "
+    "has its own field namespace — describeSpans lists both — and they do not mix in "
+    "one call."
+)
+
+_GRAIN_SCHEMA: dict[str, Any] = {
+    "anyOf": [
+        {"type": "string", "enum": list(grains.GRAINS)},
+        {"type": "null"},
+    ],
+}
 
 _VALIDATE_ONLY_DESCRIPTION = (
     "If true, resolve and validate the query without executing it: returns "
@@ -367,10 +424,17 @@ def _capabilities(field: registry.AuthoredField) -> list[str]:
     return capabilities
 
 
-def _observed_filter_paths(filter_condition: Optional[str]) -> set[tuple[str, ...]]:
+def _observed_filter_paths(
+    filter_condition: Optional[str], grain: grains.Grain
+) -> set[tuple[str, ...]]:
     """Attribute paths a filter reads that are not authored fields —
-    the observed-path portion of the filter, for admission checks."""
-    if not filter_condition:
+    the observed-path portion of the filter, for admission checks.
+
+    Grains with a closed field set have none: every name in such a filter
+    resolved to a declared column, and reading them as attribute paths
+    would invent observations that do not exist.
+    """
+    if not filter_condition or not grain.admits_observed_paths:
         return set()
     return {
         keys
@@ -390,6 +454,9 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
                 if project_rowid is None:
                     raise await compiler.project_not_found_error(session, project)
                 sample_count, stats = await discovery.sample_observed_paths(session, project_rowid)
+                annotation_names, annotations_capped = await discovery.observed_annotation_names(
+                    session, project_rowid
+                )
         except QueryError as error:
             return error.envelope()
 
@@ -449,10 +516,84 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
                 entry["top_values"] = top_values
             fields.append(entry)
 
+        # Annotation names are project data, so the enrichment fields they
+        # generate are enumerated here rather than left to be guessed. Each
+        # name yields its readable attributes on the spans grain; the
+        # composition that decides whether a blended value is trustworthy
+        # travels with them.
+        for entry in annotation_names:
+            for attribute in registry.ANNOTATION_ATTRIBUTES:
+                enrichment = registry.annotation_enrichment_field(
+                    registry.AnnotationRef(
+                        name=entry["name"], annotator_kind=None, attribute=attribute
+                    )
+                )
+                fields.append(
+                    {
+                        "field": enrichment.id,
+                        "label": enrichment.label,
+                        "source": enrichment.source,
+                        "type": enrichment.type,
+                        "unit": None,
+                        "description": enrichment.description,
+                        "capabilities": _capabilities(enrichment),
+                        "reduction": enrichment.reduction,
+                        "annotation": {
+                            "name": entry["name"],
+                            "annotations": entry["count"],
+                            "with_score": entry["scored"],
+                            "annotator_kinds": entry["annotator_kinds"],
+                            "targets": entry["targets"],
+                            "kind_restricted_form": registry.AnnotationRef(
+                                name=entry["name"],
+                                annotator_kind=next(iter(entry["annotator_kinds"]), "HUMAN"),
+                                attribute=attribute,
+                            ).id,
+                        },
+                    }
+                )
+
         result: dict[str, Any] = {
             "status": "ok",
             "project": project,
             "fields": fields,
+            "grains": [
+                {
+                    "grain": grain.id,
+                    "description": grain.description,
+                    "identity_field": grain.identity_field,
+                    "time_field": grain.time_field,
+                    "supports_sampling": grain.supports_sampling,
+                    "fields": [
+                        {
+                            "field": field.id,
+                            "label": field.label,
+                            "type": field.type,
+                            "unit": field.unit,
+                            "description": field.description,
+                            "capabilities": _capabilities(field),
+                        }
+                        for field in grain.fields
+                    ]
+                    if grain.id != grains.SPANS
+                    # The spans grain's catalog is the top-level `fields`
+                    # block, which additionally carries observed paths and
+                    # annotation enrichment; repeating it here would be a
+                    # second home for one thing.
+                    else None,
+                }
+                for grain in grains.GRAINS.values()
+            ],
+            "annotations": {
+                "names": annotation_names,
+                "note": (
+                    "Annotation names recorded in this project, counted exactly (not "
+                    "sampled). Read them per annotation with from='annotations', or "
+                    'per span through the enrichment fields annotations["<name>"].'
+                    "score/.label/.count listed in fields."
+                ),
+                "capped": annotations_capped,
+            },
             "sampling": {
                 "strategy": discovery.STRATEGY,
                 "sample_count": sample_count,
@@ -486,7 +627,11 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
             "from here instead of constructing them. Capabilities per entry: select, "
             "filter, breakdown, aggregate (value aggregations: sum/avg/min/max/"
             "percentiles), count (presence aggregations: count, count_distinct — "
-            "valid on any field because they never compute on the value). Start "
+            "valid on any field because they never compute on the value). Also "
+            "returns the project's annotation names with exact counts by annotator "
+            'kind, the enrichment fields they generate (annotations["<name>"].'
+            "score/.label/.count), and the queryable grains for the `from` parameter "
+            "— spans and annotations, each with its own field namespace. Start "
             "here before aggregating or filtering. Full field-level documentation "
             "is in the JSON schema's descriptions (get_schema detail='full')."
         ),
@@ -504,10 +649,27 @@ def _build_describe_spans(app: "FastAPI") -> Tool:
                         "and top_values where cardinality is low."
                     ),
                 },
+                "grains": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": (
+                        "The queryable relations and what one of their rows is, for the "
+                        "`from` parameter of querySpanRows and aggregateSpans. The spans "
+                        "grain's own field list is the top-level `fields` block."
+                    ),
+                },
+                "annotations": {
+                    "type": "object",
+                    "description": (
+                        "Annotation names recorded in this project with exact counts by "
+                        "annotator kind and target — the vocabulary of the annotations "
+                        "grain and of the annotation enrichment fields."
+                    ),
+                },
                 "sampling": {"type": "object"},
                 "note": {"type": "string"},
             },
-            ["project", "fields", "sampling"],
+            ["project", "fields", "grains", "annotations", "sampling"],
         ),
     )
 
@@ -526,6 +688,12 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 '{"name": "error_rate", "fn": "avg", "field": "is_error"}].'
             ),
             json_schema_extra=_CALCULATIONS_SCHEMA,
+        ),
+        grain_: Optional[str] = Field(
+            default=None,
+            alias="from",
+            description=_GRAIN_DESCRIPTION,
+            json_schema_extra=_GRAIN_SCHEMA,
         ),
         filter: Optional[str] = Field(default=None, description=_FILTER_DESCRIPTION),
         breakdowns: Any = Field(
@@ -569,6 +737,7 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
         try:
             query = AggregateQuery(
                 project=project,
+                grain=grain_ or grains.SPANS,
                 time_range=_parse_shape(
                     _TIME_RANGE_ADAPTER,
                     time_range,
@@ -642,7 +811,7 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 observed_targets: dict[tuple[str, ...], str] = {
                     f.keys: f.id for f in plan.observed_fields
                 }
-                for keys in _observed_filter_paths(query.filter):
+                for keys in _observed_filter_paths(query.filter, plan.grain):
                     observed_targets.setdefault(keys, registry.canonical_attribute_spelling(keys))
                 field_notes: list[dict[str, Any]] = (
                     await discovery.not_observed_field_notes(
@@ -666,7 +835,7 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 overall_row = (await session.execute(plan.overall_stmt)).one()
                 guidance = (
                     await discovery.zero_result_guidance(
-                        session, project_rowid, plan.time_range, query.filter
+                        session, project_rowid, plan.time_range, query.filter, plan.grain
                     )
                     if not raw_rows
                     else None
@@ -683,9 +852,16 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 message="The request has an invalid shape; check the parameter descriptions.",
             ).envelope()
 
+        # Composition probes ride after the visible calculations in every
+        # statement; they are folded into their own block rather than shown
+        # as columns, so the result's shape does not change with disclosure.
+        calculation_count = len(plan.calculations)
         overall = {
             calc.name: envelope.cell(value) for calc, value in zip(plan.calculations, overall_row)
         }
+        overall_composition = envelope.composition_map(
+            plan.composition, tuple(overall_row)[calculation_count:]
+        )
         columns = [b.column.as_dict() for b in plan.breakdowns] + [
             {"id": c.name, "type": "float", "unit": None} for c in plan.calculations
         ]
@@ -712,6 +888,10 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
             offset = len(plan.breakdowns)
             for calc, value in zip(plan.calculations, raw[offset:]):
                 row[calc.name] = envelope.cell(value)
+            if plan.composition:
+                row["annotation_composition"] = envelope.composition_map(
+                    plan.composition, tuple(raw)[offset + calculation_count :]
+                )
             if share_basis is not None and overall_basis:
                 basis_value = row.get(share_basis)
                 if isinstance(basis_value, (int, float)):
@@ -738,6 +918,10 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
             "share_basis": share_basis,
             "applied": applied,
         }
+        if plan.reductions:
+            result["annotation_reductions"] = envelope.annotation_reductions(plan.reductions)
+        if plan.composition:
+            result["overall"] = {**overall, "annotation_composition": overall_composition}
         if guidance is not None:
             result["guidance"] = guidance
         # A breakdown that produced only a null group key is the aggregate
@@ -771,6 +955,8 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
         if plan.uses_annotation_filter:
             result["annotation_semantics"] = "any"
             notes.append(envelope.ANNOTATION_SEMANTICS_NOTE)
+        if plan.composition:
+            notes.append(envelope.ANNOTATION_COMPOSITION_NOTE)
         if groups_total is not None and groups_total > len(rows):
             notes.append(
                 f"Top {len(rows)} of {groups_total} groups returned; ordering ties at "
@@ -797,7 +983,8 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
         aggregate_spans,
         name="aggregateSpans",
         description=(
-            "Aggregate (group by) a project's spans into metrics: named calculations "
+            "Aggregate (group by) a project's spans — or, with from='annotations', its "
+            "eval scores and human reviews — into metrics: named calculations "
             "(count and count_distinct on any field; sum, avg, min, max, "
             "p50/p90/p95/p99 percentiles on value-aggregatable fields), grouped by "
             "breakdowns (groupable fields and/or hourly time buckets), filtered, "
@@ -808,6 +995,10 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
             "rows, groups_total vs groups_returned, the overall (ungrouped) totals, "
             "and per-group share of total for the first additive calculation; each "
             "group row carries a ui_url deep-linking the Phoenix UI to that cohort. "
+            "Averaging an annotation score through the spans grain (e.g. "
+            'avg of annotations["correctness"].score) additionally returns the '
+            "reduction applied and, per group, how many annotations of each annotator "
+            "kind produced it — the mix that makes a blended average move on its own. "
             "Use describeSpans first to discover fields. The nested parameter shapes "
             "(time_range, calculations, breakdowns, order) and the filter grammar "
             "are documented in the JSON schema's field descriptions (get_schema "
@@ -844,6 +1035,7 @@ def _build_aggregate_spans(app: "FastAPI") -> Tool:
                 "applied": {"type": "object"},
                 "field_notes": envelope.FIELD_NOTES_SCHEMA,
                 "annotation_semantics": envelope.ANNOTATION_SEMANTICS_SCHEMA,
+                "annotation_reductions": envelope.ANNOTATION_REDUCTIONS_SCHEMA,
                 "guidance": envelope.GUIDANCE_SCHEMA,
                 "note": {"type": "string"},
             },
@@ -865,12 +1057,20 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
             ),
             json_schema_extra=_OPTIONAL_TIME_RANGE_SCHEMA,
         ),
+        grain_: Optional[str] = Field(
+            default=None,
+            alias="from",
+            description=_GRAIN_DESCRIPTION,
+            json_schema_extra=_GRAIN_SCHEMA,
+        ),
         fields: Any = Field(
             default=None,
             description=(
                 "Field ids to return (authored ids or observed attribute paths from "
-                "describeSpans). span_id is always included as the row identity. "
-                "Defaults to: " + ", ".join(compiler.DEFAULT_ROW_FIELDS) + "."
+                "describeSpans). The grain's identity field is always included: "
+                "span_id on spans, annotation_id on annotations. Defaults on spans "
+                "to: " + ", ".join(grains.SPANS_GRAIN.default_row_fields) + "; on "
+                "annotations to: " + ", ".join(grains.ANNOTATIONS_GRAIN.default_row_fields) + "."
             ),
             json_schema_extra=_ROW_FIELDS_SCHEMA,
         ),
@@ -916,6 +1116,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
         try:
             query = RowQuery(
                 project=project,
+                grain=grain_ or grains.SPANS,
                 time_range=_parse_shape(
                     _OPTIONAL_TIME_RANGE_ADAPTER,
                     time_range,
@@ -965,7 +1166,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
                 observed_targets: dict[tuple[str, ...], str] = {
                     f.keys: f.id for f in plan.observed_fields
                 }
-                for keys in _observed_filter_paths(query.filter):
+                for keys in _observed_filter_paths(query.filter, plan.grain):
                     observed_targets.setdefault(keys, registry.canonical_attribute_spelling(keys))
                 field_notes: list[dict[str, Any]] = (
                     await discovery.not_observed_field_notes(
@@ -1002,7 +1203,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
                     raw_rows = (await session.execute(plan.stmt)).all()
                 guidance = (
                     await discovery.zero_result_guidance(
-                        session, project_rowid, plan.time_range, query.filter
+                        session, project_rowid, plan.time_range, query.filter, plan.grain
                     )
                     if not raw_rows
                     else None
@@ -1020,17 +1221,18 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
             ).envelope()
 
         column_ids = [c.id for c in plan.columns]
+        identity_field = plan.grain.identity_field
         clipped: list[dict[str, Any]] = []
         rows: list[dict[str, Any]] = []
         for raw in raw_rows:
             row = {column_id: envelope.cell(value) for column_id, value in zip(column_ids, raw)}
-            span_id = row.get("span_id")
+            row_identity = row.get(identity_field)
             for column_id, value in row.items():
                 if isinstance(value, str) and len(value) > max_cell_chars:
                     row[column_id] = value[:max_cell_chars] + (
                         f"…[clipped {len(value) - max_cell_chars} chars]"
                     )
-                    clipped.append({"row": span_id, "field": column_id})
+                    clipped.append({"row": row_identity, "field": column_id})
             rows.append(row)
 
         kept_rows = envelope.rows_within_budget(rows, max_result_chars)
@@ -1044,9 +1246,11 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
             "clipped": [
                 marker
                 for marker in clipped
-                if any(r.get("span_id") == marker["row"] for r in kept_rows)
+                if any(r.get(identity_field) == marker["row"] for r in kept_rows)
             ],
         }
+        if plan.reductions:
+            result["annotation_reductions"] = envelope.annotation_reductions(plan.reductions)
         if guidance is not None:
             result["guidance"] = guidance
         # An observed-path column that is NULL on every returned row still
@@ -1087,7 +1291,14 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
         if clipped:
             notes.append(
                 "Some cells were clipped to max_cell_chars previews; recover any full "
-                "value with getSpan(project, span_id)."
+                + (
+                    "value with getSpan(project, span_id)."
+                    if plan.grain.id == grains.SPANS
+                    else "value with getSpan(project, target_id) for span and document "
+                    "targets, or getTrace(project, target_id) for trace targets — "
+                    "getSpan returns the span's annotations with their full "
+                    "explanations."
+                )
             )
         if len(kept_rows) < len(rows):
             notes.append(
@@ -1111,8 +1322,11 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
             "Retrieve individual spans as ordered, bounded rows — top-N listings "
             "(order + limit, e.g. the slowest failures), filtered slices, or a "
             "seeded random sample: select fields (authored ids or observed attribute "
-            "paths from describeSpans), filter, order, and limit. Results are "
-            "deterministic; span_id is always included as the row identity; long "
+            "paths from describeSpans), filter, order, and limit. With "
+            "from='annotations' the rows are individual eval scores and human reviews "
+            "instead, carrying annotator_kind, identifier, explanation, and the "
+            "annotated target's id. Results are "
+            "deterministic; the grain's identity field is always included; long "
             "values are clipped to previews with getSpan as the recovery path. "
             "Defaults to the last 24 hours when time_range is omitted. The nested "
             "parameter shapes (time_range, fields, order) and the filter grammar are "
@@ -1147,6 +1361,7 @@ def _build_query_span_rows(app: "FastAPI") -> Tool:
                 },
                 "field_notes": envelope.FIELD_NOTES_SCHEMA,
                 "annotation_semantics": envelope.ANNOTATION_SEMANTICS_SCHEMA,
+                "annotation_reductions": envelope.ANNOTATION_REDUCTIONS_SCHEMA,
                 "guidance": envelope.GUIDANCE_SCHEMA,
                 "note": {"type": "string"},
             },
@@ -1200,6 +1415,24 @@ def _build_get_span(app: "FastAPI") -> Tool:
                     None,
                 ).where(models.Span.span_id == span_id)
                 fields_row = (await session.execute(fields_stmt)).first()
+                # The span's annotations travel with it: they are the
+                # recovery path for every explanation clipped on the
+                # annotations grain, and the evidence beside the span that a
+                # quality investigation ends at.
+                annotations_stmt = (
+                    compiler.scoped_base(
+                        [grains.ANNOTATIONS_UNION], project_rowid, None, grains.ANNOTATIONS_GRAIN
+                    )
+                    .where(
+                        grains.ANNOTATIONS_UNION.c.target_id == span_id,
+                        grains.ANNOTATIONS_UNION.c.target.in_(("span", "document")),
+                    )
+                    .order_by(
+                        grains.ANNOTATIONS_UNION.c.name.asc(),
+                        grains.ANNOTATIONS_UNION.c.identifier.asc(),
+                    )
+                )
+                annotation_rows = (await session.execute(annotations_stmt)).mappings().all()
         except QueryError as error:
             return error.envelope()
 
@@ -1211,6 +1444,25 @@ def _build_get_span(app: "FastAPI") -> Tool:
             if fields_row is not None
             else {}
         )
+        annotations = [
+            {
+                field: envelope.cell(row[field])
+                for field in (
+                    "annotation_id",
+                    "target",
+                    "name",
+                    "label",
+                    "score",
+                    "explanation",
+                    "annotator_kind",
+                    "identifier",
+                    "source",
+                    "created_at",
+                    "document_position",
+                )
+            }
+            for row in annotation_rows
+        ]
         payload: dict[str, Any] = {
             "span_id": span.span_id,
             "trace_id": trace_id,
@@ -1223,6 +1475,7 @@ def _build_get_span(app: "FastAPI") -> Tool:
             "latency_ms": span.latency_ms,
             "attributes": span.attributes,
             "events": span.events,
+            "annotations": annotations,
         }
         payload, clipped_paths = envelope.clip_strings_to_budget(
             payload,
@@ -1249,7 +1502,8 @@ def _build_get_span(app: "FastAPI") -> Tool:
         name="getSpan",
         description=(
             "Fetch one span in full: attributes, events (including exception details), "
-            "status, timing, trace_id, and a Phoenix UI link (ui_url). Also echoes "
+            "status, timing, trace_id, its annotations with full explanations, and a "
+            "Phoenix UI link (ui_url). Also echoes "
             "`fields` — the flat registry field values (status_code, latency_ms, "
             "llm.model_name, ...) exactly as querySpanRows returns them, so the "
             "survey and the drill-down share one naming scheme. The recovery path "
@@ -1264,7 +1518,9 @@ def _build_get_span(app: "FastAPI") -> Tool:
                     "type": "object",
                     "description": (
                         "The full span record: identity, name, kind, status, timing, "
-                        "attributes, and events."
+                        "attributes, events, and annotations — one entry per annotation "
+                        "on this span (and on its documents), with the full explanation "
+                        "text that the annotations grain clips to a preview."
                     ),
                 },
                 "fields": {
