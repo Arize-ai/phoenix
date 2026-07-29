@@ -85,7 +85,7 @@ input AddProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation. Non-SESSION targets preserve this value without using it.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -1010,7 +1010,7 @@ input CreateProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation. Non-SESSION targets preserve this value without using it.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -1036,7 +1036,7 @@ input CreateProjectLLMEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation. Non-SESSION targets preserve this value without using it.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -2705,27 +2705,27 @@ type Mutation {
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
 
   """
-  Create an LLM project evaluator. SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled.
+  Create an LLM project evaluator. SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. The target can change only until evaluation work exists for the project evaluator.
   """
   createProjectLlmEvaluator(input: CreateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Update an LLM project evaluator. SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled.
+  Update an LLM project evaluator. SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. The target can change only until evaluation work exists for the project evaluator.
   """
   updateProjectLlmEvaluator(input: UpdateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Bind an existing CODE evaluator to a project. The evaluator's configuration is shared with every project and dataset it is bound to. SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled.
+  Bind an existing CODE evaluator to a project. The evaluator's configuration is shared with every project and dataset it is bound to. SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. The target can change only until evaluation work exists for the project evaluator.
   """
   addProjectCodeEvaluator(input: AddProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Create a CODE project evaluator. SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled.
+  Create a CODE project evaluator. SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. The target can change only until evaluation work exists for the project evaluator.
   """
   createProjectCodeEvaluator(input: CreateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Update a CODE project evaluator. Editing changes the underlying evaluator, which applies to every project and dataset it is bound to. SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled.
+  Update a CODE project evaluator. Editing changes the underlying evaluator, which applies to every project and dataset it is bound to. SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. The target can change only until evaluation work exists for the project evaluator.
   """
   updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
@@ -3285,12 +3285,20 @@ type ProjectEvaluator implements Node {
   samplingRate: Float!
 
   """
-  SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled.
+  SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling rate of 1 are evaluated once per session: evaluation is scheduled after the session first stays quiet for the evaluation delay, then runs asynchronously. Later activity does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. The target can change only until evaluation work exists for the project evaluator.
   """
   evaluationTarget: EvaluationTarget!
 
+  """Whether this project evaluator is currently eligible for scheduling."""
+  schedulabilityStatus: ProjectEvaluatorSchedulabilityStatus!
+
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New criteria store the current default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Machine-readable reason the project evaluator is not schedulable, or null when it is schedulable.
+  """
+  schedulabilityReason: ProjectEvaluatorSchedulabilityReason
+
+  """
+  Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New criteria store the current default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation. Non-SESSION targets preserve this value without using it. A later change to SESSION uses the stored value, but the target cannot change after evaluation work exists for this project evaluator.
   """
   evaluationDelaySeconds: Int!
   inputMapping: EvaluatorInputMapping!
@@ -3330,6 +3338,18 @@ enum ProjectEvaluatorFilterColumn {
 type ProjectEvaluatorMutationPayload {
   evaluator: ProjectEvaluator!
   query: Query!
+}
+
+enum ProjectEvaluatorSchedulabilityReason {
+  DISABLED
+  TRACE_TARGET_UNSUPPORTED
+  SESSION_FILTER_UNSUPPORTED
+  SESSION_SAMPLING_UNSUPPORTED
+}
+
+enum ProjectEvaluatorSchedulabilityStatus {
+  SCHEDULABLE
+  NOT_SCHEDULABLE
 }
 
 """The filter key and value for project connections"""
@@ -5173,7 +5193,7 @@ input UpdateProjectCodeEvaluatorInput {
   inputMapping: EvaluatorInputMappingInput
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; omit to preserve the current setting or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; omit to preserve the current setting or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation. Non-SESSION targets preserve this value without using it.
   """
   evaluationDelaySeconds: Int
 }
@@ -5192,7 +5212,7 @@ input UpdateProjectLLMEvaluatorInput {
   promptVersionId: ID
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; omit to preserve the current setting or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; omit to preserve the current setting or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation. Non-SESSION targets preserve this value without using it.
   """
   evaluationDelaySeconds: Int
 }
