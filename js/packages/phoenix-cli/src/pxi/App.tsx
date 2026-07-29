@@ -918,6 +918,12 @@ export function PxiApp({
   const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
   const modelRequestIdRef = useRef(0);
   const sessionRequestIdRef = useRef(0);
+  /**
+   * Last successfully fetched session list. Lets the picker open instantly
+   * with the previous list while a background refresh fetches the latest —
+   * the terminal equivalent of the web menu's store-and-network refetch.
+   */
+  const cachedSessionListRef = useRef<PxiSessionSummary[] | null>(null);
   const serverSessionClient = useMemo(
     () => sessionClient ?? createPxiSessionClient({ config: options.config }),
     [options.config, sessionClient]
@@ -1011,9 +1017,12 @@ export function PxiApp({
     sessionRequestIdRef.current = requestId;
     setDraft(EMPTY_DRAFT_EDITOR_STATE);
     setError(null);
+    // Open instantly with the last fetched list (when there is one) while a
+    // background refresh fetches sessions created elsewhere in the meantime.
+    const cachedSessions = cachedSessionListRef.current;
     setSessionPicker({
-      status: "loading",
-      sessions: [],
+      status: cachedSessions ? "ready" : "loading",
+      sessions: cachedSessions ?? [],
       query: "",
       selectedIndex: 0,
       error: null,
@@ -1021,17 +1030,45 @@ export function PxiApp({
     void serverSessionClient
       .listSessions()
       .then((sessions) => {
+        cachedSessionListRef.current = sessions;
         if (sessionRequestIdRef.current !== requestId) return;
-        setSessionPicker({
-          status: "ready",
-          sessions,
-          query: "",
-          selectedIndex: 0,
-          error: null,
+        setSessionPicker((current) => {
+          if (!current) return null;
+          // The user may already be filtering or navigating the cached list;
+          // keep their selection on the same session after the refresh.
+          const selectedSession = getFilteredSessions({
+            sessions: current.sessions,
+            query: current.query,
+          })[current.selectedIndex];
+          const refreshedFilteredSessions = getFilteredSessions({
+            sessions,
+            query: current.query,
+          });
+          const refreshedSelectedIndex = selectedSession
+            ? refreshedFilteredSessions.findIndex(
+                (session) => session.id === selectedSession.id
+              )
+            : -1;
+          return {
+            ...current,
+            status: "ready",
+            sessions,
+            selectedIndex:
+              refreshedSelectedIndex === -1
+                ? Math.min(
+                    current.selectedIndex,
+                    Math.max(refreshedFilteredSessions.length - 1, 0)
+                  )
+                : refreshedSelectedIndex,
+            error: null,
+          };
         });
       })
       .catch((sessionError: unknown) => {
         if (sessionRequestIdRef.current !== requestId) return;
+        // With a cached list on screen the stale data is still usable, so a
+        // failed background refresh is ignored.
+        if (cachedSessions) return;
         setSessionPicker({
           status: "error",
           sessions: [],

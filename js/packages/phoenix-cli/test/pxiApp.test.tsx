@@ -10,6 +10,7 @@ import type {
   PxiMessage,
   PxiRuntimeOptions,
   PxiSessionClient,
+  PxiSessionSummary,
 } from "../src/pxi/types";
 
 const ESCAPE_CHARACTER = String.fromCharCode(27);
@@ -1214,6 +1215,82 @@ describe("PXI app", () => {
     expect(getSession).toHaveBeenCalledWith({ sessionId: "session-2" });
     expect(stripAnsi(lastFrame() ?? "")).toContain("restored conversation");
     expect(stripAnsi(lastFrame() ?? "")).toContain("session: Second session");
+    unmount();
+  });
+
+  it("reopens the session picker with the cached list while refreshing in the background", async () => {
+    const initialSessions: PxiSessionSummary[] = [
+      {
+        id: "session-1",
+        title: "First session",
+        updatedAt: "2026-07-24T13:00:00Z",
+        isTemporary: false,
+      },
+    ];
+    let listCallCount = 0;
+    let resolveRefresh: (sessions: PxiSessionSummary[]) => void = () => {};
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => {
+        listCallCount += 1;
+        if (listCallCount === 1) {
+          return initialSessions;
+        }
+        return new Promise((resolve) => {
+          resolveRefresh = resolve;
+        });
+      },
+      getSession: async () => {
+        throw new Error("not used");
+      },
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+      />
+    );
+
+    // First open fetches over the network and populates the cache.
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    expect(stripAnsi(lastFrame() ?? "")).toContain("First session");
+
+    await writeInput({ stdin, input: ESCAPE_CHARACTER });
+    await flushPendingEscapeInput();
+    expect(stripAnsi(lastFrame() ?? "")).not.toContain("Recent sessions");
+
+    // Reopening shows the cached list immediately, with the refresh pending.
+    await writeInput({ stdin, input: "/sessions" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => Promise.resolve());
+    expect(listCallCount).toBe(2);
+    expect(stripAnsi(lastFrame() ?? "")).toContain("First session");
+    expect(stripAnsi(lastFrame() ?? "")).not.toContain("Loading sessions");
+
+    // When the background refresh lands, sessions created elsewhere appear.
+    await act(async () => {
+      resolveRefresh([
+        {
+          id: "session-2",
+          title: "Fresh session",
+          updatedAt: "2026-07-24T14:00:00Z",
+          isTemporary: false,
+        },
+        ...initialSessions,
+      ]);
+      await Promise.resolve();
+    });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("Fresh session");
+    expect(stripAnsi(lastFrame() ?? "")).toContain("First session");
     unmount();
   });
 
