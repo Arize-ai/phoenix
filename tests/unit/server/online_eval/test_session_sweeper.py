@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import func, select, update
@@ -359,6 +360,50 @@ async def test_outstanding_work_budget_retains_activity_until_capacity_is_availa
         )
     assert len(work_units) == 2
     assert activity_count == 0
+
+
+async def test_sweep_metrics_cover_backlog_success_materialization_and_failure(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(session_sweeper, "get_env_enable_prometheus", lambda: True)
+    metric_names = (
+        "ONLINE_EVAL_SESSION_ACTIVITY_BACKLOG",
+        "ONLINE_EVAL_SESSION_ACTIVITY_OLDEST_AGE_SECONDS",
+        "ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS",
+        "ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS",
+        "ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS",
+        "ONLINE_EVAL_SESSION_SWEEP_FAILURES",
+        "ONLINE_EVAL_SESSION_SWEEP_SUCCESSES",
+    )
+    metrics = {name: Mock() for name in metric_names}
+    for name, metric in metrics.items():
+        monkeypatch.setattr(session_sweeper, name, metric)
+
+    project_id, _, _ = await _add_session_activity(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+
+    metrics["ONLINE_EVAL_SESSION_ACTIVITY_BACKLOG"].set.assert_called_once_with(1)
+    oldest_age = metrics["ONLINE_EVAL_SESSION_ACTIVITY_OLDEST_AGE_SECONDS"].set.call_args.args[0]
+    assert oldest_age == pytest.approx(600, abs=1)
+    metrics["ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS"].inc.assert_called_once_with()
+    metrics["ONLINE_EVAL_SESSION_SWEEP_SUCCESSES"].inc.assert_called_once_with()
+    metrics["ONLINE_EVAL_SESSION_SWEEP_FAILURES"].inc.assert_not_called()
+    metrics["ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS"].observe.assert_called_once()
+    metrics["ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS"].inc.assert_called_once_with(1)
+
+    async def fail_sweep(session: AsyncSession, database_now: datetime) -> int:
+        raise RuntimeError("failed sweep")
+
+    monkeypatch.setattr(sweeper, "_sweep", fail_sweep)
+    with pytest.raises(RuntimeError, match="failed sweep"):
+        await sweeper._tick()
+
+    assert metrics["ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS"].inc.call_count == 2
+    metrics["ONLINE_EVAL_SESSION_SWEEP_FAILURES"].inc.assert_called_once_with()
+    assert metrics["ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS"].observe.call_count == 2
 
 
 async def test_reopened_session_is_pruned_without_another_work_unit(

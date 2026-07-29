@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -14,13 +15,22 @@ from sqlalchemy import Insert, and_, delete, func, or_, select, type_coerce, upd
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
-from phoenix.config import get_env_online_eval_max_session_outstanding
+from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_session_outstanding
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
+from phoenix.server.prometheus import (
+    ONLINE_EVAL_SESSION_ACTIVITY_BACKLOG,
+    ONLINE_EVAL_SESSION_ACTIVITY_OLDEST_AGE_SECONDS,
+    ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS,
+    ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS,
+    ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS,
+    ONLINE_EVAL_SESSION_SWEEP_FAILURES,
+    ONLINE_EVAL_SESSION_SWEEP_SUCCESSES,
+)
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -79,6 +89,7 @@ class SessionEvalSweeper(DaemonTask):
         self._consumer_group = consumer_group
         self._tick_interval_seconds = tick_interval_seconds
         self._max_outstanding = get_env_online_eval_max_session_outstanding()
+        self._publish_metrics = get_env_enable_prometheus()
         self._sweeper_id = f"session-sweeper-{token_hex(8)}"
         self._lease_held = False
 
@@ -149,21 +160,40 @@ class SessionEvalSweeper(DaemonTask):
         return None
 
     async def _materialize_and_renew(self, cursor_id: int) -> bool:
-        async with self._db() as session:
-            database_now = await self._database_now(session)
-            await self._sweep(session, database_now)
-            renewed_at = await self._database_now(session)
-            renewed = await session.scalar(
-                update(models.EvalWorkCursor)
-                .where(
-                    models.EvalWorkCursor.id == cursor_id,
-                    models.EvalWorkCursor.claimed_by == self._sweeper_id,
+        started_at = time.monotonic()
+        if self._publish_metrics:
+            ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS.inc()
+        materialized_work_count = 0
+        renewed: Optional[int] = None
+        try:
+            async with self._db() as session:
+                database_now = await self._database_now(session)
+                materialized_work_count = await self._sweep(session, database_now)
+                renewed_at = await self._database_now(session)
+                renewed = await session.scalar(
+                    update(models.EvalWorkCursor)
+                    .where(
+                        models.EvalWorkCursor.id == cursor_id,
+                        models.EvalWorkCursor.claimed_by == self._sweeper_id,
+                    )
+                    .values(claimed_at=renewed_at)
+                    .returning(models.EvalWorkCursor.id)
                 )
-                .values(claimed_at=renewed_at)
-                .returning(models.EvalWorkCursor.id)
-            )
+                if renewed is None:
+                    await session.rollback()
+        except Exception:
+            if self._publish_metrics:
+                ONLINE_EVAL_SESSION_SWEEP_FAILURES.inc()
+            raise
+        finally:
+            if self._publish_metrics:
+                ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS.observe(time.monotonic() - started_at)
+        if self._publish_metrics:
             if renewed is None:
-                await session.rollback()
+                ONLINE_EVAL_SESSION_SWEEP_FAILURES.inc()
+            else:
+                ONLINE_EVAL_SESSION_SWEEP_SUCCESSES.inc()
+                ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS.inc(materialized_work_count)
         return renewed is not None
 
     async def _database_now(self, session: AsyncSession) -> datetime:
@@ -209,14 +239,17 @@ class SessionEvalSweeper(DaemonTask):
             )
         return criteria_rows
 
-    async def _sweep(self, session: AsyncSession, database_now: datetime) -> None:
+    async def _sweep(self, session: AsyncSession, database_now: datetime) -> int:
         criteria_by_project: defaultdict[int, list[_SessionCriteria]] = defaultdict(list)
         for criteria in await self._load_criteria(session):
             criteria_by_project[criteria.project_id].append(criteria)
 
+        if self._publish_metrics:
+            await self._publish_activity_metrics(session, database_now)
+
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
-            return
+            return 0
 
         activity_stmt = select(
             models.EvalSessionActivity,
@@ -251,7 +284,7 @@ class SessionEvalSweeper(DaemonTask):
             )
         ).all()
         if not activity_rows:
-            return
+            return 0
 
         project_session_ids = [activity.project_session_rowid for activity, _ in activity_rows]
         existing_work_keys = {
@@ -311,6 +344,28 @@ class SessionEvalSweeper(DaemonTask):
                     models.EvalSessionActivity.id.in_(resolved_activity_ids)
                 )
             )
+        return len(work_records)
+
+    async def _publish_activity_metrics(
+        self,
+        session: AsyncSession,
+        database_now: datetime,
+    ) -> None:
+        activity_count, oldest_observed_at = (
+            await session.execute(
+                select(
+                    func.count(models.EvalSessionActivity.id),
+                    func.min(models.EvalSessionActivity.observed_at),
+                )
+            )
+        ).one()
+        ONLINE_EVAL_SESSION_ACTIVITY_BACKLOG.set(activity_count)
+        oldest_age_seconds = (
+            max((database_now - oldest_observed_at).total_seconds(), 0.0)
+            if oldest_observed_at is not None
+            else 0.0
+        )
+        ONLINE_EVAL_SESSION_ACTIVITY_OLDEST_AGE_SECONDS.set(oldest_age_seconds)
 
     async def _admission_budget(self, session: AsyncSession) -> int:
         outstanding = (
