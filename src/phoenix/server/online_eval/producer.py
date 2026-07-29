@@ -35,6 +35,7 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.online_eval.db_coordinator import (
     STALE_FINGERPRINT_ERROR,
     work_unit_lease_lapsed,
@@ -104,7 +105,15 @@ async def resolve_criteria(
         )
         sandbox_config_id = evaluator.sandbox_config_id
     elif isinstance(evaluator, models.BuiltinEvaluator):
-        version_ref = [evaluator.key, evaluator.synced_at.isoformat()]
+        evaluator_class = get_builtin_evaluator_by_key(evaluator.key)
+        implementation_version = (
+            evaluator_class.implementation_version if evaluator_class is not None else None
+        )
+        version_ref = [
+            evaluator.key,
+            evaluator.synced_at.isoformat(),
+            implementation_version,
+        ]
     else:
         return None
     if version_ref is None:

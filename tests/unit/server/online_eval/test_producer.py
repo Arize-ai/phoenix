@@ -8,6 +8,7 @@ from sqlalchemy import func, select, update
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.evaluators import ContainsEvaluator
 from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
 from phoenix.server.online_eval.db_coordinator import (
@@ -188,6 +189,42 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         )
     await producer._tick()
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
+
+
+async def test_builtin_implementation_version_changes_fingerprint(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root="contains"),
+            kind="BUILTIN",
+            key="contains",
+            input_schema={},
+            output_configs=[],
+            synced_at=_now(),
+        )
+        session.add(evaluator)
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(root="criteria"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+        )
+        session.add(criteria)
+        await session.flush()
+
+        first = await resolve_criteria(session, criteria, evaluator)
+        assert first is not None
+        monkeypatch.setattr(ContainsEvaluator, "implementation_version", "2")
+        second = await resolve_criteria(session, criteria, evaluator)
+        assert second is not None
+
+    assert config_fingerprint(first) != config_fingerprint(second)
 
 
 async def test_tick_records_latest_activity_for_runnable_sessions(
