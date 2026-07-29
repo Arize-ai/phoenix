@@ -5,16 +5,21 @@ from collections.abc import Sequence
 
 import strawberry
 
+from phoenix.trace.dsl.filter import _IterableGrammar
 from phoenix.trace.dsl.session_filter import SESSION_BINDINGS, SESSION_FILTER_DESCRIPTIONS
 
 _STRING = "string"
 _NUMBER = "number"
 _DATETIME = "datetime"
+_BOOLEAN = "boolean"
+_ITERABLE_TYPE = "iterable"
 
 _INTRINSIC = "session"
 _AGGREGATE = "aggregate"
 _ATTRIBUTE = "attribute"
 _ANNOTATION = "annotation"
+_ITERABLE = "iterable"
+_ELEMENT = "element"
 
 _ATTRIBUTE_PROXY_TERMS = ("attributes[...]", "user.id", 'metadata["key"]')
 
@@ -29,7 +34,9 @@ class FilterVocabularyTerm:
         description="The bindable name exactly as written in a filter expression."
     )
     type: str = strawberry.field(
-        description="Value-type hint for the comparand: 'string', 'number', or 'datetime'."
+        description="Value-type hint for the comparand: 'string', 'number', 'datetime', "
+        "or 'boolean'. Collections carry 'iterable' — they are looped over rather than "
+        "compared."
     )
     description: str = strawberry.field(
         description="Human-readable gloss of what the term means and how it evaluates."
@@ -37,7 +44,17 @@ class FilterVocabularyTerm:
     category: str = strawberry.field(
         description="Presentation/discovery grouping: 'session' (intrinsic column), "
         "'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), "
-        "or 'annotation' (session annotation access)."
+        "'annotation' (session annotation access), 'iterable' (a collection a "
+        "comprehension can loop over), or 'element' (a field of one such collection's "
+        "elements)."
+    )
+    iterable_name: str | None = strawberry.field(
+        default=None,
+        description="Name of the iterable term whose elements expose this name, or null "
+        "when the term binds at the top level. An 'element' term is only writable inside "
+        "a comprehension over that iterable, qualified by the loop variable — e.g. "
+        "latency_ms with iterableName 'spans' is written any(s.latency_ms > 1000 for s in "
+        "spans), never bare.",
     )
 
 
@@ -46,21 +63,25 @@ def session_filter_vocabulary_terms(
     root_span_attribute_paths: Sequence[Sequence[str]] = (),
 ) -> list[FilterVocabularyTerm]:
     """Build the session-filter vocabulary from compiler bindings and project-observed paths."""
-    terms: dict[str, FilterVocabularyTerm] = {}
+    # Keyed by (iterable, name): element field names repeat across iterables and collide with
+    # top-level ones (`start_time` is both a session column and a turn field).
+    terms: dict[tuple[str | None, str], FilterVocabularyTerm] = {}
 
     def add(
         name: str,
         value_type: str,
         category: str,
         description: str | None = None,
+        iterable_name: str | None = None,
     ) -> None:
         terms.setdefault(
-            name,
+            (iterable_name, name),
             FilterVocabularyTerm(
                 name=name,
                 type=value_type,
                 description=description or SESSION_FILTER_DESCRIPTIONS[name],
                 category=category,
+                iterable_name=iterable_name,
             ),
         )
 
@@ -77,6 +98,17 @@ def session_filter_vocabulary_terms(
 
     for name in _ATTRIBUTE_PROXY_TERMS:
         add(name, _STRING, _ATTRIBUTE)
+
+    for iterable_name, grammar in sorted(SESSION_BINDINGS.iterables.items()):
+        add(iterable_name, _ITERABLE_TYPE, _ITERABLE)
+        for field_name, field_type in sorted(_element_field_types(grammar).items()):
+            add(
+                field_name,
+                field_type,
+                _ELEMENT,
+                description=SESSION_FILTER_DESCRIPTIONS[f"{iterable_name}.{field_name}"],
+                iterable_name=iterable_name,
+            )
 
     for attribute_path in sorted({tuple(path) for path in root_span_attribute_paths}):
         name = _attribute_path_name(attribute_path)
@@ -113,6 +145,21 @@ def session_filter_vocabulary_terms(
             category=_ANNOTATION,
         )
     return list(terms.values())
+
+
+def _element_field_types(grammar: _IterableGrammar) -> dict[str, str]:
+    """Name-to-type map for one iterable's element fields, read off the compiler's own bindings.
+
+    Reading the bindings rather than a parallel list is what keeps the served vocabulary from
+    drifting from what actually compiles.
+    """
+    element_bindings = grammar.element_bindings
+    return {
+        **{name: _STRING for name in element_bindings.string_names},
+        **{name: _NUMBER for name in element_bindings.float_names},
+        **{name: _DATETIME for name in element_bindings.datetime_names},
+        **{name: _BOOLEAN for name in element_bindings.boolean_names},
+    }
 
 
 def _attribute_path_name(attribute_path: Sequence[str]) -> str:
