@@ -584,6 +584,7 @@ export function SessionsTable(props: SessionsTableProps) {
                 type
                 description
                 category
+                iterableName
               }
             }
           }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c9dfd51295bc7f36e84498606f513ec>>
+ * @generated SignedSource<<5c0ebefad8ef495498cc892298ebe2e9>>
  * @lightSyntaxTransform
  */
 
@@ -16,6 +16,7 @@ export type SessionsTableSessionFilterVocabularyQuery$data = {
     readonly sessionFilterVocabulary?: ReadonlyArray<{
       readonly category: string;
       readonly description: string;
+      readonly iterableName: string | null;
       readonly name: string;
       readonly type: string;
     }>;
@@ -78,6 +79,13 @@ v2 = {
           "args": null,
           "kind": "ScalarField",
           "name": "category",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "iterableName",
           "storageKey": null
         }
       ],
@@ -145,16 +153,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8742c17256539400447de297cbcb16f3",
+    "cacheID": "40a2888a1d5ca2f41532e43b026a6e93",
     "id": null,
     "metadata": {},
     "name": "SessionsTableSessionFilterVocabularyQuery",
     "operationKind": "query",
-    "text": "query SessionsTableSessionFilterVocabularyQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      sessionFilterVocabulary {\n        name\n        type\n        description\n        category\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SessionsTableSessionFilterVocabularyQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      sessionFilterVocabulary {\n        name\n        type\n        description\n        category\n        iterableName\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "874eb7c5d24fd58a4db4d14f6a543260";
+(node as any).hash = "99c0486b11805a81b0c04228d95040f7";
 
 export default node;

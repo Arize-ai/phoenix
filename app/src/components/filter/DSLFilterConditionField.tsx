@@ -14,8 +14,13 @@ import type { Extension } from "@codemirror/state";
 import { css } from "@emotion/react";
 import CodeMirror, {
   type BasicSetupOptions,
+  Decoration,
+  type DecorationSet,
   EditorView,
   keymap,
+  type Range,
+  StateEffect,
+  StateField,
 } from "@uiw/react-codemirror";
 import type { ReactNode, Ref } from "react";
 import {
@@ -44,7 +49,10 @@ import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils/classNames";
 
-import { createDSLFilterCompletionSource } from "./dslFilterConditionFieldUtils";
+import {
+  createDSLFilterCompletionSource,
+  type DSLFilterCompletionRequest,
+} from "./dslFilterConditionFieldUtils";
 import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
@@ -100,6 +108,39 @@ const basicSetupOptions: BasicSetupOptions = {
 
 const suggestionsSection: CompletionSection = { name: "Suggestions", rank: 1 };
 const fieldsSection: CompletionSection = { name: "Fields", rank: 3 };
+
+/** The document range an invalid condition is blamed on, or null for none. */
+export type DSLFilterErrorRange = { from: number; to: number };
+
+const setErrorRangeEffect = StateEffect.define<DSLFilterErrorRange | null>();
+
+const errorRangeMark = Decoration.mark({ class: "cm-dsl-filter-error-region" });
+
+/**
+ * Underlines the sub-expression an error was blamed on. Carried in editor
+ * state rather than in the extensions array: reconfiguring CodeMirror on every
+ * validation result would reset the open completion dropdown.
+ */
+const errorRangeField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(decorations, transaction) {
+    let next = decorations.map(transaction.changes);
+    for (const effect of transaction.effects) {
+      if (!effect.is(setErrorRangeEffect)) {
+        continue;
+      }
+      const range = effect.value;
+      const documentLength = transaction.state.doc.length;
+      const marks: Range<Decoration>[] =
+        range && range.from < range.to && range.to <= documentLength
+          ? [errorRangeMark.range(range.from, range.to)]
+          : [];
+      next = Decoration.set(marks);
+    }
+    return next;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
 
 /**
  * Section for completions loaded via `loadCompletions` — sorts between the
@@ -243,6 +284,24 @@ export type DSLFilterConditionFieldProps<
    * field comparison. Pass a referentially stable array.
    */
   completionSources?: CompletionSource[];
+  /**
+   * Replaces `completions` and `snippets` at cursor positions where a
+   * different vocabulary applies — e.g. inside a comprehension, where only the
+   * loop variable's element fields can be written. Return null to use the
+   * default vocabulary, or an array (possibly empty) to use it instead for
+   * this position. `completionSources` are unaffected. Pass a referentially
+   * stable function.
+   */
+  getContextualCompletions?: (
+    request: DSLFilterCompletionRequest
+  ) => Completion[] | null;
+  /**
+   * Locates the sub-expression to blame for a validation error, so the field
+   * can underline it instead of flagging the whole condition. Returning null
+   * (or omitting this) leaves the error unanchored. Pass a referentially
+   * stable function.
+   */
+  getErrorRange?: (condition: string) => DSLFilterErrorRange | null;
   /**
    * Async validation of the condition expression. Never called with an
    * empty (or whitespace-only) condition — the field resolves those as
@@ -418,6 +477,8 @@ export function DSLFilterConditionField<
     snippets = defaultSnippets,
     loadCompletions,
     completionSources = defaultCompletionSources,
+    getContextualCompletions,
+    getErrorRange,
     validateCondition,
     onValidCondition,
     onValidationFailed,
@@ -521,16 +582,28 @@ export function DSLFilterConditionField<
         ? completion
         : { ...completion, section: fieldsSection }
     );
-    const browseOptions = [
-      ...snippetOptions.slice(0, MAX_BROWSE_SUGGESTIONS),
-      ...fieldOptions.slice(0, MAX_BROWSE_FIELDS),
-    ];
-    const allOptions = [...snippetOptions, ...fieldOptions];
-    const staticOptions = (isBrowsing: boolean): Completion[] =>
-      isBrowsing ? browseOptions : allOptions;
+    const staticOptions = (
+      request: DSLFilterCompletionRequest
+    ): Completion[] => {
+      const contextualOptions = getContextualCompletions?.(request);
+      if (contextualOptions) {
+        return request.isBrowsing
+          ? contextualOptions.slice(0, MAX_BROWSE_FIELDS)
+          : contextualOptions;
+      }
+      return [
+        ...(request.isBrowsing
+          ? snippetOptions.slice(0, MAX_BROWSE_SUGGESTIONS)
+          : snippetOptions),
+        ...(request.isBrowsing
+          ? fieldOptions.slice(0, MAX_BROWSE_FIELDS)
+          : fieldOptions),
+      ];
+    };
     return [
       ...composedExtensions,
       singleLineKeymap,
+      errorRangeField,
       pythonLanguage,
       // Surface the suggestions dropdown whenever the empty field is
       // focused, clicked, or cleared — the empty state doubles as a
@@ -574,8 +647,21 @@ export function DSLFilterConditionField<
     completions,
     loadCompletions,
     completionSources,
+    getContextualCompletions,
     contentAttributes,
   ]);
+
+  // Anchor the error to the sub-expression it came from once validation has
+  // settled; a dispatched effect rather than a reconfigure, so an open
+  // dropdown survives.
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (!editorView) {
+      return;
+    }
+    const range = hasError ? (getErrorRange?.(value) ?? null) : null;
+    editorView.dispatch({ effects: setErrorRangeEffect.of(range) });
+  }, [hasError, value, getErrorRange]);
 
   // Validity attributes are applied directly to the contenteditable so
   // toggling them doesn't force a CodeMirror reconfigure
