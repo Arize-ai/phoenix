@@ -110,15 +110,20 @@ def session_filter_vocabulary_terms(
                 iterable_name=iterable_name,
             )
 
-    for attribute_path in sorted({tuple(path) for path in root_span_attribute_paths}):
-        name = _attribute_path_name(attribute_path)
+    # Observed paths are served in the canonical wire-key spelling — one term per
+    # OTel key, however ingestion decomposed it into nested JSON. The nested
+    # spelling (attributes["llm"]["model_name"]) remains an accepted synonym in
+    # the compiler; serving both would list every key twice.
+    for wire_key in sorted({".".join(path) for path in root_span_attribute_paths}):
+        subscript = _subscript_literal(wire_key)
         add(
-            name,
+            f"attributes[{subscript}]",
             _STRING,
             _ATTRIBUTE,
             description=(
-                f"Observed root-span attribute {name}; reads from the session's earliest "
-                "root span and is string-cast unless explicitly cast."
+                f"Observed root-span attribute with OTel key {subscript}; matches the key "
+                "however ingestion nested it, reads from the session's earliest root span, "
+                "and is string-cast unless explicitly cast."
             ),
         )
 
@@ -160,12 +165,6 @@ def _element_field_types(grammar: _IterableGrammar) -> dict[str, str]:
         **{name: _DATETIME for name in element_bindings.datetime_names},
         **{name: _BOOLEAN for name in element_bindings.boolean_names},
     }
-
-
-def _attribute_path_name(attribute_path: Sequence[str]) -> str:
-    return "attributes" + "".join(
-        f"[{_subscript_literal(path_segment)}]" for path_segment in attribute_path
-    )
 
 
 def _subscript_literal(value: str) -> str:

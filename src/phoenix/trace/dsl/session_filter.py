@@ -380,11 +380,11 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             "(target them with `is None`)."
         ),
         "user.id": (
-            'Accepted proxy for attributes["user"]["id"]; reads from the session\'s earliest '
+            'Accepted proxy for attributes["user.id"]; reads from the session\'s earliest '
             "root span. Missing on that span is SQL null (target it with `is None`)."
         ),
         'metadata["key"]': (
-            'Accepted proxy for attributes["metadata"]["key"]; reads from the session\'s '
+            'Accepted proxy for attributes["metadata.key"]; reads from the session\'s '
             "earliest root span. Missing on that span is SQL null (target it with `is None`)."
         ),
         "spans": (
