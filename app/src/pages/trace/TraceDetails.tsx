@@ -287,8 +287,8 @@ function TraceTurnDetails({
       >
         <View
           paddingTop="size-100"
-          paddingBottom="size-200"
-          paddingX="size-200"
+          paddingBottom="size-100"
+          paddingX="size-100"
         >
           <TraceTurnContent rootSpan={rootSpan} />
         </View>

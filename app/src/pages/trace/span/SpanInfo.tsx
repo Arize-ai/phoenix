@@ -25,7 +25,7 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
   // Handle the case where the attributes are not a valid JSON object
   if (parseError || !attributesObject) {
     return (
-      <View padding="size-200">
+      <View padding="size-100">
         <Flex direction="column" gap="size-200">
           <Alert variant="warning" title="Un-parsable attributes">
             {`Failed to parse span attributes. ${parseError instanceof Error ? parseError.message : ""}`}
@@ -66,7 +66,7 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
   }
 
   return (
-    <View padding="size-200">
+    <View padding="size-100">
       <Flex direction="column" gap="size-200">
         {content}
         {attributesObject.metadata != null ? (

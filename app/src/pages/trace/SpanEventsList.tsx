@@ -88,7 +88,7 @@ export function SpanEventsListContent({
       defaultExpandedKeys={defaultExpandedKeys}
       css={css`
         .react-aria-Button[slot="trigger"] {
-          padding: var(--global-dimension-size-200);
+          padding: var(--global-dimension-size-100);
         }
       `}
     >

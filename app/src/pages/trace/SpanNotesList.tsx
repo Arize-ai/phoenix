@@ -48,7 +48,7 @@ const notesListCSS = css`
   flex-direction: column;
   gap: var(--global-dimension-size-100);
   margin: 0;
-  padding: var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-100);
   list-style: none;
 `;
 
@@ -69,7 +69,7 @@ export function SpanNotesListContent({
       <Flex
         direction="column"
         alignItems="center"
-        paddingX="size-200"
+        paddingX="size-100"
         paddingY="size-400"
       >
         <EmptyState

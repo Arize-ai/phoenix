@@ -591,7 +591,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               <DeferredSpanDetailsContent
                 placeholderHeight={ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
               >
-                <View padding="size-200">
+                <View padding="size-100">
                   <SpanAttributesCard
                     attributes={span.attributes}
                     {...attributesCardProps}
