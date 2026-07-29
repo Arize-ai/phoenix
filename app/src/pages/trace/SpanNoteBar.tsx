@@ -38,7 +38,7 @@ const spanNoteBarCSS = css`
     display: flex;
     flex-direction: row;
     align-items: flex-end;
-    gap: var(--global-dimension-size-100);
+    gap: var(--global-dimension-size-150);
     padding: var(--global-dimension-size-200);
     border-top: 1px solid var(--global-border-color-default);
 
