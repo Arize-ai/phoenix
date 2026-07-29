@@ -2,7 +2,9 @@ from secrets import token_hex
 
 import pytest
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 from sqlalchemy.orm import selectinload
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError
 
 from phoenix.db import models
 from phoenix.db.types.evaluators import InputMapping
@@ -10,6 +12,8 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 
 from .._helpers import _add_project, _add_project_session, _add_span, _add_trace
+
+_INTEGRITY_ERRORS = (SQLAlchemyIntegrityError, SQLiteIntegrityError)
 
 
 async def _seed_span_evaluator_and_criteria(db: DbSessionFactory) -> tuple[int, int, int]:
@@ -118,7 +122,7 @@ async def test_eval_work_unit_work_key_is_unique(db: DbSessionFactory) -> None:
         )
         await session.flush()
 
-    with pytest.raises(Exception):
+    with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
                 models.EvalWorkUnit(
@@ -134,7 +138,7 @@ async def test_eval_work_unit_work_key_is_unique(db: DbSessionFactory) -> None:
 async def test_eval_work_unit_rejects_unknown_status(db: DbSessionFactory) -> None:
     span_rowid, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
 
-    with pytest.raises(Exception):
+    with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
                 models.EvalWorkUnit(
@@ -202,7 +206,7 @@ async def test_session_work_units_are_generation_aware(db: DbSessionFactory) -> 
         assert {unit.generation for unit in session_units} == {0, 1}
         assert all(unit.status == "PENDING" for unit in session_units)
 
-    with pytest.raises(Exception):
+    with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
                 models.EvalSessionWorkUnit(
@@ -289,7 +293,7 @@ async def test_project_evaluator_criteria_rejects_out_of_range_sampling_rate(
         assert existing is not None
         project_id = existing.project_id
 
-    with pytest.raises(Exception):
+    with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
                 models.ProjectEvaluatorCriteria(
@@ -315,7 +319,7 @@ async def test_project_evaluator_criteria_name_is_unique_per_project(
         project_id = existing.project_id
         name = existing.name
 
-    with pytest.raises(Exception):
+    with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
                 models.ProjectEvaluatorCriteria(
@@ -365,7 +369,7 @@ async def test_project_evaluator_criteria_rejects_unknown_target(
         assert existing is not None
         project_id = existing.project_id
 
-    with pytest.raises(Exception):
+    with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
                 models.ProjectEvaluatorCriteria(
@@ -403,14 +407,14 @@ async def test_eval_work_cursor_unique_target_group(db: DbSessionFactory) -> Non
         session.add(models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default"))
         await session.flush()
 
-    with pytest.raises(Exception):
+    with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default"))
             await session.flush()
 
 
 async def test_eval_work_cursor_rejects_unknown_evaluation_target(db: DbSessionFactory) -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
                 models.EvalWorkCursor(
