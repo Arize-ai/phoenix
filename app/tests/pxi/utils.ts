@@ -1,5 +1,7 @@
 import type { APIResponse } from "@playwright/test";
 
+import type { PxiToolCall } from "./types";
+
 export async function expectOK(response: APIResponse) {
   if (!response.ok()) {
     throw new Error(
@@ -28,11 +30,22 @@ export function getSpanToolName(span: unknown): string | null {
 }
 
 export function getUiMessageToolNames(parts: unknown[]): string[] {
+  return getUiMessageToolCalls(parts).map((toolCall) => toolCall.name);
+}
+
+export function getUiMessageToolCalls(parts: unknown[]): PxiToolCall[] {
   return parts.flatMap((part) => {
     if (typeof part !== "object" || part === null) {
       return [];
     }
-    const candidate = part as { type?: unknown; toolName?: unknown };
+    const candidate = part as {
+      type?: unknown;
+      toolName?: unknown;
+      input?: unknown;
+      args?: unknown;
+      output?: unknown;
+      result?: unknown;
+    };
     if (typeof candidate.type !== "string") {
       return [];
     }
@@ -44,6 +57,14 @@ export function getUiMessageToolNames(parts: unknown[]): string[] {
       typeof candidate.toolName === "string"
         ? candidate.toolName
         : null);
-    return toolName ? [toolName] : [];
+    return toolName
+      ? [
+          {
+            name: toolName,
+            input: candidate.input ?? candidate.args ?? null,
+            output: candidate.output ?? candidate.result ?? null,
+          },
+        ]
+      : [];
   });
 }

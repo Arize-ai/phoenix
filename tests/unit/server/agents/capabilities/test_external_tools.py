@@ -5,10 +5,15 @@ from phoenix.server.agents.capabilities.tools.external import (
     open_dataset_evaluator_for_edit,
     patch_experiment,
     read_dataset_evaluator_definition,
+    run_code_evaluator_draft,
+    run_llm_evaluator_draft,
     set_appended_messages_path,
     set_dataset_evaluator_selection,
     set_playground_experiment_recording,
     set_template_variables_path,
+)
+from phoenix.server.agents.capabilities.tools.external.evaluator_draft_preview import (
+    MAX_PREVIEW_CASES,
 )
 from phoenix.server.agents.prompts import AgentPrompts
 
@@ -189,6 +194,44 @@ def test_cancel_playground_run_is_registered_as_external_tool() -> None:
         "properties": {},
         "additionalProperties": False,
     }
+
+
+def test_evaluator_draft_preview_tools_share_a_bounded_named_case_contract() -> None:
+    code_schema = run_code_evaluator_draft.TOOL_DEFINITION.parameters_json_schema
+    llm_schema = run_llm_evaluator_draft.TOOL_DEFINITION.parameters_json_schema
+
+    assert code_schema == llm_schema
+    # Equal in content, but independently owned: mutating one tool's schema
+    # must never silently corrupt the other's.
+    assert code_schema is not llm_schema
+    assert code_schema["properties"]["cases"] is not llm_schema["properties"]["cases"]
+    assert code_schema.get("required", []) == []
+    assert set(code_schema["properties"]) == {"cases"}
+    assert code_schema["additionalProperties"] is False
+    cases = code_schema["properties"]["cases"]
+    assert cases["minItems"] == 1
+    assert cases["maxItems"] == MAX_PREVIEW_CASES
+    case = cases["items"]
+    assert case["required"] == ["id", "testPayload"]
+    assert case["properties"]["id"]["minLength"] == 1
+    assert set(case["properties"]["testPayload"]["properties"]) == {
+        "input",
+        "output",
+        "reference",
+        "metadata",
+    }
+
+
+def test_evaluator_draft_preview_instructions_prefer_one_non_mutating_batch() -> None:
+    prompts = AgentPrompts()
+    for rendered in (
+        prompts.test_code_evaluator_draft_tool.render(),
+        prompts.test_llm_evaluator_draft_tool.render(),
+    ):
+        assert "one `cases` call" in rendered
+        assert "does not change the form" in rendered
+        assert "does not require edit approval" in rendered
+        assert "Omit `cases`" in rendered
 
 
 def test_set_dataset_evaluator_selection_parameters_take_whole_set_of_ids() -> None:

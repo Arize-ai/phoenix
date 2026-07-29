@@ -1,20 +1,23 @@
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
+import {
+  createEvaluatorDraftTestClientAction,
+  LLM_EVALUATOR_PREVIEW_CONCURRENCY,
+  type EvaluatorPreviewRunnerFactory,
+} from "@phoenix/agent/tools/evaluatorDraftPreview";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-import { SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
+import {
+  SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+  TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+} from "./constants";
 import {
   parseEditLlmEvaluatorDraftActionContext,
   parseEditLlmEvaluatorDraftInput,
   parseReadLlmEvaluatorDraftInput,
-  parseTestLlmEvaluatorDraftInput,
 } from "./parsers";
 import { bindPendingLlmEvaluatorEditActions } from "./pendingLlmEvaluatorEdit";
-import type {
-  LlmEvaluatorActionResult,
-  LlmEvaluatorDraftHost,
-  PendingLlmEvaluatorEdit,
-} from "./types";
+import type { LlmEvaluatorDraftHost, PendingLlmEvaluatorEdit } from "./types";
 
 export function createReadLlmEvaluatorDraftClientAction({
   getDraftHost,
@@ -124,29 +127,16 @@ export function createSubmitLlmEvaluatorDraftClientAction({
 
 export function createTestLlmEvaluatorDraftClientAction({
   isDraftMounted,
-  runEvaluatorPreview,
+  createPreviewRunner,
 }: {
   isDraftMounted: () => boolean;
-  runEvaluatorPreview: () => Promise<LlmEvaluatorActionResult<unknown>>;
+  createPreviewRunner: EvaluatorPreviewRunnerFactory;
 }) {
-  return async (input: unknown): Promise<AgentClientActionResult> => {
-    const parsed = parseTestLlmEvaluatorDraftInput(input);
-    if (!parsed) {
-      return {
-        ok: false,
-        error: "Invalid test_llm_evaluator_draft input.",
-      };
-    }
-    if (!isDraftMounted()) {
-      return {
-        ok: false,
-        error: "The LLM-evaluator form is not mounted; cannot test the draft.",
-      };
-    }
-    const result = await runEvaluatorPreview();
-    if (!result.ok) {
-      return result;
-    }
-    return { ok: true, output: JSON.stringify(result.output, null, 2) };
-  };
+  return createEvaluatorDraftTestClientAction({
+    toolName: TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+    formLabel: "LLM-evaluator form",
+    isDraftMounted,
+    createPreviewRunner,
+    concurrency: LLM_EVALUATOR_PREVIEW_CONCURRENCY,
+  });
 }

@@ -1,20 +1,23 @@
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
+import {
+  CODE_EVALUATOR_PREVIEW_CONCURRENCY,
+  createEvaluatorDraftTestClientAction,
+  type EvaluatorPreviewRunnerFactory,
+} from "@phoenix/agent/tools/evaluatorDraftPreview";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-import { SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
+import {
+  SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+} from "./constants";
 import {
   parseEditCodeEvaluatorDraftActionContext,
   parseEditCodeEvaluatorDraftInput,
   parseReadCodeEvaluatorDraftInput,
-  parseTestCodeEvaluatorDraftInput,
 } from "./parsers";
 import { bindPendingCodeEvaluatorEditActions } from "./pendingCodeEvaluatorEdit";
-import type {
-  CodeEvaluatorActionResult,
-  CodeEvaluatorDraftHost,
-  PendingCodeEvaluatorEdit,
-} from "./types";
+import type { CodeEvaluatorDraftHost, PendingCodeEvaluatorEdit } from "./types";
 
 export function createReadCodeEvaluatorDraftClientAction({
   getDraftHost,
@@ -124,29 +127,16 @@ export function createSubmitCodeEvaluatorDraftClientAction({
 
 export function createTestCodeEvaluatorDraftClientAction({
   isDraftMounted,
-  runEvaluatorPreview,
+  createPreviewRunner,
 }: {
   isDraftMounted: () => boolean;
-  runEvaluatorPreview: () => Promise<CodeEvaluatorActionResult<unknown>>;
+  createPreviewRunner: EvaluatorPreviewRunnerFactory;
 }) {
-  return async (input: unknown): Promise<AgentClientActionResult> => {
-    const parsed = parseTestCodeEvaluatorDraftInput(input);
-    if (!parsed) {
-      return {
-        ok: false,
-        error: "Invalid test_code_evaluator_draft input.",
-      };
-    }
-    if (!isDraftMounted()) {
-      return {
-        ok: false,
-        error: "The code-evaluator form is not mounted; cannot test the draft.",
-      };
-    }
-    const result = await runEvaluatorPreview();
-    if (!result.ok) {
-      return result;
-    }
-    return { ok: true, output: JSON.stringify(result.output, null, 2) };
-  };
+  return createEvaluatorDraftTestClientAction({
+    toolName: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+    formLabel: "code-evaluator form",
+    isDraftMounted,
+    createPreviewRunner,
+    concurrency: CODE_EVALUATOR_PREVIEW_CONCURRENCY,
+  });
 }
