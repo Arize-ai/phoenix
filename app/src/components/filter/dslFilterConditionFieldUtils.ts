@@ -136,7 +136,7 @@ export function shouldSuppressDSLFilterCompletionsInString({
 const comprehensionFunctionNames = ["any", "all", "len", "max", "min", "sum"];
 
 const comprehensionCallPattern = new RegExp(
-  String.raw`\b(?:${comprehensionFunctionNames.join("|")})\s*$`
+  String.raw`\b(${comprehensionFunctionNames.join("|")})\s*$`
 );
 
 const forClauseSource = String.raw`\bfor\s+([A-Za-z_]\w*)\s+in\s+([A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*)*)`;
@@ -197,21 +197,33 @@ function getUnclosedBracketIndexes(textBeforeCursor: string): number[] {
 }
 
 /**
- * Whether the bracket at `openIndex` opens a comprehension argument — either
- * `any(`…`)` directly, or the list form `len([`…`])`.
+ * The comprehension call whose argument the bracket at `openIndex` opens, or
+ * null when it opens something else. Covers both `any(`…`)` directly and the
+ * list form `len([`…`])` — `isListForm` distinguishes them.
  */
-function opensComprehensionArgument(text: string, openIndex: number): boolean {
-  if (comprehensionCallPattern.test(text.slice(0, openIndex))) {
-    return true;
+function getComprehensionCallAt(
+  text: string,
+  openIndex: number
+): DSLFilterComprehensionCall | null {
+  const directMatch = text.slice(0, openIndex).match(comprehensionCallPattern);
+  if (directMatch?.[1]) {
+    return { functionName: directMatch[1], isListForm: false };
   }
   if (text[openIndex] !== "[") {
-    return false;
+    return null;
   }
   const beforeBracket = text.slice(0, openIndex).trimEnd();
-  return (
-    beforeBracket.endsWith("(") &&
-    comprehensionCallPattern.test(beforeBracket.slice(0, -1))
-  );
+  if (!beforeBracket.endsWith("(")) {
+    return null;
+  }
+  const listMatch = beforeBracket.slice(0, -1).match(comprehensionCallPattern);
+  return listMatch?.[1]
+    ? { functionName: listMatch[1], isListForm: true }
+    : null;
+}
+
+function opensComprehensionArgument(text: string, openIndex: number): boolean {
+  return getComprehensionCallAt(text, openIndex) !== null;
 }
 
 /** The text from the cursor up to where the enclosing bracket closes. */
@@ -297,6 +309,84 @@ export function detectDSLFilterComprehensionScope({
       iterableExpression.lastIndexOf(".") + 1
     );
     return isIterableName(iterableName) ? { iterableName, loopVariable } : null;
+  }
+
+  return null;
+}
+
+/**
+ * The comprehension call enclosing the cursor: which quantifier/reduction it
+ * is, and whether its argument was opened in list form (`len([`) rather than
+ * as a bare generator (`sum(`).
+ */
+export type DSLFilterComprehensionCall = {
+  functionName: string;
+  isListForm: boolean;
+};
+
+/**
+ * A `for` clause whose iterable position the cursor sits in — the loop
+ * variable is already written, the collection name is absent or mid-typed:
+ * `any(s.latency_ms > 100 for s in spa`. The only names that can go here are
+ * collections, so completion should offer exactly those (as plain names — a
+ * scaffold would nest a second comprehension into this one).
+ */
+const forClauseTargetPattern = new RegExp(
+  String.raw`\bfor\s+([A-Za-z_]\w*)\s+in(?:\s+(?:[A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]?\w*)*)?)?$`
+);
+
+/**
+ * Detects whether the cursor sits in the iterable position of a comprehension
+ * `for` clause, and under which loop variable. Returns null anywhere else —
+ * including inside the same comprehension's predicate or `if` clause.
+ */
+export function detectDSLFilterForClauseTarget({
+  textBeforeCursor,
+}: {
+  textBeforeCursor: string;
+}): { loopVariable: string } | null {
+  const openIndexes = getUnclosedBracketIndexes(textBeforeCursor);
+
+  for (let position = openIndexes.length - 1; position >= 0; position--) {
+    const openIndex = openIndexes[position];
+    if (
+      openIndex === undefined ||
+      !opensComprehensionArgument(textBeforeCursor, openIndex)
+    ) {
+      continue;
+    }
+    const match = textBeforeCursor
+      .slice(openIndex + 1)
+      .match(forClauseTargetPattern);
+    const loopVariable = match?.[1];
+    return loopVariable ? { loopVariable } : null;
+  }
+
+  return null;
+}
+
+/**
+ * The innermost comprehension call enclosing the cursor, or null when the
+ * cursor isn't inside one. Detects the moment a user has typed `any(` or
+ * `sum(` by hand and has yet to write the comprehension — the window where
+ * completion can offer whole comprehension bodies.
+ */
+export function detectDSLFilterComprehensionCall({
+  textBeforeCursor,
+}: {
+  textBeforeCursor: string;
+}): DSLFilterComprehensionCall | null {
+  const openIndexes = getUnclosedBracketIndexes(textBeforeCursor);
+
+  for (let position = openIndexes.length - 1; position >= 0; position--) {
+    const openIndex = openIndexes[position];
+    if (openIndex === undefined) {
+      continue;
+    }
+    const call = getComprehensionCallAt(textBeforeCursor, openIndex);
+    if (call) {
+      return call;
+    }
   }
 
   return null;

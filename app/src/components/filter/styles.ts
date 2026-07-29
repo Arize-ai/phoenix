@@ -52,7 +52,9 @@ export const dslFilterCodeMirrorCSS = css`
       line-height: var(--global-line-height-s);
       max-height: 400px;
       min-width: 280px;
-      max-width: 560px;
+      /* Wide enough that the longest shipped suggestion snippet (~77 mono
+         chars) fits its own stacked line — see li.dsl-filter-suggestion */
+      max-width: 640px;
       & > completion-section {
         display: list-item;
         padding: var(--global-dimension-size-100)
@@ -96,6 +98,18 @@ export const dslFilterCodeMirrorCSS = css`
     li.dsl-filter-suggestion .cm-completionLabel {
       font-family: var(--global-font-family-sans);
     }
+    /* A suggestion's detail is a whole example condition, not a short type
+       hint — beside the label under the 60% cap it truncates unreadably.
+       Stack it full-width under the prose label instead. */
+    li.dsl-filter-suggestion {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--global-dimension-size-25);
+    }
+    li.dsl-filter-suggestion .cm-completionDetail {
+      margin-left: 0;
+      max-width: 100%;
+    }
     .cm-completionMatchedText {
       text-decoration: none;
       font-weight: var(--font-weight-heavy);
@@ -122,6 +136,18 @@ export const dslFilterCodeMirrorCSS = css`
     padding: var(--global-dimension-size-100);
     color: var(--global-text-color-700);
     max-width: 300px;
+  }
+  /* The tab-through blanks an inserted snippet leaves behind — CodeMirror's
+     default marking is a near-invisible gray, so tint them with the primary
+     color to read as "fill me in": the active one is selected for overtyping,
+     Tab hops to the next, and the marks clear once the user moves on */
+  .cm-snippetField {
+    background-color: color-mix(
+      in srgb,
+      var(--global-color-primary) 18%,
+      transparent
+    );
+    border-radius: var(--global-rounding-small);
   }
   /* The sub-expression a validation error was blamed on */
   .cm-dsl-filter-error-region {

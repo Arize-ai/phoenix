@@ -1,11 +1,15 @@
 import type { Completion, CompletionSection } from "@codemirror/autocomplete";
+import { snippetCompletion } from "@codemirror/autocomplete";
 import { useCallback, useMemo } from "react";
 
 import {
   type DSLFilterCompletionRequest,
+  type DSLFilterComprehensionCall,
   DSLFilterConditionField,
   type DSLFilterSnippet,
+  detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
+  detectDSLFilterForClauseTarget,
   findDSLFilterComprehensionRange,
   useDSLFilterConditionHistory,
 } from "@phoenix/components/filter";
@@ -30,13 +34,16 @@ export type SessionFilterVocabularyTerm = {
 /**
  * Ranks continue past the field's own built-in sections — Recent searches (0),
  * Suggestions (1), loaded (2), Fields (3) — see `DSLFilterConditionField`.
+ * Collections rank ahead of Attributes and Annotations: they are core language
+ * surface, while the latter two grow with data-derived names and are the right
+ * sections to lose to the browse-view cap.
  */
 const vocabularyCategorySections: Record<string, CompletionSection> = {
   session: { name: "Session", rank: 4 },
   aggregate: { name: "Aggregates", rank: 5 },
-  attribute: { name: "Attributes", rank: 6 },
-  annotation: { name: "Annotations", rank: 7 },
-  iterable: { name: "Collections", rank: 8 },
+  iterable: { name: "Collections", rank: 6 },
+  attribute: { name: "Attributes", rank: 7 },
+  annotation: { name: "Annotations", rank: 8 },
 };
 
 /**
@@ -46,9 +53,52 @@ const vocabularyCategorySections: Record<string, CompletionSection> = {
 const elementFieldsSection: CompletionSection = { name: "Fields", rank: 1 };
 
 /**
+ * The loop variable each collection's inserted comprehensions (and served
+ * descriptions) use — `any(s… for s in spans)`, `sum(c… for c in
+ * cost_details)`. A collection the map doesn't know falls back to its first
+ * letter.
+ */
+const canonicalLoopVariables: Record<string, string> = {
+  spans: "s",
+  turns: "t",
+  session_annotations: "a",
+  span_annotations: "a",
+  cost_details: "c",
+};
+
+function getLoopVariable(iterableName: string): string {
+  return canonicalLoopVariables[iterableName] ?? iterableName[0] ?? "x";
+}
+
+/**
+ * The example predicate a collection's inserted comprehension starts with, as
+ * a selected tab-through placeholder. It must be *valid* — an inserted
+ * condition that errors until a blank is filled reads as broken, not as an
+ * invitation to edit — and each references its collection's loop variable
+ * from `canonicalLoopVariables`. A collection the map doesn't know falls back
+ * to a bare `condition` placeholder.
+ */
+const examplePredicates: Record<string, string> = {
+  spans: "s.latency_ms > 1_000",
+  turns: "t.latency_ms > 10_000",
+  session_annotations: "a.score < 0.5",
+  span_annotations: "a.score < 0.5",
+  cost_details: "c.tokens > 1_000",
+};
+
+function getExamplePredicate(iterableName: string): string {
+  return examplePredicates[iterableName] ?? "condition";
+}
+
+/**
  * Example conditions for the typeahead's "Suggestions" group, ordered
  * most-useful-first. `${placeholder}` segments become tab-through fields on
  * insert; subscripted names use double quotes to match the served vocabulary.
+ *
+ * Every snippet is valid as inserted — placeholders carry working example
+ * values, never blanks. The first `MAX_BROWSE_SUGGESTIONS` are what a
+ * browsing user sees, so they are curated to teach one construct each:
+ * aggregate, quantifier, compound, nested comprehension, filtered reduction.
  */
 const sessionFilterSnippets: DSLFilterSnippet[] = [
   {
@@ -56,12 +106,26 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
     snippet: "num_traces >= ${5}",
   },
   {
-    label: "filter by errors",
-    snippet: "num_traces_with_error > 0",
-  },
-  {
     label: "any span errored",
     snippet: 'any(s.status_code == "ERROR" for s in spans)',
+  },
+  {
+    label: "combine session and span conditions",
+    snippet:
+      'num_traces >= ${5} and any(s.status_code == "ERROR" for s in spans)',
+  },
+  {
+    label: "any turn used a tool",
+    snippet: 'any(any(s.span_kind == "TOOL" for s in t.spans) for t in turns)',
+  },
+  {
+    label: "sum tokens by token type",
+    snippet:
+      'sum(c.tokens for c in cost_details if c.token_type == "${cache_read}") > ${10_000}',
+  },
+  {
+    label: "filter by errors",
+    snippet: "num_traces_with_error > 0",
   },
   {
     label: "any span matches a condition",
@@ -142,6 +206,70 @@ function getCompletionOption(term: SessionFilterVocabularyTerm): Completion {
 }
 
 /**
+ * A collection completed at the top level of a condition: the bare name would
+ * never validate (collections are looped over, not compared), so accepting it
+ * inserts a whole `any(… for s in spans)` comprehension with a valid example
+ * predicate selected as a tab-through placeholder — overtyping it hands off
+ * to element-field completion. The `detail` previews that shape, which is
+ * also what tells a browsing user what a collection *is* for.
+ */
+function getIterableScaffoldCompletion(
+  term: SessionFilterVocabularyTerm
+): Completion {
+  const loopVariable = getLoopVariable(term.name);
+  const predicate = getExamplePredicate(term.name);
+  return snippetCompletion(
+    `any(\${${predicate}} for ${loopVariable} in ${term.name})`,
+    {
+      label: term.name,
+      type: "variable",
+      detail: `any(… for ${loopVariable} in ${term.name})`,
+      info: term.description,
+      section: vocabularyCategorySections[term.category],
+    }
+  );
+}
+
+/**
+ * A collection completed inside a hand-typed `any(`/`sum(`/… call that has no
+ * `for` clause yet: accepting inserts the comprehension body. `len` takes a
+ * list comprehension rather than a generator, so its body is bracketed unless
+ * the user already opened `len([` themselves.
+ */
+function getIterableBodyCompletion(
+  term: SessionFilterVocabularyTerm,
+  call: DSLFilterComprehensionCall
+): Completion {
+  const loopVariable = getLoopVariable(term.name);
+  const predicate = getExamplePredicate(term.name);
+  const body = `\${${predicate}} for ${loopVariable} in ${term.name}`;
+  const needsListBrackets = call.functionName === "len" && !call.isListForm;
+  return snippetCompletion(needsListBrackets ? `[${body}]` : body, {
+    label: term.name,
+    type: "variable",
+    detail: `… for ${loopVariable} in ${term.name}`,
+    info: term.description,
+    section: vocabularyCategorySections[term.category],
+  });
+}
+
+/**
+ * A collection completed in the iterable slot of a `for` clause the user is
+ * writing themselves: the one position where the bare name is exactly right.
+ */
+function getIterableNameCompletion(
+  term: SessionFilterVocabularyTerm
+): Completion {
+  return {
+    label: term.name,
+    type: "variable",
+    detail: "collection",
+    info: term.description,
+    section: vocabularyCategorySections[term.category],
+  };
+}
+
+/**
  * An element field is only ever written qualified by the comprehension's loop
  * variable, so it is offered that way — completing `s.latency_ms`, never a
  * bare `latency_ms` the compiler would reject.
@@ -190,56 +318,68 @@ export function SessionFilterConditionField(
   // Element fields are split out of the top-level vocabulary: offering
   // `latency_ms` bare would complete a condition the compiler rejects, since
   // it only binds inside a comprehension over the collection that exposes it.
-  const { completions, elementTermsByIterable, iterableNames } = useMemo(() => {
-    const topLevelTerms: SessionFilterVocabularyTerm[] = [];
-    const elementTerms = new Map<string, SessionFilterVocabularyTerm[]>();
-    const collections = new Set<string>();
+  const { completions, elementTermsByIterable, iterableTerms, iterableNames } =
+    useMemo(() => {
+      const topLevelCompletions: Completion[] = [];
+      const elementTerms = new Map<string, SessionFilterVocabularyTerm[]>();
+      const collectionTerms: SessionFilterVocabularyTerm[] = [];
 
-    for (const term of vocabulary) {
-      if (term.category === "iterable") {
-        collections.add(term.name);
+      for (const term of vocabulary) {
+        if (term.iterableName) {
+          const terms = elementTerms.get(term.iterableName) ?? [];
+          terms.push(term);
+          elementTerms.set(term.iterableName, terms);
+        } else if (term.category === "iterable") {
+          collectionTerms.push(term);
+          topLevelCompletions.push(getIterableScaffoldCompletion(term));
+        } else {
+          topLevelCompletions.push(getCompletionOption(term));
+        }
       }
-      if (term.iterableName) {
-        const terms = elementTerms.get(term.iterableName) ?? [];
-        terms.push(term);
-        elementTerms.set(term.iterableName, terms);
-      } else {
-        topLevelTerms.push(term);
-      }
-    }
 
-    return {
-      // Section-rank order: the field caps the browse view, so the core
-      // vocabulary has to come before observed names
-      completions: topLevelTerms
-        .map(getCompletionOption)
-        .sort(compareBySectionRank),
-      elementTermsByIterable: elementTerms,
-      iterableNames: collections,
-    };
-  }, [vocabulary]);
+      return {
+        // Section-rank order: the field caps the browse view, so the core
+        // vocabulary has to come before observed names
+        completions: topLevelCompletions.sort(compareBySectionRank),
+        elementTermsByIterable: elementTerms,
+        iterableTerms: collectionTerms,
+        iterableNames: new Set(collectionTerms.map((term) => term.name)),
+      };
+    }, [vocabulary]);
 
-  // Inside a comprehension the loop variable's fields are the only writable
-  // names, so they replace the dropdown rather than joining it. An
-  // unclassifiable cursor returns null and completion behaves as it always has.
+  // Comprehension positions replace the dropdown rather than joining it, most
+  // to least specific: the iterable slot of a `for` clause takes collection
+  // names, a classified comprehension body takes the loop variable's fields,
+  // and a hand-typed `any(`/`sum(` with no `for` clause yet takes whole
+  // comprehension bodies. An unclassifiable cursor returns null and completion
+  // behaves as it always has.
   const getContextualCompletions = useCallback(
     ({ textBeforeCursor, textAfterCursor }: DSLFilterCompletionRequest) => {
+      if (detectDSLFilterForClauseTarget({ textBeforeCursor })) {
+        return iterableTerms.map(getIterableNameCompletion);
+      }
       const scope = detectDSLFilterComprehensionScope({
         textBeforeCursor,
         textAfterCursor,
         isIterableName: (name) => iterableNames.has(name),
       });
-      if (!scope) {
-        return null;
+      if (scope) {
+        const terms = elementTermsByIterable.get(scope.iterableName);
+        return terms
+          ? terms.map((term) =>
+              getElementCompletionOption(term, scope.loopVariable)
+            )
+          : null;
       }
-      const terms = elementTermsByIterable.get(scope.iterableName);
-      return terms
-        ? terms.map((term) =>
-            getElementCompletionOption(term, scope.loopVariable)
-          )
-        : null;
+      const call = detectDSLFilterComprehensionCall({ textBeforeCursor });
+      if (call) {
+        return iterableTerms.map((term) =>
+          getIterableBodyCompletion(term, call)
+        );
+      }
+      return null;
     },
-    [iterableNames, elementTermsByIterable]
+    [iterableTerms, iterableNames, elementTermsByIterable]
   );
 
   // Stable identity: the field's validation effect keys on `validateCondition`

@@ -5,8 +5,11 @@ export * from "./annotationCompletions";
 export * from "./DSLFilterConditionField";
 export {
   type DSLFilterCompletionRequest,
+  type DSLFilterComprehensionCall,
   type DSLFilterComprehensionScope,
+  detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
+  detectDSLFilterForClauseTarget,
   findDSLFilterComprehensionRange,
 } from "./dslFilterConditionFieldUtils";
 export {

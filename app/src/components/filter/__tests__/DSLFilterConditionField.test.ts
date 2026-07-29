@@ -7,7 +7,9 @@ import { describe, expect, it } from "vitest";
 import {
   createDSLFilterCompletionSource,
   type DSLFilterCompletionRequest,
+  detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
+  detectDSLFilterForClauseTarget,
   findDSLFilterComprehensionRange,
   getDSLFilterCompletionTokenBeforeCursor,
   shouldSuppressDSLFilterCompletionsInString,
@@ -134,6 +136,74 @@ describe("DSL filter comprehension scope detection", () => {
     expect(detectScopeAtCursor("num_traces >= |")).toBeNull();
     expect(detectScopeAtCursor("any(s.|")).toBeNull();
     expect(detectScopeAtCursor("any(x.| for x in widgets)")).toBeNull();
+  });
+});
+
+describe("DSL filter for-clause target detection", () => {
+  it("detects the iterable slot of a `for` clause, typed or empty", () => {
+    expect(
+      detectDSLFilterForClauseTarget({
+        textBeforeCursor: "any(s.latency_ms > 100 for s in ",
+      })
+    ).toEqual({ loopVariable: "s" });
+    expect(
+      detectDSLFilterForClauseTarget({
+        textBeforeCursor: "any(c.cost > 1 for c in cost_",
+      })
+    ).toEqual({ loopVariable: "c" });
+    expect(
+      detectDSLFilterForClauseTarget({
+        textBeforeCursor: "len([x for x in ",
+      })
+    ).toEqual({ loopVariable: "x" });
+  });
+
+  it("returns null outside the iterable slot", () => {
+    // A fully-typed clause followed by an `if` predicate, a predicate
+    // position, and a top-level expression are all not the iterable slot.
+    expect(
+      detectDSLFilterForClauseTarget({
+        textBeforeCursor: "any(s.latency_ms for s in spans if s.",
+      })
+    ).toBeNull();
+    expect(
+      detectDSLFilterForClauseTarget({ textBeforeCursor: "any(s.lat" })
+    ).toBeNull();
+    expect(
+      detectDSLFilterForClauseTarget({ textBeforeCursor: "num_traces in " })
+    ).toBeNull();
+  });
+});
+
+describe("DSL filter comprehension call detection", () => {
+  it("detects the innermost enclosing quantifier or reduction call", () => {
+    expect(
+      detectDSLFilterComprehensionCall({ textBeforeCursor: "sum(" })
+    ).toEqual({ functionName: "sum", isListForm: false });
+    expect(
+      detectDSLFilterComprehensionCall({ textBeforeCursor: "len([" })
+    ).toEqual({ functionName: "len", isListForm: true });
+    expect(
+      detectDSLFilterComprehensionCall({
+        textBeforeCursor: "num_traces > 2 and any(",
+      })
+    ).toEqual({ functionName: "any", isListForm: false });
+  });
+
+  it("returns null outside a comprehension call", () => {
+    expect(
+      detectDSLFilterComprehensionCall({ textBeforeCursor: "num_traces >= " })
+    ).toBeNull();
+    expect(
+      detectDSLFilterComprehensionCall({
+        textBeforeCursor: 'any(s.status_code == "ERROR" for s in spans) and ',
+      })
+    ).toBeNull();
+    expect(
+      detectDSLFilterComprehensionCall({
+        textBeforeCursor: "annotations[",
+      })
+    ).toBeNull();
   });
 });
 
