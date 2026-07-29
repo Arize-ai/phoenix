@@ -1,23 +1,4 @@
-"""Construct ``pydantic_ai`` model instances for the chat endpoint.
-
-``build_model`` dispatches on ``AgentModelSelection`` to either a stored
-custom-provider record (Anthropic, Azure OpenAI, AWS Bedrock, Google
-GenAI, OpenAI-compatible) or to a built-in provider whose credentials
-are resolved from the secret store first and the environment second.
-
-This module is **transport-neutral**: it does not import ``fastapi`` or
-raise ``HTTPException``. Failures surface as ``AgentError`` subclasses
-(see ``phoenix.server.agents.exceptions``) and the REST router maps them
-to HTTP responses at the boundary.
-
-``build_model`` takes the ``DbSessionFactory`` rather than an open
-``AsyncSession``: secret-store and provider-record reads run in their own
-short-lived transaction, and SDK clients are constructed only after it
-commits. Client construction must never run inside a transaction —
-``BedrockProvider`` builds its boto client eagerly, and botocore's
-default credential chain can resolve credentials over the network
-(IMDS/STS) when no static keys are configured.
-"""
+"""Construct ``pydantic_ai`` model instances."""
 
 from __future__ import annotations
 
@@ -127,21 +108,13 @@ async def _resolve_secrets_or_env(
 
 
 def _first_credential(credentials: Mapping[str, str | None], *keys: str) -> str | None:
-    """First non-empty credential value across ``keys``, in order.
-
-    Per-key precedence (secret store over environment) was already applied
-    when the mapping was built by ``_resolve_secrets_or_env``.
-    """
+    """First non-empty credential value across ``keys``, in order."""
     for key in keys:
         if value := credentials.get(key):
             return value
     return None
 
 
-# Credential keys prefetched (secret store, then environment) before a
-# built-in provider's client is constructed. Must stay in sync with the
-# keys each branch of ``_get_pydantic_ai_model_from_builtin_provider``
-# reads from its ``credentials`` mapping.
 _BUILTIN_PROVIDER_CREDENTIAL_KEYS: dict[ModelProvider, tuple[str, ...]] = {
     ModelProvider.OPENAI: ("OPENAI_API_KEY",),
     ModelProvider.AZURE_OPENAI: ("AZURE_OPENAI_API_KEY",),
@@ -181,31 +154,7 @@ async def build_model(
     decrypt: Callable[[bytes], bytes],
     tracer_provider: TracerProvider | None = None,
 ) -> OpenInferenceModelWrapper:
-    """Build a ``pydantic_ai`` model for a chat request.
-
-    Args:
-        model: Discriminated schema selecting either a stored custom
-            provider or a built-in provider.
-        db: Session factory used for secret-store and provider lookups.
-            The transaction it opens is scoped to those reads only — no
-            transaction is held while SDK clients are constructed.
-        decrypt: Callable that decrypts secret/provider config payloads.
-        tracer_provider: Optional provider for OpenInference spans.
-
-    Returns:
-        A ready-to-use ``pydantic_ai.models.Model`` instance.
-
-    Raises:
-        ProviderNotFoundError: A custom provider record is missing.
-        ProviderConfigError: A custom provider's config cannot be
-            decrypted or parsed, or a stored secret cannot be decrypted.
-        ProviderCredentialsError: A built-in provider's required
-            credentials are not available.
-        ProviderDependencyError: An optional SDK package required by the
-            selected provider is not installed.
-        ProviderUnsupportedError: The requested provider type is not
-            recognised by this builder.
-    """
+    """Build a ``pydantic_ai`` model."""
     if isinstance(model, CustomProviderModelSelection):
         provider_id = from_global_id_with_expected_type(
             GlobalID.from_id(model.provider_id),

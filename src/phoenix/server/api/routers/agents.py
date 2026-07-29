@@ -2061,9 +2061,6 @@ def create_agents_router(
                     agent_session_rowid=agent_session.id,
                 ):
                     return JSONResponse({"code": "agent_session_busy"}, status_code=409)
-                # Capture what later stages need, then let the transaction
-                # commit: the UPDATEs above hold the agent_sessions row lock,
-                # so the remaining setup work runs after it is released.
                 project_name = agent_session.project_name
                 session_needs_title = not agent_session.title
                 agent_session_rowid = agent_session.id
@@ -2071,9 +2068,6 @@ def create_agents_router(
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-        # Between the committed lock claim above and the start of streaming
-        # (whose generator releases the lock in its finally), any failure must
-        # release the turn lock before re-raising.
         try:
             try:
                 tracer = (
