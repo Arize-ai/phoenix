@@ -15,7 +15,7 @@ export const ANNOTATOR_KINDS = [
 export const EDIT_ANNOTATION_HOTKEY = "e";
 
 /**
- * Hotkey that toggles the span note bar. Opening focuses its input.
+ * Hotkey that opens the span note bar and focuses its input.
  */
 export const NOTE_HOTKEY = "n";
 

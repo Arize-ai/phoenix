@@ -1,13 +1,7 @@
-import { css } from "@emotion/react";
-import {
-  startTransition,
-  Suspense,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { css, keyframes } from "@emotion/react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { TextArea } from "react-aria-components";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { graphql, useMutation } from "react-relay";
 
 import {
   Button,
@@ -21,19 +15,25 @@ import {
 import { useNotifyError, usePreferencesContext } from "@phoenix/contexts";
 
 import type { SpanNoteBarAddNoteMutation } from "./__generated__/SpanNoteBarAddNoteMutation.graphql";
-import type { SpanNoteBarNotesQuery } from "./__generated__/SpanNoteBarNotesQuery.graphql";
 import { useSpanNoteBarOpenRequest } from "./SpanNoteBarContext";
 
-// The input grows with its content up to this many lines, then scrolls.
 const MAX_INPUT_LINES = 6;
+
+const riseIn = keyframes`
+  from {
+    transform: translateY(100%);
+  }
+`;
 
 const spanNoteBarCSS = css`
   flex: none;
-  // Clips the bar while it rises in from under the bottom edge.
-  overflow: hidden;
+  // clip, not hidden: a hidden box is still a scroll container, and the
+  // focus-on-open would scroll it to reveal the still-translated row,
+  // cancelling the rise
+  overflow: clip;
 
-  // The border lives on the row, not the clip, so the whole visible bar —
-  // border and controls together — moves as one unit.
+  // The border lives on the row, not the clip, so the whole visible bar
+  // rises as one unit.
   .span-note-bar__row {
     display: flex;
     flex-direction: row;
@@ -41,17 +41,10 @@ const spanNoteBarCSS = css`
     gap: var(--global-dimension-size-150);
     padding: var(--global-dimension-size-200);
     border-top: 1px solid var(--global-border-color-default);
+    animation: ${riseIn} 0.3s ease-out;
 
-    // The slot claims its space at once; the fully-composed bar then rises
-    // uniformly into it, so no control is ever shown partially revealed.
-    @media (prefers-reduced-motion: no-preference) {
-      animation: span-note-bar-rise 0.2s ease-out;
-    }
-  }
-
-  @keyframes span-note-bar-rise {
-    from {
-      transform: translateY(100%);
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
     }
   }
 
@@ -61,9 +54,11 @@ const spanNoteBarCSS = css`
     .react-aria-TextArea {
       resize: none;
       overflow-y: auto;
+      // a single-line textarea is exactly the input height, so growing caps
+      // at the height of the extra lines
       max-height: calc(
-        var(--global-line-height-s) * ${MAX_INPUT_LINES} + 2 *
-          var(--textarea-vertical-padding) + 2 * var(--global-border-size-thin)
+        var(--textfield-input-height) + var(--global-line-height-s) *
+          ${MAX_INPUT_LINES - 1}
       );
     }
   }
@@ -71,8 +66,7 @@ const spanNoteBarCSS = css`
 
 /**
  * A note-taking bar pinned to the bottom of the span details. Mounted only
- * while the `isTakingSpanNotes` preference is on, so a bar left up stays up —
- * across spans and across sessions — until the reader dismisses it.
+ * while the `isTakingSpanNotes` preference is on.
  */
 export function SpanNoteBar({ spanNodeId }: { spanNodeId: string }) {
   const isTakingSpanNotes = usePreferencesContext(
@@ -90,20 +84,19 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
   );
   const notifyError = useNotifyError();
   const [noteText, setNoteText] = useState("");
-  const [fetchKey, setFetchKey] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Focus is by request only: the hotkey and the card button ask for it, a
-  // remembered-open bar mounting on page load does not.
+  // Focus is by request only — a remembered-open bar mounting on page load
+  // should not steal it. preventScroll: revealing the focused field must not
+  // scroll an ancestor while the row is still translated down mid-rise.
   const openRequest = useSpanNoteBarOpenRequest();
   useLayoutEffect(() => {
     if (openRequest == null) {
       return;
     }
-    textareaRef.current?.focus();
+    textareaRef.current?.focus({ preventScroll: true });
   }, [openRequest]);
 
-  // Grow the input with its content; the CSS max-height caps the growth.
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) {
@@ -118,9 +111,31 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
 
   const [addNote, isAddingNote] = useMutation<SpanNoteBarAddNoteMutation>(
     graphql`
-      mutation SpanNoteBarAddNoteMutation($input: CreateSpanNoteInput!) {
+      mutation SpanNoteBarAddNoteMutation(
+        $input: CreateSpanNoteInput!
+        $spanNodeId: ID!
+      ) {
         createSpanNote(annotationInput: $input) {
-          __typename
+          query {
+            node(id: $spanNodeId) {
+              ... on Span {
+                id
+                # the slice every notes view reads, so the new note lands in
+                # the store for all of them in the one round trip
+                spanAnnotations {
+                  id
+                  name
+                  explanation
+                  createdAt
+                  user {
+                    id
+                    username
+                    profilePictureUrl
+                  }
+                }
+              }
+            }
+          }
         }
       }
     `
@@ -138,16 +153,10 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
           note,
           spanId: spanNodeId,
         },
-      },
-      onCompleted: () => {
-        // refetching the annotations writes them back to the store, so every
-        // mounted view of this span's notes updates along with the count
-        startTransition(() => {
-          setFetchKey((key) => key + 1);
-        });
+        spanNodeId,
       },
       onError: (error) => {
-        // hand the draft back rather than losing it, unless they typed more
+        // restore the draft unless they typed more
         setNoteText((current) => (current === "" ? note : current));
         notifyError({
           title: "Failed to add note",
@@ -208,47 +217,6 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
           Add Note
         </Button>
       </div>
-      <Suspense fallback={null}>
-        <SpanNotesStoreSync spanNodeId={spanNodeId} fetchKey={fetchKey} />
-      </Suspense>
     </div>
   );
-}
-
-/**
- * Renders nothing. Selects the same fields as the notes table so bumping the
- * fetch key after adding a note writes fresh annotations back to the store,
- * refreshing every mounted view of the span's notes.
- */
-function SpanNotesStoreSync({
-  spanNodeId,
-  fetchKey,
-}: {
-  spanNodeId: string;
-  fetchKey: number;
-}) {
-  useLazyLoadQuery<SpanNoteBarNotesQuery>(
-    graphql`
-      query SpanNoteBarNotesQuery($spanNodeId: ID!) {
-        span: node(id: $spanNodeId) {
-          ... on Span {
-            spanAnnotations {
-              id
-              name
-              explanation
-              createdAt
-              user {
-                id
-                username
-                profilePictureUrl
-              }
-            }
-          }
-        }
-      }
-    `,
-    { spanNodeId },
-    { fetchKey, fetchPolicy: "store-and-network" }
-  );
-  return null;
 }

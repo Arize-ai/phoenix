@@ -82,8 +82,13 @@ function SpanNotesCardContents({ spanNodeId }: { spanNodeId: string }) {
             />
             <Tooltip offset={1}>
               <Flex direction="row" gap="size-100" alignItems="center">
-                {isTakingSpanNotes ? "Stop taking notes" : "Take notes"}{" "}
-                <Keyboard>{NOTE_HOTKEY}</Keyboard>
+                {isTakingSpanNotes ? (
+                  "Stop taking notes"
+                ) : (
+                  <>
+                    Take notes <Keyboard>{NOTE_HOTKEY}</Keyboard>
+                  </>
+                )}
               </Flex>
             </Tooltip>
           </TooltipTrigger>

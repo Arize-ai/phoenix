@@ -117,8 +117,7 @@ export interface PreferencesProps {
    */
   isAnnotatingSpans: boolean;
   /**
-   * Whether the note-taking bar is shown at the bottom of the span details.
-   * Persisted so the bar stays up across spans and sessions until dismissed.
+   * Whether the note-taking bar is shown at the bottom of the span details
    */
   isTakingSpanNotes: boolean;
   /**

@@ -92,12 +92,6 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const setIsAnnotatingSpans = usePreferencesContext(
     (state) => state.setIsAnnotatingSpans
   );
-  const isTakingSpanNotes = usePreferencesContext(
-    (state) => state.isTakingSpanNotes
-  );
-  const setIsTakingSpanNotes = usePreferencesContext(
-    (state) => state.setIsTakingSpanNotes
-  );
   const openSpanAside = useOpenSpanAside();
   const openSpanNoteBar = useOpenSpanNoteBar();
 
@@ -201,21 +195,9 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside(), {
     preventDefault: true,
   });
-  // The hotkey toggles: it never fires while the note input has focus (form
-  // fields swallow it), so from there Escape closes the bar instead.
-  useHotkeys(
-    NOTE_HOTKEY,
-    () => {
-      if (isTakingSpanNotes) {
-        setIsTakingSpanNotes(false);
-      } else {
-        openSpanNoteBar();
-      }
-    },
-    {
-      preventDefault: true,
-    }
-  );
+  useHotkeys(NOTE_HOTKEY, () => openSpanNoteBar(), {
+    preventDefault: true,
+  });
 
   const hasExceptions = spanHasException(span);
 
