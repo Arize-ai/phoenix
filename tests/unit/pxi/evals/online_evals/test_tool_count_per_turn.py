@@ -4,13 +4,13 @@ import asyncio
 from typing import Any
 
 import pytest
+from phoenix.client.__generated__ import v1
 
 from evals.pxi.online_evals.evaluators.tool_count_per_turn import (
     TOOL_COUNT_PER_TURN,
     evaluate_tool_count_per_turn,
 )
 from evals.pxi.online_evals.topology import InvalidTurnTrace, classify_tool_spans
-from phoenix.client.__generated__ import v1
 
 
 def _evaluate(root: v1.Span, spans: list[v1.Span]) -> Any:

@@ -20,10 +20,11 @@ import json
 from pathlib import Path
 from unittest import mock
 
+from phoenix.client.__generated__ import v1
+
 from evals.pxi.online_evals.conversation import _last_llm_span, segment_turns, transcript
 from evals.pxi.online_evals.evaluators import user_friction
 from evals.pxi.online_evals.evaluators.tool_count_per_turn import evaluate_tool_count_per_turn
-from phoenix.client.__generated__ import v1
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "pxi_turn_trace.json"
 SUBAGENT_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "pxi_turn_subagent_trace.json"

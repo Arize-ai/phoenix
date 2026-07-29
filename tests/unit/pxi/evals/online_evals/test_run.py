@@ -7,13 +7,13 @@ from typing import Any
 from unittest import mock
 
 import pytest
+from phoenix.client.__generated__ import v1
+from phoenix.evals.evaluators import Score
 
 from evals.pxi.online_evals import run as run_module
 from evals.pxi.online_evals.evaluators.tool_count_per_turn import TOOL_COUNT_PER_TURN
 from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary
 from evals.pxi.online_evals.run import _fetch_batch_spans, _sampled, run_evaluators
-from phoenix.client.__generated__ import v1
-from phoenix.evals.evaluators import Score
 
 
 def _run(*args: Any, **kwargs: Any) -> dict[str, RunSummary]:
