@@ -22,6 +22,8 @@ from phoenix.server.api.evaluators import (
     _PHOENIX_RESULT_BEGIN,
     _PHOENIX_RESULT_END,
     CodeEvaluatorRunner,
+    SandboxBackendExecutionError,
+    SandboxPayloadTooLargeError,
 )
 from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
@@ -412,6 +414,8 @@ class TestEvaluateErrorPaths:
         assert error is not None
         assert f"{payload_bytes} bytes" in error
         assert f"allowed {max_payload_bytes} bytes" in error
+        assert "mapped inputs" in error
+        assert isinstance(results[0].get("error_exc"), SandboxPayloadTooLargeError)
         assert "Reduce the mapped inputs or raise the caller's payload limit." in error
         assert "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES" not in error
         cast(AsyncMock, backend.execute).assert_not_awaited()
@@ -500,6 +504,7 @@ class TestEvaluateErrorPaths:
         assert len(results) == 1
         assert results[0]["error"] is not None
         assert "Sandbox execution failed" in results[0]["error"]
+        assert isinstance(results[0].get("error_exc"), RuntimeError)
 
     async def test_backend_error_field_returns_error_result(self) -> None:
         runner, _ = _make_runner(backend_error="SyntaxError: invalid syntax")
@@ -510,6 +515,7 @@ class TestEvaluateErrorPaths:
             output_configs=[_categorical_config()],
         )
         assert results[0]["error"] == "SyntaxError: invalid syntax"
+        assert isinstance(results[0].get("error_exc"), SandboxBackendExecutionError)
 
 
 class TestBackendConfiguration:

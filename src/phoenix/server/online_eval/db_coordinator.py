@@ -173,7 +173,7 @@ class DbEvalWorkCoordinator:
     ) -> bool:
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
-            claimed_by=claimed_by,
+            claim_owner=claimed_by,
             claimed_at=datetime.now(timezone.utc),
         )
 
@@ -186,7 +186,7 @@ class DbEvalWorkCoordinator:
         """Complete a claimed unit, treating an already-DONE row as success."""
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
-            claimed_by=claimed_by,
+            claim_owner=claimed_by,
             already_status="DONE",
             status="DONE",
         )
@@ -216,7 +216,7 @@ class DbEvalWorkCoordinator:
             )
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
-            claimed_by=claimed_by,
+            claim_owner=claimed_by,
             status="ERROR",
             **values,
         )
@@ -230,16 +230,32 @@ class DbEvalWorkCoordinator:
     ) -> bool:
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
-            claimed_by=claimed_by,
+            claim_owner=claimed_by,
             status="EXPIRED",
             error=error,
+        )
+
+    async def release(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        return await self._fenced_transition(
+            work_unit_id=work_unit_id,
+            claim_owner=claimed_by,
+            status="PENDING",
+            claimed_at=None,
+            claimed_by=None,
+            cooldown_until=None,
+            error=None,
         )
 
     async def _fenced_transition(
         self,
         *,
         work_unit_id: int,
-        claimed_by: str,
+        claim_owner: str,
         already_status: Optional[str] = None,
         **values: Any,
     ) -> bool:
@@ -249,7 +265,7 @@ class DbEvalWorkCoordinator:
                 update(work_unit_model)
                 .where(
                     work_unit_model.id == work_unit_id,
-                    work_unit_model.claimed_by == claimed_by,
+                    work_unit_model.claimed_by == claim_owner,
                     work_unit_model.status == "RUNNING",
                 )
                 .values(**values)

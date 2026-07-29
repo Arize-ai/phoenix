@@ -33,6 +33,7 @@ from phoenix.db.types.prompts import (
     PromptToolFunctionDefinition,
     PromptTools,
 )
+from phoenix.server.api.evaluators import SandboxPayloadTooLargeError
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
@@ -45,7 +46,6 @@ from phoenix.server.dml_event import (
 from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
 from phoenix.server.online_eval.consumer import (
-    EvalExecutionTimeout,
     OnlineEvalConsumer,
     is_transient_error,
 )
@@ -91,6 +91,12 @@ class _StubLLMClient:
             id="call-1",
             function=FunctionCallChunk(name=self._tool_name, arguments=self._arguments),
         )
+
+    def is_rate_limit_error(self, error: Exception) -> bool:
+        return bool(getattr(error, "provider_rate_limit", False))
+
+    def is_transient_error(self, error: Exception) -> bool:
+        return bool(getattr(error, "provider_transient", False))
 
 
 def _patch_playground_client(monkeypatch: pytest.MonkeyPatch, client: _StubLLMClient) -> None:
@@ -1038,11 +1044,52 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
 
     assert isinstance(hydrated, HydratedWorkUnit)
     assert captured_runner_arguments["max_payload_bytes"] == 2048
+    assert captured_runner_arguments["timeout"] < captured_runner_arguments["runner_timeout"] < 600
     assert (
         captured_runner_arguments["payload_limit_remediation"]
-        == "Reduce the mapped session inputs or raise the limit with "
+        == "Reduce the dominant evaluator source or mapped inputs, or raise the limit with "
         "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
     )
+
+
+async def test_span_code_hydration_supplies_configured_payload_cap(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_code_criteria(
+        db,
+        project.id,
+        criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+    )
+    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    coordinator = DbEvalWorkCoordinator(db)
+    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
+    manager = _StubSandboxSessionManager()
+    captured_runner_arguments: dict[str, Any] = {}
+
+    async def _build_backend(*_: Any, **__: Any) -> _StubSandboxBackend:
+        return _StubSandboxBackend()
+
+    def _build_runner(**kwargs: Any) -> _StubEvaluator:
+        captured_runner_arguments.update(kwargs)
+        return _StubEvaluator([])
+
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
+    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
+    monkeypatch.setattr(executor_module, "CodeEvaluatorRunner", _build_runner)
+    executor = OnlineEvalExecutor(
+        db,
+        decrypt=lambda value: value,
+        sandbox_session_manager=cast(Any, manager),
+    )
+
+    hydrated = await executor.hydrate(unit)
+
+    assert isinstance(hydrated, HydratedWorkUnit)
+    assert captured_runner_arguments["max_payload_bytes"] == 2048
 
 
 async def test_llm_criteria_input_mapping_override_is_used_during_execution(
@@ -1415,6 +1462,33 @@ async def test_transient_provider_error_retries_without_burning_attempts(
     assert len(await _annotations(db)) == 1
 
 
+async def test_provider_classifier_handles_provider_specific_error_shape(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class _ProviderError(Exception):
+        provider_rate_limit = True
+
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    _patch_playground_client(
+        monkeypatch,
+        _StubLLMClient(error=_ProviderError("provider-specific throttle")),
+    )
+
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    await consumer._cycle()
+
+    unit = await _get_unit(db, unit_id)
+    assert unit.status == "ERROR"
+    assert unit.attempts == 0
+    assert unit.error is not None
+    assert "provider-specific throttle" in unit.error
+
+
 def test_is_transient_error_classification() -> None:
     request = httpx.Request("POST", "http://provider.test")
     assert is_transient_error(TimeoutError("llm timed out"))
@@ -1471,28 +1545,133 @@ async def test_execution_deadline_cancels_eval_and_counts_attempt(
         finally:
             cancelled.set()
 
-    classified: list[BaseException] = []
-
-    def _classify(exc: BaseException) -> bool:
-        classified.append(exc)
-        return is_transient_error(exc)
-
     monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
-    monkeypatch.setattr(consumer_module, "is_transient_error", _classify)
 
     await consumer._process_unit(unit)
 
     assert cancelled.is_set()
-    assert len(classified) == 1
-    timeout = classified[0]
-    assert isinstance(timeout, EvalExecutionTimeout)
-    assert timeout.__cause__ is None
-    assert timeout.__suppress_context__
-    assert not is_transient_error(timeout)
     row = await _get_unit(db, unit_id)
     assert row.status == "ERROR"
     assert row.attempts == 1
+    assert row.error is not None
+    assert row.error.startswith("EVALUATOR_DEADLINE_EXCEEDED:")
+
+
+async def test_llm_execution_deadline_retries_without_counting_attempt(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        execution_deadline_seconds=0.01,
+    )
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+
+    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
+        return _hydrated_stub(results=[], evaluator_kind="LLM", output_configs=[])
+
+    async def _never_resolves(*_: Any, **__: Any) -> None:
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+    monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
+
+    await consumer._process_unit(unit)
+
+    row = await _get_unit(db, unit_id)
+    assert row.status == "ERROR"
+    assert row.attempts == 0
+    assert row.error is not None
+    assert row.error.startswith("PROVIDER_DEADLINE_EXCEEDED:")
+
+
+async def test_sandbox_payload_limit_is_terminal_without_counting_attempt(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+    limit_error = SandboxPayloadTooLargeError("rendered payload exceeded its limit")
+
+    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
+        return _hydrated_stub(
+            results=[
+                _evaluation_result(
+                    "criterion",
+                    error=str(limit_error),
+                    error_exc=limit_error,
+                )
+            ],
+            evaluator_kind="CODE",
+            output_configs=[_output_config("criterion")],
+        )
+
+    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+
+    await consumer._process_unit(unit)
+
+    row = await _get_unit(db, unit_id)
+    assert row.status == "EXPIRED"
+    assert row.attempts == 0
+    assert row.error is not None
+    assert row.error.startswith("SANDBOX_PAYLOAD_TOO_LARGE:")
+
+
+async def test_process_cancellation_releases_claim_without_counting_attempt(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+    started = asyncio.Event()
+
+    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
+        return _hydrated_stub(results=[], evaluator_kind="BUILTIN", output_configs=[])
+
+    async def _never_resolves(*_: Any, **__: Any) -> None:
+        started.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+    monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
+    task = asyncio.create_task(consumer._process_unit(unit))
+    await started.wait()
+    task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    row = await _get_unit(db, unit_id)
+    assert row.status == "PENDING"
+    assert row.attempts == 0
+    assert row.claimed_by is None
+    assert row.claimed_at is None
 
 
 async def test_complete_retries_after_ambiguous_commit(
@@ -1535,7 +1714,7 @@ async def test_complete_retries_after_ambiguous_commit(
 
     await consumer._process_unit(unit)
 
-    assert complete_calls == 2
+    assert complete_calls == 1
     assert (await _get_unit(db, unit_id)).status == "DONE"
 
 
@@ -1562,7 +1741,9 @@ async def test_failure_transition_retries_raised_exceptions(
         raise ValueError("bad evaluator")
 
     original_fail = consumer._coordinator.fail
+    original_heartbeat = consumer._coordinator.heartbeat
     fail_calls = 0
+    heartbeat_calls = 0
 
     async def _flaky_fail(**kwargs: Any) -> bool:
         nonlocal fail_calls
@@ -1571,14 +1752,21 @@ async def test_failure_transition_retries_raised_exceptions(
             raise ConnectionError("database unavailable")
         return await original_fail(**kwargs)
 
+    async def _heartbeat(**kwargs: Any) -> bool:
+        nonlocal heartbeat_calls
+        heartbeat_calls += 1
+        return await original_heartbeat(**kwargs)
+
     monkeypatch.setattr(consumer_module, "_TRANSITION_RETRY_DELAYS_SECONDS", (0.0, 0.0, 0.0))
     monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
     monkeypatch.setattr(consumer._coordinator, "fail", _flaky_fail)
+    monkeypatch.setattr(consumer._coordinator, "heartbeat", _heartbeat)
 
     await consumer._process_unit(unit)
 
     assert fail_calls == 4
+    assert heartbeat_calls == 3
     row = await _get_unit(db, unit_id)
     assert row.status == "ERROR"
     assert row.attempts == 1
@@ -1623,7 +1811,7 @@ async def test_failure_transition_retries_after_ambiguous_commit(
 
     await consumer._process_unit(unit)
 
-    assert fail_calls == 2
+    assert fail_calls == 1
     row = await _get_unit(db, unit_id)
     assert row.status == "ERROR"
     assert row.attempts == 1

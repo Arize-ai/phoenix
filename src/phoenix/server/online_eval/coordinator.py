@@ -8,6 +8,7 @@ Work-unit lifecycle:
     PENDING --claim--> RUNNING --complete--> DONE
                        RUNNING --fail-----> ERROR
                        RUNNING --expire---> EXPIRED
+                       RUNNING --release--> PENDING
     RUNNING (lease lapsed) --> reclaimable
     ERROR (cooldown elapsed, attempts remain) --> retried
 """
@@ -119,6 +120,15 @@ class EvalWorkCoordinator(Protocol):
         error: str,
     ) -> bool:
         """Transition a claimed unit RUNNING -> EXPIRED with a stable terminal reason."""
+        ...
+
+    async def release(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        """Return a still-owned RUNNING unit to PENDING without incrementing attempts."""
         ...
 
     async def lag(self) -> QueueLag:

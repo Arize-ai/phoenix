@@ -55,6 +55,7 @@ _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 _MAX_SESSION_EVAL_TURNS = 1_000
 _TRANSCRIPT_POLICY_METADATA_KEY = "phoenix.online_eval.transcript_policy"
 _TRANSCRIPT_POLICY_VERSION = "1"
+_DEFAULT_EXECUTION_DEADLINE_SECONDS = 600.0
 
 AnnotatorKind = Literal["LLM", "CODE"]
 EvaluatorKind = Literal["LLM", "CODE", "BUILTIN"]
@@ -211,11 +212,13 @@ class OnlineEvalExecutor:
         decrypt: Callable[[bytes], bytes],
         sandbox_session_manager: Optional[SandboxSessionManager] = None,
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
+        execution_deadline_seconds: float = _DEFAULT_EXECUTION_DEADLINE_SECONDS,
     ) -> None:
         self._db = db
         self._decrypt = decrypt
         self._sandbox_session_manager = sandbox_session_manager
         self._event_queue = event_queue
+        self._execution_deadline_seconds = execution_deadline_seconds
 
     async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
         """Load one immutable execution snapshot or return a stable failure reason."""
@@ -250,7 +253,7 @@ class OnlineEvalExecutor:
                 return HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
             if config_fingerprint(resolved) != unit.config_fingerprint:
                 return HydrationFailure(HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH)
-            max_payload_bytes: int | None = None
+            max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
             annotation_metadata: dict[str, Any] = {}
             if unit.evaluation_target == "SPAN":
                 span = await session.get(models.Span, unit.target_rowid)
@@ -318,7 +321,6 @@ class OnlineEvalExecutor:
                         HydrationFailureReason.TRANSCRIPT_TOO_LARGE,
                         str(error),
                     )
-                max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
             input_mapping = (
                 InputMapping.model_validate(resolved.input_mapping)
                 if resolved.input_mapping is not None
@@ -468,6 +470,14 @@ class OnlineEvalExecutor:
                 f"config {sandbox_config.id}"
             )
         output_configs: list[OutputConfigType] = as_output_configs(evaluator_orm.output_configs)
+        backend_timeout = min(
+            sandbox_config.timeout,
+            max(1, int(self._execution_deadline_seconds * 0.9)),
+        )
+        runner_timeout = min(
+            self._execution_deadline_seconds * 0.95,
+            backend_timeout + max(1.0, backend_timeout * 0.05),
+        )
         evaluator = CodeEvaluatorRunner(
             name=evaluator_orm.name.root,
             description=evaluator_orm.description,
@@ -476,14 +486,15 @@ class OnlineEvalExecutor:
             sandbox_backend=backend,
             language=evaluator_orm.language,
             sandbox_session_manager=self._sandbox_session_manager,
-            timeout=sandbox_config.timeout,
+            timeout=backend_timeout,
+            runner_timeout=runner_timeout,
             evaluator_version_id=str(GlobalID("CodeEvaluatorVersion", str(code_version.id))),
             session_key=(
                 f"online-eval:{evaluator_orm.id}:{self._sandbox_session_manager.replica_id}"
             ),
             max_payload_bytes=max_payload_bytes,
             payload_limit_remediation=(
-                "Reduce the mapped session inputs or raise the limit with "
+                "Reduce the dominant evaluator source or mapped inputs, or raise the limit with "
                 "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
             ),
         )
