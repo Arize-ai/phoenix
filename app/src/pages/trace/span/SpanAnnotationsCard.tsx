@@ -164,7 +164,7 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
               isSelected={isAnnotatingSpans}
               onChange={(isSelected) => {
                 if (isSelected) {
-                  openSpanAside("annotations");
+                  openSpanAside();
                 } else {
                   setIsAnnotatingSpans(false);
                 }
