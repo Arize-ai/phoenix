@@ -14,6 +14,7 @@ import {
   SessionDetailPanelAnnotationBar,
   SpanDetailPanelAnnotationBar,
   TraceDetailPanelAnnotationBar,
+  useSpanDetailPanelAnnotationBarQuery,
 } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
 import { SPAN_DETAILS_CONDENSED_WIDTH_PIXELS } from "@phoenix/constants";
@@ -138,6 +139,8 @@ export function SpanDetails({
   const isCondensedView = spanDetailsContainerDimensions?.width
     ? spanDetailsContainerDimensions.width < SPAN_DETAILS_CONDENSED_WIDTH_PIXELS
     : initialIsCondensedView;
+  const { queryRef: spanAnnotationQueryRef, refresh: refreshSpanAnnotations } =
+    useSpanDetailPanelAnnotationBarQuery(spanNodeId);
 
   if (projectId == null) {
     throw new Error("Project ID is required to download a span");
@@ -146,7 +149,14 @@ export function SpanDetails({
     <Suspense
       fallback={<DetailPanelAnnotationBarSkeleton variant="detail-header" />}
     >
-      <SpanDetailPanelAnnotationBar spanNodeId={spanNodeId} />
+      {spanAnnotationQueryRef ? (
+        <SpanDetailPanelAnnotationBar
+          queryRef={spanAnnotationQueryRef}
+          refresh={refreshSpanAnnotations}
+        />
+      ) : (
+        <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+      )}
     </Suspense>
   );
 

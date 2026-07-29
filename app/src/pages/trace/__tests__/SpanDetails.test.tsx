@@ -72,6 +72,10 @@ vi.mock(
       <div data-testid="trace-annotations" />
     ),
     SpanDetailPanelAnnotationBar: () => <div data-testid="span-annotations" />,
+    useSpanDetailPanelAnnotationBarQuery: () => ({
+      queryRef: {},
+      refresh: vi.fn(),
+    }),
   })
 );
 

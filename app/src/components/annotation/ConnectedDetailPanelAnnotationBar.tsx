@@ -1,6 +1,13 @@
 import type { ComponentProps } from "react";
-import { useState } from "react";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { useCallback, useEffect, useState } from "react";
+import type { PreloadedQuery } from "react-relay";
+import {
+  graphql,
+  useLazyLoadQuery,
+  useMutation,
+  usePreloadedQuery,
+  useQueryLoader,
+} from "react-relay";
 import { readInlineData } from "relay-runtime";
 
 import type { Annotation } from "@phoenix/components/annotation";
@@ -396,50 +403,67 @@ export function useAnnotationConfigMutationHandlers({
   };
 }
 
-export function SpanDetailPanelAnnotationBar({
-  spanNodeId,
-}: {
-  spanNodeId: string;
-}) {
-  const [fetchKey, setFetchKey] = useState(0);
-  const data = useLazyLoadQuery<ConnectedDetailPanelAnnotationBarSpanQuery>(
-    graphql`
-      query ConnectedDetailPanelAnnotationBarSpanQuery($id: ID!) {
-        allAnnotationConfigs: annotationConfigs {
-          edges {
-            node {
-              ...ConnectedDetailPanelAnnotationBarConfigFields
-            }
-          }
-        }
-        span: node(id: $id) {
-          __typename
-          ... on Span {
-            id
-            project {
-              id
-              annotationConfigs {
-                edges {
-                  node {
-                    ...ConnectedDetailPanelAnnotationBarConfigFields
-                  }
-                }
-              }
-            }
-            spanAnnotations {
-              ...ConnectedDetailPanelAnnotationBarAnnotationFields
-            }
-          }
+const spanDetailPanelAnnotationBarQuery = graphql`
+  query ConnectedDetailPanelAnnotationBarSpanQuery($id: ID!) {
+    allAnnotationConfigs: annotationConfigs {
+      edges {
+        node {
+          ...ConnectedDetailPanelAnnotationBarConfigFields
         }
       }
-    `,
-    { id: spanNodeId },
-    { fetchKey, fetchPolicy: "store-and-network" }
+    }
+    span: node(id: $id) {
+      __typename
+      ... on Span {
+        id
+        project {
+          id
+          annotationConfigs {
+            edges {
+              node {
+                ...ConnectedDetailPanelAnnotationBarConfigFields
+              }
+            }
+          }
+        }
+        spanAnnotations {
+          ...ConnectedDetailPanelAnnotationBarAnnotationFields
+        }
+      }
+    }
+  }
+`;
+
+export function useSpanDetailPanelAnnotationBarQuery(spanNodeId: string) {
+  const [queryRef, loadQuery] =
+    useQueryLoader<ConnectedDetailPanelAnnotationBarSpanQuery>(
+      spanDetailPanelAnnotationBarQuery
+    );
+  const refresh = useCallback(() => {
+    loadQuery({ id: spanNodeId }, { fetchPolicy: "store-and-network" });
+  }, [loadQuery, spanNodeId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { queryRef, refresh };
+}
+
+export function SpanDetailPanelAnnotationBar({
+  queryRef,
+  refresh,
+}: {
+  queryRef: PreloadedQuery<ConnectedDetailPanelAnnotationBarSpanQuery>;
+  refresh: () => void;
+}) {
+  const data = usePreloadedQuery<ConnectedDetailPanelAnnotationBarSpanQuery>(
+    spanDetailPanelAnnotationBarQuery,
+    queryRef
   );
   if (data.span.__typename !== "Span") {
     return null;
   }
-  const refresh = () => setFetchKey((currentFetchKey) => currentFetchKey + 1);
   return (
     <SpanDetailPanelAnnotationBarContent
       allAnnotationConfigs={data.allAnnotationConfigs.edges.map(({ node }) =>
