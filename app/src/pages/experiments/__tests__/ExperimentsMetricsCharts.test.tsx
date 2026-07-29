@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as PhoenixComponents from "@phoenix/components";
 import type * as PhoenixChart from "@phoenix/components/chart";
+import type * as PhoenixResize from "@phoenix/components/resize";
 
 import { ExperimentsMetricsCharts } from "../ExperimentsMetricsCharts";
 
@@ -30,7 +31,8 @@ vi.mock("@phoenix/components/chart", async (importOriginal) => ({
   ChartPanel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@phoenix/components/resize", () => ({
+vi.mock("@phoenix/components/resize", async (importOriginal) => ({
+  ...(await importOriginal<typeof PhoenixResize>()),
   transparentResizeHandleCSS: {},
 }));
 
