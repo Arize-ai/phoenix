@@ -137,6 +137,16 @@ def upgrade() -> None:
             ),
             nullable=False,
         ),
+        sa.Column(
+            "evaluation_delay_seconds",
+            sa.Integer(),
+            sa.CheckConstraint(
+                "evaluation_delay_seconds >= 10",
+                name="valid_evaluation_delay_seconds",
+            ),
+            nullable=False,
+            server_default="300",
+        ),
         sa.Column("input_mapping", JSON_, nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("work_materialized_at", sa.TIMESTAMP(timezone=True), nullable=True),

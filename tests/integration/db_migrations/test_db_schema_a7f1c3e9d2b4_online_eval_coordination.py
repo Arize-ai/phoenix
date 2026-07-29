@@ -166,6 +166,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "filter_condition",
             "sampling_rate",
             "evaluation_target",
+            "evaluation_delay_seconds",
             "input_mapping",
             "enabled",
             "work_materialized_at",
@@ -183,6 +184,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "fk_project_evaluator_criteria_evaluator_id_evaluators",
             "ck_project_evaluator_criteria_`valid_sampling_rate`",
             "ck_project_evaluator_criteria_`valid_evaluation_target`",
+            "ck_project_evaluator_criteria_`valid_evaluation_delay_seconds`",
         }
         if db_backend == "postgresql":
             index_names.update(

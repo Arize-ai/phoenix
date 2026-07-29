@@ -42,7 +42,6 @@ async def _add_session_activity(
         session.add(
             models.EvalSessionActivity(
                 project_session_rowid=project_session.id,
-                last_seen_span_rowid=span.id,
                 observed_at=_now() - timedelta(seconds=age_seconds),
             )
         )
@@ -53,7 +52,7 @@ async def _add_session_activity(
 async def _set_delay(
     db: DbSessionFactory,
     criteria_id: int,
-    delay_seconds: int | None,
+    delay_seconds: int,
 ) -> None:
     async with db() as session:
         await session.execute(
@@ -63,7 +62,7 @@ async def _set_delay(
         )
 
 
-async def test_materializes_generation_zero_and_prunes_resolved_activity(
+async def test_materializes_work_and_prunes_resolved_activity(
     db: DbSessionFactory,
 ) -> None:
     project_id, project_session_id, _ = await _add_session_activity(db, age_seconds=600)
@@ -97,7 +96,6 @@ async def test_materializes_generation_zero_and_prunes_resolved_activity(
         ).one()
     assert unit.evaluator_id == evaluator_id
     assert unit.criteria_id == criteria_id
-    assert unit.generation == 0
     assert unit.status == "PENDING"
     assert activity_count == 0
     assert cursor.claimed_by == sweeper._sweeper_id
@@ -163,7 +161,6 @@ async def test_lost_lease_rolls_back_sweep(
             await session.execute(
                 select(
                     models.EvalSessionActivity.id,
-                    models.EvalSessionActivity.last_seen_span_rowid,
                     models.EvalSessionActivity.observed_at,
                 ).where(models.EvalSessionActivity.project_session_rowid == project_session_id)
             )
@@ -180,7 +177,6 @@ async def test_lost_lease_rolls_back_sweep(
             await session.execute(
                 select(
                     models.EvalSessionActivity.id,
-                    models.EvalSessionActivity.last_seen_span_rowid,
                     models.EvalSessionActivity.observed_at,
                 ).where(models.EvalSessionActivity.project_session_rowid == project_session_id)
             )
@@ -303,7 +299,7 @@ async def test_retains_activity_until_each_criteria_delay_elapses(
 async def test_reopened_session_is_pruned_without_another_work_unit(
     db: DbSessionFactory,
 ) -> None:
-    project_id, project_session_id, span_id = await _add_session_activity(db, age_seconds=600)
+    project_id, project_session_id, _ = await _add_session_activity(db, age_seconds=600)
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = SessionEvalSweeper(db)
     await sweeper._tick()
@@ -312,7 +308,6 @@ async def test_reopened_session_is_pruned_without_another_work_unit(
         session.add(
             models.EvalSessionActivity(
                 project_session_rowid=project_session_id,
-                last_seen_span_rowid=span_id,
                 observed_at=_now() - timedelta(seconds=600),
             )
         )
@@ -330,7 +325,6 @@ async def test_reopened_session_is_pruned_without_another_work_unit(
             select(func.count()).select_from(models.EvalSessionActivity)
         )
     assert len(units) == 1
-    assert units[0].generation == 0
     assert activity_count == 0
 
 

@@ -85,7 +85,7 @@ input AddProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; null uses the default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -1010,7 +1010,7 @@ input CreateProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; null uses the default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -1036,7 +1036,7 @@ input CreateProjectLLMEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; null uses the default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -3290,9 +3290,9 @@ type ProjectEvaluator implements Node {
   evaluationTarget: EvaluationTarget!
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. Null uses the default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New criteria store the current default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation.
   """
-  evaluationDelaySeconds: Int
+  evaluationDelaySeconds: Int!
   inputMapping: EvaluatorInputMapping!
   enabled: Boolean!
   createdAt: DateTime!
@@ -5173,7 +5173,7 @@ input UpdateProjectCodeEvaluatorInput {
   inputMapping: EvaluatorInputMappingInput
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; omit to preserve the current setting or use null to restore the default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; omit to preserve the current setting or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int
 }
@@ -5192,7 +5192,7 @@ input UpdateProjectLLMEvaluatorInput {
   promptVersionId: ID
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; omit to preserve the current setting or use null to restore the default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. The minimum is 10 seconds; omit to preserve the current setting or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int
 }
