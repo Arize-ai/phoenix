@@ -8,9 +8,9 @@ import type { MessageRewindRequest } from "./ChatMessage";
 /**
  * Matches error messages that stem from a model-provider API-key or
  * authentication failure (missing key, invalid key, or auth rejected by the
- * provider). Kept in sync with the server-side guidance emitted by
- * ``build_stream_error_chunk`` and the credential errors raised by
- * ``build_model``.
+ * provider). The server sends raw error text: provider errors surfaced
+ * in-band by the pydantic-ai adapter mid-stream, or the credential errors
+ * raised by ``build_model`` before the stream starts.
  */
 const API_KEY_ERROR_PATTERN =
   /api[\s_-]?key|unauthoriz|authenticat|invalid_api_key|permission[\s_-]?denied|credential/i;
