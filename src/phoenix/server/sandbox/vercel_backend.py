@@ -19,6 +19,7 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     VercelConfig,
     VercelCredentials,
     VercelDeployment,
@@ -409,7 +410,9 @@ class VercelAdapter(SandboxAdapter[VercelConfig, VercelCredentials, VercelDeploy
         credentials: VercelCredentials,
         deployment: VercelDeployment,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
+        del runtime
         lang = config.language
         token = credentials.VERCEL_TOKEN.get_secret_value()
         project_id = credentials.VERCEL_PROJECT_ID.get_secret_value()

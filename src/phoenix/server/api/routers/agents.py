@@ -125,6 +125,7 @@ from phoenix.server.api.types.SandboxConfig import (
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
+from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import (
     Tracer,
@@ -853,9 +854,11 @@ async def _load_available_sandbox_backend_types(
     *,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
+    runtime: SandboxRuntimeContext,
 ) -> frozenset[models.SandboxBackendType]:
     backend_info = await get_sandbox_backend_info(
         secrets=SecretsContext(session=session, decrypt=decrypt),
+        runtime=runtime,
     )
     return frozenset(
         info.backend_type.value
@@ -1350,6 +1353,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     available_backend_types = await _load_available_sandbox_backend_types(
                         session=session,
                         decrypt=request.app.state.decrypt,
+                        runtime=request.app.state.sandbox_runtime,
                     )
                     sandbox_availability = await _load_sandbox_availability(
                         session,

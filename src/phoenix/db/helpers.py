@@ -62,11 +62,11 @@ async def latest_code_evaluator_versions_by_evaluator_id(
     }
 
 
-async def code_evaluator_with_latest_version_for_update(
+async def code_evaluator_with_latest_version(
     session: AsyncSession,
     code_evaluator_id: int,
 ) -> Optional[tuple[models.CodeEvaluator, Optional[models.CodeEvaluatorVersion]]]:
-    """Resolve one evaluator and its latest version inside an existing write session."""
+    """Resolve one evaluator and its latest version."""
     latest_version = aliased(models.CodeEvaluatorVersion)
     latest_version_id = (
         select(models.CodeEvaluatorVersion.id)

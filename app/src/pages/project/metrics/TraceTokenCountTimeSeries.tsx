@@ -40,14 +40,14 @@ import {
   intShortFormatter,
   percentFormatter,
 } from "@phoenix/utils/numberFormatUtils";
-
-import type { TraceTokenCountTimeSeriesQuery } from "./__generated__/TraceTokenCountTimeSeriesQuery.graphql";
 import {
   compareTokenTypes,
   getTokenDetailColor,
-  getTokenDetailDataKey,
   getTokenDetailLabel,
-} from "./tokenDetails";
+} from "@phoenix/utils/tokenDetailUtils";
+
+import type { TraceTokenCountTimeSeriesQuery } from "./__generated__/TraceTokenCountTimeSeriesQuery.graphql";
+import { getTokenDetailDataKey } from "./tokenDetails";
 
 type TokenCountTimeSeriesDatum = NonNullable<
   NonNullable<

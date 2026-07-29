@@ -31,7 +31,10 @@ import {
   View,
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
+import {
+  EDIT_ANNOTATION_HOTKEY,
+  NOTE_HOTKEY,
+} from "@phoenix/constants/annotationConstants";
 import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 
@@ -46,7 +49,8 @@ import { SpanAsideProvider, useOpenSpanAside } from "./SpanAsideContext";
 import { SpanDownloadMenu } from "./SpanDownloadMenu";
 import { SpanEventsList } from "./SpanEventsList";
 import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
-import { NOTE_HOTKEY } from "./SpanNotesEditor";
+import { SpanNoteBar } from "./SpanNoteBar";
+import { SpanNoteBarProvider, useOpenSpanNoteBar } from "./SpanNoteBarContext";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
@@ -73,7 +77,9 @@ export function SpanDetails({
 }) {
   return (
     <SpanAsideProvider>
-      <SpanDetailsContent spanNodeId={spanNodeId} />
+      <SpanNoteBarProvider>
+        <SpanDetailsContent spanNodeId={spanNodeId} />
+      </SpanNoteBarProvider>
     </SpanAsideProvider>
   );
 }
@@ -87,6 +93,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     (state) => state.setIsAnnotatingSpans
   );
   const openSpanAside = useOpenSpanAside();
+  const openSpanNoteBar = useOpenSpanNoteBar();
 
   const asidePanelRef = useRef<PanelImperativeHandle>(null);
   // Sync the aside panel collapsed state with the isAnnotatingSpans preference.
@@ -185,10 +192,10 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     throw new Error("Project ID is required to download a span");
   }
 
-  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside("annotations"), {
+  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside(), {
     preventDefault: true,
   });
-  useHotkeys(NOTE_HOTKEY, () => openSpanAside("notes"), {
+  useHotkeys(NOTE_HOTKEY, () => openSpanNoteBar(), {
     preventDefault: true,
   });
 
@@ -278,6 +285,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               </View>
             </LazyTabPanel>
           </Tabs>
+          <SpanNoteBar spanNodeId={span.id} />
         </Flex>
       </Panel>
       <Separator

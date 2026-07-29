@@ -28,6 +28,7 @@ import {
   getSandboxConfigSettings,
   LanguageWithIcon,
   SandboxHostingTypeBadge,
+  SandboxLanguageDialectBadge,
   shouldShowRuntimeUnavailableBadge,
   StatusText,
 } from "./utils";
@@ -99,6 +100,10 @@ export function SandboxConfigsCard({
                         <Text>{backend.displayName}</Text>
                         <SandboxHostingTypeBadge
                           hostingType={backend.hostingType}
+                        />
+                        <SandboxLanguageDialectBadge
+                          languageDialect={backend.languageDialect}
+                          runtimeNotes={backend.runtimeNotes}
                         />
                       </Flex>
                     </td>

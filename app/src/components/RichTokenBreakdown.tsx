@@ -6,8 +6,17 @@ import {
 import { Text } from "@phoenix/components/core/content";
 import { Flex } from "@phoenix/components/core/layout";
 
-type RichTokenCostBreakdownProps = {
+type RichTokenBreakdownProps = {
+  /**
+   * The noun for the value being broken down, e.g. "cost" or "tokens".
+   */
   valueLabel: string;
+  /**
+   * Qualifies the total, e.g. "Total" or "Average". Rendered ahead of the
+   * value label, so `Prompt` and `cost` read as "Prompt cost".
+   * @default "Total"
+   */
+  totalLabel?: string;
   totalValue: number;
   formatter: (value: number) => string;
   segments: {
@@ -19,10 +28,11 @@ type RichTokenCostBreakdownProps = {
 
 export function RichTokenBreakdown({
   valueLabel,
+  totalLabel = "Total",
   totalValue,
   formatter,
   segments,
-}: RichTokenCostBreakdownProps) {
+}: RichTokenBreakdownProps) {
   const colors = useSequentialChartColors();
   const segmentsWithColor = segments.map((segment, index) => ({
     ...segment,
@@ -32,7 +42,7 @@ export function RichTokenBreakdown({
     <Flex direction="column" gap="size-150">
       {/* Totals */}
       <Flex direction="row" gap="size-200" justifyContent="space-between">
-        <Text weight="heavy">Total {valueLabel}</Text>
+        <Text weight="heavy">{`${totalLabel} ${valueLabel}`}</Text>
         <Flex direction="row" gap="size-400">
           <Text weight="heavy">{formatter(totalValue)}</Text>
         </Flex>
@@ -40,6 +50,7 @@ export function RichTokenBreakdown({
       {/* Segment graph */}
       <SegmentChart
         height={6}
+        minimumSegmentPercentage={1}
         totalValue={totalValue}
         segments={segmentsWithColor}
       />

@@ -160,6 +160,25 @@ export function LanguageWithIcon({ language }: { language: Language }) {
   );
 }
 
+export function SandboxLanguageDialectBadge({
+  languageDialect,
+  runtimeNotes,
+}: Pick<BackendInfo, "languageDialect" | "runtimeNotes">) {
+  if (languageDialect !== "RESTRICTED") {
+    return null;
+  }
+  return (
+    <TooltipTrigger delay={100}>
+      <TriggerWrap>
+        <Badge variant="warning">Restricted Python</Badge>
+      </TriggerWrap>
+      <RichTooltip width={320}>
+        <Text>{runtimeNotes}</Text>
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}
+
 /**
  * Returns true when the local-Deno trust warning should be surfaced to the user.
  *
@@ -219,6 +238,8 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
       return "Local Deno TypeScript runtime";
     case "MODAL":
       return "Modal cloud Python sandbox";
+    case "MONTY":
+      return "Local restricted-Python runtime";
     default:
       return "Sandbox runtime";
   }
@@ -345,6 +366,7 @@ const VARIANT_KEY_BY_BACKEND_TYPE: Record<BackendInfo["backendType"], string> =
     VERCEL: "vercel",
     WASM: "wasm",
     MODAL: "modal",
+    MONTY: "monty",
   };
 
 export function formValuesToConfigPatch(

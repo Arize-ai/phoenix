@@ -27,6 +27,7 @@ import {
   getBackendDescription,
   LanguageWithIcon,
   SandboxHostingTypeBadge,
+  SandboxLanguageDialectBadge,
   StatusText,
 } from "./utils";
 
@@ -70,6 +71,10 @@ export function SandboxProvidersCard({
                     <span>{backend.displayName}</span>
                     <SandboxHostingTypeBadge
                       hostingType={backend.hostingType}
+                    />
+                    <SandboxLanguageDialectBadge
+                      languageDialect={backend.languageDialect}
+                      runtimeNotes={backend.runtimeNotes}
                     />
                     <ContextualHelp variant="info">
                       {getBackendDescription(backend.backendType)}

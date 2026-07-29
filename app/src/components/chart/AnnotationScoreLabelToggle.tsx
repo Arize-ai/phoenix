@@ -23,9 +23,9 @@ export function AnnotationScoreLabelToggle({
       aria-label="Evaluation metric view"
       size="S"
       selectedKey={view}
-      onSelectionChange={(key) => {
-        if (isAnnotationMetricsView(key)) {
-          onChange(key);
+      onSelectionChange={(selectedView) => {
+        if (isAnnotationMetricsView(selectedView)) {
+          onChange(selectedView);
         }
       }}
     >

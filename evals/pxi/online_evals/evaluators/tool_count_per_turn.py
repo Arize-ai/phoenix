@@ -7,7 +7,7 @@ from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
 
 from evals.pxi.online_evals.models import EvaluatorSpec
-from evals.pxi.online_evals.topology import PXI_TURN_ROOT_NAME, top_level_tool_spans
+from evals.pxi.online_evals.topology import PXI_TURN_ROOT_NAME, classify_tool_spans
 
 
 def _tool_name(span: v1.Span) -> str:
@@ -17,14 +17,26 @@ def _tool_name(span: v1.Span) -> str:
 
 
 async def evaluate_tool_count_per_turn(root: v1.Span, spans: Sequence[v1.Span]) -> Score:
-    tools = top_level_tool_spans(root, spans)
-    names = [_tool_name(span) for span in tools]
-    count = len(tools)
+    breakdown = classify_tool_spans(root, spans)
+    names = [_tool_name(span) for span in breakdown.all_tools]
+    top_level_names = [_tool_name(span) for span in breakdown.top_level]
+    nested_names = [_tool_name(span) for span in breakdown.nested]
+    count = len(breakdown.all_tools)
+    nested_count = len(breakdown.nested)
+    explanation = f"{count} tool call{'s' if count != 1 else ''} in this turn"
+    if nested_count:
+        explanation += f" ({len(breakdown.top_level)} top-level, {nested_count} nested)"
     return Score(
         name="tool_count_per_turn",
         score=float(count),
-        explanation=f"{count} top-level PXI tool call{'s' if count != 1 else ''} in this turn",
-        metadata={"tool_names": names},
+        explanation=explanation,
+        metadata={
+            "tool_names": names,
+            "top_level_tool_names": top_level_names,
+            "nested_tool_names": nested_names,
+            "nested_tool_count": nested_count,
+            "subagent_call_count": top_level_names.count("call_subagent"),
+        },
         kind="code",
     )
 
@@ -35,5 +47,5 @@ TOOL_COUNT_PER_TURN = EvaluatorSpec(
     evaluate=evaluate_tool_count_per_turn,
     annotator_kind="CODE",
     sample_rate=1.0,
-    identifier="pxi-online-evals:tool-count-per-turn:v1",
+    identifier="pxi-online-evals:tool-count-per-turn:v2",
 )

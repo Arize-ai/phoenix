@@ -15,6 +15,7 @@ from .types import (
     NoCredentials,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     compose_secret_values,
 )
 
@@ -136,7 +137,9 @@ class DenoAdapter(SandboxAdapter[DenoConfig, NoCredentials, DenoDeployment]):
         credentials: NoCredentials,
         deployment: DenoDeployment,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
+        del runtime
         if user_env:
             raise ValueError("Deno sandboxes do not support user-supplied environment variables.")
         deno_executable = shutil.which("deno")

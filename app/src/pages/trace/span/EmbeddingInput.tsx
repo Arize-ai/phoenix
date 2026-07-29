@@ -1,7 +1,7 @@
 import { EmbeddingAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 
-import { Card } from "@phoenix/components";
+import { Card, CopyToClipboardButton } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   MarkdownDisplayProvider,
@@ -10,6 +10,7 @@ import type { AttributeEmbeddingEmbedding } from "@phoenix/openInference/tracing
 
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
+import { formatTextListForCopy } from "./utils";
 
 /**
  * The input side of an embedding span — the texts that were embedded.
@@ -21,12 +22,16 @@ export function EmbeddingInput({
 }) {
   const numTexts = embeddings.length;
   const cardProps = useSpanInfoCardProps("input");
+  const texts = embeddings.map(
+    (embedding) => embedding[EmbeddingAttributePostfixes.text] || ""
+  );
   return (
     <Card
       title="Input"
       subTitle={`${numTexts} ${numTexts === 1 ? "text" : "texts"}`}
       {...defaultCardProps}
       {...cardProps}
+      extra={<CopyToClipboardButton text={formatTextListForCopy(texts)} />}
     >
       {
         <ul
@@ -37,7 +42,7 @@ export function EmbeddingInput({
             padding: var(--global-dimension-size-200);
           `}
         >
-          {embeddings.map((embedding, idx) => {
+          {texts.map((text, idx) => {
             return (
               <li key={idx}>
                 <MarkdownDisplayProvider>
@@ -46,10 +51,9 @@ export function EmbeddingInput({
                     backgroundColor="purple-100"
                     borderColor="purple-300"
                     title="Embedded Text"
+                    extra={<CopyToClipboardButton text={text} />}
                   >
-                    <ConnectedMarkdownBlock>
-                      {embedding[EmbeddingAttributePostfixes.text] || ""}
-                    </ConnectedMarkdownBlock>
+                    <ConnectedMarkdownBlock>{text}</ConnectedMarkdownBlock>
                   </Card>
                 </MarkdownDisplayProvider>
               </li>
