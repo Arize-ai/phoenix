@@ -27,7 +27,7 @@ export function ExpandCollapseAllButton({
         aria-label={actionLabel}
         onPress={() => onCollapsedChange(!isCollapsed)}
       >
-        <Icon svg={isCollapsed ? <Icons.RowCollapse /> : <Icons.RowExpand />} />
+        <Icon svg={isCollapsed ? <Icons.RowExpand /> : <Icons.RowCollapse />} />
       </Button>
       <Tooltip offset={-5}>
         {actionLabel} {contentLabel}
