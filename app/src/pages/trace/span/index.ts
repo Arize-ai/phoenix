@@ -17,7 +17,7 @@ export * from "./RerankerSpanInfo";
 export * from "./RetrieverInput";
 export * from "./RetrieverOutput";
 export * from "./RetrieverSpanInfo";
-export * from "./SpanAttributesCard";
+export * from "./SpanAttributesSection";
 export * from "./SpanImage";
 export * from "./SpanInfo";
 export * from "./SpanInput";

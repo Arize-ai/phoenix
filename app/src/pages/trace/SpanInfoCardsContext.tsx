@@ -4,12 +4,13 @@ import { createContext, startTransition, useContext, useState } from "react";
 import type { CardProps } from "@phoenix/components";
 
 /**
- * The cards the span details expand/collapse control acts on.
+ * The disclosures the span details expand/collapse control acts on.
  *
  * Every span kind renders its input and output cards differently, but each of
  * those renders under one of these keys, so the control reaches them all
- * without knowing which kind is on screen. Cards nested inside these — a
- * prompt template, a tool schema — are left to the reader.
+ * without knowing which kind is on screen. Attributes uses a section-level
+ * disclosure; the other keys identify cards. Nested cards — a prompt template,
+ * a tool schema — are left to the reader.
  */
 export const SPAN_INFO_CARD_KEYS = [
   "input",
@@ -35,8 +36,8 @@ type SpanInfoCardsContextType = {
   areAllCardsCollapsed: boolean;
 
   /**
-   * Opens or collapses every card at once, overriding whatever the reader had
-   * set on the individual cards.
+   * Opens or collapses every top-level disclosure at once, overriding whatever
+   * the reader had set on the individual disclosure.
    */
   setAllCardsOpen: (isOpen: boolean) => void;
 };
@@ -46,8 +47,8 @@ const SpanInfoCardsContext = createContext<SpanInfoCardsContextType | null>(
 );
 
 /**
- * Shares the span details card open state between the cards and the control that
- * expands or collapses them all.
+ * Shares the span details open state between the top-level disclosures and the
+ * control that expands or collapses them all.
  *
  * Mount above the span details view rather than inside it: the reader picks
  * spans from the trace tree while the drawer stays open, and a collapse they
@@ -108,8 +109,9 @@ export function useSpanInfoCards() {
 }
 
 /**
- * `Card` props that put one of the span details cards under the details
- * expand/collapse control. Spread these alongside `defaultCardProps`.
+ * Open-state props that put a top-level span detail disclosure under the
+ * details expand/collapse control. Card consumers spread these alongside
+ * `defaultCardProps`; the Attributes section accepts the same contract.
  *
  * `isOpen` stays undefined until something sets the card's state, so a card
  * nobody has touched still honors its own `defaultOpen`.

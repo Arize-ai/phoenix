@@ -1,11 +1,7 @@
 import { css } from "@emotion/react";
 import { animate, useReducedMotion } from "motion/react";
-import type {
-  MouseEvent as ReactMouseEvent,
-  PropsWithChildren,
-  Ref,
-} from "react";
-import { startTransition, Suspense, useEffect, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent, PropsWithChildren } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
@@ -14,7 +10,6 @@ import {
   ErrorBoundary,
   Flex,
   Loading,
-  SectionHeading,
   View,
 } from "@phoenix/components";
 import { SpanDetailPanelAnnotationBar } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
@@ -25,8 +20,10 @@ import { useDimensions } from "@phoenix/hooks";
 import { SpanHeader } from "../SpanHeader";
 import type { SpanDetailsContentQuery } from "./__generated__/SpanDetailsContentQuery.graphql";
 import type { SpanDetailsHeaderQuery } from "./__generated__/SpanDetailsHeaderQuery.graphql";
-import { SpanAttributesCard, SpanInfo } from "./span";
+import { DeferredSpanDetailsContent } from "./DeferredSpanDetailsContent";
+import { SpanAttributesSection, SpanInfo } from "./span";
 import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
+import { SpanDetailsSectionHeading } from "./SpanDetailsSectionHeading";
 import { SpanEventsList } from "./SpanEventsList";
 import { useSpanInfoCardProps } from "./SpanInfoCardsContext";
 import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
@@ -40,7 +37,7 @@ import {
 const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
 const FINAL_SCROLL_ANIMATION_DURATION_SECONDS = 0.18;
 const SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS = 0.5;
-const ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
+const ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 280;
 const EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 const NOTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 
@@ -116,85 +113,6 @@ const spanDetailsSectionsCSS = css`
     margin-top: auto;
   }
 `;
-
-const spanDetailsSectionHeadingCSS = css`
-  position: relative;
-  isolation: isolate;
-
-  & > :first-child {
-    position: relative;
-    z-index: var(--global-z-index-local-raised);
-  }
-
-  [data-section-navigation-feedback] {
-    position: absolute;
-    inset: 1px 0;
-    z-index: var(--global-z-index-local-base);
-    background-color: var(--highlight-background);
-    opacity: 0;
-    pointer-events: none;
-  }
-`;
-
-function SpanDetailsSectionHeading({
-  children,
-  bordered,
-  ref,
-}: PropsWithChildren & {
-  bordered?: boolean;
-  ref?: Ref<HTMLDivElement>;
-}) {
-  return (
-    <div ref={ref} css={spanDetailsSectionHeadingCSS}>
-      <SectionHeading bordered={bordered}>{children}</SectionHeading>
-      <span aria-hidden="true" data-section-navigation-feedback />
-    </div>
-  );
-}
-
-function DeferredSpanDetailsContent({
-  children,
-  placeholderHeight,
-}: PropsWithChildren<{ placeholderHeight: number }>) {
-  const [hasEnteredViewport, setHasEnteredViewport] = useState(
-    () => typeof IntersectionObserver === "undefined"
-  );
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (hasEnteredViewport) {
-      return undefined;
-    }
-
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry?.isIntersecting) {
-        return;
-      }
-      observer.disconnect();
-      startTransition(() => setHasEnteredViewport(true));
-    });
-
-    if (contentRef.current) {
-      observer.observe(contentRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [hasEnteredViewport]);
-
-  return (
-    <div
-      ref={contentRef}
-      data-deferred-content={hasEnteredViewport ? "mounted" : "pending"}
-      css={css`
-        min-height: ${hasEnteredViewport ? 0 : placeholderHeight}px;
-        content-visibility: auto;
-        contain-intrinsic-size: auto ${placeholderHeight}px;
-      `}
-    >
-      {hasEnteredViewport ? children : null}
-    </div>
-  );
-}
 
 export function SpanDetails({
   spanNodeId,
@@ -316,7 +234,7 @@ function SpanDetailsHeader({
 }
 
 function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
-  const attributesCardProps = useSpanInfoCardProps("attributes");
+  const attributesDisclosureProps = useSpanInfoCardProps("attributes");
   const shouldReduceMotion = useReducedMotion();
   const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
   const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
@@ -587,16 +505,19 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               id={spanDetailsSectionIds.attributes}
               aria-label="Attributes"
             >
-              <SpanDetailsSectionHeading>Attributes</SpanDetailsSectionHeading>
               <DeferredSpanDetailsContent
+                fallback={
+                  <SpanDetailsSectionHeading>
+                    Attributes
+                  </SpanDetailsSectionHeading>
+                }
+                observeAfterFallback
                 placeholderHeight={ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
               >
-                <View padding="size-100">
-                  <SpanAttributesCard
-                    attributes={span.attributes}
-                    {...attributesCardProps}
-                  />
-                </View>
+                <SpanAttributesSection
+                  attributes={span.attributes}
+                  {...attributesDisclosureProps}
+                />
               </DeferredSpanDetailsContent>
             </section>
             <section id={spanDetailsSectionIds.events} aria-label="Events">
