@@ -1930,12 +1930,12 @@ def create_agents_router(
                     )
                 boundary_row = latest_row
                 messages_to_summarize = [row.message for row in message_rows]
-                model = await build_model(
-                    request_body.model,
-                    session=session,
-                    decrypt=request.app.state.decrypt,
-                )
 
+            model = await build_model(
+                request_body.model,
+                db=db_session_factory,
+                decrypt=request.app.state.decrypt,
+            )
             summary_messages = _to_pydantic_ai_messages(messages_to_summarize)
             summary = await summarize_messages_for_compaction(
                 messages=summary_messages,
@@ -2062,6 +2062,14 @@ def create_agents_router(
                 ):
                     return JSONResponse({"code": "agent_session_busy"}, status_code=409)
                 project_name = agent_session.project_name
+                session_needs_title = not agent_session.title
+                agent_session_rowid = agent_session.id
+                otel_session_id = agent_session.project_session_id
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+        try:
+            try:
                 tracer = (
                     Tracer(
                         span_cost_calculator=request.app.state.span_cost_calculator,
@@ -2076,46 +2084,40 @@ def create_agents_router(
                 if tracer is not None:
                     agent_span_recorder = _AgentSpanContextRecorder()
                     tracer.tracer_provider.add_span_processor(agent_span_recorder)
-                model = await build_model(
-                    body.model,
-                    session=session,
-                    decrypt=request.app.state.decrypt,
-                    tracer_provider=tracer_provider,
-                )
                 sandbox_availability = SandboxAvailability()
                 model_provider_availability = ModelProviderAvailability()
                 agent_supports_availability_gate = agent_id == _ASSISTANT_AGENT_ID
-                if agent_supports_availability_gate:
-                    if _contexts_need_sandbox_availability(resolved_contexts):
-                        available_backend_types = await _load_available_sandbox_backend_types(
-                            session=session,
-                            decrypt=request.app.state.decrypt,
-                            runtime=request.app.state.sandbox_runtime,
-                        )
-                        sandbox_availability = await _load_sandbox_availability(
-                            session,
-                            available_backend_types=available_backend_types,
-                        )
-                    if _contexts_need_model_provider_availability(resolved_contexts):
-                        model_provider_availability = _load_model_provider_availability()
-                phoenix_user_email = await _load_phoenix_user_email(
-                    session=session,
-                    phoenix_user=phoenix_user,
+                async with request.app.state.db() as session:
+                    if agent_supports_availability_gate:
+                        if _contexts_need_sandbox_availability(resolved_contexts):
+                            available_backend_types = await _load_available_sandbox_backend_types(
+                                session=session,
+                                decrypt=request.app.state.decrypt,
+                                runtime=request.app.state.sandbox_runtime,
+                            )
+                            sandbox_availability = await _load_sandbox_availability(
+                                session,
+                                available_backend_types=available_backend_types,
+                            )
+                        if _contexts_need_model_provider_availability(resolved_contexts):
+                            model_provider_availability = _load_model_provider_availability()
+                    phoenix_user_email = await _load_phoenix_user_email(
+                        session=session,
+                        phoenix_user=phoenix_user,
+                    )
+                    initial_bash_snapshot = await _load_bash_snapshot(
+                        session,
+                        agent_session_rowid=agent_session_rowid,
+                    )
+                model = await build_model(
+                    body.model,
+                    db=db_session_factory,
+                    decrypt=request.app.state.decrypt,
+                    tracer_provider=tracer_provider,
                 )
-                session_needs_title = not agent_session.title
-                agent_session_rowid = agent_session.id
-                otel_session_id = agent_session.project_session_id
-                initial_bash_snapshot = await _load_bash_snapshot(
-                    session,
-                    agent_session_rowid=agent_session.id,
-                )
-        except AgentError as exc:
-            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+            except AgentError as exc:
+                raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-        # Between the committed lock claim above and the start of streaming
-        # (whose generator releases the lock in its finally), any failure must
-        # release the turn lock before re-raising.
-        try:
             if (browser_clock := _resolve_browser_clock(transcript_messages)) is not None:
                 resolved_contexts.app = browser_clock
 
