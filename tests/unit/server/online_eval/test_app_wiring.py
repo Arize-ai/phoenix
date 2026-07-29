@@ -14,9 +14,13 @@ from sqlalchemy import select, update
 
 from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_ENABLED,
+    ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
+    ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
     ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+    ENV_PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED,
+    ENV_PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY,
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -122,6 +126,10 @@ async def test_enabled_app_runs_seeded_criteria_end_to_end(
 ) -> None:
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED, "true")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY, "2")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY, "3")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, "4")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY, "5")
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:
@@ -137,6 +145,15 @@ async def test_enabled_app_runs_seeded_criteria_end_to_end(
         assert isinstance(session_consumer, OnlineEvalConsumer)
         assert session_consumer is not consumer
         assert session_consumer._evaluation_target == "SESSION"
+        assert consumer._consumer_semaphore._value == 2
+        assert session_consumer._consumer_semaphore._value == 3
+        assert consumer._evaluator_semaphore is session_consumer._evaluator_semaphore
+        assert consumer._evaluator_semaphore._value == 4
+        assert consumer._db_semaphore is session_consumer._db_semaphore
+        assert consumer._db_semaphore is not None
+        assert consumer._db_semaphore._value == 5
+        assert consumer._executor._db_semaphore is consumer._db_semaphore
+        assert session_consumer._executor._db_semaphore is consumer._db_semaphore
         assert isinstance(session_sweeper, SessionEvalSweeper)
         await stack.enter_async_context(LifespanManager(app))
         await consumer.stop()

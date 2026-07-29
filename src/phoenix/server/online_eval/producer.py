@@ -386,15 +386,20 @@ class OnlineEvalProducer(DaemonTask):
     async def _tick(self) -> None:
         try:
             now = datetime.now(timezone.utc)
-            cursor = await self._acquire_cursor(now)
+            mutations_allowed = not self._db.should_not_insert_or_update
+            cursor = await self._acquire_cursor(now, allow_insert=mutations_allowed)
             if cursor is None:
+                return
+            if not mutations_allowed:
+                await self._reap(now, cursor.produced_through_id, mutations_allowed=False)
+                await self._renew_lease(datetime.now(timezone.utc))
                 return
             cursor = await self._clamp_cursor(cursor)
             if cursor is None:
                 return
             produced_through_id = cursor.produced_through_id
 
-            await self._reap(now, produced_through_id)
+            await self._reap(now, produced_through_id, mutations_allowed=True)
             await self._renew_lease(datetime.now(timezone.utc))
 
             observed_high_water_id = cursor.observed_high_water_id
@@ -443,7 +448,12 @@ class OnlineEvalProducer(DaemonTask):
         except _CursorLeaseLost:
             logger.warning("Online-eval producer tick aborted after losing its lease")
 
-    async def _acquire_cursor(self, now: datetime) -> Optional[models.EvalWorkCursor]:
+    async def _acquire_cursor(
+        self,
+        now: datetime,
+        *,
+        allow_insert: bool = True,
+    ) -> Optional[models.EvalWorkCursor]:
         stale = now - timedelta(seconds=CURSOR_LEASE_TTL_SECONDS)
         for _ in range(2):
             async with self._db() as session:
@@ -472,6 +482,8 @@ class OnlineEvalProducer(DaemonTask):
                     )
                 )
                 if row_exists is not None:
+                    break
+                if not allow_insert:
                     break
                 produced_through_id = await session.scalar(select(func.max(models.Span.id))) or 0
                 await session.execute(
@@ -547,29 +559,36 @@ class OnlineEvalProducer(DaemonTask):
             self._lease_held = False
             raise _CursorLeaseLost
 
-    async def _reap(self, now: datetime, produced_through_id: int) -> None:
+    async def _reap(
+        self,
+        now: datetime,
+        produced_through_id: int,
+        *,
+        mutations_allowed: bool = True,
+    ) -> None:
         retention_cutoff = now - timedelta(seconds=self._retention_seconds)
         # Terminal rows inside the backstop lookback window are never deleted,
         # regardless of age — they must remain to block backstop resurrection.
         reap_floor = produced_through_id - self._backstop_lookback_span_ids
         async with self._db() as session:
-            await session.execute(
-                update(models.EvalWorkUnit)
-                .where(
-                    models.EvalWorkUnit.status == "RUNNING",
-                    models.EvalWorkUnit.attempts >= MAX_ATTEMPTS - 1,
-                    work_unit_lease_lapsed(now),
+            if mutations_allowed:
+                await session.execute(
+                    update(models.EvalWorkUnit)
+                    .where(
+                        models.EvalWorkUnit.status == "RUNNING",
+                        models.EvalWorkUnit.attempts >= MAX_ATTEMPTS - 1,
+                        work_unit_lease_lapsed(now),
+                    )
+                    .values(
+                        status="ERROR",
+                        attempts=MAX_ATTEMPTS,
+                        error=func.coalesce(
+                            models.EvalWorkUnit.error,
+                            LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+                        ),
+                    )
                 )
-                .values(
-                    status="ERROR",
-                    attempts=MAX_ATTEMPTS,
-                    error=func.coalesce(
-                        models.EvalWorkUnit.error,
-                        LEASE_ATTEMPTS_EXHAUSTED_ERROR,
-                    ),
-                )
-            )
-            if self._pending_ttl_seconds > 0:
+            if mutations_allowed and self._pending_ttl_seconds > 0:
                 pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
                 await session.execute(
                     update(models.EvalWorkUnit)

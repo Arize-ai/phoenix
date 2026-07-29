@@ -194,6 +194,32 @@ async def test_cold_start_initializes_cursor_at_current_high_water(
     assert await _work_unit_span_rowids(db) == []
 
 
+async def test_storage_pause_skips_materialization_and_cursor_advance(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    cursor_id = await _seed_cursor(
+        db,
+        produced_through_id=0,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+    producer = OnlineEvalProducer(db)
+    db.should_not_insert_or_update = True
+
+    try:
+        await producer._tick()
+    finally:
+        db.should_not_insert_or_update = False
+
+    assert await _work_unit_span_rowids(db) == []
+    assert (await _get_cursor(db, cursor_id)).produced_through_id == 0
+
+
 async def test_tick_materializes_matching_spans_and_advances_watermark(
     db: DbSessionFactory,
 ) -> None:

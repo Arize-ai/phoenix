@@ -82,11 +82,15 @@ from phoenix.config import (
     get_env_online_eval_claim_batch_size,
     get_env_online_eval_consumer_tick_interval_seconds,
     get_env_online_eval_enabled,
+    get_env_online_eval_max_db_concurrency,
+    get_env_online_eval_max_evaluator_concurrency,
     get_env_online_eval_max_outstanding,
     get_env_online_eval_max_sandbox_payload_bytes,
     get_env_online_eval_max_transcript_bytes,
     get_env_online_eval_pending_ttl_seconds,
+    get_env_online_eval_session_consumer_concurrency,
     get_env_online_eval_session_sweep_enabled,
+    get_env_online_eval_span_consumer_concurrency,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -709,7 +713,8 @@ def _lifespan(
             # shutdown snapshot would leak a provider session past the daemon.
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
-            # Teardown: consumers stop before producer; all before sandbox_session_manager.
+            # Teardown stops the sweeper and producer before both consumers,
+            # and all online-eval components before the sandbox manager.
             if online_eval_consumer is not None:
                 await stack.enter_async_context(online_eval_consumer)
             if online_eval_session_consumer is not None:
@@ -1108,6 +1113,8 @@ def create_app(
             )
         get_env_online_eval_max_transcript_bytes()
         get_env_online_eval_max_sandbox_payload_bytes()
+        evaluator_semaphore = asyncio.Semaphore(get_env_online_eval_max_evaluator_concurrency())
+        db_semaphore = asyncio.Semaphore(get_env_online_eval_max_db_concurrency())
         online_eval_producer = OnlineEvalProducer(db)
         online_eval_consumer = OnlineEvalConsumer(
             db,
@@ -1116,6 +1123,9 @@ def create_app(
             event_queue=dml_event_handler,
             tick_interval_seconds=tick_interval_seconds,
             claim_batch_size=claim_batch_size,
+            max_concurrency=get_env_online_eval_span_consumer_concurrency(),
+            evaluator_semaphore=evaluator_semaphore,
+            db_semaphore=db_semaphore,
         )
         online_eval_session_consumer = OnlineEvalConsumer(
             db,
@@ -1123,6 +1133,11 @@ def create_app(
             sandbox_session_manager=sandbox_session_manager,
             event_queue=dml_event_handler,
             evaluation_target="SESSION",
+            tick_interval_seconds=tick_interval_seconds,
+            claim_batch_size=claim_batch_size,
+            max_concurrency=get_env_online_eval_session_consumer_concurrency(),
+            evaluator_semaphore=evaluator_semaphore,
+            db_semaphore=db_semaphore,
         )
         if get_env_online_eval_session_sweep_enabled():
             online_eval_session_sweeper = SessionEvalSweeper(db)

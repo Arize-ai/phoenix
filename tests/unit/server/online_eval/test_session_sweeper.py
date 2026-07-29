@@ -378,6 +378,40 @@ async def test_session_with_null_liveness_is_never_eligible(
     assert work_count == 0
 
 
+async def test_storage_pause_renews_lease_without_materializing(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    async with db() as session:
+        session.add(
+            models.EvalWorkLease(
+                name=sweeper._lease_name,
+                holder=sweeper._sweeper_id,
+                heartbeat_at=_now() - timedelta(seconds=30),
+            )
+        )
+    db.should_not_insert_or_update = True
+
+    try:
+        await sweeper._tick()
+    finally:
+        db.should_not_insert_or_update = False
+
+    async with db() as session:
+        work_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionWorkUnit)
+        )
+        lease = (
+            await session.scalars(
+                select(models.EvalWorkLease).where(models.EvalWorkLease.name == sweeper._lease_name)
+            )
+        ).one()
+    assert work_count == 0
+    assert lease.holder == sweeper._sweeper_id
+
+
 async def test_terminalizes_exhausted_lapsed_session_lease(
     db: DbSessionFactory,
 ) -> None:
@@ -770,8 +804,8 @@ async def test_lost_lease_rolls_back_sweep(
     sweeper = SessionEvalSweeper(db)
     acquire_lease = sweeper._acquire_lease
 
-    async def acquire_then_lose_lease() -> int | None:
-        lease_id = await acquire_lease()
+    async def acquire_then_lose_lease(**kwargs: object) -> int | None:
+        lease_id = await acquire_lease(**kwargs)  # type: ignore[arg-type]
         assert lease_id is not None
         async with db() as session:
             await session.execute(

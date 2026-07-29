@@ -1706,6 +1706,108 @@ async def test_process_cancellation_releases_claim_without_counting_attempt(
     assert row.claimed_at is None
 
 
+async def test_storage_pause_prevents_claiming_new_work(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    db.should_not_insert_or_update = True
+
+    try:
+        await consumer._cycle()
+    finally:
+        db.should_not_insert_or_update = False
+
+    row = await _get_unit(db, unit_id)
+    assert row.status == "PENDING"
+    assert row.attempts == 0
+
+
+async def test_storage_pause_before_publication_returns_claim_to_pending(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+
+    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
+        return _hydrated_stub(
+            results=[_evaluation_result("criterion")],
+            evaluator_kind="LLM",
+            output_configs=[_output_config("criterion")],
+        )
+
+    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+    db.should_not_insert_or_update = True
+    try:
+        await consumer._process_unit(unit)
+    finally:
+        db.should_not_insert_or_update = False
+
+    row = await _get_unit(db, unit_id)
+    assert row.status == "PENDING"
+    assert row.attempts == 0
+    assert await _annotations(db) == []
+
+
+async def test_shared_evaluator_limit_applies_across_target_consumers(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shared_limit = asyncio.Semaphore(1)
+    span_consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluator_semaphore=shared_limit,
+    )
+    session_consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+        evaluator_semaphore=shared_limit,
+    )
+    hydrated = _hydrated_stub(results=[], evaluator_kind="BUILTIN", output_configs=[])
+    active = 0
+    max_active = 0
+
+    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
+        return hydrated
+
+    async def _evaluate(*_: Any, **__: Any) -> None:
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0)
+        active -= 1
+
+    async def _complete(**_: Any) -> bool:
+        return True
+
+    for consumer in (span_consumer, session_consumer):
+        monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+        monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
+        monkeypatch.setattr(consumer._coordinator, "complete", _complete)
+
+    await asyncio.gather(
+        span_consumer._process_unit(_claimed_unit(1, work_unit_id=1)),
+        session_consumer._process_unit(
+            _claimed_session_unit(1, identifier="online:session", work_unit_id=2)
+        ),
+    )
+
+    assert max_active == 1
+
+
 async def test_complete_retries_after_ambiguous_commit(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:

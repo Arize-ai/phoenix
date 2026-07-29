@@ -402,6 +402,16 @@ The maximum number of work units an online-eval consumer claims per tick. Togeth
 PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS this bounds per-replica evaluation
 throughput at claim_batch_size / tick_interval evaluations per second. Defaults to 10.
 """
+ENV_PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY = "PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY"
+"""Maximum concurrent work-unit tasks in the span consumer. Defaults to 10."""
+ENV_PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY = (
+    "PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY"
+)
+"""Maximum concurrent work-unit tasks in the session consumer. Defaults to 10."""
+ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
+"""Maximum aggregate evaluator executions across online-eval consumers. Defaults to 10."""
+ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY"
+"""Maximum aggregate online-eval consumer DB phases. Defaults to 5."""
 ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS = (
     "PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS"
 )
@@ -3555,6 +3565,32 @@ def get_env_online_eval_claim_batch_size() -> int:
             f"{batch_size}. Value must be a positive integer."
         )
     return batch_size
+
+
+def _online_eval_positive_int(name: str, default: int) -> int:
+    value = _int_val(name, default)
+    if value < 1:
+        raise ValueError(
+            f"Invalid value for environment variable {name}: "
+            f"{value}. Value must be a positive integer."
+        )
+    return value
+
+
+def get_env_online_eval_span_consumer_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_SPAN_CONSUMER_CONCURRENCY, 10)
+
+
+def get_env_online_eval_session_consumer_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_SESSION_CONSUMER_CONCURRENCY, 10)
+
+
+def get_env_online_eval_max_evaluator_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, 10)
+
+
+def get_env_online_eval_max_db_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY, 5)
 
 
 def get_env_online_eval_consumer_tick_interval_seconds() -> float:
