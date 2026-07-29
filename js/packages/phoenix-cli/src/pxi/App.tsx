@@ -183,7 +183,6 @@ function PxiBanner() {
   );
 }
 
-
 /** Format a model selection for display (e.g. `ANTHROPIC/claude-opus-4-8`). */
 function getModelLabel({
   modelSelection,
