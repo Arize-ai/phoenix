@@ -292,6 +292,12 @@ export const VERIFY = {
   notVerifiedBody: (tracesUrl: string) =>
     [
       `Your first trace will appear at ${tracesUrl}`,
+      "",
+      // The failure mode that looks like success: an exporter pointed at the
+      // base URL POSTs to the wrong path, and batching swallows the error.
+      "Most often the exporter is posting to the wrong URL. PHOENIX_COLLECTOR_ENDPOINT is a",
+      "base URL; an exporter that takes a full OTLP URL needs /v1/traces appended to it.",
+      "",
       `Not seeing traces? ${DOCS.troubleshooting}`,
     ].join("\n"),
 } as const;

@@ -124,14 +124,7 @@ function extractInputOutputFromSpan(span: SpanLike): {
 }
 
 async function main() {
-  const phoenixEndpoint = process.env.PHOENIX_ENDPOINT;
   const projectName = process.env.PHOENIX_PROJECT_NAME || "mastra-project";
-
-  if (!phoenixEndpoint) {
-    throw new Error(
-      "PHOENIX_ENDPOINT environment variable is required. Please set it in your .env file."
-    );
-  }
 
   const endTime = new Date();
   const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
