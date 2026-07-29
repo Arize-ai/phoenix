@@ -446,6 +446,7 @@ const spanTimingCSS = css`
     justify-content: end !important;
     min-width: 2.5rem;
     float: right;
+    white-space: nowrap;
   }
 `;
 
