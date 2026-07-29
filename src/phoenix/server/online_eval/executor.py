@@ -5,10 +5,12 @@ Work-unit lifecycle transitions (complete/fail/expire) stay with the caller.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import Any, Callable, Literal, Optional, Sequence
+from typing import Any, AsyncIterator, Callable, Literal, Optional, Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -67,6 +69,10 @@ class EvalExecutionError(Exception):
 
 class TranscriptTooLargeError(Exception):
     """No complete session turn fits within the transcript limit."""
+
+
+class OnlineEvalStoragePaused(Exception):
+    """Publication is paused while database insertions and updates are blocked."""
 
 
 class HydrationFailureReason(str, Enum):
@@ -214,14 +220,20 @@ class OnlineEvalExecutor:
         sandbox_session_manager: Optional[SandboxSessionManager] = None,
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
         execution_deadline_seconds: float = _DEFAULT_EXECUTION_DEADLINE_SECONDS,
+        db_semaphore: Optional[asyncio.Semaphore] = None,
     ) -> None:
         self._db = db
         self._decrypt = decrypt
         self._sandbox_session_manager = sandbox_session_manager
         self._event_queue = event_queue
         self._execution_deadline_seconds = execution_deadline_seconds
+        self._db_semaphore = db_semaphore
 
     async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
+        async with self._db_phase():
+            return await self._hydrate(unit)
+
+    async def _hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
         """Load one immutable execution snapshot or return a stable failure reason."""
         async with self._db() as session:
             criteria = await session.get(models.ProjectEvaluatorCriteria, unit.criteria_id)
@@ -620,31 +632,34 @@ class OnlineEvalExecutor:
             for result in results
         ]
         if records:
-            async with self._db() as session:
-                if unit.evaluation_target == "SPAN":
-                    inserted_ids = (
-                        await session.scalars(
-                            insert_on_conflict(
-                                *records,
-                                table=models.SpanAnnotation,
-                                dialect=self._db.dialect,
-                                unique_by=("name", "span_rowid", "identifier"),
-                                on_conflict=OnConflict.DO_NOTHING,
-                            ).returning(models.SpanAnnotation.id)
-                        )
-                    ).all()
-                else:
-                    inserted_ids = (
-                        await session.scalars(
-                            insert_on_conflict(
-                                *records,
-                                table=models.ProjectSessionAnnotation,
-                                dialect=self._db.dialect,
-                                unique_by=("name", "project_session_id", "identifier"),
-                                on_conflict=OnConflict.DO_NOTHING,
-                            ).returning(models.ProjectSessionAnnotation.id)
-                        )
-                    ).all()
+            async with self._db_phase():
+                if self._db.should_not_insert_or_update:
+                    raise OnlineEvalStoragePaused
+                async with self._db() as session:
+                    if unit.evaluation_target == "SPAN":
+                        inserted_ids = (
+                            await session.scalars(
+                                insert_on_conflict(
+                                    *records,
+                                    table=models.SpanAnnotation,
+                                    dialect=self._db.dialect,
+                                    unique_by=("name", "span_rowid", "identifier"),
+                                    on_conflict=OnConflict.DO_NOTHING,
+                                ).returning(models.SpanAnnotation.id)
+                            )
+                        ).all()
+                    else:
+                        inserted_ids = (
+                            await session.scalars(
+                                insert_on_conflict(
+                                    *records,
+                                    table=models.ProjectSessionAnnotation,
+                                    dialect=self._db.dialect,
+                                    unique_by=("name", "project_session_id", "identifier"),
+                                    on_conflict=OnConflict.DO_NOTHING,
+                                ).returning(models.ProjectSessionAnnotation.id)
+                            )
+                        ).all()
             # DO_NOTHING returns only rows actually inserted, so a deduped
             # re-run emits no event and dataloader caches aren't re-invalidated.
             if self._event_queue is not None and inserted_ids:
@@ -654,3 +669,11 @@ class OnlineEvalExecutor:
                     self._event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
         if not records:
             raise EvalExecutionError("evaluator returned no results")
+
+    @asynccontextmanager
+    async def _db_phase(self) -> AsyncIterator[None]:
+        if self._db_semaphore is None:
+            yield
+            return
+        async with self._db_semaphore:
+            yield
