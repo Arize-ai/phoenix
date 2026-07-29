@@ -91,6 +91,35 @@ logger = logging.getLogger(__name__)
 class RenderedMessageTooLargeError(Exception):
     """Rendered LLM messages exceed the configured online-eval limit."""
 
+    online_eval_terminal_code = "RENDERED_MESSAGE_TOO_LARGE"
+
+
+class SandboxPayloadTooLargeError(Exception):
+    """Rendered sandbox source exceeds the configured online-eval limit."""
+
+    online_eval_terminal_code = "SANDBOX_PAYLOAD_TOO_LARGE"
+
+
+class SandboxBackendTimeoutError(TimeoutError):
+    """The sandbox backend reported its own execution timeout."""
+
+    online_eval_error_code = "SANDBOX_BACKEND_TIMEOUT"
+    online_eval_count_attempt = False
+
+
+class SandboxRunnerTimeoutError(TimeoutError):
+    """The evaluator runner's guard deadline expired."""
+
+    online_eval_error_code = "SANDBOX_RUNNER_TIMEOUT"
+    online_eval_count_attempt = True
+
+
+class SandboxBackendExecutionError(Exception):
+    """A sandbox backend returned an unsuccessful execution outcome."""
+
+    online_eval_error_code = "SANDBOX_BACKEND_ERROR"
+    online_eval_count_attempt = True
+
 
 def _mask_attrs(
     attrs: dict[str, Any],
@@ -2576,6 +2605,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
         language: str,
         sandbox_session_manager: Optional[SandboxSessionManager],
         timeout: Optional[int] = None,
+        runner_timeout: Optional[float] = None,
         evaluator_version_id: Optional[str] = None,
         session_key: Optional[str] = None,
         max_payload_bytes: Optional[int] = None,
@@ -2590,6 +2620,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
         self._sandbox_backend: SandboxBackend = sandbox_backend
         self._language = language.upper()
         self._timeout = timeout
+        self._runner_timeout = runner_timeout if runner_timeout is not None else timeout
         self._evaluator_version_id = evaluator_version_id
         self._max_payload_bytes = max_payload_bytes
         self._payload_limit_remediation = payload_limit_remediation
@@ -2661,8 +2692,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
         error: str,
         start_time: datetime,
         trace_id: Optional[str] = None,
+        error_exc: Optional[Exception] = None,
     ) -> EvaluationResult:
-        return EvaluationResult(
+        result = EvaluationResult(
             name=name,
             annotator_kind="CODE",
             label=None,
@@ -2674,6 +2706,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
             start_time=start_time,
             end_time=datetime.now(timezone.utc),
         )
+        if error_exc is not None:
+            result["error_exc"] = error_exc
+        return result
 
     async def evaluate(
         self,
@@ -2752,30 +2787,50 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
             if self._language == "PYTHON":
-                code = (
-                    self._build_monty_harness()
-                    if self._sandbox_backend.provider == "MONTY"
-                    else self._build_python_harness(mapped_inputs)
-                )
+                if self._sandbox_backend.provider == "MONTY":
+                    code = self._build_monty_harness()
+                    baseline_code = code
+                else:
+                    code = self._build_python_harness(mapped_inputs)
+                    baseline_code = self._build_python_harness({})
             else:
                 code = self._build_typescript_harness(mapped_inputs)
+                baseline_code = self._build_typescript_harness({})
 
             if self._max_payload_bytes is not None:
                 payload_bytes = len(code.encode("utf-8"))
                 if payload_bytes > self._max_payload_bytes:
+                    source_and_harness_bytes = len(baseline_code.encode("utf-8"))
+                    mapped_input_bytes = max(payload_bytes - source_and_harness_bytes, 0)
+                    dominant_component = (
+                        "evaluator source and harness"
+                        if source_and_harness_bytes >= mapped_input_bytes
+                        else "mapped inputs"
+                    )
                     err = (
                         f"Rendered sandbox payload is {payload_bytes} bytes, which exceeds the "
-                        f"allowed {self._max_payload_bytes} bytes. "
+                        f"allowed {self._max_payload_bytes} bytes. The dominant component is "
+                        f"{dominant_component} ({source_and_harness_bytes} source/harness bytes; "
+                        f"{mapped_input_bytes} mapped-input bytes). "
                         f"{self._payload_limit_remediation}"
                     )
+                    error_exc = SandboxPayloadTooLargeError(err)
                     evaluator_span.set_status(Status(StatusCode.ERROR, err))
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name,
+                            err,
+                            start_time,
+                            trace_id=trace_id,
+                            error_exc=error_exc,
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
@@ -2813,14 +2868,22 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     ):
                         # Ephemeral path: backend.execute owns the sandbox
                         # lifecycle (created and torn down inside the call).
+                        async def _ephemeral_execute() -> ExecutionResult:
+                            try:
+                                return await self._sandbox_backend.execute_with_inputs(
+                                    code,
+                                    session_key=session_key,
+                                    inputs={"_inputs": mapped_inputs},
+                                    timeout=self._timeout,
+                                )
+                            except asyncio.TimeoutError as exc:
+                                raise SandboxBackendTimeoutError(
+                                    "SANDBOX_BACKEND_TIMEOUT: sandbox backend deadline exceeded"
+                                ) from exc
+
                         execution = await asyncio.wait_for(
-                            self._sandbox_backend.execute_with_inputs(
-                                code,
-                                session_key=session_key,
-                                inputs={"_inputs": mapped_inputs},
-                                timeout=self._timeout,
-                            ),
-                            timeout=self._timeout,
+                            _ephemeral_execute(),
+                            timeout=self._runner_timeout,
                         )
                     else:
                         # Managed path: ``wait_for`` brackets acquire+execute
@@ -2830,20 +2893,29 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         async def _managed_execute() -> ExecutionResult:
                             assert self._sandbox_session_manager is not None
                             manager = self._sandbox_session_manager
+
+                            async def _execute(session: Any) -> ExecutionResult:
+                                try:
+                                    return await session.execute(code, timeout=self._timeout)
+                                except asyncio.TimeoutError as exc:
+                                    raise SandboxBackendTimeoutError(
+                                        "SANDBOX_BACKEND_TIMEOUT: sandbox backend deadline exceeded"
+                                    ) from exc
+
                             try:
                                 async with manager.acquire(
                                     self._sandbox_backend, session_key
                                 ) as session:
-                                    return await session.execute(code, timeout=self._timeout)
+                                    return await _execute(session)
                             except SessionInvalidated:
                                 await manager.wait_for_drain(session_key, self._sandbox_backend)
                                 async with manager.acquire(
                                     self._sandbox_backend, session_key
                                 ) as session:
-                                    return await session.execute(code, timeout=self._timeout)
+                                    return await _execute(session)
 
                         execution = await asyncio.wait_for(
-                            _managed_execute(), timeout=self._timeout
+                            _managed_execute(), timeout=self._runner_timeout
                         )
                 except SessionLimitExceeded as exc:
                     err = SessionLimitExceeded.MESSAGE
@@ -2852,7 +2924,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
                 except SessionInvalidated as exc:
@@ -2862,7 +2936,21 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except SandboxBackendTimeoutError as exc:
+                    err = str(exc)
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
                 except asyncio.TimeoutError as exc:
@@ -2875,22 +2963,29 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         self._sandbox_session_manager.schedule_eviction(
                             session_key, self._sandbox_backend
                         )
-                    execution = ExecutionResult(stdout="", stderr="", error="timeout")
+                    timeout_exc = SandboxRunnerTimeoutError(
+                        "SANDBOX_RUNNER_TIMEOUT: sandbox runner deadline exceeded"
+                    )
+                    execution = ExecutionResult(stdout="", stderr="", error=str(timeout_exc))
                     sandbox_span.set_attributes(
                         _mask_attrs(
                             oi.get_metadata_attributes(
-                                metadata={**sandbox_metadata, "error": "timeout"}
+                                metadata={**sandbox_metadata, "error": str(timeout_exc)}
                             ),
                             masker,
                         )
                     )
                     _record_masked_exception(sandbox_span, exc, masker)
-                    sandbox_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    sandbox_span.set_status(Status(StatusCode.ERROR, str(timeout_exc)))
                     _record_masked_exception(evaluator_span, exc, masker)
-                    evaluator_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    evaluator_span.set_status(Status(StatusCode.ERROR, str(timeout_exc)))
                     return [
                         self._make_error_result(
-                            name, execution.error or "timeout", start_time, trace_id=trace_id
+                            name,
+                            execution.error or str(timeout_exc),
+                            start_time,
+                            trace_id=trace_id,
+                            error_exc=timeout_exc,
                         )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
@@ -2907,7 +3002,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
                 except MontyServiceError:
@@ -2925,7 +3022,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
@@ -2978,8 +3077,17 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
             if execution.error:
                 _set_masked_status(evaluator_span, StatusCode.ERROR, execution.error, masker)
+                error_exc = SandboxBackendExecutionError(
+                    f"SANDBOX_BACKEND_ERROR: {execution.error}"
+                )
                 return [
-                    self._make_error_result(name, execution.error, start_time, trace_id=trace_id)
+                    self._make_error_result(
+                        name,
+                        execution.error,
+                        start_time,
+                        trace_id=trace_id,
+                        error_exc=error_exc,
+                    )
                     for _ in (output_configs or [None])  # type: ignore[list-item]
                 ]
 

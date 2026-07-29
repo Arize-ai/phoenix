@@ -270,6 +270,29 @@ async def test_expire_is_terminal(db: DbSessionFactory) -> None:
     )
 
 
+async def test_release_returns_owned_unit_to_pending_without_counting_attempt(
+    db: DbSessionFactory,
+) -> None:
+    (unit_id,) = await _seed_work_units(db, 1)
+    coordinator = DbEvalWorkCoordinator(db)
+    (claimed,) = await coordinator.claim(claimed_by="consumer-1", limit=1)
+
+    assert await coordinator.release(
+        work_unit_id=claimed.work_unit_id,
+        claimed_by="consumer-1",
+    )
+    assert not await coordinator.release(
+        work_unit_id=claimed.work_unit_id,
+        claimed_by="consumer-2",
+    )
+
+    row = await _get_unit(db, unit_id)
+    assert row.status == "PENDING"
+    assert row.attempts == 0
+    assert row.claimed_by is None
+    assert row.claimed_at is None
+
+
 async def test_transitions_return_false_after_lapsed_lease_is_reclaimed(
     db: DbSessionFactory,
 ) -> None:
