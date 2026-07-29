@@ -31,6 +31,7 @@ import {
   TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS,
 } from "@phoenix/constants";
 
+import { DetailsPanelInteractionScope } from "./DetailsPanelInteractionScope";
 import { usePreferredTreePanel } from "./useDetailsPanelSizing";
 
 const detailsPanelCSS = css`
@@ -420,71 +421,73 @@ export function DetailsPanel({
   }
 
   return (
-    <DetailsPanelPortalContext.Provider value={portalControllerRef.current}>
-      <Group
-        data-testid={dataTestId}
-        elementRef={groupElementRef}
-        orientation="horizontal"
-        onLayoutChanged={onLayoutChanged}
-        className="details-panel-columns"
-        css={detailsPanelCSS}
-      >
-        <Panel
-          id="details-panel-tree-column"
-          panelRef={treePanelRef}
-          defaultSize={defaultTreeWidth}
-          minSize={minimumTreeWidth}
-          maxSize={maximumTreeWidth}
-          groupResizeBehavior="preserve-pixel-size"
-          css={detailsPanelNavigationCSS}
-          style={resizableTraceTreePanelStyle}
+    <DetailsPanelInteractionScope rootRef={groupElementRef}>
+      <DetailsPanelPortalContext.Provider value={portalControllerRef.current}>
+        <Group
+          data-testid={dataTestId}
+          elementRef={groupElementRef}
+          orientation="horizontal"
+          onLayoutChanged={onLayoutChanged}
+          className="details-panel-columns"
+          css={detailsPanelCSS}
         >
-          <ResizableTraceTreePanelContent
-            expandedWidth={treeOverlayWidth}
-            isCollapsed={isTreeCollapsed}
+          <Panel
+            id="details-panel-tree-column"
+            panelRef={treePanelRef}
+            defaultSize={defaultTreeWidth}
+            minSize={minimumTreeWidth}
+            maxSize={maximumTreeWidth}
+            groupResizeBehavior="preserve-pixel-size"
+            css={detailsPanelNavigationCSS}
+            style={resizableTraceTreePanelStyle}
+          >
+            <ResizableTraceTreePanelContent
+              expandedWidth={treeOverlayWidth}
+              isCollapsed={isTreeCollapsed}
+            >
+              <div
+                ref={navigationHostRef}
+                css={detailsPanelNavigationSlotHostCSS}
+              />
+            </ResizableTraceTreePanelContent>
+          </Panel>
+          <ResizableTraceTreeSeparator
+            ariaLabel={
+              isTreeCollapsed ? "Resize main detail view" : navigationAriaLabel
+            }
+            isCompact={isTreeCollapsed}
+            isDisabled={isTreeSeparatorDisabled}
+            onResize={onTreeResize}
+            onResizeEnd={onTreeResizeEnd}
+            onResizeStart={onTreeResizeStart}
+            onToggle={onTreeToggle}
+          />
+          <Panel
+            id="details-panel-main-column"
+            minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
+            maxSize={SPAN_DETAILS_MAX_WIDTH_PIXELS}
+            css={detailsPanelMainColumnCSS}
           >
             <div
-              ref={navigationHostRef}
-              css={detailsPanelNavigationSlotHostCSS}
+              className="details-panel-main-controls"
+              css={detailsPanelMainControlsRowCSS}
+            >
+              <Button
+                size="S"
+                variant="quiet"
+                aria-label="Add comparison"
+                leadingVisual={<Icon svg={<Icons.Plus />} />}
+              />
+            </div>
+            <div
+              ref={mainHostRef}
+              css={detailsPanelSlotHostCSS}
+              style={{ flex: "1 1 auto", minHeight: 0 }}
             />
-          </ResizableTraceTreePanelContent>
-        </Panel>
-        <ResizableTraceTreeSeparator
-          ariaLabel={
-            isTreeCollapsed ? "Resize main detail view" : navigationAriaLabel
-          }
-          isCompact={isTreeCollapsed}
-          isDisabled={isTreeSeparatorDisabled}
-          onResize={onTreeResize}
-          onResizeEnd={onTreeResizeEnd}
-          onResizeStart={onTreeResizeStart}
-          onToggle={onTreeToggle}
-        />
-        <Panel
-          id="details-panel-main-column"
-          minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
-          maxSize={SPAN_DETAILS_MAX_WIDTH_PIXELS}
-          css={detailsPanelMainColumnCSS}
-        >
-          <div
-            className="details-panel-main-controls"
-            css={detailsPanelMainControlsRowCSS}
-          >
-            <Button
-              size="S"
-              variant="quiet"
-              aria-label="Add comparison"
-              leadingVisual={<Icon svg={<Icons.Plus />} />}
-            />
-          </div>
-          <div
-            ref={mainHostRef}
-            css={detailsPanelSlotHostCSS}
-            style={{ flex: "1 1 auto", minHeight: 0 }}
-          />
-        </Panel>
-      </Group>
-      {children}
-    </DetailsPanelPortalContext.Provider>
+          </Panel>
+        </Group>
+        {children}
+      </DetailsPanelPortalContext.Provider>
+    </DetailsPanelInteractionScope>
   );
 }

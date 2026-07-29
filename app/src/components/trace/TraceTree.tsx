@@ -1413,6 +1413,7 @@ const spanTimingCSS = css`
     width: 100%;
     min-width: 0;
     overflow: hidden;
+    white-space: nowrap;
   }
   .latency-text .text {
     overflow: hidden;

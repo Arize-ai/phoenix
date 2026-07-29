@@ -9,7 +9,13 @@ import { Suspense, useEffect, useRef } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
-import { Counter, ErrorBoundary, Flex, Loading } from "@phoenix/components";
+import {
+  Button,
+  Counter,
+  ErrorBoundary,
+  Flex,
+  Loading,
+} from "@phoenix/components";
 import {
   SessionDetailPanelAnnotationBar,
   SpanDetailPanelAnnotationBar,
@@ -32,6 +38,7 @@ import { SpanDetailsSectionHeading } from "./SpanDetailsSectionHeading";
 import { SpanEventsList } from "./SpanEventsList";
 import { useSpanInfoCardProps } from "./SpanInfoCardsContext";
 import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
+import { useOptionalOpenSpanNoteBar } from "./SpanNoteBarContext";
 import { SpanNotesList } from "./SpanNotesList";
 import { TraceDetailsHeader } from "./TraceDetailsHeader";
 import {
@@ -335,6 +342,7 @@ function SpanDetailsHeader({
 
 function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const attributesDisclosureProps = useSpanInfoCardProps("attributes");
+  const openSpanNoteBar = useOptionalOpenSpanNoteBar();
   const shouldReduceMotion = useReducedMotion();
   const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
   const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
@@ -648,7 +656,16 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             aria-label="Notes"
             data-span-details-notes
           >
-            <SpanDetailsSectionHeading ref={notesHeadingRef}>
+            <SpanDetailsSectionHeading
+              ref={notesHeadingRef}
+              extra={
+                openSpanNoteBar ? (
+                  <Button size="S" variant="quiet" onPress={openSpanNoteBar}>
+                    Take notes
+                  </Button>
+                ) : null
+              }
+            >
               <Flex
                 elementType="span"
                 direction="row"

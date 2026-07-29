@@ -6,7 +6,10 @@ import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
 import { SPAN_DETAILS_CONDENSED_WIDTH_PIXELS } from "@phoenix/constants";
 import { useDimensions } from "@phoenix/hooks";
 
+import { useIsDetailsPanelInteractionActive } from "./DetailsPanelInteractionScope";
 import { SpanDetails } from "./SpanDetails";
+import { SpanNoteBar } from "./SpanNoteBar";
+import { SpanNoteBarProvider } from "./SpanNoteBarContext";
 import { SpanDetailsSkeleton } from "./TraceDetailsSkeleton";
 
 const MAX_CACHED_SPAN_DETAILS = 2;
@@ -61,19 +64,30 @@ function createCachedSpanDetails({
  * gate, a Relay cache hit renders large cached LLM content synchronously and
  * delays the selection paint.
  */
-export function SpanDetailsPaintGate({
-  spanNodeId,
-  spanPreview,
-  onSpanDetailsReady,
-  showSessionHeader = true,
-  showTraceHeader = true,
-}: {
+type SpanDetailsPaintGateProps = {
   spanNodeId: string;
   spanPreview?: SpanDetailsPreview;
   onSpanDetailsReady?: (spanNodeId: string) => void;
   showSessionHeader?: boolean;
   showTraceHeader?: boolean;
-}) {
+};
+
+export function SpanDetailsPaintGate(props: SpanDetailsPaintGateProps) {
+  const isDetailsPanelInteractionActive = useIsDetailsPanelInteractionActive();
+  return (
+    <SpanNoteBarProvider isHotkeyEnabled={isDetailsPanelInteractionActive}>
+      <SpanDetailsPaintGateContent {...props} />
+    </SpanNoteBarProvider>
+  );
+}
+
+function SpanDetailsPaintGateContent({
+  spanNodeId,
+  spanPreview,
+  onSpanDetailsReady,
+  showSessionHeader = true,
+  showTraceHeader = true,
+}: SpanDetailsPaintGateProps) {
   const [cachedSpanDetails, setCachedSpanDetails] = useState<
     CachedSpanDetails[]
   >([]);
@@ -210,39 +224,57 @@ export function SpanDetailsPaintGate({
       data-span-details-state={isHydrationPending ? "dehydrated" : "hydrating"}
       data-span-details-target-id={spanNodeId}
       css={css`
+        display: flex;
+        flex-direction: column;
         width: 100%;
         height: 100%;
         overflow: hidden;
       `}
     >
       <div
-        data-span-details-skeleton
-        hidden={!isHydrationPending}
+        className="span-details-paint-gate__content"
         css={css`
+          position: relative;
+          flex: 1 1 auto;
+          min-height: 0;
           width: 100%;
-          height: 100%;
+          overflow: hidden;
         `}
       >
-        <SpanDetailsSkeleton
-          spanPreview={spanPreview?.id === spanNodeId ? spanPreview : undefined}
-          isCondensedView={isCondensedView}
-          showSessionHeader={showSessionHeader}
-          showTraceHeader={showTraceHeader}
-        />
-      </div>
-      {cachedSpanDetails.map((cachedDetails) => (
         <div
-          key={cachedDetails.spanNodeId}
-          data-span-details-retained-id={cachedDetails.spanNodeId}
-          hidden={isHydrationPending || cachedDetails.spanNodeId !== spanNodeId}
+          data-span-details-skeleton
+          hidden={!isHydrationPending}
           css={css`
             width: 100%;
             height: 100%;
           `}
         >
-          {cachedDetails.content}
+          <SpanDetailsSkeleton
+            spanPreview={
+              spanPreview?.id === spanNodeId ? spanPreview : undefined
+            }
+            isCondensedView={isCondensedView}
+            showSessionHeader={showSessionHeader}
+            showTraceHeader={showTraceHeader}
+          />
         </div>
-      ))}
+        {cachedSpanDetails.map((cachedDetails) => (
+          <div
+            key={cachedDetails.spanNodeId}
+            data-span-details-retained-id={cachedDetails.spanNodeId}
+            hidden={
+              isHydrationPending || cachedDetails.spanNodeId !== spanNodeId
+            }
+            css={css`
+              width: 100%;
+              height: 100%;
+            `}
+          >
+            {cachedDetails.content}
+          </div>
+        ))}
+      </div>
+      <SpanNoteBar spanNodeId={spanNodeId} />
     </div>
   );
 }

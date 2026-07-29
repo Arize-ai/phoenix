@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, type PropsWithChildren } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,6 +34,16 @@ vi.mock("../TraceDetailsSkeleton", () => ({
     <div data-show-session-header={String(showSessionHeader)}>
       {spanPreview?.name ?? "Loading span details"}
     </div>
+  ),
+}));
+
+vi.mock("../SpanNoteBarContext", () => ({
+  SpanNoteBarProvider: ({ children }: PropsWithChildren) => children,
+}));
+
+vi.mock("../SpanNoteBar", () => ({
+  SpanNoteBar: ({ spanNodeId }: { spanNodeId: string }) => (
+    <div data-testid="span-note-bar">{spanNodeId}</div>
   ),
 }));
 
@@ -110,6 +120,12 @@ describe("SpanDetailsPaintGate", () => {
         .querySelector("[data-span-details-state]")
         ?.getAttribute("data-span-details-state")
     ).toBe("dehydrated");
+    expect(
+      container.querySelectorAll('[data-testid="span-note-bar"]')
+    ).toHaveLength(1);
+    expect(
+      container.querySelector('[data-testid="span-note-bar"]')?.textContent
+    ).toBe("span-a");
 
     runNextFrame();
     expect(getSkeleton().hidden).toBe(false);
@@ -129,6 +145,12 @@ describe("SpanDetailsPaintGate", () => {
     expect(getSkeleton().hidden).toBe(false);
     expect(getRetainedDetails()).toHaveProperty("hidden", true);
     expect(getRetainedDetails()?.textContent).toBe("Hydrated span-a");
+    expect(
+      container.querySelectorAll('[data-testid="span-note-bar"]')
+    ).toHaveLength(1);
+    expect(
+      container.querySelector('[data-testid="span-note-bar"]')?.textContent
+    ).toBe("span-b");
 
     runNextFrame();
     expect(getSkeleton().hidden).toBe(false);
