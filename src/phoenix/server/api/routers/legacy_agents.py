@@ -21,6 +21,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 )
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
+    ErrorChunk,
     ToolInputAvailableChunk,
 )
 from starlette.requests import Request
@@ -38,7 +39,6 @@ from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
-from phoenix.server.agents.ui_message_stream import build_stream_error_chunk
 from phoenix.server.api.routers.agents import (
     _SERVER_AGENT_ID,
     ChatRequest,
@@ -280,7 +280,7 @@ def create_legacy_agents_router(
                             yield chunk
             except Exception as exc:
                 logger.exception("Server agent chat stream failed for session %s", session_id)
-                yield build_stream_error_chunk(exc)
+                yield ErrorChunk(error_text=str(exc).strip() or type(exc).__name__)
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
