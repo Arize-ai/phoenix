@@ -4307,10 +4307,10 @@ class TestProject:
         # A scoped name may repeat across iterables and shadow a top-level one; each is its
         # own term, distinguished only by iterableName.
         assert element_fields["spans"]["latency_ms"] == "number"
-        assert element_fields["turns"]["latency_ms"] == "number"
-        assert element_fields["turns"]["start_time"] == "datetime"
+        assert element_fields["traces"]["latency_ms"] == "number"
+        assert element_fields["traces"]["start_time"] == "datetime"
         assert "start_time" in term_names
-        assert element_fields["cost_details"]["is_prompt"] == "boolean"
+        assert element_fields["span_cost_details"]["is_prompt"] == "boolean"
 
     async def test_session_count_shares_dsl_path_with_sessions_and_record_count(
         self,

@@ -189,12 +189,12 @@ _FLAT_NAMES: frozenset[str] = frozenset(
 
 _SESSION_ITERABLES: Mapping[str, Callable[[ReferenceSession], tuple[Any, ...]]] = {
     "spans": lambda session: session.spans,
-    "turns": lambda session: session.turns,
+    "traces": lambda session: session.turns,
     "session_annotations": lambda session: session.annotations,
     "span_annotations": lambda session: tuple(
         annotation for span in session.spans for annotation in span.annotations
     ),
-    "cost_details": lambda session: tuple(
+    "span_cost_details": lambda session: tuple(
         detail for cost in session.span_costs for detail in cost.details
     ),
 }
@@ -211,13 +211,13 @@ _ELEMENT_FIELDS: Mapping[str, frozenset[str]] = {
             "llm_token_count_total",
         }
     ),
-    "turns": frozenset({"start_time", "end_time", "latency_ms"}),
+    "traces": frozenset({"start_time", "end_time", "latency_ms"}),
     "session_annotations": frozenset({"name", "label", "score"}),
     "span_annotations": frozenset({"name", "label", "score"}),
-    "cost_details": frozenset({"token_type", "is_prompt", "cost", "tokens", "cost_per_token"}),
+    "span_cost_details": frozenset({"token_type", "is_prompt", "cost", "tokens", "cost_per_token"}),
 }
 
-_NESTED_ITERABLES: Mapping[str, Mapping[str, str]] = {"turns": {"spans": "spans"}}
+_NESTED_ITERABLES: Mapping[str, Mapping[str, str]] = {"traces": {"spans": "spans"}}
 
 _UPPERCASE_FIELDS: frozenset[str] = frozenset({"span_kind", "status_code"})
 _DATETIME_FIELDS: frozenset[str] = frozenset({"start_time", "end_time"})
@@ -885,19 +885,19 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     "not (max(s.latency_ms for s in spans) < 1000)",
     # Reductions agree with the flat aggregates computed over the same rows.
     'sum(s.llm_token_count_total for s in spans if s.span_kind == "LLM") == token_count_total',
-    "len([t for t in turns]) == num_traces",
+    "len([t for t in traces]) == num_traces",
     'len([s for s in spans if s.span_kind == "TOOL"]) == tool_span_count',
     # Turns, their datetime fields, and turn -> span nesting.
-    "any(t.latency_ms > 5000 for t in turns)",
-    "any(t.start_time > '2026-07-01T13:00:00+00:00' for t in turns)",
-    'any(any(s.status_code == "ERROR" for s in t.spans) for t in turns)',
-    'all(any(s.span_kind == "LLM" for s in t.spans) for t in turns)',
+    "any(t.latency_ms > 5000 for t in traces)",
+    "any(t.start_time > '2026-07-01T13:00:00+00:00' for t in traces)",
+    'any(any(s.status_code == "ERROR" for s in t.spans) for t in traces)',
+    'all(any(s.span_kind == "LLM" for s in t.spans) for t in traces)',
     # Annotations at both grains, and cost details.
     'any(a.name == "Quality" and a.score > 0.5 for a in session_annotations)',
     "all(a.score is not None for a in session_annotations)",
     'any(a.label == "correct" for a in span_annotations)',
-    'any(d.token_type == "output" and d.cost > 0 for d in cost_details)',
-    "sum(d.tokens for d in cost_details) > 100",
+    'any(d.token_type == "output" and d.cost > 0 for d in span_cost_details)',
+    "sum(d.tokens for d in span_cost_details) > 100",
     # Composition with the flat names the comprehension grammar sits alongside.
     'duration_ms > 5000 and any(s.span_kind == "TOOL" for s in spans)',
     'num_traces >= 2 or len([s for s in spans if s.status_code == "ERROR"]) > 0',

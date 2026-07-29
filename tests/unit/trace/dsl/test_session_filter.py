@@ -102,10 +102,10 @@ def test_session_bindings_flavor_audit() -> None:
     assert SESSION_BINDINGS.quantifiers == frozenset({"any", "all", "len", "max", "min", "sum"})
     assert set(SESSION_BINDINGS.iterables) == {
         "spans",
-        "turns",
+        "traces",
         "session_annotations",
         "span_annotations",
-        "cost_details",
+        "span_cost_details",
     }
     assert not SPAN_BINDINGS.quantifiers
     assert not SPAN_BINDINGS.iterables
@@ -869,9 +869,9 @@ async def test_session_filter_attributes_resolve_by_wire_key(db: DbSessionFactor
         # One row per rejected form: ordinal indexing, a set comprehension, nesting past
         # turn -> span, an unsanctioned nested iterable, `len` of a generator, an undeclared
         # iterable, and an enclosing-grain name reached from inside a predicate.
-        "turns[0].latency_ms > 100",
+        "traces[0].latency_ms > 100",
         "len({s.span_kind for s in spans}) > 1",
-        "any(any(any(x.score > 0.5 for x in s.annotations) for s in t.spans) for t in turns)",
+        "any(any(any(x.score > 0.5 for x in s.annotations) for s in t.spans) for t in traces)",
         "any(a.score > 0.5 for s in spans for a in s.annotations)",
         "len(s.name for s in spans) > 1",
         'any(e.name == "x" for e in events)',
