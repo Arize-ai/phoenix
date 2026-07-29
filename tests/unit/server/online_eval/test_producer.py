@@ -1049,6 +1049,39 @@ async def test_admission_budget_counts_nonterminal_backlog(db: DbSessionFactory)
     assert await producer._admission_budget() == 0
 
 
+@pytest.mark.parametrize(
+    ("outstanding_count", "expected_budget"),
+    [(2, 1), (3, 0), (4, 0)],
+)
+async def test_admission_budget_count_is_bounded_at_ceiling(
+    db: DbSessionFactory,
+    outstanding_count: int,
+    expected_budget: int,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        session.add_all(
+            [
+                models.EvalWorkUnit(
+                    span_rowid=span.id,
+                    evaluator_id=evaluator_id,
+                    criteria_id=criteria_id,
+                    config_fingerprint=f"fp-{token_hex(8)}",
+                )
+                for _ in range(outstanding_count)
+            ]
+        )
+
+    producer = OnlineEvalProducer(db)
+    producer._max_outstanding = 3
+
+    assert await producer._admission_budget() == expected_budget
+
+
 async def test_unexpected_criteria_load_error_fails_closed(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,

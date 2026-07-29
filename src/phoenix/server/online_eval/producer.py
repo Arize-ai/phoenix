@@ -527,20 +527,23 @@ class OnlineEvalProducer(DaemonTask):
         # see an empty queue and keep materializing into the outage. Exhausted
         # ERROR rows are terminal (awaiting the reaper) and excluded.
         async with self._db() as session:
-            outstanding_count = (
-                await session.scalar(
-                    select(func.count())
-                    .select_from(models.EvalWorkUnit)
-                    .where(
-                        or_(
-                            models.EvalWorkUnit.status.in_(("PENDING", "RUNNING")),
-                            and_(
-                                models.EvalWorkUnit.status == "ERROR",
-                                models.EvalWorkUnit.attempts < MAX_ATTEMPTS,
-                            ),
-                        )
+            outstanding = (
+                select(1)
+                .select_from(models.EvalWorkUnit)
+                .where(
+                    or_(
+                        models.EvalWorkUnit.status.in_(("PENDING", "RUNNING")),
+                        and_(
+                            models.EvalWorkUnit.status == "ERROR",
+                            models.EvalWorkUnit.attempts < MAX_ATTEMPTS,
+                        ),
                     )
                 )
+                .limit(self._max_outstanding)
+                .subquery()
+            )
+            outstanding_count = (
+                await session.scalar(select(func.count()).select_from(outstanding))
                 or 0
             )
         budget = max(0, self._max_outstanding - outstanding_count)
