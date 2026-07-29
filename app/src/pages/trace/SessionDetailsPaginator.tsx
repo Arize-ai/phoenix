@@ -107,7 +107,7 @@ export const SessionDetailsPaginator = ({
     >
       <Flex
         className="session-details-paginator__buttons"
-        direction="row"
+        direction={isCollapsed ? "column" : "row"}
         gap="size-50"
         alignItems="center"
       >

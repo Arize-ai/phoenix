@@ -27,12 +27,15 @@ const detailsPanelNavigationCSS = css`
   container-type: inline-size;
   z-index: var(--global-z-index-local-overlay);
 
-  &:has(.trace-tree-navigation__overlay[data-open="true"]) {
+  &:has(.trace-tree-navigation__overlay[data-open="true"]),
+  &:has(.session-details-navigation__content[data-open="true"]) {
     z-index: calc(var(--global-z-index-local-control) + 1);
   }
 
   &:has(+ .details-panel-tree-separator[data-dragging="true"])
-    .trace-tree-navigation__overlay {
+    .trace-tree-navigation__overlay,
+  &:has(+ .details-panel-tree-separator[data-dragging="true"])
+    .session-details-navigation__content[data-open="true"] {
     visibility: hidden;
     pointer-events: none;
   }

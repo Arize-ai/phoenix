@@ -2,13 +2,13 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
 import {
+  Button,
   Counter,
   Icon,
   Icons,
   SegmentedControl,
   SegmentedControlItem,
 } from "@phoenix/components";
-import { TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS } from "@phoenix/constants";
 
 export type SessionView = "turns" | "traces";
 
@@ -26,17 +26,11 @@ const sessionViewControlCSS = css`
     width: 100%;
   }
 
-  @container trace-tree-panel (width < ${TRACE_TREE_TOOLBAR_STACK_WIDTH_PIXELS}px) {
-    padding-inline: var(--global-dimension-size-50);
-
-    .session-view-control__label,
-    .counter {
-      display: none;
-    }
-
-    .segmented-control__item {
-      padding-inline: 0;
-    }
+  .session-view-control__compact {
+    display: none;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: var(--global-dimension-size-400);
   }
 `;
 
@@ -55,34 +49,57 @@ export function SessionViewControl({
   onSessionViewChange: (view: SessionView) => void;
   traceCount: number;
 }) {
+  const nextSessionView: SessionView =
+    sessionView === "turns" ? "traces" : "turns";
   return (
-    <div css={sessionViewControlCSS}>
-      <SegmentedControl
-        aria-label="Session view"
-        size="S"
-        isJustified
-        selectedKey={sessionView}
-        onSelectionChange={(key) => {
-          if (isSessionView(key)) {
-            onSessionViewChange(key);
+    <div className="session-view-control" css={sessionViewControlCSS}>
+      <div className="session-view-control__expanded">
+        <SegmentedControl
+          aria-label="Session view"
+          size="S"
+          isJustified
+          selectedKey={sessionView}
+          onSelectionChange={(key) => {
+            if (isSessionView(key)) {
+              onSessionViewChange(key);
+            }
+          }}
+        >
+          <SegmentedControlItem id="turns">
+            <span css={sessionViewControlItemCSS}>
+              <Icon svg={<Icons.MessagesSquare />} />
+              <span className="session-view-control__label">Turns</span>
+              <Counter variant="quiet">{traceCount}</Counter>
+            </span>
+          </SegmentedControlItem>
+          <SegmentedControlItem id="traces">
+            <span css={sessionViewControlItemCSS}>
+              <Icon svg={<Icons.Trace />} />
+              <span className="session-view-control__label">Traces</span>
+              <Counter variant="quiet">{traceCount}</Counter>
+            </span>
+          </SegmentedControlItem>
+        </SegmentedControl>
+      </div>
+      <div className="session-view-control__compact">
+        <Button
+          size="S"
+          variant="quiet"
+          aria-label={`Switch to ${nextSessionView} view`}
+          leadingVisual={
+            <Icon
+              svg={
+                nextSessionView === "turns" ? (
+                  <Icons.MessagesSquare />
+                ) : (
+                  <Icons.Trace />
+                )
+              }
+            />
           }
-        }}
-      >
-        <SegmentedControlItem id="turns">
-          <span css={sessionViewControlItemCSS}>
-            <Icon svg={<Icons.MessagesSquare />} />
-            <span className="session-view-control__label">Turns</span>
-            <Counter variant="quiet">{traceCount}</Counter>
-          </span>
-        </SegmentedControlItem>
-        <SegmentedControlItem id="traces">
-          <span css={sessionViewControlItemCSS}>
-            <Icon svg={<Icons.Trace />} />
-            <span className="session-view-control__label">Traces</span>
-            <Counter variant="quiet">{traceCount}</Counter>
-          </span>
-        </SegmentedControlItem>
-      </SegmentedControl>
+          onPress={() => onSessionViewChange(nextSessionView)}
+        />
+      </div>
     </div>
   );
 }

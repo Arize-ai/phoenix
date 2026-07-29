@@ -173,16 +173,6 @@ describe("TraceTree", () => {
     if (overlay === null) {
       throw new Error("Expected the trace tree overlay to render");
     }
-    const overlayClassName = Array.from(overlay.classList).find((className) =>
-      className.startsWith("css-")
-    );
-    const overlayStyleRule = Array.from(document.styleSheets)
-      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
-      .find(
-        (rule): rule is CSSStyleRule =>
-          rule instanceof CSSStyleRule &&
-          rule.selectorText === `.${overlayClassName}`
-      );
     const overlayStyle = getComputedStyle(overlay);
     const railClassName = Array.from(rail?.classList ?? []).find((className) =>
       className.startsWith("css-")
@@ -209,12 +199,9 @@ describe("TraceTree", () => {
     expect(fullTree?.textContent).toContain("child span");
     expect(overlayStyle.height).toBe("fit-content");
     expect(overlayStyle.maxHeight).toBe("100%");
-    expect(overlayStyle.paddingBottom).toBe("var(--global-dimension-size-100)");
-    expect(overlayStyleRule?.style.borderColor).toBe(
-      "var(--global-border-color-default)"
-    );
-    expect(overlayStyle.borderRadius).toBe("var(--global-rounding-small)");
-    expect(overlayStyle.boxShadow).toContain("8px 16px");
+    expect(overlayStyle.position).toBe("static");
+    expect(overlayStyle.visibility).toBe("hidden");
+    expect(getComputedStyle(rail!).position).toBe("absolute");
     expect(railItemStyleRule?.style.padding).toBe(
       "0 0 0 var(--global-dimension-size-125)"
     );
@@ -231,6 +218,14 @@ describe("TraceTree", () => {
     expect(overlay.getAttribute("data-open")).toBe("true");
     expect(overlay.hasAttribute("inert")).toBe(false);
     expect(rail?.getAttribute("aria-hidden")).toBe("true");
+    const openOverlayStyle = getComputedStyle(overlay);
+    expect(openOverlayStyle.position).toBe("absolute");
+    expect(openOverlayStyle.paddingBottom).toBe(
+      "var(--global-dimension-size-100)"
+    );
+    expect(openOverlayStyle.borderRadius).toBe("var(--global-rounding-small)");
+    expect(openOverlayStyle.boxShadow).toContain("8px 16px");
+    expect(getComputedStyle(rail!).visibility).toBe("hidden");
   });
 
   it("renders the session, trace, and root span in order", () => {

@@ -218,27 +218,31 @@ const traceTreeFullCSS = css`
 `;
 
 const traceTreeOverlayCSS = css`
-  ${popoverSurfaceCSS}
-  border-color: var(--global-border-color-default);
-  border-radius: var(--global-rounding-small);
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: var(--global-z-index-local-overlay);
+  flex: 0 0 auto;
   width: var(--trace-tree-overlay-width);
+  min-width: var(--trace-tree-overlay-width);
   height: fit-content;
   max-height: 100%;
-  padding-bottom: var(--global-dimension-size-100);
   visibility: hidden;
   pointer-events: none;
 
   &[data-open="true"] {
+    ${popoverSurfaceCSS}
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: var(--global-z-index-local-overlay);
+    padding-bottom: var(--global-dimension-size-100);
+    border-color: var(--global-border-color-default);
+    border-radius: var(--global-rounding-small);
     visibility: visible;
     pointer-events: auto;
   }
 `;
 
 const traceTreeIconRailCSS = css`
+  position: absolute;
+  inset: 0;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -251,6 +255,11 @@ const traceTreeIconRailCSS = css`
   overflow-x: hidden;
   overflow-y: auto;
   list-style: none;
+
+  &[aria-hidden="true"] {
+    visibility: hidden;
+    pointer-events: none;
+  }
 
   .trace-tree-icon-rail__item {
     box-sizing: border-box;

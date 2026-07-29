@@ -41,6 +41,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { DetailsPanel } from "./DetailsPanel";
 import type { SessionNavigationHeaderRenderer } from "./SessionDetails";
+import { SessionDetailsNavigation } from "./SessionDetailsNavigation";
 import { TraceTurnContent } from "./TraceTurnContent";
 
 export { RootSpanMessage } from "./TraceTurnContent";
@@ -256,8 +257,23 @@ function SessionTurnList({
         const paddedIndex = String(row.index + 1).padStart(2, "0");
         const turnLabel = `${paddedIndex} | ${row.rootSpan.name}`;
         return (
-          <ListBoxItem id={row.traceId} textValue={turnLabel}>
-            <Flex direction="column" gap="size-50">
+          <ListBoxItem
+            id={row.traceId}
+            textValue={turnLabel}
+            className="react-aria-ListBoxItem session-turn-row"
+          >
+            <Text
+              className="session-turn-row__compact-index"
+              fontFamily="mono"
+              color="text-500"
+            >
+              {paddedIndex}
+            </Text>
+            <Flex
+              className="session-turn-row__expanded-content"
+              direction="column"
+              gap="size-50"
+            >
               <Flex
                 direction="row"
                 alignItems="center"
@@ -337,12 +353,16 @@ export function SessionDetailsTraceList({
   preferredTreeWidth,
   onPreferredTreeWidthChange,
   renderNavigationHeader,
+  sessionViewControl,
+  isTreePanelCollapsed,
   renderMainContent,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
   renderNavigationHeader: SessionNavigationHeaderRenderer;
+  sessionViewControl: ReactNode;
+  isTreePanelCollapsed: boolean;
   renderMainContent: (content: ReactNode) => ReactNode;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
@@ -557,7 +577,12 @@ export function SessionDetailsTraceList({
       navigation={
         <>
           {renderNavigationHeader()}
-          {turnListPanel}
+          <SessionDetailsNavigation
+            control={sessionViewControl}
+            isCollapsed={isTreePanelCollapsed}
+          >
+            {turnListPanel}
+          </SessionDetailsNavigation>
         </>
       }
     >

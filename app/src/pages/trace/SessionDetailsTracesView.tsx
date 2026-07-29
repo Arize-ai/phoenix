@@ -52,6 +52,7 @@ import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { DetailsPanel } from "./DetailsPanel";
 import type { SessionNavigationHeaderRenderer } from "./SessionDetails";
+import { SessionDetailsNavigation } from "./SessionDetailsNavigation";
 import type { SessionDetailsSearchParamsStore } from "./sessionDetailsSearchParamsStore";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
@@ -93,6 +94,8 @@ export function SessionDetailsTracesView({
   preferredTreeWidth,
   onPreferredTreeWidthChange,
   renderNavigationHeader,
+  sessionViewControl,
+  isTreePanelCollapsed,
   renderMainContent,
   searchParamsStore,
 }: {
@@ -100,6 +103,8 @@ export function SessionDetailsTracesView({
   preferredTreeWidth: number;
   onPreferredTreeWidthChange: (width: number) => void;
   renderNavigationHeader: SessionNavigationHeaderRenderer;
+  sessionViewControl: ReactNode;
+  isTreePanelCollapsed: boolean;
   renderMainContent: (content: ReactNode) => ReactNode;
   searchParamsStore: SessionDetailsSearchParamsStore;
 }) {
@@ -319,24 +324,32 @@ export function SessionDetailsTracesView({
             isAllCollapsed: !areAllTraceRowsExpanded,
             onAllCollapsedChange: handleAllTraceRowsCollapsedChange,
           })}
-          <TraceRowList
-            traces={traces}
-            expandedIds={expandedIds}
-            selectedTraceId={selectedTraceId}
-            selectedSpanNodeId={selectedSpanNodeId}
-            isTraceTreeChildTruncationEnabled={
-              isTraceTreeChildTruncationEnabled
-            }
-            onToggleExpanded={toggleExpanded}
-            onTraceSelect={handleTraceSelect}
-            onSpanClick={handleSpanClick}
-            onSpanSelectionStart={handleSpanSelectionStart}
-            rowRefs={rowRefs}
-            isLoadingNext={isLoadingNext}
-            onScroll={(event) =>
-              throttledFetchMoreOnBottomReached(event.currentTarget)
-            }
-          />
+          <SessionDetailsNavigation
+            control={sessionViewControl}
+            isCollapsed={isTreePanelCollapsed}
+          >
+            {({ isOverlayOpen }) => (
+              <TraceRowList
+                traces={traces}
+                expandedIds={expandedIds}
+                selectedTraceId={selectedTraceId}
+                selectedSpanNodeId={selectedSpanNodeId}
+                isNavigationCollapsed={isTreePanelCollapsed && !isOverlayOpen}
+                isTraceTreeChildTruncationEnabled={
+                  isTraceTreeChildTruncationEnabled
+                }
+                onToggleExpanded={toggleExpanded}
+                onTraceSelect={handleTraceSelect}
+                onSpanClick={handleSpanClick}
+                onSpanSelectionStart={handleSpanSelectionStart}
+                rowRefs={rowRefs}
+                isLoadingNext={isLoadingNext}
+                onScroll={(event) =>
+                  throttledFetchMoreOnBottomReached(event.currentTarget)
+                }
+              />
+            )}
+          </SessionDetailsNavigation>
         </>
       }
     >
@@ -358,6 +371,7 @@ function TraceRowList({
   expandedIds,
   selectedTraceId,
   selectedSpanNodeId,
+  isNavigationCollapsed,
   isTraceTreeChildTruncationEnabled,
   onToggleExpanded,
   onTraceSelect,
@@ -371,6 +385,7 @@ function TraceRowList({
   expandedIds: Set<string>;
   selectedTraceId: string | null;
   selectedSpanNodeId: string | null;
+  isNavigationCollapsed: boolean;
   isTraceTreeChildTruncationEnabled: boolean;
   onToggleExpanded: (id: string) => void;
   onTraceSelect: TraceSelectHandler;
@@ -403,6 +418,7 @@ function TraceRowList({
               isSelected={trace.traceId === selectedTraceId}
               isExpanded={expandedIds.has(trace.id)}
               selectedSpanNodeId={selectedSpanNodeId}
+              isNavigationCollapsed={isNavigationCollapsed}
               isTraceTreeChildTruncationEnabled={
                 isTraceTreeChildTruncationEnabled
               }
@@ -450,6 +466,7 @@ function TraceRow({
   isSelected,
   isExpanded,
   selectedSpanNodeId,
+  isNavigationCollapsed,
   isTraceTreeChildTruncationEnabled,
   onToggleExpanded,
   onTraceSelect,
@@ -462,6 +479,7 @@ function TraceRow({
   isSelected: boolean;
   isExpanded: boolean;
   selectedSpanNodeId: string | null;
+  isNavigationCollapsed: boolean;
   isTraceTreeChildTruncationEnabled: boolean;
   onToggleExpanded: () => void;
   onTraceSelect: () => void;
@@ -497,6 +515,7 @@ function TraceRow({
           traceId={trace.traceId}
           projectId={trace.rootSpan.project.id}
           selectedSpanNodeId={selectedSpanNodeId}
+          isNavigationCollapsed={isNavigationCollapsed}
           isTraceTreeChildTruncationEnabled={isTraceTreeChildTruncationEnabled}
           onSpanClick={onSpanClick}
           onSpanSelectionStart={onSpanSelectionStart}
@@ -521,9 +540,11 @@ function TraceRowHeader({
   onToggleExpanded: () => void;
   onTraceSelect: () => void;
 }) {
+  const paddedIndex = String(index + 1).padStart(2, "0");
   return (
     <button
       type="button"
+      className="session-trace-row-header"
       css={traceRowHeaderCSS}
       aria-expanded={isExpanded}
       onClick={() => {
@@ -538,8 +559,21 @@ function TraceRowHeader({
       }}
       data-testid="session-trace-row-header"
     >
+      <Text
+        className="session-trace-row-header__compact-index"
+        fontFamily="mono"
+        color="text-500"
+      >
+        {paddedIndex}
+      </Text>
       <TraceRowChevron isExpanded={isExpanded} />
-      <Flex direction="column" gap="size-100" flex={1} minWidth={0}>
+      <Flex
+        className="session-trace-row-header__expanded-content"
+        direction="column"
+        gap="size-100"
+        flex={1}
+        minWidth={0}
+      >
         <TraceRowTitleLine trace={trace} index={index} />
         <TraceRowMetricsLine trace={trace} />
       </Flex>
@@ -550,6 +584,7 @@ function TraceRowHeader({
 function TraceRowChevron({ isExpanded }: { isExpanded: boolean }) {
   return (
     <span
+      className="session-trace-row-chevron"
       css={chevronCSS}
       data-expanded={isExpanded}
       data-testid="session-trace-row-chevron"
@@ -634,6 +669,7 @@ function TraceTreeContainer({
   traceId,
   projectId,
   selectedSpanNodeId,
+  isNavigationCollapsed,
   isTraceTreeChildTruncationEnabled,
   onSpanClick,
   onSpanSelectionStart,
@@ -641,17 +677,23 @@ function TraceTreeContainer({
   traceId: string;
   projectId: string;
   selectedSpanNodeId: string | null;
+  isNavigationCollapsed: boolean;
   isTraceTreeChildTruncationEnabled: boolean;
   onSpanClick: SpanClickHandler;
   onSpanSelectionStart: SpanClickHandler;
 }) {
   return (
-    <div css={traceTreeContainerCSS} data-testid="session-trace-tree">
+    <div
+      className="session-trace-tree"
+      css={traceTreeContainerCSS}
+      data-testid="session-trace-tree"
+    >
       <Suspense fallback={<TraceTreeSkeleton />}>
         <LazyTraceTree
           traceId={traceId}
           projectId={projectId}
           selectedSpanNodeId={selectedSpanNodeId}
+          isNavigationCollapsed={isNavigationCollapsed}
           isTraceTreeChildTruncationEnabled={isTraceTreeChildTruncationEnabled}
           onSpanClick={onSpanClick}
           onSpanSelectionStart={onSpanSelectionStart}
@@ -714,6 +756,7 @@ function LazyTraceTree({
   traceId,
   projectId,
   selectedSpanNodeId,
+  isNavigationCollapsed,
   isTraceTreeChildTruncationEnabled,
   onSpanClick,
   onSpanSelectionStart,
@@ -721,6 +764,7 @@ function LazyTraceTree({
   traceId: string;
   projectId: string;
   selectedSpanNodeId: string | null;
+  isNavigationCollapsed: boolean;
   isTraceTreeChildTruncationEnabled: boolean;
   onSpanClick: SpanClickHandler;
   onSpanSelectionStart: SpanClickHandler;
@@ -746,6 +790,7 @@ function LazyTraceTree({
       <ConnectedTraceTree
         trace={trace}
         isChildTruncationEnabled={isTraceTreeChildTruncationEnabled}
+        isNavigationCollapsed={isNavigationCollapsed}
         selectedSpanNodeId={selectedSpanNodeId ?? ""}
         scrollSelectedSpanIntoView={false}
         onSpanClick={(span) =>
@@ -786,6 +831,7 @@ const traceRowCSS = css`
 `;
 
 const traceRowHeaderCSS = css`
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: flex-start;

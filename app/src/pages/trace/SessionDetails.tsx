@@ -292,12 +292,14 @@ export function SessionDetails({
           />
         ) : null}
       </DetailsPanelNavigationControlsRow>
-      <SessionViewControl
-        sessionView={sessionView}
-        onSessionViewChange={handleSessionViewChange}
-        traceCount={traceCount}
-      />
     </>
+  );
+  const sessionViewControl = (
+    <SessionViewControl
+      sessionView={sessionView}
+      onSessionViewChange={handleSessionViewChange}
+      traceCount={traceCount}
+    />
   );
 
   return (
@@ -319,6 +321,8 @@ export function SessionDetails({
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
                 renderNavigationHeader={renderNavigationHeader}
+                sessionViewControl={sessionViewControl}
+                isTreePanelCollapsed={isTreePanelCollapsed}
                 renderMainContent={renderMainContent}
                 searchParamsStore={searchParamsStore}
               />
@@ -329,6 +333,8 @@ export function SessionDetails({
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
                 renderNavigationHeader={renderNavigationHeader}
+                sessionViewControl={sessionViewControl}
+                isTreePanelCollapsed={isTreePanelCollapsed}
                 renderMainContent={renderMainContent}
               />
             )}
