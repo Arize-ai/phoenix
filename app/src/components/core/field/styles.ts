@@ -214,6 +214,20 @@ export const textFieldCSS = css`
     height: var(--textfield-input-height);
   }
 
+  .react-aria-TextArea {
+    // Unlike the input, a textarea has no forced height — it sizes from its
+    // text. Fix the line height and derive the vertical padding from it so a
+    // single-line textarea lands exactly on the input height, keeping it
+    // level with the inputs and buttons that share its row.
+    --textarea-vertical-padding: calc(
+      (var(--textfield-input-height) - var(--global-line-height-s)) / 2 -
+        var(--global-border-size-thin)
+    );
+    line-height: var(--global-line-height-s);
+    padding-top: var(--textarea-vertical-padding);
+    padding-bottom: var(--textarea-vertical-padding);
+  }
+
   [slot="description"],
   [slot="errorMessage"],
   .react-aria-FieldError {

@@ -61,10 +61,9 @@ const spanNoteBarCSS = css`
     .react-aria-TextArea {
       resize: none;
       overflow-y: auto;
-      line-height: var(--global-line-height-s);
       max-height: calc(
         var(--global-line-height-s) * ${MAX_INPUT_LINES} + 2 *
-          var(--textfield-vertical-padding) + 2px
+          var(--textarea-vertical-padding) + 2 * var(--global-border-size-thin)
       );
     }
   }
@@ -111,7 +110,10 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
       return;
     }
     textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
+    // scrollHeight excludes the borders that the border-box height includes,
+    // so add them back or the field renders short of the button height
+    const borderHeight = textarea.offsetHeight - textarea.clientHeight;
+    textarea.style.height = `${textarea.scrollHeight + borderHeight}px`;
   }, [noteText]);
 
   const [addNote, isAddingNote] = useMutation<SpanNoteBarAddNoteMutation>(
@@ -203,7 +205,7 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
           isDisabled={!noteText.trim() || isAddingNote}
           onPress={submitNote}
         >
-          Add
+          Add Note
         </Button>
       </div>
       <Suspense fallback={null}>
