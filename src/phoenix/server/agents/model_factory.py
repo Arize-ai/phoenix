@@ -115,22 +115,38 @@ def _first_credential(credentials: Mapping[str, str | None], *keys: str) -> str 
     return None
 
 
-_BUILTIN_PROVIDER_CREDENTIAL_KEYS: dict[ModelProvider, tuple[str, ...]] = {
-    ModelProvider.OPENAI: ("OPENAI_API_KEY",),
-    ModelProvider.AZURE_OPENAI: ("AZURE_OPENAI_API_KEY",),
-    ModelProvider.ANTHROPIC: ("ANTHROPIC_API_KEY",),
-    ModelProvider.GOOGLE: ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
-    ModelProvider.AWS: ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"),
-    ModelProvider.DEEPSEEK: ("DEEPSEEK_API_KEY",),
-    ModelProvider.XAI: ("XAI_API_KEY",),
-    ModelProvider.OLLAMA: (),
-    ModelProvider.CEREBRAS: ("CEREBRAS_API_KEY",),
-    ModelProvider.FIREWORKS: ("FIREWORKS_API_KEY",),
-    ModelProvider.GROQ: ("GROQ_API_KEY",),
-    ModelProvider.MOONSHOT: ("MOONSHOT_API_KEY",),
-    ModelProvider.PERPLEXITY: ("PERPLEXITY_API_KEY",),
-    ModelProvider.TOGETHER: ("TOGETHER_API_KEY",),
-}
+def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str, ...]:
+    """Env-var names whose values are resolved (secrets first, then environment)
+    before building a model for a built-in provider."""
+    if provider is ModelProvider.OPENAI:
+        return ("OPENAI_API_KEY",)
+    if provider is ModelProvider.AZURE_OPENAI:
+        return ("AZURE_OPENAI_API_KEY",)
+    if provider is ModelProvider.ANTHROPIC:
+        return ("ANTHROPIC_API_KEY",)
+    if provider is ModelProvider.GOOGLE:
+        return ("GEMINI_API_KEY", "GOOGLE_API_KEY")
+    if provider is ModelProvider.AWS:
+        return ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN")
+    if provider is ModelProvider.DEEPSEEK:
+        return ("DEEPSEEK_API_KEY",)
+    if provider is ModelProvider.XAI:
+        return ("XAI_API_KEY",)
+    if provider is ModelProvider.OLLAMA:
+        return ()
+    if provider is ModelProvider.CEREBRAS:
+        return ("CEREBRAS_API_KEY",)
+    if provider is ModelProvider.FIREWORKS:
+        return ("FIREWORKS_API_KEY",)
+    if provider is ModelProvider.GROQ:
+        return ("GROQ_API_KEY",)
+    if provider is ModelProvider.MOONSHOT:
+        return ("MOONSHOT_API_KEY",)
+    if provider is ModelProvider.PERPLEXITY:
+        return ("PERPLEXITY_API_KEY",)
+    if provider is ModelProvider.TOGETHER:
+        return ("TOGETHER_API_KEY",)
+    assert_never(provider)
 
 
 def _placeholder_or_error_for_openai_compatible_provider(
@@ -177,7 +193,7 @@ async def build_model(
             credentials = await _resolve_secrets_or_env(
                 session,
                 decrypt,
-                *_BUILTIN_PROVIDER_CREDENTIAL_KEYS.get(model.provider, ()),
+                *_builtin_provider_credential_env_vars(model.provider),
             )
         pydantic_ai_model = _get_pydantic_ai_model_from_builtin_provider(
             model,
