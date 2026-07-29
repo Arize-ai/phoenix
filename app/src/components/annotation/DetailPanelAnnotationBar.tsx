@@ -1016,6 +1016,8 @@ function AnnotationSummaryList({
       {annotations.map((annotation, annotationIndex) => {
         const annotationKey = annotation.id ?? `annotation-${annotationIndex}`;
         const isConfirmingDelete = deletingAnnotationId === annotation.id;
+        const isShowingTableActions =
+          displayMode === "table" && !isConfirmingDelete;
         const optimizationValue = getOptimizationGradientValueFromConfig({
           config: config ?? undefined,
           score: annotation.score,
@@ -1039,9 +1041,6 @@ function AnnotationSummaryList({
                       >
                         {formatFloat(annotation.score)}
                       </AnnotationScoreText>
-                    ) : null}
-                    {displayMode === "table" ? (
-                      <AnnotationTooltipFilterActions annotation={annotation} />
                     ) : null}
                     {annotation.label ? (
                       <Text>{annotation.label}</Text>
@@ -1069,8 +1068,8 @@ function AnnotationSummaryList({
                       Delete
                     </Button>
                   </>
-                ) : displayMode === "table" ? (
-                  <AnnotationActionsMenu
+                ) : isShowingTableActions ? (
+                  <AnnotationTableActions
                     annotation={annotation}
                     onDelete={onDelete}
                     onEdit={onEdit}
@@ -1114,7 +1113,23 @@ function AnnotationSummaryList({
   );
 }
 
-function AnnotationActionsMenu({
+const annotationTableActionsCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--global-dimension-size-25);
+  direction: ltr;
+
+  .annotation-table-actions__filters {
+    order: 1;
+  }
+
+  .annotation-table-actions__more {
+    order: 2;
+  }
+`;
+
+function AnnotationTableActions({
   annotation,
   onDelete,
   onEdit,
@@ -1124,8 +1139,40 @@ function AnnotationActionsMenu({
   onEdit: (annotation: Annotation) => void;
 }) {
   return (
+    <div className="annotation-table-actions" css={annotationTableActionsCSS}>
+      <AnnotationTooltipFilterActions
+        annotation={annotation}
+        className="annotation-table-actions__filters"
+        displayMode="collapsible"
+      />
+      <AnnotationActionsMenu
+        annotation={annotation}
+        className="annotation-table-actions__more"
+        onDelete={onDelete}
+        onEdit={onEdit}
+      />
+    </div>
+  );
+}
+
+function AnnotationActionsMenu({
+  annotation,
+  className,
+  onDelete,
+  onEdit,
+}: {
+  annotation: Annotation;
+  className?: string;
+  onDelete: (annotationId: string) => void;
+  onEdit: (annotation: Annotation) => void;
+}) {
+  return (
     <MenuTrigger>
-      <IconButton size="S" aria-label="More annotation actions">
+      <IconButton
+        className={className}
+        size="S"
+        aria-label="More annotation actions"
+      >
         <Icon svg={<Icons.MoreHorizontal />} />
       </IconButton>
       <Popover placement="bottom end" data-annotation-actions-menu>

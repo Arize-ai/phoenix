@@ -878,7 +878,7 @@ describe("DetailPanelAnnotationBar", () => {
     });
   });
 
-  it("groups compact score filters between the score and label", async () => {
+  it("expands table score filters beside the more button", async () => {
     const appendFilterCondition = vi.fn();
     renderTableAnnotationPopover({ appendFilterCondition });
     const user = userEvent.setup();
@@ -891,38 +891,108 @@ describe("DetailPanelAnnotationBar", () => {
       )
     );
 
-    const filterButtons = Array.from(
-      document.querySelectorAll<HTMLButtonElement>(
-        'button[aria-label^="Filter annotations"]'
-      )
+    const annotationValue = document.querySelector(".annotation-entry__value");
+    const annotationActions = document.querySelector(
+      ".annotation-entry__actions"
     );
+    const tableActions = annotationActions?.querySelector<HTMLElement>(
+      ".annotation-table-actions"
+    );
+    const filterGroup = tableActions?.querySelector<HTMLElement>(
+      '[role="group"][aria-label="Filter annotation value"]'
+    );
+    const filterTrigger = filterGroup?.querySelector<HTMLButtonElement>(
+      '[aria-label="Show annotation filters"]'
+    );
+    const filterOptions = filterGroup?.querySelector<HTMLElement>(
+      ".annotation-filter-actions__options"
+    );
+    const filterButtons = Array.from(
+      filterGroup?.querySelectorAll<HTMLButtonElement>(
+        'button[aria-label^="Filter annotations"]'
+      ) ?? []
+    );
+    const moreActionsButton = tableActions?.querySelector<HTMLButtonElement>(
+      '[aria-label="More annotation actions"]'
+    );
+
+    expect(
+      annotationValue?.querySelector(
+        '[role="group"][aria-label="Filter annotation value"]'
+      )
+    ).toBeNull();
+    expect(filterGroup?.nextElementSibling).toBe(moreActionsButton);
+    expect(getComputedStyle(tableActions!).display).toBe("flex");
+    expect(getComputedStyle(tableActions!).flexDirection).toBe("row");
+    expect(getComputedStyle(tableActions!).direction).toBe("ltr");
+    expect(getComputedStyle(filterGroup!).order).toBe("1");
+    expect(getComputedStyle(moreActionsButton!).order).toBe("2");
+    expect(filterGroup?.dataset.expanded).toBe("false");
+    const collapsedFilterGroupWidth = getComputedStyle(filterGroup!).width;
+    expect(collapsedFilterGroupWidth).toBe("var(--global-button-height-s)");
+    expect(filterTrigger?.dataset.variant).toBe("quiet");
+    expect(filterTrigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(filterTrigger?.classList.contains("react-aria-Button")).toBe(true);
+    expect(moreActionsButton?.classList.contains("react-aria-Button")).toBe(
+      false
+    );
+    expect(getComputedStyle(filterButtons[0]!).visibility).toBe("hidden");
+    expect(getComputedStyle(filterGroup!).overflow).toBe("visible");
+    expect(getComputedStyle(filterOptions!).position).toBe("absolute");
+    expect(getComputedStyle(filterOptions!).top).toBe("0px");
+    expect(getComputedStyle(filterOptions!).right).toBe("0px");
+    expect(getComputedStyle(filterOptions!).width).toBe("max-content");
+    expect(getComputedStyle(filterGroup!).transitionDuration).toBe("0s");
+    expect(getComputedStyle(filterOptions!).transitionDuration).toBe("0s");
+    expect(getComputedStyle(filterOptions!).transform).toBe("none");
     expect(filterButtons.map((button) => button.ariaLabel)).toEqual([
       "Filter annotations greater than this value",
       "Filter annotations less than this value",
       "Filter annotations equals this value",
     ]);
-    const annotationValue = document.querySelector(".annotation-entry__value");
-    const filterGroup = annotationValue?.querySelector(
-      '[role="group"][aria-label="Filter annotation value"]'
+    expect(filterButtons.map((button) => button.style.width)).toEqual(
+      Array(3).fill("")
     );
-    expect(filterGroup).not.toBeNull();
-    expect(
-      Array.from(filterGroup?.querySelectorAll("button") ?? []).map(
-        (button) => button.style.width
-      )
-    ).toEqual(Array(3).fill("var(--global-dimension-size-300)"));
-    expect(
-      Array.from(annotationValue?.children ?? []).map((child) =>
-        child.getAttribute("role")
-      )
-    ).toEqual([null, "group", null]);
-    expect(
-      document.querySelector('[aria-label="More annotation actions"]')
-    ).not.toBeNull();
+    expect(filterButtons.map((button) => button.dataset.variant)).toEqual(
+      Array(3).fill("default")
+    );
+    expect(getComputedStyle(filterButtons[2]!).minWidth).toBe(
+      collapsedFilterGroupWidth
+    );
+    expect(getComputedStyle(filterOptions!).gap).toBe("0px");
+    expect(getComputedStyle(filterButtons[1]!).borderLeftStyle).toBe("none");
     expect(document.querySelector('[aria-label="Edit annotation"]')).toBeNull();
     expect(
       document.querySelector('[aria-label="Delete annotation"]')
     ).toBeNull();
+
+    await act(async () => user.hover(filterTrigger!));
+
+    expect(filterGroup?.dataset.expanded).toBe("true");
+    expect(filterTrigger?.getAttribute("aria-expanded")).toBe("true");
+    expect(getComputedStyle(filterButtons[0]!).visibility).toBe("visible");
+    expect(filterButtons.every((button) => !button.disabled)).toBe(true);
+    expect(getComputedStyle(filterGroup!).width).toBe(
+      collapsedFilterGroupWidth
+    );
+
+    await act(async () => user.hover(filterButtons[2]!));
+
+    expect(filterGroup?.dataset.expanded).toBe("true");
+
+    act(() => {
+      filterGroup?.dispatchEvent(
+        new MouseEvent("mouseout", {
+          bubbles: true,
+          relatedTarget: document.body,
+        })
+      );
+    });
+    expect(filterGroup?.dataset.expanded).toBe("false");
+
+    act(() => filterTrigger?.focus());
+    expect(filterGroup?.dataset.expanded).toBe("true");
+    expect(filterTrigger?.getAttribute("aria-expanded")).toBe("true");
 
     await act(async () => user.click(filterButtons[2]!));
 
