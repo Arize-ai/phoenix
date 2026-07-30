@@ -303,7 +303,8 @@ const chatCSS = css`
     animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
-  .chat__operation-error {
+  .chat__operation-error,
+  .chat__session-notice {
     margin-bottom: var(--global-dimension-size-100);
   }
 
@@ -319,12 +320,6 @@ const chatCSS = css`
 
   .chat__loading {
     color: var(--global-text-color-300);
-  }
-
-  .chat__busy-elsewhere,
-  .chat__stale-refreshed {
-    color: var(--global-text-color-300);
-    font-size: var(--global-font-size-xs);
   }
 
   .chat__edit-permissions {
@@ -534,6 +529,9 @@ export function ChatView({
       : false
   );
   const setDraftInput = useAgentContext((state) => state.setDraftInput);
+  const setSessionRefreshedFromStale = useAgentContext(
+    (state) => state.setSessionRefreshedFromStale
+  );
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
   const hasAcknowledgedConsent = useAgentContext((state) =>
@@ -845,26 +843,6 @@ export function ChatView({
                   </ChatCompactionStatus>
                 ) : null}
                 {(showThinkingIndicator || isBusyElsewhere) && <Loading />}
-                {isBusyElsewhere ? (
-                  <div
-                    className="chat__busy-elsewhere"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    Session is being used elsewhere, the chat will refresh when
-                    complete.
-                  </div>
-                ) : null}
-                {wasRefreshedFromStale && !isBusyElsewhere ? (
-                  <div
-                    className="chat__stale-refreshed"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    Session was updated elsewhere, the chat has been refreshed.
-                    Your unsent message is still in the input below.
-                  </div>
-                ) : null}
                 {shouldShowInterruptedMessage ? (
                   <InterruptedChatMessage
                     latestUserMessageId={latestMessage.id}
@@ -895,6 +873,37 @@ export function ChatView({
           </div>
         </ChatScrollContext.Provider>
         <div className="chat__input">
+          {isBusyElsewhere ? (
+            <div
+              className="chat__session-notice"
+              role="status"
+              aria-live="polite"
+            >
+              <Alert variant="info" title="Session in use elsewhere">
+                This session is responding in another window. The chat will
+                refresh when it completes.
+              </Alert>
+            </div>
+          ) : null}
+          {wasRefreshedFromStale && !isBusyElsewhere && sessionId ? (
+            <div
+              className="chat__session-notice"
+              role="status"
+              aria-live="polite"
+            >
+              <Alert
+                variant="info"
+                title="Session updated elsewhere"
+                dismissable
+                onDismissClick={() => {
+                  setSessionRefreshedFromStale(sessionId, false);
+                }}
+              >
+                The chat has been refreshed with the latest messages. Your
+                unsent message is still in the input below.
+              </Alert>
+            </div>
+          ) : null}
           {(operationError || (!rewindRequest && historyActionError)) && (
             <div className="chat__operation-error" role="alert">
               <Alert
