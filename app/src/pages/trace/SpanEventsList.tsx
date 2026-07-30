@@ -7,18 +7,14 @@ import {
   type DisclosureGroupProps,
   DisclosurePanel,
   DisclosureTrigger,
-  Flex,
   Icon,
   Icons,
-  Text,
-  View,
 } from "@phoenix/components";
 import {
   EmptyState,
   EmptyStateArea,
   EmptyStateGraphic,
 } from "@phoenix/components/core/empty";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 
 import type { SpanEventsListQuery } from "./__generated__/SpanEventsListQuery.graphql";
@@ -27,6 +23,92 @@ import { ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
 type SpanEventsListProps = {
   spanId: string;
 };
+
+const spanEventsListCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+  margin: var(--global-grid-margin-xsmall);
+
+  > .disclosure {
+    overflow: hidden;
+    border: 1px solid var(--tool-call-border-color);
+    border-radius: var(--global-rounding-small);
+    background: var(--tool-call-background-color);
+
+    &:hover {
+      border-color: var(--tool-call-border-color-hover);
+    }
+  }
+
+  .react-aria-Button[slot="trigger"] {
+    padding: var(--global-dimension-size-50);
+    border-bottom: 0;
+    background: var(--global-code-block-header-background-color);
+    transition: none;
+
+    &:hover:not([disabled]) {
+      background: var(--tool-call-header-background-color-hover);
+    }
+
+    &[disabled] {
+      opacity: 1;
+    }
+  }
+
+  > .disclosure[data-expanded]
+    > .react-aria-Heading
+    > .react-aria-Button[slot="trigger"] {
+    border-bottom: 1px solid var(--tool-call-body-border-color);
+  }
+
+  .disclosure__panel {
+    overflow: hidden;
+    background: var(--tool-call-body-background-color);
+  }
+
+  .span-events-list__summary {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+    width: 100%;
+    min-width: 0;
+    color: var(--tool-call-title-color);
+    font-size: var(--global-font-size-xs);
+  }
+
+  .span-events-list__title {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+    max-width: 55%;
+    min-width: 0;
+    color: var(--global-text-color-800);
+  }
+
+  .span-events-list__name,
+  .span-events-list__message,
+  .span-events-list__time {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .span-events-list__message {
+    flex: 1 1 50px;
+    min-width: 50px;
+    color: var(--tool-call-secondary-color);
+  }
+
+  .span-events-list__time {
+    flex: 0 1 auto;
+    margin-left: auto;
+    color: var(--tool-call-secondary-color);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+`;
 
 /**
  * Wrapper component that fetches span events with their full attributes when
@@ -86,13 +168,10 @@ export function SpanEventsListContent({
   return (
     <DisclosureGroup
       defaultExpandedKeys={defaultExpandedKeys}
-      css={css`
-        .react-aria-Button[slot="trigger"] {
-          padding: var(--global-dimension-size-100);
-        }
-      `}
+      className="span-events-list"
+      css={spanEventsListCSS}
     >
-      {events.map((event, idx) => {
+      {events.map((event, index) => {
         const isException = event.name === "exception";
         const hasAttributes =
           event.attributes &&
@@ -100,31 +179,33 @@ export function SpanEventsListContent({
           Object.keys(event.attributes as object).length > 0;
 
         const eventHeader = (
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <View flex="none">
-              <Text color="text-700">
-                {fullTimeFormatter(new Date(event.timestamp))}
-              </Text>
-            </View>
-            {isException && (
-              <View flex="none">
+          <div className="span-events-list__summary">
+            <span className="span-events-list__title">
+              {isException ? (
                 <Icon svg={<Icons.AlertTriangle />} color="danger" />
-              </View>
-            )}
-            <Flex direction="row" gap="size-100">
-              <Text weight="heavy">{event.name}</Text>
-              <Truncate maxWidth="200px" title={event.message}>
-                {event.message && <Text color="text-700">{event.message}</Text>}
-              </Truncate>
-            </Flex>
-          </Flex>
+              ) : null}
+              <span className="span-events-list__name" title={event.name}>
+                {event.name}
+              </span>
+            </span>
+            {event.message ? (
+              <span className="span-events-list__message" title={event.message}>
+                {event.message}
+              </span>
+            ) : null}
+            <span className="span-events-list__time">
+              {fullTimeFormatter(new Date(event.timestamp))}
+            </span>
+          </div>
         );
 
         return (
-          <Disclosure id={idx} key={idx} isDisabled={!hasAttributes}>
+          <Disclosure id={index} key={index} isDisabled={!hasAttributes}>
             {({ isExpanded }) => (
               <>
-                <DisclosureTrigger arrowPosition="start">
+                <DisclosureTrigger
+                  arrowPosition={hasAttributes ? "start" : "none"}
+                >
                   {eventHeader}
                 </DisclosureTrigger>
                 {hasAttributes && isExpanded ? (
