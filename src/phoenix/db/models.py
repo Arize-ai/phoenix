@@ -3324,7 +3324,6 @@ class AgentSession(HasId):
     )
     messages: Mapped[list["AgentSessionMessage"]] = relationship(
         "AgentSessionMessage",
-        # Transcript order is insertion order, i.e. ascending primary key.
         order_by="AgentSessionMessage.id",
         cascade="all, delete-orphan",
         back_populates="agent_session",

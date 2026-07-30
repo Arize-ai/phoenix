@@ -1604,8 +1604,6 @@ async def _persist_agent_session_turn(
                 message=new_messages[0],
             )
             new_messages = new_messages[1:]
-        # Transcript order is the order these rows are inserted in, which the
-        # autoincrementing primary key records for us.
         session.add_all(
             models.AgentSessionMessage(
                 agent_session_id=agent_session_rowid,
@@ -1979,8 +1977,6 @@ def create_agents_router(
                     message_id=str(uuid4()),
                     summary=summary,
                 )
-                # The boundary row was just confirmed to be the session's last
-                # message, so appending puts the checkpoint right after it.
                 compaction_message_row = models.AgentSessionMessage(
                     agent_session_id=agent_session_rowid,
                     message=compaction_message,

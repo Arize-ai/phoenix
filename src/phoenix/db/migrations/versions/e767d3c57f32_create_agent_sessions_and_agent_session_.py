@@ -6,13 +6,14 @@ Create Date: 2026-07-08 15:16:23.608705
 
 """
 
-from typing import Any, Sequence, Union
+from typing import Any, Literal, Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
+from typing_extensions import TypeAlias, assert_never
 
 
 class JSONB(JSON):
@@ -44,8 +45,19 @@ _Integer = sa.Integer().with_variant(
 _UUID_GLOB = "-".join("[0-9a-fA-F]" * length for length in (8, 4, 4, 4, 12))
 _UUID_REGEX = "^{}$".format("-".join(f"[0-9a-fA-F]{{{length}}}" for length in (8, 4, 4, 4, 12)))
 
+_DialectName: TypeAlias = Literal["postgresql", "sqlite"]
 
-def _uuid_format_check(column_name: str, dialect_name: str) -> str:
+
+def _bind_dialect_name() -> _DialectName:
+    dialect_name = op.get_bind().dialect.name
+    if dialect_name == "postgresql":
+        return "postgresql"
+    elif dialect_name == "sqlite":
+        return "sqlite"
+    raise RuntimeError(f"Unsupported SQL dialect: {dialect_name}")
+
+
+def _uuid_format_check(column_name: str, dialect_name: _DialectName) -> str:
     """SQL for "this column holds a UUID in 8-4-4-4-12 hex form".
 
     SQLite has ``GLOB`` but no regex operator; PostgreSQL has ``~`` but no
@@ -53,7 +65,9 @@ def _uuid_format_check(column_name: str, dialect_name: str) -> str:
     """
     if dialect_name == "postgresql":
         return f"{column_name} ~ '{_UUID_REGEX}'"
-    return f"{column_name} GLOB '{_UUID_GLOB}'"
+    elif dialect_name == "sqlite":
+        return f"{column_name} GLOB '{_UUID_GLOB}'"
+    assert_never(dialect_name)
 
 
 # revision identifiers, used by Alembic.
@@ -144,7 +158,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.CheckConstraint(
-            _uuid_format_check("message_id", op.get_bind().dialect.name),
+            _uuid_format_check("message_id", _bind_dialect_name()),
             name="valid_message_id",
         ),
         sqlite_autoincrement=True,
