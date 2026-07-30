@@ -34,6 +34,7 @@ import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } 
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import type { ProjectPageQuery as ProjectPageQueryType } from "./__generated__/ProjectPageQuery.graphql";
+import { DEFAULT_PAGE_SIZE } from "./constants";
 import {
   ProjectPageQueriesProjectConfigQuery,
   ProjectPageQueriesSessionsQuery,
@@ -213,6 +214,10 @@ function ProjectPageContentBody({
           rootSpansOnly: seed.requiresServerValidation
             ? false
             : seed.rootSpansOnly,
+          // Rows fetched for an unvalidated seed are never shown -- the table
+          // waits and refetches once the server accepts the condition. Asking
+          // for none skips the query, and with it a database connection.
+          first: seed.requiresServerValidation ? 0 : DEFAULT_PAGE_SIZE,
         });
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
         loadTracesQuery({

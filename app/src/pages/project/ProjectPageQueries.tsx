@@ -24,12 +24,17 @@ export const ProjectPageQueriesTracesQuery = graphql`
 // span and letting the table correct itself on mount. `rootSpansOnly` rides
 // along because it selects between cumulative and per-span metric fields, and
 // fetching the wrong set is what forces a second round-trip.
+//
+// A condition awaiting server validation cannot be carried, and the rows this
+// query returns for it are discarded unseen. `first` is exposed so that case
+// can ask for the smallest page the API allows instead of a full one.
 export const ProjectPageQueriesSpansQuery = graphql`
   query ProjectPageQueriesSpansQuery(
     $id: ID!
     $timeRange: TimeRange!
     $filterCondition: String
     $rootSpansOnly: Boolean!
+    $first: Int!
   ) {
     project: node(id: $id) {
       ... on Project {
@@ -40,6 +45,7 @@ export const ProjectPageQueriesSpansQuery = graphql`
         @arguments(
           filterCondition: $filterCondition
           rootSpansOnly: $rootSpansOnly
+          first: $first
         )
     }
   }
