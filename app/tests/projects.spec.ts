@@ -217,7 +217,9 @@ test.describe.serial("Projects", () => {
     // The annotation output has a "Name" field too; the evaluator's own name is
     // the first one.
     await createDialog.getByLabel("Name").first().fill(evaluatorName);
-    await createDialog.getByRole("button", { name: "Create" }).click();
+    await createDialog
+      .getByRole("button", { name: "Create", exact: true })
+      .click();
     await expect(createDialog).not.toBeVisible();
 
     const table = page.getByRole("table", { name: "Project evaluators" });
