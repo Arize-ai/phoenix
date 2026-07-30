@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c390223d34afd7872481dd549766bb0f>>
+ * @generated SignedSource<<d42d8cc34ff0ea40ca15726bcb104da5>>
  * @lightSyntaxTransform
  */
 
@@ -60,8 +60,14 @@ v2 = {
 return {
   "argumentDefinitions": [
     {
-      "kind": "RootArgument",
-      "name": "annotationName"
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "annotationConfigNames"
+    },
+    {
+      "defaultValue": 100,
+      "kind": "LocalArgument",
+      "name": "first"
     }
   ],
   "kind": "Fragment",
@@ -72,20 +78,14 @@ return {
       "alias": null,
       "args": [
         {
-          "kind": "Literal",
+          "kind": "Variable",
           "name": "first",
-          "value": 1
+          "variableName": "first"
         },
         {
-          "items": [
-            {
-              "kind": "Variable",
-              "name": "names.0",
-              "variableName": "annotationName"
-            }
-          ],
-          "kind": "ListValue",
-          "name": "names"
+          "kind": "Variable",
+          "name": "names",
+          "variableName": "annotationConfigNames"
         }
       ],
       "concreteType": "AnnotationConfigConnection",
@@ -205,6 +205,6 @@ return {
 };
 })();
 
-(node as any).hash = "316e08a477f85096f84b6565de3ab9eb";
+(node as any).hash = "a82fff4a15e2352c9d60726e3b112b63";
 
 export default node;

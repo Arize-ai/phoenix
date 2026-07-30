@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
-import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Loading, Text } from "@phoenix/components";
 import {
@@ -34,7 +34,6 @@ import { getNonNoteAnnotationNames } from "../spanAnnotationUtils";
 import type { ProjectAnnotationMetricNamesSessionQuery } from "./__generated__/ProjectAnnotationMetricNamesSessionQuery.graphql";
 import type { ProjectAnnotationMetricNamesSpanQuery } from "./__generated__/ProjectAnnotationMetricNamesSpanQuery.graphql";
 import type { ProjectAnnotationMetricNamesTraceQuery } from "./__generated__/ProjectAnnotationMetricNamesTraceQuery.graphql";
-import type { ProjectAnnotationMetricsConfigFragment$key } from "./__generated__/ProjectAnnotationMetricsConfigFragment.graphql";
 import type { ProjectAnnotationMetricsSessionQuery } from "./__generated__/ProjectAnnotationMetricsSessionQuery.graphql";
 import type { ProjectAnnotationMetricsSpanQuery } from "./__generated__/ProjectAnnotationMetricsSpanQuery.graphql";
 import type { ProjectAnnotationMetricsTraceQuery } from "./__generated__/ProjectAnnotationMetricsTraceQuery.graphql";
@@ -46,6 +45,7 @@ import {
   PROJECT_METRICS_CHART_SYNC_ID,
   useMetricQueryFetchOptions,
 } from "./types";
+import { useProjectAnnotationConfigsByName } from "./useProjectAnnotationConfigsByName";
 
 type AnnotationMetricsData = ReadonlyArray<{
   readonly timestamp: string;
@@ -63,61 +63,6 @@ type ProjectAnnotationMetricsResult = {
   annotationSeries: AnnotationMetricsSeries[];
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
 };
-
-function useProjectAnnotationConfigsByName(
-  project: ProjectAnnotationMetricsConfigFragment$key
-): ReadonlyMap<string, AnnotationOptimizationConfig> {
-  const data = useFragment(
-    graphql`
-      fragment ProjectAnnotationMetricsConfigFragment on Project {
-        annotationConfigs(first: 1, names: [$annotationName]) {
-          edges {
-            config: node {
-              ... on AnnotationConfigBase {
-                name
-                annotationType
-              }
-              ... on CategoricalAnnotationConfig {
-                optimizationDirection
-                values {
-                  label
-                  score
-                }
-              }
-              ... on ContinuousAnnotationConfig {
-                optimizationDirection
-                lowerBound
-                upperBound
-              }
-              ... on FreeformAnnotationConfig {
-                optimizationDirection
-                threshold
-                lowerBound
-                upperBound
-              }
-            }
-          }
-        }
-      }
-    `,
-    project
-  );
-  const configsByName = new Map<string, AnnotationOptimizationConfig>();
-  data.annotationConfigs.edges.forEach(({ config }) => {
-    if (config.name == null || config.annotationType == null) {
-      return;
-    }
-    configsByName.set(config.name, {
-      annotationType: config.annotationType,
-      optimizationDirection: config.optimizationDirection,
-      lowerBound: config.lowerBound,
-      upperBound: config.upperBound,
-      threshold: config.threshold,
-      values: config.values,
-    });
-  });
-  return configsByName;
-}
 
 function getProjectAnnotationMetricsSeries(
   data: AnnotationMetricsData
@@ -604,6 +549,7 @@ function useSpanAnnotationMetricsSeries(
         project: node(id: $projectId) {
           ... on Project {
             ...ProjectAnnotationMetricsConfigFragment
+              @arguments(annotationConfigNames: [$annotationName], first: 1)
             spanAnnotationMetricsTimeSeries(
               annotationName: $annotationName
               timeRange: $timeRange
@@ -655,6 +601,7 @@ function useTraceAnnotationMetricsSeries(
         project: node(id: $projectId) {
           ... on Project {
             ...ProjectAnnotationMetricsConfigFragment
+              @arguments(annotationConfigNames: [$annotationName], first: 1)
             traceAnnotationMetricsTimeSeries(
               annotationName: $annotationName
               timeRange: $timeRange
@@ -706,6 +653,7 @@ function useSessionAnnotationMetricsSeries(
         project: node(id: $projectId) {
           ... on Project {
             ...ProjectAnnotationMetricsConfigFragment
+              @arguments(annotationConfigNames: [$annotationName], first: 1)
             sessionAnnotationMetricsTimeSeries(
               annotationName: $annotationName
               timeRange: $timeRange
