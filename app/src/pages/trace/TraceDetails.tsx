@@ -9,6 +9,7 @@ import {
   Separator,
   useDefaultLayout,
 } from "react-resizable-panels";
+import { useLocation } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -207,6 +208,7 @@ function TraceHeader({
   projectId: string;
 }) {
   const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
   const statusCode = (rootSpan?.statusCode ?? "UNSET") as SpanStatusCodeType;
   const sessionSearch = clearSelectionScopedParams(searchParams);
   return (
@@ -296,6 +298,8 @@ function TraceHeader({
               to={{
                 pathname: `/projects/${projectId}/sessions/${sessionId}`,
                 search: sessionSearch,
+                // Carries the span filter; an omitted field clears it.
+                hash,
               }}
             >
               View Session
