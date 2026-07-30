@@ -29,11 +29,11 @@ import { transition } from "../transition";
 // chosen to reach every guard polarity and both compression regimes without a
 // combinatorial value explosion.
 const VIEWPORTS = [1600];
-const TREE_RAWS = [null, 0, 240, 800];
+const TREE_RAWS = [null, 0, TREE_MIN, 800];
 const MAIN_RAWS = [null, 0, 1151];
 
 const DRAWER_PARAMS = [0, 689, 1320, 1520, 5000];
-const TREE_PARAMS = [-5, 48, 240, 900];
+const TREE_PARAMS = [-5, 48, TREE_MIN, 900];
 const TREE_PREF_PARAMS = [47, 900];
 const VIEWPORT_PARAMS = [600, 1600];
 const ALLOCATION_PARAMS = [689, 1320];

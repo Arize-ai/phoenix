@@ -1,7 +1,9 @@
 import { css } from "@emotion/react";
 
+import { TRACE_TREE_MIN_WIDTH_PIXELS } from "@phoenix/constants";
+
 export const TRACE_TREE_CHILD_NESTING_INDENT_PIXELS = 25;
-export const TRACE_TREE_COMPACT_LAYOUT_BREAKPOINT = "300px";
+export const TRACE_TREE_COMPACT_LAYOUT_BREAKPOINT = `${TRACE_TREE_MIN_WIDTH_PIXELS}px`;
 export const TRACE_TREE_ROW_SELECTION_BORDER_WIDTH = "3px";
 
 /**

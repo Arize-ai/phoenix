@@ -22,7 +22,10 @@
 import { describe, expect, it } from "vitest";
 
 import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
-import { SPAN_DETAILS_MAX_WIDTH_PIXELS } from "@phoenix/constants";
+import {
+  SPAN_DETAILS_MAX_WIDTH_PIXELS,
+  TRACE_TREE_MIN_WIDTH_PIXELS,
+} from "@phoenix/constants";
 
 import type { SizingEvent } from "../machine";
 import { createInitialState } from "../machine";
@@ -113,13 +116,13 @@ describe("details panel sizing: exhaustive enumeration", () => {
 
     step({ type: "TREE_START" });
     step({ type: "TREE_MOVE", px: 1 });
-    expect(state.renderedTree).toBe(240 + 150);
-    expect(state.renderedMain).toBe(1129);
+    expect(state.renderedTree).toBe(TRACE_TREE_MIN_WIDTH_PIXELS + 150);
+    expect(state.renderedMain).toBe(1069);
     expect(state.renderedDrawer).toBe(1520);
     expect(state.collapsed).toBe(false);
     step({ type: "TREE_END" });
-    expect(state.prefTree).toBe(240);
-    expect(state.prefMain).toBe(1129);
+    expect(state.prefTree).toBe(TRACE_TREE_MIN_WIDTH_PIXELS);
+    expect(state.prefMain).toBe(1069);
   });
 
   it("caps the compact drawer at the main detail column maximum", () => {
@@ -177,9 +180,11 @@ describe("details panel sizing: exhaustive enumeration", () => {
     step({ type: "VIEWPORT", px: 1000 });
     step({ type: "TREE_EXPAND" });
     expect(state.collapsed).toBe(false);
-    expect(state.renderedTree).toBe(240 + 150);
+    expect(state.renderedTree).toBe(TRACE_TREE_MIN_WIDTH_PIXELS + 150);
     expect(state.renderedMain).toBe(640);
-    expect(state.renderedDrawer).toBe(240 + 150 + 1 + 640);
+    expect(state.renderedDrawer).toBe(
+      TRACE_TREE_MIN_WIDTH_PIXELS + 150 + 1 + 640
+    );
     expect(state.prefTree).toBe(300);
     expect(state.prefMain).toBe(900);
 

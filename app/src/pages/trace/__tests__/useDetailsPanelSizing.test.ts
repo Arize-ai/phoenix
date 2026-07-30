@@ -97,20 +97,24 @@ describe("details panel sizing", () => {
       viewport: 2000,
     });
     state = transition(state, { type: "OPEN" }).state;
-    expect(state.renderedDrawer).toBe(881);
+    expect(state.renderedDrawer).toBe(
+      TRACE_TREE_MIN_WIDTH_PIXELS +
+        TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS +
+        SPAN_DETAILS_MIN_WIDTH_PIXELS
+    );
     expect(state.renderedTree).toBe(TRACE_TREE_MIN_WIDTH_PIXELS);
     expect(state.renderedMain).toBe(SPAN_DETAILS_MIN_WIDTH_PIXELS);
 
     state = transition(state, { type: "TREE_START" }).state;
     state = transition(state, { type: "TREE_MOVE", px: 40 }).state;
-    expect(state.renderedDrawer).toBe(1081);
+    expect(state.renderedDrawer).toBe(1201);
     expect(state.renderedTree).toBe(TRACE_TREE_MIN_WIDTH_PIXELS);
-    expect(state.renderedMain).toBe(840);
+    expect(state.renderedMain).toBe(900);
 
     const release = transition(state, { type: "TREE_END" });
     expect(release.state.prefTree).toBe(TRACE_TREE_MIN_WIDTH_PIXELS);
-    expect(release.state.prefMain).toBe(840);
-    expect(release.effects).toEqual([{ kind: "persistMain", value: 840 }]);
+    expect(release.state.prefMain).toBe(900);
+    expect(release.effects).toEqual([{ kind: "persistMain", value: 900 }]);
   });
 
   it("shrinks the tree before handing leftward overflow to the drawer", () => {
@@ -125,29 +129,41 @@ describe("details panel sizing", () => {
     expect(state.renderedMain).toBe(960);
 
     state = transition(state, { type: "TREE_START" }).state;
-    state = transition(state, { type: "TREE_MOVE", px: 268 }).state;
+    state = transition(state, {
+      type: "TREE_MOVE",
+      px: TRACE_TREE_MIN_WIDTH_PIXELS + 28,
+    }).state;
     expect(state.renderedDrawer).toBe(1329);
-    expect(state.renderedTree).toBe(268);
-    expect(state.renderedMain).toBe(1060);
+    expect(state.renderedTree).toBe(328);
+    expect(state.renderedMain).toBe(1000);
 
-    state = transition(state, { type: "TREE_MOVE", px: 168 }).state;
+    state = transition(state, {
+      type: "TREE_MOVE",
+      px: TRACE_TREE_MIN_WIDTH_PIXELS - 72,
+    }).state;
     expect(state.renderedDrawer).toBe(1401);
     expect(state.renderedTree).toBe(TRACE_TREE_MIN_WIDTH_PIXELS);
-    expect(state.renderedMain).toBe(1160);
+    expect(state.renderedMain).toBe(1100);
 
-    state = transition(state, { type: "TREE_MOVE", px: 268 }).state;
+    state = transition(state, {
+      type: "TREE_MOVE",
+      px: TRACE_TREE_MIN_WIDTH_PIXELS + 28,
+    }).state;
     expect(state.renderedDrawer).toBe(1329);
-    expect(state.renderedTree).toBe(268);
-    expect(state.renderedMain).toBe(1060);
+    expect(state.renderedTree).toBe(328);
+    expect(state.renderedMain).toBe(1000);
 
-    state = transition(state, { type: "TREE_MOVE", px: 168 }).state;
+    state = transition(state, {
+      type: "TREE_MOVE",
+      px: TRACE_TREE_MIN_WIDTH_PIXELS - 72,
+    }).state;
 
     const release = transition(state, { type: "TREE_END" });
     expect(release.state.prefTree).toBe(TRACE_TREE_MIN_WIDTH_PIXELS);
-    expect(release.state.prefMain).toBe(1160);
+    expect(release.state.prefMain).toBe(1100);
     expect(release.effects).toEqual([
       { kind: "persistTree", value: TRACE_TREE_MIN_WIDTH_PIXELS },
-      { kind: "persistMain", value: 1160 },
+      { kind: "persistMain", value: 1100 },
     ]);
   });
 
@@ -165,8 +181,8 @@ describe("details panel sizing", () => {
     expect(state).toMatchObject({
       prefTree: 368,
       prefMain: 640,
-      renderedDrawer: 881,
-      renderedTree: 240,
+      renderedDrawer: 941,
+      renderedTree: TRACE_TREE_MIN_WIDTH_PIXELS,
       renderedMain: 640,
     });
 
@@ -175,21 +191,21 @@ describe("details panel sizing", () => {
     const release = transition(state, { type: "TREE_END" });
     state = release.state;
     expect(state).toMatchObject({
-      prefTree: 240,
+      prefTree: TRACE_TREE_MIN_WIDTH_PIXELS,
       prefMain: 1200,
-      renderedDrawer: 1441,
-      renderedTree: 240,
+      renderedDrawer: 1501,
+      renderedTree: TRACE_TREE_MIN_WIDTH_PIXELS,
       renderedMain: 1200,
     });
     expect(release.effects).toEqual([
-      { kind: "persistTree", value: 240 },
+      { kind: "persistTree", value: TRACE_TREE_MIN_WIDTH_PIXELS },
       { kind: "persistMain", value: 1200 },
     ]);
 
-    state = transition(state, { type: "OUTER_MOVE", px: 1440 }).state;
+    state = transition(state, { type: "OUTER_MOVE", px: 1500 }).state;
     expect(state).toMatchObject({
-      renderedDrawer: 1440,
-      renderedTree: 240,
+      renderedDrawer: 1500,
+      renderedTree: TRACE_TREE_MIN_WIDTH_PIXELS,
       renderedMain: 1199,
     });
   });
@@ -205,16 +221,19 @@ describe("details panel sizing", () => {
     state = transition(state, { type: "OUTER_MOVE", px: 0 }).state;
     state = transition(state, { type: "OUTER_END", px: 0 }).state;
     expect(state).toMatchObject({
-      renderedDrawer: 881,
-      renderedTree: 240,
+      renderedDrawer: 941,
+      renderedTree: TRACE_TREE_MIN_WIDTH_PIXELS,
       renderedMain: 640,
     });
 
     state = transition(state, { type: "TREE_START" }).state;
-    state = transition(state, { type: "TREE_MOVE", px: 270 }).state;
+    state = transition(state, {
+      type: "TREE_MOVE",
+      px: TRACE_TREE_MIN_WIDTH_PIXELS + 30,
+    }).state;
     expect(state).toMatchObject({
-      renderedDrawer: 881,
-      renderedTree: 240,
+      renderedDrawer: 941,
+      renderedTree: TRACE_TREE_MIN_WIDTH_PIXELS,
       renderedMain: 640,
     });
 
@@ -222,8 +241,8 @@ describe("details panel sizing", () => {
     expect(release.state).toMatchObject({
       prefTree: 368,
       prefMain: 640,
-      renderedDrawer: 881,
-      renderedTree: 240,
+      renderedDrawer: 941,
+      renderedTree: TRACE_TREE_MIN_WIDTH_PIXELS,
       renderedMain: 640,
     });
     expect(release.effects).toEqual([]);
@@ -281,7 +300,11 @@ describe("details panel sizing", () => {
     state = transition(state, { type: "TREE_START" }).state;
     state = transition(state, { type: "TREE_MOVE", px: 0 }).state;
     state = transition(state, { type: "TREE_END" }).state;
-    expect(state.renderedDrawer).toBe(1441);
+    expect(state.renderedDrawer).toBe(
+      TRACE_TREE_MIN_WIDTH_PIXELS +
+        TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS +
+        SPAN_DETAILS_MAX_WIDTH_PIXELS
+    );
     expect(state.renderedTree).toBe(TRACE_TREE_MIN_WIDTH_PIXELS);
     expect(state.renderedMain).toBe(SPAN_DETAILS_MAX_WIDTH_PIXELS);
 
@@ -311,13 +334,22 @@ describe("details panel sizing", () => {
         isCollapsed: false,
         treeAddonWidth: 0,
       })
-    ).toBe(240 + 1 + 640);
+    ).toBe(
+      TRACE_TREE_MIN_WIDTH_PIXELS +
+        TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS +
+        SPAN_DETAILS_MIN_WIDTH_PIXELS
+    );
     expect(
       getMinimumDetailsPanelDrawerWidth({
         isCollapsed: false,
         treeAddonWidth: 150,
       })
-    ).toBe(240 + 150 + 1 + 640);
+    ).toBe(
+      TRACE_TREE_MIN_WIDTH_PIXELS +
+        150 +
+        TRACE_DETAILS_SEPARATOR_WIDTH_PIXELS +
+        SPAN_DETAILS_MIN_WIDTH_PIXELS
+    );
   });
 
   it("derives the tree maximum from the name and timing region maxima", () => {
@@ -466,7 +498,10 @@ describe("details panel sizing", () => {
         ...commonOptions,
         requestedTreeWidth: 12,
       })
-    ).toEqual({ drawerWidth: 1400, treeWidth: 390 });
+    ).toEqual({
+      drawerWidth: 1400,
+      treeWidth: TRACE_TREE_MIN_WIDTH_PIXELS + 150,
+    });
     expect(
       getTreeDividerDragLayout({
         ...commonOptions,
@@ -486,6 +521,9 @@ describe("details panel sizing", () => {
         startTreeWidth: 518,
         treeAddonWidth: 150,
       })
-    ).toEqual({ drawerWidth: 1500, treeWidth: 390 });
+    ).toEqual({
+      drawerWidth: 1500,
+      treeWidth: TRACE_TREE_MIN_WIDTH_PIXELS + 150,
+    });
   });
 });

@@ -4,8 +4,8 @@ export const TRACE_TREE_DEFAULT_WIDTH_PIXELS = 368;
 /** Storage key for the user's deliberate trace-tree column width. */
 export const TRACE_TREE_WIDTH_STORAGE_KEY = "arize-phoenix-trace-tree-width";
 
-/** size-3000; smallest useful width for the navigation content. */
-export const TRACE_TREE_MIN_WIDTH_PIXELS = 240;
+/** Smallest width that preserves the full span-row presentation. */
+export const TRACE_TREE_MIN_WIDTH_PIXELS = 300;
 
 /** size-600; compact rail retained so the navigation can be reopened. */
 export const TRACE_TREE_COLLAPSED_WIDTH_PIXELS = 48;
