@@ -113,7 +113,8 @@ const KITTY_BACKSPACE_INPUT_PATTERN =
 const KITTY_FORWARD_DELETE_INPUT_PATTERN = /^\x1B\[3;\d+:[12]~$/;
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
 const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
-/** How often to re-fetch a session while another client's turn holds its lock. */
+/** Normal and busy cadences for synchronizing the active session. */
+const SESSION_POLL_INTERVAL_MS = 10_000;
 const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
 const SESSION_BUSY_STATUS_TEXT =
   "Session is being used elsewhere, the chat will refresh when complete";
@@ -928,25 +929,28 @@ export function PxiApp({
     [options.config, sessionClient]
   );
 
-  // While another client's turn holds the session lock, poll the session until
-  // the turn completes, then swap in the persisted transcript. Transient fetch
-  // failures keep the poll alive; switching sessions, /new, and unmounting
-  // (process exit) stop it via the effect cleanup.
-  const busySessionId = isSessionBusy ? (activeSession?.id ?? null) : null;
+  // Keep the active session synchronized with turns completed by other
+  // clients. Poll slowly during normal use and switch to the existing faster
+  // cadence while another client holds the turn lock. This client's own
+  // generation disables polling so its in-flight messages cannot be replaced
+  // by an older persisted transcript.
+  const activeSessionId = activeSession?.id ?? null;
   useEffect(() => {
-    if (!busySessionId) {
+    if (!activeSessionId || status === "streaming" || isCompacting) {
       return undefined;
     }
     let isStale = false;
     const pollSession = () => {
       void serverSessionClient
-        .getSession({ sessionId: busySessionId })
+        .getSession({ sessionId: activeSessionId })
         .then((session) => {
-          if (isStale || session.isActive) {
+          if (isStale) {
             return;
           }
-          // The other client's turn completed and its transcript persisted;
-          // mirror the session-restore path by replacing the message list.
+          if (session.isActive) {
+            setIsSessionBusy(true);
+            return;
+          }
           setActiveSession(session);
           setMessages(session.messages);
           setIsSessionBusy(false);
@@ -955,12 +959,21 @@ export function PxiApp({
           // Transient failure: wait for the next poll tick.
         });
     };
-    const intervalId = setInterval(pollSession, SESSION_BUSY_POLL_INTERVAL_MS);
+    const intervalId = setInterval(
+      pollSession,
+      isSessionBusy ? SESSION_BUSY_POLL_INTERVAL_MS : SESSION_POLL_INTERVAL_MS
+    );
     return () => {
       isStale = true;
       clearInterval(intervalId);
     };
-  }, [busySessionId, serverSessionClient]);
+  }, [
+    activeSessionId,
+    isCompacting,
+    isSessionBusy,
+    serverSessionClient,
+    status,
+  ]);
 
   const handleExit = () => {
     abortControllerRef.current?.abort();

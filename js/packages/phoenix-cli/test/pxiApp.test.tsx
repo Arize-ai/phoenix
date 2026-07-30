@@ -1218,6 +1218,104 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("polls idle sessions for remote updates and pauses during local generation", async () => {
+    vi.useFakeTimers();
+    const originalMessage: PxiMessage = {
+      id: "original-message",
+      role: "user",
+      parts: [{ type: "text", text: "original conversation" }],
+    };
+    const synchronizedMessage: PxiMessage = {
+      id: "synchronized-message",
+      role: "assistant",
+      parts: [{ type: "text", text: "updated by another client" }],
+    };
+    let getSessionCallCount = 0;
+    const getSession = vi.fn(async ({ sessionId }: { sessionId: string }) => {
+      getSessionCallCount += 1;
+      return {
+        id: sessionId,
+        title: "Shared session",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+        isActive: getSessionCallCount === 2,
+        messages:
+          getSessionCallCount < 3 ? [originalMessage] : [synchronizedMessage],
+      };
+    });
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => {
+        throw new Error("not used");
+      },
+      listSessions: async () => [
+        {
+          id: "session-1",
+          title: "Shared session",
+          updatedAt: "2026-07-24T12:00:00Z",
+          isTemporary: false,
+        },
+      ],
+      getSession,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = {
+      sendMessage: async () => new Promise(() => {}),
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+      />
+    );
+
+    try {
+      await writeInput({ stdin, input: "/sessions" });
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => Promise.resolve());
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => Promise.resolve());
+
+      expect(getSession).toHaveBeenCalledTimes(1);
+      expect(stripAnsi(lastFrame() ?? "")).toContain("original conversation");
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+
+      expect(getSession).toHaveBeenCalledTimes(2);
+      expect(stripAnsi(lastFrame() ?? "")).toContain(
+        "Session is being used elsewhere"
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_999);
+      });
+      expect(getSession).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(getSession).toHaveBeenCalledTimes(3);
+      expect(stripAnsi(lastFrame() ?? "")).toContain(
+        "updated by another client"
+      );
+
+      await writeInput({ stdin, input: "local question" });
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+
+      expect(getSession).toHaveBeenCalledTimes(3);
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it("reopens the session picker with the cached list while refreshing in the background", async () => {
     const initialSessions: PxiSessionSummary[] = [
       {

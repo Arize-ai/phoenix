@@ -99,6 +99,7 @@ const SESSION_BUSY_ERROR_CODE = "agent_session_busy";
  * session and this client is rendering a stale transcript.
  */
 const SESSION_STALE_ERROR_CODE = "agent_session_stale";
+const SESSION_POLL_INTERVAL_MS = 10_000;
 const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
 
 function buildAgentChatApiUrl(sessionId: string): string {
@@ -524,18 +525,23 @@ export function useAgentChat({
     }
   }, [persistedSessionId, chatInstance, isActive, store]);
 
-  // While in busy-elsewhere mode, poll the session's canonical Relay record
-  // until the other client's turn completes, then swap in the persisted
-  // transcript. Refetching through Relay (rather than the REST session read)
-  // normalizes the fresh title/timestamps/transcript into the store, so every
-  // mounted session view updates alongside the chat. Transient fetch failures
-  // keep the poll alive; unmounting or switching sessions stops it.
+  // Keep idle sessions synchronized with turns completed by other clients.
+  // Poll slowly during normal use and switch to the existing faster cadence
+  // while another client holds the turn lock. This client's own generation
+  // disables polling so an older persisted transcript cannot replace its
+  // in-flight optimistic messages. Refetching through Relay normalizes session
+  // metadata into every mounted view as well as refreshing this chat runtime.
   useEffect(() => {
-    if (!persistedSessionId || !chatInstance || !isBusyElsewhere) {
+    if (
+      !persistedSessionId ||
+      !chatInstance ||
+      isRequestActive(status) ||
+      isCompacting
+    ) {
       return undefined;
     }
     let disposed = false;
-    const pollTurnLock = async () => {
+    const pollSession = async () => {
       try {
         const data = await refetchAgentSession({
           environment: relayEnvironment,
@@ -545,15 +551,18 @@ export function useAgentChat({
           data?.agentSession.__typename === "AgentSession"
             ? data.agentSession
             : null;
-        if (!agentSession || agentSession.isActive || disposed) {
+        if (!agentSession || disposed) {
           return;
         }
-        // The other client's turn completed and its transcript persisted;
-        // mirror the rewind path by replacing the runtime chat's messages.
-        // Clear any lingering 409 error first: the SDK assigns error state
-        // AFTER onError runs, so entry-time clearing is timing-fragile —
-        // this is the deterministic point where nothing can re-error.
-        chatInstance.clearError();
+        if (agentSession.isActive) {
+          store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+          return;
+        }
+        // Clear a lingering conflict error only after the other client's turn
+        // has completed; the SDK can assign error state after onError runs.
+        if (isBusyElsewhere) {
+          chatInstance.clearError();
+        }
         chatInstance.messages = Array.isArray(agentSession.messages)
           ? (agentSession.messages as AgentUIMessage[])
           : [];
@@ -562,10 +571,12 @@ export function useAgentChat({
         // Transient failure: wait for the next poll tick.
       }
     };
-    void pollTurnLock();
+    if (isBusyElsewhere) {
+      void pollSession();
+    }
     const intervalId = setInterval(
-      () => void pollTurnLock(),
-      SESSION_BUSY_POLL_INTERVAL_MS
+      () => void pollSession(),
+      isBusyElsewhere ? SESSION_BUSY_POLL_INTERVAL_MS : SESSION_POLL_INTERVAL_MS
     );
     return () => {
       disposed = true;
@@ -575,7 +586,9 @@ export function useAgentChat({
     persistedSessionId,
     chatInstance,
     isBusyElsewhere,
+    isCompacting,
     relayEnvironment,
+    status,
     store,
   ]);
 
