@@ -52,6 +52,10 @@ describe("SessionDetailsHeader", () => {
       '[aria-label="Copy Session ID session-display-id"]'
     );
     expect(title?.nextElementSibling).toBe(copyIdButton);
+    expect(getComputedStyle(copyIdButton!).alignSelf).toBe("center");
+    expect(getComputedStyle(copyIdButton!.parentElement!).alignItems).toBe(
+      "center"
+    );
     expect(detailHeader?.textContent).not.toContain("session-display-id");
     expect(
       detailHeader?.querySelector("[data-testid='session-annotation-bar']")

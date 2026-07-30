@@ -71,6 +71,10 @@ describe("SpanHeaderContent", () => {
       '[aria-label="Copy Span ID span-id"]'
     );
     expect(title?.nextElementSibling).toBe(copyIdButton);
+    expect(getComputedStyle(copyIdButton!).alignSelf).toBe("center");
+    expect(getComputedStyle(copyIdButton!.parentElement!).alignItems).toBe(
+      "center"
+    );
     expect(copyIdButton?.nextElementSibling).toBe(statusMessage);
     expect(statusMessage?.textContent).toBe("The model request failed.");
     const badge = statusMessage?.querySelector<HTMLElement>(".badge");

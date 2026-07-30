@@ -12,7 +12,6 @@ export const copyableIDBadgeButtonCSS = css`
   all: unset;
   display: inline-flex;
   box-sizing: border-box;
-  align-self: flex-start;
   min-width: 0;
   cursor: pointer;
   align-items: center;
