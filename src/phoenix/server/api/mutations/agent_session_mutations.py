@@ -148,8 +148,6 @@ class AgentSessionMutationMixin:
             query=Query(),
         )
 
-    # Not gated by IsLocked: truncating only deletes messages, and deletes stay
-    # available while storage is locked so users can free space.
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAgentAssistantEnabled])  # type: ignore
     async def truncate_agent_session(
         self,
@@ -297,7 +295,6 @@ class AgentSessionMutationMixin:
             query=Query(),
         )
 
-    # Not gated by IsLocked: deleting a session is how a user frees space.
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_agent_session(
         self,

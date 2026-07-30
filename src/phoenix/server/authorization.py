@@ -117,21 +117,11 @@ def require_admin(request: Request) -> None:
         )
 
 
-INSUFFICIENT_STORAGE_MESSAGE = (
-    "Database operations are disabled due to insufficient storage. "
-    "Please delete old data or increase storage."
-)
-"""The single wording every insufficient-storage surface reports.
-
-REST (HTTP 507), GraphQL (``IsLocked``), the OTLP gRPC interceptor, and the
-browser all key off this one sentence, so it must stay stable: the assistant UI
-recognizes a storage failure by matching it.
-"""
-
-
 def insufficient_storage_message() -> str:
-    """``INSUFFICIENT_STORAGE_MESSAGE`` plus the support contact, when configured."""
-    message = INSUFFICIENT_STORAGE_MESSAGE
+    message = (
+        "Database operations are disabled due to insufficient storage. "
+        "Please delete old data or increase storage."
+    )
     if support_email := get_env_support_email():
         message += f" Need help? Contact us at {support_email}"
     return message

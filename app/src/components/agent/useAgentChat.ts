@@ -804,17 +804,8 @@ export function useAgentChat({
           }),
         });
         if (!response.ok) {
-          // The route's conflict codes come back as JSON, but every
-          // HTTPException detail — 403, 404, 422, and the 507 raised when
-          // storage is locked — comes back as text/plain. Read the body once
-          // and parse JSON opportunistically so neither shape is discarded.
-          const rawErrorBody = await response.text().catch(() => "");
-          const errorBody = parseJsonOrNull(rawErrorBody);
-          if (
-            response.status === 409 &&
-            isRecord(errorBody) &&
-            errorBody.code === SESSION_BUSY_ERROR_CODE
-          ) {
+          const errorBody = await response.text().catch(() => "");
+          if (response.status === 409 && isSessionBusyConflict(errorBody)) {
             // Another client's turn holds the session lock: enter
             // busy-elsewhere mode (the poll swaps in the fresh transcript
             // when the turn completes) instead of raising a red error.
@@ -823,11 +814,7 @@ export function useAgentChat({
             return;
           }
           throw new Error(
-            getAgentCompactErrorMessage(
-              errorBody,
-              rawErrorBody,
-              response.status
-            )
+            getAgentCompactErrorMessage(errorBody, response.status)
           );
         }
         const result: unknown = await response.json();
@@ -1166,33 +1153,20 @@ function isRequestActive(status: ChatStatus): boolean {
 }
 
 /**
- * The message to show for a failed `/compact` request, preferring whatever the
- * server actually said. `rawBody` covers the plain-text `HTTPException` details
- * the server returns for 403/404/422/507; the status fallback is only reached
- * when the response had no body at all.
+ * A lock conflict is the one failure the route answers with JSON; every other
+ * failure is an `HTTPException` detail, which the server renders as plain text.
  */
-export function getAgentCompactErrorMessage(
-  body: unknown,
-  rawBody: string,
-  status: number
-): string {
-  if (isRecord(body) && typeof body.detail === "string") {
-    return body.detail;
+function isSessionBusyConflict(body: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return isRecord(parsed) && parsed.code === SESSION_BUSY_ERROR_CODE;
+  } catch {
+    return false;
   }
-  const text = rawBody.trim();
-  if (text) {
-    return text;
-  }
-  return `Compaction failed with status ${status}.`;
 }
 
-/** Parse `text` as JSON, or return null when it is not JSON (e.g. plain text). */
-function parseJsonOrNull(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
+function getAgentCompactErrorMessage(body: string, status: number): string {
+  return body.trim() || `Compaction failed with status ${status}.`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
