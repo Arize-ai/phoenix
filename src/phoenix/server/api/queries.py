@@ -1654,7 +1654,7 @@ class Query:
         viewer_only: bool = True,
     ) -> Connection[AgentSession]:
         page_size = first or 20
-        stmt = select(models.AgentSession).where(models.AgentSession.expires_at.is_(None))
+        stmt = select(models.AgentSession).where(models.AgentSession.is_ephemeral.is_(False))
         owner_filter = get_agent_session_owner_filter(info.context, viewer_only=viewer_only)
         if owner_filter is not None:
             stmt = stmt.where(owner_filter)

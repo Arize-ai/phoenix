@@ -76,7 +76,6 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.config import (
-    TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS,
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_disable_bash,
     get_env_phoenix_agents_force_tracing,
@@ -1347,7 +1346,6 @@ async def _refresh_and_load_agent_session(
         )
     except ValueError:
         raise HTTPException(status_code=404, detail="Session not found") from None
-    now = datetime.now(timezone.utc)
     session_owner_filter = (
         models.AgentSession.user_id.is_(None)
         if user_id is None
@@ -1356,41 +1354,22 @@ async def _refresh_and_load_agent_session(
     statement = select(models.AgentSession).where(
         models.AgentSession.id == agent_session_rowid,
         session_owner_filter,
-        or_(
-            models.AgentSession.expires_at.is_(None),
-            models.AgentSession.expires_at > now,
-        ),
     )
     if for_update:
         statement = statement.with_for_update()
-    loaded_agent_session = await session.scalar(statement)
-    if loaded_agent_session is None:
+    if await session.scalar(statement) is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    if loaded_agent_session.expires_at is None:
-        refreshed_agent_session = await session.scalar(
-            update(models.AgentSession)
-            .where(
-                models.AgentSession.id == agent_session_rowid,
-                models.AgentSession.expires_at.is_(None),
-            )
-            .values(updated_at=func.now())
-            .returning(models.AgentSession)
-        )
-        if refreshed_agent_session is None:
-            raise HTTPException(status_code=404, detail="Session not found")
-        return refreshed_agent_session
-    refreshed_expiry = now + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
+    # Bumping updated_at is what keeps an ephemeral session alive: its deadline
+    # is that column plus a fixed TTL, so activity slides the window and there
+    # is no second timestamp to maintain.
     refreshed_agent_session = await session.scalar(
         update(models.AgentSession)
-        .where(
-            models.AgentSession.id == agent_session_rowid,
-            models.AgentSession.expires_at.is_not(None),
-            models.AgentSession.expires_at > now,
-        )
-        .values(expires_at=refreshed_expiry, updated_at=func.now())
+        .where(models.AgentSession.id == agent_session_rowid)
+        .values(updated_at=func.now())
         .returning(models.AgentSession)
     )
     if refreshed_agent_session is None:
+        # An unlocked read can lose the row to a sweep before the bump lands.
         raise HTTPException(status_code=404, detail="Session not found")
     return refreshed_agent_session
 
@@ -1719,7 +1698,7 @@ def _to_agent_session_summary(agent_session: models.AgentSession) -> AgentSessio
         title=agent_session.title,
         created_at=agent_session.created_at,
         updated_at=agent_session.updated_at,
-        is_temporary=agent_session.expires_at is not None,
+        is_temporary=agent_session.is_ephemeral,
     )
 
 
@@ -1758,12 +1737,7 @@ def create_agents_router(
                 user_id=int(phoenix_user.identity) if phoenix_user is not None else None,
                 title=title,
                 project_name=get_env_phoenix_agents_assistant_project_name(),
-                expires_at=(
-                    datetime.now(timezone.utc)
-                    + timedelta(hours=TEMPORARY_AGENT_SESSION_TIME_TO_LIVE_HOURS)
-                    if request_body.temporary
-                    else None
-                ),
+                is_ephemeral=request_body.temporary,
             )
             session.add(agent_session)
             await session.flush()
@@ -1792,7 +1766,7 @@ def create_agents_router(
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if agent_id == _SERVER_AGENT_ID and get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
-        statement = select(models.AgentSession).where(models.AgentSession.expires_at.is_(None))
+        statement = select(models.AgentSession).where(models.AgentSession.is_ephemeral.is_(False))
         if (user_id := _get_request_user_id(request)) is not None:
             statement = statement.where(models.AgentSession.user_id == user_id)
         if cursor is not None:
@@ -1855,13 +1829,7 @@ def create_agents_router(
 
         statement = (
             select(models.AgentSession)
-            .where(
-                models.AgentSession.id == session_rowid,
-                or_(
-                    models.AgentSession.expires_at.is_(None),
-                    models.AgentSession.expires_at > datetime.now(timezone.utc),
-                ),
-            )
+            .where(models.AgentSession.id == session_rowid)
             .options(selectinload(models.AgentSession.messages))
         )
         if (user_id := _get_request_user_id(request)) is not None:
