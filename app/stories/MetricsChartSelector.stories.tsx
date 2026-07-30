@@ -99,7 +99,7 @@ export const Empty: Story = {
 /**
  * With an explicit `maxSelected` cap, opening at the limit disables the
  * unselected charts until the user removes one, so the view never exceeds
- * the cap. Without the prop, any number of charts can be selected.
+ * the cap.
  */
 export const AtSelectionLimit: Story = {
   render: () => (

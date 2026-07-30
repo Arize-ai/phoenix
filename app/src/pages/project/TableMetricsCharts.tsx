@@ -68,8 +68,6 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
       {/* Re-fetch the charts on each stream refresh so they stay live */}
       <MetricFetchKeyProvider value={fetchKey}>
         {charts.map((chart) => (
-          // Charts fetch on mount, so mounting only the visible ones keeps
-          // a long strip of charts from loading data all at once
           <DeferredProjectMetricPanel
             key={chart.key}
             chart={chart}

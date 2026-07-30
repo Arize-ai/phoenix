@@ -11,10 +11,9 @@ class ResizeObserverMock {
 }
 globalThis.ResizeObserver = ResizeObserverMock;
 
-// jsdom does not implement IntersectionObserver, which is used to defer
-// mounting offscreen content (e.g. chart panels). jsdom has no layout, so
-// everything counts as visible: the mock reports every observed element as
-// intersecting, synchronously on observe, and deferred content mounts.
+// jsdom has neither IntersectionObserver nor layout, so the mock reports
+// every observed element as intersecting synchronously on observe —
+// deferred content (e.g. chart panels) simply mounts.
 class IntersectionObserverMock {
   root = null;
   rootMargin = "";

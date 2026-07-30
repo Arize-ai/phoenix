@@ -239,9 +239,8 @@ function ProjectAnnotationChartPanel({
 
 /**
  * A catalog chart wrapped in a {@link DeferredChartPanel} so it doesn't fetch
- * until scrolled into view. The placeholder panel's title and subtitle come
- * from the same catalog entry as the chart's own panel, so the skeleton and
- * the mounted chart can never drift apart.
+ * until scrolled into view. The placeholder's title and subtitle come from
+ * the same catalog entry as the chart's, so they can't drift apart.
  */
 export function DeferredProjectMetricPanel({
   chart,
@@ -257,18 +256,21 @@ export function DeferredProjectMetricPanel({
       subtitle={chart.description}
       fillHeight={fillHeight}
     >
-      <DeferredPanelContent chart={chart} fillHeight={fillHeight} {...props} />
+      <MetricPanelWithFrozenTimeRange
+        chart={chart}
+        fillHeight={fillHeight}
+        {...props}
+      />
     </DeferredChartPanel>
   );
 }
 
 /**
- * Rendered inside the deferred panel's visibility context so the time range
- * can be frozen while the chart is out of view: the range is a query
- * variable, so letting a live range keep advancing would refetch hidden
- * charts on every stream refresh despite the frozen fetchKey.
+ * Split out so useFrozenWhileHidden runs inside the deferred panel's
+ * visibility context: the time range is a query variable, and a live range
+ * advancing while the chart is hidden would refetch data the user can't see.
  */
-function DeferredPanelContent({
+function MetricPanelWithFrozenTimeRange({
   chart,
   timeRange,
   fillHeight,

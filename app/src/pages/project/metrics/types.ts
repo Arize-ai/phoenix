@@ -34,9 +34,8 @@ export const MetricFetchKeyProvider = MetricFetchKeyContext.Provider;
  * continuing to render cached data. Every chart in the chart catalog must
  * pass this to its query so it stays live when shown above the spans table.
  *
- * The fetchKey is frozen while the chart is scrolled out of view, so a
- * background stream refresh only refetches the charts the user can see; a
- * chart scrolled back into view picks up the latest fetchKey and catches up.
+ * The fetchKey is frozen while the chart is out of view, so stream refreshes
+ * only refetch visible charts (see {@link useFrozenWhileHidden}).
  */
 export function useMetricQueryFetchOptions() {
   const visibleFetchKey = useFrozenWhileHidden(

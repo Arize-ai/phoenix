@@ -66,8 +66,7 @@ const skeletonStyles = css`
 `;
 
 /**
- * Shared by skeleton-style placeholders outside this component (e.g. the
- * chart skeleton) so all skeletons pulse in unison.
+ * Exported so skeleton-style placeholders elsewhere pulse in unison.
  */
 export const pulseAnimation = css`
   animation: ${pulseKeyframes} 2s ease-in-out 0.5s infinite;

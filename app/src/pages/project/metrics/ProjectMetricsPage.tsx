@@ -138,8 +138,6 @@ function MetricRow({
   return (
     <Flex direction="row" gap="size-200">
       {row.map((chartKey) => (
-        // Charts fetch on mount, so charts below the fold don't load data
-        // until they are scrolled into view
         <DeferredProjectMetricPanel
           key={chartKey}
           chart={getProjectMetricChart(chartKey)}

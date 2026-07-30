@@ -20,8 +20,7 @@ import {
 } from "./defaults";
 
 /**
- * Placeholder series shaped like a typical activity time series: mostly low
- * bins with a few spikes, so the skeleton reads as "a chart is coming" rather
+ * Mostly-low bins with a few spikes, so the skeleton reads as a chart rather
  * than uniform noise.
  */
 const PLACEHOLDER_DATA = [
@@ -30,46 +29,41 @@ const PLACEHOLDER_DATA = [
 
 const SKELETON_FILL = "var(--global-color-gray-200)";
 
-/**
- * Fixed y-axis gutter standing in for the auto-width tick labels of a loaded
- * chart — wide enough for a typical 2–3 character tick (e.g. "40k").
- */
+/** Fixed y-axis gutter wide enough for a typical 2–3 character tick ("40k") */
 const Y_AXIS_WIDTH = 26;
+
+/** Pills stand in for the tick labels of a loaded chart */
+const TICK_PILL_WIDTH = 16;
+const TICK_PILL_HEIGHT = 6;
 
 interface AxisTickProps {
   x?: string | number;
   y?: string | number;
 }
 
-/**
- * Skeleton stand-in for an x-axis tick label: a small pill centered on the
- * tick position, where a loaded chart renders tick text.
- */
+/** Pill placeholder for an x-axis tick label, centered on the tick */
 function XAxisSkeletonTick({ x = 0, y = 0 }: AxisTickProps) {
   return (
     <rect
-      x={Number(x) - 8}
+      x={Number(x) - TICK_PILL_WIDTH / 2}
       y={Number(y)}
-      width={16}
-      height={6}
-      rx={3}
+      width={TICK_PILL_WIDTH}
+      height={TICK_PILL_HEIGHT}
+      rx={TICK_PILL_HEIGHT / 2}
       fill={SKELETON_FILL}
     />
   );
 }
 
-/**
- * Skeleton stand-in for a y-axis tick label: a small pill ending at the tick
- * position, matching the right-aligned tick text of a loaded chart.
- */
+/** Pill placeholder for a y-axis tick label, right-aligned to the tick */
 function YAxisSkeletonTick({ x = 0, y = 0 }: AxisTickProps) {
   return (
     <rect
-      x={Number(x) - 16}
-      y={Number(y) - 3}
-      width={16}
-      height={6}
-      rx={3}
+      x={Number(x) - TICK_PILL_WIDTH}
+      y={Number(y) - TICK_PILL_HEIGHT / 2}
+      width={TICK_PILL_WIDTH}
+      height={TICK_PILL_HEIGHT}
+      rx={TICK_PILL_HEIGHT / 2}
       fill={SKELETON_FILL}
     />
   );
@@ -80,12 +74,9 @@ export interface ChartSkeletonProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Renders a real (static, non-interactive) Recharts bar chart as a loading
- * placeholder. It shares the compact chart margin, axis, and grid defaults
- * with the loaded charts, so the skeleton's plot area, gridlines, and axis
- * gutters sit exactly where the real chart's will — the swap from loading to
- * loaded doesn't shift the layout. Fills its container; size it with the
- * parent.
+ * A static Recharts bar chart used as a loading placeholder. It shares the
+ * compact margin, axis, and grid defaults with real charts, so the swap from
+ * loading to loaded doesn't shift the layout. Fills its container.
  */
 export function ChartSkeleton({
   className,
@@ -93,9 +84,8 @@ export function ChartSkeleton({
   ...props
 }: ChartSkeletonProps) {
   return (
-    // The placeholder chart is purely decorative, so assistive tech gets a
-    // loading status (matching the Loading spinner this replaces) and the
-    // decorative internals are hidden
+    // Announce a loading status to assistive tech; the decorative chart
+    // internals are hidden
     <div
       role="status"
       aria-label="loading"

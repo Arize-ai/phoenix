@@ -164,8 +164,7 @@ function SortableChartMenuItem<K extends Key>({
 
 /**
  * A searchable menu to select which charts from a catalog are shown, and in
- * what order. Any number of charts can be selected unless a `maxSelected`
- * limit is given.
+ * what order.
  *
  * Rows do NOT jump between the "Selected" and "Available" sections as they are
  * toggled: the partition is snapshotted when the menu opens (this component
@@ -228,7 +227,8 @@ export function MetricsChartSelector<K extends Key>({
     (option) => !sectionKeySet.has(option.key)
   );
 
-  const isAtMax = maxSelected != null && selectedKeys.length >= maxSelected;
+  const hasSelectionLimit = maxSelected != null;
+  const isAtMax = hasSelectionLimit && selectedKeys.length >= maxSelected;
   // When at the limit, prevent adding more by disabling the charts that are
   // not currently selected. Already-selected charts stay toggleable so the
   // user can swap one out.
@@ -340,18 +340,16 @@ export function MetricsChartSelector<K extends Key>({
       <MenuFooter>
         <Flex
           direction="row"
-          // The counter stays on the right whether or not the max-charts hint
-          // occupies the left side
-          justifyContent={maxSelected != null ? "space-between" : "end"}
+          justifyContent={hasSelectionLimit ? "space-between" : "end"}
           alignItems="center"
         >
-          {maxSelected != null && (
+          {hasSelectionLimit && (
             <Text size="XS" color="text-500">
               Show up to {maxSelected} charts
             </Text>
           )}
           <Text size="XS" color="text-700">
-            {maxSelected != null
+            {hasSelectionLimit
               ? `${selectedKeys.length}/${maxSelected} selected`
               : `${selectedKeys.length} selected`}
           </Text>

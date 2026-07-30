@@ -3,26 +3,20 @@ import { createContext, startTransition, useContext, useState } from "react";
 
 export type UseDeferredVisibilityParams = {
   /**
-   * Stop observing after the element is first seen; `isVisible` (and so
-   * `hasBeenVisible`) then stays true. Use for mount-once deferral where
-   * later exits from the viewport don't matter — no observer work is done
-   * once the content has been revealed.
+   * Stop observing after the element is first seen; `isVisible` then stays
+   * true. Use when only the first reveal matters.
    */
   once?: boolean;
   /**
-   * Margin around the viewport counted as visible, in CSS margin shorthand
-   * (e.g. `"160px 440px"`). Use it to start loading content shortly before it
-   * scrolls into view. Only expands the viewport itself — content inside a
-   * nested scroll container is still clipped by it; see `scrollMargin`.
+   * Margin around the viewport counted as visible (CSS margin shorthand,
+   * e.g. `"160px 440px"`), so content starts loading just before it scrolls
+   * into view. Nested scroll containers still clip; see `scrollMargin`.
    */
   rootMargin?: string;
   /**
-   * Margin applied to the clip rects of scrollable ancestors, in CSS margin
-   * shorthand, so content inside a nested scroll container (e.g. a
-   * horizontally scrolling strip) can count as visible shortly before it is
-   * scrolled into view. Progressive enhancement: browsers without
-   * IntersectionObserver scrollMargin support ignore it and content mounts
-   * exactly on entry.
+   * Like `rootMargin`, but applied to the clip rects of scrollable ancestors
+   * (e.g. a horizontally scrolling strip). Browsers without scrollMargin
+   * support ignore it and content mounts exactly on entry.
    */
   scrollMargin?: string;
 };
@@ -43,11 +37,8 @@ export type DeferredVisibility<T extends Element> = {
 /**
  * Tracks whether an element is (and has ever been) scrolled into view, for
  * deferring expensive content — data-fetching charts, heavy editors — until
- * the user can actually see it.
- *
- * Visibility is observed against the viewport; IntersectionObserver clips the
- * intersection by every scrolling ancestor, so the same hook works inside a
- * horizontally scrolling strip and a vertically scrolling page alike.
+ * the user can see it. Works against the viewport and inside nested scroll
+ * containers alike.
  */
 export function useDeferredVisibility<T extends Element>({
   once = false,
@@ -60,25 +51,23 @@ export function useDeferredVisibility<T extends Element>({
     setHasBeenVisible(true);
   }
 
-  // A ref callback rather than an effect: it runs during commit, before
-  // paint, so elements already in view are detected synchronously and start
-  // loading a frame earlier than the observer's first (post-paint) entries.
-  // The rect check ignores clipping by scrolling ancestors — at worst it
-  // eagerly marks visible an element a scroll container still clips. A
-  // zero-size rect means the element has no layout (e.g. a display: none
-  // ancestor), so it cannot be visible no matter where it sits.
+  // Ref callback, not an effect: it runs before paint, so elements already
+  // in view start loading a frame earlier than the observer's first entries.
+  // The rect check ignores ancestor clipping — worst case, a still-clipped
+  // element is marked visible early.
   const ref: RefCallback<T> = (element) => {
     if (element == null) {
       return () => {};
     }
     const rect = element.getBoundingClientRect();
-    const isInitiallyInView =
-      (rect.width > 0 || rect.height > 0) &&
+    // A zero-size rect means no layout (e.g. a display: none ancestor)
+    const hasLayout = rect.width > 0 || rect.height > 0;
+    const overlapsViewport =
       rect.bottom >= 0 &&
       rect.top <= window.innerHeight &&
       rect.right >= 0 &&
       rect.left <= window.innerWidth;
-    if (isInitiallyInView) {
+    if (hasLayout && overlapsViewport) {
       setIsVisible(true);
       if (once) {
         return () => {};
@@ -93,9 +82,9 @@ export function useDeferredVisibility<T extends Element>({
       // Entries are chronological; only the newest reflects current
       // visibility when a fast scroll batches several crossings together.
       const latestEntry = entries[entries.length - 1];
-      // A transition so content that suspends when visibility thaws its
-      // deferred inputs (e.g. a chart catching up on a frozen time range)
-      // keeps showing what is already rendered instead of a fallback.
+      // Transition so content that suspends on becoming visible (e.g. a
+      // chart catching up on a frozen time range) keeps its current render
+      // instead of a fallback.
       startTransition(() => setIsVisible(latestEntry.isIntersecting));
       if (once && latestEntry.isIntersecting) {
         observer.disconnect();
@@ -117,12 +106,10 @@ export function useDeferredVisibility<T extends Element>({
 export const DeferredVisibilityContext = createContext<boolean>(true);
 
 /**
- * Passes `value` through while the nearest deferred container is in view,
- * and freezes it at the last-seen value while the container is hidden. Use
- * it to freeze query inputs (fetch keys, live time ranges) so background
- * refreshes don't refetch content the user can't see — content scrolled back
- * into view picks up the current value and catches up. Passes `value`
- * through when there is no deferred container ancestor.
+ * Returns `value`, frozen at its last-seen state while the nearest deferred
+ * container is hidden (a pass-through when in view or when there is no
+ * deferred ancestor). Freeze query inputs — fetch keys, live time ranges —
+ * so hidden content isn't refetched; it catches up when scrolled back in.
  */
 export function useFrozenWhileHidden<T>(value: T): T {
   const isVisible = useContext(DeferredVisibilityContext);

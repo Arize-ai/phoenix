@@ -5,30 +5,25 @@ import { useDeferredVisibility } from "@phoenix/hooks/useDeferredVisibility";
 
 type LazyEditorWrapperProps = {
   /**
-   * The minimum height of the container for the JSON editor prior to initialization.
-   * After initialization, the height will be set to auto and grow to fit the editor.
-   * This allows for the editor to properly get its dimensions when it is rendered outside of the viewport.
+   * Minimum container height before the editor initializes; afterwards the
+   * height grows to fit the editor.
    */
   preInitializationMinHeight: number;
   children: ReactNode;
 } & ComponentPropsWithoutRef<"div">;
 
 /**
- * A wrapper for code mirror editors that holds a minimum height until the
- * editor is scrolled into view. This is necessary in some cases where a code
- * mirror editor is rendered outside of the viewport: the editor may not
- * calculate its dimensions correctly and be invisible or cut off when it is
- * scrolled into view. Holding a minimum height until first visibility lets it
+ * Holds a minimum height for a CodeMirror editor until it first scrolls into
+ * view. Editors rendered offscreen can miscalculate their dimensions and
+ * render invisible or cut off; deferring to first visibility lets them
  * initialize with real dimensions.
- * For a related issue @see https://github.com/codemirror/dev/issues/1076
- * @param preInitializationMinHeight The minimum height of the container for the JSON editor prior to initialization.
+ * @see https://github.com/codemirror/dev/issues/1076
  */
 export function LazyEditorWrapper({
   preInitializationMinHeight,
   children,
   ...rest
 }: LazyEditorWrapperProps) {
-  // once: only the first reveal matters here, so observation stops after it
   const { ref, hasBeenVisible: isInitialized } =
     useDeferredVisibility<HTMLDivElement>({ once: true });
 
