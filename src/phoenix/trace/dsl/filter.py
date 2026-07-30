@@ -1,4 +1,5 @@
 import ast
+import math
 import sys
 import typing
 from dataclasses import dataclass, field
@@ -202,6 +203,13 @@ class _FilterBindings:
     # Whether `in` against a string haystack ignores case. Per-grain, not global: the session
     # grain matches the text search it replaced, while the span grain keeps `in` exact.
     case_insensitive_containment: bool = False
+    # Whether the grain resolves every expression to a type before SQL is built, so a form the
+    # translator would lower into something other than what Python spells is rejected outright
+    # rather than compiled. See :class:`_SemanticPolicy`.
+    strict_semantics: bool = False
+    # Dotted spellings accepted as shorthands for a root-span attribute key, e.g. `user.id`.
+    # Under `strict_semantics` every other dotted root is rejected.
+    attribute_proxies: frozenset[str] = frozenset()
 
     @property
     def names(self) -> NameMap:
@@ -343,6 +351,16 @@ def _scope_of(name: str, scopes: typing.Sequence[_ElementScope]) -> typing.Optio
     return None
 
 
+def _nested_iterable_error(iterable: str, scope: _ElementScope) -> SyntaxError:
+    nested = _disjunction(
+        sorted(f"`{scope.variable}.{attribute}`" for attribute in scope.grammar.nested)
+    )
+    return SyntaxError(
+        f"`{iterable}` cannot be iterated inside a comprehension"
+        + (f"; a {scope.iterable} element iterates {nested}" if nested else "")
+    )
+
+
 def _resolve_iterable(
     node: ast.expr,
     scopes: typing.Sequence[_ElementScope],
@@ -356,6 +374,11 @@ def _resolve_iterable(
     """
     if isinstance(node, ast.Name):
         if node.id in bindings.iterables:
+            if scopes:
+                # A top-level collection named inside a comprehension has no correlation to the
+                # element being iterated, so the subquery builder has nothing to key it on.
+                # Only the nesting an element declares is reachable from one scope down.
+                raise _nested_iterable_error(node.id, scopes[-1])
             return node.id, None
         choice, score = _find_best_match(node.id, bindings.iterables)
         suggestion = (
@@ -628,9 +651,19 @@ def _compile_condition(
     bindings: _FilterBindings,
     valid_annotation_names: typing.Optional[typing.Sequence[str]],
 ) -> _CompiledCondition:
+    # Outer whitespace is normalized before anything reads the source: a leading space would
+    # otherwise reach the parser as an indented statement and surface as `IndentationError`,
+    # which is not a statement about the filter the user wrote.
+    source = source.strip()
     try:
-        validated = ast.parse(source, mode="eval")
+        try:
+            validated = ast.parse(source, mode="eval")
+        except ValueError:
+            # The only value the parser refuses outright rather than as a syntax question, and
+            # one PostgreSQL would reject in a text value even if it reached the backend.
+            raise SyntaxError("a filter condition cannot contain a NUL character") from None
         _validate_expression(validated, bindings, valid_eval_names=valid_annotation_names)
+        _validate_semantics(validated, source, bindings)
         root, aliased_annotation_relations = _apply_eval_aliasing(source, bindings)
         root, comprehensions = _extract_comprehensions(root, bindings)
         translated = _FilterTranslator(
@@ -1269,6 +1302,10 @@ def _nullif_zero(node: typing.Any) -> ast.Call:
 
 
 def _is_string(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Call]:
+    # A list or tuple is typed from its first element only, which makes membership acceptance
+    # depend on element order. Grains with `strict_semantics` never reach that: the policy
+    # requires a homogeneous literal list and exempts membership from coercion entirely. The
+    # inference stays as it is for the grain whose accepted surface it already defines.
     return (
         isinstance(node, ast.Name)
         and node.id in bindings.string_names
@@ -1346,9 +1383,7 @@ class _ProjectionTranslator(ast.NodeTransformer):
         if source_segment in self._reserved_keywords:
             return node
         if self._bindings.reject_unbound_names:
-            choice, score = _find_best_match(source_segment, self._bindings.binding_names)
-            suggestion = f', did you mean "{choice}"?' if choice and score > 0.75 else ""
-            raise SyntaxError(f"invalid name `{source_segment}`{suggestion}")
+            _raise_invalid_name(source_segment, self._bindings)
         return _as_attribute([ast.Constant(value=source_segment, kind=None)])
 
     def visit_Subscript(self, node: ast.Subscript) -> typing.Any:
@@ -1468,14 +1503,24 @@ class _FilterTranslator(_ProjectionTranslator):
         # `None` is exempt from numeric coercion: casting it produces `= CAST(NULL AS FLOAT)`,
         # which is NULL rather than the `IS NULL` test `x is None` asks for, so the comparison
         # would silently match nothing.
+        # A membership list is also exempt under the semantic policy, which has already settled
+        # that its elements match the needle: coercing the list would rewrite it into a cast and
+        # lose the `IN` shape entirely (`num_traces in []` being the clearest case).
+        coerce = not (
+            self._bindings.strict_semantics
+            and isinstance(op, (ast.In, ast.NotIn))
+            and isinstance(right, (ast.List, ast.Tuple))
+        )
         if (
-            _is_float(left, self._bindings)
+            coerce
+            and _is_float(left, self._bindings)
             and not _is_float(right, self._bindings)
             and not _is_none_constant(right)
         ):
             right = _cast_as("Float", right)
         elif (
-            not _is_float(left, self._bindings)
+            coerce
+            and not _is_float(left, self._bindings)
             and _is_float(right, self._bindings)
             and not _is_none_constant(left)
         ):
@@ -1500,7 +1545,9 @@ class _FilterTranslator(_ProjectionTranslator):
                     keywords=[],
                 )
             else:
-                raise SyntaxError(f"invalid expression: {ast.unparse(op)}")
+                # `ast.unparse` renders a bare comparison operator as the empty string, so name
+                # the whole comparison instead of raising with no message at all.
+                raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
         if isinstance(op, ast.Is):
             op = ast.Eq()
         elif isinstance(op, ast.IsNot):
@@ -1525,13 +1572,16 @@ class _FilterTranslator(_ProjectionTranslator):
                 args=[operand],
                 keywords=[],
             )
-        node = ast.UnaryOp(op=node.op, operand=operand)
         if isinstance(node.op, (ast.USub, ast.UAdd)):
-            if not _is_float(node.operand, self._bindings):
-                operand = _cast_as("Float", node.operand)
-                return ast.UnaryOp(op=ast.USub(), operand=operand)
-            return node
-        return node
+            if not _is_float(operand, self._bindings):
+                operand = _cast_as("Float", operand)
+            # Python's unary plus is the identity, so it drops out here. Emitting it would reach
+            # SQLAlchemy as an operator no column implements, and rewriting it to minus — which
+            # this branch used to do — changes the value the user asked for.
+            if isinstance(node.op, ast.UAdd):
+                return operand
+            return ast.UnaryOp(op=ast.USub(), operand=operand)
+        return ast.UnaryOp(op=node.op, operand=operand)
 
     def visit_BinOp(self, node: ast.BinOp) -> typing.Any:
         left, op, right = self.visit(node.left), node.op, self.visit(node.right)
@@ -1568,6 +1618,450 @@ class _FilterTranslator(_ProjectionTranslator):
         if node.func.id in ("str",) and not _is_string(arg, self._bindings):
             return _cast_as("String", arg)
         return arg
+
+
+_Kind: TypeAlias = typing.Literal["string", "float", "datetime", "boolean", "json", "none", "text"]
+"""What a sub-expression denotes under the semantic policy.
+
+``json`` is a root-span attribute read, whose stored type is not known until the row is read, so
+it compares against any scalar. ``text`` is an existential containment term (`any_input`), which
+is not a value at all: it only ever sits on the right of `in`.
+"""
+
+_KIND_NOUNS: typing.Mapping[str, str] = MappingProxyType(
+    {
+        "string": "text",
+        "float": "a number",
+        "datetime": "a timestamp",
+        "boolean": "a condition",
+        "json": "an attribute value",
+        "none": "None",
+        "text": "a containment term",
+    }
+)
+
+_ARITHMETIC_OPERATORS: tuple[type, ...] = (
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Mod,
+)
+_ORDERING_OPERATORS: tuple[type, ...] = (ast.Lt, ast.LtE, ast.Gt, ast.GtE)
+_ORDERED_KINDS: frozenset[str] = frozenset({"float", "datetime", "json"})
+"""What `<`, `<=`, `>`, `>=` may range over.
+
+Text is absent on purpose: SQLite orders text by byte value while PostgreSQL orders it by the
+database's collation, so the same `first_input > last_output` sorts differently on the two
+backends. It is the same reason `max(...)` over text is rejected, and the same remedy — a
+declared collation — would lift both at once.
+"""
+_LOOKUP_KINDS: frozenset[str] = frozenset({"string", "float", "json"})
+
+_OPERATOR_SYMBOLS: typing.Mapping[type, str] = MappingProxyType(
+    {
+        ast.Add: "+",
+        ast.Sub: "-",
+        ast.Mult: "*",
+        ast.Div: "/",
+        ast.FloorDiv: "//",
+        ast.Mod: "%",
+        ast.Pow: "**",
+        ast.LShift: "<<",
+        ast.RShift: ">>",
+        ast.BitOr: "|",
+        ast.BitXor: "^",
+        ast.BitAnd: "&",
+        ast.MatMult: "@",
+        ast.Invert: "~",
+        ast.UAdd: "+",
+        ast.USub: "-",
+        ast.Not: "not",
+        ast.Lt: "<",
+        ast.LtE: "<=",
+        ast.Gt: ">",
+        ast.GtE: ">=",
+        ast.Eq: "==",
+        ast.NotEq: "!=",
+    }
+)
+
+
+def _symbol(op: ast.AST) -> str:
+    return _OPERATOR_SYMBOLS.get(type(op), type(op).__name__)
+
+
+def _raise_invalid_name(source_segment: str, bindings: _FilterBindings) -> typing.NoReturn:
+    choice, score = _find_best_match(source_segment, bindings.binding_names)
+    suggestion = f', did you mean "{choice}"?' if choice and score > 0.75 else ""
+    raise SyntaxError(f"invalid name `{source_segment}`{suggestion}")
+
+
+class _SemanticPolicy:
+    """Resolves every sub-expression to a type and rejects the combinations the DSL never meant.
+
+    The translator below coerces rather than checks: it casts an operand to Float when the other
+    side is numeric, reads `is` as `==`, and lets any Python operator through to whatever SQLAlchemy
+    does with it. That is fine for a grain whose accepted surface predates this policy, but a grain
+    that declares its conditions to *be* Python cannot also accept `session_id == 1` as a Float
+    comparison. So a grain opts in with ``strict_semantics``, and this pass runs between structural
+    validation and SQL construction: an expression either types, or it is a `SyntaxError` naming the
+    operand that does not fit.
+    """
+
+    def __init__(self, bindings: _FilterBindings) -> None:
+        self._bindings = bindings
+
+    def check(self, expression: ast.Expression, source: str) -> None:
+        self._check_spelling(expression, source)
+        if self._kind(expression.body, ()) != "boolean":
+            raise SyntaxError(
+                f"`{ast.unparse(expression.body)}` is not a condition: a filter condition "
+                "compares values, quantifies over a collection, or combines those with and/or/not"
+            )
+
+    def _check_spelling(self, expression: ast.Expression, source: str) -> None:
+        """Reject a name whose source spelling is not the one the vocabulary serves.
+
+        `ast.parse` NFKC-normalizes identifiers, so a full-width `ｓｅｓｓｉｏｎ＿ｉｄ` would
+        otherwise resolve as `session_id` — the parser silently defining aliases for a namespace
+        the vocabulary endpoint has no way to advertise. Subscript keys are data and keep their
+        spelling, which is why this looks at identifiers only.
+        """
+        for node in ast.walk(expression):
+            spelled = (
+                node.id
+                if isinstance(node, ast.Name)
+                else node.attr
+                if isinstance(node, ast.Attribute)
+                else None
+            )
+            if spelled is not None and spelled not in source:
+                raise SyntaxError(
+                    f"invalid name `{spelled}`: write names exactly as the vocabulary spells them"
+                )
+
+    def _kind(self, node: ast.expr, scopes: tuple[_ElementScope, ...]) -> _Kind:
+        if isinstance(node, ast.Constant):
+            return self._constant(node)
+        if isinstance(node, ast.Name):
+            return self._name(node, scopes)
+        if isinstance(node, ast.Attribute):
+            return self._attribute(node, scopes)
+        if isinstance(node, ast.Subscript):
+            return self._subscript(node)
+        if isinstance(node, ast.BoolOp):
+            for value in node.values:
+                self._expect(value, scopes, "boolean")
+            return "boolean"
+        if isinstance(node, ast.UnaryOp):
+            return self._unary(node, scopes)
+        if isinstance(node, ast.BinOp):
+            return self._binary(node, scopes)
+        if isinstance(node, ast.Compare):
+            return self._compare(node, scopes)
+        if isinstance(node, ast.Call):
+            return self._call(node, scopes)
+        raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
+
+    def _expect(self, node: ast.expr, scopes: tuple[_ElementScope, ...], expected: _Kind) -> None:
+        if (actual := self._kind(node, scopes)) == expected:
+            return
+        hint = ""
+        if actual == "json" and expected in ("float", "string"):
+            cast = "float" if expected == "float" else "str"
+            hint = f"; cast it with `{cast}({ast.unparse(node)})`"
+        raise SyntaxError(
+            f"`{ast.unparse(node)}` is {_KIND_NOUNS[actual]}, "
+            f"expected {_KIND_NOUNS[expected]}{hint}"
+        )
+
+    def _constant(self, node: ast.Constant) -> _Kind:
+        value = node.value
+        if value is None:
+            return "none"
+        if isinstance(value, bool):
+            return "boolean"
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                raise SyntaxError(f"`{ast.unparse(node)}` is not a finite number")
+            return "float"
+        if isinstance(value, str):
+            if "\x00" in value:
+                # PostgreSQL rejects a NUL in a text value outright, where SQLite stores it.
+                raise SyntaxError("a text literal cannot contain a NUL character")
+            return "string"
+        raise SyntaxError(
+            f"`{ast.unparse(node)}` is not a supported literal: "
+            "write text, a number, True/False, or None"
+        )
+
+    def _name(self, node: ast.Name, scopes: tuple[_ElementScope, ...]) -> _Kind:
+        name = node.id
+        if (scope := _scope_of(name, scopes)) is not None:
+            raise SyntaxError(
+                f"`{name}` is a whole {scope.iterable} element; compare one of its fields"
+            )
+        if name in self._bindings.iterables:
+            raise SyntaxError(
+                f"`{name}` is a collection and can only be iterated, "
+                f'e.g. `any(x.<field> == "..." for x in {name})`'
+            )
+        if scopes:
+            scope = scopes[-1]
+            if name in self._bindings.binding_names:
+                fields = scope.grammar.element_bindings.binding_names
+                raise SyntaxError(
+                    f"`{name}` is a session-level term, not a {scope.iterable} element field; "
+                    f"a {scope.iterable} element exposes {_disjunction(sorted(fields))}"
+                )
+            _raise_invalid_name(name, scope.grammar.element_bindings)
+        return self._binding(name, self._bindings)
+
+    def _binding(self, name: str, bindings: _FilterBindings) -> _Kind:
+        if name in bindings.string_names:
+            return "string"
+        if name in bindings.float_names or name in bindings.aggregate_names:
+            return "float"
+        if name in bindings.datetime_names:
+            return "datetime"
+        if name in bindings.boolean_names:
+            return "boolean"
+        if name in bindings.exists_names:
+            return "text"
+        _raise_invalid_name(name, bindings)
+
+    def _attribute(self, node: ast.Attribute, scopes: tuple[_ElementScope, ...]) -> _Kind:
+        if (
+            isinstance(value := node.value, ast.Name)
+            and (scope := _scope_of(value.id, scopes)) is not None
+        ):
+            return self._binding(node.attr, scope.grammar.element_bindings)
+        if _is_annotation(node.value):
+            return "float" if node.attr == "score" else "string"
+        source = ast.unparse(node)
+        if replacement := self._bindings.legacy_replacements.get(source):
+            return self._binding(replacement, self._bindings)
+        if source in self._bindings.attribute_proxies:
+            return "json"
+        proxies = _disjunction(sorted(f"`{proxy}`" for proxy in self._bindings.attribute_proxies))
+        raise SyntaxError(
+            f"invalid name `{source}`"
+            + (f"; the only dotted name is {proxies}" if proxies else "")
+            + f'. Read an arbitrary root-span attribute as `attributes["{source}"]`'
+        )
+
+    def _subscript(self, node: ast.Subscript) -> _Kind:
+        if _is_subscript(node, "attributes") or _is_subscript(node, "metadata"):
+            if _get_attribute_keys_list(node) is None:
+                raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
+            return "json"
+        if _is_annotation(node):
+            # A bare annotation reference is the existence check `annotations["q"]`.
+            return "boolean"
+        raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
+
+    def _unary(self, node: ast.UnaryOp, scopes: tuple[_ElementScope, ...]) -> _Kind:
+        if isinstance(node.op, ast.Not):
+            self._expect(node.operand, scopes, "boolean")
+            return "boolean"
+        if isinstance(node.op, (ast.USub, ast.UAdd)):
+            self._expect(node.operand, scopes, "float")
+            return "float"
+        raise SyntaxError(f"`{_symbol(node.op)}` is not a supported operator")
+
+    def _binary(self, node: ast.BinOp, scopes: tuple[_ElementScope, ...]) -> _Kind:
+        if not isinstance(node.op, _ARITHMETIC_OPERATORS):
+            raise SyntaxError(
+                f"`{_symbol(node.op)}` is not a supported operator; "
+                "arithmetic is limited to + - * / // %"
+            )
+        self._expect(node.left, scopes, "float")
+        self._expect(node.right, scopes, "float")
+        return "float"
+
+    def _compare(self, node: ast.Compare, scopes: tuple[_ElementScope, ...]) -> _Kind:
+        left = node.left
+        for op, right in zip(node.ops, node.comparators):
+            self._link(left, op, right, scopes)
+            left = right
+        return "boolean"
+
+    def _link(
+        self,
+        left_node: ast.expr,
+        op: ast.cmpop,
+        right_node: ast.expr,
+        scopes: tuple[_ElementScope, ...],
+    ) -> None:
+        if isinstance(op, (ast.In, ast.NotIn)):
+            self._containment(left_node, right_node, scopes)
+            return
+        if isinstance(op, (ast.Is, ast.IsNot)) and not (
+            _is_none_constant(left_node) or _is_none_constant(right_node)
+        ):
+            # CPython's `is` is object identity, which no column comparison can mean. Reading it
+            # as `==` would make the two spellings differ from Python in the same expression.
+            raise SyntaxError(
+                "`is` / `is not` compare against None only; use `==` / `!=` to compare values"
+            )
+        for node in (left_node, right_node):
+            if isinstance(node, (ast.List, ast.Tuple)):
+                raise SyntaxError(
+                    f"`{ast.unparse(node)}` is a list, which compares with `in` / `not in` only"
+                )
+        left = self._kind(left_node, scopes)
+        right = self._kind(right_node, scopes)
+        if "none" in (left, right):
+            if not isinstance(op, (ast.Is, ast.IsNot, ast.Eq, ast.NotEq)):
+                raise SyntaxError(f"`{_symbol(op)}` cannot compare against None; use `is None`")
+            return
+        if not self._comparable(left, right, left_node, right_node):
+            raise SyntaxError(
+                f"cannot compare `{ast.unparse(left_node)}` ({_KIND_NOUNS[left]}) "
+                f"with `{ast.unparse(right_node)}` ({_KIND_NOUNS[right]})"
+            )
+        if (
+            isinstance(op, _ORDERING_OPERATORS)
+            # A timestamp compared against its ISO literal orders as a timestamp.
+            and {left, right} != {"datetime", "string"}
+            and not {left, right} <= _ORDERED_KINDS
+        ):
+            unordered = left if left not in _ORDERED_KINDS else right
+            raise SyntaxError(f"`{_symbol(op)}` does not order {_KIND_NOUNS[unordered]}")
+
+    def _comparable(
+        self,
+        left: _Kind,
+        right: _Kind,
+        left_node: ast.expr,
+        right_node: ast.expr,
+    ) -> bool:
+        if "json" in (left, right):
+            other = right if left == "json" else left
+            return other in ("json", "string", "float", "boolean")
+        if left == right:
+            return True
+        if {left, right} == {"datetime", "string"}:
+            # Only a literal is read as a timestamp; a string-typed column is not parsed per row.
+            return _is_string_constant(right_node if right == "string" else left_node)
+        return False
+
+    def _containment(
+        self,
+        needle_node: ast.expr,
+        haystack_node: ast.expr,
+        scopes: tuple[_ElementScope, ...],
+    ) -> None:
+        if isinstance(haystack_node, (ast.List, ast.Tuple)):
+            self._membership(needle_node, haystack_node, scopes)
+            return
+        haystack = self._kind(haystack_node, scopes)
+        if haystack not in ("string", "json", "text"):
+            raise SyntaxError(
+                f"`in` searches text or a list, and `{ast.unparse(haystack_node)}` "
+                f"is {_KIND_NOUNS[haystack]}"
+            )
+        if not _is_string_constant(needle_node):
+            # A column needle is a cross-column substring search — a real feature, but one whose
+            # cost and index behavior have not been designed; a literal keeps that door open.
+            raise SyntaxError(
+                f"`{ast.unparse(haystack_node)}` is searched for a text literal, "
+                f"e.g. `'text' in {ast.unparse(haystack_node)}`"
+            )
+
+    def _membership(
+        self,
+        needle_node: ast.expr,
+        haystack_node: typing.Union[ast.List, ast.Tuple],
+        scopes: tuple[_ElementScope, ...],
+    ) -> None:
+        needle = self._kind(needle_node, scopes)
+        if needle not in _LOOKUP_KINDS:
+            raise SyntaxError(
+                f"`{ast.unparse(needle_node)}` is {_KIND_NOUNS[needle]} "
+                "and cannot be looked up in a list"
+            )
+        for element in haystack_node.elts:
+            if not isinstance(element, ast.Constant):
+                raise SyntaxError(
+                    f"a list holds literal values only: `{ast.unparse(element)}` is not one"
+                )
+            kind = self._constant(element)
+            if kind == "none" or not self._comparable(needle, kind, needle_node, element):
+                raise SyntaxError(
+                    f"`{ast.unparse(element)}` does not match `{ast.unparse(needle_node)}` "
+                    f"({_KIND_NOUNS[needle]}); a list is all text or all numbers"
+                )
+
+    def _call(self, node: ast.Call, scopes: tuple[_ElementScope, ...]) -> _Kind:
+        if not isinstance(func := node.func, ast.Name) or len(node.args) != 1 or node.keywords:
+            raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
+        if func.id in self._bindings.quantifiers:
+            return self._comprehension(node, func.id, scopes)
+        if func.id == "int":
+            # `int(...)` and `float(...)` share one Float cast, so `int(1.9)` would compare as
+            # 1.9 — the opposite of what the Python spelling promises.
+            raise SyntaxError(
+                "`int(...)` is not supported: it would not truncate. "
+                "Compare the number directly, or cast with `float(...)`"
+            )
+        if func.id not in ("str", "float"):
+            raise SyntaxError(f"invalid expression: {ast.unparse(func)}")
+        argument = node.args[0]
+        if isinstance(argument, ast.Constant):
+            raise SyntaxError(f"`{func.id}(...)` casts a term, not a literal")
+        if (kind := self._kind(argument, scopes)) in ("boolean", "none", "text"):
+            raise SyntaxError(
+                f"`{func.id}(...)` cannot cast {_KIND_NOUNS[kind]}: {ast.unparse(argument)}"
+            )
+        return "string" if func.id == "str" else "float"
+
+    def _comprehension(
+        self,
+        node: ast.Call,
+        kind: str,
+        scopes: tuple[_ElementScope, ...],
+    ) -> _Kind:
+        # Shape (single non-async `for`, simple loop variable, declared iterable, declared element
+        # fields) is already settled by `_validate_comprehensions`; only types are open here.
+        comprehension = typing.cast(
+            typing.Union[ast.GeneratorExp, ast.ListComp],
+            _comprehension_argument(node, self._bindings),
+        )
+        generator = comprehension.generators[0]
+        iterable, _ = _resolve_iterable(generator.iter, scopes, self._bindings)
+        variable = typing.cast(ast.Name, generator.target).id
+        inner = (*scopes, _ElementScope(variable, iterable, self._bindings.iterables[iterable]))
+        for condition in generator.ifs:
+            self._expect(condition, inner, "boolean")
+        if kind in QUANTIFIER_NAMES:
+            self._expect(comprehension.elt, inner, "boolean")
+            return "boolean"
+        if kind == "len":
+            return "float"
+        if (element := self._kind(comprehension.elt, inner)) != "float":
+            remedy = (
+                "text and timestamp ordering have no cross-dialect definition here"
+                if kind in ("max", "min")
+                else f"count matching elements with "
+                f"`len([{variable} for {variable} in {iterable} if ...])`"
+            )
+            raise SyntaxError(
+                f"`{kind}(...)` reduces numbers, and `{ast.unparse(comprehension.elt)}` "
+                f"is {_KIND_NOUNS[element]}; {remedy}"
+            )
+        return "float"
+
+
+def _validate_semantics(
+    expression: ast.Expression,
+    source: str,
+    bindings: _FilterBindings,
+) -> None:
+    if bindings.strict_semantics:
+        _SemanticPolicy(bindings).check(expression, source)
 
 
 def _validate_expression(

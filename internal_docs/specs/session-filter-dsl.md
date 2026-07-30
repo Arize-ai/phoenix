@@ -48,6 +48,18 @@ SQL compiler is correct exactly when it agrees with the reference on every test 
 rather than designed: `all()` over an empty selection is true, `len([])` is `0`, `sum(())` is
 `0`, and `len(...)` accepts a list comprehension but not a generator.
 
+Holding that line took a typed acceptance policy, because the shared compiler coerces where it
+cannot type: it casts an operand to a number when the other side is one, reads `is` as `==`,
+and passes any Python operator through to whatever SQLAlchemy makes of it. That is the accepted
+surface of the older span language and stays there. But a language declaring its conditions to
+*be* Python cannot also read `session_id == 1` as a numeric comparison against string data, or
+`+x` as `-x`. So this grain resolves every sub-expression to a type before any SQL is built and
+rejects what does not fit — the rules, and the reason behind each, are in
+[What the language accepts](#what-the-language-accepts). Every divergence found in review ended
+one of two ways: the implementation conforming, or the deviation being legislated below. None
+was left accepted by accident, because an accepted form is a compatibility promise whether or
+not anyone meant to make it.
+
 ### Legislated deviations from Python
 
 Filters cannot raise an exception per row, and SQL NULL does not behave like a Python value.
@@ -158,7 +170,9 @@ Design notes, each a deliberate choice:
   breaking anything.
 - **One sanctioned nesting.** A `traces` element exposes `trace.spans`, so per-turn questions
   work: `any(any(s.span_kind == "TOOL" for s in trace.spans) for trace in traces)`. Nesting
-  stops there.
+  stops there, and stops loudly: a session-level collection named inside a comprehension has no
+  correlation to the element being iterated, so it is rejected by name rather than compiling
+  into a subquery with nothing to key on.
 - **Leaf token counts.** Span elements expose the per-span `llm_token_count_*` columns, never
   the `cumulative_*` rollups. Summing cumulative counts over a session would count the same
   tokens repeatedly through wrapping agent and tool spans.
@@ -203,6 +217,69 @@ span language's owners, and until it is answered a user who moves between the tw
 two different answers to the same-looking query. The divergence lives in one place — a
 per-grain flag on the shared compiler's bindings — so resolving it either way is a one-line
 change, not a refactor.
+
+### What the language accepts
+
+Every term has a type — text, number, timestamp, condition, or *attribute value* for a root-span
+read whose stored type is unknown until the row is read — and a condition is accepted only if it
+types. The rules below are the whole policy. Each exists because the alternative was a form that
+compiled into something other than what its Python spelling says.
+
+- **A condition is a condition.** Comparisons, quantifiers, and `and`/`or`/`not` over them. A
+  bare number is not a filter, and `not num_traces` does not mean "no traces": numeric truthiness
+  is a Python rule SQL has no equivalent for, and PostgreSQL rejects it outright.
+- **Comparison operands match.** `session_id == 1` is a mistake, not a request to read a session
+  id as a number. An attribute value compares against anything, because it genuinely could be
+  anything; a timestamp compares against an ISO literal, which is the spelling the language
+  already teaches. `True`/`False` compare only against a boolean-typed term.
+- **`is` and `is not` take `None` only.** CPython's `is` is object identity, which no column
+  comparison can mean. Reading it as `==` would make two spellings of the same expression differ
+  from Python in the same breath.
+- **`<`, `<=`, `>`, `>=` order numbers and timestamps, not text.** SQLite orders text by byte
+  value and PostgreSQL by the database's collation, so a text ordering means different things on
+  the two backends. The same reasoning rejects `max`/`min` over text, and a declared collation
+  would lift both together.
+- **Arithmetic is `+ - * / // %` over numbers.** `**`, `<<`, `>>`, `&`, `|`, `^`, `@`, and `~`
+  are rejected before lowering rather than failing later inside SQLAlchemy, and unary `+` is the
+  identity Python defines it to be. Arithmetic on an attribute value asks for `float(...)`
+  explicitly, since its stored type is not known.
+- **Literals are text, numbers, `True`/`False`, and `None`.** Bytes, complex numbers, `Ellipsis`,
+  a float literal large enough to overflow to infinity, and a NUL inside a text literal are all
+  rejected — the last because PostgreSQL refuses a NUL in a text value while SQLite stores it, so
+  accepting it would make the same filter mean different things per deployment.
+- **`in` searches text, or looks a value up in a literal list.** The haystack is text or an
+  attribute value and the needle is a text literal; a list holds literals of one type. A column
+  needle (`session_id in first_input`) is cross-column substring search — a plausible feature
+  whose cost has not been designed, so rejecting it now keeps it available later.
+- **Empty collections are accepted.** `x in []` is always false and `x not in ()` always true,
+  exactly as in Python, and SQLAlchemy's empty-set rewrites are portable. Both are tested as
+  executed statements rather than inherited by accident.
+- **Set literals are not accepted yet.** `x in {'a', 'b'}` is the idiomatic Python spelling and
+  its absence is a real rough edge, deferred rather than resolved: admitting a rejected spelling
+  later is purely additive, where withdrawing an accepted one is not.
+- **`float(...)` and `str(...)` cast a term; `int(...)` does not exist.** Both casts share one
+  numeric lowering, so `int(1.9)` would compare as `1.9` — the opposite of what the spelling
+  promises. Truncation can be implemented deliberately later.
+- **Names are resolved strictly, including dotted ones.** `user.id` is the one accepted dotted
+  shorthand; `usr.id` is a typo, not a request for an arbitrary attribute. The open dotted
+  fallback would have quietly undone the did-you-mean protection every other name advertises,
+  and `attributes["usr.id"]` says the same thing without ambiguity.
+- **Reductions reduce numbers.** `sum(span.name for span in spans)` adds text — SQLite coerces it
+  to zero and PostgreSQL refuses. Counting is what that question wants: `len([...])`.
+- **A comprehension iterates one collection.** The only nesting is the one a `traces` element
+  declares (`trace.spans`); a session-level collection named one scope down has nothing to
+  correlate against and is rejected by name. A session-level *term* inside a comprehension is
+  rejected with the scope named, since the same spelling works outside it.
+- **A name is spelled the way the vocabulary spells it.** Python's parser NFKC-normalizes
+  identifiers, so full-width `ｓｅｓｓｉｏｎ＿ｉｄ` would otherwise resolve as `session_id` —
+  the parser defining aliases the vocabulary endpoint cannot serve, against the anti-drift
+  commitment above. Subscript keys are data and keep whatever spelling they were given.
+  Whitespace around a condition is normalized, so a leading space is not an `IndentationError`.
+
+The rejections are pinned in an accept/reject corpus (`test_session_filter_semantics.py`), which
+is where a future term change has to argue its case; the accepted forms in that corpus are
+executed against a real database rather than only rendered, and their row-set semantics live in
+the differential suite.
 
 ### Semantics of missing values, precisely
 
@@ -346,6 +423,26 @@ filtering, each iterable, and trace→span nesting. It also carries the case rul
 one place the language does not simply inherit CPython: containment cases that differ only in
 spelling, alongside the equality and list-membership forms that must stay exact.
 
+The reference models the root-span names and `annotations[...]` too, which is where the
+missing-value rules bite hardest and where stating them was not the same as enforcing them.
+`first_input` and `last_output` read the two ends of the root-span window and are missing when
+that end recorded nothing, so `not in` and `==` exclude those sessions; `any_input` and
+`any_output` are existential over every root span, so `'x' not in any_input` *matches* a session
+with no input at all. Both are pinned against fixtures that have no root span, no input, and a
+child span whose input must belong to neither.
+
+`annotations["q"]` compiles to an outer join, so a session with several rows under one name is
+several candidate rows and matches when any of them satisfies the whole condition — which the
+reference models by binding one row per referenced name and trying every combination. That makes
+one invariant checkable, and it is checked directly: `annotations["q"].score > 0.9` and
+`any(a.name == "q" and a.score > 0.9 for a in session_annotations)` select the same sessions,
+under duplicate names, null scores and labels, and missing annotations, even though one lowers to
+an aliased join and the other to `EXISTS`. The invariant covers the *positive* forms only.
+`annotations["q"].score is None` deliberately also matches sessions carrying no `q` annotation at
+all — the outer join contributes a null row — where the quantifier spelling does not, so the two
+idioms answer different questions there and the corpus pins that difference rather than papering
+over it.
+
 ## API Surface
 
 The language is served over GraphQL only; the REST API has no filter surface. Four fields on
@@ -368,6 +465,12 @@ together — the grains are mutually exclusive, not composable.
 
 `validateSessionFilterCondition` compiles the condition and renders the SQL under both the
 SQLite and PostgreSQL dialects; any failure returns `isValid: false` with an error message.
+Rendering catches *generation* failures, not *execution* failures — a boolean cast to a number
+renders on both dialects, runs on SQLite, and fails on PostgreSQL — so `isValid: true` means
+"compiles and renders", not "will execute on both backends". The forms that made that gap
+observable (a quantifier used as a number, a NUL literal, a mixed `IN` list) are now rejected by
+the acceptance policy before they reach rendering at all, which narrows the gap rather than
+closing it: the claim this section makes is about generation, and stays that way.
 `ValidationResult` also carries a `warnings` list, a third channel between valid and
 invalid. A condition that compiles but references an annotation name never observed on the
 project comes back valid *and* warned — the filter still applies, and the warning names the

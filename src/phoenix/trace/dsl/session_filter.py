@@ -272,6 +272,7 @@ def _element_bindings(spec: _IterableSpec) -> _FilterBindings:
         annotation_table_prefix="span_annotation",
         reject_unbound_names=True,
         case_insensitive_containment=True,
+        strict_semantics=True,
     )
 
 
@@ -306,6 +307,8 @@ SESSION_BINDINGS = _FilterBindings(
     iterables=_SESSION_ITERABLES,
     annotation_iterable="session_annotations",
     case_insensitive_containment=True,
+    strict_semantics=True,
+    attribute_proxies=frozenset({"user.id"}),
 )
 
 SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
