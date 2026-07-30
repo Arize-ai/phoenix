@@ -34,6 +34,10 @@ grains ("grain" here means the artifact level a filter runs at: span, session, a
 trace). Internal consistency across grains outranks per-grain optimization. If a construct
 cannot be made consistent with the family, that is a design smell to resolve before shipping.
 
+This commitment currently has one open exception: string containment ignores case at the
+session grain and not at the span grain. It is recorded, with its reason and the question it
+is waiting on, under [Case](#case-containment-ignores-it-equality-does-not).
+
 ### Python with a SQL backend, not Python-flavored SQL
 
 A filter condition is real Python, and Python defines what it means. The same expressions are
@@ -44,14 +48,19 @@ SQL compiler is correct exactly when it agrees with the reference on every test 
 rather than designed: `all()` over an empty selection is true, `len([])` is `0`, `sum(())` is
 `0`, and `len(...)` accepts a list comprehension but not a generator.
 
-### One legislated deviation: a missing value fails every comparison
+### Legislated deviations from Python
 
 Filters cannot raise an exception per row, and SQL NULL does not behave like a Python value.
-So the language legislates exactly one deviation from Python: a missing value fails every
-comparison. A session with no recorded input, a span with no token counts, an empty
-`max(...)` — comparing any of these against anything is false, in both directions. Sessions
-with the value genuinely missing are targeted explicitly with `is None`. Both the SQL
-compiler and the Python reference implement this one rule; everything else stays CPython.
+So the language legislates a deviation from Python: a missing value fails every comparison. A
+session with no recorded input, a span with no token counts, an empty `max(...)` — comparing
+any of these against anything is false, in both directions. Sessions with the value genuinely
+missing are targeted explicitly with `is None`.
+
+There is one other: `in` against a string haystack ignores case at this grain, where Python's
+is exact (see [Case](#case-containment-ignores-it-equality-does-not)). Both departures are
+legislated for the same reason — the Python-faithful behavior silently drops rows the user
+meant to find — and both are implemented twice, once in the SQL compiler and once in the
+Python reference, so the two execution worlds still agree. Everything else stays CPython.
 
 ### The vocabulary cannot drift from the compiler
 
@@ -99,9 +108,11 @@ A session has no attributes of its own, so several names read from the session's
 - `user.id` and `metadata["key"]` — accepted shorthands for the matching `attributes` keys.
 - `first_input` / `last_output` — the root-span input of the first trace and output of the
   last trace, as strings. Useful for "did the session end well" checks.
-- `'refund' in any_input` / `any_output` — case-sensitive containment over *some* root span's
-  input or output, anywhere in the session. Cheaper than the first/last forms and the right
-  default for "does this session mention X".
+- `'refund' in any_input` / `any_output` — containment over *some* root span's input or
+  output, anywhere in the session. Cheaper than the first/last forms and the right default
+  for "does this session mention X". These two are containment-only: they take `in` and
+  `not in` against a string literal and never `==`, and the served vocabulary types them
+  `containment` so autocomplete does not invite the equality form.
 
 ### Annotations
 
@@ -155,10 +166,47 @@ Design notes, each a deliberate choice:
   variable's fields, literals, and arithmetic over them. Bare session-level names inside a
   comprehension are rejected for now; this is a restriction, not a semantic choice, and can
   be lifted later.
+- **Per-name tool counting has one spelling.** Counting calls to a single tool is written as
+  a comprehension — `len([span for span in spans if span.name == "search"])`. The earlier
+  `tool_span_count["search"]` subscript was retired: it needed a scan of observed tool names
+  to validate, and a name that never occurred silently counted as 0 rather than erroring.
+  Reintroducing the subscript would buy a shorter spelling for a query the language already
+  answers, at the cost of that vocabulary scan.
+- **Case-sensitive containment is gone, not hidden.** With `in` case-insensitive at this
+  grain (see [Case](#case-containment-ignores-it-equality-does-not)), there is no way to ask
+  for an exact-case substring. That is a real loss, accepted because searching text is
+  overwhelmingly the case-insensitive question and a second operator on day one is vocabulary
+  users have to learn before they need it. If the exact form is wanted later it is purely
+  additive — a distinct operator alongside `in`, never a change to what `in` means.
+
+### Case: containment ignores it, equality does not
+
+`in` and `not in` against a string haystack ignore case, everywhere in the session language —
+`any_input`, `any_output`, `first_input`, `last_output`, `session_id`, root-span attribute
+reads, and annotation labels alike. `==` and `!=` stay exact, and so does membership in a
+literal list (`span.name in ["search", "lookup"]`), which is a set test rather than a text
+search. So `'refund' in first_input` finds a session that opened with `REFUND please`, while
+`first_input == 'refund please'` does not.
+
+The reason is the surface this language replaced. The sessions table used to carry a separate
+substring search box that matched case-insensitively; retiring it in favor of the DSL would
+otherwise have quietly narrowed what users could find. Searching text is the case where
+people mean "mentions this", not "spells it exactly this way", and a filter that silently
+misses `REFUND` reads as broken rather than as precise. It compiles to PostgreSQL `ILIKE` and
+SQLite's `text_lower` on both operands — the same mechanism the retired search used, so the
+non-ASCII and wildcard-literal behavior carries over unchanged.
+
+**This diverges from the span grain, deliberately and provisionally.** Span-grain `in` is
+still case-sensitive. That breaks the one-flavor commitment above, which is why it is called
+out here rather than buried: whether to flip the span grain too is an open question for the
+span language's owners, and until it is answered a user who moves between the two views gets
+two different answers to the same-looking query. The divergence lives in one place — a
+per-grain flag on the shared compiler's bindings — so resolving it either way is a one-line
+change, not a refactor.
 
 ### Semantics of missing values, precisely
 
-The one deviation plays out as follows. Both execution worlds implement each line:
+The missing-value deviation plays out as follows. Both execution worlds implement each line:
 
 - A comparison against a missing value is false, in both directions.
 - `all(P for x in IT)` counts an element with a missing field as a counterexample. In SQL the
@@ -236,7 +284,9 @@ The reference is deliberately an independent implementation, not a port of the c
 Agreement between two independent implementations is the evidence; a shared bug would need to
 be made twice. The corpus covers the edges the deviation rule creates: vacuous `all`, empty
 `max`/`min`, missing element fields under both quantifiers and every reduction, `if`-clause
-filtering, each iterable, and trace→span nesting.
+filtering, each iterable, and trace→span nesting. It also carries the case rule, which is the
+one place the language does not simply inherit CPython: containment cases that differ only in
+spelling, alongside the equality and list-membership forms that must stay exact.
 
 ## API Surface
 
@@ -319,8 +369,16 @@ the right ones to lose to it.
 Snippets follow two rules. Every snippet is valid as inserted — placeholders carry working
 example values, never blanks, because a condition that errors until a blank is filled reads
 as broken rather than as an invitation to edit. And each snippet teaches something no other
-snippet covers. The first five run simple to complex, one construct each: an aggregate, a
-quantifier, a compound condition, a reduction, a nested comprehension.
+snippet covers. The five that survive the browse cap show one construct each: text search, an
+aggregate, a quantifier, a reduction, a nested comprehension.
+
+Text search holds a slot by right, not by luck. It is the query the retired search box used
+to serve, so a user who reaches the sessions table looking for the old field has to find its
+replacement without knowing the language first — and the snippet searches input and output
+together, because the box it replaced matched either side. Ordering is a separate mechanism
+from membership: array position decides which snippets make the cap, while the dropdown sorts
+the survivors alphabetically within their section, so the search snippet carries a completion
+boost to lead the group.
 
 ### Writing comprehensions
 
