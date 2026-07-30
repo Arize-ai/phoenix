@@ -445,9 +445,9 @@ CREATE TABLE public.agent_sessions (
     user_id BIGINT,
     title VARCHAR NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE,
+    heartbeat_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    heartbeat_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
     CONSTRAINT uq_agent_sessions_project_session_id_project_name
         UNIQUE (project_session_id, project_name),
@@ -468,16 +468,14 @@ CREATE INDEX ix_agent_sessions_user_id_updated_at ON public.agent_sessions
 CREATE TABLE public.agent_session_messages (
     id bigserial NOT NULL,
     agent_session_id BIGINT NOT NULL,
-    position INTEGER NOT NULL,
     message JSONB NOT NULL,
     message_id VARCHAR GENERATED ALWAYS AS (((message ->> 'id'::text))::character varying) STORED NOT NULL,
     is_compaction_message BOOLEAN GENERATED ALWAYS AS (COALESCE(((message #>> '{metadata,isCompactionMessage}'::text[]))::boolean, false)) STORED NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_messages PRIMARY KEY (id),
-    CONSTRAINT uq_agent_session_messages_agent_session_id_position
-        UNIQUE (agent_session_id, position),
     CONSTRAINT uq_agent_session_messages_message_id
         UNIQUE (message_id),
+    CHECK (((message_id)::text ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'::text)),
     CONSTRAINT fk_agent_session_messages_agent_session_id_agent_sessions
         FOREIGN KEY
         (agent_session_id)
@@ -486,7 +484,7 @@ CREATE TABLE public.agent_session_messages (
 );
 
 CREATE INDEX ix_agent_session_messages_compaction ON public.agent_session_messages
-    USING btree (agent_session_id, "position" DESC) WHERE is_compaction_message;
+    USING btree (agent_session_id, id DESC) WHERE is_compaction_message;
 
 
 -- Table: agent_session_snapshots
