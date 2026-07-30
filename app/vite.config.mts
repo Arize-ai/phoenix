@@ -5,7 +5,8 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 // Uncomment below to visualize the bundle size after running the build command, also uncomment plugins.push(visualizer());
 // import { visualizer } from "rollup-plugin-visualizer";
 /// <reference types="vitest/config" />
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
+import type { Plugin, ProxyOptions } from "vite";
 import circleDependency from "vite-plugin-circular-dependency";
 import reactFallbackThrottlePlugin from "vite-plugin-react-fallback-throttle";
 import relay from "vite-plugin-relay";
@@ -14,6 +15,72 @@ import relay from "vite-plugin-relay";
 // We however want to enable source maps on the containers for debugging purposes.
 const enableSourceMap = process.env.PHOENIX_ENABLE_SOURCE_MAP === "True";
 
+const REMOTE_CONFIG_MARKER = "<!-- phoenix-remote-config -->";
+
+function getRemoteConfigScript(html: string): string {
+  const configDefinition = 'Object.defineProperty(window, "Config"';
+  const configDefinitionIndex = html.indexOf(configDefinition);
+  if (configDefinitionIndex === -1) {
+    throw new Error("The remote Phoenix page does not define window.Config.");
+  }
+
+  const scriptStartIndex = html.lastIndexOf("<script", configDefinitionIndex);
+  const scriptEndIndex = html.indexOf("</script>", configDefinitionIndex);
+  if (scriptStartIndex === -1 || scriptEndIndex === -1) {
+    throw new Error("Could not extract window.Config from remote Phoenix.");
+  }
+
+  return html.slice(scriptStartIndex, scriptEndIndex + "</script>".length);
+}
+
+function getRemoteModernizrScript(html: string): string {
+  const modernizrScript = html.match(
+    /<script src="[^"]*\/modernizr\.js"><\/script>/
+  )?.[0];
+  if (!modernizrScript) {
+    throw new Error("The remote Phoenix page does not load modernizr.js.");
+  }
+  return modernizrScript;
+}
+
+function createRemoteBackendPlugin(remoteBackendUrl: URL): Plugin {
+  return {
+    name: "phoenix-remote-backend",
+    transformIndexHtml: {
+      order: "pre",
+      async handler(html) {
+        const response = await fetch(remoteBackendUrl);
+        if (!response.ok) {
+          throw new Error(
+            `Could not load remote Phoenix config: ${response.status} ${response.statusText}`
+          );
+        }
+        const remoteHtml = await response.text();
+        return html.replace(
+          REMOTE_CONFIG_MARKER,
+          `${getRemoteModernizrScript(remoteHtml)}\n${getRemoteConfigScript(remoteHtml)}`
+        );
+      },
+    },
+  };
+}
+
+function createRemoteBackendProxy(remoteBackendUrl: URL): ProxyOptions {
+  return {
+    target: remoteBackendUrl.origin,
+    changeOrigin: true,
+    secure: true,
+    ws: true,
+    bypass(request) {
+      // Serve the local SPA for top-level navigation while proxying every
+      // backend request (including the GraphQL and REST explorer iframes).
+      if (request.headers["sec-fetch-dest"] === "document") {
+        return "/index.html";
+      }
+    },
+  };
+}
+
 // Configure React Compiler preset with custom options
 // reactCompilerPreset() provides optimized filters; we customize the babel plugin options
 const compilerPreset = reactCompilerPreset();
@@ -21,7 +88,10 @@ compilerPreset.preset = () => ({
   plugins: [["babel-plugin-react-compiler", { panicThreshold: "none" }]],
 });
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, __dirname, "");
+  const remoteBackend = env.PHOENIX_REMOTE_BACKEND?.trim();
+  const remoteBackendUrl = remoteBackend ? new URL(remoteBackend) : null;
   const plugins = [
     // disable react's built-in 300ms suspense fallback timer
     // without this build plugin we see a 300ms delay on most UI interactions
@@ -36,6 +106,9 @@ export default defineConfig(() => {
     lezer(),
     circleDependency({ circleImportThrowErr: true }),
   ];
+  if (remoteBackendUrl) {
+    plugins.push(createRemoteBackendPlugin(remoteBackendUrl));
+  }
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());
   return {
@@ -44,6 +117,12 @@ export default defineConfig(() => {
     publicDir: resolve(__dirname, "static"),
     server: {
       port: parseInt(process.env.VITE_PORT || "5173"),
+      proxy: remoteBackendUrl
+        ? {
+            [remoteBackendUrl.pathname.replace(/\/$/, "")]:
+              createRemoteBackendProxy(remoteBackendUrl),
+          }
+        : undefined,
       warmup: {
         clientFiles: ["./index.tsx", "./App.tsx", "./Routes.tsx"],
       },
