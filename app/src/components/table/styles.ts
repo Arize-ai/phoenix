@@ -111,6 +111,7 @@ export const tableCSS = css`
         }
       }
       & > td {
+        box-sizing: border-box;
         padding: var(--global-table-cell-padding-y)
           var(--global-table-cell-padding-x);
       }

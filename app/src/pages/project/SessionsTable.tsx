@@ -367,6 +367,16 @@ export function SessionsTable(props: SessionsTableProps) {
   ];
 
   const columns: ColumnDef<TableRow>[] = [
+    {
+      header: "turns",
+      accessorKey: "numTraces",
+      enableSorting: true,
+      enableResizing: false,
+      size: 50,
+      minSize: 50,
+      maxSize: 50,
+      cell: IntCell,
+    },
     ...annotationColumns,
     {
       header: "user",
@@ -462,12 +472,6 @@ export function SessionsTable(props: SessionsTableProps) {
           <SessionTokenCosts totalCost={value} nodeId={session.id} size="S" />
         );
       },
-    },
-    {
-      header: "total traces",
-      accessorKey: "numTraces",
-      enableSorting: true,
-      cell: IntCell,
     },
     {
       header: "start time",
