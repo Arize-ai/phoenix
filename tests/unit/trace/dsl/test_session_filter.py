@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.dsl.filter import SPAN_BINDINGS
+from phoenix.trace.dsl.filter import SPAN_BINDINGS, SpanFilter
 from phoenix.trace.dsl.session_filter import (
     SESSION_BINDINGS,
     SESSION_FILTER_DESCRIPTIONS,
@@ -63,18 +63,30 @@ _POSTGRESQL_DIALECT = cast(Dialect, postgresql.dialect())  # type: ignore[no-unt
             "'refund' not in any_output",
             "not_(any_output('refund'))",
         ),
+        # Session-grain string containment is case-insensitive; equality stays exact.
         (
             "'refund' in first_input",
-            "TextContains(first_input, 'refund')",
+            "CaseInsensitiveContains(first_input, 'refund')",
         ),
         (
             "'goodbye' not in last_output",
-            "not_(TextContains(last_output, 'goodbye'))",
+            "not_(CaseInsensitiveContains(last_output, 'goodbye'))",
+        ),
+        (
+            "'gpt' in attributes['llm.model_name']",
+            "CaseInsensitiveContains(attributes[['llm.model_name']].as_string(), 'gpt')",
         ),
     ],
 )
 def test_session_filter_translated(condition: str, expected: str) -> None:
     assert unparse(SessionFilter(condition).translated).strip() == expected
+
+
+def test_span_filter_containment_stays_case_sensitive() -> None:
+    """The containment polarity is per-grain: only the session grain ignores case."""
+    assert unparse(SpanFilter("'refund' in input.value").translated).strip() == (
+        "TextContains(attributes[['input', 'value']].as_string(), 'refund')"
+    )
 
 
 def test_session_filter_rejects_span_count_subscript() -> None:
@@ -135,10 +147,18 @@ def test_session_filter_rejects_any_input_misuse(condition: str) -> None:
 def test_session_filter_any_io_glosses_are_instrumentation_shaped() -> None:
     assert "instrumentation-shaped" in SESSION_FILTER_DESCRIPTIONS["any_input"]
     assert "instrumentation-shaped" in SESSION_FILTER_DESCRIPTIONS["any_output"]
-    assert "turn-1-only" in SESSION_FILTER_DESCRIPTIONS["first_input"]
-    assert "final-turn-only" in SESSION_FILTER_DESCRIPTIONS["last_output"]
+    assert "turn-1-only" in SESSION_FILTER_DESCRIPTIONS["first_input"].lower()
+    assert "final-turn-only" in SESSION_FILTER_DESCRIPTIONS["last_output"].lower()
     assert "user said" not in SESSION_FILTER_DESCRIPTIONS["any_input"].lower()
     assert "agent said" not in SESSION_FILTER_DESCRIPTIONS["any_output"].lower()
+
+
+def test_session_filter_text_glosses_state_case_insensitive_containment() -> None:
+    """No gloss may still advertise the retired case-sensitive containment."""
+    for name in ("any_input", "any_output", "first_input", "last_output", "session_id"):
+        assert "case-sensitive" not in SESSION_FILTER_DESCRIPTIONS[name].lower()
+    assert "Case-insensitive containment" in SESSION_FILTER_DESCRIPTIONS["any_input"]
+    assert "Case-insensitive containment" in SESSION_FILTER_DESCRIPTIONS["any_output"]
 
 
 async def _add_span_cost(
@@ -582,6 +602,7 @@ async def test_session_filter_any_io_returns_any_turn_matches(db: DbSessionFacto
             turns=[("hello", "first"), ("question", "done")],
             start_time=start,
         )
+        # Containment ignores case, so a differently-cased occurrence is a match.
         case_mismatch = await _seed_io_session(
             session,
             project,
@@ -590,8 +611,7 @@ async def test_session_filter_any_io_returns_any_turn_matches(db: DbSessionFacto
         )
 
         by_input = await _matched_rowids(session, SessionFilter("'refund' in any_input"), project)
-        assert by_input == {input_match.id}
-        assert case_mismatch.id not in by_input
+        assert by_input == {input_match.id, case_mismatch.id}
 
         by_output = await _matched_rowids(session, SessionFilter("'refund' in any_output"), project)
         assert by_output == {output_match.id}
@@ -600,6 +620,12 @@ async def test_session_filter_any_io_returns_any_turn_matches(db: DbSessionFacto
             session, SessionFilter("'refund' not in any_output"), project
         )
         assert not_in_output == {input_match.id, no_match.id, case_mismatch.id}
+
+        # An uppercase needle matches lowercase text just the same.
+        by_upper_needle = await _matched_rowids(
+            session, SessionFilter("'REFUND' in any_input"), project
+        )
+        assert by_upper_needle == by_input
 
 
 async def test_session_filter_first_last_io_returns_window_turn_matches(
@@ -632,6 +658,7 @@ async def test_session_filter_first_last_io_returns_window_turn_matches(
             turns=[("hello", "refund pending"), ("question", "done")],
             start_time=start,
         )
+        # Containment ignores case here too — the turn window is what narrows the match.
         case_mismatch = await _seed_io_session(
             session,
             project,
@@ -642,16 +669,20 @@ async def test_session_filter_first_last_io_returns_window_turn_matches(
         by_first_input = await _matched_rowids(
             session, SessionFilter("'refund' in first_input"), project
         )
-        assert by_first_input == {first_input_match.id}
+        assert by_first_input == {first_input_match.id, case_mismatch.id}
         assert later_input_only.id not in by_first_input
-        assert case_mismatch.id not in by_first_input
 
         by_last_output = await _matched_rowids(
             session, SessionFilter("'refund' in last_output"), project
         )
-        assert by_last_output == {last_output_match.id}
+        assert by_last_output == {last_output_match.id, case_mismatch.id}
         assert first_output_only.id not in by_last_output
-        assert case_mismatch.id not in by_last_output
+
+        # Equality stays exact, so the same differently-cased text no longer matches.
+        by_exact_first_input = await _matched_rowids(
+            session, SessionFilter("first_input == 'refund please'"), project
+        )
+        assert by_exact_first_input == {first_input_match.id}
 
 
 async def test_session_filter_root_span_and_annotation(db: DbSessionFactory) -> None:

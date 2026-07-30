@@ -88,7 +88,9 @@ def test_annotation_text_inside_a_string_literal_stays_data(
     # describing annotations. The needle has to survive verbatim, and no join may appear.
     needle = 'annotations["q"].score'
     compiled = _compile(grain, f"'{needle}' in {text_name}")
-    assert unparse(compiled.translated).strip() == f"TextContains({text_name}, '{needle}')"
+    # The grains lower `in` to different functions -- the session grain ignores case.
+    containment = "TextContains" if grain is SpanFilter else "CaseInsensitiveContains"
+    assert unparse(compiled.translated).strip() == f"{containment}({text_name}, '{needle}')"
     assert compiled._aliased_annotation_relations == ()
 
 

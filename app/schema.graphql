@@ -2079,7 +2079,7 @@ type FilterVocabularyTerm {
   name: String!
 
   """
-  Value-type hint for the comparand: 'string', 'number', 'datetime', or 'boolean'. Collections carry 'iterable' — they are looped over rather than compared.
+  Value-type hint for the comparand: 'string', 'number', 'datetime', or 'boolean'. Collections carry 'iterable' — they are looped over rather than compared. 'containment' marks a term that only takes `in` / `not in` against a string literal and never `==`.
   """
   type: String!
 

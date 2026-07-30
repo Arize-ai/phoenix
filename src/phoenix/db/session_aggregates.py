@@ -36,7 +36,7 @@ __all__ = [
     "span_kind_count_by_session",
     "earliest_root_span_by_session",
     "root_span_io_value_by_session",
-    "root_span_attribute_text_contains_by_session",
+    "root_span_attribute_case_insensitive_contains_by_session",
 ]
 
 RootSpanIOKind = Literal["first_input", "last_output"]
@@ -163,7 +163,7 @@ def span_kind_count_by_session(span_kind: str) -> SessionAggregate:
     )
 
 
-def root_span_attribute_text_contains_by_session(
+def root_span_attribute_case_insensitive_contains_by_session(
     attribute_path: tuple[str, ...],
     substring: Any,
     session_col: Any,
@@ -172,14 +172,15 @@ def root_span_attribute_text_contains_by_session(
     start_time: Optional[Any] = None,
     end_time: Optional[Any] = None,
 ) -> ColumnElement[bool]:
-    """Whether any root span in a session contains ``substring`` at ``attribute_path``."""
+    """Whether any root span in a session contains ``substring``, ignoring case, at
+    ``attribute_path``."""
     stmt = (
         select(models.Span.id)
         .join_from(models.Span, models.Trace)
         .where(_GROUP_KEY == session_col)
         .where(models.Span.parent_id.is_(None))
         .where(
-            models.TextContains(
+            models.CaseInsensitiveContains(
                 models.Span.attributes[list(attribute_path)].as_string(),
                 substring,
             )

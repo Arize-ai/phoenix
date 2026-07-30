@@ -31,7 +31,7 @@ from phoenix.db.session_aggregates import (
     earliest_root_span_by_session,
     num_traces_by_session,
     num_traces_with_error_by_session,
-    root_span_attribute_text_contains_by_session,
+    root_span_attribute_case_insensitive_contains_by_session,
     root_span_io_value_by_session,
     span_kind_count_by_session,
     token_counts_by_session,
@@ -271,6 +271,7 @@ def _element_bindings(spec: _IterableSpec) -> _FilterBindings:
         entity_id=models.Span.id,
         annotation_table_prefix="span_annotation",
         reject_unbound_names=True,
+        case_insensitive_containment=True,
     )
 
 
@@ -304,11 +305,14 @@ SESSION_BINDINGS = _FilterBindings(
     exists_names=frozenset(_EXISTS_ATTRIBUTE_PATHS),
     iterables=_SESSION_ITERABLES,
     annotation_iterable="session_annotations",
+    case_insensitive_containment=True,
 )
 
 SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
     {
-        "session_id": "Session identifier string.",
+        "session_id": (
+            "Session identifier string. `in` containment ignores case, `==` matches exactly."
+        ),
         "start_time": (
             "Session start timestamp (earliest trace). Compare against ISO 8601 strings, "
             "e.g. start_time > '2026-07-01'; values without a timezone are read as UTC."
@@ -350,26 +354,28 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "tool_span_count": "Number of TOOL spans in the session; 0 when absent, never null.",
         "llm_span_count": "Number of LLM spans in the session; 0 when absent, never null.",
         "any_input": (
-            "Case-sensitive containment in some root span's input payload; "
-            "instrumentation-shaped, not a user-role message. "
+            "Case-insensitive containment in some root span's input payload; "
+            "instrumentation-shaped, not a user-role message. Containment only — write "
+            "`'x' in any_input`, never `any_input == 'x'`. "
             "`'x' not in any_input` also matches sessions with no input (NOT EXISTS)."
         ),
         "any_output": (
-            "Case-sensitive containment in some root span's output payload; "
-            "instrumentation-shaped, not an agent-role message. "
+            "Case-insensitive containment in some root span's output payload; "
+            "instrumentation-shaped, not an agent-role message. Containment only — write "
+            "`'x' in any_output`, never `any_output == 'x'`. "
             "`'x' not in any_output` also matches sessions with no output (NOT EXISTS)."
         ),
         "first_input": (
-            "Case-sensitive turn-1-only root span input.value string — the input of the "
-            "session's first trace; a session with no first input is SQL null, so `not in` and "
-            "comparisons exclude it (target it with `is None`). For containment anywhere in "
-            "the session, prefer the cheaper any_input."
+            "Turn-1-only root span input.value string — the input of the session's first "
+            "trace. `in` containment ignores case, `==` is exact; a session with no first "
+            "input is SQL null, so `not in` and comparisons exclude it (target it with "
+            "`is None`). For containment anywhere in the session, prefer the cheaper any_input."
         ),
         "last_output": (
-            "Case-sensitive final-turn-only root span output.value string — the output of the "
-            "session's last trace; a session with no last output is SQL null, so `not in "
-            "last_output` excludes it (target it with `is None`). For containment anywhere in "
-            "the session, prefer the cheaper any_output."
+            "Final-turn-only root span output.value string — the output of the session's last "
+            "trace. `in` containment ignores case, `==` is exact; a session with no last "
+            "output is SQL null, so `not in last_output` excludes it (target it with "
+            "`is None`). For containment anywhere in the session, prefer the cheaper any_output."
         ),
         "attributes[...]": (
             "Root-span attribute access by OTel wire key: string subscripts are joined with dots, "
@@ -377,8 +383,9 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             "key and match it however ingestion nested it (the fully dot-split shape wins if "
             "several coexist). Numeric subscripts address the stored JSON literally. Values are "
             "read from the session's earliest root span and are string-cast unless explicitly "
-            "cast. A missing key is SQL null, so comparisons and `not in` exclude those sessions "
-            "(target them with `is None`)."
+            "cast. `in` containment ignores case, `==` matches exactly. A missing key is SQL "
+            "null, so comparisons and `not in` exclude those sessions (target them with "
+            "`is None`)."
         ),
         "user.id": (
             'Accepted proxy for attributes["user.id"]; reads from the session\'s earliest '
@@ -466,7 +473,7 @@ def _exists_bindings(
             substring: typing.Any,
             attribute_path: tuple[str, ...] = attribute_path,
         ) -> typing.Any:
-            return root_span_attribute_text_contains_by_session(
+            return root_span_attribute_case_insensitive_contains_by_session(
                 attribute_path,
                 substring,
                 models.ProjectSession.id,
