@@ -529,6 +529,8 @@ export function useAgentChat({
     }
   }, [persistedSessionId, chatInstance, isActive, store]);
 
+  const isSessionPollingPaused = isRequestActive(status) || isCompacting;
+
   // Keep idle sessions synchronized with turns completed by other clients.
   // Poll slowly during normal use and switch to the existing faster cadence
   // while another client holds the turn lock. This client's own generation
@@ -536,12 +538,7 @@ export function useAgentChat({
   // in-flight optimistic messages. Refetching through Relay normalizes session
   // metadata into every mounted view as well as refreshing this chat runtime.
   useEffect(() => {
-    if (
-      !persistedSessionId ||
-      !chatInstance ||
-      isRequestActive(status) ||
-      isCompacting
-    ) {
+    if (!persistedSessionId || !chatInstance || isSessionPollingPaused) {
       // A runtime first observed during its own generation will be canonicalized
       // by the turn-completion refetch, so it does not also need a mount sync.
       shouldSyncOnNextPollSetupRef.current = false;
@@ -596,9 +593,8 @@ export function useAgentChat({
     persistedSessionId,
     chatInstance,
     isBusyElsewhere,
-    isCompacting,
+    isSessionPollingPaused,
     relayEnvironment,
-    status,
     store,
   ]);
 

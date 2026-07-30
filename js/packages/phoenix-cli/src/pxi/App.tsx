@@ -935,8 +935,9 @@ export function PxiApp({
   // generation disables polling so its in-flight messages cannot be replaced
   // by an older persisted transcript.
   const activeSessionId = activeSession?.id ?? null;
+  const isSessionPollingPaused = status === "streaming" || isCompacting;
   useEffect(() => {
-    if (!activeSessionId || status === "streaming" || isCompacting) {
+    if (!activeSessionId || isSessionPollingPaused) {
       return undefined;
     }
     let isStale = false;
@@ -969,10 +970,9 @@ export function PxiApp({
     };
   }, [
     activeSessionId,
-    isCompacting,
+    isSessionPollingPaused,
     isSessionBusy,
     serverSessionClient,
-    status,
   ]);
 
   const handleExit = () => {
