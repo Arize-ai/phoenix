@@ -6,7 +6,7 @@ import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQu
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
-import type { SettledSpanFilterSeed, SpanFilterSeed } from "./spanFilterSeed";
+import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 // Carries the filter for the same reason the spans query does: a traces table
 // seeded from the URL but loaded unfiltered renders rows the filter excludes
 // and then corrects itself.
@@ -83,8 +83,7 @@ export const ProjectPageQueryReferenceContext = createContext<{
    * The condition the spans query was loaded with, or null while one that
    * needs the server is still being validated.
    */
-  spansFilterSeed: SpanFilterSeed | null;
-  spansFilterSeedVersion: number;
+  spansFilterSeed: SettledSpanFilterSeed | null;
   /**
    * Load the spans query from a condition the field has just validated. The
    * page holds no query while a seed is pending, so this is what ends that
@@ -106,7 +105,6 @@ export const ProjectPageQueryReferenceContext = createContext<{
 }>({
   spansQueryReference: null,
   spansFilterSeed: null,
-  spansFilterSeedVersion: 0,
   resolveSpansSeed: () => {},
   sessionsQueryReference: null,
   tracesQueryReference: null,

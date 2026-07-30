@@ -57,8 +57,10 @@ export const ProjectTracesPage = () => {
                 tracesQueryReference={tracesQueryReference}
                 seed={tracesFilterSeed}
               />
-            ) : (
+            ) : tracesFilterSeed === null ? (
               <PendingSpanFilter onResolved={resolveTracesSeed} />
+            ) : (
+              <Loading />
             )}
           </Suspense>
         </SpanFiltersProvider>

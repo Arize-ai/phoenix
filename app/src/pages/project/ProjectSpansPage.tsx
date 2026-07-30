@@ -41,16 +41,15 @@ function SpansTabContent({
 }
 
 export const ProjectSpansPage = () => {
-  const {
-    spansQueryReference,
-    spansFilterSeed,
-    spansFilterSeedVersion,
-    resolveSpansSeed,
-  } = useProjectPageQueryReferenceContext();
+  const { spansQueryReference, spansFilterSeed, resolveSpansSeed } =
+    useProjectPageQueryReferenceContext();
   const hasSpansQuery =
     spansQueryReference !== null && spansFilterSeed !== null;
+  // Keyed on the condition, not a counter: re-resolving the same filter must
+  // not remount the editor and table. A genuinely new condition still does,
+  // which is what resets the editor.
   const seedKey = spansFilterSeed
-    ? `seed-${spansFilterSeedVersion}`
+    ? `seed-${spansFilterSeed.condition}`
     : "seed-pending";
   return (
     <TracingRoot>
@@ -67,8 +66,14 @@ export const ProjectSpansPage = () => {
                 queryReference={spansQueryReference}
                 seed={spansFilterSeed}
               />
-            ) : (
+            ) : spansFilterSeed === null ? (
+              // Waiting on validation: the field has to be on screen, because
+              // it is what validates.
               <PendingSpanFilter onResolved={resolveSpansSeed} />
+            ) : (
+              // Waiting only on the query. Showing the field here would mount
+              // the toolbar, tear it down, and rebuild it inside the table.
+              <Loading />
             )}
           </Suspense>
         </SpanFiltersProvider>

@@ -45,11 +45,7 @@ import {
 } from "./ProjectPageQueries";
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
-import {
-  type SettledSpanFilterSeed,
-  spanFilterSeed,
-  type SpanFilterSeed,
-} from "./spanFilterSeed";
+import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -137,6 +133,17 @@ export function ProjectPageContent({
   );
 }
 
+/** The URL's condition when it needs no server answer, else null. */
+function settledSeedFromUrl(
+  search: string,
+  fallback: string
+): SettledSpanFilterSeed | null {
+  const seed = spanFilterSeed(
+    new URLSearchParams(search).get(SPAN_FILTER_CONDITION_PARAM) ?? fallback
+  );
+  return seed.requiresServerValidation ? null : seed;
+}
+
 function ProjectPageContentBody({
   projectId,
   timeRangeISOStrings,
@@ -166,16 +173,25 @@ function ProjectPageContentBody({
       fetchKey: `${projectId}-${timeRangeISOStrings.start}-${timeRangeISOStrings.end}`,
     }
   );
+  // Read once for the state initializers below, which run before this
+  // component's `useSearchParams` call.
+  const initialSearch = window.location.search;
   const [tracesQueryReference, loadTracesQuery] =
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
   const [spansQueryReference, loadSpansQuery] =
     useQueryLoader<ProjectPageSpansQueryType>(ProjectPageQueriesSpansQuery);
-  const [spansFilterSeedState, setSpansFilterSeedState] = useState<{
-    seed: SpanFilterSeed;
-    version: number;
-  } | null>(null);
+  // Classified during the first render, not in the effect that follows it.
+  // A condition needing no server answer must never leave the page in the
+  // pending state, or the filter field mounts standalone for a frame and then
+  // moves into the table.
+  const [spansFilterSeed, setSpansFilterSeed] =
+    useState<SettledSpanFilterSeed | null>(() =>
+      settledSeedFromUrl(initialSearch, DEFAULT_SPAN_FILTER_CONDITION)
+    );
   const [tracesFilterSeed, setTracesFilterSeed] =
-    useState<SettledSpanFilterSeed | null>(null);
+    useState<SettledSpanFilterSeed | null>(() =>
+      settledSeedFromUrl(initialSearch, "")
+    );
   const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
@@ -206,11 +222,8 @@ function ProjectPageContentBody({
   const resolveSpansSeed = useCallback(
     (seed: SettledSpanFilterSeed, persistToUrl = true) => {
       startTransition(() => {
-        setSpansFilterSeedState((previous) => ({
-          seed,
-          version: (previous?.version ?? 0) + 1,
-        }));
-        // Before the version bump re-keys `SpanFiltersProvider` and it re-reads
+        setSpansFilterSeed(seed);
+        // Before the new condition re-keys `SpanFiltersProvider` and it re-reads
         // the URL, or a condition typed while waiting loses to the stale one
         // still in the address bar. Written even when empty: an absent param
         // seeds the default, an empty one means deliberately cleared.
@@ -279,8 +292,17 @@ function ProjectPageContentBody({
           searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
             DEFAULT_SPAN_FILTER_CONDITION
         );
+        // Returning to a tab whose rows already answer this condition is not a
+        // reason to reload it. Re-resolving would tear the table down and
+        // rebuild it for the same result.
+        if (
+          spansQueryReference &&
+          spansFilterSeed?.condition === seed.condition
+        ) {
+          return;
+        }
         if (seed.requiresServerValidation) {
-          setSpansFilterSeedState(null);
+          setSpansFilterSeed(null);
         } else {
           resolveSpansSeed(seed);
         }
@@ -288,6 +310,12 @@ function ProjectPageContentBody({
         const seed = spanFilterSeed(
           searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? ""
         );
+        if (
+          tracesQueryReference &&
+          tracesFilterSeed?.condition === seed.condition
+        ) {
+          return;
+        }
         if (seed.requiresServerValidation) {
           setTracesFilterSeed(null);
         } else {
@@ -334,8 +362,7 @@ function ProjectPageContentBody({
       <ProjectPageQueryReferenceContext.Provider
         value={{
           spansQueryReference: spansQueryReference ?? null,
-          spansFilterSeed: spansFilterSeedState?.seed ?? null,
-          spansFilterSeedVersion: spansFilterSeedState?.version ?? 0,
+          spansFilterSeed,
           resolveSpansSeed,
           sessionsQueryReference: sessionsQueryReference ?? null,
           tracesQueryReference: tracesQueryReference ?? null,
