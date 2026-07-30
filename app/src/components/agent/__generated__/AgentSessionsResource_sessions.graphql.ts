@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e53fcab1aaf5f228a9e075d76edec4ec>>
+ * @generated SignedSource<<05f2cb9ce0229829d34661fd8e7bb974>>
  * @lightSyntaxTransform
  */
 
@@ -117,10 +117,10 @@ return {
                   "name": "EditAgentSessionTitleDialog_session"
                 },
                 {
-                  "alias": null,
+                  "alias": "isTemporary",
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "isTemporary",
+                  "name": "isEphemeral",
                   "storageKey": null
                 },
                 {
@@ -191,6 +191,6 @@ return {
 };
 })();
 
-(node as any).hash = "433f0c5b7c523da05b9b2a1f7d6242f6";
+(node as any).hash = "f139691753745b6b9ab58de36be057c4";
 
 export default node;

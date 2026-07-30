@@ -17,7 +17,7 @@ class AgentSessionSummary(TypedDict):
     title: str
     created_at: str
     updated_at: str
-    is_temporary: bool
+    is_ephemeral: bool
 
 
 class AgentSpanContext(TypedDict):
@@ -91,7 +91,7 @@ class CodeEvaluatorContext(TypedDict):
 
 class CreateAgentSessionRequestBody(TypedDict):
     title: NotRequired[str]
-    temporary: NotRequired[bool]
+    is_ephemeral: NotRequired[bool]
 
 
 class CreateAgentSessionResponseBody(TypedDict):
@@ -1925,7 +1925,7 @@ class AgentSessionData(TypedDict):
     title: str
     created_at: str
     updated_at: str
-    is_temporary: bool
+    is_ephemeral: bool
     is_active: bool
     messages: Sequence[PhoenixUIMessage]
 

@@ -36,7 +36,7 @@ class CreateAgentSessionInput:
         default="",
         description=("Optional initial title."),
     )
-    temporary: bool = strawberry.field(
+    is_ephemeral: bool = strawberry.field(
         default=False,
         description="Whether the session should expire after a period of inactivity.",
     )
@@ -130,7 +130,7 @@ class AgentSessionMutationMixin:
                 user_id=info.context.user_id,
                 title=title,
                 project_name=get_env_phoenix_agents_assistant_project_name(),
-                is_ephemeral=input.temporary,
+                is_ephemeral=input.is_ephemeral,
             )
             session.add(agent_session)
             await session.flush()
@@ -327,7 +327,9 @@ async def _load_owned_agent_session(
         statement = statement.with_for_update()
     agent_session = await session.scalar(statement)
     viewer_id = info.context.user_id
-    if agent_session is None or (viewer_id is not None and agent_session.user_id != viewer_id):
+    auth_is_enforced = viewer_id is not None
+    viewer_owns_session = agent_session is not None and agent_session.user_id == viewer_id
+    if agent_session is None or (auth_is_enforced and not viewer_owns_session):
         raise NotFound(f"No agent session found for row ID '{agent_session_rowid}'")
     return agent_session
 

@@ -443,7 +443,7 @@ CREATE TABLE public.agent_sessions (
     project_name VARCHAR NOT NULL,
     user_id BIGINT,
     title VARCHAR NOT NULL,
-    is_ephemeral BOOLEAN NOT NULL DEFAULT false,
+    is_ephemeral BOOLEAN NOT NULL,
     heartbeat_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

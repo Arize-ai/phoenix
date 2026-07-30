@@ -355,7 +355,7 @@ class CreateAgentSessionRequestBody(V1RoutesBaseModel):
         max_length=MAX_AGENT_SESSION_TITLE_LENGTH,
         description="Optional initial title.",
     )
-    temporary: bool = Field(
+    is_ephemeral: bool = Field(
         default=False,
         description="Whether the session should expire after a period of inactivity.",
     )
@@ -376,7 +376,7 @@ class AgentSessionSummary(V1RoutesBaseModel):
     title: str
     created_at: datetime
     updated_at: datetime
-    is_temporary: bool
+    is_ephemeral: bool
 
 
 class AgentSessionData(AgentSessionSummary):
@@ -1359,9 +1359,7 @@ async def _refresh_and_load_agent_session(
         statement = statement.with_for_update()
     if await session.scalar(statement) is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    # Bumping updated_at is what keeps an ephemeral session alive: its deadline
-    # is that column plus a fixed TTL, so activity slides the window and there
-    # is no second timestamp to maintain.
+    # Bumping updated_at slides an ephemeral session's TTL window.
     refreshed_agent_session = await session.scalar(
         update(models.AgentSession)
         .where(models.AgentSession.id == agent_session_rowid)
@@ -1698,7 +1696,7 @@ def _to_agent_session_summary(agent_session: models.AgentSession) -> AgentSessio
         title=agent_session.title,
         created_at=agent_session.created_at,
         updated_at=agent_session.updated_at,
-        is_temporary=agent_session.is_ephemeral,
+        is_ephemeral=agent_session.is_ephemeral,
     )
 
 
@@ -1737,7 +1735,7 @@ def create_agents_router(
                 user_id=int(phoenix_user.identity) if phoenix_user is not None else None,
                 title=title,
                 project_name=get_env_phoenix_agents_assistant_project_name(),
-                is_ephemeral=request_body.temporary,
+                is_ephemeral=request_body.is_ephemeral,
             )
             session.add(agent_session)
             await session.flush()

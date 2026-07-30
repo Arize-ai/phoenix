@@ -50,14 +50,7 @@ class AgentSessionSweeper(DaemonTask):
             await self._enforce_per_user_count_cap(retention.max_count_per_user)
 
     async def _delete_idle_sessions(self, *, is_ephemeral: bool, max_idle: timedelta) -> None:
-        """Delete sessions of one persistence kind left untouched for ``max_idle``.
-
-        The two kinds differ only in the flag and the length of the window: an
-        ephemeral session dies a fixed TTL after its last activity, which is
-        the same question retention asks of a persisted one. Sharing the query
-        also gives ephemeral deletes the batching that bounds how much cascade
-        work lands in a single transaction.
-        """
+        """Delete sessions of one persistence kind left untouched for ``max_idle``."""
         cutoff = datetime.now(timezone.utc) - max_idle
         total_deleted = 0
         while True:

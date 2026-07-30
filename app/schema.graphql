@@ -100,7 +100,7 @@ type AgentSession implements Node {
   latestOutput: String
 
   """Whether the session expires after a period of inactivity."""
-  isTemporary: Boolean!
+  isEphemeral: Boolean!
 
   """
   Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat.
@@ -772,7 +772,7 @@ input CreateAgentSessionInput {
   title: String! = ""
 
   """Whether the session should expire after a period of inactivity."""
-  temporary: Boolean! = false
+  isEphemeral: Boolean! = false
 }
 
 type CreateAgentSessionMutationPayload {

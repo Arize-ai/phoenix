@@ -269,13 +269,6 @@ async def test_agent_session_node_resolves_while_the_sweeper_has_not_reached_it(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """An idle ephemeral session past its TTL still resolves by node id.
-
-    The permission check used to compare a stored deadline against the clock so
-    an unswept session read as gone. With the deadline derived from
-    ``updated_at`` there is nothing left to compare, and the owner keeps seeing
-    their own row until a sweep removes it.
-    """
     agent_session_id = await _seed_agent_session(
         db,
         title="idle past its ttl",

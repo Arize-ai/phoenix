@@ -125,7 +125,7 @@ export async function createAgentSession({
   try {
     const { data: payload } = await client.POST("/agents/{agent_id}/sessions", {
       params: { path: { agent_id: SERVER_AGENT_ID } },
-      body: { title: "", temporary },
+      body: { title: "", is_ephemeral: temporary },
     });
     agentSessionId = payload?.data.id;
   } catch (error) {
@@ -184,11 +184,11 @@ export function createPxiSessionClient({
         );
       }
       return payload.data.map(
-        ({ id, title, updated_at, is_temporary }): PxiSessionSummary => ({
+        ({ id, title, updated_at, is_ephemeral }): PxiSessionSummary => ({
           id,
           title,
           updatedAt: updated_at,
-          isTemporary: is_temporary,
+          isTemporary: is_ephemeral,
         })
       );
     },
@@ -212,7 +212,7 @@ export function createPxiSessionClient({
         id: session.id,
         title: session.title,
         updatedAt: session.updated_at,
-        isTemporary: session.is_temporary,
+        isTemporary: session.is_ephemeral,
         // Read defensively: the CLI consumes phoenix-client's built types,
         // which may not carry `is_active` until that package rebuilds.
         // An absent field means no lock is held.

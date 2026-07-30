@@ -25,7 +25,7 @@ export const agentSessionQuery = graphql`
       ... on AgentSession {
         id
         title
-        isTemporary
+        isTemporary: isEphemeral
         isActive
         createdAt
         updatedAt

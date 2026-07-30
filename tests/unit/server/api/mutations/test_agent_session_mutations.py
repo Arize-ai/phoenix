@@ -31,7 +31,7 @@ _CREATE_MUTATION = """
       agentSession {
         id
         title
-        isTemporary
+        isEphemeral
         messages
       }
     }
@@ -55,7 +55,7 @@ _BRANCH_MUTATION = """
       agentSession {
         id
         title
-        isTemporary
+        isEphemeral
         messages
       }
     }
@@ -336,12 +336,6 @@ async def test_truncate_agent_session_accepts_an_ephemeral_session_awaiting_the_
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """A lapsed TTL no longer blocks writes, because it is no longer readable state.
-
-    The deadline is ``updated_at`` plus a constant, and truncating bumps
-    ``updated_at`` — so refusing the write would only have hidden a session the
-    same request was about to renew.
-    """
     agent_session_id = await _seed_session_with_transcript(
         db,
         is_ephemeral=True,
@@ -508,7 +502,7 @@ async def test_branch_agent_session_preserves_temporary_mode(
 
     assert not response.errors
     assert response.data is not None
-    assert response.data["branchAgentSession"]["agentSession"]["isTemporary"] is True
+    assert response.data["branchAgentSession"]["agentSession"]["isEphemeral"] is True
 
 
 async def test_branch_agent_session_at_an_assistant_message_includes_it(
@@ -564,9 +558,7 @@ async def test_branch_agent_session_accepts_an_ephemeral_source_awaiting_the_swe
 
     assert not response.errors
     assert response.data is not None
-    # The branch inherits ephemerality and starts its own TTL from its own
-    # activity, so it is not born already past the sweeper's cutoff.
-    assert response.data["branchAgentSession"]["agentSession"]["isTemporary"] is True
+    assert response.data["branchAgentSession"]["agentSession"]["isEphemeral"] is True
     async with db() as session:
         branched = (await session.scalars(select(models.AgentSession))).all()
         assert len(branched) == 2
@@ -585,7 +577,7 @@ async def test_create_agent_session_creates_empty_owned_session(
     assert response.data is not None
     payload = response.data["createAgentSession"]["agentSession"]
     assert payload["title"] == ""
-    assert payload["isTemporary"] is False
+    assert payload["isEphemeral"] is False
     assert payload["messages"] == []
     async with db() as session:
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
@@ -605,9 +597,9 @@ async def test_create_agent_session_can_create_temporary_session(
     response = await gql_client.execute(
         query="""
           mutation {
-            createAgentSession(input: { temporary: true }) {
+            createAgentSession(input: { isEphemeral: true }) {
               agentSession {
-                isTemporary
+                isEphemeral
               }
             }
           }
@@ -616,12 +608,10 @@ async def test_create_agent_session_can_create_temporary_session(
 
     assert not response.errors
     assert response.data is not None
-    assert response.data["createAgentSession"]["agentSession"]["isTemporary"] is True
+    assert response.data["createAgentSession"]["agentSession"]["isEphemeral"] is True
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
-        # The API says "temporary"; the column says "ephemeral". The GraphQL name
-        # is the one clients already depend on, so only storage was renamed.
         assert agent_session.is_ephemeral is True
 
 
