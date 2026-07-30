@@ -32,7 +32,8 @@ const spanStatusIndicatorCSS = css`
 `;
 
 const spanStatusMessageBadgeCSS = css`
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   height: var(--global-dimension-size-250);
   padding: 0 var(--global-dimension-size-75);
   border-radius: var(--global-rounding-small);
