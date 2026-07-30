@@ -14,6 +14,7 @@ import {
 } from "@tanstack/react-table";
 import React, {
   startTransition,
+  Suspense,
   useEffect,
   useMemo,
   useRef,
@@ -96,6 +97,48 @@ const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
   min-width: min(100%, 320px);
 `;
+
+const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
+
+/**
+ * The filter field, once its per-project autocomplete vocabulary has loaded.
+ * The vocabulary resolver scans annotation names and root-span attributes, so
+ * it is suspended separately from the table it sits above.
+ */
+function SessionFilterConditionFieldWithVocabulary({
+  projectId,
+  onValidCondition,
+}: {
+  projectId: string;
+  onValidCondition: (condition: string) => void;
+}) {
+  const data = useLazyLoadQuery<SessionsTableSessionFilterVocabularyQuery>(
+    graphql`
+      query SessionsTableSessionFilterVocabularyQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            sessionFilterVocabulary {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId }
+  );
+  return (
+    <SessionFilterConditionField
+      vocabulary={
+        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
+      }
+      onValidCondition={onValidCondition}
+    />
+  );
+}
 
 const TableBody = <T extends { id: string }>({
   table,
@@ -573,25 +616,6 @@ export function SessionsTable(props: SessionsTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
-  const vocabularyData =
-    useLazyLoadQuery<SessionsTableSessionFilterVocabularyQuery>(
-      graphql`
-        query SessionsTableSessionFilterVocabularyQuery($id: ID!) {
-          project: node(id: $id) {
-            ... on Project {
-              sessionFilterVocabulary {
-                name
-                type
-                description
-                category
-                iterableName
-              }
-            }
-          }
-        }
-      `,
-      { id: data.id }
-    );
   const { columnSizingInfo, columnSizing: columnSizingState } =
     table.getState();
   const getFlatHeaders = table.getFlatHeaders;
@@ -636,12 +660,21 @@ export function SessionsTable(props: SessionsTableProps) {
             wrap="wrap"
           >
             <div css={toolbarFilterFieldCSS}>
-              <SessionFilterConditionField
-                vocabulary={
-                  vocabularyData.project?.sessionFilterVocabulary ?? []
+              {/* Autocomplete data must not gate the table's first paint, so
+                  the field renders — and filters — before it arrives. */}
+              <Suspense
+                fallback={
+                  <SessionFilterConditionField
+                    vocabulary={EMPTY_SESSION_FILTER_VOCABULARY}
+                    onValidCondition={setValidSessionFilterCondition}
+                  />
                 }
-                onValidCondition={setValidSessionFilterCondition}
-              />
+              >
+                <SessionFilterConditionFieldWithVocabulary
+                  projectId={data.id}
+                  onValidCondition={setValidSessionFilterCondition}
+                />
+              </Suspense>
             </div>
             <TableMetricsChartSelector view="sessions" />
             <SessionColumnSelector
@@ -780,7 +813,9 @@ export function SessionsTable(props: SessionsTableProps) {
             </div>
           </Panel>
           <TableAsidePanel>
-            <SessionsTableAside />
+            <SessionsTableAside
+              sessionFilterCondition={validSessionFilterCondition || null}
+            />
           </TableAsidePanel>
         </Group>
       </div>

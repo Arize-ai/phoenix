@@ -14,6 +14,8 @@ import {
 
 type SessionAnnotationSummaryProps = {
   annotationName: string;
+  /** The sessions table's active filter, so the summary covers the rows it lists. */
+  sessionFilterCondition: string | null;
 };
 
 /**
@@ -23,6 +25,7 @@ type SessionAnnotationSummaryProps = {
  */
 export function SessionAnnotationSummary({
   annotationName,
+  sessionFilterCondition,
 }: SessionAnnotationSummaryProps) {
   const { projectId } = useParams();
   const { timeRangeISOStrings } = useTimeRange();
@@ -32,10 +35,15 @@ export function SessionAnnotationSummary({
         $id: ID!
         $annotationName: String!
         $timeRange: TimeRange!
+        $sessionFilterCondition: String
       ) {
         project: node(id: $id) {
           ...SessionAnnotationSummaryValueFragment
-            @arguments(annotationName: $annotationName, timeRange: $timeRange)
+            @arguments(
+              annotationName: $annotationName
+              timeRange: $timeRange
+              sessionFilterCondition: $sessionFilterCondition
+            )
         }
       }
     `,
@@ -43,6 +51,7 @@ export function SessionAnnotationSummary({
       annotationName,
       id: projectId as string,
       timeRange: timeRangeISOStrings,
+      sessionFilterCondition,
     }
   );
   return (
@@ -70,6 +79,7 @@ function SessionAnnotationSummaryValue(props: {
       @argumentDefinitions(
         annotationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
+        sessionFilterCondition: { type: "String", defaultValue: null }
       ) {
         annotationConfigs {
           edges {
@@ -93,6 +103,7 @@ function SessionAnnotationSummaryValue(props: {
         sessionAnnotationSummary(
           annotationName: $annotationName
           timeRange: $timeRange
+          sessionFilterCondition: $sessionFilterCondition
         ) {
           name
           count
