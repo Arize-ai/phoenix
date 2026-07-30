@@ -37,7 +37,7 @@ DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER = 30
 
 
 class AgentSessionRetentionSetting(BaseModel):
-    """Workspace-wide retention for non-temporary agent sessions."""
+    """Workspace-wide retention for non-ephemeral agent sessions."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, validate_assignment=True)
 

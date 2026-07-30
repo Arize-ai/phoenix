@@ -190,11 +190,11 @@ describe("PXI client", () => {
       async (_input: string | URL | Request, init?: RequestInit) => {
         const request =
           _input instanceof Request ? _input : new Request(_input, init);
-        const body = (await request.json()) as { temporary: boolean };
+        const body = (await request.json()) as { is_ephemeral: boolean };
         return new Response(
           JSON.stringify({
             data: {
-              id: body.temporary ? "temporary-session" : "persisted-session",
+              id: body.is_ephemeral ? "temporary-session" : "persisted-session",
             },
           }),
           { status: 201, headers: { "Content-Type": "application/json" } }
@@ -231,7 +231,7 @@ describe("PXI client", () => {
                 title: "Investigate traces",
                 created_at: "2026-07-24T11:00:00Z",
                 updated_at: "2026-07-24T12:00:00Z",
-                is_temporary: false,
+                is_ephemeral: false,
               },
             ],
             next_cursor: null,
@@ -247,7 +247,7 @@ describe("PXI client", () => {
               title: "Investigate traces",
               created_at: "2026-07-24T11:00:00Z",
               updated_at: "2026-07-24T12:00:00Z",
-              is_temporary: false,
+              is_ephemeral: false,
               messages: [
                 {
                   id: "user-1",

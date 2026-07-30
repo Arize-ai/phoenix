@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<10f8fa07eb58bf63347a620f624c0936>>
+ * @generated SignedSource<<fd09bb9b24ac1299b46090e39440db43>>
  * @lightSyntaxTransform
  */
 
@@ -102,10 +102,10 @@ return {
                     "storageKey": null
                   },
                   {
-                    "alias": null,
+                    "alias": "isTemporary",
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "isTemporary",
+                    "name": "isEphemeral",
                     "storageKey": null
                   },
                   {
@@ -224,12 +224,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cbd0f1f6f2d3f06bf44a736e3c1f968a",
+    "cacheID": "e86f271e169a4fa6806d9c9fecc0665d",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourceQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query AgentSessionsResourceQuery(\n  $first: Int!\n) {\n  ...AgentSessionsResource_sessions_3ASum4\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment AgentSessionsResource_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary: isEphemeral\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

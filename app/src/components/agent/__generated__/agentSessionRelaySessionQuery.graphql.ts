@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f911423ffcf7bfc8b59fb172854cd0d5>>
+ * @generated SignedSource<<b0711c282d7d41a0bef57d1a35a79a50>>
  * @lightSyntaxTransform
  */
 
@@ -75,10 +75,10 @@ v4 = {
   "storageKey": null
 },
 v5 = {
-  "alias": null,
+  "alias": "isTemporary",
   "args": null,
   "kind": "ScalarField",
-  "name": "isTemporary",
+  "name": "isEphemeral",
   "storageKey": null
 },
 v6 = {
@@ -240,16 +240,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d5db0cbad69bfa0a719d1e260e54a6b4",
+    "cacheID": "4836634597c05ab5b6a082d4fa40a454",
     "id": null,
     "metadata": {},
     "name": "agentSessionRelaySessionQuery",
     "operationKind": "query",
-    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary\n      isActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n    id\n  }\n}\n"
+    "text": "query agentSessionRelaySessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      title\n      isTemporary: isEphemeral\n      isActive\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4c69ea26b4f6bd6062b44c40c90a3b3d";
+(node as any).hash = "898522d8afdc3e0dbb3ef55c2877b2bd";
 
 export default node;

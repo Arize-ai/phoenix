@@ -35,9 +35,10 @@ class CanAccessAgentSession(BasePermission):
                 fields.load((source.id, models.AgentSession.user_id)),
             )
         viewer_id = context.user_id
-        if agent_session_id is None or (
-            viewer_id is not None and not context.user.is_admin and owner_id != viewer_id
-        ):
+        session_exists = agent_session_id is not None
+        auth_is_enforced = viewer_id is not None and not context.user.is_admin
+        viewer_owns_session = owner_id == viewer_id
+        if not session_exists or (auth_is_enforced and not viewer_owns_session):
             raise _agent_session_not_found(source.id)
         return True
 

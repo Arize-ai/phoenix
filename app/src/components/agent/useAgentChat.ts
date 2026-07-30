@@ -133,7 +133,7 @@ const createAgentSessionMutation = graphql`
         id
         title
         ...EditAgentSessionTitleDialog_session
-        isTemporary
+        isTemporary: isEphemeral
         createdAt
         updatedAt
         firstInput
@@ -183,7 +183,7 @@ const branchAgentSessionMutation = graphql`
         id
         title
         ...EditAgentSessionTitleDialog_session
-        isTemporary
+        isTemporary: isEphemeral
         createdAt
         updatedAt
         firstInput
@@ -684,7 +684,7 @@ export function useAgentChat({
     const isTemporary = store.getState().isDraftSessionTemporary;
     commitCreateAgentSession({
       variables: {
-        input: { temporary: isTemporary },
+        input: { isEphemeral: isTemporary },
         connections: isTemporary
           ? [sessionsConnectionId]
           : [sessionsConnectionId, settingsSessionsConnectionId],

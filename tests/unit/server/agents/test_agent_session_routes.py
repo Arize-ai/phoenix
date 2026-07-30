@@ -68,14 +68,14 @@ class TestListAgentSessions:
                     "title": "Newer",
                     "created_at": now.isoformat(),
                     "updated_at": now.isoformat(),
-                    "is_temporary": False,
+                    "is_ephemeral": False,
                 },
                 {
                     "id": str(GlobalID("AgentSession", str(older.id))),
                     "title": "Older",
                     "created_at": (now - timedelta(minutes=2)).isoformat(),
                     "updated_at": (now - timedelta(minutes=2)).isoformat(),
-                    "is_temporary": False,
+                    "is_ephemeral": False,
                 },
             ],
             "next_cursor": None,
@@ -150,7 +150,7 @@ class TestGetAgentSession:
         data = response.json()["data"]
         assert data["id"] == session_id
         assert data["title"] == "Conversation"
-        assert data["is_temporary"] is False
+        assert data["is_ephemeral"] is False
         assert [message["id"] for message in data["messages"]] == [
             _message_uuid("user-message"),
             _message_uuid("assistant-message"),
@@ -175,7 +175,7 @@ class TestGetAgentSession:
         response = await httpx_client.get(f"/agents/assistant/sessions/{session_id}")
 
         assert response.status_code == 200
-        assert response.json()["data"]["is_temporary"] is True
+        assert response.json()["data"]["is_ephemeral"] is True
 
     async def test_serves_an_ephemeral_session_the_sweeper_has_not_reached_yet(
         self,
@@ -201,7 +201,7 @@ class TestGetAgentSession:
         response = await httpx_client.get(f"/agents/assistant/sessions/{session_id}")
 
         assert response.status_code == 200
-        assert response.json()["data"]["is_temporary"] is True
+        assert response.json()["data"]["is_ephemeral"] is True
 
     async def test_rejects_invalid_id(self, httpx_client: httpx.AsyncClient) -> None:
         response = await httpx_client.get("/agents/assistant/sessions/invalid")

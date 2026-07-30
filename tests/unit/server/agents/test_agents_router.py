@@ -2116,7 +2116,7 @@ async def test_create_session_route_creates_a_temporary_session(
 ) -> None:
     response = await httpx_client.post(
         "/agents/server/sessions",
-        json={"title": " CLI session ", "temporary": True},
+        json={"title": " CLI session ", "is_ephemeral": True},
     )
     assert response.status_code == 201
 
@@ -2170,7 +2170,7 @@ async def test_create_session_route_yields_a_chattable_session(
 
     created = await httpx_client.post(
         "/agents/server/sessions",
-        json={"temporary": True},
+        json={"is_ephemeral": True},
     )
     assert created.status_code == 201
 

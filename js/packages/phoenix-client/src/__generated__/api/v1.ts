@@ -1727,8 +1727,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
-            /** Is Temporary */
-            is_temporary: boolean;
+            /** Is Ephemeral */
+            is_ephemeral: boolean;
             /**
              * Is Active
              * @description Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat.
@@ -1753,8 +1753,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
-            /** Is Temporary */
-            is_temporary: boolean;
+            /** Is Ephemeral */
+            is_ephemeral: boolean;
         };
         /**
          * AgentSpanContext
@@ -2157,11 +2157,11 @@ export interface components {
              */
             title?: string;
             /**
-             * Temporary
+             * Is Ephemeral
              * @description Whether the session should expire after a period of inactivity.
              * @default false
              */
-            temporary?: boolean;
+            is_ephemeral?: boolean;
         };
         /** CreateAgentSessionResponseBody */
         CreateAgentSessionResponseBody: {

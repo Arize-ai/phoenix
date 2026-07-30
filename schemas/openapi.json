@@ -8465,9 +8465,9 @@
             "format": "date-time",
             "title": "Updated At"
           },
-          "is_temporary": {
+          "is_ephemeral": {
             "type": "boolean",
-            "title": "Is Temporary"
+            "title": "Is Ephemeral"
           },
           "is_active": {
             "type": "boolean",
@@ -8488,7 +8488,7 @@
           "title",
           "created_at",
           "updated_at",
-          "is_temporary",
+          "is_ephemeral",
           "is_active",
           "messages"
         ],
@@ -8514,9 +8514,9 @@
             "format": "date-time",
             "title": "Updated At"
           },
-          "is_temporary": {
+          "is_ephemeral": {
             "type": "boolean",
-            "title": "Is Temporary"
+            "title": "Is Ephemeral"
           }
         },
         "type": "object",
@@ -8525,7 +8525,7 @@
           "title",
           "created_at",
           "updated_at",
-          "is_temporary"
+          "is_ephemeral"
         ],
         "title": "AgentSessionSummary"
       },
@@ -9575,9 +9575,9 @@
             "description": "Optional initial title.",
             "default": ""
           },
-          "temporary": {
+          "is_ephemeral": {
             "type": "boolean",
-            "title": "Temporary",
+            "title": "Is Ephemeral",
             "description": "Whether the session should expire after a period of inactivity.",
             "default": false
           }

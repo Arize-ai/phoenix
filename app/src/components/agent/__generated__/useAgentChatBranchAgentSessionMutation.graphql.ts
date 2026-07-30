@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8ed6863de084a4ed0efda81283259d64>>
+ * @generated SignedSource<<5d5c25bd7fc69b84d8c73ac730a24306>>
  * @lightSyntaxTransform
  */
 
@@ -74,10 +74,10 @@ v4 = {
   "storageKey": null
 },
 v5 = {
-  "alias": null,
+  "alias": "isTemporary",
   "args": null,
   "kind": "ScalarField",
-  "name": "isTemporary",
+  "name": "isEphemeral",
   "storageKey": null
 },
 v6 = {
@@ -268,16 +268,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ee106d4c97f8f5c44af496a52566748a",
+    "cacheID": "f89b7b8b0f97a65da3e3761790631b80",
     "id": null,
     "metadata": {},
     "name": "useAgentChatBranchAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
+    "text": "mutation useAgentChatBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ea4b5de46dbc482c61564732e61b63f4";
+(node as any).hash = "6354f2496c291bef8b6b164863a43f4d";
 
 export default node;

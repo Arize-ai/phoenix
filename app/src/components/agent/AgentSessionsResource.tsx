@@ -124,7 +124,7 @@ function AgentSessionsContent({
               id
               title
               ...EditAgentSessionTitleDialog_session
-              isTemporary
+              isTemporary: isEphemeral
               createdAt
               updatedAt
             }

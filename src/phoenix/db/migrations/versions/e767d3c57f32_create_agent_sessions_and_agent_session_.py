@@ -89,12 +89,7 @@ def upgrade() -> None:
             nullable=True,  # sessions may be created while auth is disabled
         ),
         sa.Column("title", sa.String, nullable=False),
-        sa.Column(
-            "is_ephemeral",
-            sa.Boolean,
-            nullable=False,
-            server_default=sa.false(),
-        ),
+        sa.Column("is_ephemeral", sa.Boolean, nullable=False),
         sa.Column("heartbeat_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "created_at",

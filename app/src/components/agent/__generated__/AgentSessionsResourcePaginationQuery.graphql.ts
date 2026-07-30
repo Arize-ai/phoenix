@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bfdffcbe36cfb053789650cc407b4866>>
+ * @generated SignedSource<<e06a768f1e9f1dc1eb63c45c124debcd>>
  * @lightSyntaxTransform
  */
 
@@ -107,10 +107,10 @@ return {
                     "storageKey": null
                   },
                   {
-                    "alias": null,
+                    "alias": "isTemporary",
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "isTemporary",
+                    "name": "isEphemeral",
                     "storageKey": null
                   },
                   {
@@ -187,16 +187,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ccc1a8ebf1cd1a20762752202bf217e9",
+    "cacheID": "f6179616c0de05d749519c79321b970f",
     "id": null,
     "metadata": {},
     "name": "AgentSessionsResourcePaginationQuery",
     "operationKind": "query",
-    "text": "query AgentSessionsResourcePaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...AgentSessionsResource_sessions_2HEEH6\n}\n\nfragment AgentSessionsResource_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
+    "text": "query AgentSessionsResourcePaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...AgentSessionsResource_sessions_2HEEH6\n}\n\nfragment AgentSessionsResource_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        isTemporary: isEphemeral\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n"
   }
 };
 })();
 
-(node as any).hash = "af28af2b0d4c3d22bbd920a5ae1c00f6";
+(node as any).hash = "6a59df4b2e220ab7c4e447ded2ebe04b";
 
 export default node;
