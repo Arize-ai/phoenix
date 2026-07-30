@@ -70,4 +70,4 @@ choices:
   hallucinated: 1.0
   grounded: 0.0
 substitutions:
-  output: output_messages_to_conversation
+  output: output_with_tool_calls
