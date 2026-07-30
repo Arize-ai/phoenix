@@ -576,14 +576,18 @@ export function TraceTree(props: TraceTreeProps) {
                     : `View trace ${traceSelection.traceId}`
                 }
                 aria-pressed={traceSelection.isSelected}
-                onClick={traceSelection.onSelect}
+                onClick={
+                  traceSelection.isSelected
+                    ? () => setIsTraceExpanded((value) => !value)
+                    : traceSelection.onSelect
+                }
               >
                 <Icon aria-hidden="true" svg={<Icons.Trace />} />
               </button>
             </li>
           ) : null}
           {isSpanTreeExpanded
-            ? visibleCompactSpanNodes.map(({ span }) => {
+            ? visibleCompactSpanNodes.map(({ span, children }) => {
                 const isSelected = selectedSpanNodeId === span.id;
                 return (
                   <li key={span.id}>
@@ -596,6 +600,19 @@ export function TraceTree(props: TraceTreeProps) {
                       aria-label={`View span ${span.name}`}
                       aria-pressed={isSelected}
                       onClick={(event) => {
+                        const isActiveRow =
+                          event.currentTarget.dataset.selected === "true";
+                        if (
+                          isActiveRow &&
+                          children.length > 0 &&
+                          !hasSearchQuery
+                        ) {
+                          handleSpanCollapsedChange({
+                            isCollapsed: !collapsedSpanNodeIds.has(span.id),
+                            spanNodeId: span.id,
+                          });
+                          return;
+                        }
                         if (!onSpanClick) return;
                         onSpanSelectionStart?.(span);
                         beginOptimisticSpanNavigation({
@@ -1060,6 +1077,17 @@ function SpanTreeItem<TSpan extends ISpanItem>(
           cursor: pointer;
         `}
         onClick={(event) => {
+          const spanRow = event.currentTarget.querySelector<HTMLElement>(
+            `[data-trace-tree-span-node-id="${CSS.escape(node.span.id)}"]`
+          );
+          const isActiveRow = spanRow?.dataset.selected === "true";
+          if (isActiveRow && hasChildren && !isSearching) {
+            onCollapsedChange({
+              isCollapsed: !isCollapsed,
+              spanNodeId: node.span.id,
+            });
+            return;
+          }
           if (onSpanClick) {
             onSpanSelectionStart?.(node.span);
             beginOptimisticSpanNavigation({

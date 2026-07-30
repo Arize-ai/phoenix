@@ -659,7 +659,7 @@ describe("TraceTree", () => {
     expect(onTraceSelect).toHaveBeenCalledOnce();
   });
 
-  it("renders a selectable trace row before the root span", () => {
+  it("toggles an active trace when its row is selected again", () => {
     const onTraceSelect = vi.fn();
 
     act(() => {
@@ -701,7 +701,52 @@ describe("TraceTree", () => {
 
     act(() => traceButton?.click());
 
-    expect(onTraceSelect).toHaveBeenCalledOnce();
+    expect(onTraceSelect).not.toHaveBeenCalled();
+    expect(
+      container.querySelector(
+        `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+      )
+    ).toBeNull();
+
+    act(() => traceButton?.click());
+
+    expect(onTraceSelect).not.toHaveBeenCalled();
+    expect(
+      container.querySelector(
+        `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+      )
+    ).not.toBeNull();
+  });
+
+  it("toggles an active collapsible span when its row is selected again", () => {
+    const onSpanClick = vi.fn();
+    const onSpanSelectionStart = vi.fn();
+    renderTraceTree({
+      spans: [ROOT_SPAN, CHILD_SPAN],
+      selectedSpanNodeId: ROOT_SPAN.id,
+      onSpanClick,
+      onSpanSelectionStart,
+    });
+
+    const rootSpanRow = container.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+    );
+    const childSpanRow = container.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${CHILD_SPAN.id}"]`
+    );
+    const childList = childSpanRow?.closest("ul");
+
+    act(() => rootSpanRow?.click());
+
+    expect(getComputedStyle(childList!).display).toBe("none");
+    expect(onSpanSelectionStart).not.toHaveBeenCalled();
+    expect(onSpanClick).not.toHaveBeenCalled();
+
+    act(() => rootSpanRow?.click());
+
+    expect(getComputedStyle(childList!).display).toBe("flex");
+    expect(onSpanSelectionStart).not.toHaveBeenCalled();
+    expect(onSpanClick).not.toHaveBeenCalled();
   });
 
   it("keeps trace selection separate from the tree disclosure", () => {

@@ -131,6 +131,7 @@ const traceSummaryRowCSS = css`
 
 /**
  * Selectable trace summary with an independently operated tree disclosure.
+ * Selecting the active trace again toggles its disclosure.
  */
 export function TraceSummaryRow({
   actions,
@@ -172,7 +173,7 @@ export function TraceSummaryRow({
         className="trace-summary-row__select"
         aria-label={traceAriaLabel}
         aria-pressed={isSelected}
-        onClick={onSelect}
+        onClick={isSelected ? onToggleExpanded : onSelect}
       >
         {paddedIndex ? (
           <Text

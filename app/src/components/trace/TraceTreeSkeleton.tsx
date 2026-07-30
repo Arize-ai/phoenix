@@ -111,7 +111,7 @@ export function TraceTreeSkeleton({
           aria-busy="true"
           css={compactSkeletonIconRailCSS}
         >
-          {Array.from({ length: 6 }, (_, index) => (
+          {Array.from({ length: 4 }, (_, index) => (
             <li key={index}>
               <Skeleton
                 width={20}
@@ -284,7 +284,8 @@ function EdgeConnectorSkeleton({ nestingLevel }: { nestingLevel: number }) {
       className="span-tree-edge-connector"
       css={css`
         position: absolute;
-        border-left: 1px solid var(--global-color-gray-300);
+        border-left: 1px solid var(--global-skeleton-background-color);
+        opacity: var(--global-skeleton-opacity);
         top: 0;
         left: calc(
           ${nestingLevel * TRACE_TREE_CHILD_NESTING_INDENT_PIXELS}px +
@@ -307,8 +308,9 @@ function EdgeSkeleton({ nestingLevel }: { nestingLevel: number }) {
       className="span-tree-edge"
       css={css`
         position: absolute;
-        border-left: 1px solid var(--global-color-gray-300);
-        border-bottom: 1px solid var(--global-color-gray-300);
+        border-left: 1px solid var(--global-skeleton-background-color);
+        border-bottom: 1px solid var(--global-skeleton-background-color);
+        opacity: var(--global-skeleton-opacity);
         border-radius: 0 0 0 11px;
         top: -5px;
         left: calc(
@@ -352,17 +354,9 @@ function DefaultTraceTreeSkeletonBody() {
   return (
     <TraceTreeNodeSkeleton nameWidth={200}>
       <TraceTreeNodeSkeleton nameWidth={180}>
-        <TraceTreeNodeSkeleton nameWidth={160}>
-          <TraceTreeNodeSkeleton nameWidth={220} />
-          <TraceTreeNodeSkeleton nameWidth={200}>
-            <TraceTreeNodeSkeleton nameWidth={170} />
-          </TraceTreeNodeSkeleton>
-        </TraceTreeNodeSkeleton>
-        <TraceTreeNodeSkeleton nameWidth={140} />
-      </TraceTreeNodeSkeleton>
-      <TraceTreeNodeSkeleton nameWidth={180}>
         <TraceTreeNodeSkeleton nameWidth={160} />
       </TraceTreeNodeSkeleton>
+      <TraceTreeNodeSkeleton nameWidth={140} />
     </TraceTreeNodeSkeleton>
   );
 }
