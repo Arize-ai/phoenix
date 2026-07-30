@@ -3,7 +3,6 @@ import {
   createRoutesFromElements,
   Navigate,
   Route,
-  type ShouldRevalidateFunction,
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
@@ -43,6 +42,10 @@ import {
   buildRouteNavigationCatalog,
   registerRouteNavigationCatalog,
 } from "@phoenix/routing/routeNavigation";
+import {
+  revalidateOnPathChange,
+  revalidateOutsideSameProject,
+} from "@phoenix/routing/shouldRevalidate";
 
 import type {
   DatasetLoaderData,
@@ -130,20 +133,6 @@ import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
 import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 
-// Skip loader revalidation when only the URL search params or hash change.
-// Why: some pages persist view state (e.g. a selected row) via setSearchParams,
-// and react-router's default behavior is to re-run every matched loader on any
-// navigation — including search-param-only updates — which causes avoidable
-// network fetches on trivial UI interactions.
-const revalidateOnPathChange: ShouldRevalidateFunction = ({
-  currentUrl,
-  nextUrl,
-  defaultShouldRevalidate,
-}) => {
-  if (currentUrl.pathname === nextUrl.pathname) return false;
-  return defaultShouldRevalidate;
-};
-
 export const appRouteObjects = createRoutesFromElements(
   <Route path="/" errorElement={<ErrorElement />} element={<RootLayout />}>
     {/*
@@ -178,12 +167,12 @@ export const appRouteObjects = createRoutesFromElements(
     <Route
       element={<AuthenticatedRoot />}
       loader={authenticatedRootLoader}
-      shouldRevalidate={revalidateOnPathChange}
+      shouldRevalidate={revalidateOutsideSameProject}
     >
       <Route
         element={<Layout />}
         loader={layoutLoader}
-        shouldRevalidate={revalidateOnPathChange}
+        shouldRevalidate={revalidateOutsideSameProject}
       >
         <Route
           path="/profile"
@@ -297,7 +286,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":projectId"
             loader={projectLoader}
-            shouldRevalidate={revalidateOnPathChange}
+            shouldRevalidate={revalidateOutsideSameProject}
             handle={{
               crumb: (data: ProjectLoaderData) => data?.project?.name,
               agentRoute: {
