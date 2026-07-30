@@ -26,6 +26,7 @@ const identityRowCSS = css`
   .span-header__status-message {
     flex: 0 1 auto;
     min-width: 0;
+    overflow: hidden;
   }
   .detail-header__actions {
     display: flex;
