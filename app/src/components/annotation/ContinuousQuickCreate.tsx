@@ -39,6 +39,13 @@ const continuousQuickCreateCSS = css`
     font: inherit;
     cursor: pointer;
 
+    &:hover:not([disabled]),
+    &[data-hovered]:not([disabled]) {
+      > [data-appearance="compact"] {
+        color: var(--global-static-color-white-900);
+      }
+    }
+
     &:focus-visible,
     &[data-focus-visible] {
       outline: none;

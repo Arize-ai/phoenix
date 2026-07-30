@@ -121,6 +121,18 @@ describe("ContinuousQuickCreate", () => {
     expect(firstScoreButton?.classList.contains("button--reset")).toBe(true);
     expect(firstScoreButton?.dataset.variant).toBeUndefined();
     expect(container.querySelector("[data-direction]")).toBeNull();
+    if (firstScoreButton == null) {
+      throw new Error("Expected the first continuous score button");
+    }
+    const firstScore = scoreValues[0];
+    if (firstScore == null) {
+      throw new Error("Expected the first continuous score value");
+    }
+    await act(async () => user.hover(firstScoreButton));
+    expect(getComputedStyle(firstScore).color).toBe(
+      "var(--global-static-color-white-900)"
+    );
+    await act(async () => user.unhover(firstScoreButton));
 
     await act(async () => {
       await user.click(
