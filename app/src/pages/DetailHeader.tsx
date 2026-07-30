@@ -10,6 +10,10 @@ const identityRowCSS = css`
   gap: var(--global-dimension-size-100);
   min-width: 0;
 
+  > * {
+    align-self: center;
+  }
+
   &
     > :not(
       .detail-header__title,
@@ -18,9 +22,6 @@ const identityRowCSS = css`
       .span-header-skeleton__name
     ) {
     flex: none;
-  }
-  .span-status-indicator + .detail-header__title {
-    transform: translateY(calc(-1 * var(--global-dimension-size-10)));
   }
   .span-header__status-message {
     flex: 0 1 auto;
