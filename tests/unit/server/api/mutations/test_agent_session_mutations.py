@@ -12,7 +12,7 @@ from phoenix.db.types.data_stream_protocol import (
     TextUIPart,
 )
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
-from phoenix.server.api.helpers.agent_sessions import derive_otel_session_id
+from phoenix.server.api.helpers.agent_sessions import get_otel_session_id
 from phoenix.server.api.routers.agents import (
     _build_compaction_message,
     _load_agent_session_history,
@@ -406,10 +406,10 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
         source_session, branch_session = sorted(
             agent_sessions, key=lambda agent_session: agent_session.id
         )
-        assert derive_otel_session_id(
+        assert get_otel_session_id(
             project_name=branch_session.project_name,
             agent_session_rowid=branch_session.id,
-        ) != derive_otel_session_id(
+        ) != get_otel_session_id(
             project_name=source_session.project_name,
             agent_session_rowid=source_session.id,
         )

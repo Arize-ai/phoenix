@@ -150,7 +150,7 @@ from phoenix.server.agents.vercel_ui_message_stream import (
 )
 from phoenix.server.api.helpers.agent_sessions import (
     TURN_LOCK_STALENESS,
-    derive_otel_session_id,
+    get_otel_session_id,
     is_turn_active,
 )
 from phoenix.server.api.helpers.playground_registry import (
@@ -2063,7 +2063,7 @@ def create_agents_router(
                 project_name = agent_session.project_name
                 session_needs_title = not agent_session.title
                 agent_session_rowid = agent_session.id
-                otel_session_id = derive_otel_session_id(
+                otel_session_id = get_otel_session_id(
                     project_name=project_name,
                     agent_session_rowid=agent_session_rowid,
                 )

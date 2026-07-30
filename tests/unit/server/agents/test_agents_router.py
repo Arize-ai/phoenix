@@ -53,7 +53,7 @@ from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
 from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
-from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, derive_otel_session_id
+from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, get_otel_session_id
 from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
     _emit_turn_root_span,
@@ -817,8 +817,7 @@ async def test_chat_turn_persists_session_transcript(
                 .order_by(models.AgentSessionMessage.id)
             )
         )
-        # The OTel session id traces are grouped under is derived, not stored.
-        persisted_session_id = derive_otel_session_id(
+        persisted_session_id = get_otel_session_id(
             project_name=agent_session.project_name,
             agent_session_rowid=agent_session.id,
         )
@@ -2402,7 +2401,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
         project_session = await session.scalar(
             select(models.ProjectSession).where(
                 models.ProjectSession.session_id
-                == derive_otel_session_id(
+                == get_otel_session_id(
                     project_name=agent_session.project_name,
                     agent_session_rowid=agent_session.id,
                 )
