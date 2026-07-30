@@ -59,7 +59,7 @@ export const baseAnnotationLabelCSS = css`
       height: calc(100% - 1px);
       rx: calc(var(--global-rounding-small) - 0.5px);
       fill: none;
-      stroke: var(--global-color-primary-200);
+      stroke: var(--global-color-primary-100);
       stroke-width: 1px;
       stroke-dasharray: 4px 3px;
       stroke-linecap: round;
