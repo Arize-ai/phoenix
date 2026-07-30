@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { TextArea } from "react-aria-components";
 import { graphql, useMutation } from "react-relay";
 
@@ -8,6 +8,7 @@ import { usePreferencesContext } from "@phoenix/contexts";
 
 import type { SpanNoteBarAddNoteMutation } from "./__generated__/SpanNoteBarAddNoteMutation.graphql";
 import {
+  hasHigherOverlay,
   useSpanNoteBarOpenRequest,
   useSpanNoteDraft,
 } from "./SpanNoteBarContext";
@@ -98,6 +99,29 @@ function SpanNoteBarContent({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const openRequest = useSpanNoteBarOpenRequest();
 
+  useEffect(() => {
+    const dismissNoteBar = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.repeat ||
+        hasHigherOverlay()
+      ) {
+        return;
+      }
+      // The open note bar is the first Escape layer even when its textarea no
+      // longer has focus. Capture above the Drawer's document hotkey so this
+      // keypress restores normal span details and a later Escape closes the
+      // drawer.
+      event.preventDefault();
+      event.stopPropagation();
+      setIsTakingSpanNotes(false);
+    };
+    window.addEventListener("keydown", dismissNoteBar, true);
+    return () => window.removeEventListener("keydown", dismissNoteBar, true);
+  }, [setIsTakingSpanNotes]);
+
   useLayoutEffect(() => {
     if (openRequest == null) {
       return;
@@ -180,13 +204,6 @@ function SpanNoteBarContent({
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       submitNote();
-    } else if (event.key === "Escape") {
-      event.stopPropagation();
-      if (noteText.trim() === "") {
-        setIsTakingSpanNotes(false);
-      } else {
-        event.currentTarget.blur();
-      }
     }
   };
 

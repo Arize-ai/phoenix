@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { Drawer } from "@phoenix/components";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
@@ -25,6 +26,7 @@ describe("SpanNoteBar", () => {
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     relayMocks.addNote.mockReset();
+    localStorage.clear();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -83,6 +85,31 @@ describe("SpanNoteBar", () => {
     );
     if (!button) throw new Error("Expected Add Note button");
     act(() => button.click());
+  }
+
+  function pressEscapeKeyDown(target: Element) {
+    const event = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      code: "Escape",
+      key: "Escape",
+    });
+    act(() => {
+      target.dispatchEvent(event);
+    });
+    return event;
+  }
+
+  function releaseEscape() {
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keyup", {
+          bubbles: true,
+          code: "Escape",
+          key: "Escape",
+        })
+      );
+    });
   }
 
   it("keeps exactly one composer and binds drafts to their spans", () => {
@@ -153,5 +180,50 @@ describe("SpanNoteBar", () => {
     });
 
     expect(onNoteCreated).toHaveBeenCalledWith("new-note-id");
+  });
+
+  it("dismisses a non-empty composer with Escape", () => {
+    renderBar({ spanNodeId: "span-a" });
+    setNoteText("Keep this draft");
+    const textarea = getTextarea();
+    act(() => textarea.focus());
+
+    pressEscapeKeyDown(textarea);
+    releaseEscape();
+
+    expect(container.querySelector(".span-note-bar")).toBeNull();
+  });
+
+  it("consumes Escape before an enclosing drawer and leaves the next Escape for the drawer", () => {
+    const onDrawerClose = vi.fn();
+    act(() => {
+      root.render(
+        <ThemeProvider>
+          <PreferencesProvider isTakingSpanNotes>
+            <SpanNoteBarProvider isHotkeyEnabled={false}>
+              <Drawer isOpen onClose={onDrawerClose}>
+                <button type="button">Other drawer control</button>
+                <SpanNoteBar spanNodeId="span-a" />
+              </Drawer>
+            </SpanNoteBarProvider>
+          </PreferencesProvider>
+        </ThemeProvider>
+      );
+    });
+    expect(container.querySelector(".span-note-bar")).not.toBeNull();
+    const otherDrawerControl = container.querySelector("button");
+    if (!otherDrawerControl) throw new Error("Expected drawer control");
+    act(() => otherDrawerControl.focus());
+
+    pressEscapeKeyDown(otherDrawerControl);
+
+    expect(container.querySelector(".span-note-bar")).toBeNull();
+    expect(onDrawerClose).not.toHaveBeenCalled();
+    releaseEscape();
+
+    pressEscapeKeyDown(otherDrawerControl);
+    releaseEscape();
+
+    expect(onDrawerClose).toHaveBeenCalledOnce();
   });
 });

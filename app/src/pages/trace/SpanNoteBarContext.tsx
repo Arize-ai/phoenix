@@ -30,7 +30,7 @@ const SpanNoteDraftsContext = createContext<{
  * and the request tells it to focus its input — only an explicit request
  * should steal focus, not a remembered-open bar mounting on page load.
  */
-function hasHigherOverlay() {
+export function hasHigherOverlay() {
   return (
     getActiveModalOverlayElement() != null ||
     document.querySelector(".react-aria-Popover") != null

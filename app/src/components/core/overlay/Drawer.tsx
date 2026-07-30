@@ -359,7 +359,17 @@ export function Drawer({
 
   // Global Escape listener — works regardless of where focus is so the
   // drawer can be dismissed while interacting with the content behind it.
-  useHotkeys("Escape", closeDrawer, { enabled: isOpen });
+  // A transient child experience can consume Escape first by preventing the
+  // event, leaving a later Escape to close the drawer itself.
+  useHotkeys(
+    "Escape",
+    (event) => {
+      if (!event.defaultPrevented) {
+        closeDrawer();
+      }
+    },
+    { enabled: isOpen }
+  );
 
   if (!isOpen) return null;
 
