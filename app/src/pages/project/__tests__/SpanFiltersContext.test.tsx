@@ -68,11 +68,11 @@ describe("SpanFiltersProvider URL seeding", () => {
     container.remove();
   });
 
-  async function renderAt(path: string, seedFromUrl?: boolean) {
+  async function renderAt(path: string) {
     await act(async () => {
       root.render(
         <MemoryRouter initialEntries={[path]}>
-          <SpanFiltersProvider seedFromUrl={seedFromUrl}>
+          <SpanFiltersProvider>
             <FilterConditionReader />
           </SpanFiltersProvider>
         </MemoryRouter>
@@ -84,17 +84,6 @@ describe("SpanFiltersProvider URL seeding", () => {
     await renderAt("/spans?spanFilterCondition=span_kind%20%3D%3D%20'LLM'");
 
     expect(container.textContent).toBe("span_kind == 'LLM'");
-  });
-
-  it("ignores the URL when the caller opts out", async () => {
-    // A view whose first query cannot carry the filter must not display one, or
-    // it renders unfiltered rows under a filter that appears to be applied.
-    await renderAt(
-      "/traces?spanFilterCondition=span_kind%20%3D%3D%20'LLM'",
-      false
-    );
-
-    expect(container.textContent).toBe("");
   });
 });
 
