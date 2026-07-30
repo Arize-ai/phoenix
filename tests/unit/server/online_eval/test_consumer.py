@@ -7,7 +7,7 @@ from typing import Any, AsyncIterator, Optional, Sequence, cast
 
 import httpx
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import with_polymorphic
 
 from phoenix.db import models
@@ -65,6 +65,7 @@ from phoenix.server.online_eval.executor import (
     span_eval_context,
 )
 from phoenix.server.online_eval.producer import resolve_criteria, resolve_criteria_bulk
+from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 
@@ -493,6 +494,8 @@ async def _materialize_session_unit(
         )
         evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
         assert evaluator is not None
+        project_session = await session.get(models.ProjectSession, project_session_rowid)
+        assert project_session is not None
         resolved = await resolve_criteria(session, criteria, evaluator)
         assert resolved is not None
         fingerprint = config_fingerprint(resolved)
@@ -501,6 +504,7 @@ async def _materialize_session_unit(
             evaluator_id=evaluator_id,
             criteria_id=criteria_id,
             config_fingerprint=fingerprint,
+            evaluated_through=project_session.last_activity_at,
         )
         session.add(unit)
         await session.flush()
@@ -561,6 +565,111 @@ async def _session_annotations(
 ) -> list[models.ProjectSessionAnnotation]:
     async with db() as session:
         return list(await session.scalars(select(models.ProjectSessionAnnotation)))
+
+
+async def test_session_publication_closes_the_scheduled_watermark(
+    db: DbSessionFactory,
+) -> None:
+    scheduled_at = datetime.now(timezone.utc) - timedelta(minutes=10)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        project_session.last_activity_at = scheduled_at
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, fingerprint = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        stored_session = await session.get(models.ProjectSession, project_session.id)
+        assert stored_session is not None
+        stored_session.last_activity_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        annotation_name = criteria.name.root
+
+    executor = OnlineEvalExecutor(db, decrypt=lambda value: value)
+    await executor.evaluate_and_annotate(
+        unit,
+        _hydrated_stub(
+            results=[_evaluation_result(annotation_name)],
+            evaluator_kind="BUILTIN",
+            output_configs=[],
+            annotation_name=annotation_name,
+        ),
+    )
+
+    stored = await _get_session_unit(db, unit_id)
+    assert stored.status == "DONE"
+    assert stored.evaluated_through == scheduled_at
+    (annotation,) = await _session_annotations(db)
+    assert annotation.identifier == annotation_identifier(fingerprint)
+    assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer")
+
+    await SessionEvalSweeper(db)._tick()
+    async with db() as session:
+        work_count = await session.scalar(
+            select(func.count())
+            .select_from(models.EvalSessionWorkUnit)
+            .where(
+                models.EvalSessionWorkUnit.project_session_rowid == project_session.id,
+                models.EvalSessionWorkUnit.evaluator_id == evaluator_id,
+                models.EvalSessionWorkUnit.config_fingerprint == fingerprint,
+            )
+        )
+    assert work_count == 1
+
+
+async def test_incomplete_session_hydration_expires_without_counting_attempt(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        project_session.content_complete = False
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        criteria_id,
+    )
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+
+    assert await consumer._executor.hydrate(unit) == HydrationFailure(
+        HydrationFailureReason.SESSION_CONTENT_INCOMPLETE
+    )
+    await consumer._process_unit(unit)
+
+    stored = await _get_session_unit(db, unit_id)
+    assert stored.status == "EXPIRED"
+    assert stored.attempts == 0
+    assert stored.evaluated_through == project_session.last_activity_at
+    assert await _session_annotations(db) == []
 
 
 def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> None:

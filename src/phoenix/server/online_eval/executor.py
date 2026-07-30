@@ -1,6 +1,7 @@
 """Execution glue for claimed online-eval work units: criteria-first hydration,
 target context assembly, evaluator invocation, and idempotent annotation writes.
-Work-unit lifecycle transitions (complete/fail/expire) stay with the caller.
+Session publication completes work atomically; other lifecycle transitions stay
+with the caller.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, AsyncIterator, Callable, Literal, Optional, Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
@@ -100,6 +101,7 @@ class HydrationFailureReason(str, Enum):
     SPAN_MISSING = "SPAN_MISSING"
     SESSION_MISSING = "SESSION_MISSING"
     SESSION_PROJECT_MISMATCH = "SESSION_PROJECT_MISMATCH"
+    SESSION_CONTENT_INCOMPLETE = "SESSION_CONTENT_INCOMPLETE"
     UNSUPPORTED_TARGET = "UNSUPPORTED_TARGET"
     NO_ROOT_TURNS = "NO_ROOT_TURNS"
     TRANSCRIPT_TOO_LARGE = "TRANSCRIPT_TOO_LARGE"
@@ -532,6 +534,8 @@ class OnlineEvalExecutor:
             return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
         if project_session.project_id != project_id:
             return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
+        if not project_session.content_complete:
+            return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
         root_filters = (
             models.Trace.project_session_rowid == project_session.id,
             models.Trace.project_rowid == project_id,
@@ -851,25 +855,41 @@ class OnlineEvalExecutor:
                 if self._db.should_not_insert_or_update:
                     raise OnlineEvalStoragePaused
                 async with self._db() as session:
-                    work_unit_model = (
-                        models.EvalWorkUnit
-                        if unit.evaluation_target == "SPAN"
-                        else models.EvalSessionWorkUnit
-                    )
-                    owned_work_unit_id = await session.scalar(
-                        select(work_unit_model.id)
-                        .join(
-                            models.ProjectEvaluatorCriteria,
-                            models.ProjectEvaluatorCriteria.id == work_unit_model.criteria_id,
+                    if unit.evaluation_target == "SPAN":
+                        owned_work_unit_id = await session.scalar(
+                            select(models.EvalWorkUnit.id)
+                            .join(
+                                models.ProjectEvaluatorCriteria,
+                                models.ProjectEvaluatorCriteria.id
+                                == models.EvalWorkUnit.criteria_id,
+                            )
+                            .where(
+                                models.EvalWorkUnit.id == unit.work_unit_id,
+                                models.EvalWorkUnit.status == "RUNNING",
+                                models.EvalWorkUnit.claimed_by == unit.claimed_by,
+                                models.ProjectEvaluatorCriteria.enabled,
+                            )
                         )
-                        .where(
-                            work_unit_model.id == unit.work_unit_id,
-                            work_unit_model.status == "RUNNING",
-                            work_unit_model.claimed_by == unit.claimed_by,
-                            models.ProjectEvaluatorCriteria.enabled,
+                        publication_fence_succeeded = owned_work_unit_id is not None
+                    else:
+                        transition_result = await session.execute(
+                            update(models.EvalSessionWorkUnit)
+                            .where(
+                                models.EvalSessionWorkUnit.id == unit.work_unit_id,
+                                models.EvalSessionWorkUnit.status == "RUNNING",
+                                models.EvalSessionWorkUnit.claimed_by == unit.claimed_by,
+                                models.EvalSessionWorkUnit.criteria_id.in_(
+                                    select(models.ProjectEvaluatorCriteria.id).where(
+                                        models.ProjectEvaluatorCriteria.enabled
+                                    )
+                                ),
+                            )
+                            .values(status="DONE")
                         )
-                    )
-                    if owned_work_unit_id is None:
+                        publication_fence_succeeded = bool(
+                            transition_result.rowcount == 1  # type: ignore[attr-defined]
+                        )
+                    if not publication_fence_succeeded:
                         raise PublicationClaimLostError(
                             f"work unit {unit.work_unit_id} is no longer owned and live"
                         )
