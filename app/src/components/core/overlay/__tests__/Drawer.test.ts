@@ -29,11 +29,13 @@ function CloseDrawerButton() {
 
 describe("Drawer", () => {
   let container: HTMLDivElement;
+  let documentPointerEventListener: EventListener | null;
   let root: Root;
   const originalInnerWidth = window.innerWidth;
 
   beforeEach(() => {
     container = document.createElement("div");
+    documentPointerEventListener = null;
     document.body.appendChild(container);
     root = createRoot(container);
     Object.defineProperty(window, "innerWidth", {
@@ -44,6 +46,23 @@ describe("Drawer", () => {
   });
 
   afterEach(() => {
+    if (documentPointerEventListener) {
+      document.removeEventListener(
+        "pointerdown",
+        documentPointerEventListener,
+        true
+      );
+      document.removeEventListener(
+        "pointermove",
+        documentPointerEventListener,
+        true
+      );
+      document.removeEventListener(
+        "pointerup",
+        documentPointerEventListener,
+        true
+      );
+    }
     act(() => {
       root.unmount();
     });
@@ -348,5 +367,87 @@ describe("Drawer", () => {
     expect(onResize).toHaveBeenNthCalledWith(2, 50, 500);
     expect(onResizeEnd).toHaveBeenCalledOnce();
     expect(onResizeEnd).toHaveBeenLastCalledWith(50, 500);
+  });
+
+  it("owns an outer drag when it crosses a descendant separator", () => {
+    const onResizeEnd = vi.fn();
+    const documentPointerEvents: string[] = [];
+    const recordDocumentPointerEvent = (event: Event) => {
+      documentPointerEvents.push(event.type);
+    };
+    documentPointerEventListener = recordDocumentPointerEvent;
+    document.addEventListener("pointerdown", recordDocumentPointerEvent, true);
+    document.addEventListener("pointermove", recordDocumentPointerEvent, true);
+    document.addEventListener("pointerup", recordDocumentPointerEvent, true);
+
+    act(() => {
+      root.render(
+        createElement(
+          Drawer,
+          {
+            defaultSize: 700,
+            isOpen: true,
+            maxSize: 950,
+            minSize: 350,
+            onResizeEnd,
+          },
+          createElement(
+            "div",
+            {
+              "aria-label": "Resize inner panel",
+              role: "separator",
+              tabIndex: 0,
+            },
+            "Inner separator"
+          )
+        )
+      );
+    });
+
+    const handles = container.querySelectorAll('[role="separator"]');
+    const outerHandle = handles.item(0);
+    const innerHandle = handles.item(1);
+    expect(outerHandle).toBeInstanceOf(HTMLDivElement);
+    expect(innerHandle).toBeInstanceOf(HTMLDivElement);
+    if (
+      !(outerHandle instanceof HTMLDivElement) ||
+      !(innerHandle instanceof HTMLDivElement)
+    ) {
+      return;
+    }
+
+    let capturedPointerId: number | null = null;
+    const releasePointerCapture = vi.fn(() => {
+      capturedPointerId = null;
+    });
+    Object.assign(outerHandle, {
+      hasPointerCapture: (pointerId: number) => capturedPointerId === pointerId,
+      releasePointerCapture,
+      setPointerCapture: (pointerId: number) => {
+        capturedPointerId = pointerId;
+      },
+    });
+
+    act(() => innerHandle.focus());
+    expect(document.activeElement).toBe(innerHandle);
+
+    act(() => {
+      dispatchPointerEvent(outerHandle, "pointerdown", 300);
+      // Pointer capture keeps the outer handle as the event target even after
+      // the cursor crosses the inner separator's screen coordinate.
+      dispatchPointerEvent(outerHandle, "pointermove", 600);
+      dispatchPointerEvent(outerHandle, "pointerup", 600);
+    });
+
+    expect(document.activeElement).toBe(outerHandle);
+    expect(documentPointerEvents).toEqual([]);
+    expect(releasePointerCapture).toHaveBeenCalledWith(1);
+    expect(outerHandle.dataset.dragging).toBeUndefined();
+    expect(onResizeEnd).toHaveBeenCalledOnce();
+
+    act(() => {
+      dispatchPointerEvent(innerHandle, "pointermove", 600);
+    });
+    expect(documentPointerEvents).toEqual(["pointermove"]);
   });
 });
