@@ -165,6 +165,7 @@ function SessionTurnDetail({
 type SessionTurnRow = {
   id: string;
   traceId: string;
+  errorCount: number;
   rootSpan: SessionTraceRootSpan;
 };
 
@@ -295,7 +296,7 @@ function SessionTurnList({
             >
               <Flex
                 direction="row"
-                alignItems="flex-start"
+                alignItems="start"
                 justifyContent="space-between"
                 gap="size-100"
               >

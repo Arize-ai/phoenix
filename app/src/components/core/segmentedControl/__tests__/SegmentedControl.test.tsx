@@ -37,7 +37,7 @@ describe("SegmentedControl", () => {
 
   it("keeps the selection thumb on its track when the page reflows", () => {
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
-      function () {
+      function (this: Element) {
         const item = this.closest(".segmented-control__item");
         const isTableItem = item?.textContent === "Table";
         return DOMRect.fromRect({
@@ -51,7 +51,7 @@ describe("SegmentedControl", () => {
       }
     );
     vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockImplementation(
-      function () {
+      function (this: HTMLElement) {
         return this.textContent === "Table" ? 0 : 60;
       }
     );

@@ -311,13 +311,13 @@ describe("DetailPanelAnnotationBar", () => {
       '[role="dialog"][aria-label="quality annotation"]'
     );
     expect(annotationDialog).not.toBeNull();
+    const annotationPlacement = annotationDialog?.closest("[data-placement]");
+    if (!(annotationPlacement instanceof HTMLElement)) {
+      throw new Error("Expected the annotation dialog placement container");
+    }
+    expect(annotationPlacement.dataset.placement).toBe("right");
     expect(
-      annotationDialog?.closest("[data-placement]")?.dataset.placement
-    ).toBe("right");
-    expect(
-      annotationDialog
-        ?.closest("[data-placement]")
-        ?.querySelector(".react-aria-OverlayArrow")
+      annotationPlacement.querySelector(".react-aria-OverlayArrow")
     ).toBeNull();
 
     const availableAnnotationMenuItem = Array.from(

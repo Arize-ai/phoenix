@@ -9,9 +9,26 @@ import type {
 } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
 import { DetailPanelAnnotationBar } from "@phoenix/components/annotation/DetailPanelAnnotationBar";
 import type { Annotation } from "@phoenix/components/annotation/types";
-import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
-import { TraceTreeEntityRow } from "@phoenix/components/trace/TraceTreeEntityRow";
+import {
+  TraceTree,
+  TraceTreeProvider,
+} from "@phoenix/components/trace/TraceTree";
+import { traceTreePanelContentCSS } from "@phoenix/components/trace/traceTreeStyles";
+import type { ISpanItem } from "@phoenix/components/trace/types";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
+
+const ROW_ACTION_SPAN: ISpanItem = {
+  id: "span-row",
+  name: "retrieve_documents",
+  spanKind: "retriever",
+  statusCode: "OK",
+  latencyMs: 125,
+  startTime: "2026-07-29T16:00:00.000Z",
+  endTime: "2026-07-29T16:00:00.125Z",
+  parentId: null,
+  spanId: "span-row-id",
+  tokenCountTotal: null,
+};
 
 const projectConfigs: AnnotationConfig[] = [
   {
@@ -317,19 +334,23 @@ export const RowAction: Story = {
     variant: "button",
   },
   render: (args) => (
-    <div
-      css={css`
-        width: min(640px, calc(100vw - var(--global-dimension-size-400)));
-        background: var(--global-background-color-default);
-      `}
-    >
-      <TraceTreeEntityRow
-        actions={<DetailPanelAnnotationBar {...args} />}
-        isSelected
-        kind="span"
-        leadingVisual={<SpanKindIcon spanKind="retriever" />}
-        title="retrieve_documents"
-      />
-    </div>
+    <TraceTreeProvider>
+      <div
+        css={[
+          traceTreePanelContentCSS,
+          css`
+            width: min(640px, calc(100vw - var(--global-dimension-size-400)));
+            background: var(--global-background-color-default);
+          `,
+        ]}
+      >
+        <TraceTree
+          spans={[ROW_ACTION_SPAN]}
+          selectedSpanNodeId={ROW_ACTION_SPAN.id}
+          scrollSelectedSpanIntoView={false}
+          renderSpanActions={() => <DetailPanelAnnotationBar {...args} />}
+        />
+      </div>
+    </TraceTreeProvider>
   ),
 };
