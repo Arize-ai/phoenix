@@ -2,6 +2,17 @@ import type { AnnotationConfig } from "./types";
 
 type OptimizationDirectionResult = "MAXIMIZE" | "MINIMIZE" | undefined;
 
+export type AnnotationOptimizationConfig = {
+  readonly annotationType: AnnotationConfig["annotationType"];
+  readonly optimizationDirection?: string | null;
+  readonly lowerBound?: number | null;
+  readonly upperBound?: number | null;
+  readonly threshold?: number | null;
+  readonly values?: ReadonlyArray<{
+    readonly score: number | null;
+  }>;
+};
+
 /**
  * Normalizes the optimization direction, treating "NONE" as undefined.
  */
@@ -20,7 +31,9 @@ function normalizeOptimizationDirection(
  * For categorical configs, calculates bounds from the min/max scores of the values.
  * For freeform configs, returns an optional threshold that overrides the midpoint computation.
  */
-export function getOptimizationBounds(config: AnnotationConfig | undefined): {
+export function getOptimizationBounds(
+  config: AnnotationOptimizationConfig | undefined
+): {
   lowerBound: number | undefined;
   upperBound: number | undefined;
   threshold: number | undefined;
@@ -140,7 +153,7 @@ export function getPositiveOptimizationFromConfig({
   config,
   score,
 }: {
-  config: AnnotationConfig | undefined;
+  config: AnnotationOptimizationConfig | undefined;
   score: number | null | undefined;
 }): boolean | null {
   const { lowerBound, upperBound, threshold, optimizationDirection } =

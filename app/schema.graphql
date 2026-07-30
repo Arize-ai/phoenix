@@ -2875,7 +2875,17 @@ type Project implements Node {
   How a span filter condition relates to root-span scoping, so clients need not parse the DSL. Structural only; use `validateSpanFilterCondition` to check validity.
   """
   analyzeSpanFilterCondition(condition: String!): SpanFilterConditionAnalysis!
-  annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
+  annotationConfigs(
+    first: Int = 50
+    last: Int = null
+    after: String = null
+    before: String = null
+
+    """
+    When provided, return only annotation configs whose name exactly matches one of the given names.
+    """
+    names: [String!]
+  ): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
