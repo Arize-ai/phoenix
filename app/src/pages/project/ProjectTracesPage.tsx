@@ -45,7 +45,10 @@ export const ProjectTracesPage = () => {
   return (
     <TracingRoot>
       <TracePaginationProvider>
-        <SpanFiltersProvider>
+        {/* This tab's preload cannot carry a filter, so a URL-seeded condition
+            would paint unfiltered rows before correcting itself. Opt out until
+            the traces query can be seeded the way the spans query is. */}
+        <SpanFiltersProvider seedFromUrl={false}>
           <Suspense fallback={<Loading />}>
             <TracesTabContent tracesQueryReference={tracesQueryReference} />
           </Suspense>

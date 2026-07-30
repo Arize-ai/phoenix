@@ -73,16 +73,30 @@ export function SpanFiltersProvider(
      * loaded GraphQL fields start in agreement.
      */
     fallbackFilterCondition?: string;
+    /**
+     * Whether the URL supplies the starting condition. Only a view that can
+     * load already filtered should say yes.
+     *
+     * A view that seeds from the URL but issues its first query unfiltered
+     * renders the wrong rows and then corrects itself, which is worse than not
+     * reading the URL at all. The spans table avoids that by withholding rows
+     * until its seed resolves; the traces table has no such machinery, so it
+     * opts out until it does. See the Traces parity step in
+     * .scratch/pr_reviews/pr-14599-span-filter-url/hoisting-implementation-plan.md.
+     */
+    seedFromUrl?: boolean;
   }>
 ) {
+  const { seedFromUrl = true } = props;
   // Writes back to the URL happen where the state is applied (SpansTable), so
   // only valid conditions are persisted.
   const [searchParams] = useSearchParams();
-  const initialCondition = useInitialSpanFilterCondition(
+  const initialUrlCondition = useInitialSpanFilterCondition(
     props.fallbackFilterCondition
   );
-  const [filterCondition, _setFilterCondition] =
-    useState<string>(initialCondition);
+  const [filterCondition, _setFilterCondition] = useState<string>(() =>
+    seedFromUrl ? initialUrlCondition : (props.fallbackFilterCondition ?? "")
+  );
   const rawUrlCondition =
     searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
     props.fallbackFilterCondition ??
@@ -93,10 +107,13 @@ export function SpanFiltersProvider(
   // unrelated search-param updates alone. An applied filter's own URL write is
   // a no-op here because the draft already contains that same condition.
   useEffect(() => {
+    if (!seedFromUrl) {
+      return;
+    }
     startTransition(() => {
       _setFilterCondition(urlCondition);
     });
-  }, [urlCondition]);
+  }, [urlCondition, seedFromUrl]);
 
   const setFilterCondition = useCallback((condition: string) => {
     startTransition(() => {
