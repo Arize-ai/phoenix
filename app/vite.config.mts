@@ -77,6 +77,7 @@ function createRemoteBackendProxy(remoteBackendUrl: URL): ProxyOptions {
       if (request.headers["sec-fetch-dest"] === "document") {
         return "/index.html";
       }
+      return undefined;
     },
   };
 }
