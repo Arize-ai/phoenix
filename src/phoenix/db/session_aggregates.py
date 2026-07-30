@@ -124,8 +124,9 @@ def num_traces_with_error_by_session() -> SessionAggregate:
 def token_counts_by_session() -> SessionAggregate:
     """LLM token totals per session — value columns ``prompt``, ``completion``, ``total``.
 
-    Sums leaf ``LLM`` spans rather than root-span cumulative counts, which multi-count tokens when
-    a framework propagates LLM token attributes up through wrapping agent/tool spans (#12768).
+    Sums the per-span token counts of every ``LLM`` span rather than root-span cumulative counts,
+    which multi-count tokens when a framework propagates LLM token attributes up through wrapping
+    agent/tool spans (#12768).
     """
     return SessionAggregate(
         values=(

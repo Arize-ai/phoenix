@@ -4259,8 +4259,12 @@ class TestProject:
         assert terms_by_name["any_output"]["type"] == "containment"
         # Every served term carries a non-empty gloss.
         assert all(t["description"] for t in terms)
+        # The turn model is an unenforced ingestion convention, so the served gloss leads
+        # with the mechanic and labels the metaphor as the approximation it is.
         num_traces_term = next(t for t in terms if t["name"] == "num_traces")
-        assert "conversation turns" in num_traces_term["description"]
+        assert num_traces_term["description"].startswith("Number of traces in the session")
+        assert "approximate conversation-turn count" in num_traces_term["description"]
+        assert "does not enforce" in num_traces_term["description"]
         assert "earliest root span" in terms_by_name["attributes[...]"]["description"]
         assert 'attributes["user.id"]' in terms_by_name["user.id"]["description"]
         assert 'attributes["metadata.key"]' in terms_by_name['metadata["key"]']["description"]
@@ -7494,3 +7498,31 @@ class TestProjectSessionsTimeRange:
             session_filter_condition="'input for before_window' in any_input",
         )
         assert actual == set()
+
+    async def test_dsl_start_time_compares_points_where_time_range_tests_overlap(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """`timeRange` selects by overlap; a DSL `start_time` cutoff compares a point.
+
+        `long_running` began before the window and is still active inside it, so overlap
+        includes it and a cutoff on its own start does not. Composing the two ANDs, which is
+        how the same session can be both in the window and out of the filter.
+        """
+        time_range = {
+            "start": self._WINDOW_START.isoformat(),
+            "end": self._WINDOW_END.isoformat(),
+        }
+        by_overlap = await self._get_session_ids(gql_client, _sessions_data, time_range)
+        assert _gid(_sessions_data.sessions_by_name["long_running"]) in by_overlap
+
+        cutoff = self._WINDOW_START.isoformat()
+        assert cutoff.endswith("+00:00")
+        with_cutoff = await self._get_session_ids(
+            gql_client,
+            _sessions_data,
+            time_range,
+            session_filter_condition=f"start_time >= '{cutoff}'",
+        )
+        assert with_cutoff == self._expected_ids(_sessions_data, "inside_window")
