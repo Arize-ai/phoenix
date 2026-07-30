@@ -280,3 +280,20 @@ def connection_from_cursors_and_nodes(
             has_next_page=has_next_page,
         ),
     )
+
+
+def empty_connection() -> Connection[NodeType]:
+    """Return an empty page without querying backing rows.
+
+    Callers pass ``first: 0`` to reach sibling connection fields without
+    paying for rows. Both page flags are set optimistically: answering either
+    exactly costs the query this exists to skip, and an empty page carries no
+    cursor to paginate from, so neither flag is actionable. Erring toward
+    "there may be more" only risks a wasted round trip, where erring the other
+    way would tell a client to stop while rows remain.
+    """
+    return connection_from_cursors_and_nodes(
+        [],
+        has_previous_page=True,
+        has_next_page=True,
+    )

@@ -10,7 +10,8 @@ import httpx
 import pandas as pd
 import pytest
 from faker import Faker
-from sqlalchemy import insert
+from sqlalchemy import event, insert
+from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
@@ -1392,6 +1393,142 @@ async def test_project_spans_limit_first_page_size(
     assert response.errors[0].message == "`first` must be less than or equal to 1000"
 
 
+async def test_project_spans_allows_an_empty_page(
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+    llama_index_rag_spans: Any,
+) -> None:
+    """`first: 0` asks for no edges, which callers use to reach a connection's
+    other fields without paying for rows.
+
+    The emitted SQL is asserted, not just the response, because the response
+    alone cannot tell the two implementations apart: one that answers from the
+    resolver and one that queries and discards. What the assertion protects is
+    the database connection -- scarce under SQLite's single-connection pool --
+    not the query time.
+    """
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    query = """
+      query ($projectId: ID!, $first: Int!) {
+        node(id: $projectId) {
+          ... on Project {
+            spans(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+              pageInfo {
+                hasNextPage
+              }
+            }
+          }
+        }
+      }
+    """
+    statements: list[str] = []
+
+    def record_statement(
+        conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, executemany: Any
+    ) -> None:
+        statements.append(" ".join(statement.split()))
+
+    event.listen(Engine, "before_cursor_execute", record_statement)
+    try:
+        response = await gql_client.execute(
+            query=query,
+            variables={"projectId": PROJECT_ID, "first": 0},
+        )
+    finally:
+        event.remove(Engine, "before_cursor_execute", record_statement)
+
+    assert not response.errors
+    assert response.data is not None
+    spans = response.data["node"]["spans"]
+    assert spans["edges"] == []
+    assert spans["pageInfo"]["hasNextPage"] is True
+
+    assert not [s for s in statements if s.startswith("SELECT spans.id")], statements
+
+
+async def test_unwrapped_connection_also_skips_the_query_for_an_empty_page(
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+    llama_index_rag_spans: Any,
+) -> None:
+    """`first: 0` costs the same on every connection, not only the few carrying
+    `RequireForwardPaginationExtension`.
+
+    `annotationConfigs` has no field extension and loads its rows before
+    slicing them in Python, so skipping the resolver is worth more there than
+    on the fields that push a LIMIT into SQL.
+    """
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    query = """
+      query ($projectId: ID!, $first: Int!) {
+        node(id: $projectId) {
+          ... on Project {
+            annotationConfigs(first: $first) {
+              edges {
+                cursor
+              }
+            }
+          }
+        }
+      }
+    """
+    statements: list[str] = []
+
+    def record_statement(
+        conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, executemany: Any
+    ) -> None:
+        statements.append(" ".join(statement.split()))
+
+    event.listen(Engine, "before_cursor_execute", record_statement)
+    try:
+        response = await gql_client.execute(
+            query=query,
+            variables={"projectId": PROJECT_ID, "first": 0},
+        )
+    finally:
+        event.remove(Engine, "before_cursor_execute", record_statement)
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["annotationConfigs"]["edges"] == []
+    assert not [s for s in statements if "annotation_configs" in s], statements
+
+
+async def test_project_spans_reject_a_negative_first(
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+    llama_index_rag_spans: Any,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    query = """
+      query ($projectId: ID!, $first: Int!) {
+        node(id: $projectId) {
+          ... on Project {
+            spans(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"projectId": PROJECT_ID, "first": -1},
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert response.errors[0].message == "`first` must be a non-negative integer"
+
+
 @pytest.fixture
 async def llama_index_rag_spans(db: DbSessionFactory) -> None:
     # Inserts the first three traces from the llama-index-rag trace fixture
@@ -2276,7 +2413,13 @@ class TestProject:
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
-            field = "sessions(sort:{col:" + column + ",dir:" + direction + "}){edges{node{id}}}"
+            field = (
+                "sessions(first:50,sort:{col:"
+                + column
+                + ",dir:"
+                + direction
+                + "}){edges{node{id}}}"
+            )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
 
@@ -2310,12 +2453,12 @@ class TestProject:
     ) -> None:
         project = _data.projects[0]
         session = _data.project_sessions[0]
-        field = f'sessions(sessionId:"{session.session_id}")' + "{edges{node{id}}}"
+        field = f'sessions(first:50,sessionId:"{session.session_id}")' + "{edges{node{id}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [_gid(session)]
 
         # Searching for a non-existent session ID should return an empty list
-        field = f'sessions(sessionId:"{token_hex(16)}")' + "{edges{node{id}}}"
+        field = f'sessions(first:50,sessionId:"{token_hex(16)}")' + "{edges{node{id}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == []
 
@@ -2333,7 +2476,7 @@ class TestProject:
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
             field = (
-                "sessions(sort:{col:"
+                "sessions(first:50,sort:{col:"
                 + column
                 + ",dir:"
                 + direction
@@ -2380,7 +2523,13 @@ class TestProject:
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
-            field = "sessions(sort:{col:" + column + ",dir:" + direction + "}){edges{node{id}}}"
+            field = (
+                "sessions(first:50,sort:{col:"
+                + column
+                + ",dir:"
+                + direction
+                + "}){edges{node{id}}}"
+            )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
 
@@ -2421,7 +2570,7 @@ class TestProject:
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
             field = (
-                "sessions(sort:{col:"
+                "sessions(first:50,sort:{col:"
                 + column
                 + ",dir:"
                 + direction
@@ -2494,12 +2643,12 @@ class TestProject:
         ]
 
         # Test descending order
-        field = f"sessions(sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc
 
         # Test ascending order
-        field = f"sessions(sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc[::-1]
 
@@ -2559,12 +2708,12 @@ class TestProject:
         ]
 
         # Test descending order
-        field = f"sessions(sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc
 
         # Test ascending order: 50, 75, 100, 200
-        field = f"sessions(sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc[::-1]
 
@@ -2608,9 +2757,7 @@ class TestProject:
                 session.add(annotation)
 
         # Test descending order: 0.9, 0.8, 0.7, 0.5, 0.3, NULL (desc by ID: 8,5,2)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:score},dir:desc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:score},dir:desc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[0]),  # 0.9
@@ -2624,9 +2771,7 @@ class TestProject:
         ]
 
         # Test ascending order: 0.3, 0.5, 0.7, 0.8, 0.9, NULL (asc by ID: 2,5,8)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:score},dir:asc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:score},dir:asc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[5]),  # 0.3
@@ -2707,9 +2852,7 @@ class TestProject:
                 session.add(annotation)
 
         # Test descending order: zebra, delta, charlie, beta, alpha, NULL (desc by ID: 8,5,2)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:label},dir:desc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:label},dir:desc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[0]),  # "zebra"
@@ -2723,9 +2866,7 @@ class TestProject:
         ]
 
         # Test ascending order: alpha, beta, charlie, delta, zebra, NULL (asc by ID: 2,5,8)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:label},dir:asc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:label},dir:asc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[2]),  # "alpha"
@@ -2779,7 +2920,7 @@ class TestProject:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project = _data.projects[0]
-        field = 'sessions(filterIoSubstring:"\\"\'f"){edges{node{id}}}'
+        field = 'sessions(first:50,filterIoSubstring:"\\"\'f"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == {
             _gid(_data.project_sessions[1]),
@@ -2792,7 +2933,7 @@ class TestProject:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project = _data.projects[0]
-        field = 'sessions(filterIoSubstring:"\\"\'j"){edges{node{id}}}'
+        field = 'sessions(first:50,filterIoSubstring:"\\"\'j"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == set()
 
@@ -2862,7 +3003,9 @@ class TestProject:
         for filter_substring, expected_session_indices, description in test_cases:
             # Escape the filter substring for GraphQL
             escaped_filter = filter_substring.replace("\\", "\\\\").replace('"', '\\"')
-            field = f'sessions(filterIoSubstring:"{escaped_filter}"){{edges{{node{{id}}}}}}'
+            field = (
+                f'sessions(first:50,filterIoSubstring:"{escaped_filter}"){{edges{{node{{id}}}}}}'
+            )
 
             res = await self._node(field, project, httpx_client)
 
@@ -6597,7 +6740,7 @@ class TestProjectSessionsTimeRange:
         query ($projectId: ID!, $timeRange: TimeRange, $filterIoSubstring: String) {
           node(id: $projectId) {
             ... on Project {
-              sessions(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring) {
+              sessions(first: 50, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring) {
                 edges { node { id } }
               }
             }

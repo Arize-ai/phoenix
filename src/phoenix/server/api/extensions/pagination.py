@@ -1,21 +1,56 @@
-"""Field extensions that enforce safe GraphQL pagination defaults.
+"""Extensions that enforce safe GraphQL pagination defaults.
 
-Phoenix uses these extensions on large connection fields where unbounded or
-backward pagination would create expensive database queries and oversized
-responses.
+Phoenix uses the field extension here on large connection fields where
+unbounded or backward pagination would create expensive database queries and
+oversized responses. The schema extension applies to every connection field.
 """
 
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
+from graphql import GraphQLResolveInfo
 from strawberry import UNSET
 from strawberry.annotation import StrawberryAnnotation
-from strawberry.extensions import FieldExtension
+from strawberry.extensions import FieldExtension, SchemaExtension
 from strawberry.types.arguments import StrawberryArgument
 from strawberry.types.field import StrawberryField
 
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.types.pagination import empty_connection
 
 DEFAULT_MAX_PAGE_SIZE = 1000
+
+
+class EmptyPageExtension(SchemaExtension):
+    """Answer ``first: 0`` on any connection field without resolving it.
+
+    Registered schema-wide rather than per field, so the cost of asking for no
+    edges is the same everywhere. Without it, ``first: 0`` would be free on the
+    few fields carrying `RequireForwardPaginationExtension` and a full query on
+    the rest -- an asymmetry nothing in the schema advertises.
+
+    Every field in this schema that accepts ``first`` returns a ``Connection``,
+    so matching on the argument alone cannot substitute a connection for some
+    other type.
+
+    This runs outside field extensions, so ``first: 0`` returns before their
+    validation. The only check that misses is the rejection of ``last`` and
+    ``before``, on a request whose page is empty either way.
+    """
+
+    def resolve(
+        self,
+        _next: Callable[..., Any],
+        root: Any,
+        info: GraphQLResolveInfo,
+        *args: str,
+        **kwargs: Any,
+    ) -> Any:
+        # A plain `== 0` is deliberate: it is safe when `first` is absent,
+        # where `<= 0` would raise on None or UNSET, and it leaves a negative
+        # `first` to the error paths that already reject it.
+        if kwargs.get("first") == 0:
+            return empty_connection()
+        return _next(root, info, *args, **kwargs)
 
 
 class RequireForwardPaginationExtension(FieldExtension):
@@ -89,8 +124,8 @@ class RequireForwardPaginationExtension(FieldExtension):
         first = kwargs.get("first", UNSET)
         if first is UNSET or first is None:
             raise BadRequest("`first` is required")
-        if not isinstance(first, int) or first <= 0:
-            raise BadRequest("`first` must be a positive integer")
+        if not isinstance(first, int) or first < 0:
+            raise BadRequest("`first` must be a non-negative integer")
         if self.max_page_size is not None and first > self.max_page_size:
             raise BadRequest(f"`first` must be less than or equal to {self.max_page_size}")
         last = kwargs.get("last", UNSET)
