@@ -883,6 +883,90 @@ class Project(Node):
             return list(await session.scalars(stmt))
 
     @strawberry.field(
+        description="Names of span annotations with a score or label in the requested time range."
+    )  # type: ignore
+    async def span_annotation_metric_names(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+    ) -> list[str]:
+        stmt = (
+            select(distinct(models.SpanAnnotation.name))
+            .join(models.Span)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == self.id)
+            .where(
+                or_(
+                    models.SpanAnnotation.score.is_not(None),
+                    models.SpanAnnotation.label.is_not(None),
+                )
+            )
+            .order_by(models.SpanAnnotation.name)
+        )
+        return await _annotation_metric_names(
+            db=info.context.db,
+            stmt=stmt,
+            time_range=time_range,
+            start_time_col=models.Trace.start_time,
+        )
+
+    @strawberry.field(
+        description="Names of trace annotations with a score or label in the requested time range."
+    )  # type: ignore
+    async def trace_annotation_metric_names(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+    ) -> list[str]:
+        stmt = (
+            select(distinct(models.TraceAnnotation.name))
+            .join(models.Trace)
+            .where(models.Trace.project_rowid == self.id)
+            .where(
+                or_(
+                    models.TraceAnnotation.score.is_not(None),
+                    models.TraceAnnotation.label.is_not(None),
+                )
+            )
+            .order_by(models.TraceAnnotation.name)
+        )
+        return await _annotation_metric_names(
+            db=info.context.db,
+            stmt=stmt,
+            time_range=time_range,
+            start_time_col=models.Trace.start_time,
+        )
+
+    @strawberry.field(
+        description=(
+            "Names of session annotations with a score or label in the requested time range."
+        )
+    )  # type: ignore
+    async def session_annotation_metric_names(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+    ) -> list[str]:
+        stmt = (
+            select(distinct(models.ProjectSessionAnnotation.name))
+            .join(models.ProjectSession)
+            .where(models.ProjectSession.project_id == self.id)
+            .where(
+                or_(
+                    models.ProjectSessionAnnotation.score.is_not(None),
+                    models.ProjectSessionAnnotation.label.is_not(None),
+                )
+            )
+            .order_by(models.ProjectSessionAnnotation.name)
+        )
+        return await _annotation_metric_names(
+            db=info.context.db,
+            stmt=stmt,
+            time_range=time_range,
+            start_time_col=models.ProjectSession.start_time,
+        )
+
+    @strawberry.field(
         description="Span annotation names along with the number of span annotations "
         "that have been added for each name in this project."
     )  # type: ignore
@@ -1886,6 +1970,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
+        annotation_name: Optional[str] = UNSET,
     ) -> "AnnotationMetricsTimeSeries":
         stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
         bucket = date_trunc(
@@ -1917,6 +2002,8 @@ class Project(Node):
                 )
             )
         )
+        if isinstance(annotation_name, str):
+            stmt = stmt.where(models.SpanAnnotation.name == annotation_name)
         return await _annotation_metrics_time_series(
             db=info.context.db,
             stmt=stmt,
@@ -1932,6 +2019,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
+        annotation_name: Optional[str] = UNSET,
     ) -> "AnnotationMetricsTimeSeries":
         stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
         bucket = date_trunc(
@@ -1958,6 +2046,8 @@ class Project(Node):
                 )
             )
         )
+        if isinstance(annotation_name, str):
+            stmt = stmt.where(models.TraceAnnotation.name == annotation_name)
         return await _annotation_metrics_time_series(
             db=info.context.db,
             stmt=stmt,
@@ -1973,6 +2063,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
+        annotation_name: Optional[str] = UNSET,
     ) -> "AnnotationMetricsTimeSeries":
         stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
         # Match `session_annotation_score_time_series` in this file: assign each
@@ -2002,6 +2093,8 @@ class Project(Node):
                 )
             )
         )
+        if isinstance(annotation_name, str):
+            stmt = stmt.where(models.ProjectSessionAnnotation.name == annotation_name)
         return await _annotation_metrics_time_series(
             db=info.context.db,
             stmt=stmt,
@@ -2321,6 +2414,21 @@ async def _annotation_score_time_series(
         data=sorted(data.values(), key=lambda x: x.timestamp),
         names=sorted(unique_names),
     )
+
+
+async def _annotation_metric_names(
+    db: DbSessionFactory,
+    stmt: Select[Any],
+    time_range: TimeRange,
+    start_time_col: InstrumentedAttribute[datetime],
+) -> list[str]:
+    if time_range.start is None:
+        raise BadRequest("Start time is required")
+    stmt = stmt.where(time_range.start <= start_time_col)
+    if time_range.end:
+        stmt = stmt.where(start_time_col < time_range.end)
+    async with db.read() as session:
+        return list(await session.scalars(stmt))
 
 
 async def _annotation_metrics_time_series(

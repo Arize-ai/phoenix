@@ -2829,6 +2829,21 @@ type Project implements Node {
   sessionAnnotationNames: [String!]!
 
   """
+  Names of span annotations with a score or label in the requested time range.
+  """
+  spanAnnotationMetricNames(timeRange: TimeRange!): [String!]!
+
+  """
+  Names of trace annotations with a score or label in the requested time range.
+  """
+  traceAnnotationMetricNames(timeRange: TimeRange!): [String!]!
+
+  """
+  Names of session annotations with a score or label in the requested time range.
+  """
+  sessionAnnotationMetricNames(timeRange: TimeRange!): [String!]!
+
+  """
   Span annotation names along with the number of span annotations that have been added for each name in this project.
   """
   spanAnnotationNameCounts: [AnnotationNameCount!]!
@@ -2873,9 +2888,9 @@ type Project implements Node {
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   traceAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   sessionAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
-  spanAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
-  traceAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
-  sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
+  spanAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
+  traceAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
+  sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
