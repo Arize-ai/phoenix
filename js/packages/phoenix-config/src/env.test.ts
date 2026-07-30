@@ -11,11 +11,13 @@ import {
   ENV_PHOENIX_PROJECT,
   ENV_PHOENIX_PROJECT_NAME,
   type EnvironmentConfig,
+  getBaseUrlFromEnvironment,
   getEnvironmentConfig,
   getHeadersFromEnvironment,
   getIntFromEnvironment,
   getProjectFromEnvironment,
   getStrFromEnvironment,
+  resetBaseUrlConflictWarningForTesting,
   resetProjectConflictWarningForTesting,
 } from "./env";
 import { ENV_PHOENIX_DISCOVER_CONFIG } from "./envFile";
@@ -412,6 +414,55 @@ describe("env", () => {
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn.mock.calls[0]?.[0]).toContain("PHOENIX_PROJECT_NAME");
       expect(warn.mock.calls[0]?.[0]).toContain("PHOENIX_PROJECT");
+      warn.mockRestore();
+    });
+  });
+
+  describe("getBaseUrlFromEnvironment", () => {
+    beforeEach(() => {
+      resetBaseUrlConflictWarningForTesting();
+    });
+
+    it("should return undefined when neither variable is set", () => {
+      expect(getBaseUrlFromEnvironment()).toBeUndefined();
+    });
+
+    it("should read PHOENIX_COLLECTOR_ENDPOINT when only it is set", () => {
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+    });
+
+    it("should read PHOENIX_HOST when only it is set", () => {
+      process.env[ENV_PHOENIX_HOST] = "http://phoenix.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://phoenix.local");
+    });
+
+    it("should prefer PHOENIX_COLLECTOR_ENDPOINT over PHOENIX_HOST", () => {
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      process.env[ENV_PHOENIX_HOST] = "http://phoenix.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+    });
+
+    it("should not warn when both are set to the same value", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://same.local";
+      process.env[ENV_PHOENIX_HOST] = "http://same.local";
+
+      expect(getBaseUrlFromEnvironment()).toBe("http://same.local");
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it("should warn once when both are set to different values", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      process.env[ENV_PHOENIX_HOST] = "http://phoenix.local";
+
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toContain(ENV_PHOENIX_COLLECTOR_ENDPOINT);
+      expect(warn.mock.calls[0]?.[0]).toContain(ENV_PHOENIX_HOST);
       warn.mockRestore();
     });
   });

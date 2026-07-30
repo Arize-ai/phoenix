@@ -1,6 +1,7 @@
 import type { EnvironmentConfig } from "@arizeai/phoenix-config";
 import {
   DEFAULT_PHOENIX_BASE_URL,
+  getBaseUrlFromEnvironment,
   getEnvironmentConfig,
 } from "@arizeai/phoenix-config";
 import type { ClientOptions } from "openapi-fetch";
@@ -15,7 +16,6 @@ const phoenixEnvironmentToClientOptions = (
   environment: EnvironmentConfig
 ): Partial<ClientOptions> => {
   const options: Partial<ClientOptions> = {
-    baseUrl: environment.PHOENIX_HOST,
     headers: {
       ...(environment.PHOENIX_CLIENT_HEADERS ?? {}),
       ...(environment.PHOENIX_API_KEY
@@ -46,7 +46,12 @@ export const defaultGetEnvironmentOptions = (): Partial<ClientOptions> => {
   if (typeof process !== "object" || typeof process.env !== "object") {
     return {};
   }
-  return phoenixEnvironmentToClientOptions(getEnvironmentConfig());
+  const options = phoenixEnvironmentToClientOptions(getEnvironmentConfig());
+  // The base URL resolves as a tier group (PHOENIX_COLLECTOR_ENDPOINT first,
+  // then PHOENIX_HOST) rather than from the flat snapshot above, which reads
+  // each variable independently.
+  const baseUrl = getBaseUrlFromEnvironment();
+  return baseUrl !== undefined ? { ...options, baseUrl } : options;
 };
 
 /**

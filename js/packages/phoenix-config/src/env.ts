@@ -311,6 +311,74 @@ export function resetProjectConflictWarningForTesting(): void {
 }
 
 /**
+ * Environment variables that locate the Phoenix server, resolved as one tier
+ * group (see {@link resolveEnvironmentTier}). Ordered by precedence.
+ */
+const BASE_URL_ENV_KEYS = [
+  ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  ENV_PHOENIX_HOST,
+] as const;
+
+let hasWarnedBaseUrlConflict = false;
+
+/**
+ * Resolves the Phoenix server's base URL from the environment.
+ *
+ * Reads both {@link ENV_PHOENIX_COLLECTOR_ENDPOINT} (canonical) and
+ * {@link ENV_PHOENIX_HOST}, matching the Python client's precedence:
+ *
+ * 1. `PHOENIX_COLLECTOR_ENDPOINT`
+ * 2. `PHOENIX_HOST`
+ *
+ * Both variables resolve as one tier group: the `.env.phoenix` file tier is
+ * consulted only when neither is set in the process environment. When both are
+ * set to *different* values, the canonical value wins and a one-time warning
+ * is emitted naming both values.
+ *
+ * @returns The resolved base URL, or `undefined` if neither variable is set.
+ *
+ * @example
+ * // With PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+ * const baseUrl = getBaseUrlFromEnvironment();
+ * // Returns "http://localhost:6006"
+ */
+export function getBaseUrlFromEnvironment(): string | undefined {
+  return getBaseUrlFromEnvironmentWithSource().value;
+}
+
+/** Resolves the base URL together with the tier that supplied it. */
+export function getBaseUrlFromEnvironmentWithSource(): ResolvedEnvironmentValue {
+  const { source, values } =
+    resolveEnvironmentTierWithSource(BASE_URL_ENV_KEYS);
+  const endpoint = values[ENV_PHOENIX_COLLECTOR_ENDPOINT];
+  const host = values[ENV_PHOENIX_HOST];
+
+  if (endpoint && host && endpoint !== host && !hasWarnedBaseUrlConflict) {
+    hasWarnedBaseUrlConflict = true;
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Both ${ENV_PHOENIX_COLLECTOR_ENDPOINT} ("${endpoint}") and ${ENV_PHOENIX_HOST} ("${host}") ` +
+        `are set to different values. Using ${ENV_PHOENIX_COLLECTOR_ENDPOINT} ("${endpoint}").`
+    );
+  }
+
+  const value = endpoint || host || undefined;
+  return value ? { source, value } : {};
+}
+
+/**
+ * Resets the one-time base-URL conflict warning latch.
+ *
+ * Intended for use in tests that need to exercise the warning path more than
+ * once within the same module instance.
+ *
+ * @internal
+ */
+export function resetBaseUrlConflictWarningForTesting(): void {
+  hasWarnedBaseUrlConflict = false;
+}
+
+/**
  * Retrieves and parses a JSON-encoded headers object from an environment variable.
  *
  * @param envKey - The name of the environment variable to read

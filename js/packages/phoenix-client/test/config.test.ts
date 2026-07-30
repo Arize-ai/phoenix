@@ -23,6 +23,14 @@ describe("Phoenix client configuration", () => {
       });
     });
 
+    it("should parse PHOENIX_COLLECTOR_ENDPOINT from environment", () => {
+      process.env.PHOENIX_COLLECTOR_ENDPOINT = "https://collector-host.com";
+      const options = defaultGetEnvironmentOptions();
+      expect(options).toEqual({
+        baseUrl: "https://collector-host.com",
+      });
+    });
+
     it("should parse PHOENIX_CLIENT_HEADERS from environment", () => {
       process.env.PHOENIX_CLIENT_HEADERS = JSON.stringify({
         "X-Custom-Header": "test-value",
