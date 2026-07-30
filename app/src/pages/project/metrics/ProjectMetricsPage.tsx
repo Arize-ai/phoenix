@@ -5,7 +5,10 @@ import { useParams } from "react-router";
 import { Flex, useTimeRange } from "@phoenix/components";
 import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
 
-import { getProjectMetricChart } from "./chartCatalog";
+import {
+  DeferredProjectMetricPanel,
+  getProjectMetricChart,
+} from "./chartCatalog";
 import { ProjectAnnotationMetricsGrid } from "./ProjectAnnotationMetrics";
 import { useClosedTimeRange } from "./useClosedTimeRange";
 
@@ -134,17 +137,15 @@ function MetricRow({
 }) {
   return (
     <Flex direction="row" gap="size-200">
-      {row.map((chartKey) => {
-        const { Panel } = getProjectMetricChart(chartKey);
-        return (
-          <Panel
-            key={chartKey}
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        );
-      })}
+      {row.map((chartKey) => (
+        <DeferredProjectMetricPanel
+          key={chartKey}
+          chart={getProjectMetricChart(chartKey)}
+          projectId={projectId}
+          timeRange={timeRange}
+          onTimeRangeSelected={onTimeRangeSelected}
+        />
+      ))}
     </Flex>
   );
 }

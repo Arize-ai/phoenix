@@ -94,11 +94,6 @@ export const isProjectMetricChartKey = (
   getProjectAnnotationMetricChartInfo(key) != null;
 
 /**
- * The maximum number of metric charts that can be shown above a table at once.
- */
-export const MAX_SELECTED_METRIC_CHARTS = 3;
-
-/**
  * The default metric charts shown above each table view.
  */
 export const DEFAULT_METRIC_CHART_KEYS: Record<

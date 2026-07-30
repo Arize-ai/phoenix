@@ -22,7 +22,6 @@ import type { MetricChartTableView, ProjectMetricChartKey } from "./constants";
 import {
   getProjectAnnotationMetricChartInfo,
   getProjectAnnotationMetricChartKey,
-  MAX_SELECTED_METRIC_CHARTS,
 } from "./constants";
 import {
   getProjectMetricCharts,
@@ -165,7 +164,6 @@ function ProjectChartSelectorMenuContent({
         ]),
       ]}
       selectedKeys={selectedChartKeys}
-      maxSelected={MAX_SELECTED_METRIC_CHARTS}
       onSelectionChange={onSelectionChange}
     />
   );
