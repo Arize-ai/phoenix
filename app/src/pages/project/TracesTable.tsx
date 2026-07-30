@@ -25,7 +25,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 import {
   Flex,
@@ -149,6 +149,7 @@ const TableBody = <
   const navigate = useNavigate();
   const { traceId } = useParams();
   const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -161,6 +162,7 @@ const TableBody = <
                 getTraceDetailsPath({
                   traceId: row.original.trace.traceId,
                   searchParams,
+                  hash,
                 })
               )
             }
@@ -239,6 +241,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 
 export function TracesTable(props: TracesTableProps) {
   const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
   // Persist an applied filter so the tab is shareable, as the spans tab is.
   const writeFilterConditionToUrl = useWriteSpanFilterToHash();
   //we need a reference to the scrolling element for logic down below
@@ -762,6 +765,7 @@ export function TracesTable(props: TracesTableProps) {
                 traceId,
                 spanNodeId: spanId,
                 searchParams,
+                hash,
               })}
             >
               <Truncate maxWidth="100%">{getValue() as string}</Truncate>

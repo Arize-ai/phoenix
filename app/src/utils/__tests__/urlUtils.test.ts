@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   clearSelectionScopedParams,
+  getSessionDetailsPath,
   getTraceDetailsPath,
 } from "@phoenix/utils/urlUtils";
 
@@ -24,6 +25,50 @@ describe("urlUtils", () => {
         ),
       })
     ).toBe("trace-2?timeRangeKey=7d&selectedSpanNodeId=span-2");
+  });
+
+  describe("carries the fragment onto the navigation target", () => {
+    // The span filter lives in the fragment, and a relative path that omits it
+    // resets the user's filter when they open and close a trace.
+    const searchParams = new URLSearchParams("timeRangeKey=7d");
+
+    it("appends the hash to a trace details path", () => {
+      expect(
+        getTraceDetailsPath({
+          traceId: "trace-1",
+          searchParams,
+          hash: "#spanFilterCondition=parent_id+is+None",
+        })
+      ).toBe("trace-1?timeRangeKey=7d#spanFilterCondition=parent_id+is+None");
+    });
+
+    it("appends the hash to a session details path", () => {
+      expect(
+        getSessionDetailsPath({
+          sessionId: "session-1",
+          searchParams,
+          hash: "#spanFilterCondition=x",
+        })
+      ).toBe("session-1?timeRangeKey=7d#spanFilterCondition=x");
+    });
+
+    it("adds nothing when there is no fragment", () => {
+      for (const hash of [undefined, "", "#"]) {
+        expect(
+          getTraceDetailsPath({ traceId: "trace-1", searchParams, hash })
+        ).toBe("trace-1?timeRangeKey=7d");
+      }
+    });
+
+    it("does not double the leading marker", () => {
+      expect(
+        getTraceDetailsPath({
+          traceId: "trace-1",
+          searchParams: new URLSearchParams(),
+          hash: "spanFilterCondition=x",
+        })
+      ).toBe("trace-1#spanFilterCondition=x");
+    });
   });
 
   describe("getTraceDetailsPath encodes the trace ID into a same-origin segment", () => {

@@ -17,7 +17,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 import {
   Flex,
@@ -137,6 +137,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
   const { traceId } = useParams();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   return (
@@ -155,6 +156,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
                   traceId: row.original.trace.traceId,
                   spanNodeId: row.original.id,
                   searchParams,
+                  hash,
                 })
               )
             }
@@ -202,6 +204,7 @@ export const MemoizedTableBody = React.memo(
 
 export function SpansTable(props: SpansTableProps) {
   const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -604,6 +607,7 @@ export function SpansTable(props: SpansTableProps) {
               traceId,
               spanNodeId: span.id,
               searchParams,
+              hash,
             })}
           >
             <Truncate maxWidth="100%">{getValue() as string}</Truncate>

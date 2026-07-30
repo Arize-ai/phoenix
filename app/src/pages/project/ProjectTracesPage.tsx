@@ -58,7 +58,12 @@ export const ProjectTracesPage = () => {
                 seed={tracesFilterSeed}
               />
             ) : tracesFilterSeed === null ? (
-              <PendingSpanFilter onResolved={resolveTracesSeed} />
+              <PendingSpanFilter
+                onResolved={resolveTracesSeed}
+                // The traces tab shows every span when the URL carries no
+                // condition, so a rejected one must not narrow it to roots.
+                fallbackCondition=""
+              />
             ) : (
               <Loading />
             )}

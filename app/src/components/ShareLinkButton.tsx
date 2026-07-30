@@ -30,6 +30,9 @@ export const ShareLinkButton = ({
           );
           if (preserveSearchParams) {
             url.search = location.search;
+            // The span filter lives in the fragment, so a link that copied only
+            // the search would not reproduce the view being shared.
+            url.hash = location.hash;
           }
           navigator.clipboard.writeText(url.toString());
           notifySuccess({

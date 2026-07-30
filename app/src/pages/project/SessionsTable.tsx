@@ -21,7 +21,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 import {
   ContextualHelp,
@@ -102,6 +102,7 @@ const TableBody = <T extends { id: string }>({
   const navigate = useNavigate();
   const { sessionId } = useParams();
   const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -115,6 +116,7 @@ const TableBody = <T extends { id: string }>({
                 getSessionDetailsPath({
                   sessionId: row.original.id,
                   searchParams,
+                  hash,
                 })
               )
             }

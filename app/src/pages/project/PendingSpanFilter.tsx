@@ -2,7 +2,7 @@ import { Loading, View } from "@phoenix/components";
 
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
-import type { SettledSpanFilterSeed } from "./spanFilterSeed";
+import { spanFilterSeed, type SettledSpanFilterSeed } from "./spanFilterSeed";
 
 /**
  * The filter field, standing in for a spans table while its condition is
@@ -15,13 +15,27 @@ import type { SettledSpanFilterSeed } from "./spanFilterSeed";
  */
 export function PendingSpanFilter({
   onResolved,
+  fallbackCondition = DEFAULT_SPAN_FILTER_CONDITION,
 }: {
   /**
    * Receives the settled seed. `persistToUrl` is false for a fallback, so the
    * URL keeps the text that was rejected rather than the one being loaded.
    */
   onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
+  /**
+   * What to load when the condition cannot be validated. Must be one this app
+   * can classify, and must match what the host view shows when the URL carries
+   * no condition -- the traces tab shows every span, so it passes `""` rather
+   * than inheriting the spans tab's root-span default.
+   */
+  fallbackCondition?: string;
 }) {
+  const fallbackSeed = spanFilterSeed(fallbackCondition);
+  if (fallbackSeed.requiresServerValidation) {
+    throw new Error(
+      `PendingSpanFilter fallback must not need validation: ${fallbackCondition}`
+    );
+  }
   return (
     <>
       <View
@@ -42,19 +56,10 @@ export function PendingSpanFilter({
             })
           }
           // A rejected or unanswerable condition still has to resolve to
-          // something loadable. The default shows root spans, as a link with no
-          // filter does, rather than every span -- wider than was asked for.
-          // The field keeps showing the text and its own error.
-          onValidationFailed={() =>
-            onResolved(
-              {
-                condition: DEFAULT_SPAN_FILTER_CONDITION,
-                requiresServerValidation: false,
-                rootSpansOnly: true,
-              },
-              false
-            )
-          }
+          // something loadable, so fall back to what this view shows with no
+          // filter at all rather than to something wider or narrower. The field
+          // keeps showing the text and its own error.
+          onValidationFailed={() => onResolved(fallbackSeed, false)}
         />
       </View>
       <Loading />

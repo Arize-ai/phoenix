@@ -7,7 +7,7 @@ import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
 import type { DatasetEvaluatorSpansQuery } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorSpansQuery.graphql";
 import { PendingSpanFilter } from "@phoenix/pages/project/PendingSpanFilter";
-import { STRICT_ROOT_SPANS_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
+import { ORPHAN_AWARE_ROOT_SPANS_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import {
   SpanFiltersProvider,
   useInitialSpanFilterCondition,
@@ -28,8 +28,13 @@ function DatasetEvaluatorSpansContent({ projectId }: { projectId: string }) {
   // Read once at mount. The table writes each applied filter back to the URL,
   // and deriving the variables from the live param would re-execute the query
   // below on every such write.
+  //
+  // Orphan-aware, not strict: this view asked for `orphanSpanAsRootSpan: true`
+  // before the filter became a DSL condition. An evaluator project can be
+  // ingested without the parent span that its spans point at, and the strict
+  // predicate would drop exactly those rows.
   const initialFilterCondition = useInitialSpanFilterCondition(
-    STRICT_ROOT_SPANS_CONDITION
+    ORPHAN_AWARE_ROOT_SPANS_CONDITION
   );
   // A condition this app can classify loads straight away. Anything else waits
   // for the field to validate it, so no query is issued that would have to be
@@ -49,7 +54,10 @@ function DatasetEvaluatorSpansContent({ projectId }: { projectId: string }) {
             {seed ? (
               <DatasetEvaluatorSpansTable projectId={projectId} seed={seed} />
             ) : (
-              <PendingSpanFilter onResolved={setSeed} />
+              <PendingSpanFilter
+                onResolved={setSeed}
+                fallbackCondition={ORPHAN_AWARE_ROOT_SPANS_CONDITION}
+              />
             )}
           </SpanFiltersProvider>
         </TracingProvider>

@@ -46,9 +46,23 @@ export function clearSelectionScopedParams(
 }
 
 /**
+ * A relative path carries only what it spells out: React Router parses the
+ * string and takes an absent `#` to mean an empty hash, so a navigation target
+ * built without one erases the fragment. Callers inside the project views must
+ * therefore pass `location.hash`, which is where the span filter condition
+ * lives -- dropping it silently resets the user's filter on the way back.
+ */
+function withHash(path: string, hash: string | undefined): string {
+  if (!hash || hash === "#") {
+    return path;
+  }
+  return `${path}${hash.startsWith("#") ? hash : `#${hash}`}`;
+}
+
+/**
  * Build a relative path to a trace's details, preserving recreatable URL state
- * (such as the selected time range) while setting or clearing the selected
- * span.
+ * (such as the selected time range and the span filter) while setting or
+ * clearing the selected span.
  *
  * The trace ID is URL-encoded because it originates from ingested span data
  * and is not guaranteed to be a path-safe value. Encoding collapses it into a
@@ -60,19 +74,25 @@ export function getTraceDetailsPath({
   traceId,
   spanNodeId,
   searchParams,
+  hash,
 }: {
   traceId: string;
   spanNodeId?: string | null;
   searchParams: URLSearchParams;
+  /** The current `location.hash`. Omitted only where none can be set. */
+  hash?: string;
 }): string {
-  return `${encodeURIComponent(traceId)}${withSearchParams(
-    clearSelectionScopedParams(searchParams),
-    (params) => {
-      if (spanNodeId) {
-        params.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
+  return withHash(
+    `${encodeURIComponent(traceId)}${withSearchParams(
+      clearSelectionScopedParams(searchParams),
+      (params) => {
+        if (spanNodeId) {
+          params.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
+        }
       }
-    }
-  )}`;
+    )}`,
+    hash
+  );
 }
 
 /**
@@ -82,11 +102,17 @@ export function getTraceDetailsPath({
 export function getSessionDetailsPath({
   sessionId,
   searchParams,
+  hash,
 }: {
   sessionId: string;
   searchParams: URLSearchParams;
+  /** The current `location.hash`. Omitted only where none can be set. */
+  hash?: string;
 }): string {
-  return `${encodeURIComponent(sessionId)}${clearSelectionScopedParams(
-    searchParams
-  )}`;
+  return withHash(
+    `${encodeURIComponent(sessionId)}${clearSelectionScopedParams(
+      searchParams
+    )}`,
+    hash
+  );
 }
