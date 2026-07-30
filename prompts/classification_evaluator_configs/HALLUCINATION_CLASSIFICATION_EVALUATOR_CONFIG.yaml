@@ -47,7 +47,7 @@ messages:
       - Being unhelpful, incomplete, poorly written, off-topic, or badly formatted.
       - Failing to do everything the user asked. Whether the assistant covered the full request is separate from whether what it said is supported.
       - Stating an intention to do something in the future. "I'll open a ticket" is a plan, not a claim about what happened. Only claims that an action is already complete are checkable here.
-      - Content the input shows was shortened or omitted. If the input contains markers indicating that earlier messages were dropped or text was truncated, judge only the claims you can actually check against what is visible.
+      - Content the input shows was shortened or omitted. Do not treat the absence of a claim from an explicitly elided region as evidence that the claim was fabricated. If the omitted region could plausibly contain the missing support, default to grounded. Otherwise, judge the claim against the visible input normally.
 
       When you are genuinely unsure whether a claim is supported, label the response grounded.
 
