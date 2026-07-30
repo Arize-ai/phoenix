@@ -1,6 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { useId } from "react";
 
 import { SpanInfo } from "@phoenix/pages/trace/span";
+import type {
+  SpanInfoData,
+  SpanInfoSectionIds,
+} from "@phoenix/pages/trace/span";
 
 import {
   createSpanInfoFixture,
@@ -589,30 +594,48 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const storySectionIds: SpanInfoSectionIds = {
+  input: "story-input",
+  output: "story-output",
+  toolDefinitions: "story-tool-definitions",
+  metadata: "story-metadata",
+};
+
+function SpanInfoFixture({ span }: { span: SpanInfoData }) {
+  const sectionIdPrefix = useId().replaceAll(":", "");
+  const sectionIds: SpanInfoSectionIds = {
+    input: `${sectionIdPrefix}-input`,
+    output: `${sectionIdPrefix}-output`,
+    toolDefinitions: `${sectionIdPrefix}-tool-definitions`,
+    metadata: `${sectionIdPrefix}-metadata`,
+  };
+  return <SpanInfo span={span} sectionIds={sectionIds} />;
+}
+
 export const ExcessiveContent: Story = {
-  args: { span: excessiveToolCallsSpan },
+  args: { span: excessiveToolCallsSpan, sectionIds: storySectionIds },
   render: () => (
     <DetailPanelExamples>
       <DetailPanelExample title="LLM · long invocation parameters">
-        <SpanInfo span={longInvocationParametersSpan} />
+        <SpanInfoFixture span={longInvocationParametersSpan} />
       </DetailPanelExample>
       <DetailPanelExample title="Retriever · 10 documents and 10 metric sets">
-        <SpanInfo span={excessiveRetrieverSpan} />
+        <SpanInfoFixture span={excessiveRetrieverSpan} />
       </DetailPanelExample>
       <DetailPanelExample title="Reranker · 10 inputs and 10 outputs">
-        <SpanInfo span={excessiveRerankerSpan} />
+        <SpanInfoFixture span={excessiveRerankerSpan} />
       </DetailPanelExample>
       <DetailPanelExample title="Embedding · 10 long inputs">
-        <SpanInfo span={excessiveEmbeddingSpan} />
+        <SpanInfoFixture span={excessiveEmbeddingSpan} />
       </DetailPanelExample>
       <DetailPanelExample title="LLM · 10 mixed-size production tools">
-        <SpanInfo span={excessiveToolSchemasSpan} />
+        <SpanInfoFixture span={excessiveToolSchemasSpan} />
       </DetailPanelExample>
       <DetailPanelExample title="LLM · 10 production tool calls across two rounds">
-        <SpanInfo span={excessiveToolCallsSpan} />
+        <SpanInfoFixture span={excessiveToolCallsSpan} />
       </DetailPanelExample>
       <DetailPanelExample title="Tool · exhausted retries and regional failures">
-        <SpanInfo span={excessiveToolErrorSpan} />
+        <SpanInfoFixture span={excessiveToolErrorSpan} />
       </DetailPanelExample>
     </DetailPanelExamples>
   ),

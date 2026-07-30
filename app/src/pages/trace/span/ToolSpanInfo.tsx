@@ -1,9 +1,11 @@
-import { Flex } from "@phoenix/components";
-
 import { SpanInput } from "./SpanInput";
 import { SpanOutput } from "./SpanOutput";
 import { ToolMetadata } from "./ToolMetadata";
-import type { AttributeObject, SpanInfoData } from "./types";
+import type {
+  AttributeObject,
+  SpanInfoData,
+  SpanInfoSectionProps,
+} from "./types";
 import { getToolAttributes } from "./utils";
 
 /**
@@ -13,9 +15,15 @@ import { getToolAttributes } from "./utils";
 export function ToolSpanInfo({
   span,
   spanAttributes,
+  inputSectionProps,
+  outputSectionProps,
+  toolDefinitionsSectionProps,
 }: {
   span: SpanInfoData;
   spanAttributes: AttributeObject;
+  inputSectionProps: SpanInfoSectionProps;
+  outputSectionProps: SpanInfoSectionProps;
+  toolDefinitionsSectionProps: SpanInfoSectionProps;
 }) {
   const { input, output } = span;
   const hasInput = typeof input?.value === "string";
@@ -26,16 +34,17 @@ export function ToolSpanInfo({
     return null;
   }
   return (
-    <Flex direction="column" gap="size-200">
-      {hasInput ? <SpanInput {...input} /> : null}
-      {hasOutput ? <SpanOutput {...output} /> : null}
+    <>
+      {hasInput ? <SpanInput {...input} {...inputSectionProps} /> : null}
+      {hasOutput ? <SpanOutput {...output} {...outputSectionProps} /> : null}
       {hasToolAttributes ? (
         <ToolMetadata
           name={name}
           description={description}
           parameters={parameters}
+          {...toolDefinitionsSectionProps}
         />
       ) : null}
-    </Flex>
+    </>
   );
 }

@@ -2,10 +2,10 @@ import { css } from "@emotion/react";
 import { Fragment } from "react";
 
 import {
-  Card,
   CopyToClipboardButton,
   Flex,
   Heading,
+  Text,
   View,
 } from "@phoenix/components";
 import {
@@ -16,9 +16,10 @@ import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
 import { RetrievalEvaluationLabel } from "../../project/RetrievalEvaluationLabel";
 import { DocumentItem } from "../DocumentItem";
+import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
-import { defaultCardProps } from "./constants";
 import type { DocumentEvaluation, RetrievalMetric } from "./types";
+import type { SpanInfoSectionProps } from "./types";
 import { formatJSONForCopy } from "./utils";
 
 /**
@@ -30,6 +31,8 @@ export function RetrieverOutput({
   documentEvaluationsByPosition,
   retrievalMetrics,
   spanNodeId,
+  sectionId,
+  bordered,
 }: {
   documents: AttributeDocument[];
   /** Document evaluations grouped by the position of the document they annotate */
@@ -37,15 +40,16 @@ export function RetrieverOutput({
   retrievalMetrics: ReadonlyArray<RetrievalMetric>;
   /** The relay node ID of the span, used for annotating documents */
   spanNodeId: string;
-}) {
+} & SpanInfoSectionProps) {
   const hasDocumentRetrievalMetrics = retrievalMetrics.length > 0;
   const cardProps = useSpanInfoCardProps("output");
   return (
     <MarkdownDisplayProvider>
-      <Card
+      <SpanDetailsDisclosureSection
+        sectionId={sectionId}
+        bordered={bordered}
         title="Output"
-        subTitle="Documents"
-        {...defaultCardProps}
+        titleExtra={<Text color="text-700">Documents</Text>}
         {...cardProps}
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -119,7 +123,7 @@ export function RetrieverOutput({
             );
           })}
         </ul>
-      </Card>
+      </SpanDetailsDisclosureSection>
     </MarkdownDisplayProvider>
   );
 }

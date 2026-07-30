@@ -1,25 +1,31 @@
-import { Card, CopyToClipboardButton, Flex } from "@phoenix/components";
+import { CopyToClipboardButton, Flex } from "@phoenix/components";
 import {
   ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 
+import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
-import { defaultCardProps } from "./constants";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
-import type { SpanIOValue } from "./types";
+import type { SpanInfoSectionProps, SpanIOValue } from "./types";
 
 /**
  * A card displaying the input (query) of a retriever span.
  */
-export function RetrieverInput({ value, mimeType }: SpanIOValue) {
+export function RetrieverInput({
+  value,
+  mimeType,
+  sectionId,
+  bordered,
+}: SpanIOValue & SpanInfoSectionProps) {
   const isText = mimeType === "text";
   const cardProps = useSpanInfoCardProps("input");
   return (
     <MarkdownDisplayProvider>
-      <Card
+      <SpanDetailsDisclosureSection
+        sectionId={sectionId}
+        bordered={bordered}
         title="Input"
-        {...defaultCardProps}
         {...cardProps}
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -33,7 +39,7 @@ export function RetrieverInput({ value, mimeType }: SpanIOValue) {
           mimeType={mimeType}
           initializeImmediately
         />
-      </Card>
+      </SpanDetailsDisclosureSection>
     </MarkdownDisplayProvider>
   );
 }

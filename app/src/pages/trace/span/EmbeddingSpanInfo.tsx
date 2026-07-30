@@ -1,8 +1,10 @@
-import { Flex } from "@phoenix/components";
-
 import { EmbeddingInput } from "./EmbeddingInput";
 import { SpanIO } from "./SpanIO";
-import type { AttributeObject, SpanInfoData } from "./types";
+import type {
+  AttributeObject,
+  SpanInfoData,
+  SpanInfoSectionProps,
+} from "./types";
 import { getEmbeddingAttributes } from "./utils";
 
 /**
@@ -12,20 +14,29 @@ import { getEmbeddingAttributes } from "./utils";
 export function EmbeddingSpanInfo({
   span,
   spanAttributes,
+  inputSectionProps,
+  outputSectionProps,
 }: {
   span: SpanInfoData;
   spanAttributes: AttributeObject;
+  inputSectionProps: SpanInfoSectionProps;
+  outputSectionProps: SpanInfoSectionProps;
 }) {
   const { embeddings } = getEmbeddingAttributes(spanAttributes);
 
   const hasEmbeddings = embeddings.length > 0;
   return (
-    <Flex direction="column" gap="size-200">
+    <>
       {hasEmbeddings ? (
-        <EmbeddingInput embeddings={embeddings} />
+        <EmbeddingInput embeddings={embeddings} {...inputSectionProps} />
       ) : (
-        <SpanIO input={span.input} output={span.output} />
+        <SpanIO
+          input={span.input}
+          output={span.output}
+          inputSectionProps={inputSectionProps}
+          outputSectionProps={outputSectionProps}
+        />
       )}
-    </Flex>
+    </>
   );
 }

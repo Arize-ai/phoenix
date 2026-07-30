@@ -1,9 +1,11 @@
-import { Card, CopyToClipboardButton } from "@phoenix/components";
+import { CopyToClipboardButton, Text } from "@phoenix/components";
 import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
 import { DocumentItem } from "../DocumentItem";
+import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
-import { defaultCardProps, documentsListCSS } from "./constants";
+import { documentsListCSS } from "./constants";
+import type { SpanInfoSectionProps } from "./types";
 import { formatJSONForCopy } from "./utils";
 
 /**
@@ -11,18 +13,25 @@ import { formatJSONForCopy } from "./utils";
  */
 export function RerankerOutput({
   outputDocuments,
+  sectionId,
+  bordered,
 }: {
   outputDocuments: AttributeDocument[];
-}) {
+} & SpanInfoSectionProps) {
   const numOutputDocuments = outputDocuments.length;
   const cardProps = useSpanInfoCardProps("output");
   return (
-    <Card
+    <SpanDetailsDisclosureSection
+      sectionId={sectionId}
+      bordered={bordered}
       title={"Output"}
-      subTitle={`${numOutputDocuments} ${
-        numOutputDocuments === 1 ? "document" : "documents"
-      }`}
-      {...defaultCardProps}
+      titleExtra={
+        <Text color="text-700">
+          {`${numOutputDocuments} ${
+            numOutputDocuments === 1 ? "document" : "documents"
+          }`}
+        </Text>
+      }
       {...cardProps}
       extra={
         <CopyToClipboardButton text={formatJSONForCopy(outputDocuments)} />
@@ -35,6 +44,6 @@ export function RerankerOutput({
           </li>
         ))}
       </ul>
-    </Card>
+    </SpanDetailsDisclosureSection>
   );
 }

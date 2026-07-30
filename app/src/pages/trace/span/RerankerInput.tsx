@@ -1,10 +1,10 @@
 import {
-  Card,
   CopyToClipboardButton,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
   DisclosureTrigger,
+  Text,
   View,
 } from "@phoenix/components";
 import {
@@ -14,8 +14,10 @@ import {
 import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
 import { DocumentItem } from "../DocumentItem";
+import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
-import { defaultCardProps, documentsListCSS } from "./constants";
+import { documentsListCSS } from "./constants";
+import type { SpanInfoSectionProps } from "./types";
 import { formatJSONForCopy } from "./utils";
 
 /**
@@ -26,19 +28,26 @@ import { formatJSONForCopy } from "./utils";
 export function RerankerInput({
   query,
   inputDocuments,
+  sectionId,
+  bordered,
 }: {
   query: string | null;
   inputDocuments: AttributeDocument[];
-}) {
+} & SpanInfoSectionProps) {
   const numInputDocuments = inputDocuments.length;
   const cardProps = useSpanInfoCardProps("input");
   return (
-    <Card
+    <SpanDetailsDisclosureSection
+      sectionId={sectionId}
+      bordered={bordered}
       title="Input"
-      subTitle={`${numInputDocuments} ${
-        numInputDocuments === 1 ? "document" : "documents"
-      }`}
-      {...defaultCardProps}
+      titleExtra={
+        <Text color="text-700">
+          {`${numInputDocuments} ${
+            numInputDocuments === 1 ? "document" : "documents"
+          }`}
+        </Text>
+      }
       {...cardProps}
       // the card holds both halves of the reranker's input, so copying it hands
       // back the pair rather than whichever disclosure happens to be open
@@ -78,6 +87,6 @@ export function RerankerInput({
           </Disclosure>
         </DisclosureGroup>
       </MarkdownDisplayProvider>
-    </Card>
+    </SpanDetailsDisclosureSection>
   );
 }

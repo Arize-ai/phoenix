@@ -34,7 +34,14 @@ import {
   type DetailHeaderAnnotationTarget,
   DetailHeaderAnnotationTargetSelect,
 } from "./DetailHeaderAnnotationTarget";
-import { SpanAttributesSection, SpanInfo } from "./span";
+import {
+  getSpanInfoSectionKeys,
+  parseSpanAttributes,
+  SpanAttributesSection,
+  SpanInfo,
+  type SpanInfoSectionIds,
+  type SpanInfoSectionKey,
+} from "./span";
 import { SpanDetailsHeaderActions } from "./SpanDetailsHeaderActions";
 import { SpanDetailsSectionHeading } from "./SpanDetailsSectionHeading";
 import { SpanEventsList } from "./SpanEventsList";
@@ -54,6 +61,13 @@ const SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS = 0.5;
 const ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 280;
 const EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 const NOTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
+
+const spanInfoSectionNavigationLabels: Record<SpanInfoSectionKey, string> = {
+  input: "Input",
+  output: "Output",
+  toolDefinitions: "Tools",
+  metadata: "Metadata",
+};
 
 const spanDetailsAnchorNavCSS = css`
   display: flex;
@@ -466,8 +480,17 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
       spanDetailsSectionsDimensions.height;
   const shouldRenderNotesContent =
     span.spanNotes.length > 0 || isNotesPushedBelowViewport;
+  const spanInfoSectionIds: SpanInfoSectionIds = {
+    input: `span-details-${span.spanId}-input`,
+    output: `span-details-${span.spanId}-output`,
+    toolDefinitions: `span-details-${span.spanId}-tool-definitions`,
+    metadata: `span-details-${span.spanId}-metadata`,
+  };
+  const spanInfoSectionKeys = getSpanInfoSectionKeys({
+    span,
+    spanAttributes: parseSpanAttributes(span.attributes).json,
+  });
   const spanDetailsSectionIds = {
-    info: `span-details-${span.spanId}-info`,
     attributes: `span-details-${span.spanId}-attributes`,
     events: `span-details-${span.spanId}-events`,
     notes: `span-details-${span.spanId}-notes`,
@@ -598,11 +621,14 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     >
       <nav css={spanDetailsAnchorNavCSS} aria-label="Span detail sections">
         <ul>
-          <SpanDetailSectionLink
-            label="Info"
-            sectionId={spanDetailsSectionIds.info}
-            onClick={handleSectionLinkClick}
-          />
+          {spanInfoSectionKeys.map((sectionKey) => (
+            <SpanDetailSectionLink
+              key={sectionKey}
+              label={spanInfoSectionNavigationLabels[sectionKey]}
+              sectionId={spanInfoSectionIds[sectionKey]}
+              onClick={handleSectionLinkClick}
+            />
+          ))}
           <SpanDetailSectionLink
             label="Attributes"
             sectionId={spanDetailsSectionIds.attributes}
@@ -633,21 +659,18 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
           data-span-details-sections-content
         >
           <div ref={spanDetailsMainRef} data-span-details-main>
-            <section id={spanDetailsSectionIds.info} aria-label="Info">
-              <SpanDetailsSectionHeading bordered={false}>
-                Info
-              </SpanDetailsSectionHeading>
-              <ErrorBoundary>
-                <SpanInfo span={span} />
-              </ErrorBoundary>
-            </section>
+            <ErrorBoundary>
+              <SpanInfo span={span} sectionIds={spanInfoSectionIds} />
+            </ErrorBoundary>
             <section
               id={spanDetailsSectionIds.attributes}
               aria-label="Attributes"
             >
               <DeferredSpanDetailsContent
                 fallback={
-                  <SpanDetailsSectionHeading>
+                  <SpanDetailsSectionHeading
+                    bordered={spanInfoSectionKeys.length > 0}
+                  >
                     Attributes
                   </SpanDetailsSectionHeading>
                 }
@@ -656,6 +679,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               >
                 <SpanAttributesSection
                   attributes={span.attributes}
+                  bordered={spanInfoSectionKeys.length > 0}
                   {...attributesDisclosureProps}
                 />
               </DeferredSpanDetailsContent>

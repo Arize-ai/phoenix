@@ -8,6 +8,7 @@ export * from "./LLMOutput";
 export * from "./LLMPromptsList";
 export * from "./LLMPromptTemplate";
 export * from "./LLMSpanInfo";
+export * from "./LLMToolDefinitions";
 export * from "./LLMToolSchemasList";
 export * from "./MessageContentsList";
 export * from "./MimeTypeCodeBlock";

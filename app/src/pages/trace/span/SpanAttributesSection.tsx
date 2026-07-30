@@ -42,12 +42,8 @@ const attributesSectionToggleCSS = css`
   gap: var(--global-dimension-size-100);
   min-width: 0;
   border-radius: var(--global-rounding-small);
-  color: var(--global-text-color-900);
+  color: inherit;
   cursor: pointer;
-
-  &:hover {
-    background-color: var(--global-card-header-background-color-hover);
-  }
 
   &:focus-visible {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
@@ -57,6 +53,7 @@ const attributesSectionToggleCSS = css`
 
 export type SpanAttributesSectionProps = {
   attributes: string;
+  bordered?: boolean;
   defaultOpen?: boolean;
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
@@ -70,6 +67,7 @@ export type SpanAttributesSectionProps = {
  */
 export function SpanAttributesSection({
   attributes,
+  bordered = true,
   defaultOpen = true,
   isOpen,
   onOpenChange,
@@ -81,6 +79,7 @@ export function SpanAttributesSection({
       indexNotation="dot"
     >
       <SpanAttributesSectionContents
+        bordered={bordered}
         defaultOpen={defaultOpen}
         isOpen={isOpen}
         onOpenChange={onOpenChange}
@@ -90,6 +89,7 @@ export function SpanAttributesSection({
 }
 
 function SpanAttributesSectionContents({
+  bordered,
   defaultOpen,
   isOpen: controlledIsOpen,
   onOpenChange,
@@ -111,6 +111,9 @@ function SpanAttributesSectionContents({
   return (
     <>
       <SpanDetailsSectionHeading
+        bordered={bordered}
+        isCollapsed={!isOpen}
+        onTitleClick={toggleOpen}
         titleExtra={
           <>
             {isViewable ? (

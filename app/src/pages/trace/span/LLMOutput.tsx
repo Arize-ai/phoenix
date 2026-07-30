@@ -1,17 +1,17 @@
-import { Card, CopyToClipboardButton, Flex } from "@phoenix/components";
+import { CopyToClipboardButton, Flex, Text } from "@phoenix/components";
 import {
   ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
 
+import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
-import { defaultCardProps } from "./constants";
 import type { LLMIOView } from "./LLMIOViewSelect";
 import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
 import { LLMMessagesList } from "./LLMMessagesList";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
-import type { SpanIOValue } from "./types";
+import type { SpanInfoSectionProps, SpanIOValue } from "./types";
 import { countToolCalls, formatJSONForCopy } from "./utils";
 
 /**
@@ -22,11 +22,13 @@ import { countToolCalls, formatJSONForCopy } from "./utils";
 export function LLMOutput({
   output,
   outputMessages,
+  sectionId,
+  bordered,
 }: {
   /** The raw output value of the span */
   output: SpanIOValue | null;
   outputMessages: AttributeMessage[];
-}) {
+} & SpanInfoSectionProps) {
   const hasOutput = output != null && output.value != null;
   const hasOutputMessages = outputMessages.length > 0;
   const toolCallCount = countToolCalls(outputMessages);
@@ -58,14 +60,19 @@ export function LLMOutput({
 
   return (
     <MarkdownDisplayProvider>
-      <Card
-        {...defaultCardProps}
+      <SpanDetailsDisclosureSection
+        sectionId={sectionId}
+        bordered={bordered}
         {...cardProps}
         title="Output"
-        subTitle={
-          toolCallCount > 0
-            ? `${toolCallCount} ${toolCallCount === 1 ? "tool call" : "tool calls"}`
-            : undefined
+        titleExtra={
+          toolCallCount > 0 ? (
+            <Text color="text-700">
+              {`${toolCallCount} ${
+                toolCallCount === 1 ? "tool call" : "tool calls"
+              }`}
+            </Text>
+          ) : undefined
         }
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -88,7 +95,7 @@ export function LLMOutput({
           <LLMMessagesList messages={outputMessages} />
         )}
         {isRawView && <MimeTypeCodeBlock {...output} initializeImmediately />}
-      </Card>
+      </SpanDetailsDisclosureSection>
     </MarkdownDisplayProvider>
   );
 }

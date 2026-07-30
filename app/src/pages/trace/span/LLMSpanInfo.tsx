@@ -1,8 +1,11 @@
-import { Flex } from "@phoenix/components";
-
 import { LLMInput } from "./LLMInput";
 import { LLMOutput } from "./LLMOutput";
-import type { AttributeObject, SpanInfoData } from "./types";
+import { LLMToolDefinitions } from "./LLMToolDefinitions";
+import type {
+  AttributeObject,
+  SpanInfoData,
+  SpanInfoSectionProps,
+} from "./types";
 import { getLLMAttributes } from "./utils";
 
 /**
@@ -12,9 +15,15 @@ import { getLLMAttributes } from "./utils";
 export function LLMSpanInfo({
   span,
   spanAttributes,
+  inputSectionProps,
+  outputSectionProps,
+  toolDefinitionsSectionProps,
 }: {
   span: SpanInfoData;
   spanAttributes: AttributeObject;
+  inputSectionProps: SpanInfoSectionProps;
+  outputSectionProps: SpanInfoSectionProps;
+  toolDefinitionsSectionProps: SpanInfoSectionProps;
 }) {
   const { input, output } = span;
   const {
@@ -29,18 +38,28 @@ export function LLMSpanInfo({
   } = getLLMAttributes(spanAttributes);
 
   return (
-    <Flex direction="column" gap="size-200">
+    <>
       <LLMInput
         modelName={modelName}
         provider={provider}
         input={input}
         inputMessages={inputMessages}
-        toolSchemas={toolSchemas}
         promptTemplate={promptTemplate}
         prompts={prompts}
         invocationParameters={invocationParameters}
+        {...inputSectionProps}
       />
-      <LLMOutput output={output} outputMessages={outputMessages} />
-    </Flex>
+      <LLMOutput
+        output={output}
+        outputMessages={outputMessages}
+        {...outputSectionProps}
+      />
+      {toolSchemas.length > 0 ? (
+        <LLMToolDefinitions
+          toolSchemas={toolSchemas}
+          {...toolDefinitionsSectionProps}
+        />
+      ) : null}
+    </>
   );
 }

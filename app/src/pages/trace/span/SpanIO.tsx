@@ -1,8 +1,6 @@
-import { Flex } from "@phoenix/components";
-
 import { SpanInput } from "./SpanInput";
 import { SpanOutput } from "./SpanOutput";
-import type { SpanIOValue } from "./types";
+import type { SpanInfoSectionProps, SpanIOValue } from "./types";
 
 /**
  * The generic input / output view for spans without a kind-specific view.
@@ -13,14 +11,22 @@ import type { SpanIOValue } from "./types";
 export function SpanIO({
   input,
   output,
+  inputSectionProps,
+  outputSectionProps,
 }: {
   input: SpanIOValue | null;
   output: SpanIOValue | null;
+  inputSectionProps: SpanInfoSectionProps;
+  outputSectionProps: SpanInfoSectionProps;
 }) {
   return (
-    <Flex direction="column" gap="size-200">
-      {input && input.value != null ? <SpanInput {...input} /> : null}
-      {output && output.value != null ? <SpanOutput {...output} /> : null}
-    </Flex>
+    <>
+      {input && input.value != null ? (
+        <SpanInput {...input} {...inputSectionProps} />
+      ) : null}
+      {output && output.value != null ? (
+        <SpanOutput {...output} {...outputSectionProps} />
+      ) : null}
+    </>
   );
 }

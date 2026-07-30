@@ -10,6 +10,13 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 import { SpanInfoCardsProvider } from "../../SpanInfoCardsContext";
 import { SpanInfo } from "../SpanInfo";
 
+const sectionIds = {
+  input: "input",
+  output: "output",
+  toolDefinitions: "tool-definitions",
+  metadata: "metadata",
+};
+
 function TestProviders({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider themeMode="dark" disableBodyTheme>
@@ -117,6 +124,7 @@ describe("SpanInfo", () => {
           root.render(
             <TestProviders>
               <SpanInfo
+                sectionIds={sectionIds}
                 span={{
                   id: "span-node-id",
                   spanKind,
@@ -136,4 +144,42 @@ describe("SpanInfo", () => {
       );
     }
   );
+
+  it("renders LLM tool definitions as one top-level section", () => {
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanInfo
+            sectionIds={sectionIds}
+            span={{
+              id: "span-node-id",
+              spanKind: "llm",
+              attributes: JSON.stringify({
+                llm: {
+                  tools: [
+                    { tool: { json_schema: JSON.stringify({ name: "one" }) } },
+                    { tool: { json_schema: JSON.stringify({ name: "two" }) } },
+                  ],
+                },
+              }),
+              input: { value: "input", mimeType: "text" },
+              output: { value: "output", mimeType: "text" },
+              documentRetrievalMetrics: [],
+              documentEvaluations: [],
+            }}
+          />
+        </TestProviders>
+      );
+    });
+
+    expect(container.querySelectorAll("[data-span-info-section]")).toHaveLength(
+      3
+    );
+    expect(
+      container.querySelector("#tool-definitions")?.getAttribute("aria-label")
+    ).toBe("Tool Definitions");
+    expect(container.querySelectorAll("#tool-definitions .card")).toHaveLength(
+      2
+    );
+  });
 });

@@ -6,15 +6,15 @@ import type { CardProps } from "@phoenix/components";
 /**
  * The disclosures the span details expand/collapse control acts on.
  *
- * Every span kind renders its input and output cards differently, but each of
+ * Every span kind renders its input and output sections differently, but each of
  * those renders under one of these keys, so the control reaches them all
- * without knowing which kind is on screen. Attributes uses a section-level
- * disclosure; the other keys identify cards. Nested cards — a prompt template,
- * a tool schema — are left to the reader.
+ * without knowing which kind is on screen. Nested cards — a prompt template or
+ * an individual tool schema — are left to the reader.
  */
 export const SPAN_INFO_CARD_KEYS = [
   "input",
   "output",
+  "toolDefinitions",
   "metadata",
   "attributes",
 ] as const;
@@ -110,8 +110,7 @@ export function useSpanInfoCards() {
 
 /**
  * Open-state props that put a top-level span detail disclosure under the
- * details expand/collapse control. Card consumers spread these alongside
- * `defaultCardProps`; the Attributes section accepts the same contract.
+ * details expand/collapse control.
  *
  * `isOpen` stays undefined until something sets the card's state, so a card
  * nobody has touched still honors its own `defaultOpen`.

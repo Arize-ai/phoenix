@@ -69,10 +69,24 @@ describe("SpanAttributesSection", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     expect(body?.hidden).toBe(false);
 
-    act(() => toggle.click());
+    const titleRegion = container.querySelector<HTMLElement>(
+      ".span-details-section-heading__title"
+    );
+    if (titleRegion === null) {
+      throw new Error("Attributes title region was not rendered");
+    }
+    act(() => titleRegion.click());
 
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(body?.hidden).toBe(true);
+    expect(
+      container
+        .querySelector(".span-details-section-heading__header")
+        ?.getAttribute("data-collapsed")
+    ).toBe("true");
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
+
+    act(() => toggle.click());
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
   });
 });

@@ -2,8 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { Card } from "@phoenix/components";
-
+import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import {
   SpanInfoCardsProvider,
   useSpanInfoCardProps,
@@ -33,15 +32,22 @@ function query(selector: string): Element {
   return element;
 }
 
-function InputCard({ spanId }: { spanId: string }) {
-  const cardProps = useSpanInfoCardProps("input");
+function InputSection({ spanId }: { spanId: string }) {
+  const sectionProps = useSpanInfoCardProps("input");
   return (
-    <Card key={spanId} {...cardProps} title="Input" collapsible>
+    <SpanDetailsDisclosureSection
+      key={spanId}
+      sectionId={`input-${spanId}`}
+      title="Input"
+      titleExtra={<button type="button">Help</button>}
+      extra={<button type="button">Copy</button>}
+      {...sectionProps}
+    >
       <details open>
         <summary>Nested content</summary>
         Body
       </details>
-    </Card>
+    </SpanDetailsDisclosureSection>
   );
 }
 
@@ -49,7 +55,7 @@ function Fixture({ spanId }: { spanId: string }) {
   return (
     <SpanInfoCardsProvider>
       <SpanInfoCardsToggle />
-      <InputCard spanId={spanId} />
+      <InputSection spanId={spanId} />
     </SpanInfoCardsProvider>
   );
 }
@@ -66,15 +72,42 @@ afterEach(() => {
 });
 
 describe("SpanInfoCardsProvider", () => {
-  it("preserves controlled card state across spans without changing nested content", () => {
+  it("toggles from the full title region without consuming header controls", () => {
+    render(<Fixture spanId="span-a" />);
+
+    click(query(".span-details-section-heading__title"));
+    expect(query("button[aria-controls]").getAttribute("aria-expanded")).toBe(
+      "false"
+    );
+    expect(
+      query(".span-details-section-heading__header").getAttribute(
+        "data-collapsed"
+      )
+    ).toBe("true");
+
+    click(query("button[aria-controls]"));
+    click(
+      query(".span-details-section-heading__title button:not([aria-controls])")
+    );
+    click(query(".span-details-section-heading__extra button"));
+    expect(query("button[aria-controls]").getAttribute("aria-expanded")).toBe(
+      "true"
+    );
+  });
+
+  it("preserves controlled section state across spans without changing nested content", () => {
     render(<Fixture spanId="span-a" />);
 
     click(query('button[aria-label="Collapse all sections"]'));
-    expect(query(".card").getAttribute("data-collapsed")).toBe("true");
+    expect(query("button[aria-controls]").getAttribute("aria-expanded")).toBe(
+      "false"
+    );
     expect(query("details").hasAttribute("open")).toBe(true);
 
     render(<Fixture spanId="span-b" />);
-    expect(query(".card").getAttribute("data-collapsed")).toBe("true");
+    expect(query("button[aria-controls]").getAttribute("aria-expanded")).toBe(
+      "false"
+    );
     expect(query("details").hasAttribute("open")).toBe(true);
   });
 });

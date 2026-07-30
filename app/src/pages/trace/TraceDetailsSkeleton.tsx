@@ -405,7 +405,12 @@ export function SpanDetailsContentSkeleton() {
         <ul>
           <li>
             <Text color="inherit" size="S">
-              Info
+              Input
+            </Text>
+          </li>
+          <li>
+            <Text color="inherit" size="S">
+              Output
             </Text>
           </li>
           <li>

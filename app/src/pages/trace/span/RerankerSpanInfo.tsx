@@ -1,8 +1,6 @@
-import { Flex } from "@phoenix/components";
-
 import { RerankerInput } from "./RerankerInput";
 import { RerankerOutput } from "./RerankerOutput";
-import type { AttributeObject } from "./types";
+import type { AttributeObject, SpanInfoSectionProps } from "./types";
 import { getRerankerAttributes } from "./utils";
 
 /**
@@ -11,16 +9,27 @@ import { getRerankerAttributes } from "./utils";
  */
 export function RerankerSpanInfo({
   spanAttributes,
+  inputSectionProps,
+  outputSectionProps,
 }: {
   spanAttributes: AttributeObject;
+  inputSectionProps: SpanInfoSectionProps;
+  outputSectionProps: SpanInfoSectionProps;
 }) {
   const { query, inputDocuments, outputDocuments } =
     getRerankerAttributes(spanAttributes);
 
   return (
-    <Flex direction="column" gap="size-200">
-      <RerankerInput query={query} inputDocuments={inputDocuments} />
-      <RerankerOutput outputDocuments={outputDocuments} />
-    </Flex>
+    <>
+      <RerankerInput
+        query={query}
+        inputDocuments={inputDocuments}
+        {...inputSectionProps}
+      />
+      <RerankerOutput
+        outputDocuments={outputDocuments}
+        {...outputSectionProps}
+      />
+    </>
   );
 }

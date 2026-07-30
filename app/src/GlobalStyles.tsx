@@ -99,6 +99,11 @@ const staticCSS = css`
       --global-dimension-size-150
     );
 
+    // span details content geometry
+    --global-span-details-section-heading-height: var(
+      --global-dimension-size-600
+    );
+
     // session details navigation top-level turn and trace rows
     --global-session-details-navigation-top-level-row-padding-block: var(
       --global-dimension-size-150
@@ -597,6 +602,7 @@ export const darkThemeCSS = css`
     --global-color-severe-500: rgba(var(--global-color-severe-rgb), 0.5);
 
     --global-text-color-900: rgba(255, 255, 255, 0.9);
+    --global-text-color-800: rgba(255, 255, 255, 0.8);
     --global-text-color-700: rgba(255, 255, 255, 0.7);
     --global-text-color-500: rgba(255, 255, 255, 0.5);
     --global-text-color-400: rgba(255, 255, 255, 0.4);
@@ -866,6 +872,7 @@ export const lightThemeCSS = css`
     --global-color-severe-500: rgba(246, 133, 17, 0.5);
 
     --global-text-color-900: rgba(0, 0, 0, 0.9);
+    --global-text-color-800: rgba(0, 0, 0, 0.8);
     --global-text-color-700: rgba(0, 0, 0, 0.7);
     --global-text-color-500: rgba(0, 0, 0, 0.5);
     --global-text-color-400: rgba(0, 0, 0, 0.4);

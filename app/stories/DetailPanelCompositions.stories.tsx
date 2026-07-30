@@ -48,8 +48,17 @@ import { AnnotationsEmpty } from "@phoenix/pages/trace/AnnotationsEmpty";
 import { RootSpanMessage } from "@phoenix/pages/trace/SessionDetailsTraceList";
 import type { SessionView } from "@phoenix/pages/trace/SessionViewTabs";
 import { SessionViewTabs } from "@phoenix/pages/trace/SessionViewTabs";
-import type { SpanInfoData } from "@phoenix/pages/trace/span";
-import { SpanAttributesSection, SpanInfo } from "@phoenix/pages/trace/span";
+import type {
+  SpanInfoData,
+  SpanInfoSectionIds,
+  SpanInfoSectionKey,
+} from "@phoenix/pages/trace/span";
+import {
+  getSpanInfoSectionKeys,
+  parseSpanAttributes,
+  SpanAttributesSection,
+  SpanInfo,
+} from "@phoenix/pages/trace/span";
 import { SpanEventsListContent } from "@phoenix/pages/trace/SpanEventsList";
 import { SpanInfoCardsProvider } from "@phoenix/pages/trace/SpanInfoCardsContext";
 import { SpanNotesListContent } from "@phoenix/pages/trace/SpanNotesList";
@@ -72,6 +81,13 @@ const panelFrameCSS = css`
     var(--global-border-color-default);
   box-shadow: 0 8px 20px rgba(0 0 0 / 0.1);
 `;
+
+const spanInfoSectionNavigationLabels: Record<SpanInfoSectionKey, string> = {
+  input: "Input",
+  output: "Output",
+  toolDefinitions: "Tools",
+  metadata: "Metadata",
+};
 
 const compositionBodyCSS = css`
   flex: 1 1 auto;
@@ -479,8 +495,17 @@ function SpanDetailsFixture({
   const sectionIdPrefix = useId().replaceAll(":", "");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
+  const spanInfoSectionIds: SpanInfoSectionIds = {
+    input: `${sectionIdPrefix}-input`,
+    output: `${sectionIdPrefix}-output`,
+    toolDefinitions: `${sectionIdPrefix}-tool-definitions`,
+    metadata: `${sectionIdPrefix}-metadata`,
+  };
+  const spanInfoSectionKeys = getSpanInfoSectionKeys({
+    span: details,
+    spanAttributes: parseSpanAttributes(details.attributes).json,
+  });
   const sectionIds = {
-    info: `${sectionIdPrefix}-info`,
     attributes: `${sectionIdPrefix}-attributes`,
     events: `${sectionIdPrefix}-events`,
     notes: `${sectionIdPrefix}-notes`,
@@ -537,16 +562,21 @@ function SpanDetailsFixture({
         </View>
         <nav aria-label="Span detail sections">
           <ul css={spanSectionNavigationCSS}>
-            <li>
-              <a
-                href={`#${sectionIds.info}`}
-                onClick={(event) =>
-                  handleSectionLinkClick({ event, sectionId: sectionIds.info })
-                }
-              >
-                Info
-              </a>
-            </li>
+            {spanInfoSectionKeys.map((sectionKey) => (
+              <li key={sectionKey}>
+                <a
+                  href={`#${spanInfoSectionIds[sectionKey]}`}
+                  onClick={(event) =>
+                    handleSectionLinkClick({
+                      event,
+                      sectionId: spanInfoSectionIds[sectionKey],
+                    })
+                  }
+                >
+                  {spanInfoSectionNavigationLabels[sectionKey]}
+                </a>
+              </li>
+            ))}
             <li>
               <a
                 href={`#${sectionIds.attributes}`}
@@ -589,23 +619,12 @@ function SpanDetailsFixture({
           </ul>
         </nav>
         <div ref={scrollContainerRef} css={spanDetailsContentCSS}>
-          <section id={sectionIds.info} aria-label="Info">
-            <View paddingX="size-200" paddingTop="size-200">
-              <Text elementType="h3" size="L" weight="heavy">
-                Info
-              </Text>
-            </View>
-            <SpanInfo span={details} />
-          </section>
+          <SpanInfo span={details} sectionIds={spanInfoSectionIds} />
           <section id={sectionIds.attributes} aria-label="Attributes">
-            <View paddingX="size-200" paddingTop="size-200">
-              <Text elementType="h3" size="L" weight="heavy">
-                Attributes
-              </Text>
-            </View>
-            <View padding="size-200">
-              <SpanAttributesSection attributes={details.attributes} />
-            </View>
+            <SpanAttributesSection
+              attributes={details.attributes}
+              bordered={spanInfoSectionKeys.length > 0}
+            />
           </section>
           <section id={sectionIds.events} aria-label="Events">
             <View padding="size-200">

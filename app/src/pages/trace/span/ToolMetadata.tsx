@@ -1,15 +1,11 @@
 import { css } from "@emotion/react";
 
-import {
-  Card,
-  CopyToClipboardButton,
-  Flex,
-  Text,
-  View,
-} from "@phoenix/components";
+import { CopyToClipboardButton, Flex, Text, View } from "@phoenix/components";
 
 import { ReadonlyJSONBlock } from "../ReadonlyJSONBlock";
-import { defaultCardProps } from "./constants";
+import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
+import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
+import type { SpanInfoSectionProps } from "./types";
 import { formatJSONForCopy, parseJSONDocument } from "./utils";
 
 /**
@@ -20,15 +16,23 @@ export function ToolMetadata({
   name,
   description,
   parameters,
+  sectionId,
+  bordered,
 }: {
   name?: string;
   description?: string;
   parameters?: string;
-}) {
+} & SpanInfoSectionProps) {
+  const sectionProps = useSpanInfoCardProps("toolDefinitions");
   return (
-    <Card
-      title={"Tool" + (typeof name === "string" ? `: ${name}` : "")}
-      {...defaultCardProps}
+    <SpanDetailsDisclosureSection
+      sectionId={sectionId}
+      bordered={bordered}
+      title="Tool Definitions"
+      titleExtra={
+        typeof name === "string" ? <Text color="text-700">{name}</Text> : null
+      }
+      {...sectionProps}
       // the tool as one document, so it can be pasted back into a tool
       // definition rather than reassembled from the fields on screen
       extra={
@@ -94,6 +98,6 @@ export function ToolMetadata({
           </View>
         ) : null}
       </Flex>
-    </Card>
+    </SpanDetailsDisclosureSection>
   );
 }

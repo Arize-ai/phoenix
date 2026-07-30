@@ -61,6 +61,15 @@ const longJsonSpan = createSpanInfoFixture({
   output: { mimeType: "json", value: EXTREMELY_LONG_JSON },
 });
 
+const inputSectionProps = {
+  sectionId: "span-input",
+  bordered: false,
+};
+const outputSectionProps = {
+  sectionId: "span-output",
+  bordered: true,
+};
+
 const meta = {
   title: "Detail panel/Span IO",
   component: SpanIO,
@@ -73,13 +82,22 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 function SpanIOFixture({ span }: { span: SpanInfoData }) {
-  return <SpanIO input={span.input} output={span.output} />;
+  return (
+    <SpanIO
+      input={span.input}
+      output={span.output}
+      inputSectionProps={inputSectionProps}
+      outputSectionProps={outputSectionProps}
+    />
+  );
 }
 
 export const LongJSON: Story = {
   args: {
     input: longJsonSpan.input,
     output: longJsonSpan.output,
+    inputSectionProps,
+    outputSectionProps,
   },
   render: () => (
     <DetailPanelExamples>

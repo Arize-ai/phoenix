@@ -1,15 +1,17 @@
 import { EmbeddingAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 
-import { Card, CopyToClipboardButton } from "@phoenix/components";
+import { Card, CopyToClipboardButton, Text } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import type { AttributeEmbeddingEmbedding } from "@phoenix/openInference/tracing/types";
 
+import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
+import type { SpanInfoSectionProps } from "./types";
 import { formatTextListForCopy } from "./utils";
 
 /**
@@ -17,19 +19,26 @@ import { formatTextListForCopy } from "./utils";
  */
 export function EmbeddingInput({
   embeddings,
+  sectionId,
+  bordered,
 }: {
   embeddings: AttributeEmbeddingEmbedding[];
-}) {
+} & SpanInfoSectionProps) {
   const numTexts = embeddings.length;
   const cardProps = useSpanInfoCardProps("input");
   const texts = embeddings.map(
     (embedding) => embedding[EmbeddingAttributePostfixes.text] || ""
   );
   return (
-    <Card
+    <SpanDetailsDisclosureSection
+      sectionId={sectionId}
+      bordered={bordered}
       title="Input"
-      subTitle={`${numTexts} ${numTexts === 1 ? "text" : "texts"}`}
-      {...defaultCardProps}
+      titleExtra={
+        <Text color="text-700">
+          {`${numTexts} ${numTexts === 1 ? "text" : "texts"}`}
+        </Text>
+      }
       {...cardProps}
       extra={<CopyToClipboardButton text={formatTextListForCopy(texts)} />}
     >
@@ -61,6 +70,6 @@ export function EmbeddingInput({
           })}
         </ul>
       }
-    </Card>
+    </SpanDetailsDisclosureSection>
   );
 }

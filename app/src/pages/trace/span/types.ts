@@ -66,3 +66,19 @@ export type SpanInfoData = {
   readonly documentRetrievalMetrics: ReadonlyArray<RetrievalMetric>;
   readonly documentEvaluations: ReadonlyArray<DocumentEvaluation>;
 };
+
+export const SPAN_INFO_SECTION_KEYS = [
+  "input",
+  "output",
+  "toolDefinitions",
+  "metadata",
+] as const;
+
+export type SpanInfoSectionKey = (typeof SPAN_INFO_SECTION_KEYS)[number];
+
+export type SpanInfoSectionIds = Record<SpanInfoSectionKey, string>;
+
+export type SpanInfoSectionProps = {
+  sectionId: string;
+  bordered: boolean;
+};
