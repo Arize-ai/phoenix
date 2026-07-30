@@ -37,14 +37,7 @@ DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER = 30
 
 
 class AgentSessionRetentionSetting(BaseModel):
-    """Workspace-wide retention for non-temporary agent sessions.
-
-    Both rules are on by default so a deployment that never visits the admin
-    settings still bounds how much chat history it accumulates. ``0`` means the
-    rule is off; these defaults apply when the
-    ``agent.assistant.session_retention`` row is absent, i.e. until an admin
-    saves a value of their own.
-    """
+    """Workspace-wide retention for non-temporary agent sessions."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, validate_assignment=True)
 
