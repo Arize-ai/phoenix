@@ -792,7 +792,7 @@ function TraceTreeSearchEmpty({ searchQuery }: { searchQuery: string }) {
 }
 
 const spanNameCSS = css`
-  font-weight: 500;
+  font-weight: 400;
   color: var(--trace-tree-row-text-color-rest);
   display: inline-block;
   white-space: nowrap;

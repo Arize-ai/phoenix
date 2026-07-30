@@ -586,6 +586,13 @@ describe("TraceTree", () => {
         idContainer.querySelector<HTMLButtonElement>(".copyable-id-badge")
       )
       .filter((badge): badge is HTMLButtonElement => badge !== null);
+    const titleFontWeights = [
+      treeItems[0]?.querySelector<HTMLElement>(".text"),
+      treeItems[1]?.querySelector<HTMLElement>(".text"),
+      container.querySelector<HTMLElement>(".span-tree-name__label"),
+    ]
+      .filter((title): title is HTMLElement => title != null)
+      .map((title) => getComputedStyle(title).fontWeight);
     const textContent = container.textContent ?? "";
 
     expect(treeItems[0]?.textContent).toContain("Sessionsession-12345678");
@@ -613,6 +620,7 @@ describe("TraceTree", () => {
       "truncate",
       "truncate",
     ]);
+    expect(titleFontWeights).toEqual(["400", "400", "400"]);
     expect(
       entityActionContainers.map((actions) => ({
         opacity: getComputedStyle(actions).opacity,
