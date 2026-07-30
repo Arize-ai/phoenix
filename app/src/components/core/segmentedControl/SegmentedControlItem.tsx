@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useLayoutEffect, useRef } from "react";
+import { useContext, useLayoutEffect, useRef } from "react";
 import {
   SelectionIndicator as AriaSelectionIndicator,
   ToggleButton as AriaToggleButton,
@@ -8,6 +8,7 @@ import {
 import { Text } from "@phoenix/components/core/content";
 import { classNames } from "@phoenix/utils/classNames";
 
+import { SegmentedControlItemOffsetContext } from "./SegmentedControlContext";
 import {
   segmentedControlItemContentCSS,
   segmentedControlItemCSS,
@@ -16,22 +17,38 @@ import {
 import type { SegmentedControlItemProps } from "./types";
 
 /**
- * react-aria slides the thumb by seeding an inline `translate` with the viewport
- * delta between the outgoing and incoming segment, measured on both axes. Drop
- * the vertical one, or page reflow flings the thumb off its track. Takes
- * `isSelected` as a prop so a selection change re-renders it, running this
- * layout effect after the indicator child has seeded the value.
+ * React Aria seeds the thumb's transition from viewport rectangles. Replace
+ * that delta with the distance between the items inside this track, so page or
+ * toolbar reflow cannot move the thumb outside the control.
  */
 function SegmentedControlThumb({ isSelected }: { isSelected: boolean }) {
   const thumbRef = useRef<HTMLDivElement>(null);
+  const selectedItemOffsetRef = useContext(SegmentedControlItemOffsetContext);
 
   useLayoutEffect(() => {
     const thumb = thumbRef.current;
-    const translate = thumb?.style.translate;
-    if (thumb && isSelected && translate) {
-      thumb.style.translate = `${translate.split(" ")[0]} 0px`;
+    const item = thumb?.parentElement;
+    if (!thumb || !item || !isSelected) {
+      return undefined;
     }
-  }, [isSelected]);
+
+    const previousItemOffset = selectedItemOffsetRef?.current;
+    const translate = thumb.style.translate.trim();
+    if (translate) {
+      const fallbackTranslateX = translate.split(/\s+/)[0];
+      const translateX =
+        previousItemOffset == null
+          ? fallbackTranslateX
+          : `${previousItemOffset - item.offsetLeft}px`;
+      thumb.style.translate = `${translateX} 0px`;
+    }
+
+    return () => {
+      if (selectedItemOffsetRef) {
+        selectedItemOffsetRef.current = item.offsetLeft;
+      }
+    };
+  }, [isSelected, selectedItemOffsetRef]);
 
   return (
     <AriaSelectionIndicator

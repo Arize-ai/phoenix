@@ -1,11 +1,12 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { Children, Fragment, isValidElement, useState } from "react";
+import { Children, Fragment, isValidElement, useRef, useState } from "react";
 import type { Key } from "react-aria-components";
 import { ToggleButtonGroup as AriaToggleButtonGroup } from "react-aria-components";
 
 import { classNames } from "@phoenix/utils/classNames";
 
+import { SegmentedControlItemOffsetContext } from "./SegmentedControlContext";
 import { segmentedControlCSS } from "./styles";
 import type { SegmentedControlItemProps, SegmentedControlProps } from "./types";
 
@@ -55,31 +56,34 @@ export function SegmentedControl({
   const [resolvedDefaultSelectedKey] = useState(
     () => defaultSelectedKey ?? getFirstEnabledItemId(children)
   );
+  const selectedItemOffsetRef = useRef<number | null>(null);
 
   return (
-    <AriaToggleButtonGroup
-      {...props}
-      selectionMode="single"
-      disallowEmptySelection
-      orientation="horizontal"
-      selectedKeys={selectedKey !== undefined ? [selectedKey] : undefined}
-      defaultSelectedKeys={
-        resolvedDefaultSelectedKey != null
-          ? [resolvedDefaultSelectedKey]
-          : undefined
-      }
-      onSelectionChange={(keys) => {
-        const [firstKey] = keys;
-        if (firstKey != null) {
-          onSelectionChange?.(firstKey);
+    <SegmentedControlItemOffsetContext.Provider value={selectedItemOffsetRef}>
+      <AriaToggleButtonGroup
+        {...props}
+        selectionMode="single"
+        disallowEmptySelection
+        orientation="horizontal"
+        selectedKeys={selectedKey !== undefined ? [selectedKey] : undefined}
+        defaultSelectedKeys={
+          resolvedDefaultSelectedKey != null
+            ? [resolvedDefaultSelectedKey]
+            : undefined
         }
-      }}
-      data-size={size}
-      data-justified={isJustified}
-      className={classNames("segmented-control", className)}
-      css={css(segmentedControlCSS, cssProp)}
-    >
-      {children}
-    </AriaToggleButtonGroup>
+        onSelectionChange={(keys) => {
+          const [firstKey] = keys;
+          if (firstKey != null) {
+            onSelectionChange?.(firstKey);
+          }
+        }}
+        data-size={size}
+        data-justified={isJustified}
+        className={classNames("segmented-control", className)}
+        css={css(segmentedControlCSS, cssProp)}
+      >
+        {children}
+      </AriaToggleButtonGroup>
+    </SegmentedControlItemOffsetContext.Provider>
   );
 }
