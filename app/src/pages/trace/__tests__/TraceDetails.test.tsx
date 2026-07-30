@@ -158,9 +158,13 @@ describe("TraceDetails", () => {
       traceHeader.querySelector('[aria-label^="Span status:"]')
     ).toBeNull();
     expect(traceHeader.textContent).not.toContain("trace-display-id");
-    expect(
-      container.querySelector("[data-testid='trace-turn-content']")?.textContent
-    ).toBe("root-span-node-id");
+    const traceTurnContent = container.querySelector(
+      "[data-testid='trace-turn-content']"
+    );
+    expect(traceTurnContent?.textContent).toBe("root-span-node-id");
+    expect(traceTurnContent?.parentElement?.style.padding).toBe(
+      "var(--global-grid-margin-xsmall)"
+    );
     expect(container.querySelector("[data-testid='span-details']")).toBeNull();
 
     expect(

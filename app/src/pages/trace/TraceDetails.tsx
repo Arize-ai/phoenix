@@ -72,10 +72,6 @@ type LocalSpanSelection = {
   spanPreview: SpanDetailsPreview;
 };
 
-const traceTurnContentContainerCSS = css`
-  padding: var(--global-grid-margin-xsmall);
-`;
-
 /**
  * A component that shows the details of a trace (e.g. a collection of spans)
  */
@@ -315,7 +311,7 @@ function TraceTurnDetails({
           overflow: auto;
         `}
       >
-        <View css={traceTurnContentContainerCSS}>
+        <View padding="var(--global-grid-margin-xsmall)">
           <TraceTurnContent rootSpan={rootSpan} />
         </View>
       </div>

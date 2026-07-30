@@ -375,10 +375,6 @@ const turnDetailRowCSS = css`
   }
 `;
 
-const turnLaneContentCSS = css`
-  padding: var(--global-grid-margin-xsmall);
-`;
-
 export function SessionDetailsTraceList({
   queryRef,
   renderNavigationHeader,
@@ -572,7 +568,7 @@ export function SessionDetailsTraceList({
               }
             }}
           >
-            <View css={turnLaneContentCSS}>
+            <View padding="var(--global-grid-margin-xsmall)">
               <SessionTurnDetail
                 index={index}
                 traceId={traceId}
@@ -587,7 +583,7 @@ export function SessionDetailsTraceList({
           borderBottomColor="default"
           borderBottomWidth={"thin"}
           paddingY="size-200"
-          css={turnLaneContentCSS}
+          paddingX="var(--global-grid-margin-xsmall)"
         >
           <View width="100%" maxWidth="1000px" marginX="auto">
             <Loading />
