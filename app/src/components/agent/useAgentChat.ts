@@ -823,7 +823,12 @@ export function useAgentChat({
           }),
         });
         if (!response.ok) {
-          const errorBody: unknown = await response.json().catch(() => null);
+          // The route's conflict codes come back as JSON, but every
+          // HTTPException detail — 403, 404, 422, and the 507 raised when
+          // storage is locked — comes back as text/plain. Read the body once
+          // and parse JSON opportunistically so neither shape is discarded.
+          const rawErrorBody = await response.text().catch(() => "");
+          const errorBody = parseJsonOrNull(rawErrorBody);
           if (
             response.status === 409 &&
             isRecord(errorBody) &&
@@ -837,7 +842,11 @@ export function useAgentChat({
             return;
           }
           throw new Error(
-            getAgentCompactErrorMessage(errorBody, response.status)
+            getAgentCompactErrorMessage(
+              errorBody,
+              rawErrorBody,
+              response.status
+            )
           );
         }
         const result: unknown = await response.json();
@@ -1175,11 +1184,34 @@ function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
 }
 
-function getAgentCompactErrorMessage(body: unknown, status: number): string {
+/**
+ * The message to show for a failed `/compact` request, preferring whatever the
+ * server actually said. `rawBody` covers the plain-text `HTTPException` details
+ * the server returns for 403/404/422/507; the status fallback is only reached
+ * when the response had no body at all.
+ */
+export function getAgentCompactErrorMessage(
+  body: unknown,
+  rawBody: string,
+  status: number
+): string {
   if (isRecord(body) && typeof body.detail === "string") {
     return body.detail;
   }
+  const text = rawBody.trim();
+  if (text) {
+    return text;
+  }
   return `Compaction failed with status ${status}.`;
+}
+
+/** Parse `text` as JSON, or return null when it is not JSON (e.g. plain text). */
+function parseJsonOrNull(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

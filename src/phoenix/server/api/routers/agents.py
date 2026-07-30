@@ -171,6 +171,7 @@ from phoenix.server.api.types.SandboxConfig import (
     get_sandbox_backend_info,
 )
 from phoenix.server.authorization import (
+    insufficient_storage_message,
     is_agent_assistant_enabled,
     is_not_locked,
     prevent_access_in_read_only_mode,
@@ -1623,6 +1624,26 @@ async def _persist_agent_session_turn(
             )
 
 
+TRANSCRIPT_NOT_SAVED_MESSAGE = (
+    "The assistant replied, but the conversation could not be saved, "
+    "so this turn will be missing when you reload."
+)
+
+
+def _transcript_persistence_error(db: DbSessionFactory) -> Exception:
+    """The error text shown when a turn ran but its transcript could not be written.
+
+    Storage exhaustion is the expected cause and the only one the user can act
+    on, so it gets named explicitly when the disk-usage monitor has locked
+    writes. Anything else keeps the generic notice — better to say the turn was
+    lost than to guess at why.
+    """
+    message = TRANSCRIPT_NOT_SAVED_MESSAGE
+    if db.should_not_insert_or_update:
+        message += f" {insufficient_storage_message()}"
+    return RuntimeError(message)
+
+
 async def _load_bash_snapshot(
     session: AsyncSession,
     *,
@@ -2421,14 +2442,25 @@ def create_agents_router(
                     else:
                         # Persist the submitted user message and its generated response.
                         turn_messages = [body.message, generated_assistant_message]
-                    await _persist_agent_session_turn(
-                        request.app.state.db,
-                        agent_session_rowid=agent_session_rowid,
-                        user_id=request_user_id,
-                        new_messages=turn_messages,
-                        bashkit_snapshot=bash_snapshot_to_persist,
-                        title=session_title,
-                    )
+                    try:
+                        await _persist_agent_session_turn(
+                            request.app.state.db,
+                            agent_session_rowid=agent_session_rowid,
+                            user_id=request_user_id,
+                            new_messages=turn_messages,
+                            bashkit_snapshot=bash_snapshot_to_persist,
+                            title=session_title,
+                        )
+                    except Exception as exc:
+                        # The turn itself succeeded; only the write failed. The
+                        # stream handler puts whatever this raises in front of
+                        # the user, so say what happened instead of leaking the
+                        # driver's error text.
+                        logger.exception(
+                            "Failed to persist the transcript for agent session %r",
+                            str(GlobalID("AgentSession", str(agent_session_rowid))),
+                        )
+                        raise _transcript_persistence_error(request.app.state.db) from exc
                     return TranscriptPersistedChunk(
                         data=TranscriptPersistedData(message_id=turn_messages[-1].id)
                     )
