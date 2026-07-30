@@ -273,10 +273,8 @@ function ProjectPageContentBody({
         // server, and asking needs the filter field, which `ProjectSpansPage`
         // mounts on its own while this stays null. Nothing is fetched until
         // the condition is known good.
-        const seed = spanFilterSeed(
-          readSpanFilterFromHash(window.location.hash) ??
-            DEFAULT_SPAN_FILTER_CONDITION
-        );
+        const fromUrl = readSpanFilterFromHash(window.location.hash);
+        const seed = spanFilterSeed(fromUrl ?? DEFAULT_SPAN_FILTER_CONDITION);
         // Returning to a tab whose rows already answer this condition is not a
         // reason to reload it. Re-resolving would tear the table down and
         // rebuild it for the same result.
@@ -289,12 +287,15 @@ function ProjectPageContentBody({
         if (seed.requiresServerValidation) {
           setSpansFilterSeed(null);
         } else {
-          resolveSpansSeed(seed);
+          // Persist only a condition the URL already carried. The two tabs
+          // share one key but default differently -- spans to root spans,
+          // traces to every span -- so writing a tab's own default would
+          // impose it on the other one at the next tab switch.
+          resolveSpansSeed(seed, fromUrl !== null);
         }
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
-        const seed = spanFilterSeed(
-          readSpanFilterFromHash(window.location.hash) ?? ""
-        );
+        const fromUrl = readSpanFilterFromHash(window.location.hash);
+        const seed = spanFilterSeed(fromUrl ?? "");
         if (
           tracesQueryReference &&
           tracesFilterSeed?.condition === seed.condition
@@ -304,7 +305,7 @@ function ProjectPageContentBody({
         if (seed.requiresServerValidation) {
           setTracesFilterSeed(null);
         } else {
-          resolveTracesSeed(seed);
+          resolveTracesSeed(seed, fromUrl !== null);
         }
       } else if (currentTabIndex === TAB_INDEX_MAP.sessions) {
         loadSessionsQuery({
