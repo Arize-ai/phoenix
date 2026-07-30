@@ -8,11 +8,13 @@ import {
   useEffectEvent,
   useState,
 } from "react";
+import { useSearchParams } from "react-router";
 
 import {
   SET_SPANS_FILTER_TOOL_NAME,
   type SetSpansFilterInput,
 } from "@phoenix/agent/tools/spansFilter";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
@@ -20,17 +22,16 @@ import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import { validateSpanFilterCondition } from "./spanFilterValidation";
 
 /**
- * Combined state for the on-screen span filters: the freeform filter
- * condition expression and the root-vs-all-spans toggle. These two pieces of
- * state are surfaced together in the spans page UI and are jointly advertised
- * to the PXI agent so it can drive both via tool calls.
+ * State for the on-screen span filter: the freeform filter condition
+ * expression, which is the single description of what the spans page is
+ * showing. Root-vs-all-spans is part of that expression (`parent_span is
+ * None`) rather than a separate flag, so the agent can drive the whole view by
+ * manipulating one string.
  */
 export type SpanFiltersContextType = {
   filterCondition: string;
   setFilterCondition: (condition: string) => void;
   appendFilterCondition: (condition: string) => void;
-  rootSpansOnly: boolean;
-  setRootSpansOnly: (rootSpansOnly: boolean) => void;
 };
 
 export const SpanFiltersContext = createContext<SpanFiltersContextType | null>(
@@ -45,9 +46,57 @@ export function useSpanFilters() {
   return context;
 }
 
-export function SpanFiltersProvider(props: PropsWithChildren) {
-  const [filterCondition, _setFilterCondition] = useState<string>("");
-  const [rootSpansOnly, _setRootSpansOnly] = useState<boolean>(true);
+/**
+ * Captures the mount-time condition from the URL, falling back to the caller's
+ * supplied value. Whitespace-only text is normalized to the empty condition so
+ * the editor and query seed agree.
+ *
+ * This hook is intentionally mount-only for call sites that own query preload
+ * state. `SpanFiltersProvider` separately follows later URL changes so browser
+ * navigation still updates its controlled editor.
+ */
+export function useInitialSpanFilterCondition(fallbackFilterCondition = "") {
+  const [searchParams] = useSearchParams();
+  const [initialCondition] = useState<string>(() => {
+    const condition =
+      searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? fallbackFilterCondition;
+    return condition.trim() === "" ? "" : condition;
+  });
+  return initialCondition;
+}
+
+export function SpanFiltersProvider(
+  props: PropsWithChildren<{
+    /**
+     * The condition used whenever the URL carries none. Query-owning callers
+     * pass the same resolved seed used for their preload so the editor and
+     * loaded GraphQL fields start in agreement.
+     */
+    fallbackFilterCondition?: string;
+  }>
+) {
+  // Writes back to the URL happen where the state is applied (SpansTable), so
+  // only valid conditions are persisted.
+  const [searchParams] = useSearchParams();
+  const initialUrlCondition = useInitialSpanFilterCondition(
+    props.fallbackFilterCondition
+  );
+  const [filterCondition, _setFilterCondition] =
+    useState<string>(initialUrlCondition);
+  const rawUrlCondition =
+    searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
+    props.fallbackFilterCondition ??
+    "";
+  const urlCondition = rawUrlCondition.trim() === "" ? "" : rawUrlCondition;
+
+  // Follow navigation that explicitly changes the filter while leaving
+  // unrelated search-param updates alone. An applied filter's own URL write is
+  // a no-op here because the draft already contains that same condition.
+  useEffect(() => {
+    startTransition(() => {
+      _setFilterCondition(urlCondition);
+    });
+  }, [urlCondition]);
 
   const setFilterCondition = useCallback((condition: string) => {
     startTransition(() => {
@@ -66,16 +115,7 @@ export function SpanFiltersProvider(props: PropsWithChildren) {
     },
     [filterCondition]
   );
-  const setRootSpansOnly = useCallback((rootSpansOnly: boolean) => {
-    startTransition(() => {
-      _setRootSpansOnly(rootSpansOnly);
-    });
-  }, []);
-
-  useRegisterSetSpansFilterClientAction({
-    setFilterCondition,
-    setRootSpansOnly,
-  });
+  useRegisterSetSpansFilterClientAction({ setFilterCondition });
 
   return (
     <SpanFiltersContext.Provider
@@ -83,8 +123,6 @@ export function SpanFiltersProvider(props: PropsWithChildren) {
         filterCondition,
         setFilterCondition,
         appendFilterCondition,
-        rootSpansOnly,
-        setRootSpansOnly,
       }}
     >
       {props.children}
@@ -99,10 +137,8 @@ export function SpanFiltersProvider(props: PropsWithChildren) {
  */
 function useRegisterSetSpansFilterClientAction({
   setFilterCondition,
-  setRootSpansOnly,
 }: {
   setFilterCondition: (condition: string) => void;
-  setRootSpansOnly: (rootSpansOnly: boolean) => void;
 }) {
   const agentStore = useAgentStore();
   const projectId = useTracingContext((state) => state.projectId);
@@ -111,7 +147,7 @@ function useRegisterSetSpansFilterClientAction({
     async (input: SetSpansFilterInput): Promise<AgentClientActionResult> => {
       // Shape is already validated by parseSetSpansFilterInput in the tool
       // registry before dispatch; here we only handle business logic.
-      const { condition, rootSpansOnly } = input;
+      const { condition } = input;
 
       if (!projectId) {
         return {
@@ -132,17 +168,12 @@ function useRegisterSetSpansFilterClientAction({
         };
       }
       setFilterCondition(condition);
-      setRootSpansOnly(rootSpansOnly);
 
-      const conditionMessage = condition
-        ? `Applied filter: ${condition}.`
-        : "Cleared the span filter.";
-      const rootMessage = rootSpansOnly
-        ? "Showing root spans only."
-        : "Showing all spans.";
       return {
         ok: true,
-        output: `${conditionMessage} ${rootMessage}`,
+        output: condition
+          ? `Applied filter: ${condition}.`
+          : "Cleared the span filter; showing all spans.",
       };
     }
   );

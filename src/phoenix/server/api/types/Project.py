@@ -478,8 +478,8 @@ class Project(Node):
     async def spans(
         self,
         info: Info[Context, None],
+        first: int,
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = UNSET,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
@@ -566,10 +566,9 @@ class Project(Node):
             else:
                 # Only include explicit root spans (spans with parent_id = NULL)
                 stmt = stmt.where(models.Span.parent_id.is_(None))
-        if first:
-            stmt = stmt.limit(
-                first + 1  # overfetch by one to determine whether there's a next page
-            )
+        stmt = stmt.limit(
+            first + 1  # overfetch by one to determine whether there's a next page
+        )
         cursors_and_nodes = []
         async with info.context.db.read() as session:
             span_records = await session.stream(stmt)
@@ -596,16 +595,17 @@ class Project(Node):
         )
 
     @strawberry.field(
+        extensions=[RequireForwardPaginationExtension()],
         description="Sessions in the project. The time range filter uses interval-overlap "
         "semantics: a session is included iff [startTime, endTime] intersects "
         "[timeRange.start, timeRange.end), i.e. the session had activity inside the "
-        "window. Long-running sessions therefore appear in every window they overlap."
+        "window. Long-running sessions therefore appear in every window they overlap.",
     )  # type: ignore
     async def sessions(
         self,
         info: Info[Context, None],
+        first: int,
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = DEFAULT_PAGE_SIZE,
         after: Optional[CursorString] = UNSET,
         sort: Optional[ProjectSessionSort] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
@@ -661,10 +661,9 @@ class Project(Node):
             else:
                 stmt = stmt.where(table.id < cursor.rowid)
         stmt = stmt.order_by(cursor_rowid_column)
-        if first:
-            stmt = stmt.limit(
-                first + 1  # over-fetch by one to determine whether there's a next page
-            )
+        stmt = stmt.limit(
+            first + 1  # over-fetch by one to determine whether there's a next page
+        )
         cursors_and_nodes = []
         async with info.context.db.read() as session:
             records = await session.stream(stmt)
@@ -2404,8 +2403,8 @@ def _as_datetime(value: Any) -> datetime:
 async def _paginate_span_by_trace_start_time(
     db: DbSessionFactory,
     project_rowid: int,
+    first: int,
     time_range: Optional[TimeRange] = None,
-    first: Optional[int] = DEFAULT_PAGE_SIZE,
     after: Optional[CursorString] = None,
     sort: SpanSort = SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
     orphan_span_as_root_span: Optional[bool] = True,
@@ -2480,10 +2479,9 @@ async def _paginate_span_by_trace_start_time(
         )
 
     # Limit for pagination
-    if first:
-        traces = traces.limit(
-            first + 1  # over-fetch by one to determine whether there's a next page
-        )
+    traces = traces.limit(
+        first + 1  # over-fetch by one to determine whether there's a next page
+    )
     traces_cte = traces.cte()
 
     # Define join condition for root spans
@@ -2569,7 +2567,7 @@ async def _paginate_span_by_trace_start_time(
             has_next_page = False
 
     # Retry if we need more edges and more traces exist
-    if first and len(edges) < first and has_next_page:
+    if len(edges) < first and has_next_page:
         while retries and (num_needed := first - len(edges)) and has_next_page:
             retries -= 1
             batch_size = max(first, 1000)

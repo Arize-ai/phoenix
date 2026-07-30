@@ -150,7 +150,6 @@ const toolIconItems = [
       state: "input-available",
       input: {
         condition: "status_code == 'ERROR' and latency_ms > 2000",
-        rootSpansOnly: false,
       },
     }),
   },

@@ -460,7 +460,6 @@ input:
     - type: project
       projectNodeId: UHJvamVjdDoxMg==
       spanFilter: "status_code == 'ERROR'"
-      rootSpansOnly: false
   messages:
     - role: user
       content: Keep the error filter, but only show root spans.
@@ -477,7 +476,6 @@ input:
     - type: project
       projectNodeId: UHJvamVjdDoxMg==
       spanFilter: "span_kind == 'LLM'"
-      rootSpansOnly: false
   messages:
     - role: user
       content: Show me only the latest traces in this project.
@@ -565,8 +563,9 @@ literal order-insensitive. Use `absent: true` for keys that must be omitted
 despite subset matching otherwise allowing extra observed keys.
 
 Tool arg keys must match the tool's exact JSON schema, including camelCase. For
-`set_spans_filter` that means `condition` and `rootSpansOnly`;
-`root_spans_only` will silently fail arg-match.
+`set_spans_filter` that means `condition` -- and only `condition`, since
+root-span scoping is expressed inside the filter DSL (`parent_id is None`)
+rather than as a separate argument.
 
 ## Evaluators
 

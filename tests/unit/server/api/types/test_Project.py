@@ -2276,7 +2276,13 @@ class TestProject:
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
-            field = "sessions(sort:{col:" + column + ",dir:" + direction + "}){edges{node{id}}}"
+            field = (
+                "sessions(first:50,sort:{col:"
+                + column
+                + ",dir:"
+                + direction
+                + "}){edges{node{id}}}"
+            )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
 
@@ -2310,12 +2316,12 @@ class TestProject:
     ) -> None:
         project = _data.projects[0]
         session = _data.project_sessions[0]
-        field = f'sessions(sessionId:"{session.session_id}")' + "{edges{node{id}}}"
+        field = f'sessions(first:50,sessionId:"{session.session_id}")' + "{edges{node{id}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [_gid(session)]
 
         # Searching for a non-existent session ID should return an empty list
-        field = f'sessions(sessionId:"{token_hex(16)}")' + "{edges{node{id}}}"
+        field = f'sessions(first:50,sessionId:"{token_hex(16)}")' + "{edges{node{id}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == []
 
@@ -2333,7 +2339,7 @@ class TestProject:
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
             field = (
-                "sessions(sort:{col:"
+                "sessions(first:50,sort:{col:"
                 + column
                 + ",dir:"
                 + direction
@@ -2380,7 +2386,13 @@ class TestProject:
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
-            field = "sessions(sort:{col:" + column + ",dir:" + direction + "}){edges{node{id}}}"
+            field = (
+                "sessions(first:50,sort:{col:"
+                + column
+                + ",dir:"
+                + direction
+                + "}){edges{node{id}}}"
+            )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
 
@@ -2421,7 +2433,7 @@ class TestProject:
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
             field = (
-                "sessions(sort:{col:"
+                "sessions(first:50,sort:{col:"
                 + column
                 + ",dir:"
                 + direction
@@ -2494,12 +2506,12 @@ class TestProject:
         ]
 
         # Test descending order
-        field = f"sessions(sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc
 
         # Test ascending order
-        field = f"sessions(sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc[::-1]
 
@@ -2559,12 +2571,12 @@ class TestProject:
         ]
 
         # Test descending order
-        field = f"sessions(sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc
 
         # Test ascending order: 50, 75, 100, 200
-        field = f"sessions(sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc[::-1]
 
@@ -2608,9 +2620,7 @@ class TestProject:
                 session.add(annotation)
 
         # Test descending order: 0.9, 0.8, 0.7, 0.5, 0.3, NULL (desc by ID: 8,5,2)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:score},dir:desc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:score},dir:desc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[0]),  # 0.9
@@ -2624,9 +2634,7 @@ class TestProject:
         ]
 
         # Test ascending order: 0.3, 0.5, 0.7, 0.8, 0.9, NULL (asc by ID: 2,5,8)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:score},dir:asc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:score},dir:asc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[5]),  # 0.3
@@ -2707,9 +2715,7 @@ class TestProject:
                 session.add(annotation)
 
         # Test descending order: zebra, delta, charlie, beta, alpha, NULL (desc by ID: 8,5,2)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:label},dir:desc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:label},dir:desc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[0]),  # "zebra"
@@ -2723,9 +2729,7 @@ class TestProject:
         ]
 
         # Test ascending order: alpha, beta, charlie, delta, zebra, NULL (asc by ID: 2,5,8)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:label},dir:asc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:label},dir:asc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[2]),  # "alpha"
@@ -2779,7 +2783,7 @@ class TestProject:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project = _data.projects[0]
-        field = 'sessions(filterIoSubstring:"\\"\'f"){edges{node{id}}}'
+        field = 'sessions(first:50,filterIoSubstring:"\\"\'f"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == {
             _gid(_data.project_sessions[1]),
@@ -2792,7 +2796,7 @@ class TestProject:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project = _data.projects[0]
-        field = 'sessions(filterIoSubstring:"\\"\'j"){edges{node{id}}}'
+        field = 'sessions(first:50,filterIoSubstring:"\\"\'j"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == set()
 
@@ -2862,7 +2866,9 @@ class TestProject:
         for filter_substring, expected_session_indices, description in test_cases:
             # Escape the filter substring for GraphQL
             escaped_filter = filter_substring.replace("\\", "\\\\").replace('"', '\\"')
-            field = f'sessions(filterIoSubstring:"{escaped_filter}"){{edges{{node{{id}}}}}}'
+            field = (
+                f'sessions(first:50,filterIoSubstring:"{escaped_filter}"){{edges{{node{{id}}}}}}'
+            )
 
             res = await self._node(field, project, httpx_client)
 
@@ -6597,7 +6603,7 @@ class TestProjectSessionsTimeRange:
         query ($projectId: ID!, $timeRange: TimeRange, $filterIoSubstring: String) {
           node(id: $projectId) {
             ... on Project {
-              sessions(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring) {
+              sessions(first: 50, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring) {
                 edges { node { id } }
               }
             }
