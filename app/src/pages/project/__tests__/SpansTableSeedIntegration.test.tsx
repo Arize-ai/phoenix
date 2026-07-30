@@ -128,34 +128,27 @@ vi.mock("../TableMetricsChartSelector", () => ({
 }));
 
 import type { SpansTable_spans$key } from "../__generated__/SpansTable_spans.graphql";
-import type { SpanFilterSeed } from "../spanFilterSeed";
+import type { SettledSpanFilterSeed } from "../spanFilterSeed";
 import { SpansTable } from "../SpansTable";
 
-const customSeed: SpanFilterSeed = {
+// Seeds now reach the table settled: whoever preloads the rows either
+// classified the condition or had it validated first.
+const settledSeed: SettledSpanFilterSeed = {
   condition: "status_code == 'ERROR'",
-  requiresServerValidation: true,
+  requiresServerValidation: false,
+  rootSpansOnly: false,
 };
 
 describe("SpansTable seed loading integration", () => {
   let container: HTMLDivElement;
   let root: Root;
-  let latestOnComplete: ((error: Error | null) => void) | null;
 
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    latestOnComplete = null;
     fieldMocks.props = null;
     relayMocks.refetch.mockReset();
-    relayMocks.refetch.mockImplementation(
-      (
-        _variables: unknown,
-        options: { onComplete: (error: Error | null) => void }
-      ) => {
-        latestOnComplete = options.onComplete;
-      }
-    );
     relayMocks.usePaginationFragment.mockReturnValue({
       data: {
         name: "integration project",
@@ -174,8 +167,8 @@ describe("SpansTable seed loading integration", () => {
     container.remove();
   });
 
-  it("keeps fallback rows hidden and retries a failed matching refetch", async () => {
-    await act(async () => {
+  function renderTable() {
+    return act(async () => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
           <MemoryRouter
@@ -183,42 +176,49 @@ describe("SpansTable seed loading integration", () => {
           >
             <SpansTable
               project={{} as SpansTable_spans$key}
-              seed={customSeed}
+              seed={settledSeed}
             />
           </MemoryRouter>
         </ThemeProvider>
       );
     });
+  }
 
+  it("renders a settled seed without refetching", async () => {
+    // The preload already carried this condition, so asking again would fetch
+    // rows the table is holding.
+    await renderTable();
+
+    expect(container.querySelector("table")).not.toBeNull();
     expect(relayMocks.refetch).not.toHaveBeenCalled();
-    expect(container.querySelector("table")).toBeNull();
+  });
+
+  it("refetches when the user applies a different condition", async () => {
+    await renderTable();
 
     await act(async () => {
       fieldMocks.props?.onValidCondition({
-        condition: customSeed.condition,
+        condition: "span_kind == 'LLM'",
         selectsRootSpansOnly: false,
       });
     });
+
     expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
+    expect(relayMocks.refetch.mock.calls[0]?.[0]).toMatchObject({
+      filterCondition: "span_kind == 'LLM'",
+    });
+  });
+
+  it("does not refetch when the applied condition is unchanged", async () => {
+    await renderTable();
 
     await act(async () => {
-      latestOnComplete?.(new Error("network failed"));
+      fieldMocks.props?.onValidCondition({
+        condition: settledSeed.condition,
+        selectsRootSpansOnly: settledSeed.rootSpansOnly,
+      });
     });
-    const retryButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Retry"
-    );
-    expect(retryButton).toBeDefined();
-    expect(container.querySelector("table")).toBeNull();
 
-    await act(async () => {
-      retryButton?.click();
-    });
-    expect(relayMocks.refetch).toHaveBeenCalledTimes(2);
-
-    await act(async () => {
-      latestOnComplete?.(null);
-    });
-    expect(container.querySelector("table")).not.toBeNull();
-    expect(container.textContent).not.toContain("Retry");
+    expect(relayMocks.refetch).not.toHaveBeenCalled();
   });
 });

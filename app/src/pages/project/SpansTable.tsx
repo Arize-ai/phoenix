@@ -20,14 +20,11 @@ import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
-  Alert,
-  Button,
   Flex,
   Heading,
   Icon,
   Icons,
   Link,
-  Loading,
   OverflowRow,
   Text,
   View,
@@ -93,7 +90,6 @@ import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import {
   SpanFilterConditionField,
-  type SpanFilterValidationFailureReason,
   type SpanFilterValidConditionArgs,
 } from "./SpanFilterConditionField";
 import type { SpanFilterSeed } from "./spanFilterSeed";
@@ -213,9 +209,9 @@ export function SpansTable(props: SpansTableProps) {
   const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
-  // The seed is classified once by the owner that preloads `props.project`,
-  // then passed through to this table. Keeping the preload variables and the
-  // table's initial state in one value prevents the two from disagreeing.
+  // The seed arrives settled: the owner that preloads `props.project` either
+  // classified the condition itself or had it validated first, so the rows on
+  // hand always match it. The table only tracks what the user applies after.
   const [seedLoadState, dispatchSeedLoad] = useReducer(
     spanFilterSeedLoadReducer,
     props.seed,
@@ -223,10 +219,6 @@ export function SpansTable(props: SpansTableProps) {
   );
   const {
     appliedQuery: { condition: filterCondition, rootSpansOnly },
-    isSeedSettled,
-    seedError,
-    retryVersion: seedRetryVersion,
-    validationRetryVersion,
   } = seedLoadState;
   const nextRequestIdRef = useRef(0);
 
@@ -254,17 +246,6 @@ export function SpansTable(props: SpansTableProps) {
       },
       { replace: true }
     );
-  }, []);
-  const handleValidationFailed = useCallback(
-    (reason: SpanFilterValidationFailureReason) => {
-      dispatchSeedLoad({
-        type: reason === "invalid" ? "validationRejected" : "validationErrored",
-      });
-    },
-    []
-  );
-  const handleSeedRetry = useCallback(() => {
-    dispatchSeedLoad({ type: "retryRequested" });
   }, []);
   const handleValidFilterCondition = useCallback(
     ({ condition, selectsRootSpansOnly }: SpanFilterValidConditionArgs) => {
@@ -884,7 +865,6 @@ export function SpansTable(props: SpansTableProps) {
     filterCondition,
     fetchKey,
     rootSpansOnly,
-    seedRetryVersion,
     timeRangeISOStrings,
   ]);
   const fetchMoreOnBottomReached = useCallback(
@@ -1001,8 +981,6 @@ export function SpansTable(props: SpansTableProps) {
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
             <SpanFilterConditionField
               onValidCondition={handleValidFilterCondition}
-              onValidationFailed={handleValidationFailed}
-              validationRetryKey={validationRetryVersion}
             />
 
             <TableMetricsChartSelector view="spans" />
@@ -1023,166 +1001,143 @@ export function SpansTable(props: SpansTableProps) {
           `}
         >
           <Panel>
-            {!isSeedSettled && seedError ? (
-              <View padding="size-200">
-                <Flex direction="column" gap="size-100">
-                  <Alert variant="danger">{seedError.message}</Alert>
-                  <View>
-                    <Button size="S" onPress={handleSeedRetry}>
-                      Retry
-                    </Button>
-                  </View>
-                </Flex>
-              </View>
-            ) : !isSeedSettled ? (
-              // The rows on hand were fetched without the condition in the
-              // field, so showing them would answer a question the user did
-              // not ask. A valid seed remains hidden until its matching
-              // filtered refetch also succeeds.
-              <Loading />
-            ) : (
-              <div
-                css={css`
-                  height: 100%;
-                  overflow: auto;
-                `}
-                onScroll={(e) =>
-                  fetchMoreOnBottomReached(e.target as HTMLDivElement)
-                }
-                ref={tableContainerRef}
+            <div
+              css={css`
+                height: 100%;
+                overflow: auto;
+              `}
+              onScroll={(e) =>
+                fetchMoreOnBottomReached(e.target as HTMLDivElement)
+              }
+              ref={tableContainerRef}
+            >
+              <ColumnOrderingProvider
+                columnOrder={visibleColumnOrder}
+                onColumnOrderChange={onVisibleColumnOrderChange}
               >
-                <ColumnOrderingProvider
-                  columnOrder={visibleColumnOrder}
-                  onColumnOrderChange={onVisibleColumnOrderChange}
+                <table
+                  css={expandableSelectableTableCSS}
+                  {...rowsExpandedTableProps}
+                  style={{
+                    ...columnSizeVars,
+                    width: table.getTotalSize(),
+                    minWidth: "100%",
+                  }}
                 >
-                  <table
-                    css={expandableSelectableTableCSS}
-                    {...rowsExpandedTableProps}
-                    style={{
-                      ...columnSizeVars,
-                      width: table.getTotalSize(),
-                      minWidth: "100%",
-                    }}
-                  >
-                    <thead>
-                      {table
-                        .getHeaderGroups()
-                        .map((headerGroup, headerGroupIndex) => (
-                          <tr key={headerGroup.id}>
-                            {headerGroup.headers.map((header) => {
-                              const headerStyle = {
-                                ...getCommonPinningStyles(header.column),
-                                width: `calc(var(--header-${header.id}-size) * 1px)`,
-                              };
-                              const headerContent =
-                                header.isPlaceholder ? null : (
-                                  <>
-                                    <div
-                                      {...{
-                                        className: header.column.getCanSort()
-                                          ? "sort"
-                                          : "",
-                                        onClick:
-                                          header.column.getToggleSortingHandler(),
-                                        style: {
-                                          left: header.getStart(),
-                                          width: header.getSize(),
-                                        },
-                                      }}
-                                    >
-                                      <Truncate maxWidth={header.getSize()}>
-                                        {flexRender(
-                                          header.column.columnDef.header,
-                                          header.getContext()
-                                        )}
-                                      </Truncate>
-                                      {header.column.getIsSorted() ? (
-                                        <Icon
-                                          className="sort-icon"
-                                          svg={
-                                            header.column.getIsSorted() ===
-                                            "asc" ? (
-                                              <Icons.CaretUpFilled />
-                                            ) : (
-                                              <Icons.CaretDownFilled />
-                                            )
-                                          }
-                                        />
-                                      ) : null}
-                                    </div>
-                                    <div
-                                      {...{
-                                        onMouseDown: header.getResizeHandler(),
-                                        onTouchStart: header.getResizeHandler(),
-                                        className: `resizer ${
-                                          header.column.getIsResizing()
-                                            ? "isResizing"
-                                            : ""
-                                        }`,
-                                      }}
-                                    />
-                                  </>
-                                );
-                              return (
-                                <ColumnHeaderCell
-                                  key={header.id}
-                                  align={
-                                    header.column.columnDef.meta?.textAlign
-                                  }
-                                  columnId={header.column.id}
-                                  // Only the top header group is reorderable;
-                                  // sub-headers of a group column move with it
-                                  index={
-                                    headerGroupIndex === 0
-                                      ? getColumnOrderIndex(header.column.id)
-                                      : -1
-                                  }
-                                  label={
-                                    typeof header.column.columnDef.header ===
-                                    "string"
-                                      ? header.column.columnDef.header
-                                      : undefined
-                                  }
-                                  colSpan={header.colSpan}
-                                  style={headerStyle}
-                                >
-                                  {headerContent}
-                                </ColumnHeaderCell>
+                  <thead>
+                    {table
+                      .getHeaderGroups()
+                      .map((headerGroup, headerGroupIndex) => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => {
+                            const headerStyle = {
+                              ...getCommonPinningStyles(header.column),
+                              width: `calc(var(--header-${header.id}-size) * 1px)`,
+                            };
+                            const headerContent =
+                              header.isPlaceholder ? null : (
+                                <>
+                                  <div
+                                    {...{
+                                      className: header.column.getCanSort()
+                                        ? "sort"
+                                        : "",
+                                      onClick:
+                                        header.column.getToggleSortingHandler(),
+                                      style: {
+                                        left: header.getStart(),
+                                        width: header.getSize(),
+                                      },
+                                    }}
+                                  >
+                                    <Truncate maxWidth={header.getSize()}>
+                                      {flexRender(
+                                        header.column.columnDef.header,
+                                        header.getContext()
+                                      )}
+                                    </Truncate>
+                                    {header.column.getIsSorted() ? (
+                                      <Icon
+                                        className="sort-icon"
+                                        svg={
+                                          header.column.getIsSorted() ===
+                                          "asc" ? (
+                                            <Icons.CaretUpFilled />
+                                          ) : (
+                                            <Icons.CaretDownFilled />
+                                          )
+                                        }
+                                      />
+                                    ) : null}
+                                  </div>
+                                  <div
+                                    {...{
+                                      onMouseDown: header.getResizeHandler(),
+                                      onTouchStart: header.getResizeHandler(),
+                                      className: `resizer ${
+                                        header.column.getIsResizing()
+                                          ? "isResizing"
+                                          : ""
+                                      }`,
+                                    }}
+                                  />
+                                </>
                               );
-                            })}
-                          </tr>
-                        ))}
-                    </thead>
-                    {isEmpty && !hasNext ? (
-                      // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
-                      // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
-                      // spans. This is an undesirable edge case. The optimization is a stopgap solution that
-                      // will be replaced to eliminate this condition.
-                      <ProjectTableEmpty />
-                    ) : columnSizingInfo.isResizingColumn ? (
-                      <MemoizedTableBody
-                        table={table}
-                        hasNext={hasNext}
-                        onLoadNext={() => loadNext(PAGE_SIZE)}
-                        isLoadingNext={isLoadingNext}
-                      />
-                    ) : (
-                      <TableBody
-                        table={table}
-                        hasNext={hasNext}
-                        onLoadNext={() => loadNext(PAGE_SIZE)}
-                        isLoadingNext={isLoadingNext}
-                      />
-                    )}
-                  </table>
-                </ColumnOrderingProvider>
-              </div>
-            )}
+                            return (
+                              <ColumnHeaderCell
+                                key={header.id}
+                                align={header.column.columnDef.meta?.textAlign}
+                                columnId={header.column.id}
+                                // Only the top header group is reorderable;
+                                // sub-headers of a group column move with it
+                                index={
+                                  headerGroupIndex === 0
+                                    ? getColumnOrderIndex(header.column.id)
+                                    : -1
+                                }
+                                label={
+                                  typeof header.column.columnDef.header ===
+                                  "string"
+                                    ? header.column.columnDef.header
+                                    : undefined
+                                }
+                                colSpan={header.colSpan}
+                                style={headerStyle}
+                              >
+                                {headerContent}
+                              </ColumnHeaderCell>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                  </thead>
+                  {isEmpty && !hasNext ? (
+                    // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
+                    // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
+                    // spans. This is an undesirable edge case. The optimization is a stopgap solution that
+                    // will be replaced to eliminate this condition.
+                    <ProjectTableEmpty />
+                  ) : columnSizingInfo.isResizingColumn ? (
+                    <MemoizedTableBody
+                      table={table}
+                      hasNext={hasNext}
+                      onLoadNext={() => loadNext(PAGE_SIZE)}
+                      isLoadingNext={isLoadingNext}
+                    />
+                  ) : (
+                    <TableBody
+                      table={table}
+                      hasNext={hasNext}
+                      onLoadNext={() => loadNext(PAGE_SIZE)}
+                      isLoadingNext={isLoadingNext}
+                    />
+                  )}
+                </table>
+              </ColumnOrderingProvider>
+            </div>
           </Panel>
           <TableAsidePanel>
-            {isSeedSettled ? (
-              <SpansTableAside filterCondition={filterCondition} />
-            ) : null}
+            <SpansTableAside filterCondition={filterCondition} />
           </TableAsidePanel>
         </Group>
         {selectedRows.length ? (

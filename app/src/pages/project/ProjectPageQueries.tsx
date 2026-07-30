@@ -6,7 +6,7 @@ import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQu
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
-import type { SpanFilterSeed } from "./spanFilterSeed";
+import type { SettledSpanFilterSeed, SpanFilterSeed } from "./spanFilterSeed";
 export const ProjectPageQueriesTracesQuery = graphql`
   query ProjectPageQueriesTracesQuery($id: ID!, $timeRange: TimeRange!) {
     project: node(id: $id) {
@@ -72,8 +72,21 @@ export const ProjectPageQueriesProjectConfigQuery = graphql`
 
 export const ProjectPageQueryReferenceContext = createContext<{
   spansQueryReference: PreloadedQuery<ProjectPageSpansQueryType> | null;
+  /**
+   * The condition the spans query was loaded with, or null while one that
+   * needs the server is still being validated.
+   */
   spansFilterSeed: SpanFilterSeed | null;
   spansFilterSeedVersion: number;
+  /**
+   * Load the spans query from a condition the field has just validated. The
+   * page holds no query while a seed is pending, so this is what ends that
+   * state -- see `ProjectSpansPage`.
+   */
+  resolveSpansSeed: (
+    seed: SettledSpanFilterSeed,
+    persistToUrl?: boolean
+  ) => void;
   sessionsQueryReference: PreloadedQuery<ProjectPageSessionsQueryType> | null;
   tracesQueryReference: PreloadedQuery<ProjectPageTracesQueryType> | null;
   projectConfigQueryReference: PreloadedQuery<ProjectPageProjectConfigQueryType> | null;
@@ -81,6 +94,7 @@ export const ProjectPageQueryReferenceContext = createContext<{
   spansQueryReference: null,
   spansFilterSeed: null,
   spansFilterSeedVersion: 0,
+  resolveSpansSeed: () => {},
   sessionsQueryReference: null,
   tracesQueryReference: null,
   projectConfigQueryReference: null,

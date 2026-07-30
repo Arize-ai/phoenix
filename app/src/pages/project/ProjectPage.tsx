@@ -6,6 +6,7 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
@@ -44,7 +45,11 @@ import {
 } from "./ProjectPageQueries";
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
-import { spanFilterSeed, type SpanFilterSeed } from "./spanFilterSeed";
+import {
+  type SettledSpanFilterSeed,
+  spanFilterSeed,
+  type SpanFilterSeed,
+} from "./spanFilterSeed";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -179,46 +184,79 @@ function ProjectPageContentBody({
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Read at load time rather than depended on, so a live window sliding
+  // forward does not reload the preload -- see the note on the tab loader.
+  const timeRangeRef = useRef(timeRangeISOStrings);
+  useEffect(() => {
+    timeRangeRef.current = timeRangeISOStrings;
+  }, [timeRangeISOStrings]);
+
+  /**
+   * Load the spans table from a condition whose validity and root scope are
+   * both settled. Called for the conditions this app classifies itself, and by
+   * `ProjectSpansPage` once the field has validated one it cannot.
+   *
+   * `persistToUrl` is false when the seed is a fallback rather than what was
+   * asked for. The URL then keeps the rejected text so it stays visible and
+   * editable, and the field goes on reporting why it failed.
+   */
+  const resolveSpansSeed = useCallback(
+    (seed: SettledSpanFilterSeed, persistToUrl = true) => {
+      startTransition(() => {
+        setSpansFilterSeedState((previous) => ({
+          seed,
+          version: (previous?.version ?? 0) + 1,
+        }));
+        // Before the version bump re-keys `SpanFiltersProvider` and it re-reads
+        // the URL, or a condition typed while waiting loses to the stale one
+        // still in the address bar. Written even when empty: an absent param
+        // seeds the default, an empty one means deliberately cleared.
+        if (persistToUrl) {
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
+              return next;
+            },
+            { replace: true }
+          );
+        }
+        loadSpansQuery({
+          id: projectId,
+          timeRange: timeRangeRef.current,
+          filterCondition: seed.condition || null,
+          rootSpansOnly: seed.rootSpansOnly,
+          first: DEFAULT_PAGE_SIZE,
+        });
+      });
+    },
+    [projectId, loadSpansQuery, setSearchParams]
+  );
+
   // Load the preloaded query backing the active tab's table. The time range is
   // read at load time (via an effect event, so it is not a reactive trigger)
   // rather than tracked as a dependency: live "last-N" windows slide forward on
-  // a timer. The spans preload carries only its mount-time filter seed, which
-  // can be older than the filter currently applied inside `SpansTable`.
-  // Reloading that parent on every slide could therefore replace the live
-  // connection with stale-seed rows (see issue #14216). The tables instead own
+  // a timer. Reloading a parent on every slide could replace the live
+  // connection with stale rows (see issue #14216). The tables instead own
   // time-range and filter liveness through their own `refetch`; parent preloads
   // need only an initial window and reload solely on project or tab changes.
   const loadTableQueryForTab = useEffectEvent(
     (currentTabIndex: number, currentProjectId: string) => {
       if (currentTabIndex === TAB_INDEX_MAP.spans) {
-        // Resolve one seed for both this preload and the table that consumes
-        // it. A seed exempt from server validation is already in this payload
-        // and needs no first fetch. A seed requiring validation is withheld
-        // until the server accepts it: rows arrive unfiltered, and the table
-        // waits rather than showing them.
+        // A seed this app can classify loads now. Anything else needs the
+        // server, and asking needs the filter field, which `ProjectSpansPage`
+        // mounts on its own while this stays null. Nothing is fetched until
+        // the condition is known good.
         const seed = spanFilterSeed(
           searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
             DEFAULT_SPAN_FILTER_CONDITION
         );
-        setSpansFilterSeedState((previous) => ({
-          seed,
-          version: (previous?.version ?? 0) + 1,
-        }));
-        loadSpansQuery({
-          id: currentProjectId,
-          timeRange: timeRangeISOStrings,
-          filterCondition: seed.requiresServerValidation
-            ? null
-            : seed.condition || null,
-          rootSpansOnly: seed.requiresServerValidation
-            ? false
-            : seed.rootSpansOnly,
-          // Rows fetched for an unvalidated seed are never shown -- the table
-          // waits and refetches once the server accepts the condition. Asking
-          // for none skips the query, and with it a database connection.
-          first: seed.requiresServerValidation ? 0 : DEFAULT_PAGE_SIZE,
-        });
+        if (seed.requiresServerValidation) {
+          setSpansFilterSeedState(null);
+        } else {
+          resolveSpansSeed(seed);
+        }
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
         loadTracesQuery({
           id: currentProjectId,
@@ -267,6 +305,7 @@ function ProjectPageContentBody({
           spansQueryReference: spansQueryReference ?? null,
           spansFilterSeed: spansFilterSeedState?.seed ?? null,
           spansFilterSeedVersion: spansFilterSeedState?.version ?? 0,
+          resolveSpansSeed,
           sessionsQueryReference: sessionsQueryReference ?? null,
           tracesQueryReference: tracesQueryReference ?? null,
           projectConfigQueryReference: projectConfigQueryReference ?? null,

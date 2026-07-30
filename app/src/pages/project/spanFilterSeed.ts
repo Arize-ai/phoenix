@@ -20,6 +20,16 @@ export type SpanFilterSeed =
   | { condition: string; requiresServerValidation: true };
 
 /**
+ * A seed whose validity and root scope are both known, whether this app
+ * classified it or the server answered for it. The only kind a view can load
+ * from.
+ */
+export type SettledSpanFilterSeed = Extract<
+  SpanFilterSeed,
+  { requiresServerValidation: false }
+>;
+
+/**
  * Classify a starting condition. Callers that need the same seed -- the query
  * that preloads rows and the table that renders them -- classify the same
  * string, so they cannot disagree about what was fetched.
