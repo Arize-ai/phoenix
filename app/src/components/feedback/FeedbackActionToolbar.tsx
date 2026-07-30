@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { MessageAction } from "@phoenix/components/ai/message/MessageAction";
 import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
 import { Icon, Icons } from "@phoenix/components/core/icon";
@@ -5,12 +7,12 @@ import { Icon, Icons } from "@phoenix/components/core/icon";
 export type FeedbackValue = "positive" | "negative";
 
 export function FeedbackActionToolbar({
-  onAnnotate,
+  annotationAction,
   selectedFeedback,
   isSubmittingFeedback = false,
   onFeedback,
 }: {
-  onAnnotate?: () => void;
+  annotationAction?: ReactNode;
   selectedFeedback: FeedbackValue | null;
   isSubmittingFeedback?: boolean;
   onFeedback: ({ feedback }: { feedback: FeedbackValue }) => void;
@@ -20,17 +22,7 @@ export function FeedbackActionToolbar({
 
   return (
     <MessageActions aria-label="Feedback actions">
-      {onAnnotate ? (
-        <MessageAction
-          label="Annotate"
-          tooltip="Annotate"
-          onPress={() => {
-            onAnnotate();
-          }}
-        >
-          <Icon svg={<Icons.Edit />} />
-        </MessageAction>
-      ) : null}
+      {annotationAction}
       <MessageAction
         label="Thumbs up"
         tooltip={

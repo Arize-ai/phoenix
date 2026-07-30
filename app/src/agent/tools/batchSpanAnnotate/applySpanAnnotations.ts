@@ -10,7 +10,6 @@ import type { AnnotateSpanInput } from "./types";
 
 type ResolvedSpanAnnotationTarget = {
   spanNodeId: string;
-  filterUserIds: (string | null)[];
 };
 
 async function resolveSpanAnnotationTarget(
@@ -21,9 +20,6 @@ async function resolveSpanAnnotationTarget(
       RelayEnvironment,
       graphql`
         query applySpanAnnotationsResolveByNodeIdQuery($spanNodeId: ID!) {
-          viewer {
-            id
-          }
           span: node(id: $spanNodeId) {
             __typename
             ... on Span {
@@ -39,7 +35,6 @@ async function resolveSpanAnnotationTarget(
     }
     return {
       spanNodeId: data.span.id,
-      filterUserIds: [data.viewer?.id ?? null],
     };
   }
 
@@ -48,9 +43,6 @@ async function resolveSpanAnnotationTarget(
       RelayEnvironment,
       graphql`
         query applySpanAnnotationsResolveByOtelIdQuery($spanId: String!) {
-          viewer {
-            id
-          }
           span: getSpanByOtelId(spanId: $spanId) {
             id
           }
@@ -63,7 +55,6 @@ async function resolveSpanAnnotationTarget(
     }
     return {
       spanNodeId: data.span.id,
-      filterUserIds: [data.viewer?.id ?? null],
     };
   }
 
@@ -96,17 +87,14 @@ function buildCreateSpanAnnotationInput({
 
 function commitCreateSpanAnnotations({
   inputs,
-  filterUserIds,
 }: {
   inputs: CreateSpanAnnotationInput[];
-  filterUserIds: (string | null)[];
 }): Promise<void> {
   return new Promise((resolve, reject) => {
     commitMutation<applySpanAnnotationsCreateMutation>(RelayEnvironment, {
       mutation: graphql`
         mutation applySpanAnnotationsCreateMutation(
           $input: [CreateSpanAnnotationInput!]!
-          $filterUserIds: [ID]
         ) {
           createSpanAnnotations(input: $input) {
             spanAnnotations {
@@ -114,15 +102,12 @@ function commitCreateSpanAnnotations({
                 id
                 __typename
                 ...AnnotationSummaryGroup
-                ...SpanAnnotationsEditor_spanAnnotations
-                  @arguments(filterUserIds: $filterUserIds)
               }
             }
           }
         }
       `,
       variables: {
-        filterUserIds,
         input: inputs,
       },
       onCompleted: (_response, errors) => {
@@ -194,6 +179,5 @@ export async function applySpanAnnotations(
   );
   await commitCreateSpanAnnotations({
     inputs,
-    filterUserIds: targets[0]?.filterUserIds ?? [null],
   });
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3d0a94139e3a474bfff58f98819c5252>>
+ * @generated SignedSource<<3d3ee65a52cd71554c85b02a9f94e4d1>>
  * @lightSyntaxTransform
  */
 
@@ -13,9 +13,6 @@ export type applySpanAnnotationsResolveByOtelIdQuery$variables = {
 };
 export type applySpanAnnotationsResolveByOtelIdQuery$data = {
   readonly span: {
-    readonly id: string;
-  } | null;
-  readonly viewer: {
     readonly id: string;
   } | null;
 };
@@ -34,25 +31,6 @@ var v0 = [
 ],
 v1 = [
   {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "id",
-    "storageKey": null
-  }
-],
-v2 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "User",
-    "kind": "LinkedField",
-    "name": "viewer",
-    "plural": false,
-    "selections": (v1/*:: as any*/),
-    "storageKey": null
-  },
-  {
     "alias": "span",
     "args": [
       {
@@ -65,7 +43,15 @@ v2 = [
     "kind": "LinkedField",
     "name": "getSpanByOtelId",
     "plural": false,
-    "selections": (v1/*:: as any*/),
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "id",
+        "storageKey": null
+      }
+    ],
     "storageKey": null
   }
 ];
@@ -75,7 +61,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "applySpanAnnotationsResolveByOtelIdQuery",
-    "selections": (v2/*:: as any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -84,19 +70,19 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "applySpanAnnotationsResolveByOtelIdQuery",
-    "selections": (v2/*:: as any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "9ec206854dbab5e4f5bf84330d287d32",
+    "cacheID": "6c7e6f2d2a1e6bf2ad1fdcaadbc96b62",
     "id": null,
     "metadata": {},
     "name": "applySpanAnnotationsResolveByOtelIdQuery",
     "operationKind": "query",
-    "text": "query applySpanAnnotationsResolveByOtelIdQuery(\n  $spanId: String!\n) {\n  viewer {\n    id\n  }\n  span: getSpanByOtelId(spanId: $spanId) {\n    id\n  }\n}\n"
+    "text": "query applySpanAnnotationsResolveByOtelIdQuery(\n  $spanId: String!\n) {\n  span: getSpanByOtelId(spanId: $spanId) {\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d3fa7d96818bf7c8a5a0911e1c1dd3fc";
+(node as any).hash = "dc25944393b6bc70dd2eda8d5a27e1a6";
 
 export default node;

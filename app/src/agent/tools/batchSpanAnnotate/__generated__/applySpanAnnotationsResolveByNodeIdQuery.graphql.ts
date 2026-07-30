@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e4f1566c982294a98d357f4ab71c208b>>
+ * @generated SignedSource<<de30cdbc799076aa6c472cf8a17ed1b4>>
  * @lightSyntaxTransform
  */
 
@@ -20,9 +20,6 @@ export type applySpanAnnotationsResolveByNodeIdQuery$data = {
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   };
-  readonly viewer: {
-    readonly id: string;
-  } | null;
 };
 export type applySpanAnnotationsResolveByNodeIdQuery = {
   response: applySpanAnnotationsResolveByNodeIdQuery$data;
@@ -37,38 +34,25 @@ var v0 = [
     "name": "spanNodeId"
   }
 ],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v2 = [
-  (v1/*:: as any*/)
-],
-v3 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "User",
-  "kind": "LinkedField",
-  "name": "viewer",
-  "plural": false,
-  "selections": (v2/*:: as any*/),
-  "storageKey": null
-},
-v4 = [
+v1 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "spanNodeId"
   }
 ],
-v5 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
   "storageKey": null
 };
 return {
@@ -78,19 +62,20 @@ return {
     "metadata": null,
     "name": "applySpanAnnotationsResolveByNodeIdQuery",
     "selections": [
-      (v3/*:: as any*/),
       {
         "alias": "span",
-        "args": (v4/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "kind": "InlineFragment",
-            "selections": (v2/*:: as any*/),
+            "selections": [
+              (v3/*:: as any*/)
+            ],
             "type": "Span",
             "abstractKey": null
           }
@@ -107,33 +92,32 @@ return {
     "kind": "Operation",
     "name": "applySpanAnnotationsResolveByNodeIdQuery",
     "selections": [
-      (v3/*:: as any*/),
       {
         "alias": "span",
-        "args": (v4/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*:: as any*/),
-          (v1/*:: as any*/)
+          (v2/*:: as any*/),
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "56a8331327231fa1c734fb5df2a6477a",
+    "cacheID": "07b1480dcc0e95bbadca17e20cbda557",
     "id": null,
     "metadata": {},
     "name": "applySpanAnnotationsResolveByNodeIdQuery",
     "operationKind": "query",
-    "text": "query applySpanAnnotationsResolveByNodeIdQuery(\n  $spanNodeId: ID!\n) {\n  viewer {\n    id\n  }\n  span: node(id: $spanNodeId) {\n    __typename\n    ... on Span {\n      id\n    }\n    id\n  }\n}\n"
+    "text": "query applySpanAnnotationsResolveByNodeIdQuery(\n  $spanNodeId: ID!\n) {\n  span: node(id: $spanNodeId) {\n    __typename\n    ... on Span {\n      id\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "526c87ad6f0498f0502b8b359ee3e018";
+(node as any).hash = "a291c84014acc12a7083af94cb6be5fc";
 
 export default node;

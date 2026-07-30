@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { graphql, useFragment, useMutation } from "react-relay";
 
 import {
@@ -23,11 +24,11 @@ function getFeedbackValue(
 }
 
 export function TraceFeedbackActionToolbar({
+  annotationAction,
   trace,
-  onAnnotate,
 }: {
+  annotationAction?: ReactNode;
   trace: TraceFeedbackActionToolbar_trace$key;
-  onAnnotate?: () => void;
 }) {
   const data = useFragment<TraceFeedbackActionToolbar_trace$key>(
     graphql`
@@ -105,7 +106,7 @@ export function TraceFeedbackActionToolbar({
 
   return (
     <FeedbackActionToolbar
-      onAnnotate={onAnnotate}
+      annotationAction={annotationAction}
       selectedFeedback={selectedFeedback}
       isSubmittingFeedback={isSubmittingFeedback}
       onFeedback={({ feedback }) => {

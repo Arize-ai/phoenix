@@ -6,22 +6,14 @@ import { css } from "@emotion/react";
 import isNumber from "lodash/isNumber";
 import isString from "lodash/isString";
 import type { ReactNode } from "react";
-import { useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import {
-  ExpandableContent,
-  Flex,
-  Modal,
-  ModalOverlay,
-  Text,
-  View,
-} from "@phoenix/components";
+import { ExpandableContent, Flex, Text, View } from "@phoenix/components";
 import { promptInputSurfaceCSS } from "@phoenix/components/ai/prompt-input";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { TraceDetailPanelAnnotationButton } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
-import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
@@ -154,8 +146,6 @@ function RootSpanEndTime({ rootSpan }: { rootSpan: RootSpan }) {
 }
 
 function RootSpanOutputMetadata({ rootSpan }: { rootSpan: RootSpan }) {
-  const [isAnnotationDialogOpen, setIsAnnotationDialogOpen] = useState(false);
-
   return (
     <>
       <Flex
@@ -191,21 +181,14 @@ function RootSpanOutputMetadata({ rootSpan }: { rootSpan: RootSpan }) {
           </Flex>
           <TraceFeedbackActionToolbar
             trace={rootSpan.trace}
-            onAnnotate={() => setIsAnnotationDialogOpen(true)}
+            annotationAction={
+              <TraceDetailPanelAnnotationButton
+                traceNodeId={rootSpan.trace.id}
+              />
+            }
           />
         </Flex>
       </Flex>
-      <ModalOverlay
-        isOpen={isAnnotationDialogOpen}
-        onOpenChange={setIsAnnotationDialogOpen}
-      >
-        <Modal variant="slideover" size="L">
-          <EditSpanAnnotationsDialog
-            spanNodeId={rootSpan.id}
-            projectId={rootSpan.project.id}
-          />
-        </Modal>
-      </ModalOverlay>
       <div
         css={css`
           align-self: start;

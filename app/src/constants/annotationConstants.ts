@@ -10,11 +10,6 @@ export const ANNOTATOR_KINDS = [
 ] as const satisfies readonly AnnotatorKind[];
 
 /**
- * Hotkey that focuses the annotation editor.
- */
-export const EDIT_ANNOTATION_HOTKEY = "e";
-
-/**
  * Hotkey that opens the span note bar and focuses its input.
  */
 export const NOTE_HOTKEY = "n";

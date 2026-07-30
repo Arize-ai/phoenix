@@ -192,7 +192,6 @@ describe("applySpanAnnotations", () => {
       expect.anything(),
       expect.objectContaining({
         variables: expect.objectContaining({
-          filterUserIds: ["viewer-1"],
           input: [
             expect.objectContaining({
               spanId: getValidSpanNodeId("1"),

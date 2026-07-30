@@ -14,7 +14,7 @@ import {
   ModalOverlay,
   View,
 } from "@phoenix/components";
-import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
+import { SpanDetailPanelAnnotationButton } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -87,19 +87,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
           )}
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
-          <DialogTrigger>
-            <Button size="S" leadingVisual={<Icon svg={<Icons.Edit />} />}>
-              Annotate
-            </Button>
-            <ModalOverlay>
-              <Modal variant="slideover" size="S">
-                <EditSpanAnnotationsDialog
-                  spanNodeId={spanId}
-                  projectId={trace.project.id}
-                />
-              </Modal>
-            </ModalOverlay>
-          </DialogTrigger>
+          <SpanDetailPanelAnnotationButton spanNodeId={spanId} />
           <DialogTrigger
             onOpenChange={(open) => {
               if (!open) {
