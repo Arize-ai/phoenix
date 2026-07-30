@@ -1653,7 +1653,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
     ) -> Connection[AgentSession]:
         page_size = first or 20
-        stmt = select(models.AgentSession).where(models.AgentSession.expires_at.is_(None))
+        stmt = select(models.AgentSession).where(models.AgentSession.is_ephemeral.is_(False))
         if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
             stmt = stmt.where(owner_filter)
         after_cursor = Cursor.from_string(after) if isinstance(after, CursorString) else None

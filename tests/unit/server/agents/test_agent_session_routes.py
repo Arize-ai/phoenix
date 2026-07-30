@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from strawberry.relay import GlobalID
 
+from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TextUIPart
 from phoenix.server.types import DbSessionFactory
@@ -14,14 +15,14 @@ async def _insert_agent_session(
     *,
     title: str,
     updated_at: datetime,
-    expires_at: datetime | None = None,
+    is_ephemeral: bool = False,
     messages: list[PhoenixUIMessage] | None = None,
 ) -> models.AgentSession:
     async with db() as session:
         agent_session = models.AgentSession(
             project_name="pxi-test",
             title=title,
-            expires_at=expires_at,
+            is_ephemeral=is_ephemeral,
             created_at=updated_at,
             updated_at=updated_at,
         )
@@ -54,7 +55,7 @@ class TestListAgentSessions:
             db,
             title="Temporary",
             updated_at=now + timedelta(minutes=1),
-            expires_at=now + timedelta(hours=1),
+            is_ephemeral=True,
         )
 
         response = await httpx_client.get("/agents/assistant/sessions")
@@ -157,7 +158,7 @@ class TestGetAgentSession:
         assert data["messages"][0]["parts"] == [{"type": "text", "text": "Hello"}]
         assert data["messages"][1]["parts"] == [{"type": "text", "text": "Hi"}]
 
-    async def test_gets_unexpired_temporary_session(
+    async def test_gets_temporary_session(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
@@ -167,7 +168,7 @@ class TestGetAgentSession:
             db,
             title="Temporary",
             updated_at=now,
-            expires_at=now + timedelta(hours=1),
+            is_ephemeral=True,
         )
         session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
@@ -176,23 +177,31 @@ class TestGetAgentSession:
         assert response.status_code == 200
         assert response.json()["data"]["is_temporary"] is True
 
-    async def test_hides_expired_session(
+    async def test_serves_an_ephemeral_session_the_sweeper_has_not_reached_yet(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        now = datetime.now(timezone.utc)
+        """Past the TTL but not yet swept, the session is still readable.
+
+        Reads no longer second-guess the sweeper: with the deadline derived from
+        ``updated_at`` there is no stored expiry to compare against, so the row
+        stays visible to its owner for at most one sweep interval longer than
+        before.
+        """
         agent_session = await _insert_agent_session(
             db,
-            title="Expired",
-            updated_at=now,
-            expires_at=now - timedelta(hours=1),
+            title="Idle past its TTL",
+            updated_at=datetime.now(timezone.utc)
+            - timedelta(hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS + 1),
+            is_ephemeral=True,
         )
         session_id = str(GlobalID("AgentSession", str(agent_session.id)))
 
         response = await httpx_client.get(f"/agents/assistant/sessions/{session_id}")
 
-        assert response.status_code == 404
+        assert response.status_code == 200
+        assert response.json()["data"]["is_temporary"] is True
 
     async def test_rejects_invalid_id(self, httpx_client: httpx.AsyncClient) -> None:
         response = await httpx_client.get("/agents/assistant/sessions/invalid")

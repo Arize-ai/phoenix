@@ -89,7 +89,12 @@ def upgrade() -> None:
             nullable=True,  # sessions may be created while auth is disabled
         ),
         sa.Column("title", sa.String, nullable=False),
-        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column(
+            "is_ephemeral",
+            sa.Boolean,
+            nullable=False,
+            server_default=sa.false(),
+        ),
         sa.Column("heartbeat_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "created_at",
@@ -112,11 +117,11 @@ def upgrade() -> None:
         ["user_id", sa.column("updated_at").desc()],
     )
     op.create_index(
-        "ix_agent_sessions_expires_at",
+        "ix_agent_sessions_ephemeral_updated_at",
         "agent_sessions",
-        ["expires_at"],
-        postgresql_where=sa.text("expires_at IS NOT NULL"),
-        sqlite_where=sa.text("expires_at IS NOT NULL"),
+        ["updated_at"],
+        postgresql_where=sa.text("is_ephemeral IS TRUE"),
+        sqlite_where=sa.text("is_ephemeral IS TRUE"),
     )
 
     message = sa.Column("message", JSON_, nullable=False)

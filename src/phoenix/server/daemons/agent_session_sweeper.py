@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import sqlalchemy as sa
 
+from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.types import DaemonTask, DbSessionFactory
@@ -19,7 +20,7 @@ _DELETE_BATCH_SIZE = 100
 
 
 class AgentSessionSweeper(DaemonTask):
-    """Periodically delete expired agent sessions."""
+    """Periodically delete agent sessions that have outlived their retention."""
 
     def __init__(self, db: DbSessionFactory, settings: SystemSettings) -> None:
         super().__init__()
@@ -35,32 +36,34 @@ class AgentSessionSweeper(DaemonTask):
             await sleep(_SLEEP_SECONDS + random.uniform(-_JITTER_SECONDS, _JITTER_SECONDS))
 
     async def _sweep(self) -> None:
-        await self._delete_expired_temporary_sessions()
+        await self._delete_idle_sessions(
+            is_ephemeral=True,
+            max_idle=timedelta(hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS),
+        )
         retention = self._settings.agent_session_retention
         if retention.max_idle_days > 0:
-            await self._delete_idle_persisted_sessions(retention.max_idle_days)
+            await self._delete_idle_sessions(
+                is_ephemeral=False,
+                max_idle=timedelta(days=retention.max_idle_days),
+            )
         if retention.max_count_per_user > 0:
             await self._enforce_per_user_count_cap(retention.max_count_per_user)
 
-    async def _delete_expired_temporary_sessions(self) -> None:
-        stmt = (
-            sa.delete(models.AgentSession)
-            .where(models.AgentSession.expires_at.is_not(None))
-            .where(models.AgentSession.expires_at < datetime.now(timezone.utc))
-            .returning(models.AgentSession.id)
-        )
-        async with self._db() as session:
-            num_deleted = len((await session.scalars(stmt)).all())
-        if num_deleted:
-            logger.info("Deleted %d expired agent session(s).", num_deleted)
+    async def _delete_idle_sessions(self, *, is_ephemeral: bool, max_idle: timedelta) -> None:
+        """Delete sessions of one persistence kind left untouched for ``max_idle``.
 
-    async def _delete_idle_persisted_sessions(self, max_idle_days: int) -> None:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=max_idle_days)
+        The two kinds differ only in the flag and the length of the window: an
+        ephemeral session dies a fixed TTL after its last activity, which is
+        the same question retention asks of a persisted one. Sharing the query
+        also gives ephemeral deletes the batching that bounds how much cascade
+        work lands in a single transaction.
+        """
+        cutoff = datetime.now(timezone.utc) - max_idle
         total_deleted = 0
         while True:
             batch = (
                 sa.select(models.AgentSession.id)
-                .where(models.AgentSession.expires_at.is_(None))
+                .where(models.AgentSession.is_ephemeral.is_(is_ephemeral))
                 .where(models.AgentSession.updated_at < cutoff)
                 .limit(_DELETE_BATCH_SIZE)
             )
@@ -69,7 +72,7 @@ class AgentSessionSweeper(DaemonTask):
             # spare a session that turned active after the batch was selected.
             stmt = (
                 sa.delete(models.AgentSession)
-                .where(models.AgentSession.expires_at.is_(None))
+                .where(models.AgentSession.is_ephemeral.is_(is_ephemeral))
                 .where(models.AgentSession.updated_at < cutoff)
                 .where(models.AgentSession.id.in_(batch))
             )
@@ -80,7 +83,11 @@ class AgentSessionSweeper(DaemonTask):
             if num_deleted < _DELETE_BATCH_SIZE:
                 break
         if total_deleted:
-            logger.info("Deleted %d idle agent session(s).", total_deleted)
+            logger.info(
+                "Deleted %d idle %s agent session(s).",
+                total_deleted,
+                "ephemeral" if is_ephemeral else "persisted",
+            )
 
     async def _enforce_per_user_count_cap(self, max_count_per_user: int) -> None:
         ranked = (
@@ -97,7 +104,7 @@ class AgentSessionSweeper(DaemonTask):
                 )
                 .label("rank"),
             )
-            .where(models.AgentSession.expires_at.is_(None))
+            .where(models.AgentSession.is_ephemeral.is_(False))
             .cte("ranked_agent_sessions")
         )
         # Matching on (id, updated_at) rather than id alone makes the delete's

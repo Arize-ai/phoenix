@@ -3313,7 +3313,17 @@ class AgentSession(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    is_ephemeral: Mapped[bool] = mapped_column(
+        default=False,
+        server_default=sa.false(),
+    )
+    """Whether the sweeper reaps this session once it has been idle for the ephemeral TTL.
+
+    A flag rather than a deadline column: the deadline was only ever
+    ``updated_at`` plus a fixed constant, so storing it duplicated a value the
+    row already carried and had to be rewritten on every turn to keep the
+    window sliding. Surfaced to clients as ``temporary``.
+    """
     heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     user: Mapped[Optional["User"]] = relationship("User")
     snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
@@ -3334,10 +3344,10 @@ class AgentSession(HasId):
             updated_at.desc(),
         ),
         Index(
-            "ix_agent_sessions_expires_at",
-            "expires_at",
-            postgresql_where=text("expires_at IS NOT NULL"),
-            sqlite_where=text("expires_at IS NOT NULL"),
+            "ix_agent_sessions_ephemeral_updated_at",
+            "updated_at",
+            postgresql_where=text("is_ephemeral IS TRUE"),
+            sqlite_where=text("is_ephemeral IS TRUE"),
         ),
         dict(sqlite_autoincrement=True),
     )

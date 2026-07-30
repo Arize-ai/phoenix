@@ -4,6 +4,7 @@ from typing import Any
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
+from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.types import DbSessionFactory
@@ -17,7 +18,7 @@ async def _seed_agent_session(
     title: str,
     updated_at: datetime,
     messages: list[dict[str, Any]] | None = None,
-    expires_at: datetime | None = None,
+    is_ephemeral: bool = False,
     user_id: int | None = None,
     heartbeat_at: datetime | None = None,
 ) -> str:
@@ -28,7 +29,7 @@ async def _seed_agent_session(
             project_name="assistant_agent",
             created_at=updated_at,
             updated_at=updated_at,
-            expires_at=expires_at,
+            is_ephemeral=is_ephemeral,
             heartbeat_at=heartbeat_at,
         )
         session.add(agent_session)
@@ -149,7 +150,7 @@ async def test_agent_sessions_excludes_temporary_sessions(
         db,
         title="temporary",
         updated_at=now,
-        expires_at=now + timedelta(days=1),
+        is_ephemeral=True,
     )
 
     response = await gql_client.execute(query=_LIST_QUERY)
@@ -264,18 +265,23 @@ async def test_agent_session_node_returns_not_found_when_missing(
     assert response.errors[0].message == f"Unknown agent session: {agent_session_id}"
 
 
-async def test_agent_session_node_returns_not_found_when_expired(
+async def test_agent_session_node_resolves_while_the_sweeper_has_not_reached_it(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    # A temporary session whose deadline has already passed reads as gone even
-    # though the sweeper has not yet deleted its row.
-    now = datetime.now(timezone.utc)
+    """An idle ephemeral session past its TTL still resolves by node id.
+
+    The permission check used to compare a stored deadline against the clock so
+    an unswept session read as gone. With the deadline derived from
+    ``updated_at`` there is nothing left to compare, and the owner keeps seeing
+    their own row until a sweep removes it.
+    """
     agent_session_id = await _seed_agent_session(
         db,
-        title="expired",
-        updated_at=now - timedelta(days=2),
-        expires_at=now - timedelta(seconds=1),
+        title="idle past its ttl",
+        updated_at=datetime.now(timezone.utc)
+        - timedelta(hours=EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS + 1),
+        is_ephemeral=True,
     )
 
     response = await gql_client.execute(
@@ -283,6 +289,6 @@ async def test_agent_session_node_returns_not_found_when_expired(
         variables={"id": agent_session_id},
     )
 
-    assert response.data is None
-    assert response.errors
-    assert response.errors[0].message == f"Unknown agent session: {agent_session_id}"
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["agentSession"]["id"] == agent_session_id
