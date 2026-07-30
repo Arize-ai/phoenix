@@ -64,7 +64,10 @@ from phoenix.server.api.types.SpanFilterConditionAnalysis import (
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.server.session_filters import get_filtered_session_rowids_subquery
+from phoenix.server.session_filters import (
+    apply_session_filter_to_page,
+    get_filtered_session_rowids_subquery,
+)
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
 from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
@@ -644,22 +647,27 @@ class Project(Node):
             project_rowid=self.id,
             time_range=time_range or None,
         )
+        sort_config: Optional[ProjectSessionSortConfig] = None
+        cursor_rowid_column: Any = table.id
+        if sort:
+            sort_config = sort.update_orm_expr(
+                stmt,
+                project_rowids=[self.id],
+                start_time=time_range.start if time_range else None,
+                end_time=time_range.end if time_range else None,
+            )
+            stmt = sort_config.stmt
+            if sort_config.dir is SortDir.desc:
+                cursor_rowid_column = desc(cursor_rowid_column)
         if session_filter_condition:
-            filtered_session_rowids = get_filtered_session_rowids_subquery(
+            stmt = apply_session_filter_to_page(
+                stmt,
                 session_filter_condition=session_filter_condition,
                 project_rowids=[self.id],
                 start_time=time_range.start if time_range else None,
                 end_time=time_range.end if time_range else None,
-                aggregate_shape="correlated",
+                prejoined_aggregate=sort_config.prejoined_aggregate if sort_config else None,
             )
-            stmt = stmt.where(table.id.in_(filtered_session_rowids))
-        sort_config: Optional[ProjectSessionSortConfig] = None
-        cursor_rowid_column: Any = table.id
-        if sort:
-            sort_config = sort.update_orm_expr(stmt)
-            stmt = sort_config.stmt
-            if sort_config.dir is SortDir.desc:
-                cursor_rowid_column = desc(cursor_rowid_column)
         if after:
             cursor = Cursor.from_string(after)
             if sort_config and cursor.sort_column:
@@ -742,7 +750,6 @@ class Project(Node):
                 project_rowids=[self.id],
                 start_time=time_range.start if time_range else None,
                 end_time=time_range.end if time_range else None,
-                aggregate_shape="grouped",
             )
             stmt = stmt.where(models.ProjectSession.id.in_(filtered_session_rowids))
         async with info.context.db.read() as session:
