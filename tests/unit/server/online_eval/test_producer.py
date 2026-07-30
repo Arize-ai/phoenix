@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import func, select, update
 
 from phoenix.db import models
+from phoenix.db.insertion.span import insert_span
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.evaluators import ContainsEvaluator
 from phoenix.server.online_eval import producer as producer_module
@@ -25,12 +26,36 @@ from phoenix.server.online_eval.producer import (
     resolve_criteria,
 )
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 
-from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
+from ..._helpers import _add_project, _add_span, _add_trace
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _ingest_span(
+    *,
+    trace_id: str,
+    span_id: str,
+    session_id: str,
+    start_time: datetime,
+    end_time: datetime,
+) -> Span:
+    return Span(
+        name="session-span",
+        context=SpanContext(trace_id=trace_id, span_id=span_id),
+        span_kind=SpanKind.CHAIN,
+        parent_id=None,
+        start_time=start_time,
+        end_time=end_time,
+        status_code=SpanStatusCode.OK,
+        status_message="",
+        attributes={"session": {"id": session_id}},
+        events=[],
+        conversation=None,
+    )
 
 
 async def _seed_criteria(
@@ -252,196 +277,64 @@ async def test_active_criteria_are_bulk_resolved_once(
     assert call_sizes == [3]
 
 
-async def test_tick_records_latest_activity_for_runnable_sessions(
+async def test_span_ingest_advances_session_liveness_in_its_transaction_without_producer(
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        first_project_session = await _add_project_session(session, project)
-        first_trace = await _add_trace(session, project, first_project_session)
-        await _add_span(session, first_trace)
-        await _add_span(session, first_trace)
-        second_project_session = await _add_project_session(session, project)
-        second_trace = await _add_trace(session, project, second_project_session)
-        await _add_span(session, second_trace)
-        ungrouped_trace = await _add_trace(session, project)
-        await _add_span(session, ungrouped_trace)
-        other_project = await _add_project(session)
-        other_project_session = await _add_project_session(session, other_project)
-        other_trace = await _add_trace(session, other_project, other_project_session)
-        high_water_span = await _add_span(session, other_trace)
-        project_id = project.id
-        first_project_session_id = first_project_session.id
-        first_trace_id = first_trace.id
-        second_project_session_id = second_project_session.id
-        high_water_span_id = high_water_span.id
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    cursor_id = await _seed_cursor(
-        db,
-        observed_high_water_id=high_water_span_id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
-
-    producer = OnlineEvalProducer(db)
-    await producer._tick()
+    trace_id = token_hex(16)
+    session_id = f"session-{token_hex(8)}"
+    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    end_time = start_time + timedelta(seconds=1)
 
     async with db() as session:
-        activity = list(await session.scalars(select(models.EvalSessionActivity)))
-    assert {row.project_session_rowid for row in activity} == {
-        first_project_session_id,
-        second_project_session_id,
-    }
-    first_observed_at = next(
-        row.observed_at for row in activity if row.project_session_rowid == first_project_session_id
-    )
-    assert all(row.observed_at is not None for row in activity)
-    assert await _work_unit_span_rowids(db) == []
-    assert (await _get_cursor(db, cursor_id)).produced_through_id == high_water_span_id
+        inserted = await insert_span(
+            session,
+            _ingest_span(
+                trace_id=trace_id,
+                span_id=token_hex(8),
+                session_id=session_id,
+                start_time=start_time,
+                end_time=end_time,
+            ),
+            "project",
+        )
+        assert inserted is not None
+        project_session = await session.scalar(
+            select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
+        )
+        assert project_session is not None
+        first_activity_at = project_session.last_activity_at
 
     if dialect == "sqlite":
         await sleep(1)
-    async with db() as session:
-        fetched_first_trace = await session.get(models.Trace, first_trace_id)
-        assert fetched_first_trace is not None
-        newer_first_span = await _add_span(session, fetched_first_trace)
-        newer_first_span_id = newer_first_span.id
-    assert newer_first_span_id > high_water_span_id
 
     async with db() as session:
-        await session.execute(
-            update(models.EvalWorkCursor)
-            .where(models.EvalWorkCursor.id == cursor_id)
-            .values(
-                produced_through_id=high_water_span_id,
-                observed_high_water_id=newer_first_span_id,
-                observed_at=_now() - timedelta(seconds=120),
-            )
-        )
-    await producer._tick()
-    async with db() as session:
-        replayed = list(await session.scalars(select(models.EvalSessionActivity)))
-    assert {row.project_session_rowid for row in replayed} == {
-        first_project_session_id,
-        second_project_session_id,
-    }
-    updated_first_activity = next(
-        row for row in replayed if row.project_session_rowid == first_project_session_id
-    )
-    assert updated_first_activity.observed_at > first_observed_at
-
-
-async def test_session_activity_uses_post_materialization_statement_time(
-    db: DbSessionFactory,
-    dialect: str,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project)
-        trace = await _add_trace(session, project, project_session)
-        span = await _add_span(session, trace)
-        project_id = project.id
-        project_session_id = project_session.id
-        span_id = span.id
-
-    producer = OnlineEvalProducer(db)
-    async with db() as session:
-        transaction_started_at = await session.scalar(select(func.now(type_=models.UtcTimeStamp())))
-        assert transaction_started_at is not None
-        await sleep(1.1 if dialect == "sqlite" else 0.01)
-        await producer._record_session_activity(
+        inserted = await insert_span(
             session,
-            [project_id],
-            0,
-            span_id,
+            _ingest_span(
+                trace_id=trace_id,
+                span_id=token_hex(8),
+                session_id=session_id,
+                start_time=start_time,
+                end_time=end_time,
+            ),
+            "project",
         )
+        assert inserted is not None
+        project_session = await session.scalar(
+            select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
+        )
+        assert project_session is not None
+        advanced_activity_at = project_session.last_activity_at
+        assert advanced_activity_at > first_activity_at
 
     async with db() as session:
-        observed_at = await session.scalar(
-            select(models.EvalSessionActivity.observed_at).where(
-                models.EvalSessionActivity.project_session_rowid == project_session_id
+        committed_activity_at = await session.scalar(
+            select(models.ProjectSession.last_activity_at).where(
+                models.ProjectSession.session_id == session_id
             )
         )
-
-    assert observed_at is not None
-    assert observed_at > transaction_started_at
-
-
-@pytest.mark.parametrize(
-    ("evaluation_target", "filter_condition", "sampling_rate"),
-    [
-        ("TRACE", "", 1.0),
-        ("SESSION", "span_kind == 'LLM'", 1.0),
-        ("SESSION", "", 0.5),
-    ],
-)
-async def test_ineligible_criteria_do_not_record_activity_or_work(
-    db: DbSessionFactory,
-    evaluation_target: models.EvaluationTarget,
-    filter_condition: str,
-    sampling_rate: float,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project)
-        trace = await _add_trace(session, project, project_session)
-        span = await _add_span(session, trace)
-        project_id = project.id
-        span_id = span.id
-    await _seed_criteria(
-        db,
-        project_id,
-        evaluation_target=evaluation_target,
-        filter_condition=filter_condition,
-        sampling_rate=sampling_rate,
-    )
-    await _seed_cursor(
-        db,
-        observed_high_water_id=span_id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
-
-    producer = OnlineEvalProducer(db)
-    await producer._tick()
-
-    async with db() as session:
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionActivity)) == 0
-        )
-    assert await _work_unit_span_rowids(db) == []
-
-
-async def test_cursor_advance_rolls_back_activity_and_work_after_lease_loss(
-    db: DbSessionFactory,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project)
-        trace = await _add_trace(session, project, project_session)
-        span = await _add_span(session, trace)
-        project_id = project.id
-        span_id = span.id
-    await _seed_criteria(db, project_id, evaluation_target="SPAN")
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    await _seed_cursor(
-        db,
-        observed_high_water_id=span_id,
-        observed_at=_now() - timedelta(seconds=120),
-        claimed_by="rival-producer",
-        claimed_at=_now(),
-    )
-
-    producer = OnlineEvalProducer(db)
-    active = await producer._load_active_criteria()
-    project_ids = await producer._load_session_activity_project_ids()
-
-    with pytest.raises(producer_module._CursorLeaseLost):
-        await producer._materialize_and_advance(active, project_ids, 0, span_id, 10)
-    async with db() as session:
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionActivity)) == 0
-        )
-    assert await _work_unit_span_rowids(db) == []
+    assert committed_activity_at == advanced_activity_at
 
 
 @pytest.mark.parametrize("evaluation_target", ["TRACE", "SESSION"])

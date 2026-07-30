@@ -79,6 +79,7 @@ async def insert_span(
         ) or models.ProjectSession(session_id=session_id)
 
     if project_session is not None:
+        project_session.last_activity_at = func.now()
         if project_session.id is None:
             # ProjectSession record needs to be persisted for the first time.
             project_session.start_time = trace.start_time
