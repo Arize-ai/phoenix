@@ -66,6 +66,7 @@ dependencies = [
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.17.0,<3",
   "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
+  "zstandard>=0.22.0",  # compresses persisted bashkit shell snapshots
   "authlib>=1.7.0",
   "joserfc",
   "arize-phoenix-client>=2.13.0",

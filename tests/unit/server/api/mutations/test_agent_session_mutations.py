@@ -12,6 +12,7 @@ from phoenix.db.types.data_stream_protocol import (
     TextUIPart,
 )
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
+from phoenix.server.agents.snapshots import encode_snapshot
 from phoenix.server.api.routers.agents import (
     _build_compaction_message,
     _load_agent_session_history,
@@ -751,17 +752,19 @@ async def test_delete_agent_session_cascades_snapshot(
         session.add(agent_session)
         await session.flush()
         agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+        message = models.AgentSessionMessage(
+            agent_session_id=agent_session.id,
+            position=0,
+            message=PhoenixUIMessage(id="m1", role="user", parts=[]),
+        )
+        session.add(message)
+        await session.flush()
+        codec, payload = encode_snapshot(b"shell-state")
         session.add(
             models.AgentSessionSnapshot(
-                agent_session_id=agent_session.id,
-                bashkit_snapshot=b"shell-state",
-            )
-        )
-        session.add(
-            models.AgentSessionMessage(
-                agent_session_id=agent_session.id,
-                position=0,
-                message=PhoenixUIMessage(id="m1", role="user", parts=[]),
+                agent_session_message_id=message.id,
+                codec=codec,
+                bashkit_snapshot=payload,
             )
         )
 

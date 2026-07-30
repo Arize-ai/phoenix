@@ -144,13 +144,14 @@ def upgrade() -> None:
         "agent_session_snapshots",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
-            "agent_session_id",
+            "agent_session_message_id",
             _Integer,
-            sa.ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+            sa.ForeignKey("agent_session_messages.id", ondelete="CASCADE"),
             nullable=False,
             unique=True,
         ),
-        sa.Column("bashkit_snapshot", sa.LargeBinary, nullable=True),
+        sa.Column("codec", sa.String, nullable=False),
+        sa.Column("bashkit_snapshot", sa.LargeBinary, nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

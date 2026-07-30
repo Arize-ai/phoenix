@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
+from phoenix.server.agents.snapshots import encode_snapshot
 from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.settings.registry import SETTINGS_REGISTRY, AgentSessionRetentionSetting
@@ -105,17 +106,19 @@ async def test_agent_session_sweeper_deletes_only_expired_sessions_and_cascades(
         expired_id = expired.id
         future_id = future.id
         persistent_id = persistent.id
-        session.add(
-            models.AgentSessionMessage(
-                agent_session_id=expired_id,
-                position=0,
-                message=PhoenixUIMessage(id="message-1", role="user", parts=[]),
-            )
+        message = models.AgentSessionMessage(
+            agent_session_id=expired_id,
+            position=0,
+            message=PhoenixUIMessage(id="message-1", role="user", parts=[]),
         )
+        session.add(message)
+        await session.flush()
+        codec, payload = encode_snapshot(b"shell-state")
         session.add(
             models.AgentSessionSnapshot(
-                agent_session_id=expired_id,
-                bashkit_snapshot=b"shell-state",
+                agent_session_message_id=message.id,
+                codec=codec,
+                bashkit_snapshot=payload,
             )
         )
 

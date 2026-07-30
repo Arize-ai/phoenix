@@ -445,9 +445,9 @@ CREATE TABLE public.agent_sessions (
     user_id BIGINT,
     title VARCHAR NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE,
+    heartbeat_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    heartbeat_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_agent_sessions PRIMARY KEY (id),
     CONSTRAINT uq_agent_sessions_project_session_id_project_name
         UNIQUE (project_session_id, project_name),
@@ -493,17 +493,18 @@ CREATE INDEX ix_agent_session_messages_compaction ON public.agent_session_messag
 -- ------------------------------
 CREATE TABLE public.agent_session_snapshots (
     id bigserial NOT NULL,
-    agent_session_id BIGINT NOT NULL,
-    bashkit_snapshot BYTEA,
+    agent_session_message_id BIGINT NOT NULL,
+    codec VARCHAR NOT NULL,
+    bashkit_snapshot BYTEA NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_agent_session_snapshots PRIMARY KEY (id),
-    CONSTRAINT uq_agent_session_snapshots_agent_session_id
-        UNIQUE (agent_session_id),
-    CONSTRAINT fk_agent_session_snapshots_agent_session_id_agent_sessions
+    CONSTRAINT uq_agent_session_snapshots_agent_session_message_id
+        UNIQUE (agent_session_message_id),
+    CONSTRAINT fk_agent_session_snapshots_agent_session_message_id_age_9449
         FOREIGN KEY
-        (agent_session_id)
-        REFERENCES public.agent_sessions (id)
+        (agent_session_message_id)
+        REFERENCES public.agent_session_messages (id)
         ON DELETE CASCADE
 );
 

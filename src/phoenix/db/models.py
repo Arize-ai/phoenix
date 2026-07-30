@@ -3278,11 +3278,6 @@ class AgentSession(HasId):
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     user: Mapped[Optional["User"]] = relationship("User")
-    snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
-        "AgentSessionSnapshot",
-        back_populates="agent_session",
-        uselist=False,
-    )
     messages: Mapped[list["AgentSessionMessage"]] = relationship(
         "AgentSessionMessage",
         order_by="AgentSessionMessage.position",
@@ -3342,6 +3337,12 @@ class AgentSessionMessage(HasId):
         "AgentSession",
         back_populates="messages",
     )
+    snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
+        "AgentSessionSnapshot",
+        back_populates="agent_session_message",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
     __table_args__ = (
         UniqueConstraint("agent_session_id", "position"),
         Index(
@@ -3356,19 +3357,28 @@ class AgentSessionMessage(HasId):
 
 
 class AgentSessionSnapshot(HasId):
+    """A compressed bashkit shell snapshot taken at one point in a transcript.
+
+    One row per turn that ran a bash command, anchored to the last message that
+    turn persisted. Truncating or deleting messages drops the snapshots taken
+    after that point via ``ON DELETE CASCADE``, and restoring at any surviving
+    message is a single indexed read plus a decompress.
+    """
+
     __tablename__ = "agent_session_snapshots"
-    agent_session_id: Mapped[int] = mapped_column(
-        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+    agent_session_message_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_session_messages.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
     )
-    bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    codec: Mapped[str] = mapped_column(String, nullable=False)
+    bashkit_snapshot: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    agent_session: Mapped[AgentSession] = relationship(
-        "AgentSession",
+    agent_session_message: Mapped[AgentSessionMessage] = relationship(
+        "AgentSessionMessage",
         back_populates="snapshot",
     )
     __table_args__ = (dict(sqlite_autoincrement=True),)

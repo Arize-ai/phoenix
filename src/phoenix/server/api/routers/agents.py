@@ -130,6 +130,7 @@ from phoenix.server.agents.skill_requests import (
     resolve_requested_skills,
 )
 from phoenix.server.agents.skills import get_skills_for_contexts
+from phoenix.server.agents.snapshots import decode_snapshot, encode_snapshot
 from phoenix.server.agents.summarization import (
     summarize_messages,
     summarize_messages_for_compaction,
@@ -1521,20 +1522,27 @@ async def _persist_agent_session_title(
 async def _upsert_agent_session_snapshot(
     session: AsyncSession,
     *,
-    agent_session_rowid: int,
+    agent_session_message_rowid: int,
     bashkit_snapshot: bytes,
 ) -> None:
+    """Store the turn's shell state against the last message the turn persisted.
+
+    Conflicts only on client-tool continuations, which rewrite the trailing
+    assistant message they are anchored to rather than appending a new one.
+    """
+    codec, payload = encode_snapshot(bashkit_snapshot)
     await session.execute(
         insert_on_conflict(
             {
-                "agent_session_id": agent_session_rowid,
-                "bashkit_snapshot": bashkit_snapshot,
+                "agent_session_message_id": agent_session_message_rowid,
+                "codec": codec,
+                "bashkit_snapshot": payload,
             },
             table=models.AgentSessionSnapshot,
             dialect=SupportedSQLDialect(session.bind.dialect.name),
-            unique_by=("agent_session_id",),
+            unique_by=("agent_session_message_id",),
             on_conflict=OnConflict.DO_UPDATE,
-            set_={"bashkit_snapshot": bashkit_snapshot, "updated_at": func.now()},
+            set_={"codec": codec, "bashkit_snapshot": payload, "updated_at": func.now()},
         )
     )
 
@@ -1545,8 +1553,11 @@ async def _update_trailing_assistant_message(
     agent_session_rowid: int,
     position: int,
     message: PhoenixUIMessage,
-) -> None:
-    """Replace the matching trailing assistant message or reject a stale continuation."""
+) -> int:
+    """Replace the matching trailing assistant message or reject a stale continuation.
+
+    Returns the rowid of the replaced message.
+    """
     updated_message_rowid = await session.scalar(
         update(models.AgentSessionMessage)
         .where(
@@ -1565,6 +1576,7 @@ async def _update_trailing_assistant_message(
                 "latest transcript message; reload the conversation"
             ),
         )
+    return updated_message_rowid
 
 
 async def _persist_agent_session_turn(
@@ -1598,27 +1610,35 @@ async def _persist_agent_session_turn(
             )
         )
         assert next_position is not None
+        # The snapshot is anchored to the last message this turn persists, so
+        # that truncating the transcript also discards the shell states that
+        # only existed after the truncation point.
+        snapshot_anchor_rowid: int | None = None
         if new_messages[0].role == "assistant":
             # Client-tool continuations replace the persisted assistant message.
-            await _update_trailing_assistant_message(
+            snapshot_anchor_rowid = await _update_trailing_assistant_message(
                 session,
                 agent_session_rowid=agent_session_rowid,
                 position=next_position - 1,
                 message=new_messages[0],
             )
             new_messages = new_messages[1:]
-        session.add_all(
+        message_rows = [
             models.AgentSessionMessage(
                 agent_session_id=agent_session_rowid,
                 position=position,
                 message=message,
             )
             for position, message in enumerate(new_messages, start=next_position)
-        )
-        if bashkit_snapshot is not None:
+        ]
+        session.add_all(message_rows)
+        if message_rows:
+            await session.flush()
+            snapshot_anchor_rowid = message_rows[-1].id
+        if bashkit_snapshot is not None and snapshot_anchor_rowid is not None:
             await _upsert_agent_session_snapshot(
                 session,
-                agent_session_rowid=agent_session_rowid,
+                agent_session_message_rowid=snapshot_anchor_rowid,
                 bashkit_snapshot=bashkit_snapshot,
             )
 
@@ -1628,11 +1648,37 @@ async def _load_bash_snapshot(
     *,
     agent_session_rowid: int,
 ) -> bytes | None:
-    return await session.scalar(
-        select(models.AgentSessionSnapshot.bashkit_snapshot).where(
-            models.AgentSessionSnapshot.agent_session_id == agent_session_rowid
+    """Load the shell state stored at the session's latest snapshotted message."""
+    row = (
+        await session.execute(
+            select(
+                models.AgentSessionSnapshot.codec,
+                models.AgentSessionSnapshot.bashkit_snapshot,
+            )
+            .join(
+                models.AgentSessionMessage,
+                models.AgentSessionMessage.id
+                == models.AgentSessionSnapshot.agent_session_message_id,
+            )
+            .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+            .order_by(models.AgentSessionMessage.position.desc())
+            .limit(1)
         )
-    )
+    ).first()
+    if row is None:
+        return None
+    codec, payload = row
+    try:
+        return decode_snapshot(codec, payload)
+    except Exception:
+        # `_build_shell` starts a fresh shell when restoration fails, which is
+        # strictly better than failing the turn over unreadable shell state.
+        logger.warning(
+            "Failed to decode bash snapshot for agent session %r; ignoring stored shell state",
+            str(GlobalID("AgentSession", str(agent_session_rowid))),
+            exc_info=True,
+        )
+        return None
 
 
 async def _load_agent_session_history(
