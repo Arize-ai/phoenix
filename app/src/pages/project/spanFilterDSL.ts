@@ -226,10 +226,6 @@ export const spanFilterSnippets: DSLFilterSnippet[] = [
     snippet: "annotations['${name}'].label == '${label}'",
   },
   {
-    label: "search annotation explanation",
-    snippet: "'${search text}' in annotations['${name}'].explanation",
-  },
-  {
     label: "filter by metadata",
     snippet: "metadata['${key}'] == '${value}'",
   },
@@ -332,7 +328,7 @@ export const spanFilterAIQueryDSL = createAIQueryDSL({
     "Durations are in milliseconds: 5 seconds is latency_ms > 5000, two minutes is latency_ms > 120000.",
     "attributes and metadata are read by subscript and nest by chaining, e.g. attributes['llm']['provider'] == 'openai'. Span attributes follow OpenInference semantic conventions (llm.model_name, llm.provider, tool.name, retrieval.documents, embedding.model_name, session.id, ...), each also writable in dotted form, e.g. llm.model_name.",
     "A dotted path never goes inside one subscript: attributes['llm.provider'] matches nothing. Chain the keys — attributes['llm']['provider'] — or write the bare dotted form.",
-    "annotations['name'] and evals['name'] are the same accessor and expose .score, .label, and .explanation. Written bare, annotations['name'] tests whether that annotation exists on the span at all.",
+    "annotations['name'] and evals['name'] are the same accessor and expose .score and .label. Written bare, annotations['name'] tests whether that annotation exists on the span at all.",
     "llm.token_count.* counts a single LLM span; cumulative_token_count.* sums the span and every descendant, which is what a whole trace costs.",
     "A field may be tested against a list — span_kind in ['LLM', 'TOOL'] — and a range may be chained — 1000 < latency_ms < 5000.",
     `Root spans are selected with \`${STRICT_ROOT_SPANS_CONDITION}\`.`,

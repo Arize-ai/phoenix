@@ -20,7 +20,7 @@ from sqlalchemy.sql.expression import Select
 from sqlalchemy.sql.selectable import ScalarSelect
 
 from phoenix.db import models
-from phoenix.db.models import LatencyMs
+from phoenix.db.models import LatencyMs, SafeJsonBoolean, SafeJsonFloat
 from phoenix.db.session_aggregates import (
     SESSION_ROWID,
     SPAN_ROWID,
@@ -303,6 +303,7 @@ SESSION_BINDINGS = _FilterBindings(
     quantifiers=frozenset(COMPREHENSION_NAMES),
     exists_names=frozenset(_EXISTS_ATTRIBUTE_PATHS),
     iterables=_SESSION_ITERABLES,
+    annotation_iterable="session_annotations",
 )
 
 SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
@@ -628,7 +629,11 @@ class SessionFilter:
         """
         if not self.condition:
             return stmt
-        extra_bindings: dict[str, typing.Any] = dict(self._literal_bindings)
+        extra_bindings: dict[str, typing.Any] = {
+            **self._literal_bindings,
+            "SafeJsonFloat": _safe_json_float,
+            "SafeJsonBoolean": _safe_json_boolean,
+        }
         stmt, aggregate_bindings = _join_aggregates(
             stmt,
             self._referenced_aggregates,
@@ -818,6 +823,22 @@ class _RootSpanAttributeValue:
 
     def as_boolean(self) -> typing.Any:
         return self._cast(lambda value: value.as_boolean())
+
+
+def _safe_json_float(value: typing.Any) -> typing.Any:
+    """``SafeJsonFloat`` for the session grain: a root-span attribute read is
+    resolved against every candidate storage path before the safe cast wraps
+    each real JSON element (a raw reader object cannot be bound as SQL)."""
+    if isinstance(value, _RootSpanAttributeValue):
+        return value._cast(SafeJsonFloat)
+    return SafeJsonFloat(value)
+
+
+def _safe_json_boolean(value: typing.Any) -> typing.Any:
+    """``SafeJsonBoolean`` with the same root-span attribute routing as above."""
+    if isinstance(value, _RootSpanAttributeValue):
+        return value._cast(SafeJsonBoolean)
+    return SafeJsonBoolean(value)
 
 
 class _RootSpanAttributes:

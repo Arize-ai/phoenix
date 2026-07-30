@@ -204,6 +204,9 @@ class _FilterBindings:
     exists_names: frozenset[str] = frozenset()
     supports_parent_keyword: bool = False
     iterables: typing.Mapping[str, "_IterableGrammar"] = MappingProxyType({})
+    # The iterable that reads this grain's annotations element-wise, named when an
+    # `annotations[...]` expression is rejected for being out of scope.
+    annotation_iterable: typing.Optional[str] = None
 
     @property
     def names(self) -> NameMap:
@@ -537,11 +540,44 @@ class _ComprehensionExtractor(ast.NodeTransformer):
     which is what lets the ordinary translator handle it.
     """
 
-    def __init__(self, bindings: _FilterBindings) -> None:
+    def __init__(
+        self,
+        bindings: _FilterBindings,
+        aliased_annotation_relations: typing.Iterable[AliasedAnnotationRelation] = (),
+    ) -> None:
         self._bindings = bindings
         self._scopes: list[_ElementScope] = []
         self._collected: list[list[ComprehensionSpec]] = [[]]
         self._count = 0
+        # Session-scope annotation reads are aliased before extraction runs, so
+        # inside a comprehension they surface as opaque alias names. Map them
+        # back to their source spelling for the rejection message below.
+        self._annotation_aliases: dict[str, tuple[str, typing.Optional[str]]] = {}
+        for relation in aliased_annotation_relations:
+            self._annotation_aliases[relation._label_attribute_alias] = (relation.name, "label")
+            self._annotation_aliases[relation._score_attribute_alias] = (relation.name, "score")
+            self._annotation_aliases[relation._explanation_attribute_alias] = (
+                relation.name,
+                "explanation",
+            )
+            self._annotation_aliases[relation._exists_attribute_alias] = (relation.name, None)
+
+    def _reject_annotation_alias_reads(self, node: ast.AST) -> None:
+        for child in ast.walk(node):
+            if isinstance(child, ast.Name) and (read := self._annotation_aliases.get(child.id)):
+                annotation_name, attribute = read
+                reference = f"annotations[{annotation_name!r}]" + (
+                    f".{attribute}" if attribute else ""
+                )
+                hint = (
+                    f"; use `{self._bindings.annotation_iterable}` to read annotations element-wise"
+                    if self._bindings.annotation_iterable
+                    else ""
+                )
+                raise SyntaxError(
+                    f"`{reference}` is joined at session scope and cannot be read"
+                    f" inside a comprehension{hint}"
+                )
 
     @property
     def specs(self) -> tuple[ComprehensionSpec, ...]:
@@ -567,6 +603,9 @@ class _ComprehensionExtractor(ast.NodeTransformer):
         prefix = _QUANTIFIER_RESULT_PREFIX if kind in QUANTIFIER_NAMES else _REDUCTION_RESULT_PREFIX
         name = f"{prefix}{self._count}__"
         self._count += 1
+        for part in (element, condition):
+            if part is not None:
+                self._reject_annotation_alias_reads(part)
         literal_bindings: dict[str, typing.Any] = {}
         spec = ComprehensionSpec(
             name=name,
@@ -622,10 +661,11 @@ def _compile_element(
 def _extract_comprehensions(
     root: ast.Expression,
     bindings: _FilterBindings,
+    aliased_annotation_relations: typing.Iterable[AliasedAnnotationRelation] = (),
 ) -> tuple[ast.Expression, tuple[ComprehensionSpec, ...]]:
     if not bindings.iterables:
         return root, ()
-    extractor = _ComprehensionExtractor(bindings)
+    extractor = _ComprehensionExtractor(bindings, aliased_annotation_relations)
     return ast.Expression(body=extractor.visit(root.body)), extractor.specs
 
 
@@ -652,7 +692,7 @@ def _compile_condition(
         _validate_expression(validated, source, bindings, valid_eval_names=valid_annotation_names)
         source, aliased_annotation_relations = _apply_eval_aliasing(source, bindings)
         root = ast.parse(source, mode="eval")
-        root, comprehensions = _extract_comprehensions(root, bindings)
+        root, comprehensions = _extract_comprehensions(root, bindings, aliased_annotation_relations)
         translator = _FilterTranslator(
             bindings=bindings,
             reserved_keywords=chain(
@@ -730,7 +770,6 @@ def _eval_globals(
     return {
         "__builtins__": {},
         **bindings.names,
-        **(extra_bindings or {}),
         **aliased_annotation_attributes,
         "not_": sqlalchemy.not_,
         "and_": sqlalchemy.and_,
@@ -743,6 +782,10 @@ def _eval_globals(
         "SafeJsonFloat": SafeJsonFloat,
         "TextContains": models.TextContains,
         _DATETIME_CONVERTER: _parse_datetime_literal,
+        # Last so a caller can override an entry -- e.g. the session grain
+        # swaps in SafeJson* shims that understand its root-span attribute
+        # reader.
+        **(extra_bindings or {}),
     }
 
 
@@ -2397,6 +2440,21 @@ def _validate_expression(
             if not _get_subscript_key(node):
                 raise SyntaxError(f"missing eval name in `{ast.unparse(node)}`")
             continue
+        elif (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Attribute)
+            and _is_annotation(node.value.value)
+        ) or (isinstance(node, ast.Subscript) and _is_annotation(node.value)):
+            # e.g. `annotations["q"].score.label` or `annotations["q"]["k"]`:
+            # traversal past an annotation reads as a reference to something an
+            # annotation does not expose; reject it by name instead of letting
+            # it fall through to the generic attribute-path handling, which
+            # would validate true and silently match nothing.
+            expected = _disjunction([f"`.{attribute}`" for attribute in valid_eval_attributes])
+            raise SyntaxError(
+                f"invalid expression: {_ellipsize(ast.unparse(node), 80)}"
+                f"; an annotation exposes only {expected}"
+            )
         elif isinstance(node, ast.Attribute) and _is_annotation(node.value):
             # e.g. `evals["name"].score`
             if (attr := node.attr) not in valid_eval_attributes:
@@ -2472,6 +2530,39 @@ def _is_annotation(node: typing.Any) -> TypeGuard[ast.Subscript]:
         isinstance(node, ast.Subscript)
         and isinstance(value := node.value, ast.Name)
         and value.id in ["evals", "annotations"]
+    )
+
+
+def _is_annotation_rooted(node: typing.Any) -> bool:
+    # e.g. `evals["name"]`, `evals["name"].score`, `evals["name"]["key"]`
+    while isinstance(node, (ast.Attribute, ast.Subscript)):
+        if _is_annotation(node):
+            return True
+        node = node.value
+    return False
+
+
+def _annotation_attribute_error(
+    node: ast.Attribute,
+    valid_eval_attributes: typing.Sequence[str],
+) -> SyntaxError:
+    """The one authority on how an unsupported annotation attribute is reported.
+
+    Validation and aliasing both reach it, so the set they accept cannot drift apart.
+    """
+    source_segment = ast.unparse(node)
+    attr = node.attr
+    # suggest a valid attribute most similar to the one given
+    choice, score = _find_best_match(attr, valid_eval_attributes)
+    if choice and score > 0.75:  # arbitrary threshold
+        return SyntaxError(
+            f"invalid attribute `.{attr}` in `{source_segment}`" + f", did you mean `.{choice}`?"
+        )
+    expected = _disjunction([f"`.{attribute}`" for attribute in valid_eval_attributes])
+    return SyntaxError(
+        f"invalid eval attribute `.{attr}` in `{source_segment}`" + f", expected {expected}"
+        if expected
+        else ""
     )
 
 
@@ -2585,7 +2676,8 @@ def _apply_eval_aliasing(
 ]:
     """
     Substitutes `evals[<eval-name>].<attribute>` with aliases. Returns the
-    updated source code in addition to the aliased relations.
+    updated source code in addition to the aliased relations. ``bindings`` selects
+    the annotation model and alias prefix (span vs. session grain).
 
     Example:
 
