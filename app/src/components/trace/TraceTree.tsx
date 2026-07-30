@@ -661,7 +661,9 @@ const entityTreeItemCSS = css`
   }
 
   &:hover .trace-tree-entity-item__actions,
-  &:focus-within .trace-tree-entity-item__actions {
+  &:focus-within .trace-tree-entity-item__actions,
+  &:has(.trace-tree-entity-item__actions [data-annotation-menu-open="true"])
+    .trace-tree-entity-item__actions {
     opacity: 1;
     pointer-events: auto;
   }
@@ -1436,7 +1438,9 @@ function SpanNodeWrap(
           pointer-events: none;
         }
         &:hover .span-controls__actions,
-        &:focus-within .span-controls__actions {
+        &:focus-within .span-controls__actions,
+        &:has(.span-controls__actions [data-annotation-menu-open="true"])
+          .span-controls__actions {
           opacity: 1;
           pointer-events: auto;
         }

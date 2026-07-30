@@ -565,7 +565,10 @@ export function SpanDetailPanelAnnotationButton({
 }) {
   return (
     <DetailPanelAnnotationButton targetKind="span">
-      <ConnectedSpanDetailPanelAnnotationBar spanNodeId={spanNodeId} />
+      <ConnectedSpanDetailPanelAnnotationBar
+        spanNodeId={spanNodeId}
+        variant="button-menu"
+      />
     </DetailPanelAnnotationButton>
   );
 }
@@ -934,7 +937,10 @@ export function TraceDetailPanelAnnotationButton({
 }) {
   return (
     <DetailPanelAnnotationButton targetKind="trace">
-      <TraceDetailPanelAnnotationBar traceNodeId={traceNodeId} />
+      <TraceDetailPanelAnnotationBar
+        traceNodeId={traceNodeId}
+        variant="button-menu"
+      />
     </DetailPanelAnnotationButton>
   );
 }
@@ -1055,7 +1061,10 @@ export function SessionDetailPanelAnnotationButton({
 }) {
   return (
     <DetailPanelAnnotationButton targetKind="session">
-      <SessionDetailPanelAnnotationBar sessionNodeId={sessionNodeId} />
+      <SessionDetailPanelAnnotationBar
+        sessionNodeId={sessionNodeId}
+        variant="button-menu"
+      />
     </DetailPanelAnnotationButton>
   );
 }

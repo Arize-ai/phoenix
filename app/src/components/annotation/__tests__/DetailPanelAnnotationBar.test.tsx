@@ -263,6 +263,129 @@ describe("DetailPanelAnnotationBar", () => {
     ).not.toBeNull();
   });
 
+  it("renders the row action as an ordered annotation menu", async () => {
+    const helpfulnessConfig = {
+      ...config,
+      id: "config-helpfulness",
+      name: "helpfulness",
+    };
+    renderAnnotationBar({
+      allAnnotationConfigs: [helpfulnessConfig, config],
+      projectAnnotationConfigs: [helpfulnessConfig, config],
+      variant: "button",
+    });
+    const user = userEvent.setup();
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add annotation"]'
+    );
+
+    await act(async () => {
+      await user.click(trigger!);
+    });
+
+    const menu = document.querySelector<HTMLElement>(
+      '[role="menu"][aria-label="span annotations"]'
+    );
+    expect(menu).not.toBeNull();
+    expect(
+      Array.from(menu?.querySelectorAll('[role="menuitem"]') ?? []).map(
+        (menuItem) => menuItem.textContent
+      )
+    ).toEqual(["quality1good", "helpfulness"]);
+    expect(trigger?.dataset.annotationMenuOpen).toBe("true");
+    expect(document.body.contains(trigger)).toBe(true);
+    expect(
+      Array.from(menu?.querySelectorAll("header") ?? []).map(
+        (header) => header.textContent
+      )
+    ).toEqual(["On this span", "Available annotations"]);
+
+    const currentAnnotationMenuItem =
+      menu?.querySelector<HTMLElement>('[role="menuitem"]');
+    expect(currentAnnotationMenuItem).not.toBeNull();
+    await act(async () => {
+      await user.click(currentAnnotationMenuItem!);
+    });
+
+    const annotationDialog = document.querySelector(
+      '[role="dialog"][aria-label="quality annotation"]'
+    );
+    expect(annotationDialog).not.toBeNull();
+    expect(
+      annotationDialog?.closest("[data-placement]")?.dataset.placement
+    ).toBe("right");
+    expect(
+      annotationDialog
+        ?.closest("[data-placement]")
+        ?.querySelector(".react-aria-OverlayArrow")
+    ).toBeNull();
+
+    const availableAnnotationMenuItem = Array.from(
+      menu?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []
+    ).at(-1);
+    await act(async () => user.hover(availableAnnotationMenuItem!));
+    expect(
+      document.querySelector('[role="dialog"][aria-label="quality annotation"]')
+    ).not.toBeNull();
+  });
+
+  it("summarizes explanations beneath annotation menu values", async () => {
+    const relevanceConfig = {
+      ...config,
+      id: "config-relevance",
+      name: "relevance",
+    };
+    renderAnnotationBar({
+      allAnnotationConfigs: [config, relevanceConfig],
+      projectAnnotationConfigs: [config, relevanceConfig],
+      annotations: [
+        {
+          id: "annotation-quality-1",
+          name: "quality",
+          label: "good",
+          score: 1,
+          explanation: "Strong evidence",
+        },
+        {
+          id: "annotation-quality-2",
+          name: "quality",
+          label: "good",
+          score: 0,
+        },
+        {
+          id: "annotation-relevance",
+          name: "relevance",
+          score: 0.5,
+          explanation: "Directly addresses the question",
+        },
+      ],
+      variant: "button",
+    });
+    const user = userEvent.setup();
+
+    await act(async () => {
+      await user.click(
+        container.querySelector<HTMLButtonElement>(
+          'button[aria-label="Add annotation"]'
+        )!
+      );
+    });
+
+    const descriptions = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[role="menu"] .annotation-explanation-summary'
+      )
+    ).map((description) => description.textContent);
+    expect(descriptions).toEqual([
+      "mixed explanations",
+      "Directly addresses the question",
+    ]);
+    const relevanceMenuItem = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="menuitem"]')
+    ).find((menuItem) => menuItem.textContent?.includes("relevance"));
+    expect(relevanceMenuItem?.textContent).toContain("0.5--");
+  });
+
   it("does not render row annotation content until the plus button opens", async () => {
     const onContentRender = vi.fn();
     function DeferredContent() {
@@ -352,7 +475,7 @@ describe("DetailPanelAnnotationBar", () => {
     const summaryScore = document
       .querySelector('[aria-label="Annotation values"]')
       ?.querySelector('[data-direction="positive"]');
-    expect(summaryScore?.textContent).toBe("1.00");
+    expect(summaryScore?.textContent).toBe("1");
     expect(summaryScore?.getAttribute("data-optimization-value")).toBe("1");
     expect(summaryScore?.getAttribute("data-appearance")).toBe("badge");
   });
@@ -728,7 +851,7 @@ describe("DetailPanelAnnotationBar", () => {
       Array.from(choices?.querySelectorAll("li") ?? []).map((option) =>
         option.textContent?.trim()
       )
-    ).toEqual(["good1.00Explain", "bad0.00Explain"]);
+    ).toEqual(["good1Explain", "bad0Explain"]);
     expect(document.body.textContent).not.toContain("Explanation");
     expect(document.body.textContent).not.toContain("Cancel");
     expect(document.body.textContent).not.toContain("Save annotation");
@@ -741,7 +864,7 @@ describe("DetailPanelAnnotationBar", () => {
     );
     expect(
       goodChoice?.querySelector('[data-direction="positive"]')?.textContent
-    ).toBe("1.00");
+    ).toBe("1");
     expect(
       goodChoice
         ?.querySelector('[data-direction="positive"]')
@@ -749,7 +872,7 @@ describe("DetailPanelAnnotationBar", () => {
     ).toBe("1");
     expect(
       badChoice?.querySelector('[data-direction="negative"]')?.textContent
-    ).toBe("0.00");
+    ).toBe("0");
     expect(
       badChoice
         ?.querySelector('[data-direction="negative"]')
@@ -776,6 +899,126 @@ describe("DetailPanelAnnotationBar", () => {
     expect(
       document.querySelector('[aria-label="Annotation values"]')
     ).toBeNull();
+  });
+
+  it("creates a normalized continuous annotation from semantic quick values", async () => {
+    const continuousConfig: AnnotationConfig = {
+      annotationType: "CONTINUOUS",
+      description: null,
+      id: "config-score",
+      lowerBound: 0,
+      name: "score",
+      optimizationDirection: "MAXIMIZE",
+      upperBound: 1,
+    };
+    const onCreateAnnotation = vi
+      .fn<DetailPanelAnnotationBarProps["onCreateAnnotation"]>()
+      .mockResolvedValue({
+        success: true,
+        annotation: { id: "annotation-created", name: "score", score: 0.5 },
+      });
+    renderAnnotationBar({
+      allAnnotationConfigs: [continuousConfig],
+      annotations: [],
+      onCreateAnnotation,
+      projectAnnotationConfigs: [continuousConfig],
+    });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open score annotation"]'
+        )!
+      )
+    );
+
+    const values = document.querySelector('[aria-label="score values"]');
+    expect(values?.querySelectorAll("li")).toHaveLength(11);
+    expect(values?.textContent).toBe("0.00.10.20.30.40.50.60.70.80.91.0");
+    const midpoint = values?.querySelector<HTMLButtonElement>(
+      '[aria-label="Add 0.5"]'
+    );
+    if (midpoint == null) {
+      throw new Error("Expected the normalized continuous midpoint");
+    }
+    await act(async () => user.click(midpoint));
+    expect(onCreateAnnotation).toHaveBeenCalledWith({
+      annotationName: "score",
+      target: expect.objectContaining({ id: "span-1" }),
+      value: expect.objectContaining({ score: 0.5 }),
+    });
+  });
+
+  it("opens the exact bounded slider from continuous Explain", async () => {
+    const continuousConfig: AnnotationConfig = {
+      annotationType: "CONTINUOUS",
+      description: null,
+      id: "config-score",
+      lowerBound: -1,
+      name: "score",
+      optimizationDirection: "NONE",
+      upperBound: 1,
+    };
+    renderAnnotationBar({
+      allAnnotationConfigs: [continuousConfig],
+      annotations: [],
+      projectAnnotationConfigs: [continuousConfig],
+    });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open score annotation"]'
+        )!
+      )
+    );
+    const explain = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "Explain");
+    await act(async () => user.click(explain!));
+
+    expect(
+      document.querySelector('[aria-label="score exact value"]')
+    ).not.toBeNull();
+    expect(document.querySelector(".slider__track")).not.toBeNull();
+  });
+
+  it("uses an unbounded number input when a continuous maximum is absent", async () => {
+    const steeringEventsConfig: AnnotationConfig = {
+      annotationType: "CONTINUOUS",
+      description: "Counts user steering events.",
+      id: "config-steering-events",
+      lowerBound: 0,
+      name: "Steering Events",
+      optimizationDirection: "MINIMIZE",
+      upperBound: null,
+    };
+    renderAnnotationBar({
+      allAnnotationConfigs: [steeringEventsConfig],
+      annotations: [],
+      projectAnnotationConfigs: [steeringEventsConfig],
+    });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open Steering Events annotation"]'
+        )!
+      )
+    );
+
+    expect(document.querySelector(".slider__track")).toBeNull();
+    expect(
+      document.querySelector('[aria-label="Steering Events exact value"]')
+    ).toBeNull();
+    expect(
+      Array.from(document.querySelectorAll("label")).some(
+        (label) => label.textContent === "Steering Events"
+      )
+    ).toBe(true);
   });
 
   it("renders the optimization midpoint as neutral and nearby scores gradually", async () => {
@@ -860,9 +1103,9 @@ describe("DetailPanelAnnotationBar", () => {
       '[aria-label="Open quality-review annotation"]'
     );
     expect(originalAnnotation?.dataset.variant).toBe("default");
-    expect(originalAnnotation?.textContent).toContain("1.00");
+    expect(originalAnnotation?.textContent).toContain("1");
     expect(renamedAnnotation?.dataset.variant).toBe("ghost");
-    expect(renamedAnnotation?.textContent).not.toContain("1.00");
+    expect(renamedAnnotation?.textContent).not.toContain("1");
   });
 
   it("creates a freeform annotation with the standard save action", async () => {
@@ -1350,7 +1593,7 @@ describe("DetailPanelAnnotationBar", () => {
     expect(
       annotationHeader?.querySelector(":scope > .annotation-entry__value")
         ?.textContent
-    ).toBe("1.00good");
+    ).toBe("1good");
     expect(
       explanation?.classList.contains("annotation-entry__explanation--deleting")
     ).toBe(false);

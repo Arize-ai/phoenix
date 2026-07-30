@@ -2,11 +2,11 @@ import { css } from "@emotion/react";
 import { useState } from "react";
 
 import { Button, Text } from "@phoenix/components";
+import { formatAnnotationScore } from "@phoenix/components/annotation/annotationFormatUtils";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
 import type { AnnotationValueDraft } from "@phoenix/components/annotation/AnnotationValueDraft";
 import { getOptimizationGradientValueFromConfig } from "@phoenix/components/annotation/optimizationUtils";
 import type { AnnotationConfigCategorical } from "@phoenix/components/annotation/types";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 const categoricalQuickCreateCSS = css`
   display: flex;
@@ -108,7 +108,7 @@ export function CategoricalQuickCreate({
                   fontFamily="mono"
                   optimizationValue={optimizationValue}
                 >
-                  {formatFloat(value.score)}
+                  {formatAnnotationScore(value.score)}
                 </AnnotationScoreText>
               )}
             </Button>

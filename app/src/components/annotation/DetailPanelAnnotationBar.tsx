@@ -63,10 +63,17 @@ import {
   groupAnnotationsByName,
 } from "@phoenix/components/annotation/annotationBarUtils";
 import { AnnotationConfigStatus } from "@phoenix/components/annotation/AnnotationConfigStatus";
+import { AnnotationExplanationSummary } from "@phoenix/components/annotation/AnnotationExplanationSummary";
+import { formatAnnotationScore } from "@phoenix/components/annotation/annotationFormatUtils";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import { AnnotationValueDisplay } from "@phoenix/components/annotation/AnnotationValueDisplay";
 import type { AnnotationValueDraft } from "@phoenix/components/annotation/AnnotationValueDraft";
 import { CategoricalQuickCreate } from "@phoenix/components/annotation/CategoricalQuickCreate";
+import {
+  ContinuousQuickCreate,
+  isContinuousQuickCreateConfig,
+} from "@phoenix/components/annotation/ContinuousQuickCreate";
 import { getOptimizationGradientValueFromConfig } from "@phoenix/components/annotation/optimizationUtils";
 import type {
   Annotation,
@@ -79,7 +86,6 @@ import { USER_FEEDBACK_ANNOTATION_NAME } from "@phoenix/constants";
 import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { classNames } from "@phoenix/utils/classNames";
 import { isPlainObject } from "@phoenix/utils/jsonUtils";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 export type AnnotationTargetKind = "session" | "trace" | "span";
 
@@ -140,8 +146,8 @@ export type DetailPanelAnnotationBarProps = {
   ) => Promise<AnnotationBarMutationResult>;
   projectAnnotationConfigs: readonly AnnotationConfig[];
   rows: readonly AnnotationBarRow[];
-  /** Embeds the annotations as a bar or behind a compact row action. */
-  variant?: "button" | "default" | "detail-header";
+  /** Embeds the annotations as a bar, a menu, or behind a compact row action. */
+  variant?: "button" | "button-menu" | "default" | "detail-header";
 };
 
 const annotationBarCSS = css`
@@ -217,10 +223,9 @@ const annotationPopoverCSS = css`
   overflow: auto;
 `;
 
-const annotationButtonPopoverCSS = css`
-  width: min(460px, calc(100vw - var(--global-dimension-size-400)));
-  max-height: min(680px, calc(100vh - var(--global-dimension-size-800)));
-  overflow: auto;
+const annotationButtonMenuCSS = css`
+  --menu-min-width: min(320px, calc(100vw - var(--global-dimension-size-400)));
+  max-height: min(480px, calc(100vh - var(--global-dimension-size-800)));
 `;
 
 const projectAnnotationsMenuCSS = css`
@@ -297,14 +302,6 @@ const annotationEntryCSS = css`
     min-width: 0;
   }
 
-  .annotation-entry__value {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-200);
-    min-width: 0;
-    white-space: nowrap;
-  }
-
   .annotation-entry__actions {
     display: flex;
     flex: none;
@@ -327,6 +324,12 @@ const annotationEntryCSS = css`
 
 const quickCreatePopoverCSS = css`
   width: min(320px, calc(100vw - var(--global-dimension-size-400)));
+  max-height: min(620px, calc(100vh - var(--global-dimension-size-800)));
+  overflow: auto;
+`;
+
+const continuousQuickCreatePopoverCSS = css`
+  width: min(520px, calc(100vw - var(--global-dimension-size-400)));
   max-height: min(620px, calc(100vh - var(--global-dimension-size-800)));
   overflow: auto;
 `;
@@ -512,6 +515,18 @@ export function DetailPanelAnnotationBar({
     onUpdateAnnotationConfig,
     projectAnnotationConfigs,
   };
+  const targetKind = rows.find((row) => row.kind === "target")?.target.kind;
+  const annotationMenu = <AnnotationRowsMenu rows={rows} {...sharedProps} />;
+  if (variant === "button-menu") {
+    return annotationMenu;
+  }
+  if (variant === "button") {
+    return (
+      <DetailPanelAnnotationButton targetKind={targetKind}>
+        {annotationMenu}
+      </DetailPanelAnnotationButton>
+    );
+  }
   const annotationRows = (
     <div
       css={annotationBarCSS}
@@ -534,14 +549,6 @@ export function DetailPanelAnnotationBar({
       )}
     </div>
   );
-  if (variant === "button") {
-    const targetKind = rows.find((row) => row.kind === "target")?.target.kind;
-    return (
-      <DetailPanelAnnotationButton targetKind={targetKind}>
-        {annotationRows}
-      </DetailPanelAnnotationButton>
-    );
-  }
   return annotationRows;
 }
 
@@ -553,79 +560,30 @@ export function DetailPanelAnnotationButton({
   targetKind?: AnnotationTargetKind;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const targetLabel = targetKind ? `${targetKind} annotations` : "annotations";
 
   return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
-      <IconButton ref={triggerRef} size="S" aria-label="Add annotation">
+    <MenuTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+      <IconButton
+        size="S"
+        aria-label="Add annotation"
+        data-annotation-menu-open={isOpen}
+      >
         <Icon svg={<Icons.Plus />} />
       </IconButton>
       {isOpen ? (
-        <DetailPanelAnnotationPopover
-          onOpenChange={setIsOpen}
-          targetLabel={targetLabel}
-          triggerRef={triggerRef}
+        <MenuContainer
+          data-annotation-overlay
+          placement="bottom end"
+          layer="non-modal"
+          minHeight={0}
+          maxHeight="min(520px, calc(100vh - var(--global-dimension-size-800)))"
+          aria-label={`Manage ${targetLabel}`}
         >
-          {children}
-        </DetailPanelAnnotationPopover>
+          <Suspense fallback={<Loading />}>{children}</Suspense>
+        </MenuContainer>
       ) : null}
-    </DialogTrigger>
-  );
-}
-
-function DetailPanelAnnotationPopover({
-  children,
-  onOpenChange,
-  targetLabel,
-  triggerRef,
-}: {
-  children: ReactNode;
-  onOpenChange: (isOpen: boolean) => void;
-  targetLabel: string;
-  triggerRef: RefObject<HTMLButtonElement | null>;
-}) {
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const shouldIgnoreOutsideInteraction = (event: PointerEvent) => {
-    if (
-      triggerRef.current &&
-      event.composedPath().includes(triggerRef.current)
-    ) {
-      return true;
-    }
-    return (
-      event.target instanceof Element &&
-      (event.target.closest("[data-annotation-overlay]") != null ||
-        event.target.closest("[data-annotation-actions-menu]") != null)
-    );
-  };
-  useInteractOutside({
-    ref: popoverRef,
-    onInteractOutside: (event) => {
-      if (!shouldIgnoreOutsideInteraction(event)) {
-        onOpenChange(false);
-      }
-    },
-  });
-
-  return (
-    <Popover
-      ref={popoverRef}
-      css={annotationButtonPopoverCSS}
-      data-annotation-overlay
-      isNonModal
-      placement="bottom end"
-      shouldCloseOnInteractOutside={(element) =>
-        !triggerRef.current?.contains(element) &&
-        element.closest("[data-annotation-overlay]") == null &&
-        element.closest("[data-annotation-actions-menu]") == null
-      }
-    >
-      <PopoverArrow />
-      <Dialog aria-label={`Manage ${targetLabel}`}>
-        <Suspense fallback={<Loading />}>{children}</Suspense>
-      </Dialog>
-    </Popover>
+    </MenuTrigger>
   );
 }
 
@@ -637,14 +595,13 @@ type AnnotationBarConfigState = {
   name: string;
 };
 
-function AnnotationTargetRow({
+function getAnnotationBarConfigStates({
   allAnnotationConfigs,
-  isAddAnnotationButtonCompact,
   projectAnnotationConfigs,
   target,
-  ...sharedProps
-}: SharedAnnotationBarProps & {
-  isAddAnnotationButtonCompact: boolean;
+}: {
+  allAnnotationConfigs: readonly AnnotationConfig[];
+  projectAnnotationConfigs: readonly AnnotationConfig[];
   target: AnnotationBarTarget;
 }) {
   const annotationsByName = groupAnnotationsByName({
@@ -676,6 +633,25 @@ function AnnotationTargetRow({
   const unpopulatedRowConfigs = rowConfigs.filter(
     ({ name }) => (annotationsByName[name]?.length ?? 0) === 0
   );
+  return { annotationsByName, populatedRowConfigs, unpopulatedRowConfigs };
+}
+
+function AnnotationTargetRow({
+  allAnnotationConfigs,
+  isAddAnnotationButtonCompact,
+  projectAnnotationConfigs,
+  target,
+  ...sharedProps
+}: SharedAnnotationBarProps & {
+  isAddAnnotationButtonCompact: boolean;
+  target: AnnotationBarTarget;
+}) {
+  const { annotationsByName, populatedRowConfigs, unpopulatedRowConfigs } =
+    getAnnotationBarConfigStates({
+      allAnnotationConfigs,
+      projectAnnotationConfigs,
+      target,
+    });
   const orderedRowConfigs = [...populatedRowConfigs, ...unpopulatedRowConfigs];
   return (
     <div
@@ -716,7 +692,223 @@ function AnnotationTargetRow({
   );
 }
 
-type AnnotationPopoverView = "config" | "quick-create" | "summary" | "value";
+function AnnotationRowsMenu({
+  allAnnotationConfigs,
+  projectAnnotationConfigs,
+  rows,
+  ...sharedProps
+}: SharedAnnotationBarProps & { rows: readonly AnnotationBarRow[] }) {
+  const [selectedAnnotation, setSelectedAnnotation] =
+    useState<AnnotationValuePopoverCommonProps | null>(null);
+  const menuItemElementsRef = useRef(new Map<string, HTMLDivElement>());
+  const selectedMenuItemRef = useRef<HTMLDivElement>(null);
+  const targetRows = rows.filter(
+    (row): row is Extract<AnnotationBarRow, { kind: "target" }> =>
+      row.kind === "target"
+  );
+  const targetLabel =
+    targetRows.length === 1
+      ? `${targetRows[0].target.kind} annotations`
+      : "Annotations";
+  return (
+    <>
+      <Menu
+        data-annotation-picker-menu
+        css={annotationButtonMenuCSS}
+        aria-label={targetLabel}
+        shouldCloseOnSelect={false}
+        renderEmptyState={() => (
+          <Text color="text-500">No annotations available</Text>
+        )}
+      >
+        {targetRows.map(({ id, target }) => (
+          <AnnotationTargetMenuSections
+            key={id}
+            allAnnotationConfigs={allAnnotationConfigs}
+            projectAnnotationConfigs={projectAnnotationConfigs}
+            target={target}
+            onOpenAnnotation={(annotation, menuItemKey) => {
+              selectedMenuItemRef.current =
+                menuItemElementsRef.current.get(menuItemKey) ?? null;
+              setSelectedAnnotation(annotation);
+            }}
+            onMenuItemRefChange={(menuItemKey, element) => {
+              if (element) {
+                menuItemElementsRef.current.set(menuItemKey, element);
+              } else {
+                menuItemElementsRef.current.delete(menuItemKey);
+              }
+            }}
+            {...sharedProps}
+          />
+        ))}
+      </Menu>
+      {selectedAnnotation ? (
+        <AnnotationValuePopover
+          key={`${selectedAnnotation.target.kind}-${selectedAnnotation.target.id}-${selectedAnnotation.annotationName}`}
+          {...selectedAnnotation}
+          displayMode="menu"
+          isOpen
+          onOpenChange={(nextIsOpen) => {
+            if (!nextIsOpen) {
+              setSelectedAnnotation(null);
+            }
+          }}
+          triggerRef={selectedMenuItemRef}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function AnnotationTargetMenuSections({
+  allAnnotationConfigs,
+  onMenuItemRefChange,
+  onOpenAnnotation,
+  projectAnnotationConfigs,
+  target,
+  ...sharedProps
+}: SharedAnnotationBarProps & {
+  onMenuItemRefChange: (
+    menuItemKey: string,
+    element: HTMLDivElement | null
+  ) => void;
+  onOpenAnnotation: (
+    annotation: AnnotationValuePopoverCommonProps,
+    menuItemKey: string
+  ) => void;
+  target: AnnotationBarTarget;
+}) {
+  const { annotationsByName, populatedRowConfigs, unpopulatedRowConfigs } =
+    getAnnotationBarConfigStates({
+      allAnnotationConfigs,
+      projectAnnotationConfigs,
+      target,
+    });
+  return (
+    <>
+      {populatedRowConfigs.length > 0 ? (
+        <MenuSection>
+          <MenuSectionTitle title={`On this ${target.kind}`} />
+          {populatedRowConfigs.map(({ config, id, name }) => (
+            <AnnotationValueMenuItem
+              key={`${target.id}-${id}-${name}`}
+              annotationName={name}
+              annotations={annotationsByName[name] ?? []}
+              config={config}
+              onMenuItemRefChange={onMenuItemRefChange}
+              onOpenAnnotation={onOpenAnnotation}
+              target={target}
+              {...sharedProps}
+            />
+          ))}
+        </MenuSection>
+      ) : null}
+      {unpopulatedRowConfigs.length > 0 ? (
+        <MenuSection>
+          <MenuSectionTitle title="Available annotations" />
+          {unpopulatedRowConfigs.map(({ config, id, name }) => (
+            <AnnotationValueMenuItem
+              key={`${target.id}-${id}-${name}`}
+              annotationName={name}
+              annotations={[]}
+              config={config}
+              onMenuItemRefChange={onMenuItemRefChange}
+              onOpenAnnotation={onOpenAnnotation}
+              target={target}
+              {...sharedProps}
+            />
+          ))}
+        </MenuSection>
+      ) : null}
+    </>
+  );
+}
+
+function AnnotationValueMenuItem({
+  annotationName,
+  annotations,
+  config,
+  onMenuItemRefChange,
+  onOpenAnnotation,
+  target,
+  ...sharedProps
+}: AnnotationValuePopoverCommonProps & {
+  onMenuItemRefChange: (
+    menuItemKey: string,
+    element: HTMLDivElement | null
+  ) => void;
+  onOpenAnnotation: (
+    annotation: AnnotationValuePopoverCommonProps,
+    menuItemKey: string
+  ) => void;
+}) {
+  const aggregate = getAnnotationAggregate({ annotations });
+  const optimizationValue = getOptimizationGradientValueFromConfig({
+    config: config ?? undefined,
+    score: aggregate.score,
+  });
+  const menuItemKey = `${target.kind}-${target.id}-${annotationName}`;
+  const annotationPopoverProps = {
+    annotationName,
+    annotations,
+    config,
+    target,
+    ...sharedProps,
+  };
+  const hasAnnotations = annotations.length > 0;
+  return (
+    <MenuItem
+      ref={(element) => onMenuItemRefChange(menuItemKey, element)}
+      id={menuItemKey}
+      textValue={annotationName}
+      onAction={() => onOpenAnnotation(annotationPopoverProps, menuItemKey)}
+    >
+      {hasAnnotations ? (
+        <Flex direction="row" gap="size-200" alignItems="start" minWidth={0}>
+          <Text
+            color="text-700"
+            title={annotationName}
+            css={css`
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            `}
+          >
+            {annotationName}
+          </Text>
+          <Flex direction="column" gap="size-25" minWidth={0}>
+            <AnnotationValueDisplay
+              label={aggregate.isMixed ? "mixed" : aggregate.label}
+              optimizationValue={optimizationValue}
+              score={aggregate.score}
+            />
+            <AnnotationExplanationSummary annotations={annotations} />
+          </Flex>
+        </Flex>
+      ) : (
+        <Text
+          color="text-500"
+          title={annotationName}
+          css={css`
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          `}
+        >
+          {annotationName}
+        </Text>
+      )}
+    </MenuItem>
+  );
+}
+
+type AnnotationPopoverView =
+  | "config"
+  | "continuous-quick-create"
+  | "quick-create"
+  | "summary"
+  | "value";
 
 type AnnotationValuePopoverCommonProps = Pick<
   SharedAnnotationBarProps,
@@ -746,21 +938,29 @@ export type AnnotationValuePopoverProps = AnnotationValuePopoverCommonProps &
         displayMode: "table";
         renderTrigger: AnnotationValuePopoverRenderTrigger;
       }
+    | {
+        displayMode: "menu";
+        isOpen: boolean;
+        onOpenChange: (isOpen: boolean) => void;
+        renderTrigger?: never;
+        triggerRef: RefObject<HTMLElement | null>;
+      }
   );
 
-export function AnnotationValuePopover({
-  annotationName,
-  annotations,
-  config,
-  displayMode,
-  onCreateAnnotation,
-  onCreateAnnotationConfig,
-  onDeleteAnnotation,
-  onUpdateAnnotation,
-  onUpdateAnnotationConfig,
-  renderTrigger,
-  target,
-}: AnnotationValuePopoverProps) {
+export function AnnotationValuePopover(props: AnnotationValuePopoverProps) {
+  const {
+    annotationName,
+    annotations,
+    config,
+    displayMode,
+    onCreateAnnotation,
+    onCreateAnnotationConfig,
+    onDeleteAnnotation,
+    onUpdateAnnotation,
+    onUpdateAnnotationConfig,
+    renderTrigger,
+    target,
+  } = props;
   const [createdAnnotation, setCreatedAnnotation] = useState<Annotation | null>(
     null
   );
@@ -772,13 +972,28 @@ export function AnnotationValuePopover({
       ? [...annotations, createdAnnotation]
       : annotations;
   const hasAnnotations = displayedAnnotations.length > 0;
+  const quickCreateConfig =
+    config?.annotationType === "CATEGORICAL" ? config : null;
+  const continuousQuickCreateConfig =
+    config?.annotationType === "CONTINUOUS" &&
+    isContinuousQuickCreateConfig({ config })
+      ? config
+      : null;
   const initialView = hasAnnotations
     ? "summary"
-    : config?.annotationType === "CATEGORICAL"
+    : quickCreateConfig
       ? "quick-create"
-      : "value";
-  const [isOpen, setIsOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+      : continuousQuickCreateConfig
+        ? "continuous-quick-create"
+        : "value";
+  const [isUncontrolledOpen, setIsUncontrolledOpen] = useState(false);
+  const uncontrolledTriggerRef = useRef<HTMLButtonElement>(null);
+  const isMenuDisplay = displayMode === "menu";
+  const isOpen = isMenuDisplay ? props.isOpen : isUncontrolledOpen;
+  const onControlledOpenChange = isMenuDisplay ? props.onOpenChange : null;
+  const triggerRef: RefObject<HTMLElement | null> = isMenuDisplay
+    ? props.triggerRef
+    : uncontrolledTriggerRef;
   const popoverRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<AnnotationPopoverView>(initialView);
   const [returnView, setReturnView] =
@@ -809,10 +1024,10 @@ export function AnnotationValuePopover({
     config: config ?? undefined,
     score: aggregate.score,
   });
-  const quickCreateConfig =
-    config?.annotationType === "CATEGORICAL" ? config : null;
-  const isShowingQuickCreate =
+  const isShowingCategoricalQuickCreate =
     view === "quick-create" && quickCreateConfig !== null;
+  const isShowingContinuousQuickCreate =
+    view === "continuous-quick-create" && continuousQuickCreateConfig !== null;
   const resetPopover = useCallback(() => {
     setView(initialView);
     setReturnView(initialView);
@@ -835,9 +1050,13 @@ export function AnnotationValuePopover({
       if (!nextIsOpen || !isOpen) {
         resetPopover();
       }
-      setIsOpen(nextIsOpen);
+      if (onControlledOpenChange) {
+        onControlledOpenChange(nextIsOpen);
+      } else {
+        setIsUncontrolledOpen(nextIsOpen);
+      }
     },
-    [isOpen, resetPopover]
+    [isOpen, onControlledOpenChange, resetPopover]
   );
   const handleEscape = useCallback(() => {
     if (view !== initialView) {
@@ -850,18 +1069,22 @@ export function AnnotationValuePopover({
     isOpen,
     onDismiss: handleEscape,
   });
-  const shouldIgnoreOutsideInteraction = useCallback((event: PointerEvent) => {
-    if (
-      triggerRef.current &&
-      event.composedPath().includes(triggerRef.current)
-    ) {
-      return true;
-    }
-    return (
-      event.target instanceof Element &&
-      event.target.closest("[data-annotation-actions-menu]") !== null
-    );
-  }, []);
+  const shouldIgnoreOutsideInteraction = useCallback(
+    (event: PointerEvent) => {
+      if (
+        triggerRef.current &&
+        event.composedPath().includes(triggerRef.current)
+      ) {
+        return true;
+      }
+      return (
+        event.target instanceof Element &&
+        (event.target.closest("[data-annotation-actions-menu]") !== null ||
+          event.target.closest("[data-annotation-picker-menu]") !== null)
+      );
+    },
+    [triggerRef]
+  );
   const blockOutsideInteraction = useCallback((event: PointerEvent) => {
     // This popover is non-modal so the page remains available, but its
     // dismissing gesture must not also activate a table row or control beneath
@@ -913,64 +1136,103 @@ export function AnnotationValuePopover({
     setValueDraft(draft);
     setView("value");
   };
+  const handleQuickCreate = async ({
+    shouldExplain,
+    value,
+  }: {
+    shouldExplain: boolean;
+    value: AnnotationValueDraft;
+  }) => {
+    setError(null);
+    if (shouldExplain) {
+      openExplanationEditor(value);
+      return;
+    }
+    const result = await onCreateAnnotation({
+      annotationName,
+      target,
+      value,
+    });
+    if (isMutationFailure(result)) {
+      setError(result.error);
+      return;
+    }
+    setCreatedAnnotation(result.annotation);
+    handleOpenChange(false);
+  };
 
-  return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
-      {renderTrigger ? (
-        renderTrigger({ ref: triggerRef })
-      ) : (
-        <AnnotationLabel
-          ref={triggerRef}
-          annotation={{
-            name: annotationName,
-            label: aggregate.label,
-            score: aggregate.score,
-          }}
-          annotationDisplayPreference={
-            aggregate.isMixed ? "none" : "score-and-label"
-          }
-          optimizationValue={aggregateOptimizationValue}
-          clickable
-          variant={hasAnnotations ? "default" : "ghost"}
-        >
-          {aggregate.isMixed ? (
-            <Flex direction="row" gap="size-100" minWidth={0}>
-              <Text
-                color="text-500"
-                css={css`
-                  font-style: italic;
-                `}
+  const trigger =
+    displayMode === "table" ? (
+      renderTrigger({ ref: uncontrolledTriggerRef })
+    ) : displayMode === "detail" ? (
+      <AnnotationLabel
+        ref={uncontrolledTriggerRef}
+        annotation={{
+          name: annotationName,
+          label: aggregate.label,
+          score: aggregate.score,
+        }}
+        annotationDisplayPreference={
+          aggregate.isMixed ? "none" : "score-and-label"
+        }
+        optimizationValue={aggregateOptimizationValue}
+        clickable
+        variant={hasAnnotations ? "default" : "ghost"}
+      >
+        {aggregate.isMixed ? (
+          <Flex direction="row" gap="size-100" minWidth={0}>
+            <Text
+              color="text-500"
+              css={css`
+                font-style: italic;
+              `}
+            >
+              mixed
+            </Text>
+            {aggregate.score != null ? (
+              <AnnotationScoreText
+                appearance="compact"
+                fontFamily="mono"
+                optimizationValue={aggregateOptimizationValue}
               >
-                mixed
-              </Text>
-              {aggregate.score != null ? (
-                <AnnotationScoreText
-                  appearance="compact"
-                  fontFamily="mono"
-                  optimizationValue={aggregateOptimizationValue}
-                >
-                  {formatFloat(aggregate.score)}
-                </AnnotationScoreText>
-              ) : null}
-            </Flex>
-          ) : null}
-        </AnnotationLabel>
-      )}
+                {formatAnnotationScore(aggregate.score)}
+              </AnnotationScoreText>
+            ) : null}
+          </Flex>
+        ) : null}
+      </AnnotationLabel>
+    ) : null;
+  return (
+    <AnnotationValuePopoverTrigger
+      isMenuDisplay={isMenuDisplay}
+      isOpen={isOpen}
+      onOpenChange={handleOpenChange}
+    >
+      {trigger}
       <Popover
         ref={popoverRef}
         data-annotation-overlay
-        placement="bottom start"
+        triggerRef={triggerRef}
+        isOpen={isMenuDisplay ? isOpen : undefined}
+        onOpenChange={isMenuDisplay ? handleOpenChange : undefined}
+        placement={isMenuDisplay ? "right top" : "bottom start"}
+        shouldFlip={isMenuDisplay ? true : undefined}
         css={
-          isShowingQuickCreate ? quickCreatePopoverCSS : annotationPopoverCSS
+          isShowingContinuousQuickCreate
+            ? continuousQuickCreatePopoverCSS
+            : isShowingCategoricalQuickCreate
+              ? quickCreatePopoverCSS
+              : annotationPopoverCSS
         }
         isNonModal
         isKeyboardDismissDisabled={false}
         shouldCloseOnInteractOutside={(element) =>
           !triggerRef.current?.contains(element) &&
-          !element.closest("[data-annotation-actions-menu]")
+          !element.closest("[data-annotation-actions-menu]") &&
+          !element.closest("[data-annotation-picker-menu]")
         }
       >
-        <PopoverArrow />
+        {isMenuDisplay ? null : <PopoverArrow />}
         <Dialog aria-label={`${annotationName} annotation`}>
           {error ? (
             <View padding="size-100">
@@ -998,28 +1260,17 @@ export function AnnotationValuePopover({
                 setView(returnView);
               }}
             />
-          ) : isShowingQuickCreate ? (
+          ) : isShowingCategoricalQuickCreate ? (
             <CategoricalQuickCreate
               annotationName={annotationName}
               config={quickCreateConfig}
-              onCreate={async ({ shouldExplain, value }) => {
-                setError(null);
-                if (shouldExplain) {
-                  openExplanationEditor(value);
-                  return;
-                }
-                const result = await onCreateAnnotation({
-                  annotationName,
-                  target,
-                  value,
-                });
-                if (isMutationFailure(result)) {
-                  setError(result.error);
-                  return;
-                }
-                setCreatedAnnotation(result.annotation);
-                handleOpenChange(false);
-              }}
+              onCreate={handleQuickCreate}
+            />
+          ) : isShowingContinuousQuickCreate ? (
+            <ContinuousQuickCreate
+              annotationName={annotationName}
+              config={continuousQuickCreateConfig}
+              onCreate={handleQuickCreate}
             />
           ) : view === "value" ? (
             <AnnotationValueEditor
@@ -1125,6 +1376,27 @@ export function AnnotationValuePopover({
           )}
         </Dialog>
       </Popover>
+    </AnnotationValuePopoverTrigger>
+  );
+}
+
+function AnnotationValuePopoverTrigger({
+  children,
+  isMenuDisplay,
+  isOpen,
+  onOpenChange,
+}: {
+  children: ReactNode;
+  isMenuDisplay: boolean;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+}) {
+  if (isMenuDisplay) {
+    return children;
+  }
+  return (
+    <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
+      {children}
     </DialogTrigger>
   );
 }
@@ -1219,27 +1491,18 @@ function AnnotationSummaryList({
             css={annotationEntryCSS}
           >
             <div className="annotation-entry__header">
-              <div className="annotation-entry__value">
-                {isConfirmingDelete ? (
+              {isConfirmingDelete ? (
+                <div className="annotation-entry__value">
                   <Text>Confirm</Text>
-                ) : (
-                  <>
-                    {annotation.score != null ? (
-                      <AnnotationScoreText
-                        fontFamily="mono"
-                        optimizationValue={optimizationValue}
-                      >
-                        {formatFloat(annotation.score)}
-                      </AnnotationScoreText>
-                    ) : null}
-                    {annotation.label ? (
-                      <Text>{annotation.label}</Text>
-                    ) : (
-                      <Text color="text-500">--</Text>
-                    )}
-                  </>
-                )}
-              </div>
+                </div>
+              ) : (
+                <AnnotationValueDisplay
+                  className="annotation-entry__value"
+                  label={annotation.label}
+                  optimizationValue={optimizationValue}
+                  score={annotation.score}
+                />
+              )}
               <div
                 className={classNames("annotation-entry__actions", {
                   "annotation-entry__actions--deleting": isConfirmingDelete,
@@ -1449,6 +1712,11 @@ function AnnotationValueEditor({
   const updateAdvancedDraft = (nextDraft: AnnotationValueDraft) => {
     onDraftChange(nextDraft);
   };
+  const continuousConfig =
+    config?.annotationType === "CONTINUOUS" ? config : null;
+  const hasBoundedContinuousRange =
+    typeof continuousConfig?.lowerBound === "number" &&
+    typeof continuousConfig.upperBound === "number";
   const username = annotation?.user?.username ?? "system";
   return (
     <form onSubmit={handleSubmit}>
@@ -1501,7 +1769,9 @@ function AnnotationValueEditor({
                     textValue={value.label}
                     trailingContent={
                       <Text fontFamily="mono" color="text-500">
-                        {value.score == null ? "—" : formatFloat(value.score)}
+                        {value.score == null
+                          ? "—"
+                          : formatAnnotationScore(value.score)}
                       </Text>
                     }
                   >
@@ -1522,13 +1792,13 @@ function AnnotationValueEditor({
               <Input placeholder="Enter annotation value" />
             </TextField>
           ) : null}
-          {config?.annotationType === "CONTINUOUS" ? (
+          {continuousConfig && hasBoundedContinuousRange ? (
             <Slider
               label={annotationName}
-              minValue={config.lowerBound ?? 0}
-              maxValue={config.upperBound ?? 1}
+              minValue={continuousConfig.lowerBound ?? 0}
+              maxValue={continuousConfig.upperBound ?? 1}
               step={0.01}
-              value={draft.score ?? config.lowerBound ?? 0}
+              value={draft.score ?? continuousConfig.lowerBound ?? 0}
               onChange={(score) => {
                 const nextScore = Array.isArray(score) ? score[0] : score;
                 updateBasicDraft({ ...draft, score: nextScore ?? null });
@@ -1536,10 +1806,27 @@ function AnnotationValueEditor({
             >
               <SliderNumberField
                 aria-label={`${annotationName} exact value`}
-                value={draft.score ?? config.lowerBound ?? 0}
+                value={draft.score ?? continuousConfig.lowerBound ?? 0}
                 onChange={(score) => updateBasicDraft({ ...draft, score })}
               />
             </Slider>
+          ) : null}
+          {continuousConfig && !hasBoundedContinuousRange ? (
+            <NumberField
+              value={draft.score ?? undefined}
+              minValue={continuousConfig.lowerBound ?? undefined}
+              maxValue={continuousConfig.upperBound ?? undefined}
+              onChange={(score) =>
+                updateBasicDraft({
+                  ...draft,
+                  score: Number.isNaN(score) ? null : score,
+                })
+              }
+              css={{ width: "100%" }}
+            >
+              <Label>{annotationName}</Label>
+              <Input placeholder="Enter a score" />
+            </NumberField>
           ) : null}
           {!config ? (
             <div
