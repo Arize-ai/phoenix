@@ -4,12 +4,14 @@ import { CopyableIDBadge, Flex } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 
 import {
   DetailHeader,
   DetailHeaderIdentityRow,
   DetailHeaderMetaItem,
   DetailHeaderMetaRow,
+  DetailHeaderStatusIndicator,
   DetailHeaderTitle,
 } from "../DetailHeader";
 import type { SessionPreview } from "./SessionPaginationContext";
@@ -28,6 +30,7 @@ export function SessionDetailsHeader({
     <DetailHeader annotationBar={annotationBar}>
       <Flex direction="column" gap="size-50" width="100%">
         <DetailHeaderIdentityRow>
+          <DetailHeaderStatusIndicator color="gray-200" />
           <DetailHeaderTitle title="Session" />
           {sessionDisplayId != null ? (
             <CopyableIDBadge
@@ -40,6 +43,9 @@ export function SessionDetailsHeader({
           )}
         </DetailHeaderIdentityRow>
         <DetailHeaderMetaRow>
+          <DetailHeaderMetaItem>
+            <SpanKindBadge spanKind="session" />
+          </DetailHeaderMetaItem>
           {tokenCountTotal === undefined ? (
             <DetailHeaderMetaItem>
               <Skeleton width={64} height={20} animation="wave" />

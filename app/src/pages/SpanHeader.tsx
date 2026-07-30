@@ -18,19 +18,11 @@ import {
   DetailHeaderIdentityRow,
   DetailHeaderMetaItem,
   DetailHeaderMetaRow,
+  DetailHeaderStatusIndicator,
   DetailHeaderTitle,
 } from "./DetailHeader";
 
 export type SpanHeaderData = Omit<SpanHeader_span$data, " $fragmentType">;
-
-const spanStatusIndicatorCSS = css`
-  display: block;
-  flex: none;
-  width: var(--global-dimension-size-40);
-  height: var(--global-dimension-size-250);
-  border-radius: var(--global-rounding-xsmall);
-  background-color: var(--span-status-indicator-color);
-`;
 
 const spanStatusMessageBadgeCSS = css`
   flex: 1 1 auto;
@@ -183,16 +175,12 @@ export function SpanStatusIndicator({
   const color = useSpanStatusCodeColor(statusCode);
 
   return (
-    <span
-      role="img"
-      aria-label={`Span status: ${statusCode}`}
+    <DetailHeaderStatusIndicator
+      ariaLabel={`Span status: ${statusCode}`}
       className="span-status-indicator"
-      data-status-code={statusCode}
-      css={spanStatusIndicatorCSS}
-      style={{
-        // @ts-expect-error custom CSS property
-        "--span-status-indicator-color": `var(--global-color-${color})`,
-      }}
+      color={color}
+      lightColor={statusCode === "OK" ? "green-600" : undefined}
+      statusCode={statusCode}
     />
   );
 }

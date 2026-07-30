@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import { useId } from "react";
 
+import { Icons } from "@phoenix/components/core/icon";
 import { useTheme } from "@phoenix/contexts";
 
 import { getSpanKindColor } from "./spanKindColor";
@@ -662,6 +663,33 @@ const spanKindIconCSS = css`
       stroke: none;
     }
   }
+
+  &[data-core-icon="true"] {
+    box-sizing: border-box;
+    padding: var(--global-dimension-size-25);
+    border: var(--global-border-size-thin) solid
+      var(--span-kind-icon-border-color);
+    border-radius: var(--global-rounding-xsmall);
+    background: var(--span-kind-icon-background-color);
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      fill: currentColor;
+    }
+  }
+
+  &[data-core-icon="true"][data-framed="false"] {
+    padding: 0;
+    border: none;
+    background: transparent;
+
+    svg {
+      width: var(--global-dimension-size-200);
+      height: var(--global-dimension-size-200);
+    }
+  }
 `;
 
 export function SpanKindIcon({
@@ -676,6 +704,7 @@ export function SpanKindIcon({
   const { theme } = useTheme();
   const isFilled = variant === "fill";
   let icon = isFilled ? <UnknownFilledSVG /> : <UnknownSVG />;
+  let isCoreIcon = false;
   const color = getSpanKindColor({ spanKind });
   switch (spanKind) {
     case "llm":
@@ -708,6 +737,14 @@ export function SpanKindIcon({
     case "prompt":
       icon = isFilled ? <PromptFilledSVG /> : <PromptSVG />;
       break;
+    case "session":
+      icon = <Icons.MessagesSquare />;
+      isCoreIcon = true;
+      break;
+    case "trace":
+      icon = <Icons.Trace />;
+      isCoreIcon = true;
+      break;
   }
 
   return (
@@ -719,6 +756,7 @@ export function SpanKindIcon({
       }}
       data-theme={theme}
       data-framed={isFramed}
+      data-core-icon={isCoreIcon}
       title={isFramed ? spanKind : undefined}
     >
       {icon}

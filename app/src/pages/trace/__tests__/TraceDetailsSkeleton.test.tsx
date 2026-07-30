@@ -190,26 +190,56 @@ describe("Trace details skeletons", () => {
     act(() => {
       root.render(
         <>
-          <SpanStatusIndicator statusCode="OK" />
-          <SpanStatusIndicator statusCode="UNSET" />
-          <SpanStatusIndicator statusCode="ERROR" />
+          <ThemeProvider themeMode="light" disableBodyTheme>
+            <div data-testid="light-statuses">
+              <SpanStatusIndicator statusCode="OK" />
+              <SpanStatusIndicator statusCode="UNSET" />
+              <SpanStatusIndicator statusCode="ERROR" />
+            </div>
+          </ThemeProvider>
+          <ThemeProvider themeMode="dark" disableBodyTheme>
+            <div data-testid="dark-statuses">
+              <SpanStatusIndicator statusCode="OK" />
+              <SpanStatusIndicator statusCode="UNSET" />
+              <SpanStatusIndicator statusCode="ERROR" />
+            </div>
+          </ThemeProvider>
         </>
       );
     });
 
-    const expectedColors = {
+    const expectedLightColors = {
+      OK: "green-600",
+      UNSET: "gray-500",
+      ERROR: "danger",
+    } as const;
+    const expectedDarkColors = {
       OK: "success",
       UNSET: "gray-500",
       ERROR: "danger",
     } as const;
 
-    for (const [statusCode, color] of Object.entries(expectedColors)) {
+    for (const [statusCode, color] of Object.entries(expectedLightColors)) {
       expect(
         container
-          .querySelector(`[data-status-code="${statusCode}"]`)
+          .querySelector(
+            `[data-testid="light-statuses"] [data-status-code="${statusCode}"]`
+          )
           ?.getAttribute("style")
       ).toContain(
-        `--span-status-indicator-color: var(--global-color-${color})`
+        `--detail-header-status-indicator-color: var(--global-color-${color})`
+      );
+    }
+
+    for (const [statusCode, color] of Object.entries(expectedDarkColors)) {
+      expect(
+        container
+          .querySelector(
+            `[data-testid="dark-statuses"] [data-status-code="${statusCode}"]`
+          )
+          ?.getAttribute("style")
+      ).toContain(
+        `--detail-header-status-indicator-color: var(--global-color-${color})`
       );
     }
   });

@@ -2,7 +2,18 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 
 import { Text, View } from "@phoenix/components";
+import type { ColorValue } from "@phoenix/components/core/types";
+import { useTheme } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils/classNames";
+
+const statusIndicatorCSS = css`
+  display: block;
+  flex: none;
+  width: var(--global-dimension-size-40);
+  height: var(--global-dimension-size-250);
+  border-radius: var(--global-rounding-xsmall);
+  background-color: var(--detail-header-status-indicator-color);
+`;
 
 const identityRowCSS = css`
   display: flex;
@@ -110,6 +121,39 @@ export function DetailHeaderIdentityRow({ children }: PropsWithChildren) {
     >
       {children}
     </div>
+  );
+}
+
+/** Compact status marker shared by detail-header identity rows. */
+export function DetailHeaderStatusIndicator({
+  ariaLabel,
+  className,
+  color,
+  lightColor,
+  statusCode,
+}: {
+  ariaLabel?: string;
+  className?: string;
+  color: ColorValue;
+  lightColor?: ColorValue;
+  statusCode?: string;
+}) {
+  const { theme } = useTheme();
+  const resolvedColor = theme === "light" && lightColor ? lightColor : color;
+
+  return (
+    <span
+      role={ariaLabel ? "img" : undefined}
+      aria-label={ariaLabel}
+      aria-hidden={ariaLabel ? undefined : true}
+      className={classNames("detail-header-status-indicator", className)}
+      data-status-code={statusCode}
+      css={statusIndicatorCSS}
+      style={{
+        // @ts-expect-error custom CSS property
+        "--detail-header-status-indicator-color": `var(--global-color-${resolvedColor})`,
+      }}
+    />
   );
 }
 

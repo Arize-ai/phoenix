@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { CopyableIDBadge, Flex, Text } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
+import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import { useTimeFormatters } from "@phoenix/hooks";
@@ -12,6 +13,7 @@ import {
   DetailHeaderIdentityRow,
   DetailHeaderMetaItem,
   DetailHeaderMetaRow,
+  DetailHeaderStatusIndicator,
   DetailHeaderTitle,
 } from "../DetailHeader";
 
@@ -40,6 +42,7 @@ export function TraceDetailsHeader({
     <DetailHeader annotationBar={annotationBar}>
       <Flex direction="column" gap="size-50" width="100%">
         <DetailHeaderIdentityRow>
+          <DetailHeaderStatusIndicator color="gray-200" />
           <DetailHeaderTitle title="Trace" />
           <CopyableIDBadge
             id={trace.traceId}
@@ -48,6 +51,9 @@ export function TraceDetailsHeader({
           />
         </DetailHeaderIdentityRow>
         <DetailHeaderMetaRow trailing={metadataAction}>
+          <DetailHeaderMetaItem>
+            <SpanKindBadge spanKind="trace" />
+          </DetailHeaderMetaItem>
           {typeof trace.latencyMs === "number" ? (
             <DetailHeaderMetaItem>
               <Text size="S" color="text-500" fontFamily="mono">
@@ -93,10 +99,14 @@ export function TraceDetailsHeaderSkeleton({
     <DetailHeader annotationBar={annotationBar}>
       <Flex direction="column" gap="size-50" width="100%">
         <DetailHeaderIdentityRow>
+          <DetailHeaderStatusIndicator color="gray-200" />
           <DetailHeaderTitle title="Trace" />
           <Skeleton width={20} height={20} animation="wave" />
         </DetailHeaderIdentityRow>
         <DetailHeaderMetaRow>
+          <DetailHeaderMetaItem>
+            <SpanKindBadge spanKind="trace" />
+          </DetailHeaderMetaItem>
           <DetailHeaderMetaItem>
             <Skeleton width={54} height={20} animation="wave" />
           </DetailHeaderMetaItem>

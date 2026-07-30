@@ -51,7 +51,25 @@ describe("SessionDetailsHeader", () => {
     const copyIdButton = detailHeader?.querySelector(
       '[aria-label="Copy Session ID session-display-id"]'
     );
+    expect(
+      title?.previousElementSibling?.classList.contains(
+        "detail-header-status-indicator"
+      )
+    ).toBe(true);
     expect(title?.nextElementSibling).toBe(copyIdButton);
+    expect(title?.previousElementSibling?.getAttribute("style")).toContain(
+      "--detail-header-status-indicator-color: var(--global-color-gray-200)"
+    );
+    expect(
+      detailHeader?.querySelector(".detail-header__meta-item")?.textContent
+    ).toBe("session");
+    const sessionIcon = detailHeader?.querySelector(
+      '.detail-header__meta-item [data-core-icon="true"]'
+    );
+    expect(sessionIcon).not.toBeNull();
+    expect(sessionIcon?.getAttribute("style")).toContain(
+      "--span-kind-icon-color: var(--global-color-gray-100)"
+    );
     expect(getComputedStyle(copyIdButton!).alignSelf).toBe("center");
     expect(getComputedStyle(copyIdButton!.parentElement!).alignItems).toBe(
       "center"
