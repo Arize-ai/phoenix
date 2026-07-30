@@ -1,7 +1,7 @@
+import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Switch } from "@phoenix/components";
-import { toastQueue } from "@phoenix/contexts/NotificationContext";
+import { Alert, Flex, Switch } from "@phoenix/components";
 import type { ProjectEvaluatorEnabledSwitchMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -14,6 +14,7 @@ export function ProjectEvaluatorEnabledSwitch({
   name: string;
   enabled: boolean;
 }) {
+  const [error, setError] = useState<string | null>(null);
   const [commit, isInFlight] =
     useMutation<ProjectEvaluatorEnabledSwitchMutation>(graphql`
       mutation ProjectEvaluatorEnabledSwitchMutation(
@@ -31,6 +32,7 @@ export function ProjectEvaluatorEnabledSwitch({
   const label = `${enabled ? "Disable" : "Enable"} ${name}`;
 
   const onChange = (nextEnabled: boolean) => {
+    setError(null);
     commit({
       variables: {
         input: { projectEvaluatorId, enabled: nextEnabled },
@@ -45,15 +47,11 @@ export function ProjectEvaluatorEnabledSwitch({
       },
       onCompleted: (_response, errors) => {
         if (errors?.length) {
-          notifyToggleError(
-            name,
-            errors.map(({ message }) => message).join("\n")
-          );
+          setError(errors.map(({ message }) => message).join("\n"));
         }
       },
       onError: (error) => {
-        notifyToggleError(
-          name,
+        setError(
           getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
             error.message
         );
@@ -62,24 +60,21 @@ export function ProjectEvaluatorEnabledSwitch({
   };
 
   return (
-    <Switch
-      aria-label={label}
-      isSelected={enabled}
-      isDisabled={isInFlight}
-      onChange={onChange}
-    >
-      {null}
-    </Switch>
-  );
-}
-
-function notifyToggleError(name: string, message: string) {
-  toastQueue.add(
-    {
-      title: `Failed to update ${name}`,
-      message,
-      variant: "error",
-    },
-    { timeout: 5000 }
+    <Flex direction="column" gap="size-50" alignItems="start">
+      <Switch
+        aria-label={label}
+        isSelected={enabled}
+        isDisabled={isInFlight}
+        onChange={onChange}
+      >
+        {/* Switch requires children; aria-label supplies the accessible name. */}
+        {null}
+      </Switch>
+      {error ? (
+        <Alert variant="danger" title={`Failed to update ${name}`}>
+          {error}
+        </Alert>
+      ) : null}
+    </Flex>
   );
 }

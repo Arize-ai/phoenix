@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eb241889625639a5b888e05451981518>>
+ * @generated SignedSource<<34c99ef2501f0d91da6080c86a968f60>>
  * @lightSyntaxTransform
  */
 
@@ -12,9 +12,9 @@ export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type UpdateProjectCodeEvaluatorInput = {
   description?: string | null;
-  enabled: boolean;
+  enabled?: boolean | null;
   evaluationTarget: EvaluationTarget;
-  evaluatorInputMapping: EvaluatorInputMappingInput;
+  evaluatorInputMapping?: EvaluatorInputMappingInput | null;
   filterCondition: string;
   inputMapping?: EvaluatorInputMappingInput | null;
   name: string;

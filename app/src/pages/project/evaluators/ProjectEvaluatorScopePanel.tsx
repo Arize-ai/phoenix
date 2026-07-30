@@ -12,7 +12,6 @@ import invariant from "tiny-invariant";
 import {
   Alert,
   Button,
-  Empty,
   Flex,
   Heading,
   Icon,
@@ -41,6 +40,7 @@ import {
   DisclosureTrigger,
 } from "@phoenix/components/core/disclosure";
 import { EvaluatorCategoricalChoiceConfig } from "@phoenix/components/evaluators/EvaluatorCategoricalChoiceConfig";
+import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
   buildOutputConfigsInput,
   computePositiveOptimization,
@@ -66,6 +66,7 @@ import { ProjectEvaluatorTargetField } from "@phoenix/pages/project/evaluators/P
 import {
   getProjectEvaluatorMappingDiagnostics,
   type ProjectEvaluatorScope,
+  toProjectEvaluatorSamplingFraction,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { SpanFilterConditionFieldCore } from "@phoenix/pages/project/SpanFilterConditionField";
@@ -182,13 +183,21 @@ export const ProjectEvaluatorScopePanel = ({
           </Suspense>
         </Flex>
         <Suspense fallback={<Loading />}>
-          <SpanRunList
-            projectId={projectId}
-            filterCondition={scope.filterCondition}
-            timeWindow={timeWindow}
-            codeEvaluatorId={codeEvaluatorId}
-            inlineCode={inlineCode}
-          />
+          {codeEvaluatorId || inlineCode ? (
+            <SpanRunList
+              projectId={projectId}
+              filterCondition={scope.filterCondition}
+              timeWindow={timeWindow}
+              codeEvaluatorId={codeEvaluatorId}
+              inlineCode={inlineCode}
+            />
+          ) : (
+            <LlmSpanRunList
+              projectId={projectId}
+              filterCondition={scope.filterCondition}
+              timeWindow={timeWindow}
+            />
+          )}
         </Suspense>
         {showAnnotationTemplate ? <AnnotationTemplateDisclosure /> : null}
       </div>
@@ -299,9 +308,13 @@ function ScopeEditorCard({
               minValue={0}
               maxValue={100}
               step={1}
-              value={scope.samplingRatePercent}
+              value={Math.round(scope.samplingRate * 100)}
               onChange={(samplingRatePercent) =>
-                onScopeChange({ ...scope, samplingRatePercent })
+                onScopeChange({
+                  ...scope,
+                  samplingRate:
+                    toProjectEvaluatorSamplingFraction(samplingRatePercent),
+                })
               }
               thumbLabels={["Sampling rate percentage"]}
             >
@@ -477,18 +490,30 @@ const SAMPLE_ROW_KEY = "__sample__";
 
 const SPAN_LIST_PAGE_SIZE = 5;
 
+function LlmSpanRunList(
+  props: Omit<
+    Parameters<typeof SpanRunList>[0],
+    "codeEvaluatorId" | "inlineCode" | "playgroundStore"
+  >
+) {
+  const playgroundStore = usePlaygroundStore();
+  return <SpanRunList {...props} playgroundStore={playgroundStore} />;
+}
+
 function SpanRunList({
   projectId,
   filterCondition,
   timeWindow,
   codeEvaluatorId,
   inlineCode,
+  playgroundStore,
 }: {
   projectId: string;
   filterCondition: string;
   timeWindow: TimeWindow;
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
+  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
 }) {
   const { shortDateTimeFormatter } = useTimeFormatters();
   const [limit, setLimit] = useState(SPAN_LIST_PAGE_SIZE);
@@ -589,10 +614,8 @@ function SpanRunList({
   const { runs, runOnSpan, isRunnable } = useEvaluatorPreviewRuns({
     codeEvaluatorId,
     inlineCode,
+    playgroundStore,
   });
-  if (rows.length === 0) {
-    return <Empty message="No spans match this scope" />;
-  }
   return (
     <div css={runListCSS}>
       {rows[0]?.isSample ? (
@@ -606,6 +629,7 @@ function SpanRunList({
             key={row.key}
             row={row}
             isExpanded={expandedRowKey === row.key}
+            isMappingSource={activeRow?.key === row.key}
             onToggleExpanded={() =>
               setExpandedKey(expandedRowKey === row.key ? null : row.key)
             }
@@ -654,6 +678,7 @@ const runListCSS = css`
 function SpanRunRow({
   row,
   isExpanded,
+  isMappingSource,
   onToggleExpanded,
   run,
   isRunnable,
@@ -663,6 +688,7 @@ function SpanRunRow({
 }: {
   row: SpanListRow;
   isExpanded: boolean;
+  isMappingSource: boolean;
   onToggleExpanded: () => void;
   run: SpanRun | undefined;
   isRunnable: boolean;
@@ -672,7 +698,11 @@ function SpanRunRow({
 }) {
   const isRunning = run?.status === "running";
   return (
-    <li css={runRowCSS} data-expanded={isExpanded}>
+    <li
+      css={runRowCSS}
+      data-expanded={isExpanded}
+      aria-current={isMappingSource ? "true" : undefined}
+    >
       <div className="span-run-row__header">
         <button
           type="button"
@@ -687,6 +717,9 @@ function SpanRunRow({
           {row.isSample ? (
             <span className="span-run-row__badge">Sample</span>
           ) : null}
+          {isMappingSource ? (
+            <span className="span-run-row__badge">Mapping source</span>
+          ) : null}
           <span className="span-run-row__snippet">
             {getContextSnippet(row.context)}
           </span>
@@ -697,7 +730,9 @@ function SpanRunRow({
         <SpanRunResultChip run={run} />
         <Button
           size="S"
-          aria-label={`Run evaluator on ${row.name}`}
+          aria-label={`Run evaluator on ${row.name}, ${
+            formattedTime ?? `span ${row.key.slice(-8)}`
+          }`}
           leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
           isDisabled={!isRunnable || isRunning}
           isPending={isRunning}
@@ -737,6 +772,9 @@ function SpanRunRow({
 const runRowCSS = css`
   border: 1px solid transparent;
   border-radius: var(--global-rounding-small);
+  &[aria-current="true"] {
+    border-color: var(--global-color-info);
+  }
   &[data-expanded="true"] {
     border-color: var(--global-border-color-default);
     background-color: var(--global-color-gray-100);
@@ -951,17 +989,25 @@ function BindingPreview({
   pathMapping: Record<string, string>;
   isSampleContext: boolean;
 }) {
+  const variables = useEvaluatorInputVariables();
   const diagnostics = getProjectEvaluatorMappingDiagnostics({
     context,
     pathMapping,
+    variables,
   });
-  const automaticRows: BindingRow[] = isStringKeyedObject(context)
-    ? Object.keys(context)
-        .filter((key) => !(key in pathMapping))
-        .map((key) => ({ keyword: key, value: context[key] }))
-    : [];
+  const automaticRows: BindingRow[] = diagnostics
+    .filter(
+      ({ variable, status }) =>
+        status === "resolved" && !(variable in pathMapping)
+    )
+    .map(({ variable, path }) => ({
+      keyword: variable,
+      value: getValueAtPath(context, path),
+    }));
   const mappedRows: BindingRow[] = diagnostics
-    .filter(({ status }) => status === "resolved")
+    .filter(
+      ({ variable, status }) => status === "resolved" && variable in pathMapping
+    )
     .map(({ variable, path }) => ({
       keyword: variable,
       path,
@@ -1155,12 +1201,13 @@ function isSpanEvaluatorMappingSource(
 function useEvaluatorPreviewRuns({
   codeEvaluatorId,
   inlineCode,
+  playgroundStore,
 }: {
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
+  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
 }) {
   const evaluatorStore = useEvaluatorStoreInstance();
-  const playgroundStore = usePlaygroundStore();
   const credentials = useCredentialsContext((state) => state);
   const [runs, setRuns] = useState<Record<string, SpanRun>>({});
   const [previewEvaluator] =
@@ -1208,6 +1255,7 @@ function useEvaluatorPreviewRuns({
         },
       };
     } else {
+      invariant(playgroundStore, "a playground store is required");
       const { instances } = playgroundStore.getState();
       const instance = instances[0];
       invariant(instance != null, "a playground instance is required");
@@ -1305,8 +1353,6 @@ function AnnotationTemplateDisclosure() {
         </Text>
       </DisclosureTrigger>
       <DisclosurePanel>
-        {/* Padding, not margin: the panel's expand animation measures content
-            height, which excludes child margins. */}
         <View padding="size-200">
           <EvaluatorCategoricalChoiceConfig />
         </View>

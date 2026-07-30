@@ -11,14 +11,9 @@ export type CreateProjectLLMEvaluatorResult = {
 const mutation = graphql`
   mutation createProjectLlmEvaluatorMutation(
     $input: CreateProjectLLMEvaluatorInput!
-    $connectionIds: [ID!]!
   ) {
     createProjectLlmEvaluator(input: $input) {
-      evaluator
-        @appendNode(
-          connections: $connectionIds
-          edgeTypeName: "ProjectEvaluatorEdge"
-        ) {
+      evaluator {
         id
         name
         evaluationTarget
@@ -36,16 +31,14 @@ const mutation = graphql`
 export function createProjectLlmEvaluator({
   environment,
   input,
-  updateConnectionIds = [],
 }: {
   environment: Environment;
   input: createProjectLlmEvaluatorMutation["variables"]["input"];
-  updateConnectionIds?: string[];
 }): Promise<CreateProjectLLMEvaluatorResult> {
   return new Promise((resolve, reject) => {
     commitMutation<createProjectLlmEvaluatorMutation>(environment, {
       mutation,
-      variables: { input, connectionIds: updateConnectionIds },
+      variables: { input },
       onCompleted(response, errors) {
         if (errors?.length) {
           reject(new Error(errors.map(({ message }) => message).join("\n")));

@@ -1,9 +1,13 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
-import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
+import {
+  ProjectEvaluatorScopePanel,
+  type ProjectEvaluatorInlineCode,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export const ProjectCodeEvaluatorDialogContent = ({
@@ -11,6 +15,8 @@ export const ProjectCodeEvaluatorDialogContent = ({
   evaluatorId,
   evaluatorName,
   variables,
+  codeDefinition,
+  inlineCode,
   scope,
   onScopeChange,
   onSubmit,
@@ -23,6 +29,8 @@ export const ProjectCodeEvaluatorDialogContent = ({
   evaluatorName: string;
   /** The evaluator's declared parameters, extracted from its source code. */
   variables: string[];
+  codeDefinition?: ReactNode;
+  inlineCode?: ProjectEvaluatorInlineCode;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   onSubmit: () => void;
@@ -43,7 +51,11 @@ export const ProjectCodeEvaluatorDialogContent = ({
       isSubmitting={isSubmitting}
       isSubmitDisabled={!isFilterValid}
       error={error}
-      errorTitle="Failed to attach evaluator"
+      errorTitle={
+        mode === "create"
+          ? "Failed to attach evaluator"
+          : "Failed to update evaluator"
+      }
       contentGap="var(--global-dimension-size-100)"
       renderInputVariables={(form) => (
         <EvaluatorInputVariablesProvider variables={variables}>
@@ -54,6 +66,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
         <ProjectEvaluatorFormSections
           definitionKind="code"
           codeEvaluatorName={evaluatorName}
+          codeDefinition={codeDefinition}
         />
       }
       right={
@@ -62,7 +75,8 @@ export const ProjectCodeEvaluatorDialogContent = ({
           scope={scope}
           onScopeChange={onScopeChange}
           onFilterValidityChange={setIsFilterValid}
-          codeEvaluatorId={evaluatorId}
+          codeEvaluatorId={inlineCode ? undefined : evaluatorId}
+          inlineCode={inlineCode}
         />
       }
     />

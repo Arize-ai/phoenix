@@ -78,12 +78,8 @@ export const RegexEvaluatorForm = () => {
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
-  const evaluatorMappingSourceGrain = useEvaluatorStore(
-    (state) => state.evaluatorMappingSourceGrain
-  );
   const allExampleKeys = useFlattenedEvaluatorInputKeys({
     evaluatorMappingSource,
-    evaluatorMappingSourceGrain,
   });
 
   // Determine initial mode based on existing values

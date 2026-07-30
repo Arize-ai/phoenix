@@ -5,6 +5,7 @@ import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Dialog, Loading, Modal, ModalOverlay } from "@phoenix/components";
+import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { extractCodeEvaluatorVariables } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
@@ -23,17 +24,18 @@ import {
 import type { EditProjectEvaluatorSlideoverQuery } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverQuery.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateCodeMutation.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
+import { CodeAuthoringFields } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import {
   DiscardEvaluatorChangesDialog,
   isModalUnderlay,
 } from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
   fromProjectEvaluatorGraphQLTarget,
   toProjectEvaluatorGraphQLTarget,
-  toProjectEvaluatorSamplingFraction,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
@@ -42,7 +44,6 @@ import {
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
-  type AnnotationConfig,
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
@@ -58,10 +59,6 @@ type ProjectEvaluatorNode = Extract<
   >,
   { readonly __typename: "ProjectEvaluator" }
 >;
-
-type ProjectEvaluatorOutputConfig = NonNullable<
-  ProjectEvaluatorNode["evaluator"]["outputConfigs"]
->[number];
 
 export function EditProjectEvaluatorSlideover({
   projectEvaluatorId,
@@ -204,6 +201,9 @@ function useProjectEvaluator(projectEvaluatorId: string) {
               ... on CodeEvaluator {
                 sourceCode
                 language
+                sandboxConfig {
+                  id
+                }
                 inputMapping {
                   pathMapping
                   literalMapping
@@ -236,6 +236,37 @@ function useProjectEvaluator(projectEvaluatorId: string) {
             }
           }
         }
+        sandboxProviders {
+          backendType
+          supportedLanguages
+          enabled
+          configs {
+            id
+            name
+            description
+            language
+            timeout
+            config {
+              envVars {
+                name
+                secretKey
+              }
+              internetAccess {
+                mode
+              }
+              dependencies {
+                packages
+              }
+            }
+          }
+        }
+        sandboxBackends {
+          backendType
+          status
+          supportsEnvVars
+          internetAccess
+          supportsDependencies
+        }
       }
     `,
     { projectEvaluatorId },
@@ -246,56 +277,20 @@ function useProjectEvaluator(projectEvaluatorId: string) {
     projectEvaluator?.__typename === "ProjectEvaluator",
     "project evaluator is required"
   );
-  return projectEvaluator;
+  return {
+    evaluator: projectEvaluator,
+    sandboxConfigs: mapSandboxConfigOptions(
+      data.sandboxProviders,
+      data.sandboxBackends
+    ),
+  };
 }
 
-function copyOutputConfigs(
-  outputConfigs: ReadonlyArray<ProjectEvaluatorOutputConfig> | undefined
-): AnnotationConfig[] {
-  const copiedOutputConfigs: AnnotationConfig[] = [];
-  for (const outputConfig of outputConfigs ?? []) {
-    switch (outputConfig.__typename) {
-      case "CategoricalAnnotationConfig":
-        copiedOutputConfigs.push({
-          name: outputConfig.name,
-          optimizationDirection: outputConfig.optimizationDirection,
-          values: outputConfig.values.map(({ label, score }) => ({
-            label,
-            ...(score == null ? {} : { score }),
-          })),
-        });
-        break;
-      case "ContinuousAnnotationConfig":
-        copiedOutputConfigs.push({
-          name: outputConfig.name,
-          optimizationDirection: outputConfig.optimizationDirection,
-          lowerBound: outputConfig.lowerBound,
-          upperBound: outputConfig.upperBound,
-        });
-        break;
-      case "FreeformAnnotationConfig":
-        copiedOutputConfigs.push({
-          name: outputConfig.name,
-          optimizationDirection: outputConfig.optimizationDirection,
-          threshold: outputConfig.threshold,
-          lowerBound: outputConfig.lowerBound,
-          upperBound: outputConfig.upperBound,
-        });
-        break;
-      case "%other":
-        break;
-    }
-  }
-  return copiedOutputConfigs;
-}
-
-function getScope(
-  evaluator: ReturnType<typeof useProjectEvaluator>
-): ProjectEvaluatorScope {
+function getScope(evaluator: ProjectEvaluatorNode): ProjectEvaluatorScope {
   return {
     targetType: fromProjectEvaluatorGraphQLTarget(evaluator.evaluationTarget),
     filterCondition: evaluator.filterCondition,
-    samplingRatePercent: Math.round(evaluator.samplingRate * 100),
+    samplingRate: evaluator.samplingRate,
   };
 }
 
@@ -308,7 +303,7 @@ function EditLlmProjectEvaluator({
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
-  const evaluator = useProjectEvaluator(projectEvaluatorId);
+  const { evaluator } = useProjectEvaluator(projectEvaluatorId);
   invariant(evaluator.evaluator.kind === "LLM", "expected LLM evaluator");
   return (
     <EvaluatorPlaygroundProvider
@@ -332,7 +327,7 @@ function EditLlmProjectEvaluatorContent({
   onClose,
   registerDirtyCheck,
 }: {
-  evaluator: ReturnType<typeof useProjectEvaluator>;
+  evaluator: ProjectEvaluatorNode;
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
@@ -365,7 +360,9 @@ function EditLlmProjectEvaluatorContent({
         }
       }
     `);
-  const outputConfigs = copyOutputConfigs(evaluator.evaluator.outputConfigs);
+  const outputConfigs = convertProjectEvaluatorOutputConfigs(
+    evaluator.evaluator.outputConfigs ?? []
+  );
   const initialState = {
     ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
     evaluator: {
@@ -382,11 +379,13 @@ function EditLlmProjectEvaluatorContent({
     outputConfigs: outputConfigs.length
       ? outputConfigs
       : DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs,
-    evaluatorMappingSourceGrain: "span" as const,
     evaluatorMappingSource: {
-      input: {},
-      output: {},
-      metadata: { attributes: {} },
+      grain: "span" as const,
+      source: {
+        input: {},
+        output: {},
+        metadata: { attributes: {} },
+      },
     },
   } satisfies EvaluatorStoreProps;
 
@@ -421,9 +420,7 @@ function EditLlmProjectEvaluatorContent({
             ...llmInput,
             projectEvaluatorId: evaluator.id,
             inputMapping: state.evaluator.inputMapping,
-            samplingRate: toProjectEvaluatorSamplingFraction(
-              scope.samplingRatePercent
-            ),
+            samplingRate: scope.samplingRate,
             evaluationTarget: toProjectEvaluatorGraphQLTarget(scope.targetType),
             filterCondition: scope.filterCondition,
             enabled: evaluator.enabled,
@@ -490,12 +487,16 @@ function EditCodeProjectEvaluator({
   onClose: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) {
-  const evaluator = useProjectEvaluator(projectEvaluatorId);
+  const { evaluator, sandboxConfigs } = useProjectEvaluator(projectEvaluatorId);
   invariant(evaluator.evaluator.kind === "CODE", "expected code evaluator");
-  const variables = extractCodeEvaluatorVariables({
-    language: evaluator.evaluator.language as CodeEvaluatorLanguage,
-    sourceCode: evaluator.evaluator.sourceCode ?? "",
-  });
+  const language = evaluator.evaluator.language as CodeEvaluatorLanguage;
+  const initialSourceCode = evaluator.evaluator.sourceCode ?? "";
+  const initialSandboxConfigId = evaluator.evaluator.sandboxConfig?.id ?? null;
+  const [sourceCode, setSourceCode] = useState(initialSourceCode);
+  const [sandboxConfigId, setSandboxConfigId] = useState(
+    initialSandboxConfigId
+  );
+  const variables = extractCodeEvaluatorVariables({ language, sourceCode });
   // The update mutation treats an omitted inputMapping as "preserve", so
   // snapshot the stored value to tell an edit from an inherited setting.
   const initialInputMappingJson = JSON.stringify(evaluator.inputMapping);
@@ -504,6 +505,7 @@ function EditCodeProjectEvaluator({
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
+    localState: { sourceCode, sandboxConfigId },
   });
   const notifySuccess = useNotifySuccess();
   const [commitUpdate, isUpdating] =
@@ -523,88 +525,145 @@ function EditCodeProjectEvaluator({
         }
       }
     `);
+  const loadedOutputConfigs = convertProjectEvaluatorOutputConfigs(
+    evaluator.evaluator.outputConfigs ?? []
+  );
+  const initialDescription = evaluator.evaluator.description ?? "";
+  const initialOutputConfigsJson = JSON.stringify(loadedOutputConfigs);
   const initialState: EvaluatorStoreProps = {
     evaluator: {
       id: evaluator.evaluator.id,
       globalName: evaluator.name,
       name: evaluator.name,
-      description: evaluator.evaluator.description ?? "",
+      description: initialDescription,
       inputMapping: evaluator.inputMapping as EvaluatorInputMapping,
       kind: "CODE",
       isBuiltin: false,
       includeExplanation: false,
     },
-    outputConfigs: copyOutputConfigs(evaluator.evaluator.outputConfigs),
+    outputConfigs: loadedOutputConfigs,
     showPromptPreview: false,
-    evaluatorMappingSourceGrain: "span",
     evaluatorMappingSource: {
-      input: {},
-      output: {},
-      metadata: { attributes: {} },
+      grain: "span",
+      source: {
+        input: {},
+        output: {},
+        metadata: { attributes: {} },
+      },
     },
   };
   return (
-    <EvaluatorPlaygroundProvider>
-      <EvaluatorStoreProvider initialState={initialState}>
-        {({ store }) => {
-          trackStoreForDirtyCheck(store);
-          return (
-            <ProjectCodeEvaluatorDialogContent
-              mode="update"
-              projectId={evaluator.project.id}
-              evaluatorId={evaluator.evaluator.id}
-              evaluatorName={evaluator.name}
-              variables={variables}
-              scope={scope}
-              onScopeChange={setScope}
-              isSubmitting={isUpdating}
-              error={error}
-              onSubmit={() => {
-                setError(undefined);
-                const state = store.getState();
-                const inputMappingChanged =
-                  JSON.stringify(state.evaluator.inputMapping) !==
-                  initialInputMappingJson;
-                commitUpdate({
-                  variables: {
-                    input: {
-                      projectEvaluatorId: evaluator.id,
-                      name: state.evaluator.globalName,
-                      description: state.evaluator.description || null,
-                      evaluatorInputMapping: evaluator.evaluator
-                        .inputMapping as EvaluatorInputMapping,
-                      ...(inputMappingChanged
-                        ? { inputMapping: state.evaluator.inputMapping }
-                        : {}),
-                      outputConfigs: buildOutputConfigsInput(
-                        state.outputConfigs
-                      ),
-                      samplingRate: toProjectEvaluatorSamplingFraction(
-                        scope.samplingRatePercent
-                      ),
-                      evaluationTarget: toProjectEvaluatorGraphQLTarget(
-                        scope.targetType
-                      ),
-                      filterCondition: scope.filterCondition,
-                      enabled: evaluator.enabled,
-                    },
-                  },
-                  onCompleted: () => {
-                    notifySuccess({ title: "Evaluator updated" });
-                    onClose();
-                  },
-                  onError: (mutationError) =>
-                    setError(
-                      getErrorMessagesFromRelayMutationError(
-                        mutationError
-                      )?.join("\n") ?? mutationError.message
+    <EvaluatorStoreProvider initialState={initialState}>
+      {({ store }) => {
+        trackStoreForDirtyCheck(store);
+        return (
+          <ProjectCodeEvaluatorDialogContent
+            mode="update"
+            projectId={evaluator.project.id}
+            evaluatorId={evaluator.evaluator.id}
+            evaluatorName={evaluator.name}
+            variables={variables}
+            codeDefinition={
+              <CodeAuthoringFields
+                language={language}
+                onLanguageChange={() => undefined}
+                isLanguageDisabled
+                sandboxConfigs={sandboxConfigs}
+                selectedSandboxConfigId={sandboxConfigId}
+                onSandboxChange={(nextSandboxConfigId) => {
+                  setError(undefined);
+                  setSandboxConfigId(nextSandboxConfigId);
+                }}
+                sourceCode={sourceCode}
+                onSourceCodeChange={(nextSourceCode) => {
+                  setError(undefined);
+                  setSourceCode(nextSourceCode);
+                }}
+              />
+            }
+            inlineCode={{
+              language,
+              sourceCode,
+              sandboxConfigId,
+            }}
+            scope={scope}
+            onScopeChange={setScope}
+            isSubmitting={isUpdating}
+            error={error}
+            onSubmit={() => {
+              setError(undefined);
+              const state = store.getState();
+              const inputMappingChanged =
+                JSON.stringify(state.evaluator.inputMapping) !==
+                initialInputMappingJson;
+              const descriptionChanged =
+                state.evaluator.description !== initialDescription;
+              const outputConfigsChanged =
+                JSON.stringify(state.outputConfigs) !==
+                initialOutputConfigsJson;
+              const sourceCodeChanged = sourceCode !== initialSourceCode;
+              const sandboxConfigChanged =
+                sandboxConfigId !== initialSandboxConfigId;
+              const outputConfigErrors = getOutputConfigValidationErrors(
+                state.outputConfigs
+              );
+              const validationError =
+                sourceCode.trim().length === 0
+                  ? "Source code is required."
+                  : sandboxConfigId == null
+                    ? "Please select a sandbox configuration."
+                    : outputConfigErrors.length
+                      ? outputConfigErrors.join("\n")
+                      : undefined;
+              if (validationError) {
+                setError(validationError);
+                return;
+              }
+              commitUpdate({
+                variables: {
+                  input: {
+                    projectEvaluatorId: evaluator.id,
+                    name: state.evaluator.globalName,
+                    ...(descriptionChanged
+                      ? {
+                          description:
+                            state.evaluator.description.trim() || null,
+                        }
+                      : {}),
+                    ...(sourceCodeChanged ? { sourceCode } : {}),
+                    ...(sandboxConfigChanged ? { sandboxConfigId } : {}),
+                    ...(outputConfigsChanged
+                      ? {
+                          outputConfigs: buildOutputConfigsInput(
+                            state.outputConfigs
+                          ),
+                        }
+                      : {}),
+                    ...(inputMappingChanged
+                      ? { inputMapping: state.evaluator.inputMapping }
+                      : {}),
+                    samplingRate: scope.samplingRate,
+                    evaluationTarget: toProjectEvaluatorGraphQLTarget(
+                      scope.targetType
                     ),
-                });
-              }}
-            />
-          );
-        }}
-      </EvaluatorStoreProvider>
-    </EvaluatorPlaygroundProvider>
+                    filterCondition: scope.filterCondition,
+                  },
+                },
+                onCompleted: () => {
+                  notifySuccess({ title: "Evaluator updated" });
+                  onClose();
+                },
+                onError: (mutationError) =>
+                  setError(
+                    getErrorMessagesFromRelayMutationError(mutationError)?.join(
+                      "\n"
+                    ) ?? mutationError.message
+                  ),
+              });
+            }}
+          />
+        );
+      }}
+    </EvaluatorStoreProvider>
   );
 }

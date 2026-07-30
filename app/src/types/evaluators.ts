@@ -188,4 +188,6 @@ export type EvaluatorMappingSource<
   TGrain extends EvaluatorMappingSourceGrain = EvaluatorMappingSourceGrain,
 > = EvaluatorMappingSourceByGrain[TGrain];
 
-export type EvaluatorMappingSourceField = keyof DatasetEvaluatorMappingSource;
+export type EvaluatorMappingSourceField<
+  TGrain extends EvaluatorMappingSourceGrain,
+> = keyof EvaluatorMappingSourceByGrain[TGrain];

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e65fe7f31fcadcd8bd58ad12c606c6ac>>
+ * @generated SignedSource<<8123957bae615e7dd9275ecd1d38655a>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,6 @@ export type DeleteProjectEvaluatorsInput = {
   projectEvaluatorIds: ReadonlyArray<string>;
 };
 export type DeleteProjectEvaluatorDialogMutation$variables = {
-  connectionIds: ReadonlyArray<string>;
   input: DeleteProjectEvaluatorsInput;
 };
 export type DeleteProjectEvaluatorDialogMutation$data = {
@@ -27,94 +26,55 @@ export type DeleteProjectEvaluatorDialogMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connectionIds"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
   {
-    "kind": "Variable",
-    "name": "input",
-    "variableName": "input"
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
   }
 ],
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "projectEvaluatorIds",
-  "storageKey": null
-};
-return {
-  "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/)
+v1 = [
+  {
+    "alias": null,
+    "args": [
+      {
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "input"
+      }
     ],
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "DeleteProjectEvaluatorDialogMutation",
+    "concreteType": "DeleteProjectEvaluatorsPayload",
+    "kind": "LinkedField",
+    "name": "deleteProjectEvaluators",
+    "plural": false,
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
-        "concreteType": "DeleteProjectEvaluatorsPayload",
-        "kind": "LinkedField",
-        "name": "deleteProjectEvaluators",
-        "plural": false,
-        "selections": [
-          (v3/*:: as any*/)
-        ],
+        "args": null,
+        "kind": "ScalarField",
+        "name": "projectEvaluatorIds",
         "storageKey": null
       }
     ],
+    "storageKey": null
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*:: as any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "DeleteProjectEvaluatorDialogMutation",
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v0/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "DeleteProjectEvaluatorDialogMutation",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v2/*:: as any*/),
-        "concreteType": "DeleteProjectEvaluatorsPayload",
-        "kind": "LinkedField",
-        "name": "deleteProjectEvaluators",
-        "plural": false,
-        "selections": [
-          (v3/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "filters": null,
-            "handle": "deleteEdge",
-            "key": "",
-            "kind": "ScalarHandle",
-            "name": "projectEvaluatorIds",
-            "handleArgs": [
-              {
-                "kind": "Variable",
-                "name": "connections",
-                "variableName": "connectionIds"
-              }
-            ]
-          }
-        ],
-        "storageKey": null
-      }
-    ]
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "8e69293a1397a603535ae76aa8bf3d8c",
@@ -127,6 +87,6 @@ return {
 };
 })();
 
-(node as any).hash = "ce15d04fb35bbcb5797d1203c64daf9e";
+(node as any).hash = "4b4583e4fab10216c432ce2bf4882263";
 
 export default node;

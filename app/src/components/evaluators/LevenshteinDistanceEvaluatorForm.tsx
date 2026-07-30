@@ -50,12 +50,8 @@ export const LevenshteinDistanceEvaluatorForm = () => {
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
-  const evaluatorMappingSourceGrain = useEvaluatorStore(
-    (state) => state.evaluatorMappingSourceGrain
-  );
   const allExampleKeys = useFlattenedEvaluatorInputKeys({
     evaluatorMappingSource,
-    evaluatorMappingSourceGrain,
   });
 
   // Register validator for required SwitchableEvaluatorInput fields.

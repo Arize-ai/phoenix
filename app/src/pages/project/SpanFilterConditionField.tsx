@@ -249,7 +249,6 @@ type SpanFilterConditionFieldProps = {
    * Callback when the condition is valid
    */
   onValidCondition: (condition: string) => void;
-  initialCondition?: string;
   placeholder?: string;
 };
 /**
@@ -259,28 +258,15 @@ type SpanFilterConditionFieldProps = {
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const {
     onValidCondition,
-    initialCondition,
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const spanFilters = useSpanFilters();
   const projectId = useTracingContext((state) => state.projectId);
-  // Passing an initialCondition switches the field to local state instead of
-  // the shared span-filters context.
-  const [localFilterCondition, setLocalFilterCondition] = useState(
-    initialCondition ?? ""
-  );
-  const hasLocalCondition = initialCondition !== undefined;
-  const filterCondition = hasLocalCondition
-    ? localFilterCondition
-    : spanFilters.filterCondition;
-  const setFilterCondition = hasLocalCondition
-    ? setLocalFilterCondition
-    : spanFilters.setFilterCondition;
   return (
     <SpanFilterConditionFieldCore
       projectId={projectId}
-      filterCondition={filterCondition}
-      onFilterConditionChange={setFilterCondition}
+      filterCondition={spanFilters.filterCondition}
+      onFilterConditionChange={spanFilters.setFilterCondition}
       onValidCondition={onValidCondition}
       placeholder={placeholder}
       advertiseFilterToAgent
@@ -337,10 +323,14 @@ export function SpanFilterConditionFieldCore(
       loadAnnotationCompletions: projectId
         ? () => fetchAnnotationCompletions(projectId)
         : undefined,
-      validateCondition: (condition: string) =>
-        projectId
-          ? validateSpanFilterCondition(condition, projectId)
-          : Promise.resolve({ isValid: true, errorMessage: null }),
+      validateCondition: (condition: string) => {
+        if (projectId) {
+          return validateSpanFilterCondition(condition, projectId);
+        }
+        // Without a project there is nothing to validate against; treat the
+        // condition as valid rather than blocking the caller.
+        return Promise.resolve({ isValid: true, errorMessage: null });
+      },
     }),
     [projectId]
   );

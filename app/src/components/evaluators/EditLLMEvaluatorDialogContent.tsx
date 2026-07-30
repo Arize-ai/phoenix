@@ -20,7 +20,6 @@ export const EditLLMEvaluatorDialogContent = ({
   error,
   evaluatorNodeId,
   title,
-  formLeftPanelExtra,
   formLeftPanel,
   formRightPanel,
 }: {
@@ -33,10 +32,6 @@ export const EditLLMEvaluatorDialogContent = ({
   error?: string;
   evaluatorNodeId?: string | null;
   title?: string;
-  /**
-   * Optional section rendered in the form's left panel below name/description.
-   */
-  formLeftPanelExtra?: ReactNode;
   formLeftPanel?: ReactNode;
   /**
    * Replaces the form's right (test) panel.
@@ -115,7 +110,6 @@ export const EditLLMEvaluatorDialogContent = ({
         formLeftPanel ?? (
           <>
             <EvaluatorNameAndDescriptionFields />
-            {formLeftPanelExtra}
             <LLMEvaluatorForm />
           </>
         )

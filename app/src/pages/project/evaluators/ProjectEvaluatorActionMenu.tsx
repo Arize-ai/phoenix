@@ -22,14 +22,14 @@ enum ProjectEvaluatorAction {
 
 export function ProjectEvaluatorActionMenu({
   projectEvaluatorId,
+  projectId,
   evaluatorKind,
   evaluatorName,
-  updateConnectionIds,
 }: {
   projectEvaluatorId: string;
+  projectId: string;
   evaluatorKind: "LLM" | "CODE" | "BUILTIN";
   evaluatorName: string;
-  updateConnectionIds: string[];
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -93,9 +93,9 @@ export function ProjectEvaluatorActionMenu({
       ) : null}
       <DeleteProjectEvaluatorDialog
         projectEvaluatorId={projectEvaluatorId}
+        projectId={projectId}
         evaluatorName={evaluatorName}
         evaluatorKind={evaluatorKind}
-        updateConnectionIds={updateConnectionIds}
         isOpen={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}
       />

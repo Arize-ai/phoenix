@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useShallow } from "zustand/react/shallow";
 
 import { Flex, Label, Switch, Text } from "@phoenix/components";
 import { BuiltInEvaluatorOutputConfig } from "@phoenix/components/evaluators/BuiltInEvaluatorOutputConfig";
@@ -44,16 +43,11 @@ export const ContainsEvaluatorForm = () => {
   const [containsTextPath, setContainsTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
   );
-  const { evaluatorMappingSource, evaluatorMappingSourceGrain } =
-    useEvaluatorStore(
-      useShallow((state) => ({
-        evaluatorMappingSource: state.evaluatorMappingSource,
-        evaluatorMappingSourceGrain: state.evaluatorMappingSourceGrain,
-      }))
-    );
+  const evaluatorMappingSource = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource
+  );
   const allExampleKeys = useFlattenedEvaluatorInputKeys({
     evaluatorMappingSource,
-    evaluatorMappingSourceGrain,
   });
 
   // Register validator for required SwitchableEvaluatorInput fields.

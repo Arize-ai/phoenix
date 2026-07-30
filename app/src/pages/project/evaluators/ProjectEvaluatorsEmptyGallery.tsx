@@ -1,19 +1,23 @@
 import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
-import { useLazyLoadQuery } from "react-relay";
+import { useLazyLoadQuery, useRelayEnvironment } from "react-relay";
 
-import { Flex, Icon, Icons, Loading, Text } from "@phoenix/components";
+import { Alert, Flex, Icon, Icons, Loading, Text } from "@phoenix/components";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
 import {
-  CreateLLMProjectEvaluatorSlideover,
+  CreateProjectEvaluatorSlideover,
   type ProjectEvaluatorCreationMode,
-} from "@phoenix/pages/project/evaluators/CreateLLMProjectEvaluatorSlideover";
+} from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import {
   buildAttachCodeCreationMode,
   buildCopyLlmCreationMode,
+  fetchProjectEvaluatorDetails,
+  isCodeProjectEvaluatorDetails,
+  isLlmProjectEvaluatorDetails,
   projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode,
+  UNSUPPORTED_PROMPT_TEMPLATE_ERROR,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 
 // The Add evaluator menu is the overflow path for the full list.
@@ -22,32 +26,23 @@ const MAX_ATTACH_CARDS = 3;
 
 export function ProjectEvaluatorsEmptyGallery({
   projectId,
-  updateConnectionIds,
 }: {
   projectId: string;
-  updateConnectionIds: string[];
 }) {
   return (
     <TableEmptyWrap>
       <Suspense fallback={<Loading />}>
-        <Gallery
-          projectId={projectId}
-          updateConnectionIds={updateConnectionIds}
-        />
+        <Gallery projectId={projectId} />
       </Suspense>
     </TableEmptyWrap>
   );
 }
 
-function Gallery({
-  projectId,
-  updateConnectionIds,
-}: {
-  projectId: string;
-  updateConnectionIds: string[];
-}) {
+function Gallery({ projectId }: { projectId: string }) {
   const [creationMode, setCreationMode] =
     useState<ProjectEvaluatorCreationMode | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
+  const environment = useRelayEnvironment();
   const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
     projectEvaluatorOptionsQueryNode,
     {},
@@ -73,6 +68,7 @@ function Gallery({
       <Text size="S" fontStyle="italic" color="text-500">
         No evaluators are set up for this project
       </Text>
+      {selectionError ? <Alert variant="danger">{selectionError}</Alert> : null}
       <Flex direction="row" gap="size-125" width="100%">
         <div css={columnCSS}>
           <button
@@ -95,9 +91,27 @@ function Gallery({
             <button
               key={evaluator.id}
               css={cardCSS}
-              onClick={() => {
-                const mode = buildCopyLlmCreationMode(evaluator);
-                if (mode) setCreationMode(mode);
+              onClick={async () => {
+                setSelectionError(null);
+                try {
+                  const details = await fetchProjectEvaluatorDetails({
+                    environment,
+                    evaluatorId: evaluator.id,
+                  });
+                  if (!isLlmProjectEvaluatorDetails(details)) {
+                    throw new Error("Expected an LLM evaluator");
+                  }
+                  const result = buildCopyLlmCreationMode(details);
+                  if (!result.ok) {
+                    setSelectionError(UNSUPPORTED_PROMPT_TEMPLATE_ERROR);
+                    return;
+                  }
+                  setCreationMode(result.mode);
+                } catch {
+                  setSelectionError(
+                    "Unable to load evaluator details. Try again."
+                  );
+                }
               }}
             >
               <Text size="S" weight="heavy">
@@ -132,9 +146,23 @@ function Gallery({
             <button
               key={evaluator.id}
               css={cardCSS}
-              onClick={() =>
-                setCreationMode(buildAttachCodeCreationMode(evaluator))
-              }
+              onClick={async () => {
+                setSelectionError(null);
+                try {
+                  const details = await fetchProjectEvaluatorDetails({
+                    environment,
+                    evaluatorId: evaluator.id,
+                  });
+                  if (!isCodeProjectEvaluatorDetails(details)) {
+                    throw new Error("Expected a code evaluator");
+                  }
+                  setCreationMode(buildAttachCodeCreationMode(details));
+                } catch {
+                  setSelectionError(
+                    "Unable to load evaluator details. Try again."
+                  );
+                }
+              }}
             >
               <Text size="S" weight="heavy">
                 Attach {evaluator.name}
@@ -149,14 +177,13 @@ function Gallery({
         </div>
       </Flex>
       {creationMode ? (
-        <CreateLLMProjectEvaluatorSlideover
+        <CreateProjectEvaluatorSlideover
           isOpen
           onOpenChange={(isOpen) => {
             if (!isOpen) setCreationMode(null);
           }}
           projectId={projectId}
           creationMode={creationMode}
-          updateConnectionIds={updateConnectionIds}
         />
       ) : null}
     </Flex>

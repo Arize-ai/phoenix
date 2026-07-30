@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<43df550372d23405659f2ccedc1176d2>>
+ * @generated SignedSource<<3846d339b24501be0bf0d13b23edaf82>>
  * @lightSyntaxTransform
  */
 
@@ -24,11 +24,10 @@ export type EvaluatorInputMappingInput = {
   literalMapping: any;
   pathMapping: any;
 };
-export type CreateLLMProjectEvaluatorSlideoverAddCodeMutation$variables = {
-  connectionIds: ReadonlyArray<string>;
+export type CreateProjectEvaluatorSlideoverAddCodeMutation$variables = {
   input: AddProjectCodeEvaluatorInput;
 };
-export type CreateLLMProjectEvaluatorSlideoverAddCodeMutation$data = {
+export type CreateProjectEvaluatorSlideoverAddCodeMutation$data = {
   readonly addProjectCodeEvaluator: {
     readonly evaluator: {
       readonly enabled: boolean;
@@ -43,72 +42,69 @@ export type CreateLLMProjectEvaluatorSlideoverAddCodeMutation$data = {
     };
   };
 };
-export type CreateLLMProjectEvaluatorSlideoverAddCodeMutation = {
-  response: CreateLLMProjectEvaluatorSlideoverAddCodeMutation$data;
-  variables: CreateLLMProjectEvaluatorSlideoverAddCodeMutation$variables;
+export type CreateProjectEvaluatorSlideoverAddCodeMutation = {
+  response: CreateProjectEvaluatorSlideoverAddCodeMutation$data;
+  variables: CreateProjectEvaluatorSlideoverAddCodeMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connectionIds"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
+  }
+],
+v1 = [
   {
     "kind": "Variable",
     "name": "input",
     "variableName": "input"
   }
 ],
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v5 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "evaluationTarget",
   "storageKey": null
 },
-v6 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "filterCondition",
   "storageKey": null
 },
-v7 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "samplingRate",
   "storageKey": null
 },
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "enabled",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -117,17 +113,14 @@ v9 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "CreateLLMProjectEvaluatorSlideoverAddCodeMutation",
+    "name": "CreateProjectEvaluatorSlideoverAddCodeMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "ProjectEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "addProjectCodeEvaluator",
@@ -141,12 +134,12 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
+              (v2/*:: as any*/),
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -155,7 +148,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v9/*:: as any*/)
+                  (v8/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -171,16 +164,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v0/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "CreateLLMProjectEvaluatorSlideoverAddCodeMutation",
+    "name": "CreateProjectEvaluatorSlideoverAddCodeMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "ProjectEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "addProjectCodeEvaluator",
@@ -194,12 +184,12 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
+              (v2/*:: as any*/),
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -215,34 +205,13 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v9/*:: as any*/),
-                  (v3/*:: as any*/)
+                  (v8/*:: as any*/),
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "filters": null,
-            "handle": "appendNode",
-            "key": "",
-            "kind": "LinkedHandle",
-            "name": "evaluator",
-            "handleArgs": [
-              {
-                "kind": "Variable",
-                "name": "connections",
-                "variableName": "connectionIds"
-              },
-              {
-                "kind": "Literal",
-                "name": "edgeTypeName",
-                "value": "ProjectEvaluatorEdge"
-              }
-            ]
           }
         ],
         "storageKey": null
@@ -250,16 +219,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "44cb72bd3d495392bab674150e05cf0c",
+    "cacheID": "ff70f37bd491a275fe6f76ce8f736cc8",
     "id": null,
     "metadata": {},
-    "name": "CreateLLMProjectEvaluatorSlideoverAddCodeMutation",
+    "name": "CreateProjectEvaluatorSlideoverAddCodeMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateLLMProjectEvaluatorSlideoverAddCodeMutation(\n  $input: AddProjectCodeEvaluatorInput!\n) {\n  addProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      evaluator {\n        __typename\n        kind\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateProjectEvaluatorSlideoverAddCodeMutation(\n  $input: AddProjectCodeEvaluatorInput!\n) {\n  addProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluationTarget\n      filterCondition\n      samplingRate\n      enabled\n      evaluator {\n        __typename\n        kind\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ac1c1aedef79cfff5180ce0d181a4f6f";
+(node as any).hash = "ba204577b1ac95036a0e00fae18c7230";
 
 export default node;

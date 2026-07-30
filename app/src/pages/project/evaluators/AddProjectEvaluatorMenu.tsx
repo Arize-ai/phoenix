@@ -1,12 +1,13 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 import type {
   MenuTriggerProps,
   SubmenuTriggerProps,
 } from "react-aria-components";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
-import { useLazyLoadQuery } from "react-relay";
+import { useLazyLoadQuery, useRelayEnvironment } from "react-relay";
 import { useSearchParams } from "react-router";
 
+import { Alert } from "@phoenix/components/core/alert";
 import type { ButtonProps } from "@phoenix/components/core/button";
 import { Button } from "@phoenix/components/core/button";
 import { Text } from "@phoenix/components/core/content";
@@ -27,27 +28,30 @@ import {
 } from "@phoenix/constants/searchParams";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
 import {
-  CreateLLMProjectEvaluatorSlideover,
+  CreateProjectEvaluatorSlideover,
   type ProjectEvaluatorCreationMode,
-} from "@phoenix/pages/project/evaluators/CreateLLMProjectEvaluatorSlideover";
+} from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import {
   buildAttachCodeCreationMode,
   buildCopyLlmCreationMode,
+  fetchProjectEvaluatorDetails,
+  isCodeProjectEvaluatorDetails,
+  isLlmProjectEvaluatorDetails,
   projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode,
+  UNSUPPORTED_PROMPT_TEMPLATE_ERROR,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 
 export const AddProjectEvaluatorMenu = ({
   size,
   projectId,
-  updateConnectionIds = [],
   ...props
 }: {
   size: ButtonProps["size"];
   projectId: string;
-  updateConnectionIds?: string[];
 } & Omit<MenuTriggerProps, "children">) => {
   const [creationMode, setCreationMode] =
     useState<ProjectEvaluatorCreationMode | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const shouldOpenScratchFromUrl =
     searchParams.get(CREATE_LLM_EVALUATOR_PARAM) === "true";
@@ -89,20 +93,28 @@ export const AddProjectEvaluatorMenu = ({
         <MenuContainer minHeight="auto">
           <Suspense fallback={<Loading />}>
             <AddProjectEvaluatorMenuItems
-              onSelectCreationMode={setCreationMode}
+              onSelectCreationMode={(mode) => {
+                setSelectionError(null);
+                setCreationMode(mode);
+              }}
+              onSelectionError={setSelectionError}
             />
           </Suspense>
         </MenuContainer>
       </MenuTrigger>
+      {selectionError ? (
+        <View paddingTop="size-100">
+          <Alert variant="danger">{selectionError}</Alert>
+        </View>
+      ) : null}
       {activeCreationMode ? (
-        <CreateLLMProjectEvaluatorSlideover
+        <CreateProjectEvaluatorSlideover
           isOpen
           onOpenChange={(isOpen) => {
             if (!isOpen) clearCreationMode();
           }}
           projectId={projectId}
           creationMode={activeCreationMode}
-          updateConnectionIds={updateConnectionIds}
         />
       ) : null}
     </>
@@ -111,18 +123,18 @@ export const AddProjectEvaluatorMenu = ({
 
 function AddProjectEvaluatorMenuItems({
   onSelectCreationMode,
+  onSelectionError,
 }: {
   onSelectCreationMode: (mode: ProjectEvaluatorCreationMode) => void;
+  onSelectionError: (error: string | null) => void;
 }) {
+  const environment = useRelayEnvironment();
   const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
     projectEvaluatorOptionsQueryNode,
     {},
     { fetchPolicy: "store-and-network" }
   );
-  const evaluators = useMemo(
-    () => data.evaluators.edges.map(({ evaluator }) => evaluator),
-    [data.evaluators.edges]
-  );
+  const evaluators = data.evaluators.edges.map(({ evaluator }) => evaluator);
   const llmEvaluators = evaluators.filter(
     (evaluator) => evaluator.__typename === "LLMEvaluator"
   );
@@ -154,13 +166,27 @@ function AddProjectEvaluatorMenuItems({
             label="Copy existing LLM evaluator"
             icon={<Icons.LLMOutput />}
             evaluators={llmEvaluators}
-            onAction={(evaluatorId) => {
-              const evaluator = llmEvaluators.find(
-                ({ id }) => id === evaluatorId
-              );
-              if (!evaluator) return;
-              const creationMode = buildCopyLlmCreationMode(evaluator);
-              if (creationMode) onSelectCreationMode(creationMode);
+            onAction={async (evaluatorId) => {
+              onSelectionError(null);
+              try {
+                const evaluator = await fetchProjectEvaluatorDetails({
+                  environment,
+                  evaluatorId,
+                });
+                if (!isLlmProjectEvaluatorDetails(evaluator)) {
+                  throw new Error("Expected an LLM evaluator");
+                }
+                const result = buildCopyLlmCreationMode(evaluator);
+                if (!result.ok) {
+                  onSelectionError(UNSUPPORTED_PROMPT_TEMPLATE_ERROR);
+                  return;
+                }
+                onSelectCreationMode(result.mode);
+              } catch {
+                onSelectionError(
+                  "Unable to load evaluator details. Try again."
+                );
+              }
             }}
           />
         </MenuSection>
@@ -176,12 +202,22 @@ function AddProjectEvaluatorMenuItems({
             label="Attach existing code evaluator"
             icon={<Icons.Code />}
             evaluators={codeEvaluators}
-            onAction={(evaluatorId) => {
-              const evaluator = codeEvaluators.find(
-                ({ id }) => id === evaluatorId
-              );
-              if (!evaluator) return;
-              onSelectCreationMode(buildAttachCodeCreationMode(evaluator));
+            onAction={async (evaluatorId) => {
+              onSelectionError(null);
+              try {
+                const evaluator = await fetchProjectEvaluatorDetails({
+                  environment,
+                  evaluatorId,
+                });
+                if (!isCodeProjectEvaluatorDetails(evaluator)) {
+                  throw new Error("Expected a code evaluator");
+                }
+                onSelectCreationMode(buildAttachCodeCreationMode(evaluator));
+              } catch {
+                onSelectionError(
+                  "Unable to load evaluator details. Try again."
+                );
+              }
             }}
           />
         </MenuSection>
@@ -210,7 +246,7 @@ function EvaluatorSubmenu({
     name: string;
     description: string | null;
   }>;
-  onAction: (id: string) => void;
+  onAction: (id: string) => void | Promise<void>;
 } & Omit<SubmenuTriggerProps, "children">) {
   const hasEvaluators = evaluators.length > 0;
   return (

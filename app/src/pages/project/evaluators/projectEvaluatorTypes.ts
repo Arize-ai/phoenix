@@ -26,7 +26,7 @@ export type ProjectEvaluatorGraphQLTarget = "SPAN" | "TRACE" | "SESSION";
 export type ProjectEvaluatorScope = {
   targetType: ProjectEvaluatorTarget;
   filterCondition: string;
-  samplingRatePercent: number;
+  samplingRate: number;
 };
 
 export const isProjectEvaluatorTarget = (
@@ -82,11 +82,14 @@ const SIMPLE_MAPPING_PATH_PATTERN =
 export function getProjectEvaluatorMappingDiagnostics({
   context,
   pathMapping,
+  variables,
 }: {
   context: unknown;
   pathMapping: Record<string, string>;
+  variables: string[];
 }): ProjectEvaluatorMappingDiagnostic[] {
-  return Object.entries(pathMapping).map(([variable, path]) => {
+  return variables.map((variable) => {
+    const path = pathMapping[variable] ?? variable;
     if (!SIMPLE_MAPPING_PATH_PATTERN.test(path)) {
       return { variable, path, status: "unverified" };
     }

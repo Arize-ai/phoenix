@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<742cad1e9cc5466b877b9e70e6d2bc39>>
+ * @generated SignedSource<<0fe3db0edf55e4328fdc05ee01f2a9c5>>
  * @lightSyntaxTransform
  */
 
@@ -259,7 +259,6 @@ export type EvaluatorInputMappingInput = {
   pathMapping: any;
 };
 export type createProjectLlmEvaluatorMutation$variables = {
-  connectionIds: ReadonlyArray<string>;
   input: CreateProjectLLMEvaluatorInput;
 };
 export type createProjectLlmEvaluatorMutation$data = {
@@ -283,66 +282,63 @@ export type createProjectLlmEvaluatorMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connectionIds"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
+  }
+],
+v1 = [
   {
     "kind": "Variable",
     "name": "input",
     "variableName": "input"
   }
 ],
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v5 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "evaluationTarget",
   "storageKey": null
 },
-v6 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "filterCondition",
   "storageKey": null
 },
-v7 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "samplingRate",
   "storageKey": null
 },
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "enabled",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -351,17 +347,14 @@ v9 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "createProjectLlmEvaluatorMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "ProjectEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "createProjectLlmEvaluator",
@@ -375,12 +368,12 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
+              (v2/*:: as any*/),
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -389,7 +382,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v9/*:: as any*/)
+                  (v8/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -405,16 +398,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v0/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "createProjectLlmEvaluatorMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "ProjectEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "createProjectLlmEvaluator",
@@ -428,12 +418,12 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
+              (v2/*:: as any*/),
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -449,34 +439,13 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v9/*:: as any*/),
-                  (v3/*:: as any*/)
+                  (v8/*:: as any*/),
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "filters": null,
-            "handle": "appendNode",
-            "key": "",
-            "kind": "LinkedHandle",
-            "name": "evaluator",
-            "handleArgs": [
-              {
-                "kind": "Variable",
-                "name": "connections",
-                "variableName": "connectionIds"
-              },
-              {
-                "kind": "Literal",
-                "name": "edgeTypeName",
-                "value": "ProjectEvaluatorEdge"
-              }
-            ]
           }
         ],
         "storageKey": null
@@ -494,6 +463,6 @@ return {
 };
 })();
 
-(node as any).hash = "8cf7c19e863336008ff4bed5b9077cef";
+(node as any).hash = "5d7369d5e99bb173582ea52f4eb71273";
 
 export default node;

@@ -159,7 +159,7 @@ export const CodeEvaluatorTestSection = ({
           input: {
             previews: [
               {
-                context: evaluatorMappingSource,
+                context: evaluatorMappingSource.source,
                 evaluator: {
                   inlineCodeEvaluator: {
                     name: evaluatorName,

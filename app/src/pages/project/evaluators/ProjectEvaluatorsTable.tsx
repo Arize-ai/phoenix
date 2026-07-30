@@ -57,7 +57,6 @@ export function ProjectEvaluatorsTable({
       ) {
         evaluators(first: $first, after: $after)
           @connection(key: "ProjectEvaluatorsTable_evaluators") {
-          __id
           edges {
             node {
               ...ProjectEvaluatorsTable_row
@@ -68,8 +67,6 @@ export function ProjectEvaluatorsTable({
     `,
     project
   );
-  const connectionId = data.evaluators.__id;
-  const connectionIds = useMemo(() => [connectionId], [connectionId]);
   const tableData = useMemo(
     () => data.evaluators.edges.map(({ node }) => readRow(node)),
     [data.evaluators.edges]
@@ -117,14 +114,14 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => (
           <ProjectEvaluatorActionMenu
             projectEvaluatorId={row.original.id}
+            projectId={projectId}
             evaluatorKind={row.original.evaluator.kind}
             evaluatorName={row.original.name}
-            updateConnectionIds={connectionIds}
           />
         ),
       },
     ],
-    [connectionIds]
+    [projectId]
   );
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
@@ -161,10 +158,7 @@ export function ProjectEvaluatorsTable({
             ))}
           </thead>
           {rows.length === 0 ? (
-            <ProjectEvaluatorsEmptyGallery
-              projectId={projectId}
-              updateConnectionIds={connectionIds}
-            />
+            <ProjectEvaluatorsEmptyGallery projectId={projectId} />
           ) : (
             <tbody>
               {rows.map((row) => (

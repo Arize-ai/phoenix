@@ -15,7 +15,7 @@ export const ProjectEvaluatorFormSections = ({
 }: {
   definitionKind: "llm" | "code" | "newCode";
   codeEvaluatorName?: string;
-  /** Rendered in the definition section when `definitionKind` is `newCode`. */
+  /** Rendered in the definition section for an editable code evaluator. */
   codeDefinition?: ReactNode;
 }) => {
   return (
@@ -26,7 +26,7 @@ export const ProjectEvaluatorFormSections = ({
           <Text color="text-500" size="S">
             {definitionKind === "llm"
               ? "Define the evaluator that will run on matched spans."
-              : definitionKind === "newCode"
+              : codeDefinition
                 ? "Define your evaluator's source code and annotation output."
                 : "Attach the selected code evaluator to this project."}
           </Text>
@@ -39,7 +39,7 @@ export const ProjectEvaluatorFormSections = ({
               showAnnotationConfig={false}
             />
           </Flex>
-        ) : definitionKind === "newCode" ? (
+        ) : codeDefinition ? (
           codeDefinition
         ) : (
           <View

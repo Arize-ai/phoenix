@@ -9,7 +9,6 @@ import {
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useLocation, useNavigate, useParams } from "react-router";
-import { ConnectionHandler } from "relay-runtime";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -292,18 +291,7 @@ function ProjectPageContentBody({
             </TabList>
             {tab === "evaluators" ? (
               <div className="project-tab-bar__actions">
-                <AddProjectEvaluatorMenu
-                  size="S"
-                  projectId={projectId}
-                  updateConnectionIds={[
-                    // Must match the connection ProjectEvaluatorsTable
-                    // registers on mount.
-                    ConnectionHandler.getConnectionID(
-                      projectId,
-                      "ProjectEvaluatorsTable_evaluators"
-                    ),
-                  ]}
-                />
+                <AddProjectEvaluatorMenu size="S" projectId={projectId} />
               </div>
             ) : null}
           </div>

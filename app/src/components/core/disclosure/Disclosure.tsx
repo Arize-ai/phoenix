@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { CSSProperties, PropsWithChildren } from "react";
-import { useCallback, useRef } from "react";
 import {
   Button,
   Disclosure as AriaDisclosure,
@@ -76,28 +75,8 @@ export const DisclosurePanel = ({
   className,
   ...props
 }: DisclosurePanelProps) => {
-  // react-aria drives aria-hidden off the expanded state; mirror it as
-  // data-panel-open, which the panel styles read to detect a fully open panel.
-  const cleanupRef = useRef<(() => void) | null>(null);
-  const refCallback = useCallback((node: HTMLElement | null) => {
-    cleanupRef.current?.();
-    cleanupRef.current = null;
-    if (!node) return;
-    const syncOpenState = () => {
-      const isOpen = node.getAttribute("aria-hidden") !== "true";
-      node.toggleAttribute("data-panel-open", isOpen);
-    };
-    const handleTransitionEnd = (event: TransitionEvent) => {
-      if (event.propertyName === "height") syncOpenState();
-    };
-    node.addEventListener("transitionend", handleTransitionEnd);
-    syncOpenState();
-    cleanupRef.current = () =>
-      node.removeEventListener("transitionend", handleTransitionEnd);
-  }, []);
   return (
     <AriaDisclosurePanel
-      ref={refCallback}
       className={classNames("disclosure__panel", className)}
       {...props}
     />

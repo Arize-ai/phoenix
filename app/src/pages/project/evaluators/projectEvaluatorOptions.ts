@@ -1,16 +1,14 @@
-import { graphql } from "react-relay";
+import type { Environment } from "react-relay";
+import { fetchQuery, graphql } from "react-relay";
 
 import { extractCodeEvaluatorVariables } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
+import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
 import type { projectEvaluatorOptionsQuery$data } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
-import type { ProjectEvaluatorCreationMode } from "@phoenix/pages/project/evaluators/CreateLLMProjectEvaluatorSlideover";
-import { dropReferencePathMappings } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorCreationMode } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import { generateMessageId } from "@phoenix/store";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
-import type {
-  CodeEvaluatorLanguage,
-  EvaluatorInputMapping,
-} from "@phoenix/types";
+import type { CodeEvaluatorLanguage } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
 
@@ -24,91 +22,6 @@ export const projectEvaluatorOptionsQuery = graphql`
           name
           description
           kind
-          ... on LLMEvaluator {
-            outputConfigs {
-              __typename
-              ... on CategoricalAnnotationConfig {
-                name
-                optimizationDirection
-                values {
-                  label
-                  score
-                }
-              }
-              ... on ContinuousAnnotationConfig {
-                name
-                optimizationDirection
-                lowerBound
-                upperBound
-              }
-              ... on FreeformAnnotationConfig {
-                name
-                optimizationDirection
-                threshold
-                lowerBound
-                upperBound
-              }
-            }
-            promptVersion {
-              templateFormat
-              template {
-                __typename
-                ... on PromptChatTemplate {
-                  messages {
-                    ...promptUtils_promptMessages
-                  }
-                }
-                ... on PromptStringTemplate {
-                  template
-                }
-              }
-              tools {
-                tools {
-                  __typename
-                  ... on PromptToolFunction {
-                    function {
-                      parameters
-                    }
-                  }
-                  ... on PromptToolRaw {
-                    raw
-                  }
-                }
-              }
-            }
-          }
-          ... on CodeEvaluator {
-            sourceCode
-            language
-            inputMapping {
-              pathMapping
-              literalMapping
-            }
-            outputConfigs {
-              __typename
-              ... on CategoricalAnnotationConfig {
-                name
-                optimizationDirection
-                values {
-                  label
-                  score
-                }
-              }
-              ... on ContinuousAnnotationConfig {
-                name
-                optimizationDirection
-                lowerBound
-                upperBound
-              }
-              ... on FreeformAnnotationConfig {
-                name
-                optimizationDirection
-                threshold
-                lowerBound
-                upperBound
-              }
-            }
-          }
         }
       }
       pageInfo {
@@ -118,14 +31,180 @@ export const projectEvaluatorOptionsQuery = graphql`
   }
 `;
 
+const projectEvaluatorDetailsQueryNode = graphql`
+  query projectEvaluatorDetailsQuery($id: ID!) {
+    evaluator: node(id: $id) {
+      __typename
+      ... on Evaluator {
+        id
+        name
+        description
+        kind
+      }
+      ... on LLMEvaluator {
+        outputConfigs {
+          __typename
+          ... on CategoricalAnnotationConfig {
+            name
+            optimizationDirection
+            values {
+              label
+              score
+            }
+          }
+          ... on ContinuousAnnotationConfig {
+            name
+            optimizationDirection
+            lowerBound
+            upperBound
+          }
+          ... on FreeformAnnotationConfig {
+            name
+            optimizationDirection
+            threshold
+            lowerBound
+            upperBound
+          }
+        }
+        promptVersion {
+          templateFormat
+          template {
+            __typename
+            ... on PromptChatTemplate {
+              messages {
+                ...promptUtils_promptMessages
+              }
+            }
+            ... on PromptStringTemplate {
+              template
+            }
+          }
+          tools {
+            tools {
+              __typename
+              ... on PromptToolFunction {
+                function {
+                  parameters
+                }
+              }
+              ... on PromptToolRaw {
+                raw
+              }
+            }
+          }
+        }
+      }
+      ... on CodeEvaluator {
+        outputConfigs {
+          __typename
+          ... on CategoricalAnnotationConfig {
+            name
+            optimizationDirection
+            values {
+              label
+              score
+            }
+          }
+          ... on ContinuousAnnotationConfig {
+            name
+            optimizationDirection
+            lowerBound
+            upperBound
+          }
+          ... on FreeformAnnotationConfig {
+            name
+            optimizationDirection
+            threshold
+            lowerBound
+            upperBound
+          }
+        }
+        sourceCode
+        language
+      }
+    }
+  }
+`;
+
 export type ProjectEvaluatorOption =
   projectEvaluatorOptionsQuery$data["evaluators"]["edges"][number]["evaluator"];
 
+export type ProjectEvaluatorDetails = NonNullable<
+  projectEvaluatorDetailsQuery["response"]["evaluator"]
+>;
+type LlmProjectEvaluatorDetails = ProjectEvaluatorDetails & {
+  readonly __typename: "LLMEvaluator";
+  readonly id: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly outputConfigs: NonNullable<ProjectEvaluatorDetails["outputConfigs"]>;
+};
+type CodeProjectEvaluatorDetails = ProjectEvaluatorDetails & {
+  readonly __typename: "CodeEvaluator";
+  readonly id: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly language: NonNullable<ProjectEvaluatorDetails["language"]>;
+  readonly sourceCode: string;
+  readonly outputConfigs: NonNullable<ProjectEvaluatorDetails["outputConfigs"]>;
+};
+
+export function isLlmProjectEvaluatorDetails(
+  evaluator: ProjectEvaluatorDetails
+): evaluator is LlmProjectEvaluatorDetails {
+  return (
+    evaluator.__typename === "LLMEvaluator" &&
+    typeof evaluator.id === "string" &&
+    typeof evaluator.name === "string" &&
+    Array.isArray(evaluator.outputConfigs)
+  );
+}
+
+export function isCodeProjectEvaluatorDetails(
+  evaluator: ProjectEvaluatorDetails
+): evaluator is CodeProjectEvaluatorDetails {
+  return (
+    evaluator.__typename === "CodeEvaluator" &&
+    typeof evaluator.id === "string" &&
+    typeof evaluator.name === "string" &&
+    typeof evaluator.language === "string" &&
+    typeof evaluator.sourceCode === "string" &&
+    Array.isArray(evaluator.outputConfigs)
+  );
+}
+
+export async function fetchProjectEvaluatorDetails({
+  environment,
+  evaluatorId,
+}: {
+  environment: Environment;
+  evaluatorId: string;
+}): Promise<ProjectEvaluatorDetails> {
+  const data = await fetchQuery<projectEvaluatorDetailsQuery>(
+    environment,
+    projectEvaluatorDetailsQueryNode,
+    { id: evaluatorId }
+  ).toPromise();
+  if (!data?.evaluator) {
+    throw new Error("Evaluator details could not be loaded");
+  }
+  return data.evaluator;
+}
+
+export type BuildCopyLlmCreationModeResult =
+  | { ok: true; mode: ProjectEvaluatorCreationMode }
+  | { ok: false; reason: "unsupported-prompt-template" };
+
+export const UNSUPPORTED_PROMPT_TEMPLATE_ERROR =
+  "This evaluator uses an unsupported prompt template. Edit it to use a chat or string template, then try again.";
+
 export function buildCopyLlmCreationMode(
-  evaluator: ProjectEvaluatorOption
-): ProjectEvaluatorCreationMode | null {
+  evaluator: LlmProjectEvaluatorDetails
+): BuildCopyLlmCreationModeResult {
   const template = evaluator.promptVersion?.template;
-  if (!template) return null;
+  if (!template) {
+    return { ok: false, reason: "unsupported-prompt-template" };
+  }
   const defaultMessages =
     template.__typename === "PromptChatTemplate"
       ? convertPromptVersionMessagesToPlaygroundInstanceMessages({
@@ -140,24 +219,31 @@ export function buildCopyLlmCreationMode(
             },
           ]
         : null;
-  if (!defaultMessages) return null;
+  if (!defaultMessages) {
+    return { ok: false, reason: "unsupported-prompt-template" };
+  }
   return {
-    kind: "copy",
-    initialState: {
-      name: evaluator.name,
-      description: evaluator.description ?? "",
-      outputConfigs: convertOutputConfigs(evaluator.outputConfigs ?? []),
-      defaultMessages,
-      templateFormat: evaluator.promptVersion?.templateFormat ?? "MUSTACHE",
-      includeExplanation: inferIncludeExplanationFromPrompt(
-        evaluator.promptVersion?.tools
-      ),
+    ok: true,
+    mode: {
+      kind: "copy",
+      initialState: {
+        name: evaluator.name,
+        description: evaluator.description ?? "",
+        outputConfigs: convertProjectEvaluatorOutputConfigs(
+          evaluator.outputConfigs ?? []
+        ),
+        defaultMessages,
+        templateFormat: evaluator.promptVersion?.templateFormat ?? "MUSTACHE",
+        includeExplanation: inferIncludeExplanationFromPrompt(
+          evaluator.promptVersion?.tools
+        ),
+      },
     },
   };
 }
 
 export function buildAttachCodeCreationMode(
-  evaluator: ProjectEvaluatorOption
+  evaluator: CodeProjectEvaluatorDetails
 ): ProjectEvaluatorCreationMode {
   const variables = extractCodeEvaluatorVariables({
     language: evaluator.language as CodeEvaluatorLanguage,
@@ -168,75 +254,80 @@ export function buildAttachCodeCreationMode(
     evaluatorId: evaluator.id,
     name: evaluator.name,
     description: evaluator.description ?? "",
-    inputMapping: dropReferencePathMappings(
-      convertInputMapping(
-        evaluator.inputMapping ?? { pathMapping: {}, literalMapping: {} }
-      )
+    outputConfigs: convertProjectEvaluatorOutputConfigs(
+      evaluator.outputConfigs ?? []
     ),
-    outputConfigs: convertOutputConfigs(evaluator.outputConfigs ?? []),
     variables,
   };
 }
 
-function convertOutputConfigs(
+export function convertProjectEvaluatorOutputConfigs(
   configs: ReadonlyArray<unknown>
 ): AnnotationConfig[] {
-  const outputConfigs: AnnotationConfig[] = [];
-  for (const unknownConfig of configs) {
-    if (!isStringKeyedObject(unknownConfig)) continue;
+  return configs.map((unknownConfig) => {
+    if (!isStringKeyedObject(unknownConfig)) {
+      throw new Error("Evaluator output config must be an object");
+    }
     const config = unknownConfig;
-    const name = typeof config.name === "string" ? config.name : null;
+    if (typeof config.name !== "string") {
+      throw new Error("Evaluator output config must have a name");
+    }
+    const name = config.name;
     const optimizationDirection = getOptimizationDirection(
       config.optimizationDirection
     );
-    if (!name || !optimizationDirection) continue;
+    if (!optimizationDirection) {
+      throw new Error(
+        `Evaluator output config "${name}" has an unsupported optimization direction`
+      );
+    }
     if (
       config.__typename === "CategoricalAnnotationConfig" &&
       Array.isArray(config.values)
     ) {
-      outputConfigs.push({
+      return {
         name,
         optimizationDirection,
-        values: config.values.flatMap((unknownValue) => {
+        values: config.values.map((unknownValue) => {
           if (
             !isStringKeyedObject(unknownValue) ||
             typeof unknownValue.label !== "string"
           ) {
-            return [];
+            throw new Error(
+              `Categorical output config "${name}" has an invalid choice`
+            );
           }
-          return [
-            {
-              label: unknownValue.label,
-              score:
-                typeof unknownValue.score === "number"
-                  ? unknownValue.score
-                  : undefined,
-            },
-          ];
+          return {
+            label: unknownValue.label,
+            score:
+              typeof unknownValue.score === "number"
+                ? unknownValue.score
+                : undefined,
+          };
         }),
-      });
-      continue;
+      };
     }
     if (config.__typename === "ContinuousAnnotationConfig") {
-      outputConfigs.push({
+      return {
         name,
         optimizationDirection,
         lowerBound: getNullableNumber(config.lowerBound),
         upperBound: getNullableNumber(config.upperBound),
-      });
-      continue;
+      };
     }
     if (config.__typename === "FreeformAnnotationConfig") {
-      outputConfigs.push({
+      return {
         name,
         optimizationDirection,
         threshold: getNullableNumber(config.threshold),
         lowerBound: getNullableNumber(config.lowerBound),
         upperBound: getNullableNumber(config.upperBound),
-      });
+      };
     }
-  }
-  return outputConfigs;
+    throw new Error(
+      `Unsupported evaluator output config variant: ${String(config.__typename)}`
+    );
+  });
 }
 
 function getOptimizationDirection(
@@ -249,26 +340,4 @@ function getOptimizationDirection(
 
 function getNullableNumber(value: unknown): number | null {
   return typeof value === "number" ? value : null;
-}
-
-function convertInputMapping(inputMapping: {
-  pathMapping: unknown;
-  literalMapping: unknown;
-}): EvaluatorInputMapping {
-  const pathMapping = isStringKeyedObject(inputMapping.pathMapping)
-    ? Object.fromEntries(
-        Object.entries(inputMapping.pathMapping).filter(
-          (entry): entry is [string, string] => typeof entry[1] === "string"
-        )
-      )
-    : {};
-  const literalMapping = isStringKeyedObject(inputMapping.literalMapping)
-    ? Object.fromEntries(
-        Object.entries(inputMapping.literalMapping).filter(
-          (entry): entry is [string, boolean | string | number] =>
-            ["boolean", "string", "number"].includes(typeof entry[1])
-        )
-      )
-    : {};
-  return { pathMapping, literalMapping };
 }

@@ -1,5 +1,10 @@
-import { type ReactNode, useMemo, useState } from "react";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { type ReactNode, useState } from "react";
+import {
+  graphql,
+  useLazyLoadQuery,
+  useMutation,
+  useRelayEnvironment,
+} from "react-relay";
 
 import { Alert, Flex, LinkButton } from "@phoenix/components";
 import {
@@ -30,25 +35,24 @@ import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
   toProjectEvaluatorGraphQLTarget,
-  toProjectEvaluatorSamplingFraction,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
 export const CreateProjectCodeEvaluatorDialogContent = ({
   projectId,
   scope,
   onScopeChange,
-  updateConnectionIds,
   onSuccess,
 }: {
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
-  updateConnectionIds?: string[];
   onSuccess: () => void;
 }) => {
   const store = useEvaluatorStoreInstance();
+  const environment = useRelayEnvironment();
   const data = useLazyLoadQuery<CreateProjectCodeEvaluatorDialogContentQuery>(
     graphql`
       query CreateProjectCodeEvaluatorDialogContentQuery {
@@ -103,10 +107,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   >();
   const [isFilterValid, setIsFilterValid] = useState(true);
 
-  const variables = useMemo(
-    () => extractCodeEvaluatorVariables({ language, sourceCode }),
-    [language, sourceCode]
-  );
+  const variables = extractCodeEvaluatorVariables({ language, sourceCode });
 
   // A sandbox config is only valid for its own language.
   const selectedSandboxConfigId = sandboxConfigs.some(
@@ -120,14 +121,9 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     useMutation<CreateProjectCodeEvaluatorDialogContentMutation>(graphql`
       mutation CreateProjectCodeEvaluatorDialogContentMutation(
         $input: CreateProjectCodeEvaluatorInput!
-        $connectionIds: [ID!]!
       ) {
         createProjectCodeEvaluator(input: $input) {
-          evaluator
-            @appendNode(
-              connections: $connectionIds
-              edgeTypeName: "ProjectEvaluatorEdge"
-            ) {
+          evaluator {
             id
             name
             evaluationTarget
@@ -181,9 +177,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           language,
           sandboxConfigId: selectedSandboxConfigId,
           evaluatorInputMapping: state.evaluator.inputMapping,
-          samplingRate: toProjectEvaluatorSamplingFraction(
-            scope.samplingRatePercent
-          ),
+          samplingRate: scope.samplingRate,
           evaluationTarget: toProjectEvaluatorGraphQLTarget(scope.targetType),
           description: state.evaluator.description.trim() || null,
           outputConfigs: buildOutputConfigsInput(state.outputConfigs),
@@ -192,14 +186,21 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           filterCondition: scope.filterCondition,
           enabled: true,
         },
-        connectionIds: updateConnectionIds ?? [],
       },
       onCompleted: (_response, errors) => {
         if (errors?.length) {
           setError(errors.map(({ message }) => message).join("\n"));
           return;
         }
-        onSuccess();
+        void refetchProjectEvaluators({ environment, projectId })
+          .then(onSuccess)
+          .catch((refetchError: unknown) =>
+            setError(
+              refetchError instanceof Error
+                ? refetchError.message
+                : "Unable to refresh project evaluators"
+            )
+          );
       },
       onError: (mutationError) => setError(mutationError.message),
     });
@@ -258,6 +259,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
               onSandboxChange={setSandboxConfigId}
               sourceCode={sourceCode}
               onSourceCodeChange={setSourceCode}
+              onFieldChange={() => setValidationMessage(undefined)}
             />
           }
         />
@@ -279,7 +281,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   );
 };
 
-const CodeAuthoringFields = ({
+export const CodeAuthoringFields = ({
   language,
   onLanguageChange,
   sandboxConfigs,
@@ -287,6 +289,8 @@ const CodeAuthoringFields = ({
   onSandboxChange,
   sourceCode,
   onSourceCodeChange,
+  isLanguageDisabled = false,
+  onFieldChange,
 }: {
   language: CodeEvaluatorLanguage;
   onLanguageChange: (language: CodeEvaluatorLanguage) => void;
@@ -297,28 +301,40 @@ const CodeAuthoringFields = ({
   onSandboxChange: (sandboxConfigId: string | null) => void;
   sourceCode: string;
   onSourceCodeChange: (sourceCode: string) => void;
+  isLanguageDisabled?: boolean;
+  onFieldChange?: () => void;
 }): ReactNode => (
   <Flex direction="column" gap="size-200">
-    <EvaluatorNameAndDescriptionFields />
+    <EvaluatorNameAndDescriptionFields onValueChange={onFieldChange} />
     <Flex direction="row" gap="size-200" alignItems="start">
       <CodeEvaluatorLanguageField
         language={language}
-        onChange={onLanguageChange}
+        onChange={(nextLanguage) => {
+          onFieldChange?.();
+          onLanguageChange(nextLanguage);
+        }}
+        isDisabled={isLanguageDisabled}
         isRequired
       />
       <CodeEvaluatorSandboxField
         sandboxConfigs={sandboxConfigs}
         language={language}
         selectedSandboxConfigId={selectedSandboxConfigId}
-        onSelectionChange={onSandboxChange}
+        onSelectionChange={(sandboxConfigId) => {
+          onFieldChange?.();
+          onSandboxChange(sandboxConfigId);
+        }}
         isRequired
       />
     </Flex>
     <CodeEvaluatorSourceEditor
       language={language}
       sourceCode={sourceCode}
-      onChange={onSourceCodeChange}
+      onChange={(nextSourceCode) => {
+        onFieldChange?.();
+        onSourceCodeChange(nextSourceCode);
+      }}
     />
-    <CodeEvaluatorAnnotationSection />
+    <CodeEvaluatorAnnotationSection onChange={onFieldChange} />
   </Flex>
 );

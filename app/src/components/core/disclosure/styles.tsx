@@ -105,21 +105,4 @@ export const disclosureCSS = css`
       }
     }
   }
-
-  // react-aria drives the panel's pixel height through
-  // --disclosure-panel-height and switches it back to auto once the transition
-  // settles.
-  @media (prefers-reduced-motion: no-preference) {
-    .disclosure__panel {
-      height: var(--disclosure-panel-height, auto);
-      overflow: hidden;
-      transition: height 200ms ease-in-out;
-    }
-    .disclosure__panel[data-panel-open] {
-      overflow: visible;
-    }
-    &:not([data-expanded]) .disclosure__panel {
-      overflow: hidden;
-    }
-  }
 `;

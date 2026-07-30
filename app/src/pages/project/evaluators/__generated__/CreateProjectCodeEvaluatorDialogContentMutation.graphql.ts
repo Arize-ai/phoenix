@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<39906df732141204b08074d2ff6440a8>>
+ * @generated SignedSource<<21262d692fd155ee05133cb4b3115f6d>>
  * @lightSyntaxTransform
  */
 
@@ -70,7 +70,6 @@ export type FreeformAnnotationConfigInput = {
   upperBound?: number | null;
 };
 export type CreateProjectCodeEvaluatorDialogContentMutation$variables = {
-  connectionIds: ReadonlyArray<string>;
   input: CreateProjectCodeEvaluatorInput;
 };
 export type CreateProjectCodeEvaluatorDialogContentMutation$data = {
@@ -94,66 +93,63 @@ export type CreateProjectCodeEvaluatorDialogContentMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connectionIds"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
+  }
+],
+v1 = [
   {
     "kind": "Variable",
     "name": "input",
     "variableName": "input"
   }
 ],
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v5 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "evaluationTarget",
   "storageKey": null
 },
-v6 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "filterCondition",
   "storageKey": null
 },
-v7 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "samplingRate",
   "storageKey": null
 },
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "enabled",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -162,17 +158,14 @@ v9 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "CreateProjectCodeEvaluatorDialogContentMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "ProjectEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "createProjectCodeEvaluator",
@@ -186,12 +179,12 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
+              (v2/*:: as any*/),
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -200,7 +193,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v9/*:: as any*/)
+                  (v8/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -216,16 +209,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v0/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "CreateProjectCodeEvaluatorDialogContentMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "ProjectEvaluatorMutationPayload",
         "kind": "LinkedField",
         "name": "createProjectCodeEvaluator",
@@ -239,12 +229,12 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
+              (v2/*:: as any*/),
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -260,34 +250,13 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v9/*:: as any*/),
-                  (v3/*:: as any*/)
+                  (v8/*:: as any*/),
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "filters": null,
-            "handle": "appendNode",
-            "key": "",
-            "kind": "LinkedHandle",
-            "name": "evaluator",
-            "handleArgs": [
-              {
-                "kind": "Variable",
-                "name": "connections",
-                "variableName": "connectionIds"
-              },
-              {
-                "kind": "Literal",
-                "name": "edgeTypeName",
-                "value": "ProjectEvaluatorEdge"
-              }
-            ]
           }
         ],
         "storageKey": null
@@ -305,6 +274,6 @@ return {
 };
 })();
 
-(node as any).hash = "dc5f0debdee379a7613d6b7887f14ee9";
+(node as any).hash = "151fc3d357207b482ca2e3c1deb1245d";
 
 export default node;

@@ -13,12 +13,15 @@ export function useEvaluatorFormDirtyCheck({
   registerDirtyCheck,
   scope,
   playgroundStore,
+  localState,
   alwaysDirty = false,
 }: {
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
   scope: unknown;
   /** Pass when the form edits a prompt template (LLM evaluators). */
   playgroundStore?: PlaygroundStore;
+  /** Additional form state held outside the evaluator and playground stores. */
+  localState?: unknown;
   /**
    * For forms whose content lives in local state this hook cannot observe
    * (e.g. the code source editor).
@@ -28,6 +31,8 @@ export function useEvaluatorFormDirtyCheck({
   const storeRef = useRef<EvaluatorStoreInstance | null>(null);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
+  const localStateRef = useRef(localState);
+  localStateRef.current = localState;
   const baselineRef = useRef<string | null>(null);
   useEffect(() => {
     const getSnapshot = () => {
@@ -37,6 +42,7 @@ export function useEvaluatorFormDirtyCheck({
         outputConfigs: storeState?.outputConfigs,
         template: playgroundStore?.getState().instances[0]?.template,
         scope: scopeRef.current,
+        localState: localStateRef.current,
       });
     };
     baselineRef.current = getSnapshot();

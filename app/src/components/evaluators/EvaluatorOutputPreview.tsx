@@ -130,7 +130,7 @@ export const EvaluatorOutputPreview = () => {
           input: {
             previews: [
               {
-                context: state.evaluatorMappingSource,
+                context: state.evaluatorMappingSource.source,
                 evaluator: params,
                 inputMapping: state.evaluator.inputMapping,
               },
