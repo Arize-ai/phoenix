@@ -12,7 +12,6 @@ import { createPortal } from "react-dom";
 import { Group, Panel } from "react-resizable-panels";
 
 import {
-  Button,
   DialogCloseButton,
   ErrorBoundary,
   Icon,
@@ -316,17 +315,6 @@ const detailsPanelMainColumnCSS = css`
   min-height: 0;
 `;
 
-const detailsPanelMainControlsRowCSS = css`
-  box-sizing: border-box;
-  display: flex;
-  flex: none;
-  align-items: center;
-  width: 100%;
-  padding: var(--global-dimension-size-100);
-  border-bottom: var(--global-border-size-thin) solid
-    var(--global-border-color-default);
-`;
-
 export function DetailsPanelNavigationControlsRow({
   children,
   isCollapsed,
@@ -468,17 +456,6 @@ export function DetailsPanel({
             maxSize={SPAN_DETAILS_MAX_WIDTH_PIXELS}
             css={detailsPanelMainColumnCSS}
           >
-            <div
-              className="details-panel-main-controls"
-              css={detailsPanelMainControlsRowCSS}
-            >
-              <Button
-                size="S"
-                variant="quiet"
-                aria-label="Add comparison"
-                leadingVisual={<Icon svg={<Icons.Plus />} />}
-              />
-            </div>
             <div
               ref={mainHostRef}
               css={detailsPanelSlotHostCSS}

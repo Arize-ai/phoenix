@@ -185,7 +185,7 @@ describe("SessionViewTabs", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders a resizable details panel in the mounted document", () => {
+  it("renders a resizable details panel without a main controls bar", () => {
     expect(() => {
       act(() => {
         root.render(
@@ -219,14 +219,8 @@ describe("SessionViewTabs", () => {
 
     const group = container.querySelector("[data-group]");
     expect(group?.ownerDocument.defaultView).toBe(window);
-    const addComparisonButton = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Add comparison"]'
-    );
-    expect(addComparisonButton).not.toBeNull();
-    expect(
-      addComparisonButton?.closest(".details-panel-main-controls")
-    ).not.toBeNull();
-    expect(addComparisonButton?.getAttribute("data-variant")).toBe("quiet");
+    expect(container.querySelector(".details-panel-main-controls")).toBeNull();
+    expect(container.querySelector('[aria-label="Add comparison"]')).toBeNull();
   });
 
   it("allows collapsed navigation to overlay the main panel through portal hosts", () => {
