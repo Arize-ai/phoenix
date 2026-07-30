@@ -25,7 +25,6 @@ import {
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
-import { useSearchParams } from "react-router";
 import type { GraphQLSubscriptionConfig } from "relay-runtime";
 import { requestSubscription } from "relay-runtime";
 
@@ -77,6 +76,7 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import {
   assertUnreachable,
   isStringArray,

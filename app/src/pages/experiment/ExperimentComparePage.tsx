@@ -13,7 +13,7 @@ import {
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
@@ -27,6 +27,7 @@ import {
   ExperimentCompareViewModeToggle,
   isExperimentCompareViewMode,
 } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import type { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import type { ExperimentComparePageQueriesCompareMetricsQuery as ExperimentComparePageQueriesCompareMetricsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareMetricsQuery.graphql";

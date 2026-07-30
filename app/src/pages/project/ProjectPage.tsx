@@ -10,13 +10,7 @@ import {
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
-import {
-  Outlet,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router";
+import { Outlet, useLocation, useNavigate, useParams } from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -25,7 +19,6 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
-import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
@@ -45,6 +38,10 @@ import {
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
+import {
+  readSpanFilterFromHash,
+  useWriteSpanFilterToHash,
+} from "./spanFilterUrlState";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -134,11 +131,7 @@ export function ProjectPageContent({
 
 /** Whether the URL already carries this condition. */
 function urlAlreadyHasCondition(condition: string): boolean {
-  return (
-    new URLSearchParams(window.location.search).get(
-      SPAN_FILTER_CONDITION_PARAM
-    ) === condition
-  );
+  return readSpanFilterFromHash(window.location.hash) === condition;
 }
 
 /**
@@ -150,9 +143,7 @@ function urlAlreadyHasCondition(condition: string): boolean {
  */
 function settledSeedFromUrl(fallback: string): SettledSpanFilterSeed | null {
   const seed = spanFilterSeed(
-    new URLSearchParams(window.location.search).get(
-      SPAN_FILTER_CONDITION_PARAM
-    ) ?? fallback
+    readSpanFilterFromHash(window.location.hash) ?? fallback
   );
   return seed.requiresServerValidation ? null : seed;
 }
@@ -210,15 +201,8 @@ function ProjectPageContentBody({
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  // React Router recreates this setter on every location change. The resolvers
-  // below are handed to the filter field, whose validation effect keys on their
-  // identity -- depending on the setter directly would revalidate on every URL
-  // write, and each pass would load and dispose another query.
-  const setSearchParamsRef = useRef(setSearchParams);
-  useEffect(() => {
-    setSearchParamsRef.current = setSearchParams;
-  }, [setSearchParams]);
+
+  const writeSpanFilterToUrl = useWriteSpanFilterToHash();
   // Read at load time rather than depended on, so a live window sliding
   // forward does not reload the preload -- see the note on the tab loader.
   const timeRangeRef = useRef(timeRangeISOStrings);
@@ -241,17 +225,10 @@ function ProjectPageContentBody({
         setSpansFilterSeed(seed);
         // Before the new condition re-keys `SpanFiltersProvider` and it re-reads
         // the URL, or a condition typed while waiting loses to the stale one
-        // still in the address bar. Written even when empty: an absent param
+        // still in the address bar. Written even when empty: an absent entry
         // seeds the default, an empty one means deliberately cleared.
         if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
-          setSearchParamsRef.current(
-            (prev) => {
-              const next = new URLSearchParams(prev);
-              next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
-              return next;
-            },
-            { replace: true }
-          );
+          writeSpanFilterToUrl(seed.condition);
         }
         loadSpansQuery({
           id: projectId,
@@ -261,7 +238,7 @@ function ProjectPageContentBody({
         });
       });
     },
-    [projectId, loadSpansQuery]
+    [projectId, loadSpansQuery, writeSpanFilterToUrl]
   );
 
   // Load the preloaded query backing the active tab's table. The time range is
@@ -277,14 +254,7 @@ function ProjectPageContentBody({
       startTransition(() => {
         setTracesFilterSeed(seed);
         if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
-          setSearchParamsRef.current(
-            (prev) => {
-              const next = new URLSearchParams(prev);
-              next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
-              return next;
-            },
-            { replace: true }
-          );
+          writeSpanFilterToUrl(seed.condition);
         }
         loadTracesQuery({
           id: projectId,
@@ -293,7 +263,7 @@ function ProjectPageContentBody({
         });
       });
     },
-    [projectId, loadTracesQuery]
+    [projectId, loadTracesQuery, writeSpanFilterToUrl]
   );
 
   const loadTableQueryForTab = useEffectEvent(
@@ -304,7 +274,7 @@ function ProjectPageContentBody({
         // mounts on its own while this stays null. Nothing is fetched until
         // the condition is known good.
         const seed = spanFilterSeed(
-          searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
+          readSpanFilterFromHash(window.location.hash) ??
             DEFAULT_SPAN_FILTER_CONDITION
         );
         // Returning to a tab whose rows already answer this condition is not a
@@ -323,7 +293,7 @@ function ProjectPageContentBody({
         }
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
         const seed = spanFilterSeed(
-          searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? ""
+          readSpanFilterFromHash(window.location.hash) ?? ""
         );
         if (
           tracesQueryReference &&

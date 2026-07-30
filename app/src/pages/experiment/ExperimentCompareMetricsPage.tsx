@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, useFragment, usePreloadedQuery } from "react-relay";
-import { useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -19,6 +18,7 @@ import {
 import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { useTheme } from "@phoenix/contexts";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import { ExperimentComparePageQueriesCompareMetricsQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 import {

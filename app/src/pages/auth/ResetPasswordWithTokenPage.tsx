@@ -1,6 +1,7 @@
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
 
 import { Flex, Link, View } from "@phoenix/components";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 
 import { AuthLayout } from "./AuthLayout";
 import { PhoenixLogo } from "./PhoenixLogo";

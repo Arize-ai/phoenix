@@ -6,7 +6,6 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { useSearchParams } from "react-router";
 
 import {
   SET_TIME_RANGE_TOOL_NAME,
@@ -14,6 +13,7 @@ import {
 } from "@phoenix/agent/tools/timeRange";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import type { OpenTimeRangeWithKey } from "./types";

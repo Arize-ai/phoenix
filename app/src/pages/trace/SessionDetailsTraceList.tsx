@@ -14,7 +14,7 @@ import {
   useDefaultLayout,
 } from "react-resizable-panels";
 import type { To } from "react-router";
-import { useLocation, useSearchParams } from "react-router";
+import { useLocation } from "react-router";
 
 import {
   Flex,
@@ -49,6 +49,7 @@ import {
 } from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import type {
   SessionDetailsTraceList_traces$data,
   SessionDetailsTraceList_traces$key,

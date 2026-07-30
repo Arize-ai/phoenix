@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { useMatches, useSearchParams } from "react-router";
+import { useMatches } from "react-router";
 
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 
 import { deriveRouteContexts } from "./deriveRouteContexts";
 

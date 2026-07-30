@@ -30,7 +30,6 @@ import {
   usePaginationFragment,
   usePreloadedQuery,
 } from "react-relay";
-import { useSearchParams } from "react-router";
 
 import {
   ColorSwatch,
@@ -60,6 +59,7 @@ import {
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";

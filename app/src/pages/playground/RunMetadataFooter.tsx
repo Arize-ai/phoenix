@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { useLazyLoadQuery } from "react-relay";
-import { useSearchParams } from "react-router";
 import { graphql } from "relay-runtime";
 
 import {
@@ -19,6 +18,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 
 import type { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";

@@ -8,17 +8,20 @@ import {
   useEffectEvent,
   useState,
 } from "react";
-import { useSearchParams } from "react-router";
+import { useLocation } from "react-router";
 
 import {
   SET_SPANS_FILTER_TOOL_NAME,
   type SetSpansFilterInput,
 } from "@phoenix/agent/tools/spansFilter";
-import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
+import {
+  readSpanFilterFromHash,
+  useSpanFilterFromHash,
+} from "./spanFilterUrlState";
 import { validateSpanFilterCondition } from "./spanFilterValidation";
 
 /**
@@ -56,10 +59,9 @@ export function useSpanFilters() {
  * navigation still updates its controlled editor.
  */
 export function useInitialSpanFilterCondition(fallbackFilterCondition = "") {
-  const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
   const [initialCondition] = useState<string>(() => {
-    const condition =
-      searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? fallbackFilterCondition;
+    const condition = readSpanFilterFromHash(hash) ?? fallbackFilterCondition;
     return condition.trim() === "" ? "" : condition;
   });
   return initialCondition;
@@ -77,16 +79,13 @@ export function SpanFiltersProvider(
 ) {
   // Writes back to the URL happen where the state is applied (SpansTable), so
   // only valid conditions are persisted.
-  const [searchParams] = useSearchParams();
+  const hashCondition = useSpanFilterFromHash();
   const initialUrlCondition = useInitialSpanFilterCondition(
     props.fallbackFilterCondition
   );
   const [filterCondition, _setFilterCondition] =
     useState<string>(initialUrlCondition);
-  const rawUrlCondition =
-    searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
-    props.fallbackFilterCondition ??
-    "";
+  const rawUrlCondition = hashCondition ?? props.fallbackFilterCondition ?? "";
   const urlCondition = rawUrlCondition.trim() === "" ? "" : rawUrlCondition;
 
   // Follow navigation that explicitly changes the filter while leaving

@@ -5,7 +5,6 @@ import type {
 } from "react-aria-components";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
-import { useSearchParams } from "react-router";
 import z from "zod";
 
 import type { ButtonProps } from "@phoenix/components/core/button";
@@ -33,6 +32,7 @@ import {
   CREATE_CODE_EVALUATOR_PARAM,
   CREATE_LLM_EVALUATOR_PARAM,
 } from "@phoenix/constants/searchParams";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 
 export const AddEvaluatorMenu = ({
   size,

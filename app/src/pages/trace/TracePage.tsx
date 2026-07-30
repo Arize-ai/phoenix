@@ -1,10 +1,5 @@
 import { Suspense } from "react";
-import {
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 import {
   Dialog,
@@ -25,6 +20,7 @@ import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaul
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
 import { withSearchParams } from "@phoenix/utils/urlUtils";
 

@@ -1,6 +1,5 @@
 import type { Completion } from "@codemirror/autocomplete";
 import { useMemo } from "react";
-import { useSearchParams } from "react-router";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import {
@@ -8,6 +7,7 @@ import {
   DSLFilterConditionField,
   type DSLFilterSnippet,
 } from "@phoenix/components/filter";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import environment from "@phoenix/RelayEnvironment";
 
 import type { ExperimentRunFilterConditionFieldCompletionsQuery } from "./__generated__/ExperimentRunFilterConditionFieldCompletionsQuery.graphql";

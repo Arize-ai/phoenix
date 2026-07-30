@@ -21,7 +21,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import {
   ContextualHelp,
@@ -47,6 +47,7 @@ import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";

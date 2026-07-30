@@ -43,7 +43,7 @@ describe("useInitialSpanFilterCondition", () => {
   it("normalizes a whitespace-only URL condition to empty", async () => {
     await act(async () => {
       root.render(
-        <MemoryRouter initialEntries={["/spans?spanFilterCondition=%20%20%20"]}>
+        <MemoryRouter initialEntries={["/spans#spanFilterCondition=%20%20%20"]}>
           <InitialConditionReader />
         </MemoryRouter>
       );
@@ -81,7 +81,7 @@ describe("SpanFiltersProvider URL seeding", () => {
   }
 
   it("seeds from the URL by default", async () => {
-    await renderAt("/spans?spanFilterCondition=span_kind%20%3D%3D%20'LLM'");
+    await renderAt("/spans#spanFilterCondition=span_kind%20%3D%3D%20'LLM'");
 
     expect(container.textContent).toBe("span_kind == 'LLM'");
   });

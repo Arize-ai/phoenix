@@ -14,7 +14,6 @@ import {
   type PanelImperativeHandle,
   Separator,
 } from "react-resizable-panels";
-import { useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -34,6 +33,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionAnnotationsEditor } from "@phoenix/components/trace/SessionAnnotationsEditor";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { costFormatter } from "../../utils/numberFormatUtils";

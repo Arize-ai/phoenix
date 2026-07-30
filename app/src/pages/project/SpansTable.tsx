@@ -17,7 +17,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import {
   Flex,
@@ -63,12 +63,10 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import {
-  SELECTED_SPAN_NODE_ID_PARAM,
-  SPAN_FILTER_CONDITION_PARAM,
-} from "@phoenix/constants/searchParams";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -97,6 +95,7 @@ import {
   createSpanFilterSeedLoadState,
   spanFilterSeedLoadReducer,
 } from "./spanFilterSeedLoadState";
+import { useWriteSpanFilterToHash } from "./spanFilterUrlState";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { SpansTableAside } from "./SpansTableAside";
@@ -202,7 +201,7 @@ export const MemoizedTableBody = React.memo(
 ) as typeof TableBody;
 
 export function SpansTable(props: SpansTableProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -223,30 +222,8 @@ export function SpansTable(props: SpansTableProps) {
   const nextRequestIdRef = useRef(0);
 
   // Persist the applied filter to the URL. Written only from the change
-  // handler, so in-progress edits and render churn never touch the URL; other
-  // params (e.g. the selected span) are preserved.
-  // React Router 8.2 recreates this setter whenever location.search changes.
-  // Keep the latest one behind a stable callback so unrelated param changes
-  // do not flow into the field's validation effect and revalidate its value.
-  const setSearchParamsRef = useRef(setSearchParams);
-  useEffect(() => {
-    setSearchParamsRef.current = setSearchParams;
-  }, [setSearchParams]);
-  const writeFilterConditionParam = useCallback((condition: string) => {
-    setSearchParamsRef.current(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        // Written even when empty. An absent param means "no filter was
-        // applied here", which seeds the default; an empty one means the
-        // filter was deliberately cleared. Deleting it instead would make
-        // those two indistinguishable, so clearing the filter would not
-        // survive a reload -- the default would come back.
-        next.set(SPAN_FILTER_CONDITION_PARAM, condition);
-        return next;
-      },
-      { replace: true }
-    );
-  }, []);
+  // handler, so in-progress edits and render churn never touch the URL.
+  const writeFilterConditionToUrl = useWriteSpanFilterToHash();
   const handleValidFilterCondition = useCallback(
     ({ condition, selectsRootSpansOnly }: SpanFilterValidConditionArgs) => {
       dispatchSeedLoad({
@@ -254,9 +231,9 @@ export function SpansTable(props: SpansTableProps) {
         condition,
         rootSpansOnly: selectsRootSpansOnly,
       });
-      writeFilterConditionParam(condition);
+      writeFilterConditionToUrl(condition);
     },
-    [writeFilterConditionParam]
+    [writeFilterConditionToUrl]
   );
 
   // Source the time range directly here (rather than only via the preloaded

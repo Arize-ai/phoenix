@@ -1,9 +1,10 @@
 import { Suspense, useMemo } from "react";
 import type { PreloadedQuery } from "react-relay";
-import { useParams, useSearchParams } from "react-router";
+import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Loading } from "@phoenix/components";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import type { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
 
 import { ExperimentCompareTable } from "./ExperimentCompareTable";

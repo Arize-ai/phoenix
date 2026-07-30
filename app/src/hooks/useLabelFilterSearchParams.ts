@@ -1,8 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router";
 
 import { LABEL_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 
 /**
  * Backs a label-id filter selection with the URL search params so the filter is

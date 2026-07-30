@@ -1,8 +1,7 @@
-import { useSearchParams } from "react-router";
-
 import { Drawer } from "@phoenix/components";
 import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 
 import { ExampleDetailsDialog } from "../example/ExampleDetailsDialog";
 

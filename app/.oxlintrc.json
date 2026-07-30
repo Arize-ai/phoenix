@@ -35,6 +35,11 @@
             "name": "react",
             "importNames": ["forwardRef"],
             "message": "Use ref as a prop instead (React 19). See https://react.dev/blog/2024/12/05/react-19#ref-as-a-prop"
+          },
+          {
+            "name": "react-router",
+            "importNames": ["useSearchParams"],
+            "message": "Import useSearchParams from @phoenix/hooks/useSearchParams. React Router's setter drops the URL fragment, which silently erases state kept there (the span filter condition)."
           }
         ]
       }
@@ -55,6 +60,13 @@
 
   // TODO: Enable jsx-a11y globally after the remaining app violations are addressed.
   "overrides": [
+    {
+      // The wrapper is the one place allowed to reach the raw hook.
+      "files": ["src/hooks/useSearchParams.ts"],
+      "rules": {
+        "eslint/no-restricted-imports": "off"
+      }
+    },
     {
       "files": ["stories/**/*.stories.tsx"],
       "plugins": ["react", "typescript", "jsx-a11y"]

@@ -1,9 +1,9 @@
 import { css } from "@emotion/react";
-import { useSearchParams } from "react-router";
 
 import { Button, Icon, Icons } from "@phoenix/components";
 import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 
 /**
  * This is to keep the height of the picker and the button the same

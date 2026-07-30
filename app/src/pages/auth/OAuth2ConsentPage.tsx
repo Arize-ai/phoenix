@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { useSearchParams } from "react-router";
 
 import { Alert, Flex, LinkButton, View } from "@phoenix/components";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { OAuth2ConsentPageQuery } from "./__generated__/OAuth2ConsentPageQuery.graphql";

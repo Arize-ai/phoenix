@@ -25,7 +25,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import {
   Flex,
@@ -72,9 +72,9 @@ import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
-import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -96,6 +96,7 @@ import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
+import { useWriteSpanFilterToHash } from "./spanFilterUrlState";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
@@ -237,24 +238,9 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   // Persist an applied filter so the tab is shareable, as the spans tab is.
-  // React Router recreates this setter whenever the search string changes, so
-  // keep the latest behind a stable callback.
-  const setSearchParamsRef = useRef(setSearchParams);
-  useEffect(() => {
-    setSearchParamsRef.current = setSearchParams;
-  }, [setSearchParams]);
-  const writeFilterConditionParam = useCallback((condition: string) => {
-    setSearchParamsRef.current(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set(SPAN_FILTER_CONDITION_PARAM, condition);
-        return next;
-      },
-      { replace: true }
-    );
-  }, []);
+  const writeFilterConditionToUrl = useWriteSpanFilterToHash();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
@@ -1106,7 +1092,7 @@ export function TracesTable(props: TracesTableProps) {
             <SpanFilterConditionField
               onValidCondition={({ condition }) => {
                 setFilterCondition(condition);
-                writeFilterConditionParam(condition);
+                writeFilterConditionToUrl(condition);
               }}
             />
             <TableMetricsChartSelector view="traces" />

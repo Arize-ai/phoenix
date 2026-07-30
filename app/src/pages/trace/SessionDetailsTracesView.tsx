@@ -21,7 +21,6 @@ import {
   Separator,
   useDefaultLayout,
 } from "react-resizable-panels";
-import { useSearchParams } from "react-router";
 
 import {
   DisclosureArrow,
@@ -48,6 +47,7 @@ import {
   SELECTED_TRACE_ID_PARAM,
 } from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import type {
   SessionDetailsTracesView_traces$data,
   SessionDetailsTracesView_traces$key,

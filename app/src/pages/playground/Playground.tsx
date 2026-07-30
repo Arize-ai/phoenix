@@ -12,7 +12,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { Group, useDefaultLayout } from "react-resizable-panels";
 import type { BlockerFunction } from "react-router";
-import { useBlocker, useSearchParams } from "react-router";
+import { useBlocker } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
@@ -109,6 +109,7 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import { ConfirmExperimentNavigationDialog } from "@phoenix/pages/playground/ConfirmExperimentNavigationDialog";
 import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
 import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";

@@ -17,7 +17,6 @@ import React, {
 } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
-import { useSearchParams } from "react-router";
 
 import {
   Alert,
@@ -53,6 +52,7 @@ import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentA
 import { CellTop, PaddedCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";

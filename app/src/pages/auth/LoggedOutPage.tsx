@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
-import { useSearchParams } from "react-router";
 
 import { Alert, Flex, LinkButton, View } from "@phoenix/components";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 
 import { getAuthErrorMessage } from "./authErrors";
 import { AuthLayout } from "./AuthLayout";

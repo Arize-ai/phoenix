@@ -9,7 +9,6 @@ import {
   Separator,
   useDefaultLayout,
 } from "react-resizable-panels";
-import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -32,6 +31,7 @@ import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useSearchParams } from "@phoenix/hooks/useSearchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
