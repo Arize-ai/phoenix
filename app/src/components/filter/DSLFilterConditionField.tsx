@@ -18,6 +18,7 @@ import CodeMirror, {
 import {
   startTransition,
   useEffect,
+  useEffectEvent,
   useId,
   useMemo,
   useRef,
@@ -373,6 +374,24 @@ export function DSLFilterConditionField<
     }
   }, [hasError, errorId]);
 
+  // Held as effect events so the validation effect below does not depend on
+  // their identity. A caller passing an inline arrow would otherwise revalidate
+  // on each of its renders, and a caller whose callback writes the URL would
+  // re-enter itself. Neither should be a consumer's problem to avoid.
+  const reportValidCondition = useEffectEvent(
+    (args: DSLFilterValidConditionArgs<TValidationResult>) => {
+      onValidCondition(args);
+    }
+  );
+  const reportValidationFailed = useEffectEvent(
+    (reason: DSLFilterValidationFailureReason) => {
+      onValidationFailed?.(reason);
+    }
+  );
+  const reportValidationState = useEffectEvent((isValid: boolean) => {
+    onValidationStateChange?.(isValid);
+  });
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -387,14 +406,14 @@ export function DSLFilterConditionField<
       // An empty mount is a settled field, so the next value is a typed one
       // and takes the debounce.
       hasSettled.current = true;
-      onValidationStateChange?.(true);
+      reportValidationState(true);
       startTransition(() => {
-        onValidCondition({ condition: "", validationResult: null });
+        reportValidCondition({ condition: "", validationResult: null });
       });
       return undefined;
     }
 
-    onValidationStateChange?.(false);
+    reportValidationState(false);
 
     // Debounce so intermediate keystrokes neither hit the server nor flash
     // the field red while a valid expression is being typed. A non-empty value
@@ -416,13 +435,16 @@ export function DSLFilterConditionField<
 
           if (!result?.isValid) {
             setErrorMessage(result?.errorMessage ?? "");
-            onValidationStateChange?.(false);
-            onValidationFailed?.("invalid");
+            reportValidationState(false);
+            reportValidationFailed("invalid");
           } else {
             setErrorMessage(null);
-            onValidationStateChange?.(true);
+            reportValidationState(true);
             startTransition(() => {
-              onValidCondition({ condition: value, validationResult: result });
+              reportValidCondition({
+                condition: value,
+                validationResult: result,
+              });
             });
           }
         })
@@ -434,8 +456,8 @@ export function DSLFilterConditionField<
           // rather than leaving a normal-looking field whose filter is
           // silently never applied
           setErrorMessage("The condition could not be validated");
-          onValidationStateChange?.(false);
-          onValidationFailed?.("transport");
+          reportValidationState(false);
+          reportValidationFailed("transport");
         });
     }, delay);
 
@@ -443,14 +465,7 @@ export function DSLFilterConditionField<
       isCancelled = true;
       clearTimeout(timeout);
     };
-  }, [
-    value,
-    validateCondition,
-    onValidCondition,
-    onValidationFailed,
-    validationRetryKey,
-    onValidationStateChange,
-  ]);
+  }, [value, validateCondition, validationRetryKey]);
 
   return (
     <div
