@@ -59,6 +59,14 @@ describe("AnnotationLabel", () => {
       );
     });
 
-    expect(container.textContent).toBe("quality");
+    const annotationLabel = container.querySelector<HTMLElement>(
+      '[aria-label="Annotation: quality"]'
+    );
+
+    expect(annotationLabel?.textContent).toBe("quality");
+    expect(annotationLabel?.getAttribute("data-has-value")).toBe("false");
+    expect(getComputedStyle(annotationLabel!).paddingRight).toBe(
+      "var(--global-dimension-size-100)"
+    );
   });
 });

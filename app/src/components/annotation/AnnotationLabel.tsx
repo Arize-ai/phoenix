@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import { Children } from "react";
 import type { PropsWithChildren, Ref } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
@@ -12,6 +13,9 @@ export const baseAnnotationLabelCSS = css`
   border: 1px solid var(--global-border-color-default);
   padding: var(--global-dimension-size-50) var(--global-dimension-size-50)
     var(--global-dimension-size-50) var(--global-dimension-size-100);
+  &[data-has-value="false"] {
+    padding-right: var(--global-dimension-size-100);
+  }
   transition: background-color 0.2s;
   display: flex;
   flex-direction: row;
@@ -106,6 +110,9 @@ export function AnnotationLabel({
   ref?: Ref<HTMLButtonElement>;
 }>) {
   const clickable = _clickable ?? typeof onClick == "function";
+  const hasValue =
+    variant === "default" &&
+    (annotationDisplayPreference !== "none" || Children.count(children) > 0);
   const content = (
     <>
       {variant === "ghost" ? (
@@ -132,6 +139,7 @@ export function AnnotationLabel({
         ref={ref}
         type="button"
         data-clickable="true"
+        data-has-value={hasValue}
         data-variant={variant}
         className={className}
         css={css(baseAnnotationLabelCSS)}
@@ -150,6 +158,7 @@ export function AnnotationLabel({
   return (
     <div
       data-clickable={clickable}
+      data-has-value={hasValue}
       data-variant={variant}
       className={className}
       css={css(baseAnnotationLabelCSS)}
