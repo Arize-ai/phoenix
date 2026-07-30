@@ -12,6 +12,46 @@ from sqlalchemy.sql.roles import InElementRole
 from phoenix.utilities import hour_of_week
 
 
+async def _delete_matching_traces(
+    session: AsyncSession,
+    project_rowids: Union[Iterable[int], InElementRole],
+    trace_filter: sa.ColumnElement[bool],
+) -> None:
+    from phoenix.db.models import EvalSessionWorkUnit, ProjectSession, Trace
+
+    candidate_trace_ids = (
+        sa.select(Trace.id).where(Trace.project_rowid.in_(project_rowids)).where(trace_filter)
+    )
+    affected_session_ids = (
+        sa.select(Trace.project_session_rowid)
+        .where(
+            Trace.id.in_(candidate_trace_ids),
+            Trace.project_session_rowid.is_not(None),
+        )
+        .distinct()
+    )
+    await session.execute(
+        sa.update(ProjectSession)
+        .where(ProjectSession.id.in_(affected_session_ids))
+        .values(content_complete=False)
+    )
+    await session.execute(
+        sa.update(EvalSessionWorkUnit)
+        .where(
+            EvalSessionWorkUnit.project_session_rowid.in_(affected_session_ids),
+            EvalSessionWorkUnit.status.in_(("PENDING", "RUNNING", "ERROR")),
+        )
+        .values(
+            status="EXPIRED",
+            claimed_at=None,
+            claimed_by=None,
+            cooldown_until=None,
+            error="session content incomplete",
+        )
+    )
+    await session.execute(sa.delete(Trace).where(Trace.id.in_(candidate_trace_ids)))
+
+
 class _MaxDays(BaseModel):
     max_days: Annotated[float, Field(ge=0)]
 
@@ -61,13 +101,7 @@ class MaxDaysRule(_MaxDays, BaseModel):
     ) -> set[int]:
         if self.max_days <= 0:
             return set()
-        from phoenix.db.models import Trace
-
-        await session.execute(
-            sa.delete(Trace)
-            .where(Trace.project_rowid.in_(project_rowids))
-            .where(self.max_days_filter)
-        )
+        await _delete_matching_traces(session, project_rowids, self.max_days_filter)
         # Intentionally returns an empty set: the affected project ids only feed
         # CacheForDataLoaders invalidation, which is None on every backend except SQLite.
         # Collecting them via RETURNING buffered the full result set in memory (OOM on large
@@ -89,12 +123,10 @@ class MaxCountRule(_MaxCount, BaseModel):
     ) -> set[int]:
         if self.max_count <= 0:
             return set()
-        from phoenix.db.models import Trace
-
-        await session.execute(
-            sa.delete(Trace)
-            .where(Trace.project_rowid.in_(project_rowids))
-            .where(self.max_count_filter(project_rowids))
+        await _delete_matching_traces(
+            session,
+            project_rowids,
+            self.max_count_filter(project_rowids),
         )
         # Empty set by design; see MaxDaysRule.delete_traces for why (avoids #13906 OOM).
         return set()
@@ -113,12 +145,10 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
     ) -> set[int]:
         if self.max_days <= 0 and self.max_count <= 0:
             return set()
-        from phoenix.db.models import Trace
-
-        await session.execute(
-            sa.delete(Trace)
-            .where(Trace.project_rowid.in_(project_rowids))
-            .where(sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)))
+        await _delete_matching_traces(
+            session,
+            project_rowids,
+            sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)),
         )
         # Empty set by design; see MaxDaysRule.delete_traces for why (avoids #13906 OOM).
         return set()

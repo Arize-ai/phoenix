@@ -5,15 +5,30 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import Optional, Sequence
 
-from sqlalchemy import Insert, and_, delete, func, or_, select, type_coerce, update
+from sqlalchemy import (
+    Float,
+    Insert,
+    and_,
+    cast,
+    func,
+    literal,
+    or_,
+    select,
+    text,
+    type_coerce,
+    union_all,
+    update,
+)
+from sqlalchemy.dialects.postgresql import insert as insert_postgresql
+from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import with_polymorphic
+from sqlalchemy.orm import aliased, with_polymorphic
+from typing_extensions import assert_never
 
 from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_session_outstanding
 from phoenix.db import models
@@ -23,9 +38,9 @@ from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerpri
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.prometheus import (
-    ONLINE_EVAL_SESSION_ACTIVITY_BACKLOG,
-    ONLINE_EVAL_SESSION_ACTIVITY_OLDEST_AGE_SECONDS,
+    ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
     ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS,
+    ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS,
     ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS,
     ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS,
     ONLINE_EVAL_SESSION_SWEEP_FAILURES,
@@ -39,16 +54,11 @@ SESSION_SWEEP_LEASE_TTL_SECONDS = 90.0
 SESSION_SWEEP_INTERVAL_SECONDS = 10.0
 
 _CONSUMER_GROUP = "default"
-_MAX_ACTIVITY_ROWS_PER_TICK = 1000
+_MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 _MAX_SESSION_WORK_INSERT_PARAMETERS = 30_000
-_SESSION_WORK_INSERT_PARAMETERS_PER_ROW = 6
+_SESSION_WORK_INSERT_PARAMETERS_PER_ROW = 7
 _SESSION_WORK_INSERT_BATCH_SIZE = (
     _MAX_SESSION_WORK_INSERT_PARAMETERS // _SESSION_WORK_INSERT_PARAMETERS_PER_ROW
-)
-_SESSION_WORK_UNIQUE_BY = (
-    "project_session_rowid",
-    "evaluator_id",
-    "config_fingerprint",
 )
 
 
@@ -56,13 +66,31 @@ def _session_work_insert_statement(
     work_records: Sequence[dict[str, object]],
     dialect: SupportedSQLDialect,
 ) -> Insert:
-    return insert_on_conflict(
-        *work_records,
-        table=models.EvalSessionWorkUnit,
-        dialect=dialect,
-        unique_by=_SESSION_WORK_UNIQUE_BY,
-        on_conflict=OnConflict.DO_NOTHING,
+    index_elements = (
+        models.EvalSessionWorkUnit.project_session_rowid,
+        models.EvalSessionWorkUnit.evaluator_id,
+        models.EvalSessionWorkUnit.config_fingerprint,
     )
+    live_work = text("status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3")
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        return (
+            insert_postgresql(models.EvalSessionWorkUnit)
+            .values(work_records)
+            .on_conflict_do_nothing(
+                index_elements=index_elements,
+                index_where=live_work,
+            )
+        )
+    if dialect is SupportedSQLDialect.SQLITE:
+        return (
+            insert_sqlite(models.EvalSessionWorkUnit)
+            .values(work_records)
+            .on_conflict_do_nothing(
+                index_elements=index_elements,
+                index_where=live_work,
+            )
+        )
+    assert_never(dialect)
 
 
 @dataclass(frozen=True)
@@ -72,6 +100,15 @@ class _SessionCriteria:
     evaluator_id: int
     fingerprint: str
     delay_seconds: int
+
+
+@dataclass(frozen=True)
+class _EligiblePair:
+    project_session_rowid: int
+    evaluator_id: int
+    criteria_id: int
+    config_fingerprint: str
+    evaluated_through: datetime
 
 
 class SessionEvalSweeper(DaemonTask):
@@ -240,132 +277,184 @@ class SessionEvalSweeper(DaemonTask):
         return criteria_rows
 
     async def _sweep(self, session: AsyncSession, database_now: datetime) -> int:
-        criteria_by_project: defaultdict[int, list[_SessionCriteria]] = defaultdict(list)
-        for criteria in await self._load_criteria(session):
-            criteria_by_project[criteria.project_id].append(criteria)
-
-        if self._publish_metrics:
-            await self._publish_activity_metrics(session, database_now)
-
+        criteria = await self._load_criteria(session)
         work_budget = await self._admission_budget(session)
-        if work_budget == 0:
-            return 0
-
-        activity_stmt = select(
-            models.EvalSessionActivity,
-            models.ProjectSession.project_id,
-        ).join(
-            models.ProjectSession,
-            models.EvalSessionActivity.project_session_rowid == models.ProjectSession.id,
+        eligible_pairs, eligible_pair_count = await self._load_eligible_pairs(
+            session,
+            database_now,
+            criteria,
+            limit=min(work_budget, _MAX_ELIGIBLE_PAIRS_PER_TICK),
         )
-        if criteria_by_project:
-            due_for_project = [
-                and_(
-                    models.ProjectSession.project_id == project_id,
-                    models.EvalSessionActivity.observed_at
-                    <= database_now
-                    - timedelta(
-                        seconds=min(criteria.delay_seconds for criteria in project_criteria)
-                    ),
-                )
-                for project_id, project_criteria in criteria_by_project.items()
-            ]
-            activity_stmt = activity_stmt.where(
-                or_(
-                    models.ProjectSession.project_id.not_in(criteria_by_project),
-                    *due_for_project,
-                )
-            )
-        activity_rows = (
-            await session.execute(
-                activity_stmt.order_by(models.EvalSessionActivity.observed_at).limit(
-                    _MAX_ACTIVITY_ROWS_PER_TICK
-                )
-            )
-        ).all()
-        if not activity_rows:
+        if self._publish_metrics:
+            await self._publish_eligibility_metrics(session, eligible_pair_count)
+        if work_budget == 0 or not eligible_pairs:
             return 0
 
-        project_session_ids = [activity.project_session_rowid for activity, _ in activity_rows]
-        existing_work_keys = {
-            tuple(row)
-            for row in await session.execute(
-                select(
-                    models.EvalSessionWorkUnit.project_session_rowid,
-                    models.EvalSessionWorkUnit.evaluator_id,
-                    models.EvalSessionWorkUnit.config_fingerprint,
-                ).where(
-                    models.EvalSessionWorkUnit.project_session_rowid.in_(project_session_ids),
-                )
-            )
-        }
+        work_records = [
+            {
+                "project_session_rowid": pair.project_session_rowid,
+                "evaluator_id": pair.evaluator_id,
+                "criteria_id": pair.criteria_id,
+                "config_fingerprint": pair.config_fingerprint,
+                "evaluated_through": pair.evaluated_through,
+            }
+            for pair in eligible_pairs
+        ]
 
-        work_records: list[dict[str, object]] = []
-        resolved_activity_ids: list[int] = []
-        for activity, project_id in activity_rows:
-            activity_resolved = True
-            for criteria in criteria_by_project[project_id]:
-                key = (
-                    activity.project_session_rowid,
-                    criteria.evaluator_id,
-                    criteria.fingerprint,
-                )
-                if key in existing_work_keys:
-                    continue
-                if activity.observed_at > database_now - timedelta(seconds=criteria.delay_seconds):
-                    activity_resolved = False
-                    continue
-                if len(work_records) >= work_budget:
-                    activity_resolved = False
-                    continue
-                work_records.append(
-                    {
-                        "project_session_rowid": activity.project_session_rowid,
-                        "evaluator_id": criteria.evaluator_id,
-                        "criteria_id": criteria.criteria_id,
-                        "config_fingerprint": criteria.fingerprint,
-                    }
-                )
-                existing_work_keys.add(key)
-            if activity_resolved:
-                resolved_activity_ids.append(activity.id)
-
+        inserted_count = 0
         if work_records:
             for start in range(0, len(work_records), _SESSION_WORK_INSERT_BATCH_SIZE):
-                await session.execute(
+                result = await session.execute(
                     _session_work_insert_statement(
                         work_records[start : start + _SESSION_WORK_INSERT_BATCH_SIZE],
                         self._db.dialect,
                     )
                 )
-        if resolved_activity_ids:
-            await session.execute(
-                delete(models.EvalSessionActivity).where(
-                    models.EvalSessionActivity.id.in_(resolved_activity_ids)
-                )
-            )
-        return len(work_records)
+                inserted_count += result.rowcount  # type: ignore[attr-defined]
+        return inserted_count
 
-    async def _publish_activity_metrics(
+    async def _load_eligible_pairs(
         self,
         session: AsyncSession,
         database_now: datetime,
-    ) -> None:
-        activity_count, oldest_observed_at = (
-            await session.execute(
+        criteria: Sequence[_SessionCriteria],
+        *,
+        limit: int,
+    ) -> tuple[list[_EligiblePair], int]:
+        if not criteria:
+            return [], 0
+        statements = []
+        for criterion in criteria:
+            live_work = aliased(models.EvalSessionWorkUnit)
+            successful_work = aliased(models.EvalSessionWorkUnit)
+            successful_watermark = (
+                select(func.max(successful_work.evaluated_through))
+                .where(
+                    successful_work.project_session_rowid == models.ProjectSession.id,
+                    successful_work.evaluator_id == criterion.evaluator_id,
+                    successful_work.config_fingerprint == criterion.fingerprint,
+                    successful_work.status == "DONE",
+                )
+                .correlate(models.ProjectSession)
+                .scalar_subquery()
+            )
+            successful_result_exists = (
+                select(1)
+                .select_from(successful_work)
+                .where(
+                    successful_work.project_session_rowid == models.ProjectSession.id,
+                    successful_work.evaluator_id == criterion.evaluator_id,
+                    successful_work.config_fingerprint == criterion.fingerprint,
+                    successful_work.status == "DONE",
+                )
+                .correlate(models.ProjectSession)
+                .exists()
+            )
+            live_work_exists = (
+                select(1)
+                .select_from(live_work)
+                .where(
+                    live_work.project_session_rowid == models.ProjectSession.id,
+                    live_work.evaluator_id == criterion.evaluator_id,
+                    live_work.config_fingerprint == criterion.fingerprint,
+                    or_(
+                        live_work.status.in_(("PENDING", "RUNNING")),
+                        and_(
+                            live_work.status == "ERROR",
+                            live_work.attempts < MAX_ATTEMPTS,
+                        ),
+                    ),
+                )
+                .correlate(models.ProjectSession)
+                .exists()
+            )
+            if self._db.dialect is SupportedSQLDialect.SQLITE:
+                due_at = (
+                    cast(func.julianday(models.ProjectSession.last_activity_at), Float) * 86_400
+                    + criterion.delay_seconds
+                )
+            else:
+                due_at = (
+                    func.extract("epoch", models.ProjectSession.last_activity_at)
+                    + criterion.delay_seconds
+                )
+            statements.append(
                 select(
-                    func.count(models.EvalSessionActivity.id),
-                    func.min(models.EvalSessionActivity.observed_at),
+                    models.ProjectSession.id.label("project_session_rowid"),
+                    literal(criterion.evaluator_id).label("evaluator_id"),
+                    literal(criterion.criteria_id).label("criteria_id"),
+                    literal(criterion.fingerprint).label("config_fingerprint"),
+                    models.ProjectSession.last_activity_at.label("evaluated_through"),
+                    due_at.label("effective_due_time"),
+                ).where(
+                    models.ProjectSession.project_id == criterion.project_id,
+                    models.ProjectSession.content_complete.is_(True),
+                    models.ProjectSession.last_activity_at
+                    <= database_now - timedelta(seconds=criterion.delay_seconds),
+                    ~successful_result_exists,
+                    ~live_work_exists,
+                    or_(
+                        successful_watermark.is_(None),
+                        successful_watermark < models.ProjectSession.last_activity_at,
+                    ),
                 )
             )
-        ).one()
-        ONLINE_EVAL_SESSION_ACTIVITY_BACKLOG.set(activity_count)
-        oldest_age_seconds = (
-            max((database_now - oldest_observed_at).total_seconds(), 0.0)
-            if oldest_observed_at is not None
-            else 0.0
+        relation = union_all(*statements).subquery()
+        eligible_pair_count = (
+            await session.scalar(select(func.count()).select_from(relation))
+        ) or 0
+        if limit == 0:
+            return [], eligible_pair_count
+        rows = (
+            await session.execute(
+                select(relation)
+                .order_by(
+                    relation.c.effective_due_time,
+                    relation.c.project_session_rowid,
+                    relation.c.criteria_id,
+                )
+                .limit(limit)
+            )
+        ).all()
+        pairs = [
+            _EligiblePair(
+                project_session_rowid=row.project_session_rowid,
+                evaluator_id=row.evaluator_id,
+                criteria_id=row.criteria_id,
+                config_fingerprint=row.config_fingerprint,
+                evaluated_through=row.evaluated_through,
+            )
+            for row in rows
+        ]
+        return pairs, eligible_pair_count
+
+    async def _publish_eligibility_metrics(
+        self,
+        session: AsyncSession,
+        eligible_pair_count: int,
+    ) -> None:
+        ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(eligible_pair_count)
+        watermark_rows = (
+            await session.execute(
+                select(
+                    models.ProjectSession.last_activity_at,
+                    models.EvalSessionWorkUnit.evaluated_through,
+                )
+                .join(
+                    models.EvalSessionWorkUnit,
+                    models.EvalSessionWorkUnit.project_session_rowid == models.ProjectSession.id,
+                )
+                .where(models.EvalSessionWorkUnit.status == "DONE")
+            )
+        ).all()
+        watermark_lag_seconds = max(
+            (
+                max((last_activity_at - evaluated_through).total_seconds(), 0.0)
+                for last_activity_at, evaluated_through in watermark_rows
+            ),
+            default=0.0,
         )
-        ONLINE_EVAL_SESSION_ACTIVITY_OLDEST_AGE_SECONDS.set(oldest_age_seconds)
+        ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS.set(watermark_lag_seconds)
 
     async def _admission_budget(self, session: AsyncSession) -> int:
         outstanding = (

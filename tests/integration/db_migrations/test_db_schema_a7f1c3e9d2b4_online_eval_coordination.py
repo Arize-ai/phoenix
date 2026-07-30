@@ -264,6 +264,69 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         )
 
 
+class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
+    table_name = "eval_session_work_units"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
+        index_names = {
+            "ix_eval_session_work_units_claimable",
+            "ix_eval_session_work_units_evaluator_id",
+            "ix_eval_session_work_units_criteria_id",
+            "ix_eval_session_work_units_error_attempts",
+            "ix_eval_session_work_units_terminal",
+            "uq_eval_session_work_units_live_key",
+        }
+        constraint_names = {
+            "pk_eval_session_work_units",
+            _constraint_name(
+                "fk_eval_session_work_units_project_session_rowid_project_sessions",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_eval_session_work_units_evaluator_id_evaluators",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_eval_session_work_units_criteria_id_project_evaluator_criteria",
+                db_backend,
+            ),
+            "ck_eval_session_work_units_`valid_eval_work_status`",
+        }
+        if db_backend == "postgresql":
+            index_names.add("pk_eval_session_work_units")
+        elif db_backend == "sqlite":
+            index_names.add("sqlite_autoindex_eval_session_work_units_1")
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(
+                {
+                    "id",
+                    "project_session_rowid",
+                    "evaluator_id",
+                    "criteria_id",
+                    "config_fingerprint",
+                    "evaluated_through",
+                    "status",
+                    "claimed_at",
+                    "claimed_by",
+                    "attempts",
+                    "error",
+                    "cooldown_until",
+                    "created_at",
+                    "updated_at",
+                }
+            ),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(
+                {"claimed_at", "claimed_by", "error", "cooldown_until"}
+            ),
+        )
+
 async def test_project_session_liveness_schema(
     _engine: AsyncEngine,
     _alembic_config: Config,

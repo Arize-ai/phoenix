@@ -12,6 +12,7 @@ from freezegun import freeze_time
 from pydantic import ValidationError
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.trace_retention import (
     MaxCountRule,
     MaxDaysOrCountRule,
@@ -244,6 +245,86 @@ class TestTraceRetentionRuleMaxCount:
         assert set(remaining_traces.all()) == set(
             chain.from_iterable(unaffected_projects.values())
         ), "Unaffected projects should retain all their traces"
+
+    async def test_marks_affected_session_content_incomplete(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            project_session = models.ProjectSession(
+                session_id=token_hex(8),
+                project_id=project.id,
+                start_time=now - timedelta(hours=1),
+                end_time=now,
+            )
+            session.add(project_session)
+            await session.flush()
+            project_id = project.id
+            project_session_id = project_session.id
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root=f"eval-{token_hex(4)}"),
+                kind="BUILTIN",
+                key=token_hex(8),
+                input_schema={},
+                output_configs=[],
+            )
+            session.add(evaluator)
+            await session.flush()
+            criteria = models.ProjectEvaluatorCriteria(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"criteria-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SESSION",
+            )
+            session.add(criteria)
+            await session.flush()
+            work_unit = models.EvalSessionWorkUnit(
+                project_session_rowid=project_session.id,
+                evaluator_id=evaluator.id,
+                criteria_id=criteria.id,
+                config_fingerprint=token_hex(8),
+                evaluated_through=now,
+                status="RUNNING",
+                claimed_at=now,
+                claimed_by="consumer",
+            )
+            session.add(work_unit)
+            await session.flush()
+            work_unit_id = work_unit.id
+            session.add_all(
+                [
+                    models.Trace(
+                        project_rowid=project.id,
+                        project_session_rowid=project_session.id,
+                        trace_id=token_hex(16),
+                        start_time=now - timedelta(minutes=offset),
+                        end_time=now - timedelta(minutes=offset),
+                    )
+                    for offset in (0, 1)
+                ]
+            )
+
+        async with db() as session:
+            await MaxCountRule(max_count=1).delete_traces(session, [project_id])
+            retained_session = await session.get(models.ProjectSession, project_session_id)
+            assert retained_session is not None
+            retained_work = await session.get(models.EvalSessionWorkUnit, work_unit_id)
+            assert retained_work is not None
+            remaining_trace_count = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_session_rowid == project_session_id
+                )
+            )
+            assert retained_session.content_complete is False
+            assert retained_work.status == "EXPIRED"
+            assert retained_work.claimed_by is None
+            assert remaining_trace_count == 1
 
 
 class TestTraceRetentionRuleMaxDaysOrCountRule:
