@@ -8,7 +8,7 @@ import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { SpanInfoCardsProvider } from "../../SpanInfoCardsContext";
-import { SpanInfo } from "../SpanInfo";
+import { getExpectedSpanInfoSectionKeys, SpanInfo } from "../SpanInfo";
 
 const sectionIds = {
   input: "input",
@@ -115,6 +115,46 @@ describe("SpanInfo", () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it.each([
+    ["llm", ["input", "output", "toolDefinitions", "metadata"]],
+    ["tool", ["input", "output", "toolDefinitions", "metadata"]],
+    ["embedding", ["input", "metadata"]],
+    ["retriever", ["input", "output", "metadata"]],
+    ["chain", ["input", "output", "metadata"]],
+  ] as const)(
+    "defines the expected content for %s spans",
+    (spanKind, expectedKeys) => {
+      expect(getExpectedSpanInfoSectionKeys(spanKind)).toEqual(expectedKeys);
+    }
+  );
+
+  it.each(["llm", "reranker"])(
+    "does not render empty %s input or output sections",
+    (spanKind) => {
+      act(() => {
+        root.render(
+          <TestProviders>
+            <SpanInfo
+              sectionIds={sectionIds}
+              span={{
+                id: "span-node-id",
+                spanKind,
+                attributes: "{}",
+                input: null,
+                output: null,
+                documentRetrievalMetrics: [],
+                documentEvaluations: [],
+              }}
+            />
+          </TestProviders>
+        );
+      });
+
+      expect(container.querySelector("#input")).toBeNull();
+      expect(container.querySelector("#output")).toBeNull();
+    }
+  );
 
   it.each(["llm", "retriever", "reranker", "embedding", "tool", "unknown"])(
     "never passes object-valued %s attributes to React as children",

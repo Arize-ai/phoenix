@@ -8,7 +8,6 @@ import {
 } from "@phoenix/components/markdown";
 import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import {
   SpanDetailsInputSection,
@@ -28,7 +27,12 @@ import type {
   SpanIOValue,
   SpanPromptTemplate,
 } from "./types";
-import { formatJSONForCopy, formatTextListForCopy } from "./utils";
+import {
+  formatJSONForCopy,
+  formatTextListForCopy,
+  hasLLMInputContent,
+  hasLLMInvocationParameters,
+} from "./utils";
 
 /**
  * The input side of an LLM span — a top-level section with a view select for
@@ -80,8 +84,15 @@ export function LLMInput({
   const hasInput = input != null && input.value != null;
   const hasInputMessages = inputMessages.length > 0;
   const hasPrompts = prompts.length > 0;
-  const hasInvocationParams =
-    Object.keys(safelyParseJSON(invocationParameters).json || {}).length > 0;
+  const hasInputContent = hasLLMInputContent({
+    input,
+    modelName,
+    inputMessages,
+    prompts,
+    promptTemplate,
+    invocationParameters,
+  });
+  const hasInvocationParams = hasLLMInvocationParameters(invocationParameters);
 
   const views: LLMIOView[] = [];
   if (hasInputMessages) views.push({ id: "input-messages", label: "Messages" });
@@ -114,6 +125,10 @@ export function LLMInput({
 
   const isRawView = view === "input" && hasInput;
   const cardProps = useSpanInfoCardProps("input");
+
+  if (!hasInputContent) {
+    return null;
+  }
 
   // Whatever the card is showing is what its copy button copies, so the reader
   // never has to switch views to get at the content in front of them

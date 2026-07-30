@@ -12,12 +12,22 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 const pendingContent = new Promise<never>(() => undefined);
 const spanDetailsContentTestState = vi.hoisted(() => ({
+  attributes: "{}",
   events: [] as {
     attributes: Record<string, unknown>;
     message: string;
     name: string;
     timestamp: string;
   }[],
+  input: { value: "input", mimeType: "text" } as {
+    value: string;
+    mimeType: "text" | "json";
+  } | null,
+  output: { value: "output", mimeType: "text" } as {
+    value: string;
+    mimeType: "text" | "json";
+  } | null,
+  spanKind: "chain",
   spanNotes: [] as { id: string }[],
   shouldSuspend: true,
 }));
@@ -42,10 +52,10 @@ vi.mock("react-relay", () => ({
           __typename: "Span",
           id: "span-node-id",
           spanId: "span-display-id",
-          spanKind: "chain",
-          input: { value: "input", mimeType: "text" },
-          output: { value: "output", mimeType: "text" },
-          attributes: "{}",
+          spanKind: spanDetailsContentTestState.spanKind,
+          input: spanDetailsContentTestState.input,
+          output: spanDetailsContentTestState.output,
+          attributes: spanDetailsContentTestState.attributes,
           events: spanDetailsContentTestState.events,
           spanNotes: spanDetailsContentTestState.spanNotes,
           documentRetrievalMetrics: [],
@@ -163,7 +173,17 @@ describe("SpanDetails headers", () => {
 
   beforeEach(() => {
     localStorage.removeItem("arize-phoenix-preferences");
+    spanDetailsContentTestState.attributes = "{}";
     spanDetailsContentTestState.events = [];
+    spanDetailsContentTestState.input = {
+      value: "input",
+      mimeType: "text",
+    };
+    spanDetailsContentTestState.output = {
+      value: "output",
+      mimeType: "text",
+    };
+    spanDetailsContentTestState.spanKind = "chain";
     spanDetailsContentTestState.spanNotes = [];
     spanDetailsContentTestState.shouldSuspend = true;
     motionMocks.animate.mockClear();
@@ -317,6 +337,95 @@ describe("SpanDetails headers", () => {
     expect(
       container.querySelector("#span-details-span-display-id-events")
     ).toBeNull();
+    expect(
+      container.querySelector(".span-details__content-absence")?.textContent
+    ).toBe("No metadata or events");
+  });
+
+  it("states all missing LLM content in display order before attributes", () => {
+    spanDetailsContentTestState.spanKind = "llm";
+    spanDetailsContentTestState.input = null;
+    spanDetailsContentTestState.output = null;
+    spanDetailsContentTestState.attributes = JSON.stringify({
+      metadata: { model: "unknown" },
+    });
+    spanDetailsContentTestState.shouldSuspend = false;
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    expect(
+      Array.from(container.querySelectorAll("nav a")).map(
+        (link) => link.textContent
+      )
+    ).toEqual(["Metadata", "Attributes", "Notes"]);
+
+    const contentAbsence = container.querySelector(
+      ".span-details__content-absence"
+    );
+    const attributesSection = container.querySelector(
+      "#span-details-span-display-id-attributes"
+    );
+    expect(contentAbsence?.textContent).toBe(
+      "No input, output, tool definitions, or events"
+    );
+    expect(contentAbsence?.nextElementSibling).toBe(attributesSection);
+    expect(contentAbsence?.textContent).not.toContain("notes");
+    const generatedClassName = Array.from(contentAbsence?.classList ?? []).find(
+      (className) => className.startsWith("css-")
+    );
+    const contentAbsenceStyleRule = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText === `.${generatedClassName}`
+      );
+    expect(contentAbsenceStyleRule?.cssText).toContain(
+      "border-bottom: 1px solid var(--global-border-color-default)"
+    );
+    const contentAbsenceBorderedStyleRule = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText === `.${generatedClassName}[data-bordered="true"]`
+      );
+    expect(contentAbsence?.getAttribute("data-bordered")).toBe("true");
+    expect(contentAbsenceBorderedStyleRule?.cssText).toContain(
+      "border-top: 1px solid var(--global-border-color-default)"
+    );
+    expect(
+      attributesSection
+        ?.querySelector(".span-details-section-heading__header")
+        ?.getAttribute("data-bordered")
+    ).toBe("false");
+  });
+
+  it("does not double the border when the absence row is the first content", () => {
+    spanDetailsContentTestState.spanKind = "llm";
+    spanDetailsContentTestState.input = null;
+    spanDetailsContentTestState.output = null;
+    spanDetailsContentTestState.shouldSuspend = false;
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    expect(
+      container
+        .querySelector(".span-details__content-absence")
+        ?.getAttribute("data-bordered")
+    ).toBe("false");
   });
 
   it("omits notes counters when there are no notes", () => {

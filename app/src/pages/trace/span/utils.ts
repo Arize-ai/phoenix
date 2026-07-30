@@ -28,6 +28,7 @@ import type {
   AttributeObject,
   DocumentEvaluation,
   SpanAttributesParseResult,
+  SpanIOValue,
   SpanPromptTemplate,
 } from "./types";
 
@@ -51,6 +52,45 @@ export type LLMSpanAttributes = {
    */
   invocationParameters: string;
 };
+
+/** Whether parsed LLM invocation parameters contain at least one field. */
+export function hasLLMInvocationParameters(
+  invocationParameters: string
+): boolean {
+  const parsedInvocationParameters = safelyParseJSON(invocationParameters).json;
+  return (
+    isPlainObject(parsedInvocationParameters) &&
+    Object.keys(parsedInvocationParameters).length > 0
+  );
+}
+
+/** Whether an LLM span has anything meaningful to show in its Input section. */
+export function hasLLMInputContent({
+  input,
+  modelName,
+  inputMessages,
+  prompts,
+  promptTemplate,
+  invocationParameters,
+}: Pick<
+  LLMSpanAttributes,
+  | "modelName"
+  | "inputMessages"
+  | "prompts"
+  | "promptTemplate"
+  | "invocationParameters"
+> & {
+  input: SpanIOValue | null;
+}): boolean {
+  return (
+    input?.value != null ||
+    modelName != null ||
+    inputMessages.length > 0 ||
+    prompts.length > 0 ||
+    promptTemplate != null ||
+    hasLLMInvocationParameters(invocationParameters)
+  );
+}
 
 /**
  * Safely parse the span attributes JSON string.

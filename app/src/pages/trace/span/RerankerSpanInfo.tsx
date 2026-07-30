@@ -21,15 +21,19 @@ export function RerankerSpanInfo({
 
   return (
     <>
-      <RerankerInput
-        query={query}
-        inputDocuments={inputDocuments}
-        {...inputSectionProps}
-      />
-      <RerankerOutput
-        outputDocuments={outputDocuments}
-        {...outputSectionProps}
-      />
+      {query != null || inputDocuments.length > 0 ? (
+        <RerankerInput
+          query={query}
+          inputDocuments={inputDocuments}
+          {...inputSectionProps}
+        />
+      ) : null}
+      {outputDocuments.length > 0 ? (
+        <RerankerOutput
+          outputDocuments={outputDocuments}
+          {...outputSectionProps}
+        />
+      ) : null}
     </>
   );
 }

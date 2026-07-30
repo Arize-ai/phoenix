@@ -39,6 +39,7 @@ import type { SpanDetailsContentQuery } from "./__generated__/SpanDetailsContent
 import type { SpanDetailsHeaderQuery } from "./__generated__/SpanDetailsHeaderQuery.graphql";
 import { DeferredSpanDetailsContent } from "./DeferredSpanDetailsContent";
 import {
+  getExpectedSpanInfoSectionKeys,
   getSpanInfoSectionKeys,
   parseSpanAttributes,
   SpanAttributesSection,
@@ -76,6 +77,29 @@ const spanInfoSectionNavigationLabels: Record<SpanInfoSectionKey, string> = {
   toolDefinitions: "Tools",
   metadata: "Metadata",
 };
+
+type SpanContentKey = SpanInfoSectionKey | "events";
+
+const spanContentAbsenceLabels: Record<SpanContentKey, string> = {
+  input: "input",
+  output: "output",
+  toolDefinitions: "tool definitions",
+  metadata: "metadata",
+  events: "events",
+};
+
+function formatSpanContentAbsence(contentKeys: SpanContentKey[]): string {
+  const labels = contentKeys.map(
+    (contentKey) => spanContentAbsenceLabels[contentKey]
+  );
+  if (labels.length === 1) {
+    return `No ${labels[0]}`;
+  }
+  if (labels.length === 2) {
+    return `No ${labels[0]} or ${labels[1]}`;
+  }
+  return `No ${labels.slice(0, -1).join(", ")}, or ${labels.at(-1)}`;
+}
 
 function SpanEventCounters({
   exceptionEventCount,
@@ -172,6 +196,19 @@ const spanDetailsSectionsCSS = css`
 const spanDetailsBodyCSS = css`
   position: relative;
   isolation: isolate;
+`;
+
+const spanDetailsContentAbsenceCSS = css`
+  margin: 0;
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+  border-bottom: 1px solid var(--global-border-color-default);
+  color: var(--global-text-color-500);
+  font-size: var(--global-font-size-s);
+  line-height: var(--global-line-height-s);
+
+  &[data-bordered="true"] {
+    border-top: 1px solid var(--global-border-color-default);
+  }
 `;
 
 const spanDetailsNotesBarCSS = css`
@@ -454,10 +491,27 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     toolDefinitions: `span-details-${span.spanId}-tool-definitions`,
     metadata: `span-details-${span.spanId}-metadata`,
   };
+  const spanAttributes = parseSpanAttributes(span.attributes).json;
   const spanInfoSectionKeys = getSpanInfoSectionKeys({
     span,
-    spanAttributes: parseSpanAttributes(span.attributes).json,
+    spanAttributes,
   });
+  const missingSpanContentKeys: SpanContentKey[] =
+    spanAttributes == null
+      ? []
+      : [
+          ...getExpectedSpanInfoSectionKeys(span.spanKind).filter(
+            (sectionKey) => !spanInfoSectionKeys.includes(sectionKey)
+          ),
+          ...(hasEvents ? [] : (["events"] as const)),
+        ];
+  const spanContentAbsence =
+    missingSpanContentKeys.length > 0
+      ? formatSpanContentAbsence(missingSpanContentKeys)
+      : null;
+  const shouldBorderSpanContentAbsence = spanInfoSectionKeys.length > 0;
+  const shouldBorderAttributes =
+    spanInfoSectionKeys.length > 0 && spanContentAbsence == null;
   const spanDetailsSectionIds = {
     attributes: `span-details-${span.spanId}-attributes`,
     events: `span-details-${span.spanId}-events`,
@@ -666,15 +720,22 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             <ErrorBoundary>
               <SpanInfo span={span} sectionIds={spanInfoSectionIds} />
             </ErrorBoundary>
+            {spanContentAbsence != null ? (
+              <p
+                className="span-details__content-absence"
+                css={spanDetailsContentAbsenceCSS}
+                data-bordered={shouldBorderSpanContentAbsence}
+              >
+                {spanContentAbsence}
+              </p>
+            ) : null}
             <section
               id={spanDetailsSectionIds.attributes}
               aria-label="Attributes"
             >
               <DeferredSpanDetailsContent
                 fallback={
-                  <SpanDetailsSectionHeading
-                    bordered={spanInfoSectionKeys.length > 0}
-                  >
+                  <SpanDetailsSectionHeading bordered={shouldBorderAttributes}>
                     Attributes
                   </SpanDetailsSectionHeading>
                 }
@@ -683,7 +744,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               >
                 <SpanAttributesSection
                   attributes={span.attributes}
-                  bordered={spanInfoSectionKeys.length > 0}
+                  bordered={shouldBorderAttributes}
                   {...attributesDisclosureProps}
                 />
               </DeferredSpanDetailsContent>

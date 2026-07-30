@@ -19,10 +19,27 @@ import type {
 import {
   getEmbeddingAttributes,
   getLLMAttributes,
+  getRerankerAttributes,
   getRetrieverAttributes,
   getToolAttributes,
+  hasLLMInputContent,
   parseSpanAttributes,
 } from "./utils";
+
+/** Returns the ordered top-level sections that are meaningful for a span kind. */
+export function getExpectedSpanInfoSectionKeys(
+  spanKind: string
+): SpanInfoSectionKey[] {
+  switch (spanKind) {
+    case "llm":
+    case "tool":
+      return ["input", "output", "toolDefinitions", "metadata"];
+    case "embedding":
+      return ["input", "metadata"];
+    default:
+      return ["input", "output", "metadata"];
+  }
+}
 
 /** Returns the ordered top-level sections that have content for a span. */
 export function getSpanInfoSectionKeys({
@@ -42,8 +59,12 @@ export function getSpanInfoSectionKeys({
 
   switch (span.spanKind) {
     case "llm": {
-      const { outputMessages, toolSchemas } = getLLMAttributes(spanAttributes);
-      sectionKeys = ["input"];
+      const llmAttributes = getLLMAttributes(spanAttributes);
+      const { outputMessages, toolSchemas } = llmAttributes;
+      sectionKeys = [];
+      if (hasLLMInputContent({ input: span.input, ...llmAttributes })) {
+        sectionKeys.push("input");
+      }
       if (hasOutput || outputMessages.length > 0) {
         sectionKeys.push("output");
       }
@@ -64,7 +85,15 @@ export function getSpanInfoSectionKeys({
       break;
     }
     case "reranker": {
-      sectionKeys = ["input", "output"];
+      const { query, inputDocuments, outputDocuments } =
+        getRerankerAttributes(spanAttributes);
+      sectionKeys = [];
+      if (query != null || inputDocuments.length > 0) {
+        sectionKeys.push("input");
+      }
+      if (outputDocuments.length > 0) {
+        sectionKeys.push("output");
+      }
       break;
     }
     case "embedding": {
