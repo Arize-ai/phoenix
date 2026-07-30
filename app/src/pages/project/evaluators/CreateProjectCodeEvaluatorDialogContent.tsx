@@ -279,7 +279,6 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           scope={scope}
           onScopeChange={onScopeChange}
           onFilterValidityChange={setIsFilterValid}
-          mode="create"
           inlineCode={{
             language,
             sourceCode,

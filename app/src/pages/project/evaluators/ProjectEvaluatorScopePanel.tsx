@@ -1,5 +1,11 @@
 import { css } from "@emotion/react";
-import { Suspense, useEffect, useEffectEvent, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useEffectEvent,
+  useState,
+  useTransition,
+} from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
@@ -11,10 +17,9 @@ import {
   Heading,
   Icon,
   Icons,
-  Input,
-  Label,
   ListBox,
   Loading,
+  LoadMoreButton,
   Popover,
   Select,
   SelectChevronUpDownIcon,
@@ -129,18 +134,18 @@ function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
 }
 
 /**
- * The right-column scope panel for a project evaluator: a prose scope summary
- * (or its in-place edit state), the recent matching spans it implies — each
- * row expandable to the span's evaluation context and keyword bindings, and
- * runnable against the evaluator being authored — and, for LLM evaluators,
- * the annotation template the evaluator will attach.
+ * The right-column scope panel for a project evaluator: the always-live scope
+ * editor (committed by the form's create/save action, not a local
+ * confirmation), the recent matching spans it implies — each row expandable to
+ * the span's evaluation context and keyword bindings, and runnable against the
+ * evaluator being authored — and, for LLM evaluators, the annotation template
+ * the evaluator will attach.
  */
 export const ProjectEvaluatorScopePanel = ({
   projectId,
   scope,
   onScopeChange,
   onFilterValidityChange,
-  mode = "create",
   codeEvaluatorId,
   inlineCode,
   showAnnotationTemplate = false,
@@ -149,8 +154,6 @@ export const ProjectEvaluatorScopePanel = ({
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   onFilterValidityChange?: (isValid: boolean) => void;
-  /** "create" opens with the scope editor expanded; "edit" opens committed. */
-  mode?: "create" | "edit";
   /** Set when testing an existing CODE evaluator. */
   codeEvaluatorId?: string;
   /** Set when testing not-yet-created code. */
@@ -158,7 +161,6 @@ export const ProjectEvaluatorScopePanel = ({
   /** Renders the LLM annotation template section below the span list. */
   showAnnotationTemplate?: boolean;
 }) => {
-  const [isEditingScope, setIsEditingScope] = useState(mode === "create");
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
   return (
     <div css={panelCSS}>
@@ -166,28 +168,33 @@ export const ProjectEvaluatorScopePanel = ({
         <Flex direction="column" gap="size-25">
           <Heading level={2}>Scope</Heading>
           <Text color="text-500" size="S">
-            Which spans run this evaluator, and how often. These spans are used
-            to test your evaluator, and you can change them later.
+            Select which spans this evaluator runs on and how often.
           </Text>
         </Flex>
-        {isEditingScope ? (
-          <ScopeEditorCard
-            projectId={projectId}
-            scope={scope}
-            onScopeChange={onScopeChange}
-            onFilterValidityChange={onFilterValidityChange}
-            timeWindow={timeWindow}
-            onTimeWindowChange={setTimeWindow}
-            onDone={() => setIsEditingScope(false)}
-          />
-        ) : (
-          <ScopeSummaryBar
-            projectId={projectId}
-            scope={scope}
-            timeWindow={timeWindow}
-            onModify={() => setIsEditingScope(true)}
-          />
-        )}
+        <ScopeEditorCard
+          projectId={projectId}
+          scope={scope}
+          onScopeChange={onScopeChange}
+          onFilterValidityChange={onFilterValidityChange}
+          timeWindow={timeWindow}
+          onTimeWindowChange={setTimeWindow}
+        />
+        <Flex direction="column" gap="size-25">
+          <Heading level={2}>Matching spans</Heading>
+          <Suspense
+            fallback={
+              <Text size="S" color="text-500">
+                Counting matching spans…
+              </Text>
+            }
+          >
+            <MatchedSpanCountLine
+              projectId={projectId}
+              filterCondition={scope.filterCondition}
+              timeWindow={timeWindow}
+            />
+          </Suspense>
+        </Flex>
         <Suspense fallback={<Loading />}>
           <SpanRunList
             projectId={projectId}
@@ -267,116 +274,9 @@ function useMatchedSpanCount({
 }
 
 /**
- * The committed scope, stated as one sentence — sampling, filter, and how
- * many recent spans it matches — with the single action that reopens editing.
- */
-function ScopeSummaryBar({
-  projectId,
-  scope,
-  timeWindow,
-  onModify,
-}: {
-  projectId: string;
-  scope: ProjectEvaluatorScope;
-  timeWindow: TimeWindow;
-  onModify: () => void;
-}) {
-  return (
-    <div css={summaryBarCSS}>
-      <span className="scope-summary__sentence">
-        {scope.samplingRatePercent}% of spans
-        {scope.filterCondition ? (
-          <>
-            {" where "}
-            <code className="scope-summary__filter">
-              {scope.filterCondition}
-            </code>
-          </>
-        ) : null}{" "}
-        <Suspense fallback={<span>(counting…)</span>}>
-          <MatchedSpanCountParenthetical
-            projectId={projectId}
-            filterCondition={scope.filterCondition}
-            timeWindow={timeWindow}
-          />
-        </Suspense>
-      </span>
-      <Button size="S" onPress={onModify}>
-        Modify
-      </Button>
-    </div>
-  );
-}
-
-function MatchedSpanCountParenthetical({
-  projectId,
-  filterCondition,
-  timeWindow,
-}: {
-  projectId: string;
-  filterCondition: string;
-  timeWindow: TimeWindow;
-}) {
-  if (timeWindow.startIso == null) {
-    return <span>(all time)</span>;
-  }
-  return (
-    <BoundedMatchedSpanCountParenthetical
-      projectId={projectId}
-      filterCondition={filterCondition}
-      startIso={timeWindow.startIso}
-      prose={timeWindow.prose}
-    />
-  );
-}
-
-function BoundedMatchedSpanCountParenthetical({
-  projectId,
-  filterCondition,
-  startIso,
-  prose,
-}: {
-  projectId: string;
-  filterCondition: string;
-  startIso: string;
-  prose: string;
-}) {
-  const matchedCount = useMatchedSpanCount({
-    projectId,
-    filterCondition,
-    startIso,
-  });
-  return (
-    <span>
-      ({matchedCount.toLocaleString()} {prose})
-    </span>
-  );
-}
-
-const summaryBarCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-150);
-  padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-  border-radius: var(--global-rounding-small);
-  background-color: var(--global-color-gray-200);
-  .scope-summary__sentence {
-    flex: 1 1 auto;
-    min-width: 0;
-    font-size: var(--global-font-size-s);
-    color: var(--global-text-color-900);
-  }
-  .scope-summary__filter {
-    font-family: var(--global-font-family-code, monospace);
-    font-size: var(--global-font-size-xs);
-    color: var(--global-color-info);
-  }
-`;
-
-/**
- * The scope's edit state, expanded in place of the summary bar: target,
- * sampling, filter, and preview window, with the live matched count. Done
- * commits back to the one-sentence summary.
+ * The scope's editor card: target, sampling, filter, and preview window. Kept
+ * live the whole session — the form's create/save action is what commits it,
+ * so there is no local done/confirm step.
  */
 function ScopeEditorCard({
   projectId,
@@ -385,7 +285,6 @@ function ScopeEditorCard({
   onFilterValidityChange,
   timeWindow,
   onTimeWindowChange,
-  onDone,
 }: {
   projectId: string;
   scope: ProjectEvaluatorScope;
@@ -393,22 +292,16 @@ function ScopeEditorCard({
   onFilterValidityChange?: (isValid: boolean) => void;
   timeWindow: TimeWindow;
   onTimeWindowChange: (timeWindow: TimeWindow) => void;
-  onDone: () => void;
 }) {
   // The editor's live text; only validated conditions are lifted into `scope`.
   const [filterConditionDraft, setFilterConditionDraft] = useState(
     scope.filterCondition
   );
-  const [isFilterValid, setIsFilterValid] = useState(true);
   const handleValidCondition = (filterCondition: string) => {
     if (filterCondition === scope.filterCondition) {
       return;
     }
     onScopeChange({ ...scope, filterCondition });
-  };
-  const handleValidityChange = (isValid: boolean) => {
-    setIsFilterValid(isValid);
-    onFilterValidityChange?.(isValid);
   };
   return (
     <div css={scopeEditorCardCSS}>
@@ -434,37 +327,47 @@ function ScopeEditorCard({
               }
               thumbLabels={["Sampling rate percentage"]}
             >
-              <SliderNumberField aria-label="Sampling rate percentage">
-                <Input />
-              </SliderNumberField>
-              <Text color="text-500">%</Text>
+              <SliderNumberField
+                aria-label="Sampling rate percentage"
+                formatOptions={{
+                  style: "unit",
+                  unit: "percent",
+                  unitDisplay: "narrow",
+                }}
+              />
             </Slider>
           </Flex>
-          <Select
-            value={timeWindow.presetId}
-            onChange={(presetId) =>
-              onTimeWindowChange(makeTimeWindow(presetId as TimeWindowPresetId))
-            }
-            aria-label="Preview window"
-            css={css`
-              width: 160px;
-            `}
-          >
-            <Label>Preview window</Label>
-            <Button>
-              <SelectValue />
-              <SelectChevronUpDownIcon />
-            </Button>
-            <Popover>
-              <ListBox>
-                {TIME_WINDOW_PRESETS.map((preset) => (
-                  <SelectItem key={preset.id} id={preset.id}>
-                    {preset.label}
-                  </SelectItem>
-                ))}
-              </ListBox>
-            </Popover>
-          </Select>
+          <Flex direction="column" gap="size-50">
+            <Text size="XS" weight="heavy" color="text-700">
+              Preview window
+            </Text>
+            <Select
+              value={timeWindow.presetId}
+              onChange={(presetId) =>
+                onTimeWindowChange(
+                  makeTimeWindow(presetId as TimeWindowPresetId)
+                )
+              }
+              aria-label="Preview window"
+              css={css`
+                width: 160px;
+              `}
+            >
+              <Button>
+                <SelectValue />
+                <SelectChevronUpDownIcon />
+              </Button>
+              <Popover>
+                <ListBox>
+                  {TIME_WINDOW_PRESETS.map((preset) => (
+                    <SelectItem key={preset.id} id={preset.id}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </ListBox>
+              </Popover>
+            </Select>
+          </Flex>
         </Flex>
         <Flex direction="column" gap="size-50">
           <Text size="XS" weight="heavy" color="text-700">
@@ -475,49 +378,23 @@ function ScopeEditorCard({
             filterCondition={filterConditionDraft}
             onFilterConditionChange={setFilterConditionDraft}
             onValidCondition={handleValidCondition}
-            onValidityChange={handleValidityChange}
+            onValidityChange={onFilterValidityChange}
             placeholder="span_kind == 'LLM'"
           />
           <Text size="XS" color="text-500">
             Leave empty to evaluate every span.
           </Text>
         </Flex>
-        <Flex direction="row" alignItems="center" gap="size-150">
-          <span
-            css={css`
-              flex: 1 1 auto;
-              min-width: 0;
-            `}
-          >
-            <Suspense
-              fallback={
-                <Text size="S" color="text-500">
-                  Counting matching spans…
-                </Text>
-              }
-            >
-              <ScopeEditorMatchedCountLine
-                projectId={projectId}
-                filterCondition={scope.filterCondition}
-                timeWindow={timeWindow}
-              />
-            </Suspense>
-          </span>
-          <Button
-            size="S"
-            variant="primary"
-            isDisabled={!isFilterValid}
-            onPress={onDone}
-          >
-            Done
-          </Button>
-        </Flex>
       </Flex>
     </div>
   );
 }
 
-function ScopeEditorMatchedCountLine({
+/**
+ * The "Matching spans" section subtitle: how many spans the current scope
+ * matches inside the preview window, updating live as the filter changes.
+ */
+function MatchedSpanCountLine({
   projectId,
   filterCondition,
   timeWindow,
@@ -529,12 +406,12 @@ function ScopeEditorMatchedCountLine({
   if (timeWindow.startIso == null) {
     return (
       <Text size="S" color="text-500">
-        Newest matching spans shown below
+        The most recent spans that match this scope.
       </Text>
     );
   }
   return (
-    <BoundedScopeEditorMatchedCountLine
+    <BoundedMatchedSpanCountLine
       projectId={projectId}
       filterCondition={filterCondition}
       startIso={timeWindow.startIso}
@@ -543,7 +420,7 @@ function ScopeEditorMatchedCountLine({
   );
 }
 
-function BoundedScopeEditorMatchedCountLine({
+function BoundedMatchedSpanCountLine({
   projectId,
   filterCondition,
   startIso,
@@ -563,8 +440,8 @@ function BoundedScopeEditorMatchedCountLine({
   return (
     <Text size="S" color={hasMatches ? "success" : "text-500"}>
       {hasMatches
-        ? `${matchedCount.toLocaleString()} span${matchedCount === 1 ? "" : "s"} matched ${prose} — newest shown below`
-        : `No spans match this scope ${prose}`}
+        ? `${matchedCount.toLocaleString()} span${matchedCount === 1 ? "" : "s"} matched ${prose}. The most recent are shown below.`
+        : `No spans matched this scope ${prose}.`}
     </Text>
   );
 }
@@ -576,9 +453,11 @@ const scopeEditorCardCSS = css`
 `;
 
 /**
- * Lays the sampling slider out as one compact row — track, then value and "%"
- * inline — instead of the default label/value-over-track grid, whose output
- * cell stacks the "%" beneath the number field.
+ * Lays the sampling slider out as one compact row — track, then the
+ * percent-formatted value — instead of the default label/value-over-track
+ * grid, so the control sits under its external label like the neighboring
+ * Target and Preview window fields. The row is pinned to the same height as
+ * those controls so the three columns share a visual center.
  */
 const samplingSliderCSS = css`
   grid-template-areas: "track output";
@@ -588,15 +467,19 @@ const samplingSliderCSS = css`
      otherwise wins with width: 100% and collapses the track. */
   &[data-orientation="horizontal"] {
     width: 220px;
+    height: var(--global-dimension-size-400);
   }
   .slider__output {
     display: flex;
     align-items: center;
-    gap: var(--global-dimension-size-50);
     min-height: 0;
   }
-  .slider__number-field .react-aria-Input {
+  /* The base slider styles this input under an orientation-qualified selector;
+     restate that qualification so these later, equal-specificity rules win.
+     Height matches the neighboring Select trigger and toggle buttons. */
+  &[data-orientation="horizontal"] .slider__number-field .react-aria-Input {
     margin-bottom: 0;
+    height: var(--global-dimension-size-400);
   }
 `;
 
@@ -626,11 +509,16 @@ type SpanListRow = {
 
 const SAMPLE_ROW_KEY = "__sample__";
 
+/** The span list's initial size and the step each "Show more" press adds. */
+const SPAN_LIST_PAGE_SIZE = 5;
+
 /**
  * The recent spans the committed scope matches, each row expandable to the
  * span's evaluation context and keyword bindings, and individually runnable
  * against the evaluator being authored. Run results stick to their row so
- * testing several spans accumulates visible results side by side.
+ * testing several spans accumulates visible results side by side. The list
+ * starts capped at {@link SPAN_LIST_PAGE_SIZE} rows; when the scope matches
+ * more, a "Load More" action widens the cap in place.
  */
 function SpanRunList({
   projectId,
@@ -646,17 +534,23 @@ function SpanRunList({
   inlineCode?: ProjectEvaluatorInlineCode;
 }) {
   const { shortDateTimeFormatter } = useTimeFormatters();
+  const [limit, setLimit] = useState(SPAN_LIST_PAGE_SIZE);
+  // Widening the cap refetches with a larger `first`; a transition keeps the
+  // current rows visible instead of collapsing the list to its Suspense
+  // fallback while the wider page loads.
+  const [isShowingMore, startShowMoreTransition] = useTransition();
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSpansQuery>(
     graphql`
       query ProjectEvaluatorScopePanelSpansQuery(
         $projectId: ID!
         $filterCondition: String
         $timeRange: TimeRange
+        $first: Int!
       ) {
         project: node(id: $projectId) {
           ... on Project {
             spans(
-              first: 5
+              first: $first
               sort: { col: startTime, dir: desc }
               filterCondition: $filterCondition
               timeRange: $timeRange
@@ -669,6 +563,9 @@ function SpanRunList({
                   evaluationContext
                 }
               }
+              pageInfo {
+                hasNextPage
+              }
             }
           }
         }
@@ -679,10 +576,12 @@ function SpanRunList({
       filterCondition: filterCondition.trim() || null,
       timeRange:
         timeWindow.startIso == null ? null : { start: timeWindow.startIso },
+      first: limit,
     },
     { fetchPolicy: "store-and-network" }
   );
   const spans = data.project?.spans?.edges.map(({ span }) => span) ?? [];
+  const hasMoreSpans = data.project?.spans?.pageInfo.hasNextPage ?? false;
   // With no matching spans, fall back to a semantic-convention sample so the
   // full authoring loop — mapping source, bindings, and test runs — still
   // works before matching traffic exists. Deriving it from the query result
@@ -708,15 +607,29 @@ function SpanRunList({
           },
         ]
       : [];
-  const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const activeRow = rows.find(({ key }) => key === expandedKey) ?? rows[0];
+  // `undefined` means "no explicit choice yet": the newest row opens expanded
+  // so the available bindings are visible as a reference while authoring.
+  // `null` records an explicit collapse-all. A stale key (its row left the
+  // list on a filter or window change) falls back to the newest row so the
+  // reference stays open.
+  const [expandedKey, setExpandedKey] = useState<string | null | undefined>(
+    undefined
+  );
+  const expandedRowKey =
+    expandedKey === null
+      ? null
+      : expandedKey != null && rows.some(({ key }) => key === expandedKey)
+        ? expandedKey
+        : (rows[0]?.key ?? null);
+  const activeRow = rows.find(({ key }) => key === expandedRowKey) ?? rows[0];
   const evaluatorStore = useEvaluatorStoreInstance();
   const pathMapping = useEvaluatorStore(
     (state) => state.evaluator.inputMapping.pathMapping
   );
-  // Push the active row's context into the store as the mapping source so the
-  // advanced-mapping editor autocompletes against a real span. Key the effect
-  // on the row key (a primitive) — the row object is rebuilt every render.
+  // Push the active row's context into the store as the mapping source so
+  // prompt previews and template-variable resolution read a real span. Key the
+  // effect on the row key (a primitive) — the row object is rebuilt every
+  // render.
   const activeRowKey = activeRow?.key ?? null;
   const syncMappingSource = useEffectEvent(() => {
     const context = activeRow?.context;
@@ -736,11 +649,11 @@ function SpanRunList({
   }
   return (
     <div css={runListCSS}>
+      {/* The matched-count line above already states that nothing matched, so
+          this only introduces the fallback row. */}
       {rows[0]?.isSample ? (
         <Text size="S" color="text-500">
-          No matching spans yet — this stand-in span follows the OpenInference
-          semantic conventions so you can author and test now. Real spans
-          replace it automatically.
+          Use this sample span to test your evaluator.
         </Text>
       ) : null}
       <ul aria-label="Recent matching spans" className="span-run-list__rows">
@@ -748,11 +661,9 @@ function SpanRunList({
           <SpanRunRow
             key={row.key}
             row={row}
-            isExpanded={expandedKey === row.key}
+            isExpanded={expandedRowKey === row.key}
             onToggleExpanded={() =>
-              setExpandedKey((current) =>
-                current === row.key ? null : row.key
-              )
+              setExpandedKey(expandedRowKey === row.key ? null : row.key)
             }
             run={runs[row.key]}
             isRunnable={isRunnable}
@@ -766,6 +677,18 @@ function SpanRunList({
           />
         ))}
       </ul>
+      {hasMoreSpans ? (
+        <Flex justifyContent="center">
+          <LoadMoreButton
+            isLoadingNext={isShowingMore}
+            onLoadMore={() =>
+              startShowMoreTransition(() => {
+                setLimit((current) => current + SPAN_LIST_PAGE_SIZE);
+              })
+            }
+          />
+        </Flex>
+      ) : null}
     </div>
   );
 }
@@ -1044,10 +967,19 @@ const contextViewerCSS = css`
   }
 `;
 
+type BindingRow = {
+  keyword: string;
+  /** Set only for explicit path mappings; automatic bindings need no verb. */
+  path?: string;
+  value: unknown;
+};
+
 /**
  * Previews what each keyword binds to on this span: every top-level context
  * key that binds automatically (data-driven, not a hard-coded vocabulary) and
- * every explicit mapping with its resolved value or failure state.
+ * every explicit mapping with its resolved value or failure state. Each row
+ * expands in place to the full bound value, so the one-line snippet is a
+ * teaser rather than the only view.
  */
 function BindingPreview({
   context,
@@ -1062,29 +994,39 @@ function BindingPreview({
     context,
     pathMapping,
   });
-  const automaticKeys = isStringKeyedObject(context)
-    ? Object.keys(context).filter((key) => !(key in pathMapping))
+  const automaticRows: BindingRow[] = isStringKeyedObject(context)
+    ? Object.keys(context)
+        .filter((key) => !(key in pathMapping))
+        .map((key) => ({ keyword: key, value: context[key] }))
     : [];
+  const mappedRows: BindingRow[] = diagnostics
+    .filter(({ status }) => status === "resolved")
+    .map(({ variable, path }) => ({
+      keyword: variable,
+      path,
+      value: getValueAtPath(context, path),
+    }));
+  const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
   return (
-    <Flex direction="column" gap="size-100" marginTop="size-100">
+    <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
         // Bindings against the sample prove the mapping's shape, not that it
         // resolves on this project's real spans — flag that up front.
-        <Alert variant="info" title="Checked against a sample span">
-          These bindings reflect the sample's structure, not real project data —
-          re-check them once matching spans arrive.
+        <Alert variant="info" title="Bindings use a sample span">
+          Verify the bindings against a real span once matching spans exist.
         </Alert>
       ) : null}
-      {automaticKeys.map((key) => (
-        <div key={key} css={bindingRowCSS}>
-          <code className="binding-row__keyword">{key}</code>
-          <span className="binding-row__source">binds automatically</span>
-          <span className="binding-row__value">
-            {getBoundValueSnippet(
-              isStringKeyedObject(context) ? context[key] : undefined
-            )}
-          </span>
-        </div>
+      {[...automaticRows, ...mappedRows].map((row) => (
+        <BindingPreviewRow
+          key={row.keyword}
+          row={row}
+          isExpanded={expandedKeyword === row.keyword}
+          onToggleExpanded={() =>
+            setExpandedKeyword((current) =>
+              current === row.keyword ? null : row.keyword
+            )
+          }
+        />
       ))}
       {diagnostics.map(({ variable, path, status }) =>
         status === "missing" ? (
@@ -1093,7 +1035,7 @@ function BindingPreview({
             variant="danger"
             title={`${variable} does not resolve`}
           >
-            The path {path} would fail for this span.
+            No value at {path} on this span.
           </Alert>
         ) : status === "unverified" ? (
           <Alert
@@ -1101,28 +1043,92 @@ function BindingPreview({
             variant="warning"
             title={`${variable} is unverified`}
           >
-            The path {path} uses an expression that is verified by the server
-            when the evaluator runs.
+            {path} is checked by the server when the evaluator runs.
           </Alert>
-        ) : (
-          <div key={variable} css={bindingRowCSS}>
-            <code className="binding-row__keyword">{variable}</code>
-            <span className="binding-row__source">from {path}</span>
-            <span className="binding-row__value">
-              {getBoundValueSnippet(getValueAtPath(context, path))}
-            </span>
-          </div>
-        )
+        ) : null
       )}
     </Flex>
   );
 }
 
+/**
+ * One keyword's binding: a full-width toggle with the keyword, its source
+ * path (explicit mappings only), and a one-line value snippet; expanding
+ * reveals the full value — prose as text, everything else pretty-printed.
+ */
+function BindingPreviewRow({
+  row,
+  isExpanded,
+  onToggleExpanded,
+}: {
+  row: BindingRow;
+  isExpanded: boolean;
+  onToggleExpanded: () => void;
+}) {
+  const isTextValue = typeof row.value === "string";
+  return (
+    <div css={bindingRowCSS} data-expanded={isExpanded}>
+      <button
+        type="button"
+        className="binding-row__toggle"
+        aria-expanded={isExpanded}
+        onClick={onToggleExpanded}
+      >
+        <Icon
+          svg={isExpanded ? <Icons.ChevronDown /> : <Icons.ChevronRight />}
+        />
+        <code className="binding-row__keyword">{row.keyword}</code>
+        {row.path ? (
+          <code className="binding-row__path">← {row.path}</code>
+        ) : null}
+        {isExpanded ? null : (
+          <span className="binding-row__value">
+            {getBoundValueSnippet(row.value)}
+          </span>
+        )}
+      </button>
+      {isExpanded ? (
+        <div className="binding-row__detail">
+          {isTextValue ? (
+            <pre className="binding-row__text">{String(row.value)}</pre>
+          ) : (
+            <JSONBlock
+              value={JSON.stringify(row.value, null, 2) ?? "undefined"}
+              basicSetup={{ lineNumbers: false }}
+            />
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const bindingRowCSS = css`
-  display: flex;
-  align-items: baseline;
-  gap: var(--global-dimension-size-100);
-  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: var(--global-rounding-small);
+  &[data-expanded="true"] {
+    border-color: var(--global-border-color-default);
+  }
+  .binding-row__toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-75);
+    border: none;
+    border-radius: var(--global-rounding-small);
+    background: none;
+    cursor: pointer;
+    text-align: left;
+    color: var(--global-text-color-500);
+    &:hover {
+      background-color: rgba(var(--global-color-gray-500-rgb), 0.15);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--global-color-info);
+      outline-offset: 1px;
+    }
+  }
   .binding-row__keyword {
     flex: none;
     font-family: var(--global-font-family-code, monospace);
@@ -1130,8 +1136,9 @@ const bindingRowCSS = css`
     font-weight: 600;
     color: var(--global-text-color-900);
   }
-  .binding-row__source {
+  .binding-row__path {
     flex: none;
+    font-family: var(--global-font-family-code, monospace);
     font-size: var(--global-font-size-xs);
     color: var(--global-text-color-500);
   }
@@ -1141,6 +1148,22 @@ const bindingRowCSS = css`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-family: var(--global-font-family-code, monospace);
+    font-size: var(--global-font-size-xs);
+    color: var(--global-text-color-700);
+  }
+  .binding-row__detail {
+    border-top: 1px solid var(--global-border-color-default);
+    padding: var(--global-dimension-size-75);
+    /* Scroll long values inside the row instead of growing the panel. */
+    max-height: 240px;
+    overflow: auto;
+  }
+  .binding-row__text {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: var(--global-font-family-code, monospace);
     font-size: var(--global-font-size-xs);
     color: var(--global-text-color-700);
   }
@@ -1339,7 +1362,8 @@ function AnnotationTemplateDisclosure() {
       <DisclosureTrigger direction="column" alignItems="start" width="100%">
         <Heading level={2}>Annotation template</Heading>
         <Text color="text-500">
-          Configure the feedback your evaluator will attach to spans.
+          Define the annotation that your evaluator will attach to matched
+          spans.
         </Text>
       </DisclosureTrigger>
       <DisclosurePanel>

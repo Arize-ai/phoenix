@@ -62,7 +62,6 @@ export const ProjectCodeEvaluatorDialogContent = ({
           scope={scope}
           onScopeChange={onScopeChange}
           onFilterValidityChange={setIsFilterValid}
-          mode={mode === "update" ? "edit" : "create"}
           codeEvaluatorId={evaluatorId}
         />
       }

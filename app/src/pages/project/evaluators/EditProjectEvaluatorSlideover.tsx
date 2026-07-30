@@ -475,7 +475,6 @@ function EditLlmProjectEvaluatorContent({
                 scope={scope}
                 onScopeChange={setScope}
                 onFilterValidityChange={setIsFilterValid}
-                mode="edit"
                 showAnnotationTemplate
               />
             }

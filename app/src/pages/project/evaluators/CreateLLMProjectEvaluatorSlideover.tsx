@@ -462,7 +462,6 @@ const ScratchLlmDialogContent = ({
           scope={scope}
           onScopeChange={onScopeChange}
           onFilterValidityChange={onFilterValidityChange}
-          mode="create"
           showAnnotationTemplate
         />
       }
