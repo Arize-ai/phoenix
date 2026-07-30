@@ -21,6 +21,10 @@ import {
 import { TopNavActions } from "@phoenix/components/nav";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import {
+  SPAN_FILTER_CONDITION_KEY,
+  TRACE_FILTER_CONDITION_KEY,
+} from "@phoenix/utils/scopedFragmentState";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
@@ -36,11 +40,6 @@ import {
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
-import {
-  SPAN_FILTER_CONDITION_KEY,
-  TRACE_FILTER_CONDITION_KEY,
-} from "@phoenix/utils/scopedFragmentState";
-
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
 import {
