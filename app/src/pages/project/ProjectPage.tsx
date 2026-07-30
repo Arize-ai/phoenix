@@ -231,9 +231,11 @@ function ProjectPageContentBody({
    * both settled. Called for the conditions this app classifies itself, and by
    * `ProjectSpansPage` once the field has validated one it cannot.
    *
-   * `persistToUrl` is false when the seed is a fallback rather than what was
-   * asked for. The URL then keeps the rejected text so it stays visible and
-   * editable, and the field goes on reporting why it failed.
+   * `persistToUrl` is false whenever the seed is not something the user asked
+   * for -- a fallback after validation failed, or this tab's own default when
+   * the URL named no condition. A fallback leaves the rejected text in the URL
+   * so it stays visible and editable while the field reports why it failed; a
+   * default is left out entirely, so the other tab does not inherit it.
    */
   const resolveSpansSeed = useCallback(
     (seed: SettledSpanFilterSeed, persistToUrl = true) => {
@@ -305,10 +307,8 @@ function ProjectPageContentBody({
         // server, and asking needs the filter field, which `ProjectSpansPage`
         // mounts on its own while this stays null. Nothing is fetched until
         // the condition is known good.
-        const seed = spanFilterSeed(
-          searchParams.get(SPAN_FILTER_CONDITION_PARAM) ??
-            DEFAULT_SPAN_FILTER_CONDITION
-        );
+        const fromUrl = searchParams.get(SPAN_FILTER_CONDITION_PARAM);
+        const seed = spanFilterSeed(fromUrl ?? DEFAULT_SPAN_FILTER_CONDITION);
         // Returning to a tab whose rows already answer this condition is not a
         // reason to reload it. Re-resolving would tear the table down and
         // rebuild it for the same result.
@@ -321,12 +321,15 @@ function ProjectPageContentBody({
         if (seed.requiresServerValidation) {
           setSpansFilterSeed(null);
         } else {
-          resolveSpansSeed(seed);
+          // Persist only a condition the URL already carried. The two tabs
+          // share one param but default differently -- spans to root spans,
+          // traces to every span -- so writing a tab's own default would
+          // impose it on the other one at the next tab switch.
+          resolveSpansSeed(seed, fromUrl !== null);
         }
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
-        const seed = spanFilterSeed(
-          searchParams.get(SPAN_FILTER_CONDITION_PARAM) ?? ""
-        );
+        const fromUrl = searchParams.get(SPAN_FILTER_CONDITION_PARAM);
+        const seed = spanFilterSeed(fromUrl ?? "");
         if (
           tracesQueryReference &&
           tracesFilterSeed?.condition === seed.condition
@@ -336,7 +339,7 @@ function ProjectPageContentBody({
         if (seed.requiresServerValidation) {
           setTracesFilterSeed(null);
         } else {
-          resolveTracesSeed(seed);
+          resolveTracesSeed(seed, fromUrl !== null);
         }
       } else if (currentTabIndex === TAB_INDEX_MAP.sessions) {
         loadSessionsQuery({
