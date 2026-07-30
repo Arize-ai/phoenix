@@ -100,7 +100,7 @@ If you'd like to follow along with this evaluation example, you can check out th
 
     Evaluators determine whether the task output for each example is "good," "bad," or somewhere in between. You can use Phoenix pre-built evaluators or define custom evaluators that give you full control over the metrics and logic used to judge application behavior. The evaluator you choose should align with the specific quality or capability you want to measure.
 
-    In this example, we'll use a [pre-built LLM Judge](running-pre-tested-evals/) that measures **Document Relevancy**. This evaluator checks whether retrieved context actually contains the information needed to answer the user's question—ensuring your application is grounding its responses in the right documents.
+    In this example, we'll use a [pre-built LLM Judge](pre-built-metrics/) that measures **Document Relevancy**. This evaluator checks whether retrieved context actually contains the information needed to answer the user's question—ensuring your application is grounding its responses in the right documents.
 
     ```typescript
     import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";

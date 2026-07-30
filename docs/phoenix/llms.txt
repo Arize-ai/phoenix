@@ -110,7 +110,7 @@
 
 ### Pre-Built Metrics
 
-- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built LLM and code evaluators — faithfulness, hallucination, toxicity, RAG relevance, tool calling
+- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built LLM and code evaluators — faithfulness, toxicity, document relevance, tool calling
 
 ### Server-Side Evaluations
 
@@ -130,16 +130,11 @@
 - [Faithfulness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/faithfulness): Evaluate whether LLM responses are faithful to the provided context
 - [Matches Regex](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/matches-regex): Evaluate if output matches a regular expression pattern
 - [Precision / Recall / F-Score](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore): Compute precision, recall, and F-beta scores for classification tasks
-- [Q&A on Retrieved Data](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data): Legacy evaluator — score whether an LLM answer is correct given retrieved context
 - [Refusal](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/refusal): Detect when an LLM refuses or declines to answer a user query
-- [Retrieval (RAG) Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance): Legacy evaluator — score whether retrieved documents are relevant to the query
-- [SQL Generation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval): Legacy evaluator — score whether generated SQL matches a natural-language query description
-- [Summarization](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/summarization-eval): Legacy evaluator — score whether a summary faithfully captures the source document
-- [Agent Function Calling Eval](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval): Legacy evaluator — score tool selection, parameter extraction, and generated tool call code
 - [Tool Invocation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-invocation): Evaluate whether LLM tool calls have correct arguments and formatting
 - [Tool Response Handling](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling): Evaluate how agents process tool results — error handling, data extraction, and recovery
 - [Tool Selection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection): Evaluate whether LLMs select the correct tools for given tasks
-- [Toxicity](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity): Legacy evaluator — detect toxic, harmful, or offensive content in LLM responses
+- [Toxicity](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity): Detect toxic, harmful, or offensive content in LLM responses
 - [User Friction](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/user-friction): Detect when a user expresses friction or frustration with an assistant's preceding response
 
 - [Contains](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains): Check whether a text contains one or more specified words
