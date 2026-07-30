@@ -367,9 +367,10 @@ export function SessionsTable(props: SessionsTableProps) {
   ];
 
   const columns: ColumnDef<TableRow>[] = [
+    ...annotationColumns,
     {
-      header: "session id",
-      accessorKey: "sessionId",
+      header: "user",
+      accessorKey: "userId",
       enableSorting: false,
       cell: ({ getValue }) => (
         <CopyableTextCell value={getValue() as string | null} />
@@ -396,27 +397,6 @@ export function SessionsTable(props: SessionsTableProps) {
           preview={getValue()}
         />
       ),
-    },
-    {
-      header: "user",
-      accessorKey: "userId",
-      enableSorting: false,
-      cell: ({ getValue }) => (
-        <CopyableTextCell value={getValue() as string | null} />
-      ),
-    },
-    ...annotationColumns,
-    {
-      header: "start time",
-      accessorKey: "startTime",
-      enableSorting: true,
-      cell: TimestampCell,
-    },
-    {
-      header: "end time",
-      accessorKey: "endTime",
-      enableSorting: true,
-      cell: TimestampCell,
     },
     {
       header: "p50 latency",
@@ -488,6 +468,26 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "numTraces",
       enableSorting: true,
       cell: IntCell,
+    },
+    {
+      header: "start time",
+      accessorKey: "startTime",
+      enableSorting: true,
+      cell: TimestampCell,
+    },
+    {
+      header: "end time",
+      accessorKey: "endTime",
+      enableSorting: true,
+      cell: TimestampCell,
+    },
+    {
+      header: "session id",
+      accessorKey: "sessionId",
+      enableSorting: false,
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
     },
   ];
   useEffect(() => {
