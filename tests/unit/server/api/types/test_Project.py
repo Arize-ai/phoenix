@@ -4132,6 +4132,72 @@ class TestProject:
         assert await _list_ids(f"session_id == {session.session_id!r}") == [_gid(session)]
         assert await _list_ids(f"session_id == {token_hex(16)!r}") == []
 
+    async def test_sessions_filtered_by_annotation_return_each_session_once(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """A session carrying several annotations under one name is one row on a filtered page.
+
+        Session annotations are unique on `(name, project_session_id, identifier)`, so the join a
+        filter on `annotations[...]` makes can match a session more than once.
+        """
+        async with db() as session:
+            project = await _add_project(session, name="annotation-fan-out-page")
+            project_session = await _add_project_session(session, project)
+            trace = await _add_trace(session, project, project_session)
+            await _add_span(session, trace)
+            for identifier in ("first", "second"):
+                session.add(
+                    models.ProjectSessionAnnotation(
+                        project_session_id=project_session.id,
+                        name="Quality",
+                        label="good",
+                        score=0.9,
+                        metadata_={},
+                        annotator_kind="HUMAN",
+                        source="APP",
+                        identifier=identifier,
+                    )
+                )
+
+        condition = 'annotations["Quality"].score > 0.5'
+        page = await self._node(
+            f"sessions(sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+            project,
+            httpx_client,
+        )
+        assert [e["node"]["id"] for e in page["edges"]] == [_gid(project_session)]
+
+    async def test_sessions_page_and_count_agree_over_comprehension_condition(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """The page and the count select the same sessions, though they compile differently."""
+        async with db() as session:
+            project = await _add_project(session, name="comprehension-page-count-agreement")
+            expected = []
+            for span_count in (1, 3, 4):
+                project_session = await _add_project_session(session, project)
+                trace = await _add_trace(session, project, project_session)
+                for _ in range(span_count):
+                    await _add_span(session, trace, span_kind="LLM")
+                if span_count > 2:
+                    expected.append(_gid(project_session))
+
+        condition = "len([s for s in spans]) > 2"
+        page = await self._node(
+            f"sessions(sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+            project,
+            httpx_client,
+        )
+        count = await self._node(
+            f"sessionCount(sessionFilterCondition:{json.dumps(condition)})", project, httpx_client
+        )
+        assert sorted(e["node"]["id"] for e in page["edges"]) == sorted(expected)
+        assert count == len(expected)
+
     @staticmethod
     async def _validate_session_filter(
         project: models.Project,

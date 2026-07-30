@@ -15,6 +15,7 @@ from phoenix.trace.dsl.filter import SPAN_BINDINGS
 from phoenix.trace.dsl.session_filter import (
     SESSION_BINDINGS,
     SESSION_FILTER_DESCRIPTIONS,
+    FilterLowering,
     SessionFilter,
 )
 from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
@@ -244,9 +245,11 @@ async def _matched_rowids(
     session: object,
     session_filter: SessionFilter,
     project: models.Project,
+    lowering: FilterLowering = "scan",
 ) -> set[int]:
     stmt = session_filter(
-        select(models.ProjectSession.id).where(models.ProjectSession.project_id == project.id)
+        select(models.ProjectSession.id).where(models.ProjectSession.project_id == project.id),
+        lowering=lowering,
     )
     return {row for row in (await session.scalars(stmt)).all()}  # type: ignore[attr-defined]
 
@@ -435,7 +438,7 @@ async def test_session_filter_tool_span_count_counts_tool_spans(
         assert no_tools.id not in matched
 
 
-def test_session_filter_grouped_aggregate_shape_pushes_project_time_scope() -> None:
+def test_session_filter_scan_lowering_pushes_project_time_scope() -> None:
     start = datetime(2024, 1, 1, tzinfo=timezone.utc)
     end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
@@ -443,7 +446,7 @@ def test_session_filter_grouped_aggregate_shape_pushes_project_time_scope() -> N
         project_rowids=[1],
         start_time=start,
         end_time=end,
-        aggregate_shape="grouped",
+        lowering="scan",
     )
     compiled = str(
         select(models.ProjectSession.id)
@@ -459,7 +462,7 @@ def test_session_filter_grouped_aggregate_shape_pushes_project_time_scope() -> N
     assert "traces.project_session_rowid = project_sessions.id" not in compiled
 
 
-def test_session_filter_correlated_aggregate_shape_pushes_project_time_scope() -> None:
+def test_session_filter_probe_lowering_pushes_project_time_scope() -> None:
     start = datetime(2024, 1, 1, tzinfo=timezone.utc)
     end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
@@ -467,7 +470,7 @@ def test_session_filter_correlated_aggregate_shape_pushes_project_time_scope() -
         project_rowids=[1],
         start_time=start,
         end_time=end,
-        aggregate_shape="correlated",
+        lowering="probe",
     )
     compiled = str(
         select(models.ProjectSession.id)
@@ -795,9 +798,12 @@ async def _seed_reference_session(
     return project_session
 
 
-async def test_session_filter_agrees_with_reference_evaluator(db: DbSessionFactory) -> None:
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_session_filter_agrees_with_reference_evaluator(
+    db: DbSessionFactory, lowering: FilterLowering
+) -> None:
     """Differential suite: for every (fixture, condition) pair the compiled filter's row set
-    equals the Python reference evaluator's selection, on both dialects."""
+    equals the Python reference evaluator's selection, under both lowerings on both dialects."""
     async with db() as session:
         project = await _add_project(session)
         rowids = {
@@ -810,7 +816,9 @@ async def test_session_filter_agrees_with_reference_evaluator(db: DbSessionFacto
                 for fixture in FIXTURE_SESSIONS
                 if matches(condition, fixture)
             }
-            actual = await _matched_rowids(session, SessionFilter(condition), project)
+            actual = await _matched_rowids(
+                session, SessionFilter(condition), project, lowering=lowering
+            )
             assert actual == expected, condition
 
 
@@ -886,15 +894,16 @@ def test_session_filter_rejects_out_of_scope_comprehension_forms(condition: str)
     # its `IS NOT` is null-safe either way, which is what makes a NULL field a counterexample.
     [(_SQLITE_DIALECT, "is not 1"), (_POSTGRESQL_DIALECT, "is not true")],
 )
-def test_session_filter_quantifiers_compile_to_correlated_exists(
+def test_session_filter_quantifiers_probe_lowering_compiles_to_correlated_exists(
     dialect: Dialect, counterexample: str
 ) -> None:
-    """`any` is an EXISTS and `all` a NOT EXISTS whose counterexample is `IS NOT TRUE`, so a
-    NULL element field excludes the session rather than satisfying the quantifier."""
+    """Under the probe lowering `any` is an EXISTS and `all` a NOT EXISTS whose counterexample is
+    `IS NOT TRUE`, so a NULL element field excludes the session rather than satisfying the
+    quantifier."""
     subquery = SessionFilter(
         'any(s.status_code == "ERROR" for s in spans) '
         "and all(s.llm_token_count_prompt < 1000 for s in spans)"
-    ).as_session_rowids_subquery(project_rowids=[1])
+    ).as_session_rowids_subquery(project_rowids=[1], lowering="probe")
     compiled = str(
         select(models.ProjectSession.id)
         .where(models.ProjectSession.id.in_(subquery))
