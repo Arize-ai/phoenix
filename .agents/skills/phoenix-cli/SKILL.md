@@ -199,6 +199,7 @@ px auth status --profile prod
 
 ```bash
 px project list                                            # list all projects (table view)
+px project list --name-contains prod --format raw --no-progress | jq '.[].name'  # filter by name substring (case-insensitive)
 px project list --format raw --no-progress | jq '.[].name' # project names as JSON
 px project get my-project --format raw --no-progress       # single record by exact name
 px project get my-project --format raw --no-progress | jq -r '.id'  # extract project id

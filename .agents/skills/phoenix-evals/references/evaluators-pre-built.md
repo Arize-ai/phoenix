@@ -15,6 +15,21 @@ faithfulness_eval = FaithfulnessEvaluator(llm=llm)
 **Note**: `HallucinationEvaluator` is deprecated. Use `FaithfulnessEvaluator` instead.
 It uses "faithful"/"unfaithful" labels with score 1.0 = faithful.
 
+`ToxicityEvaluator` flags a single piece of text (a model output or a user input)
+as toxic — hateful, demeaning, abusive, or threatening. It takes an `LLM` and
+evaluates a `{"text": ...}` input, returning "toxic"/"non-toxic" with score
+1.0 = toxic (`direction="minimize"`):
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import ToxicityEvaluator
+
+llm = LLM(provider="openai", model="gpt-4o-mini")
+toxicity_eval = ToxicityEvaluator(llm=llm)
+
+scores = toxicity_eval.evaluate({"text": "You are a worthless idiot."})
+```
+
 ## TypeScript
 
 ```typescript
@@ -22,6 +37,15 @@ import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
 const hallucinationEval = createHallucinationEvaluator({ model: openai("gpt-4o") });
+```
+
+```typescript
+import { createToxicityEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const toxicityEval = createToxicityEvaluator({ model: openai("gpt-4o-mini") });
+const result = await toxicityEval.evaluate({ text: "You are a worthless idiot." });
+// result.label is "toxic" or "non-toxic"
 ```
 
 ## Available (2.0)
@@ -34,12 +58,13 @@ const hallucinationEval = createHallucinationEvaluator({ model: openai("gpt-4o")
 | `ToolSelectionEvaluator` | LLM | Did the agent select the right tool? |
 | `ToolInvocationEvaluator` | LLM | Did the agent invoke the tool correctly? |
 | `ToolResponseHandlingEvaluator` | LLM | Did the agent handle the tool response well? |
+| `ToxicityEvaluator` | LLM | Is the text toxic (hateful, abusive, threatening)? |
 | `MatchesRegex` | Code | Does output match a regex pattern? |
 | `PrecisionRecallFScore` | Code | Precision/recall/F-score metrics |
 | `exact_match` | Code | Exact string match |
 
-Legacy evaluators (`HallucinationEvaluator`, `QAEvaluator`, `RelevanceEvaluator`,
-`ToxicityEvaluator`, `SummarizationEvaluator`) are in `phoenix.evals.legacy` and deprecated.
+`HallucinationEvaluator` is exported from `phoenix.evals.metrics` as a deprecated
+alias — use `FaithfulnessEvaluator` instead.
 
 **TypeScript**: `PrecisionRecallFScore` is also available via `@arizeai/phoenix-evals/code`
 as `createPrecisionEvaluator`, `createRecallEvaluator`, `createF1Evaluator`,

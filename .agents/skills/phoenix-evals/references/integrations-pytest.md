@@ -43,10 +43,26 @@ Stable `parametrize` `ids` give each case a fixed identity so runs accumulate as
 | Argument | Description |
 |---|---|
 | `dataset` | Dataset/experiment name. Defaults to the test file's path relative to project root. |
+| `dataset_description` | Description stored on the created/updated dataset. |
+| `experiment_description` | Description stored on the experiment. |
+| `experiment_metadata` | Free-form mapping (e.g. model, parameters) stored on the experiment. Must be a mapping or collection fails with a `UsageError`. |
 | `evaluators` | Evaluators run automatically against every case (hoisted). |
 | `repetitions` | Run each case N times to measure non-determinism (each is its own pytest item + experiment run). |
 
 Dataset-name precedence: `PHOENIX_TEST_DATASET` env > `phoenix_dataset` in `pytest.ini` > marker `dataset=` > file path.
+
+The current git commit is detected once per session and merged into
+`experiment_metadata` as `git_sha` (skipped if you already supply a `git_sha`;
+degrades silently outside a git checkout). `dataset_description`,
+`experiment_description`, and `experiment_metadata` are merged across all tests
+sharing a dataset name — conflicting values for the same dataset fail collection
+with a `UsageError`.
+
+Evaluator spans (including spans created inside evaluator bodies) are routed to a
+dedicated evaluators project rather than the experiment's task project, matching
+the TypeScript client's `runExperiment` behavior. Requires
+`arize-phoenix-client>=2.10.0`; the metadata kwargs and evaluator trace isolation
+were added later, so use a recent client build.
 
 ## Logging helpers
 
