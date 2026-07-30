@@ -3,25 +3,20 @@ name: Harbor Evals
 permissions:
   contents: read
 
+# Manual only for now. Running this on every PR would spend agent tokens on a
+# regression dataset that is still too small to trust; switch it on once there's
+# a pass-rate history worth gating against.
 on:
-  pull_request:
-    paths:
-      - "evals/harbor/**"
-      - "src/phoenix/server/agents/**"
-      - ".github/workflows/harbor-evals.yml"
-      - "Makefile"
   workflow_dispatch:
 
 concurrency:
-  group: harbor-evals-${{ github.head_ref || github.ref }}
+  group: harbor-evals-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   harbor-eval:
     name: ServerAgent regression triage (Daytona)
     runs-on: ubuntu-latest
-    # Secrets are empty on pull_request runs from forks; skip rather than fail.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     timeout-minutes: 45
     env:
       UV_VERSION: "0.11.12"
@@ -51,7 +46,7 @@ jobs:
           python3 evals/harbor/scripts/check_job_reward.py --min-reward 1.0
 
       # The agent is nondeterministic; require 3 of 4 steps rather than
-      # perfection so CI isn't flaky. Tighten once there's a pass-rate history.
+      # perfection. Tighten once there's a pass-rate history.
       - name: Run ServerAgent trial
         run: |
           make harbor-run

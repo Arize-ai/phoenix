@@ -8,7 +8,7 @@ from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
-# Trial-wide state (conversation history, trajectory session id) must survive
+# Trial-wide state (conversation history, tracing session id) must survive
 # across steps, but Harbor empties /logs/agent between steps, so it lives on
 # the container filesystem instead.
 _STATE_DIR = "/var/lib/phoenix-eval"
@@ -18,8 +18,6 @@ _INSTRUCTION_PATH = "/tmp/instruction.md"
 
 
 class PhoenixServerAgent(BaseAgent):
-    SUPPORTS_ATIF: bool = True
-
     # Harbor reuses the same agent instance for every step of a trial, so the
     # step counter can live here instead of in the container.
     _step: int = 0
@@ -73,8 +71,7 @@ class PhoenixServerAgent(BaseAgent):
                 "--step-config step-config.json",
                 f"--out-dir {out_dir}",
                 f"--history-file {_STATE_DIR}/messages.json",
-                "--trajectory-file /logs/agent/trajectory.json",
-                f"--session-id-file {_STATE_DIR}/trajectory_session_id",
+                f"--session-id-file {_STATE_DIR}/tracing_session_id",
                 f"--latest-symlink {_LATEST_LINK}",
             ]
         )

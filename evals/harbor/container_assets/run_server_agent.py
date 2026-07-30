@@ -8,7 +8,6 @@ import os
 import re
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Any, Sequence
 from uuid import uuid4
 
 from asgi_lifespan import LifespanManager
@@ -67,138 +66,6 @@ def _load_or_create_session_id(session_id_file: Path | None) -> str:
         session_id_file.parent.mkdir(parents=True, exist_ok=True)
         session_id_file.write_text(session_id + "\n")
     return session_id
-
-
-def _text_of(content: object) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, (list, tuple)):
-        texts = [c if isinstance(c, str) else getattr(c, "text", None) for c in content]
-        if any(texts):
-            return "\n".join(t for t in texts if t)
-    return json.dumps(content, default=str)
-
-
-def _tool_args(part: object) -> dict[str, Any]:
-    args = getattr(part, "args", None)
-    if isinstance(args, dict):
-        return args
-    if isinstance(args, str):
-        try:
-            parsed = json.loads(args)
-        except json.JSONDecodeError:
-            return {"value": args}
-        return parsed if isinstance(parsed, dict) else {"value": parsed}
-    return {}
-
-
-def _timestamp_of(obj: object) -> str | None:
-    timestamp = getattr(obj, "timestamp", None)
-    return timestamp.isoformat() if timestamp is not None else None
-
-
-def _usage_metrics(usage: object) -> dict[str, Any] | None:
-    metrics = {
-        "prompt_tokens": getattr(usage, "input_tokens", None),
-        "completion_tokens": getattr(usage, "output_tokens", None),
-        "cached_tokens": getattr(usage, "cache_read_tokens", None),
-    }
-    metrics = {k: v for k, v in metrics.items() if v}
-    return metrics or None
-
-
-def build_trajectory(
-    messages: Sequence[Any], history_count: int, model_name: str, session_id: str
-) -> dict[str, Any] | None:
-    """Convert pydantic-ai messages to Harbor's ATIF v1.7 trajectory format."""
-    steps: list[dict[str, Any]] = []
-    last_agent_step: dict[str, Any] | None = None
-
-    def add_step(source: str, is_history: bool, **fields: object) -> dict[str, Any]:
-        step = {"step_id": len(steps) + 1, "source": source, **fields}
-        if is_history:
-            step["is_copied_context"] = True
-        steps.append({k: v for k, v in step.items() if v is not None})
-        return steps[-1]
-
-    for index, message in enumerate(messages):
-        is_history = index < history_count
-        if getattr(message, "kind", None) == "response":
-            texts, thoughts, tool_calls = [], [], []
-            for part in message.parts:
-                kind = getattr(part, "part_kind", "")
-                if kind == "text":
-                    texts.append(part.content)
-                elif kind == "thinking":
-                    thoughts.append(part.content)
-                elif kind == "tool-call":
-                    tool_calls.append(
-                        {
-                            "tool_call_id": part.tool_call_id,
-                            "function_name": part.tool_name,
-                            "arguments": _tool_args(part),
-                        }
-                    )
-            last_agent_step = add_step(
-                "agent",
-                is_history,
-                timestamp=_timestamp_of(message),
-                model_name=getattr(message, "model_name", None),
-                message="\n\n".join(texts),
-                reasoning_content="\n\n".join(thoughts) or None,
-                tool_calls=tool_calls or None,
-                metrics=_usage_metrics(getattr(message, "usage", None)),
-                llm_call_count=1,
-            )
-            continue
-        for part in getattr(message, "parts", []):
-            kind = getattr(part, "part_kind", "")
-            if kind == "system-prompt":
-                add_step("system", is_history, message=_text_of(part.content))
-            elif kind == "user-prompt":
-                add_step(
-                    "user",
-                    is_history,
-                    timestamp=_timestamp_of(part),
-                    message=_text_of(part.content),
-                )
-            elif kind in ("tool-return", "retry-prompt") and last_agent_step is not None:
-                call_id = getattr(part, "tool_call_id", None)
-                known_ids = {c["tool_call_id"] for c in last_agent_step.get("tool_calls", [])}
-                result: dict[str, Any] = {"content": _text_of(part.content)}
-                if call_id in known_ids:
-                    result["source_call_id"] = call_id
-                observation = last_agent_step.setdefault("observation", {"results": []})
-                observation["results"].append(result)
-            else:
-                add_step("user", is_history, message=_text_of(part.content))
-
-    if not steps:
-        return None
-    totals = {
-        "total_prompt_tokens": sum(s.get("metrics", {}).get("prompt_tokens", 0) for s in steps),
-        "total_completion_tokens": sum(
-            s.get("metrics", {}).get("completion_tokens", 0) for s in steps
-        ),
-        "total_steps": len(steps),
-    }
-    try:
-        from phoenix import __version__
-
-        phoenix_version = str(__version__ or "unknown")
-    except ImportError:
-        phoenix_version = "unknown"
-    return {
-        "schema_version": "ATIF-v1.7",
-        "session_id": session_id,
-        "agent": {
-            "name": "phoenix-server-agent",
-            "version": phoenix_version,
-            "model_name": model_name,
-        },
-        "steps": steps,
-        "final_metrics": totals,
-    }
 
 
 async def run(args: argparse.Namespace) -> None:
@@ -287,16 +154,6 @@ async def run(args: argparse.Namespace) -> None:
         args.latest_symlink.parent.mkdir(parents=True, exist_ok=True)
         args.latest_symlink.unlink(missing_ok=True)
         args.latest_symlink.symlink_to(args.out_dir)
-    if args.trajectory_file:
-        trajectory = build_trajectory(
-            result.all_messages(),
-            history_count=len(history or []),
-            model_name=args.model,
-            session_id=session_id,
-        )
-        if trajectory is not None:
-            args.trajectory_file.parent.mkdir(parents=True, exist_ok=True)
-            args.trajectory_file.write_text(json.dumps(trajectory, indent=2) + "\n")
     await engine.dispose()
 
 
@@ -308,7 +165,6 @@ def main() -> None:
     parser.add_argument("--task-name", required=True)
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--history-file", type=Path, default=None)
-    parser.add_argument("--trajectory-file", type=Path, default=None)
     parser.add_argument("--session-id-file", type=Path, default=None)
     parser.add_argument("--step-config", type=Path, default=None)
     parser.add_argument("--latest-symlink", type=Path, default=None)

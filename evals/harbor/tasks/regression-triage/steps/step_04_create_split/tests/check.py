@@ -10,6 +10,7 @@ from phoenix.server.app import _db, create_app
 from phoenix.server.types import DbSessionFactory
 
 DATA_DIR = Path(os.environ.get("HARBOR_DATA_DIR", "/data"))
+AGENT_LOG_DIR = Path(os.environ.get("HARBOR_AGENT_LOG_DIR", "/logs/agent"))
 VERIFIER_LOG_DIR = Path(os.environ.get("HARBOR_VERIFIER_LOG_DIR", "/logs/verifier"))
 
 
@@ -62,4 +63,9 @@ actual = asyncio.run(
     get_split_example_keys(DATA_DIR / "phoenix.db", "qa-bot-golden", truth["split_name"])
 )
 passed = actual == set(truth["expected_example_keys"])
-VERIFIER_LOG_DIR.joinpath("reward.json").write_text(json.dumps({"reward": float(passed)}))
+# Harbor averages each reward key across every step and counts a missing key as
+# 0, so tool_calls has to be reported here too for its mean to mean anything.
+messages = AGENT_LOG_DIR.joinpath("latest/new_messages.json").read_text()
+VERIFIER_LOG_DIR.joinpath("reward.json").write_text(
+    json.dumps({"reward": float(passed), "tool_calls": messages.count('"tool-call"')})
+)
