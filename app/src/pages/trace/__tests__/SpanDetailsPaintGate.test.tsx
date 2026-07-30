@@ -21,12 +21,11 @@ vi.mock("../TraceDetailsSkeleton", () => ({
 }));
 
 vi.mock("../SpanNoteBarContext", () => ({
-  SpanNoteBarProvider: ({ children }: PropsWithChildren) => children,
-}));
-
-vi.mock("../SpanNoteBar", () => ({
-  SpanNoteBar: ({ spanNodeId }: { spanNodeId: string }) => (
-    <div data-testid="span-note-bar">{spanNodeId}</div>
+  SpanNoteBarProvider: ({
+    activeSpanNodeId,
+    children,
+  }: PropsWithChildren<{ activeSpanNodeId?: string }>) => (
+    <div data-active-span-note-bar={activeSpanNodeId}>{children}</div>
   ),
 }));
 
@@ -104,10 +103,9 @@ describe("SpanDetailsPaintGate", () => {
         ?.getAttribute("data-span-details-state")
     ).toBe("dehydrated");
     expect(
-      container.querySelectorAll('[data-testid="span-note-bar"]')
-    ).toHaveLength(1);
-    expect(
-      container.querySelector('[data-testid="span-note-bar"]')?.textContent
+      container
+        .querySelector("[data-active-span-note-bar]")
+        ?.getAttribute("data-active-span-note-bar")
     ).toBe("span-a");
 
     runNextFrame();
@@ -129,10 +127,9 @@ describe("SpanDetailsPaintGate", () => {
     expect(getRetainedDetails()).toHaveProperty("hidden", true);
     expect(getRetainedDetails()?.textContent).toBe("Hydrated span-a");
     expect(
-      container.querySelectorAll('[data-testid="span-note-bar"]')
-    ).toHaveLength(1);
-    expect(
-      container.querySelector('[data-testid="span-note-bar"]')?.textContent
+      container
+        .querySelector("[data-active-span-note-bar]")
+        ?.getAttribute("data-active-span-note-bar")
     ).toBe("span-b");
 
     runNextFrame();

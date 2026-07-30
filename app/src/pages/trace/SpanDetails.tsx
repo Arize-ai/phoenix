@@ -5,17 +5,18 @@ import type {
   PropsWithChildren,
   ReactNode,
 } from "react";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
 import {
+  Button,
   Counter,
   ErrorBoundary,
   Flex,
   Icon,
-  IconButton,
   Icons,
+  KeyboardToken,
   Loading,
   Tooltip,
   TooltipTrigger,
@@ -25,7 +26,11 @@ import {
   useSpanDetailPanelAnnotationBarQuery,
 } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
-import { SPAN_DETAILS_CONDENSED_WIDTH_PIXELS } from "@phoenix/constants";
+import {
+  NOTE_HOTKEY,
+  SPAN_DETAILS_CONDENSED_WIDTH_PIXELS,
+} from "@phoenix/constants";
+import { usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 
 import { DetailHeader } from "../DetailHeader";
@@ -46,7 +51,11 @@ import { SpanDetailsSectionHeading } from "./SpanDetailsSectionHeading";
 import { SpanEventsList } from "./SpanEventsList";
 import { useSpanInfoCardProps } from "./SpanInfoCardsContext";
 import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
-import { useOptionalOpenSpanNoteBar } from "./SpanNoteBarContext";
+import { SpanNoteBar } from "./SpanNoteBar";
+import {
+  useIsActiveSpanNoteBar,
+  useOptionalOpenSpanNoteBar,
+} from "./SpanNoteBarContext";
 import { SpanNotesList } from "./SpanNotesList";
 import {
   DetailPanelAnnotationBarSkeleton,
@@ -153,7 +162,16 @@ const spanDetailsSectionsCSS = css`
     display: flex;
     flex-direction: column;
     min-height: 100%;
+
+    &[data-note-composer-open="true"] {
+      padding-bottom: var(--global-span-details-section-heading-height);
+    }
   }
+`;
+
+const spanDetailsBodyCSS = css`
+  position: relative;
+  isolation: isolate;
 `;
 
 const spanDetailsNotesBarCSS = css`
@@ -163,6 +181,29 @@ const spanDetailsNotesBarCSS = css`
   flex: none;
   margin-top: auto;
   background: var(--global-background-color-default);
+
+  .span-details-section-heading__heading {
+    flex: 1 1 auto;
+  }
+`;
+
+const spanNoteComposerOverlayCSS = css`
+  position: absolute;
+  z-index: var(--global-z-index-local-overlay);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--global-background-color-default);
+`;
+
+const notesBarNavigationButtonCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--global-dimension-size-100);
+  width: 100%;
+  color: inherit;
+  cursor: pointer;
 `;
 
 export function SpanDetails({
@@ -303,6 +344,10 @@ function SpanDetailsHeader({
 function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const attributesDisclosureProps = useSpanInfoCardProps("attributes");
   const openSpanNoteBar = useOptionalOpenSpanNoteBar();
+  const isTakingSpanNotes = usePreferencesContext(
+    (state) => state.isTakingSpanNotes
+  );
+  const isActiveSpanNoteBar = useIsActiveSpanNoteBar(spanNodeId);
   const shouldReduceMotion = useReducedMotion();
   const spanDetailsSectionsRef = useRef<HTMLDivElement>(null);
   const spanDetailsSectionsContentRef = useRef<HTMLDivElement>(null);
@@ -316,6 +361,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     null
   );
   const sectionFeedbackElementRef = useRef<HTMLElement | null>(null);
+  const [newNoteId, setNewNoteId] = useState<string | null>(null);
   const { span } = useLazyLoadQuery<SpanDetailsContentQuery>(
     graphql`
       query SpanDetailsContentQuery($id: ID!) {
@@ -401,6 +447,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     spanDetailsMainDimensions.height + notesHeadingDimensions.height >
       spanDetailsSectionsDimensions.height;
   const shouldRenderNotesContent = hasNotes || isNotesPushedBelowViewport;
+  const isNoteComposerOpen = isTakingSpanNotes && isActiveSpanNoteBar;
   const spanInfoSectionIds: SpanInfoSectionIds = {
     input: `span-details-${span.spanId}-input`,
     output: `span-details-${span.spanId}-output`,
@@ -416,6 +463,21 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     events: `span-details-${span.spanId}-events`,
     notes: `span-details-${span.spanId}-notes`,
   } as const;
+
+  const jumpToNotes = () => {
+    const scrollContainer = spanDetailsSectionsRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+    scrollAnimationRef.current?.cancel();
+    scrollAnimationRef.current = null;
+    const scrollContent = spanDetailsSectionsContentRef.current;
+    if (scrollContent) {
+      scrollContent.style.transform = "";
+    }
+    scrollContainer.scrollTop =
+      scrollContainer.scrollHeight - scrollContainer.clientHeight;
+  };
 
   const showSectionNavigationFeedback = (targetSection: HTMLElement) => {
     const sectionFeedbackElement =
@@ -552,6 +614,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   return (
     <Flex
       data-span-details-body-id={span.id}
+      css={spanDetailsBodyCSS}
       direction="column"
       flex="1 1 auto"
       minHeight={0}
@@ -597,6 +660,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
         <div
           ref={spanDetailsSectionsContentRef}
           data-span-details-sections-content
+          data-note-composer-open={isNoteComposerOpen}
         >
           <div ref={spanDetailsMainRef} data-span-details-main>
             <ErrorBoundary>
@@ -654,29 +718,35 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             <SpanDetailsSectionHeading
               ref={notesHeadingRef}
               extra={
-                openSpanNoteBar ? (
+                openSpanNoteBar && !isNoteComposerOpen ? (
                   <TooltipTrigger>
-                    <IconButton
+                    <Button
                       size="S"
+                      variant="quiet"
                       aria-label="Take notes"
+                      leadingVisual={<Icon svg={<Icons.NotebookPen />} />}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => event.stopPropagation()}
                       onPress={openSpanNoteBar}
-                    >
-                      <Icon svg={<Icons.NotebookPen />} />
-                    </IconButton>
+                    />
                     <Tooltip offset={-5}>Take notes</Tooltip>
                   </TooltipTrigger>
                 ) : null
               }
             >
-              <Flex
-                elementType="span"
-                direction="row"
-                gap="size-100"
-                alignItems="center"
+              <button
+                type="button"
+                className="button--reset"
+                css={notesBarNavigationButtonCSS}
+                aria-label="Notes: jump to notes"
+                onClick={jumpToNotes}
               >
                 Notes
+                <KeyboardToken variant="quiet">
+                  {NOTE_HOTKEY.toUpperCase()}
+                </KeyboardToken>
                 {hasNotes ? <Counter>{span.spanNotes.length}</Counter> : null}
-              </Flex>
+              </button>
             </SpanDetailsSectionHeading>
           </div>
           <section
@@ -689,13 +759,18 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
                 placeholderHeight={NOTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
               >
                 <Suspense fallback={<Loading />}>
-                  <SpanNotesList spanId={span.id} />
+                  <SpanNotesList newNoteId={newNoteId} spanId={span.id} />
                 </Suspense>
               </DeferredSpanDetailsContent>
             ) : null}
           </section>
         </div>
       </div>
+      {isNoteComposerOpen ? (
+        <div data-span-note-composer-overlay css={spanNoteComposerOverlayCSS}>
+          <SpanNoteBar onNoteCreated={setNewNoteId} spanNodeId={spanNodeId} />
+        </div>
+      ) : null}
     </Flex>
   );
 }

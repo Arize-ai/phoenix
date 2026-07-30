@@ -8,7 +8,6 @@ import { useDimensions } from "@phoenix/hooks";
 
 import { useIsDetailsPanelInteractionActive } from "./DetailsPanelInteractionScope";
 import { SpanDetails } from "./SpanDetails";
-import { SpanNoteBar } from "./SpanNoteBar";
 import { SpanNoteBarProvider } from "./SpanNoteBarContext";
 import { SpanDetailsSkeleton } from "./TraceDetailsSkeleton";
 
@@ -65,7 +64,10 @@ type SpanDetailsPaintGateProps = {
 export function SpanDetailsPaintGate(props: SpanDetailsPaintGateProps) {
   const isDetailsPanelInteractionActive = useIsDetailsPanelInteractionActive();
   return (
-    <SpanNoteBarProvider isHotkeyEnabled={isDetailsPanelInteractionActive}>
+    <SpanNoteBarProvider
+      activeSpanNodeId={props.spanNodeId}
+      isHotkeyEnabled={isDetailsPanelInteractionActive}
+    >
       <SpanDetailsPaintGateContent {...props} />
     </SpanNoteBarProvider>
   );
@@ -251,7 +253,6 @@ function SpanDetailsPaintGateContent({
           </div>
         ))}
       </div>
-      <SpanNoteBar spanNodeId={spanNodeId} />
     </div>
   );
 }

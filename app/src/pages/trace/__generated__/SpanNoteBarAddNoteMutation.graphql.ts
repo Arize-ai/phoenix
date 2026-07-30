@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2dca5d93287b85923dbf5ddbe4dc1901>>
+ * @generated SignedSource<<9bc69a371d0c70cc84926456a8368034>>
  * @lightSyntaxTransform
  */
 
@@ -32,6 +32,9 @@ export type SpanNoteBarAddNoteMutation$data = {
         }>;
       };
     };
+    readonly spanAnnotations: ReadonlyArray<{
+      readonly id: string;
+    }>;
   };
 };
 export type SpanNoteBarAddNoteMutation = {
@@ -59,21 +62,33 @@ v1 = [
     "variableName": "input"
   }
 ],
-v2 = [
-  {
-    "kind": "Variable",
-    "name": "id",
-    "variableName": "spanNodeId"
-  }
-],
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v3 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "SpanAnnotation",
+  "kind": "LinkedField",
+  "name": "spanAnnotations",
+  "plural": true,
+  "selections": [
+    (v2/*:: as any*/)
+  ],
+  "storageKey": null
+},
+v4 = [
+  {
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "spanNodeId"
+  }
+],
+v5 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanAnnotation",
@@ -81,7 +96,7 @@ v4 = {
   "name": "spanNotes",
   "plural": true,
   "selections": [
-    (v3/*:: as any*/),
+    (v2/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -104,7 +119,7 @@ v4 = {
       "name": "user",
       "plural": false,
       "selections": [
-        (v3/*:: as any*/),
+        (v2/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -133,6 +148,7 @@ return {
         "name": "createSpanNote",
         "plural": false,
         "selections": [
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -143,7 +159,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*:: as any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -152,8 +168,8 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v3/*:: as any*/),
-                      (v4/*:: as any*/)
+                      (v2/*:: as any*/),
+                      (v5/*:: as any*/)
                     ],
                     "type": "Span",
                     "abstractKey": null
@@ -185,6 +201,7 @@ return {
         "name": "createSpanNote",
         "plural": false,
         "selections": [
+          (v3/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -195,7 +212,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*:: as any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -208,11 +225,11 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v3/*:: as any*/),
+                  (v2/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v4/*:: as any*/)
+                      (v5/*:: as any*/)
                     ],
                     "type": "Span",
                     "abstractKey": null
@@ -229,16 +246,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cc1cfb0a7ef70b5ea378467edbe3e8d7",
+    "cacheID": "5715efe0f105413af5baa829eeb90635",
     "id": null,
     "metadata": {},
     "name": "SpanNoteBarAddNoteMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanNoteBarAddNoteMutation(\n  $input: CreateSpanNoteInput!\n  $spanNodeId: ID!\n) {\n  createSpanNote(annotationInput: $input) {\n    query {\n      node(id: $spanNodeId) {\n        __typename\n        ... on Span {\n          id\n          spanNotes {\n            id\n            explanation\n            createdAt\n            user {\n              id\n              username\n            }\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation SpanNoteBarAddNoteMutation(\n  $input: CreateSpanNoteInput!\n  $spanNodeId: ID!\n) {\n  createSpanNote(annotationInput: $input) {\n    spanAnnotations {\n      id\n    }\n    query {\n      node(id: $spanNodeId) {\n        __typename\n        ... on Span {\n          id\n          spanNotes {\n            id\n            explanation\n            createdAt\n            user {\n              id\n              username\n            }\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "47046a5cd071dc20813b1c5758108baf";
+(node as any).hash = "81b785915f09467895e284f6b95a07fe";
 
 export default node;

@@ -31,6 +31,7 @@ vi.mock("motion/react", () => motionMocks);
 vi.mock("react-relay", () => ({
   graphql: vi.fn(),
   useFragment: vi.fn((_fragment, data) => data),
+  useMutation: vi.fn(() => [vi.fn(), false]),
   useLazyLoadQuery: vi.fn((query: { params?: { name?: string } }) => {
     if (query.params?.name === "SpanDetailsContentQuery") {
       if (spanDetailsContentTestState.shouldSuspend) {
@@ -132,11 +133,17 @@ import { SpanDetails } from "../SpanDetails";
 import { SpanInfoCardsProvider } from "../SpanInfoCardsContext";
 import { SpanNoteBarProvider } from "../SpanNoteBarContext";
 
-function TestProviders({ children }: { children: ReactNode }) {
+function TestProviders({
+  children,
+  isTakingSpanNotes = false,
+}: {
+  children: ReactNode;
+  isTakingSpanNotes?: boolean;
+}) {
   return (
     <MemoryRouter>
       <ThemeProvider>
-        <PreferencesProvider>
+        <PreferencesProvider isTakingSpanNotes={isTakingSpanNotes}>
           <SpanInfoCardsProvider>
             <SpanNoteBarProvider isHotkeyEnabled={false}>
               <Suspense fallback={null}>{children}</Suspense>
@@ -155,6 +162,7 @@ describe("SpanDetails headers", () => {
   let root: Root;
 
   beforeEach(() => {
+    localStorage.removeItem("arize-phoenix-preferences");
     spanDetailsContentTestState.events = [];
     spanDetailsContentTestState.spanNotes = [];
     spanDetailsContentTestState.shouldSuspend = true;
@@ -331,9 +339,16 @@ describe("SpanDetails headers", () => {
     expect(notesLink?.querySelector(".counter")).toBeNull();
     expect(notesBar?.textContent).toContain("Notes");
     expect(notesBar?.querySelector(".counter")).toBeNull();
+    const takeNotesButton = notesBar?.querySelector(
+      'button[aria-label="Take notes"]'
+    );
+    expect(takeNotesButton?.getAttribute("data-variant")).toBe("quiet");
+    expect(takeNotesButton?.getAttribute("data-childless")).toBe("true");
+    expect(takeNotesButton?.querySelector(".icon-wrap")).not.toBeNull();
     expect(
-      notesBar?.querySelector('button[aria-label="Take notes"] .icon-wrap')
-    ).not.toBeNull();
+      notesBar?.querySelector('button[aria-label="Notes: jump to notes"] kbd')
+        ?.textContent
+    ).toBe("N");
   });
 
   it("shows notes counters when there are notes", () => {
@@ -386,5 +401,93 @@ describe("SpanDetails headers", () => {
     expect(getComputedStyle(notesBar!).flexShrink).toBe("0");
     expect(getComputedStyle(notesBar!).marginTop).toBe("auto");
     expect(notesBar?.textContent).toContain("Notes");
+  });
+
+  it("jumps to the notes end from the notes bar title", () => {
+    spanDetailsContentTestState.shouldSuspend = false;
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    const sectionsContent = container.querySelector(
+      "[data-span-details-sections-content]"
+    );
+    const sectionsViewport = sectionsContent?.parentElement;
+    const jumpButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Notes: jump to notes"]'
+    );
+    if (!(sectionsViewport instanceof HTMLElement) || jumpButton == null) {
+      throw new Error("Expected notes navigation controls");
+    }
+    Object.defineProperties(sectionsViewport, {
+      clientHeight: { configurable: true, value: 240 },
+      scrollHeight: { configurable: true, value: 640 },
+    });
+
+    act(() => jumpButton.click());
+
+    expect(sectionsViewport.scrollTop).toBe(400);
+  });
+
+  it("overlays the composer above the sticky notes header without moving the viewport", () => {
+    spanDetailsContentTestState.shouldSuspend = false;
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    const sectionsContent = container.querySelector(
+      "[data-span-details-sections-content]"
+    );
+    const sectionsViewport = sectionsContent?.parentElement;
+    const takeNotesButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Take notes"]'
+    );
+    if (!(sectionsViewport instanceof HTMLElement) || takeNotesButton == null) {
+      throw new Error("Expected note authoring controls");
+    }
+    Object.defineProperties(sectionsViewport, {
+      clientHeight: { configurable: true, value: 240 },
+      scrollHeight: { configurable: true, value: 640 },
+    });
+
+    act(() => takeNotesButton.click());
+
+    const notesBar = container.querySelector<HTMLElement>(
+      "[data-span-details-notes-bar]"
+    );
+    const composer = container.querySelector<HTMLElement>(
+      "[data-span-note-composer-overlay]"
+    );
+    if (notesBar == null || composer == null) {
+      throw new Error("Expected the notes header and composer overlay");
+    }
+    expect(sectionsViewport.scrollTop).toBe(0);
+    expect(composer.querySelector(".span-note-bar")).not.toBeNull();
+    expect(getComputedStyle(composer).position).toBe("absolute");
+    expect(getComputedStyle(composer).zIndex).toBe(
+      "var(--global-z-index-local-overlay)"
+    );
+    expect(getComputedStyle(notesBar).zIndex).toBe(
+      "var(--global-z-index-local-raised)"
+    );
+    expect(
+      notesBar.querySelector('button[aria-label="Notes: jump to notes"]')
+    ).not.toBeNull();
+    expect(
+      notesBar.querySelector('button[aria-label="Take notes"]')
+    ).toBeNull();
+    expect(sectionsContent?.getAttribute("data-note-composer-open")).toBe(
+      "true"
+    );
   });
 });
