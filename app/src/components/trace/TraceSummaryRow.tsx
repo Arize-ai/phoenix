@@ -8,6 +8,7 @@ import { LatencyText } from "./LatencyText";
 import { TokenCosts } from "./TokenCosts";
 import { TokenCount } from "./TokenCount";
 import { TraceErrorCount } from "./TraceErrorCount";
+import { TraceTreeRowControls } from "./TraceTreeRowControls";
 
 export type TraceSummaryRowProps = {
   actions?: ReactNode;
@@ -86,12 +87,6 @@ const traceSummaryRowCSS = css`
   }
 
   .trace-summary-row__annotation-action {
-    display: flex;
-    flex: none;
-    align-items: center;
-    padding-top: var(
-      --global-session-details-navigation-top-level-row-padding-block
-    );
     opacity: 0;
     pointer-events: none;
   }
@@ -106,22 +101,20 @@ const traceSummaryRowCSS = css`
     pointer-events: auto;
   }
 
-  .trace-summary-row__disclosure {
-    box-sizing: border-box;
-    display: flex;
-    flex: none;
-    align-self: stretch;
+  .trace-summary-row__controls {
     align-items: flex-start;
-    justify-content: center;
-    width: var(--global-dimension-size-400);
-    height: auto;
-    margin-right: var(
-      --global-session-details-navigation-top-level-row-padding-inline-end
+    padding-top: var(
+      --global-session-details-navigation-top-level-row-padding-block
     );
-    padding: var(
-        --global-session-details-navigation-top-level-row-padding-block
-      )
-      0 0;
+  }
+
+  .trace-summary-row__disclosure {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--global-dimension-size-250);
+    height: var(--global-dimension-size-250);
+    padding: 0;
     border: none;
     background: transparent;
     color: inherit;
@@ -235,19 +228,23 @@ export function TraceSummaryRow({
           ) : null}
         </Flex>
       </button>
-      {actions ? (
-        <span className="trace-summary-row__annotation-action">{actions}</span>
-      ) : null}
-      <button
-        data-testid={disclosureTestId}
-        type="button"
-        className="trace-summary-row__disclosure"
-        aria-label={`${isExpanded ? "Collapse" : "Expand"} trace ${traceId}`}
-        aria-expanded={isExpanded}
-        onClick={onToggleExpanded}
-      >
-        <DisclosureArrow isExpanded={isExpanded} />
-      </button>
+      <TraceTreeRowControls
+        className="trace-summary-row__controls"
+        disclosure={
+          <button
+            data-testid={disclosureTestId}
+            type="button"
+            className="trace-summary-row__disclosure"
+            aria-label={`${isExpanded ? "Collapse" : "Expand"} trace ${traceId}`}
+            aria-expanded={isExpanded}
+            onClick={onToggleExpanded}
+          >
+            <DisclosureArrow isExpanded={isExpanded} />
+          </button>
+        }
+        actions={actions}
+        actionsClassName="trace-summary-row__annotation-action"
+      />
     </div>
   );
 }

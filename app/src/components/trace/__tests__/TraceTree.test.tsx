@@ -533,6 +533,8 @@ describe("TraceTree", () => {
     const onSessionAction = vi.fn();
     const onSessionSelect = vi.fn();
     const onTraceSelect = vi.fn();
+    const onSpanAction = vi.fn();
+    const onSpanSelect = vi.fn();
 
     act(() => {
       root.render(
@@ -562,6 +564,14 @@ describe("TraceTree", () => {
                     onSelect: onTraceSelect,
                     traceId: "trace-12345678",
                   }}
+                  renderSpanActions={() => (
+                    <button
+                      type="button"
+                      aria-label="Add span annotation"
+                      onClick={onSpanAction}
+                    />
+                  )}
+                  onSpanClick={onSpanSelect}
                   selectedSpanNodeId={ROOT_SPAN.id}
                   scrollSelectedSpanIntoView={false}
                 />
@@ -592,6 +602,9 @@ describe("TraceTree", () => {
     const traceActionContainer = container.querySelector<HTMLElement>(
       ".trace-summary-row__annotation-action"
     );
+    const rowControlRails = Array.from(
+      container.querySelectorAll<HTMLElement>(".trace-tree-row-controls")
+    );
     const titleFontWeights = [
       treeItems[0]?.querySelector<HTMLElement>(".text"),
       treeItems[1]?.querySelector<HTMLElement>(".text"),
@@ -614,6 +627,42 @@ describe("TraceTree", () => {
       )
     ).not.toBeNull();
     expect(titleFontWeights).toEqual(["400", "600", "400"]);
+    expect(
+      rowControlRails.map((controls) =>
+        Array.from(controls.children).map((slot) =>
+          slot.classList.contains("trace-tree-row-controls__disclosure")
+            ? "disclosure"
+            : "actions"
+        )
+      )
+    ).toEqual([
+      ["disclosure", "actions"],
+      ["disclosure", "actions"],
+      ["disclosure", "actions"],
+    ]);
+    expect(
+      rowControlRails.map((controls) => ({
+        gap: getComputedStyle(controls).gap,
+        paddingRight: getComputedStyle(controls).paddingRight,
+      }))
+    ).toEqual([
+      {
+        gap: "var(--global-dimension-size-50)",
+        paddingRight: "var(--global-dimension-size-100)",
+      },
+      {
+        gap: "var(--global-dimension-size-50)",
+        paddingRight: "var(--global-dimension-size-100)",
+      },
+      {
+        gap: "var(--global-dimension-size-50)",
+        paddingRight: "var(--global-dimension-size-100)",
+      },
+    ]);
+    expect(
+      treeItems[0]?.querySelector(".trace-tree-row-controls__disclosure")
+        ?.textContent
+    ).toBe("");
     expect(
       entityActionContainers.map((actions) => ({
         opacity: getComputedStyle(actions).opacity,
@@ -649,6 +698,14 @@ describe("TraceTree", () => {
 
     expect(onSessionAction).toHaveBeenCalledOnce();
     expect(onSessionSelect).not.toHaveBeenCalled();
+
+    const spanActionButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add span annotation"]'
+    );
+    act(() => spanActionButton?.click());
+
+    expect(onSpanAction).toHaveBeenCalledOnce();
+    expect(onSpanSelect).not.toHaveBeenCalled();
 
     act(() => sessionButton?.click());
 
@@ -1004,8 +1061,12 @@ describe("TraceTree", () => {
     expect(
       childToggleSlot?.querySelector(".collapse-toggle-button")
     ).toBeNull();
-    expect(getComputedStyle(rootToggleSlot!).width).toBe("20px");
-    expect(getComputedStyle(childToggleSlot!).width).toBe("20px");
+    expect(getComputedStyle(rootToggleSlot!).width).toBe(
+      "var(--global-dimension-size-250)"
+    );
+    expect(getComputedStyle(childToggleSlot!).width).toBe(
+      "var(--global-dimension-size-250)"
+    );
   });
 
   it("shows 12 direct children before an expandable tree node", () => {

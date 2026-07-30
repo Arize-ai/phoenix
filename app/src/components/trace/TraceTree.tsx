@@ -30,6 +30,7 @@ import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 import { TraceSummaryRow } from "./TraceSummaryRow";
 import { useTraceTree } from "./TraceTreeContext";
+import { TraceTreeRowControls } from "./TraceTreeRowControls";
 import {
   TRACE_TREE_CHILD_NESTING_INDENT_PIXELS,
   TRACE_TREE_ROW_SELECTION_BORDER_WIDTH,
@@ -642,7 +643,7 @@ const entityTreeItemCSS = css`
   width: 100%;
   height: var(--global-details-panel-navigation-row-height);
   gap: var(--global-dimension-size-100);
-  padding: 0 var(--global-dimension-size-100);
+  padding: 0;
   padding-left: var(
     --global-details-panel-navigation-row-content-padding-inline-start
   );
@@ -677,13 +678,14 @@ const entityTreeItemCSS = css`
     outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 
-  .trace-tree-entity-item__actions {
+  .trace-tree-entity-item__controls {
     position: relative;
     z-index: 1;
-    display: flex;
-    flex: none;
-    align-items: center;
     margin-left: auto;
+    pointer-events: none;
+  }
+
+  .trace-tree-entity-item__actions {
     opacity: 0;
     pointer-events: none;
   }
@@ -724,9 +726,11 @@ function SessionTreeItem({
       />
       <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
       <Text size="S">Session</Text>
-      {actions ? (
-        <div className="trace-tree-entity-item__actions">{actions}</div>
-      ) : null}
+      <TraceTreeRowControls
+        className="trace-tree-entity-item__controls"
+        actions={actions}
+        actionsClassName="trace-tree-entity-item__actions"
+      />
     </div>
   );
 }
@@ -1164,13 +1168,12 @@ function SpanTreeItem<TSpan extends ISpanItem>(
               />
             </div>
           ) : null}
-          <div
-            css={spanControlsCSS}
-            data-testid="span-controls"
+          <TraceTreeRowControls
             className="span-controls"
-          >
-            <span className="span-controls__collapse-toggle">
-              {hasChildren && !isSearching ? (
+            data-testid="span-controls"
+            disclosureClassName="span-controls__collapse-toggle"
+            disclosure={
+              hasChildren && !isSearching ? (
                 <CollapseToggleButton
                   isCollapsed={isCollapsed}
                   onClick={() => {
@@ -1180,17 +1183,11 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                     });
                   }}
                 />
-              ) : null}
-            </span>
-            {renderSpanActions ? (
-              <span
-                className="span-controls__actions"
-                onClick={(event) => event.stopPropagation()}
-              >
-                {renderSpanActions(node.span)}
-              </span>
-            ) : null}
-          </div>
+              ) : null
+            }
+            actions={renderSpanActions?.(node.span)}
+            actionsClassName="span-controls__actions"
+          />
         </SpanNodeWrap>
       </div>
       {childRenderNodes.length ? (
@@ -1399,7 +1396,7 @@ function SpanNodeWrap(
         flex-direction: row;
         justify-content: space-between;
         gap: var(--global-dimension-size-100);
-        padding-right: var(--global-dimension-size-100);
+        padding-right: 0;
         padding-top: 0;
         padding-bottom: 0;
         border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid transparent;
@@ -1521,27 +1518,6 @@ function SpanTreeEdge({
     ></div>
   );
 }
-
-const spanControlsCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-50);
-  flex: none;
-
-  .span-controls__collapse-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    flex: none;
-  }
-
-  .span-controls__actions {
-    display: flex;
-    align-items: center;
-  }
-`;
 
 const spanTimingCSS = css`
   gap: var(--global-dimension-size-100);
