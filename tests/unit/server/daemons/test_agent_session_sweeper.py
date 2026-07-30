@@ -6,7 +6,11 @@ from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.system_settings import SystemSettings
-from phoenix.server.settings.registry import SETTINGS_REGISTRY, AgentSessionRetentionSetting
+from phoenix.server.settings.registry import (
+    DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER,
+    SETTINGS_REGISTRY,
+    AgentSessionRetentionSetting,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _message_uuid
 
@@ -254,3 +258,43 @@ async def test_setting_edits_apply_on_the_next_sweep(
     await settings.update_agent_session_retention(AgentSessionRetentionSetting(max_idle_days=30))
     await sweeper._sweep()
     assert await _remaining_session_ids(db) == set()
+
+
+async def test_default_settings_enforce_both_rules_without_admin_configuration(
+    db: DbSessionFactory,
+) -> None:
+    """A workspace that never saves a retention setting still gets both rules.
+
+    ``_make_settings`` with no override leaves the
+    ``agent.assistant.session_retention`` row absent, which is the state every
+    deployment starts in.
+    """
+    now = datetime.now(timezone.utc)
+    user_id = await _add_user(db, "default-retention-user", "MEMBER")
+    idle_session_id = await _add_agent_session(
+        db,
+        title="idle past the default 30 days",
+        user_id=user_id,
+        updated_at=now - timedelta(days=31),
+    )
+    recent_session_ids = [
+        await _add_agent_session(
+            db,
+            title=f"recent session {minutes_ago}",
+            user_id=user_id,
+            updated_at=now - timedelta(minutes=minutes_ago),
+        )
+        # One more than the default per-user cap, so the oldest is trimmed.
+        for minutes_ago in range(DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER + 1)
+    ]
+
+    settings = await _make_settings(db)
+    assert settings.agent_session_retention.max_idle_days == 30
+    assert settings.agent_session_retention.max_count_per_user == 30
+    await AgentSessionSweeper(db, settings=settings)._sweep()
+
+    remaining_ids = await _remaining_session_ids(db)
+    # The idle session is gone on the idle rule, and the count cap keeps only
+    # the 30 most recently active of the user's remaining sessions.
+    assert idle_session_id not in remaining_ids
+    assert remaining_ids == set(recent_session_ids[:DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER])
