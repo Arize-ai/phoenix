@@ -107,6 +107,13 @@ COPY --chmod=755 --from=deno-binary /deno /usr/local/bin/deno
 COPY --from=backend-builder /wasm/python-3.12.0.wasm /opt/phoenix/wasm/python-3.12.0.wasm
 ENV PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
 
+# The `monty` worker binary that the Monty sandbox and MCP code mode spawn.
+# pydantic-monty-runtime installs it into the builder venv's bin directory,
+# which the site-packages-only copy above does not carry, so it has to come
+# across on its own. /usr/local/bin is both this image's scripts directory
+# and on PATH, so find_monty_binary() in pydantic_monty._binary resolves it.
+COPY --from=backend-builder /phoenix/.venv/bin/monty /usr/local/bin/monty
+
 # Environment setup
 ENV PYTHONPATH="/phoenix/env"
 ENV PYTHONUNBUFFERED=1
