@@ -571,9 +571,10 @@ export function useAgentChat({
         // Transient failure: wait for the next poll tick.
       }
     };
-    if (isBusyElsewhere) {
-      void pollSession();
-    }
+    // Synchronize immediately when the session surface mounts instead of
+    // waiting for the first interval. This also detects a turn that another
+    // client started after the session's initial route data was loaded.
+    void pollSession();
     const intervalId = setInterval(
       () => void pollSession(),
       isBusyElsewhere ? SESSION_BUSY_POLL_INTERVAL_MS : SESSION_POLL_INTERVAL_MS
