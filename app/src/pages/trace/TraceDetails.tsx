@@ -198,6 +198,7 @@ export function TraceDetails({
                 <TraceDetailPanelAnnotationButton traceNodeId={trace.id} />
               ),
               isSelected: isTraceSelected,
+              cost: rootSpan.trace.costSummary?.total?.cost,
               onSelect: () => {
                 setLocalSpanSelection(null);
                 setSearchParams(
@@ -209,6 +210,7 @@ export function TraceDetails({
                   { replace: true, flushSync: true }
                 );
               },
+              tokenCountTotal: rootSpan.cumulativeTokenCountTotal,
               traceId: trace.traceId,
             }}
             onSpanSelectionStart={(span) => {

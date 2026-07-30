@@ -55,7 +55,8 @@ const sessionDetailsNavigationCSS = css`
   }
 
   .session-turn-row__compact-index,
-  .session-trace-row-header__compact-index {
+  .session-trace-row-header__compact-index,
+  .trace-summary-row__compact-index {
     display: none;
   }
 
@@ -66,7 +67,8 @@ const sessionDetailsNavigationCSS = css`
   }
 
   .session-turn-row__title,
-  .session-trace-row-header__title {
+  .session-trace-row-header__title,
+  .trace-summary-row__title {
     gap: var(--global-session-details-navigation-top-level-row-title-gap);
   }
 
@@ -109,7 +111,8 @@ const sessionDetailsNavigationCSS = css`
     }
 
     .session-turn-row__compact-index,
-    .session-trace-row-header__compact-index {
+    .session-trace-row-header__compact-index,
+    .trace-summary-row__compact-index {
       position: absolute;
       top: var(--global-session-details-navigation-top-level-row-padding-block);
       left: var(
@@ -124,7 +127,9 @@ const sessionDetailsNavigationCSS = css`
 
     .session-turn-row__expanded-content,
     .session-trace-row-header__expanded-content,
-    .session-trace-row-chevron {
+    .session-trace-row-chevron,
+    .trace-summary-row__expanded-content,
+    .trace-summary-row__disclosure {
       visibility: hidden;
     }
   }

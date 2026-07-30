@@ -20,15 +20,7 @@ import {
   usePreloadedQuery,
 } from "react-relay";
 
-import {
-  DisclosureArrow,
-  Empty,
-  Flex,
-  Loading,
-  Text,
-  Truncate,
-  View,
-} from "@phoenix/components";
+import { Empty, Flex, Loading, View } from "@phoenix/components";
 import {
   SpanDetailPanelAnnotationButton,
   TraceDetailPanelAnnotationButton,
@@ -38,14 +30,10 @@ import {
   EmptyStateArea,
   EmptyStateGraphic,
 } from "@phoenix/components/core/empty";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
-import { TraceErrorCount } from "@phoenix/components/trace/TraceErrorCount";
+import { TraceSummaryRow } from "@phoenix/components/trace/TraceSummaryRow";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
-import { useTimeFormatters } from "@phoenix/hooks";
 import type {
   SessionDetailsTracesView_traces$data,
   SessionDetailsTracesView_traces$key,
@@ -62,10 +50,7 @@ import type {
   SessionMainContentRenderer,
   SessionNavigationHeaderRenderer,
 } from "./SessionDetails";
-import {
-  SessionDetailsNavigation,
-  sessionDetailsNavigationTopLevelRowCSS,
-} from "./SessionDetailsNavigation";
+import { SessionDetailsNavigation } from "./SessionDetailsNavigation";
 import type { SessionDetailsSearchParamsStore } from "./sessionDetailsSearchParamsStore";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
@@ -596,19 +581,22 @@ function TraceRow({
         setTraceRowRef({ traceId: trace.traceId, el });
       }}
     >
-      <div className="session-trace-row-header-shell">
-        <TraceRowHeader
-          trace={trace}
-          index={index}
-          isSelected={isSelected}
-          isExpanded={isExpanded}
-          onToggleExpanded={onToggleExpanded}
-          onTraceSelect={onTraceSelect}
-        />
-        <span className="session-trace-row-header__annotation-action">
-          <TraceDetailPanelAnnotationButton traceNodeId={trace.id} />
-        </span>
-      </div>
+      <TraceSummaryRow
+        actions={<TraceDetailPanelAnnotationButton traceNodeId={trace.id} />}
+        cost={trace.rootSpan.trace.costSummary?.total?.cost}
+        disclosureTestId="session-trace-row-header"
+        errorCount={trace.errorCount}
+        index={index}
+        isExpanded={isExpanded}
+        isSelected={isSelected}
+        latencyMs={trace.rootSpan.latencyMs}
+        name={trace.rootSpan.name}
+        onSelect={onTraceSelect}
+        onToggleExpanded={onToggleExpanded}
+        startTime={trace.rootSpan.startTime}
+        tokenCountTotal={trace.rootSpan.cumulativeTokenCountTotal ?? 0}
+        traceId={trace.traceId}
+      />
       {isExpanded ? (
         <TraceTreeContainer
           traceId={trace.traceId}
@@ -621,147 +609,6 @@ function TraceRow({
         />
       ) : null}
     </div>
-  );
-}
-
-function TraceRowHeader({
-  trace,
-  index,
-  isSelected,
-  isExpanded,
-  onToggleExpanded,
-  onTraceSelect,
-}: {
-  trace: SessionTraceRow;
-  index: number;
-  isSelected: boolean;
-  isExpanded: boolean;
-  onToggleExpanded: () => void;
-  onTraceSelect: () => void;
-}) {
-  const paddedIndex = String(index + 1).padStart(2, "0");
-  return (
-    <button
-      type="button"
-      className="session-trace-row-header"
-      css={[traceRowHeaderCSS, sessionDetailsNavigationTopLevelRowCSS]}
-      aria-expanded={isExpanded}
-      onClick={() => {
-        if (!isSelected) {
-          onTraceSelect();
-          if (!isExpanded) {
-            onToggleExpanded();
-          }
-          return;
-        }
-        onToggleExpanded();
-      }}
-      data-testid="session-trace-row-header"
-    >
-      <Text
-        className="session-trace-row-header__compact-index"
-        fontFamily="mono"
-        color="text-500"
-      >
-        {paddedIndex}
-      </Text>
-      <Flex
-        className="session-trace-row-header__expanded-content"
-        direction="column"
-        gap="size-100"
-        flex={1}
-        minWidth={0}
-      >
-        <TraceRowTitleLine trace={trace} index={index} />
-        <TraceRowMetricsLine trace={trace} />
-      </Flex>
-      <TraceRowChevron isExpanded={isExpanded} />
-    </button>
-  );
-}
-
-function TraceRowChevron({ isExpanded }: { isExpanded: boolean }) {
-  return (
-    <span
-      className="session-trace-row-chevron"
-      css={chevronCSS}
-      data-expanded={isExpanded}
-      data-testid="session-trace-row-chevron"
-    >
-      <DisclosureArrow isExpanded={isExpanded} />
-    </span>
-  );
-}
-
-function TraceRowTitleLine({
-  trace,
-  index,
-}: {
-  trace: SessionTraceRow;
-  index: number;
-}) {
-  const { fullTimeFormatter } = useTimeFormatters();
-  const paddedIndex = String(index + 1).padStart(2, "0");
-  return (
-    <Flex
-      direction="row"
-      justifyContent="space-between"
-      alignItems="center"
-      gap="size-100"
-    >
-      <Flex
-        className="session-trace-row-header__title"
-        direction="row"
-        alignItems="center"
-        flex={1}
-        minWidth={0}
-      >
-        <Text
-          fontFamily="mono"
-          color="text-500"
-          data-testid="session-trace-row-index"
-        >
-          {paddedIndex}
-        </Text>
-        <Flex flex={1} minWidth={0}>
-          <Truncate maxWidth="100%" title={trace.rootSpan.name}>
-            <Text weight="heavy" data-testid="session-trace-row-name">
-              {trace.rootSpan.name}
-            </Text>
-          </Truncate>
-        </Flex>
-      </Flex>
-      <Text
-        color="text-700"
-        size="XS"
-        data-testid="session-trace-row-timestamp"
-      >
-        {fullTimeFormatter(new Date(trace.rootSpan.startTime))}
-      </Text>
-    </Flex>
-  );
-}
-
-function TraceRowMetricsLine({ trace }: { trace: SessionTraceRow }) {
-  const cost = trace.rootSpan.trace.costSummary?.total?.cost;
-  const latencyMs = trace.rootSpan.latencyMs;
-  return (
-    <Flex
-      direction="row"
-      gap="size-100"
-      alignItems="center"
-      wrap
-      data-testid="session-trace-row-metrics"
-    >
-      <TokenCount size="S">
-        {trace.rootSpan.cumulativeTokenCountTotal ?? 0}
-      </TokenCount>
-      {cost != null ? <TokenCosts size="S">{cost}</TokenCosts> : null}
-      {latencyMs != null ? (
-        <LatencyText latencyMs={latencyMs} size="S" />
-      ) : null}
-      <TraceErrorCount errorCount={trace.errorCount} />
-    </Flex>
   );
 }
 
@@ -929,81 +776,11 @@ const traceRowListCSS = css`
 const traceRowCSS = css`
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--global-border-color-default);
-
-  .session-trace-row-header-shell {
-    display: flex;
-    align-items: flex-start;
-    min-height: var(--global-details-panel-navigation-row-height);
-  }
-
-  .session-trace-row-header__annotation-action {
-    display: flex;
-    flex: none;
-    align-items: center;
-    opacity: 0;
-    pointer-events: none;
-    padding-top: var(
-      --global-session-details-navigation-top-level-row-padding-block
-    );
-    padding-right: var(
-      --global-session-details-navigation-top-level-row-padding-inline-end
-    );
-  }
-
-  .session-trace-row-header-shell:hover
-    .session-trace-row-header__annotation-action,
-  .session-trace-row-header-shell:focus-within
-    .session-trace-row-header__annotation-action {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  &[data-selected="true"] .session-trace-row-header-shell {
-    background: var(--global-list-item-selected-background-color);
-    color: var(--global-text-color-900);
-  }
-
-  &[data-selected="true"] .session-trace-row-header {
-    border-left-color: var(--global-list-item-selected-border-color);
-  }
-`;
-
-const traceRowHeaderCSS = css`
-  position: relative;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: var(--global-dimension-size-100);
-  background: transparent;
-  border: none;
-  /* Reserve space for the selected-state indicator so rows do not shift when selected. */
-  border-left: 4px solid transparent;
-  width: 100%;
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
-  font: inherit;
-  box-sizing: border-box;
-
-  &:hover {
-    background: var(--global-list-item-hover-background-color);
-  }
-`;
-
-const chevronCSS = css`
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  /* Center the arrow on the title line rather than floating between the
-   * title and metrics lines. */
-  height: var(--global-line-height-s);
 `;
 
 const traceTreeContainerCSS = css`
-  border-top: 1px solid var(--global-border-color-default);
+  border-bottom: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
   background: var(--global-color-gray-75);
   --trace-tree-show-more-background-color: var(--global-color-gray-75);
 

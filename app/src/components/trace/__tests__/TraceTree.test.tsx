@@ -280,7 +280,7 @@ describe("TraceTree", () => {
     const iconRail = container.querySelector<HTMLElement>(
       '[data-testid="trace-tree-icon-rail"]'
     );
-    const traceEntityRow = container.querySelector<HTMLButtonElement>(
+    const traceSummaryRow = container.querySelector<HTMLButtonElement>(
       '.trace-tree-navigation__full button[aria-label="View trace trace-12345678"]'
     )?.parentElement;
     const spanRow = container.querySelector<HTMLElement>(
@@ -296,14 +296,14 @@ describe("TraceTree", () => {
       return className;
     };
     const iconRailClassName = getGeneratedClassName(iconRail);
-    const traceEntityClassName = getGeneratedClassName(traceEntityRow);
+    const traceSummaryClassName = getGeneratedClassName(traceSummaryRow);
     const spanRowClassName = getGeneratedClassName(spanRow);
     const styleRules = Array.from(document.styleSheets).flatMap((styleSheet) =>
       Array.from(styleSheet.cssRules)
     );
     const hoverBackgrounds = [
       `.${iconRailClassName} .trace-tree-icon-rail__item:hover`,
-      `.${traceEntityClassName}:hover`,
+      `.${traceSummaryClassName}:hover`,
       `.${spanRowClassName}:hover`,
     ].map((selectorText) => {
       const styleRule = styleRules.find(
@@ -578,6 +578,9 @@ describe("TraceTree", () => {
         ".trace-tree-entity-item__actions"
       )
     );
+    const traceActionContainer = container.querySelector<HTMLElement>(
+      ".trace-summary-row__annotation-action"
+    );
     const idContainers = Array.from(
       container.querySelectorAll<HTMLElement>(".trace-tree-entity-item__id")
     );
@@ -593,8 +596,6 @@ describe("TraceTree", () => {
     ]
       .filter((title): title is HTMLElement => title != null)
       .map((title) => getComputedStyle(title).fontWeight);
-    const textContent = container.textContent ?? "";
-
     expect(treeItems[0]?.textContent).toContain("Sessionsession-12345678");
     expect(sessionLink?.getAttribute("href")).toBe(
       "/projects/project-1/sessions/session-node-id"
@@ -605,31 +606,32 @@ describe("TraceTree", () => {
       )
     ).not.toBeNull();
     expect(sessionLink?.querySelector("button")).toBeNull();
-    expect(treeItems[1]?.textContent).toContain("Tracetrace-12345678");
-    expect(treeItems[1]?.querySelector(".icon-wrap")).not.toBeNull();
+    expect(treeItems[1]?.textContent).toContain("root span");
+    expect(
+      treeItems[1]?.querySelector(
+        'button[aria-label="Collapse trace trace-12345678"]'
+      )
+    ).not.toBeNull();
     expect(
       idContainers.map((idContainer) => ({
         justifyContent: getComputedStyle(idContainer).justifyContent,
         overflow: getComputedStyle(idContainer).overflow,
       }))
-    ).toEqual([
-      { justifyContent: "flex-end", overflow: "hidden" },
-      { justifyContent: "flex-end", overflow: "hidden" },
-    ]);
+    ).toEqual([{ justifyContent: "flex-end", overflow: "hidden" }]);
     expect(idBadges.map((badge) => badge.dataset.overflowMode)).toEqual([
       "truncate",
-      "truncate",
     ]);
-    expect(titleFontWeights).toEqual(["400", "400", "400"]);
+    expect(titleFontWeights).toEqual(["400", "600", "400"]);
     expect(
       entityActionContainers.map((actions) => ({
         opacity: getComputedStyle(actions).opacity,
         pointerEvents: getComputedStyle(actions).pointerEvents,
       }))
-    ).toEqual([
-      { opacity: "0", pointerEvents: "none" },
-      { opacity: "0", pointerEvents: "none" },
-    ]);
+    ).toEqual([{ opacity: "0", pointerEvents: "none" }]);
+    expect({
+      opacity: getComputedStyle(traceActionContainer!).opacity,
+      pointerEvents: getComputedStyle(traceActionContainer!).pointerEvents,
+    }).toEqual({ opacity: "0", pointerEvents: "none" });
     expect(
       Array.from(document.styleSheets)
         .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
@@ -647,13 +649,14 @@ describe("TraceTree", () => {
       idBadges.map((badge) =>
         Number.parseFloat(getComputedStyle(badge).marginRight)
       )
-    ).toEqual([0, 0]);
-    expect(textContent.indexOf("Session")).toBeLessThan(
-      textContent.indexOf("Trace")
-    );
-    expect(textContent.indexOf("Trace")).toBeLessThan(
-      textContent.indexOf("root span")
-    );
+    ).toEqual([0]);
+    expect(treeItems[0]?.textContent).toContain("Session");
+    expect(treeItems[1]?.querySelector(".trace-summary-row")).not.toBeNull();
+    expect(
+      container.querySelector(
+        `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+      )?.textContent
+    ).toContain("root span");
 
     act(() => traceButton?.click());
 
@@ -690,17 +693,77 @@ describe("TraceTree", () => {
       'button[aria-label="View trace trace-12345678"]'
     );
     const traceRow = traceButton?.parentElement;
-    const textContent = container.textContent ?? "";
-
-    expect(traceRow?.textContent).toContain("Tracetrace-12345678");
+    expect(traceRow?.textContent).toContain("root span");
     expect(traceRow?.dataset.selected).toBe("true");
-    expect(textContent.indexOf("Trace")).toBeLessThan(
-      textContent.indexOf("root span")
+    const rootSpanRow = container.querySelector(
+      `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+    );
+    expect(rootSpanRow?.textContent).toContain("root span");
+    expect(traceRow?.compareDocumentPosition(rootSpanRow!) ?? 0).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
     );
 
     act(() => traceButton?.click());
 
     expect(onTraceSelect).toHaveBeenCalledOnce();
+  });
+
+  it("keeps trace selection separate from the tree disclosure", () => {
+    const onTraceSelect = vi.fn();
+    const onTraceAction = vi.fn();
+    renderTraceTree({
+      spans: [ROOT_SPAN, CHILD_SPAN],
+      traceSelection: {
+        actions: (
+          <button
+            type="button"
+            aria-label="Add trace annotation"
+            onClick={onTraceAction}
+          />
+        ),
+        isSelected: false,
+        onSelect: onTraceSelect,
+        traceId: "trace-12345678",
+      },
+    });
+
+    const getRootSpanRow = () =>
+      container.querySelector(
+        `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+      );
+    const traceSelect = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="View trace trace-12345678"]'
+    );
+    const disclosure = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Collapse trace trace-12345678"]'
+    );
+    const traceAction = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add trace annotation"]'
+    );
+
+    expect(disclosure?.getAttribute("aria-expanded")).toBe("true");
+    expect(getRootSpanRow()).not.toBeNull();
+
+    act(() => traceSelect?.click());
+    expect(onTraceSelect).toHaveBeenCalledOnce();
+    expect(disclosure?.getAttribute("aria-expanded")).toBe("true");
+    expect(getRootSpanRow()).not.toBeNull();
+
+    act(() => traceAction?.click());
+    expect(onTraceAction).toHaveBeenCalledOnce();
+    expect(onTraceSelect).toHaveBeenCalledOnce();
+    expect(getRootSpanRow()).not.toBeNull();
+
+    act(() => disclosure?.click());
+    expect(onTraceSelect).toHaveBeenCalledOnce();
+    expect(
+      container
+        .querySelector<HTMLButtonElement>(
+          'button[aria-label="Expand trace trace-12345678"]'
+        )
+        ?.getAttribute("aria-expanded")
+    ).toBe("false");
+    expect(getRootSpanRow()).toBeNull();
   });
 
   it("shows an error count without styling the trace as an error", () => {
@@ -720,7 +783,7 @@ describe("TraceTree", () => {
     );
     const traceRow = traceButton?.parentElement;
     const traceLabel = traceRow?.querySelector<HTMLElement>(
-      ".trace-tree-entity-item__label"
+      ".trace-summary-row__title .text"
     );
     const errorCounter = traceRow?.querySelector<HTMLElement>(".counter");
     const compactTraceButton = container.querySelector<HTMLButtonElement>(
@@ -742,13 +805,7 @@ describe("TraceTree", () => {
       (rule): rule is CSSStyleRule =>
         rule instanceof CSSStyleRule &&
         rule.selectorText.includes(`.${rowClassName}[data-selected="true"]`) &&
-        !rule.selectorText.includes(".trace-tree-entity-item__label")
-    );
-    const fullRowRestTextRule = styleRules.find(
-      (rule): rule is CSSStyleRule =>
-        rule instanceof CSSStyleRule &&
-        rule.selectorText.includes(`.${rowClassName} `) &&
-        rule.selectorText.includes(".trace-tree-entity-item__label")
+        rule.selectorText.includes(".trace-summary-row__select")
     );
     const compactSelectionRule = styleRules.find(
       (rule): rule is CSSStyleRule =>
@@ -761,16 +818,13 @@ describe("TraceTree", () => {
     );
 
     expect(traceRow?.dataset.selected).toBe("true");
-    expect(traceLabel?.textContent).toBe("Trace");
+    expect(traceLabel?.textContent).toBe("root span");
     expect(errorCounter?.textContent).toBe("3");
     expect(errorCounter?.dataset.variant).toBe("danger");
     expect(traceRow?.querySelector('[aria-label="ERROR"]')).toBeNull();
     expect(compactTraceButton?.dataset.statusCode).toBeUndefined();
     expect(fullRowSelectionRule?.style.borderLeftColor).toBe(
-      "var(--global-color-gray-300)"
-    );
-    expect(fullRowRestTextRule?.style.color).toBe(
-      "var(--trace-tree-row-text-color-rest)"
+      "var(--global-list-item-selected-border-color)"
     );
     expect(compactSelectionRule?.style.borderLeftColor).toBe(
       "var(--global-color-gray-300)"

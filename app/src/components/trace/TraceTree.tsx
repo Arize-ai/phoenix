@@ -31,7 +31,7 @@ import { classNames } from "@phoenix/utils/classNames";
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
-import { TraceErrorCount } from "./TraceErrorCount";
+import { TraceSummaryRow } from "./TraceSummaryRow";
 import { useTraceTree } from "./TraceTreeContext";
 import {
   TRACE_TREE_CHILD_NESTING_INDENT_PIXELS,
@@ -64,8 +64,10 @@ export type TraceTreeProps = {
   };
   traceSelection?: {
     actions?: ReactNode;
+    cost?: number | null;
     isSelected: boolean;
     onSelect: () => void;
+    tokenCountTotal?: number | null;
     traceId: string;
   };
   onSpanClick?: (span: ISpanItem) => void;
@@ -341,6 +343,7 @@ export function TraceTree(props: TraceTreeProps) {
   const [collapsedSpanNodeIds, setCollapsedSpanNodeIds] = useState<Set<string>>(
     () => new Set()
   );
+  const [isTraceExpanded, setIsTraceExpanded] = useState(true);
   const [
     fullyVisibleChildListSpanNodeIds,
     setFullyVisibleChildListSpanNodeIds,
@@ -425,6 +428,7 @@ export function TraceTree(props: TraceTreeProps) {
 
   const canOpenHoverOverlay = isNavigationCollapsed && isHoverOverlayEnabled;
   const isHoverOverlayOpen = canOpenHoverOverlay && isOverlayOpen;
+  const isSpanTreeExpanded = traceSelection == null || isTraceExpanded;
   const handleOverlayPointerEnter = () => {
     const fullTreeScroll = fullTreeScrollRef.current;
     const iconRailScroll = iconRailScrollRef.current;
@@ -470,37 +474,52 @@ export function TraceTree(props: TraceTreeProps) {
         ) : null}
         {traceSelection ? (
           <li>
-            <TraceTreeItem {...traceSelection} errorCount={errorCount} />
+            <TraceSummaryRow
+              {...traceSelection}
+              errorCount={errorCount}
+              isExpanded={isTraceExpanded}
+              latencyMs={rootSpan?.latencyMs}
+              name={rootSpan?.name ?? "Trace"}
+              onToggleExpanded={() => setIsTraceExpanded((value) => !value)}
+              startTime={rootSpan?.startTime}
+              tokenCountTotal={
+                traceSelection.tokenCountTotal ?? rootSpan?.tokenCountTotal
+              }
+            />
           </li>
         ) : null}
-        {noSearchResults ? (
+        {isSpanTreeExpanded && noSearchResults ? (
           <li aria-live="polite">
             <TraceTreeSearchEmpty searchQuery={searchQuery} />
           </li>
         ) : null}
-        {!rootSpan ? (
+        {isSpanTreeExpanded && !rootSpan ? (
           <li>
             <Empty message="No spans" size="S" />
           </li>
         ) : null}
-        {filteredSpanTree.map((spanNode) => (
-          <SpanTreeItem
-            key={spanNode.span.id}
-            node={spanNode}
-            overallTimeRange={overallTimeRange}
-            onSpanClick={onSpanClick}
-            onSpanSelectionStart={onSpanSelectionStart}
-            renderSpanActions={renderSpanActions}
-            selectedSpanNodeId={selectedSpanNodeId}
-            selectedSpanPathNodeIds={selectedSpanPathNodeIds}
-            collapsedSpanNodeIds={collapsedSpanNodeIds}
-            fullyVisibleChildListSpanNodeIds={fullyVisibleChildListSpanNodeIds}
-            onAllChildrenVisibleChange={handleAllChildrenVisibleChange}
-            onCollapsedChange={handleSpanCollapsedChange}
-            scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
-            isChildTruncationEnabled={isChildTruncationEnabled}
-          />
-        ))}
+        {isSpanTreeExpanded
+          ? filteredSpanTree.map((spanNode) => (
+              <SpanTreeItem
+                key={spanNode.span.id}
+                node={spanNode}
+                overallTimeRange={overallTimeRange}
+                onSpanClick={onSpanClick}
+                onSpanSelectionStart={onSpanSelectionStart}
+                renderSpanActions={renderSpanActions}
+                selectedSpanNodeId={selectedSpanNodeId}
+                selectedSpanPathNodeIds={selectedSpanPathNodeIds}
+                collapsedSpanNodeIds={collapsedSpanNodeIds}
+                fullyVisibleChildListSpanNodeIds={
+                  fullyVisibleChildListSpanNodeIds
+                }
+                onAllChildrenVisibleChange={handleAllChildrenVisibleChange}
+                onCollapsedChange={handleSpanCollapsedChange}
+                scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
+                isChildTruncationEnabled={isChildTruncationEnabled}
+              />
+            ))
+          : null}
       </ul>
     </div>
   );
@@ -562,33 +581,35 @@ export function TraceTree(props: TraceTreeProps) {
               </button>
             </li>
           ) : null}
-          {visibleCompactSpanNodes.map(({ span }) => {
-            const isSelected = selectedSpanNodeId === span.id;
-            return (
-              <li key={span.id}>
-                <button
-                  type="button"
-                  className="trace-tree-icon-rail__item"
-                  data-selected={isSelected}
-                  data-status-code={span.statusCode}
-                  data-trace-tree-span-node-id={span.id}
-                  aria-label={`View span ${span.name}`}
-                  aria-pressed={isSelected}
-                  onClick={(event) => {
-                    if (!onSpanClick) return;
-                    onSpanSelectionStart?.(span);
-                    beginOptimisticSpanNavigation({
-                      onNavigate: () => onSpanClick(span),
-                      spanNodeId: span.id,
-                      trigger: event.currentTarget,
-                    });
-                  }}
-                >
-                  <SpanKindIcon spanKind={span.spanKind} />
-                </button>
-              </li>
-            );
-          })}
+          {isSpanTreeExpanded
+            ? visibleCompactSpanNodes.map(({ span }) => {
+                const isSelected = selectedSpanNodeId === span.id;
+                return (
+                  <li key={span.id}>
+                    <button
+                      type="button"
+                      className="trace-tree-icon-rail__item"
+                      data-selected={isSelected}
+                      data-status-code={span.statusCode}
+                      data-trace-tree-span-node-id={span.id}
+                      aria-label={`View span ${span.name}`}
+                      aria-pressed={isSelected}
+                      onClick={(event) => {
+                        if (!onSpanClick) return;
+                        onSpanSelectionStart?.(span);
+                        beginOptimisticSpanNavigation({
+                          onNavigate: () => onSpanClick(span),
+                          spanNodeId: span.id,
+                          trigger: event.currentTarget,
+                        });
+                      }}
+                    >
+                      <SpanKindIcon spanKind={span.spanKind} />
+                    </button>
+                  </li>
+                );
+              })
+            : null}
         </ul>
       ) : null}
     </div>
@@ -705,52 +726,6 @@ function SessionTreeItem({
           id={sessionId}
           overflowMode="truncate"
           tooltipText="Copy Session ID"
-        />
-      </div>
-      {actions ? (
-        <div className="trace-tree-entity-item__actions">{actions}</div>
-      ) : null}
-    </div>
-  );
-}
-
-function TraceTreeItem({
-  actions,
-  errorCount,
-  isSelected,
-  onSelect,
-  traceId,
-}: {
-  actions?: ReactNode;
-  errorCount: number;
-  isSelected: boolean;
-  onSelect: () => void;
-  traceId: string;
-}) {
-  const hasErrors = errorCount > 0;
-  return (
-    <div css={entityTreeItemCSS} data-selected={isSelected}>
-      <button
-        type="button"
-        className="trace-tree-entity-item__action"
-        aria-label={
-          hasErrors
-            ? `View trace ${traceId}, ${errorCount} ${errorCount === 1 ? "error" : "errors"}`
-            : `View trace ${traceId}`
-        }
-        aria-pressed={isSelected}
-        onClick={onSelect}
-      />
-      <Icon aria-hidden="true" svg={<Icons.Trace />} />
-      <Text className="trace-tree-entity-item__label" size="S">
-        Trace
-      </Text>
-      <TraceErrorCount errorCount={errorCount} />
-      <div className="trace-tree-entity-item__id">
-        <CopyableIDBadge
-          id={traceId}
-          overflowMode="truncate"
-          tooltipText="Copy Trace ID"
         />
       </div>
       {actions ? (
