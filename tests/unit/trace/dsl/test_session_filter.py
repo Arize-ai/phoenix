@@ -929,6 +929,37 @@ async def test_session_filter_attributes_resolve_by_wire_key(db: DbSessionFactor
         assert by_shadowed_literal == set()
 
 
+async def test_span_kind_spellings_agree_on_lowercase_data(db: DbSessionFactory) -> None:
+    """The aggregate and the comprehension count the same TOOL spans however they were stored.
+
+    Ingestion normally stores kinds uppercase, so only non-uppercase rows can tell the two
+    lowerings apart — and disagreeing there means the same intent returns different sessions
+    depending on which spelling the user picked.
+    """
+    start_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project, start_time=start_time)
+        trace = await _add_trace(session, project, project_session, start_time=start_time)
+        root_span = await _add_span(session, trace, span_kind="LLM", start_time=start_time)
+        for index, stored_kind in enumerate(("tool", "Tool", "TOOL")):
+            await _add_span(
+                session,
+                parent_span=root_span,
+                span_kind=stored_kind,
+                start_time=start_time + timedelta(milliseconds=index + 1),
+            )
+        await session.flush()
+
+        expected = {project_session.id}
+        for condition in (
+            "tool_span_count > 2",
+            'len([s for s in spans if s.span_kind == "TOOL"]) > 2',
+            'len([s for s in spans if s.span_kind == "tool"]) > 2',
+        ):
+            assert await _matched_rowids(session, SessionFilter(condition), project) == expected
+
+
 @pytest.mark.parametrize(
     "condition",
     [
