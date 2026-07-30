@@ -19,7 +19,6 @@ from phoenix.trace.dsl.filter import (
     Projector,
     RootSpanScope,
     SpanFilter,
-    _apply_eval_aliasing,
     _get_attribute_keys_list,
     root_span_scope,
 )
@@ -259,97 +258,6 @@ async def test_filter_translated(
     # next line is only to test that the syntax is accepted
     async with db() as session:
         await session.execute(f(select(models.Span.id)))
-
-
-@pytest.mark.parametrize(
-    "filter_condition,expected",
-    [
-        pytest.param(
-            """evals["Q&A Correctness"].label is not None""",
-            "span_annotation_0_label_00000000000000000000000000000000 is not None",
-            id="double-quoted-eval-name",
-        ),
-        pytest.param(
-            """evals['Q&A Correctness'].label is not None""",
-            "span_annotation_0_label_00000000000000000000000000000000 is not None",
-            id="single-quoted-eval-name",
-        ),
-        pytest.param(
-            """evals[""].label is not None""",
-            "span_annotation_0_label_00000000000000000000000000000000 is not None",
-            id="empty-eval-name",
-        ),
-        pytest.param(
-            """evals['Hallucination'].label == 'correct' or evals['Hallucination'].score < 0.5""",
-            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' or span_annotation_0_score_00000000000000000000000000000000 < 0.5",
-            id="repeated-single-quoted-eval-name",
-        ),
-        pytest.param(
-            """evals["Hallucination"].label == 'correct' or evals["Hallucination"].score < 0.5""",
-            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' or span_annotation_0_score_00000000000000000000000000000000 < 0.5",
-            id="repeated-double-quoted-eval-name",
-        ),
-        pytest.param(
-            """evals['Hallucination'].label == 'correct' or evals["Hallucination"].score < 0.5""",
-            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' or span_annotation_0_score_00000000000000000000000000000000 < 0.5",
-            id="repeated-mixed-quoted-eval-name",
-        ),
-        pytest.param(
-            """evals['Q&A Correctness'].label == 'correct' and evals["Hallucination"].score < 0.5""",
-            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' and span_annotation_1_score_00000000000000000000000000000000 < 0.5",
-            id="distinct-mixed-quoted-eval-names",
-        ),
-        pytest.param(
-            """evals["Hallucination].label is not None""",
-            """evals["Hallucination].label is not None""",
-            id="missing-right-quotation-mark",
-        ),
-        pytest.param(
-            """evals["Hallucination"].label == 'correct' orevals["Hallucination"].score < 0.5""",
-            """span_annotation_0_label_00000000000000000000000000000000 == 'correct' orevals["Hallucination"].score < 0.5""",
-            id="no-word-boundary-on-the-left",
-        ),
-        pytest.param(
-            """evals["Hallucination"].scoreq < 0.5""",
-            """evals["Hallucination"].scoreq < 0.5""",
-            id="no-word-boundary-on-the-right",
-        ),
-        pytest.param(
-            """0.5 <evals["Hallucination"].score""",
-            """0.5 <span_annotation_0_score_00000000000000000000000000000000""",
-            id="left-word-boundary-without-space",
-        ),
-        pytest.param(
-            """evals["Hallucination"].score< 0.5""",
-            """span_annotation_0_score_00000000000000000000000000000000< 0.5""",
-            id="right-word-boundary-without-space",
-        ),
-        pytest.param(
-            """annotations["Q&A Correctness"].label is not None""",
-            "span_annotation_0_label_00000000000000000000000000000000 is not None",
-            id="double-quoted-annotation-name",
-        ),
-        # Existence checks (bare annotation reference)
-        pytest.param(
-            """evals['Hallucination']""",
-            "span_annotation_0_exists_00000000000000000000000000000000",
-            id="bare-evals-exists",
-        ),
-        pytest.param(
-            """annotations['Hallucination']""",
-            "span_annotation_0_exists_00000000000000000000000000000000",
-            id="bare-annotations-exists",
-        ),
-    ],
-)
-def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
-    with patch.object(
-        phoenix.trace.dsl.filter,
-        "uuid4",
-        return_value=UUID(hex="00000000000000000000000000000000"),
-    ):
-        aliased, _ = _apply_eval_aliasing(filter_condition)
-        assert aliased == expected
 
 
 class TestProjectorValidationGap:

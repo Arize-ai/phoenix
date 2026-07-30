@@ -303,6 +303,7 @@ SESSION_BINDINGS = _FilterBindings(
     quantifiers=frozenset(COMPREHENSION_NAMES),
     exists_names=frozenset(_EXISTS_ATTRIBUTE_PATHS),
     iterables=_SESSION_ITERABLES,
+    annotation_iterable="session_annotations",
 )
 
 SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(

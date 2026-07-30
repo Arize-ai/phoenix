@@ -195,10 +195,6 @@ const spanFilterSnippets: DSLFilterSnippet[] = [
     snippet: "annotations['${name}'].label == '${label}'",
   },
   {
-    label: "search annotation explanation",
-    snippet: "'${search text}' in annotations['${name}'].explanation",
-  },
-  {
     label: "filter by metadata",
     snippet: "metadata['${key}'] == '${value}'",
   },

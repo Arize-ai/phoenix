@@ -1,5 +1,4 @@
 import ast
-import re
 import sys
 import typing
 from dataclasses import dataclass, field
@@ -20,19 +19,10 @@ from phoenix.db import models
 
 NameMap: TypeAlias = typing.Mapping[str, "sqlalchemy.SQLColumnExpression[typing.Any]"]
 
-_VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation")
-
-
-AnnotationType: TypeAlias = typing.Literal["annotations", "evals"]
 AnnotationAttribute: TypeAlias = typing.Literal["label", "score"]
-AnnotationExpression: TypeAlias = str
 AnnotationName: TypeAlias = str
 
-EVAL_EXPRESSION_PATTERN = re.compile(
-    r"""\b((annotations|evals)\[(".*?"|'.*?')\][.](label|score))\b"""
-)
-
-EVAL_NAME_PATTERN = re.compile(r"""(?<!\w)((annotations|evals)\[(".*?"|'.*?')\])(?![\w\.])""")
+_VALID_EVAL_ATTRIBUTES: tuple[AnnotationAttribute, ...] = ("score", "label")
 
 
 @dataclass(frozen=True)
@@ -201,6 +191,9 @@ class _FilterBindings:
     exists_names: frozenset[str] = frozenset()
     supports_parent_keyword: bool = False
     iterables: typing.Mapping[str, "_IterableGrammar"] = MappingProxyType({})
+    # The iterable that reads this grain's annotations element-wise, named when an
+    # `annotations[...]` expression is rejected for being out of scope.
+    annotation_iterable: typing.Optional[str] = None
 
     @property
     def names(self) -> NameMap:
@@ -630,8 +623,7 @@ def _compile_condition(
     try:
         validated = ast.parse(source, mode="eval")
         _validate_expression(validated, bindings, valid_eval_names=valid_annotation_names)
-        source, aliased_annotation_relations = _apply_eval_aliasing(source, bindings)
-        root = ast.parse(source, mode="eval")
+        root, aliased_annotation_relations = _apply_eval_aliasing(source, bindings)
         root, comprehensions = _extract_comprehensions(root, bindings)
         translated = _FilterTranslator(
             bindings=bindings,
@@ -1628,22 +1620,8 @@ def _validate_expression(
             continue
         elif isinstance(node, ast.Attribute) and _is_annotation(node.value):
             # e.g. `evals["name"].score`
-            if (attr := node.attr) not in valid_eval_attributes:
-                source_segment = ast.unparse(node)
-                # suggest a valid attribute most similar to the one given
-                choice, score = _find_best_match(attr, valid_eval_attributes)
-                if choice and score > 0.75:  # arbitrary threshold
-                    raise SyntaxError(
-                        f"invalid attribute `.{attr}` in `{source_segment}`"
-                        + f", did you mean `.{choice}`?"
-                    )
-                expected = _disjunction([f"`.{attribute}`" for attribute in valid_eval_attributes])
-                raise SyntaxError(
-                    f"invalid eval attribute `.{attr}` in `{source_segment}`"
-                    + f", expected {expected}"
-                    if expected
-                    else ""
-                )
+            if node.attr not in valid_eval_attributes:
+                raise _annotation_attribute_error(node, valid_eval_attributes)
             continue
         elif (
             isinstance(node, ast.Call)
@@ -1701,6 +1679,39 @@ def _is_annotation(node: typing.Any) -> TypeGuard[ast.Subscript]:
         isinstance(node, ast.Subscript)
         and isinstance(value := node.value, ast.Name)
         and value.id in ["evals", "annotations"]
+    )
+
+
+def _is_annotation_rooted(node: typing.Any) -> bool:
+    # e.g. `evals["name"]`, `evals["name"].score`, `evals["name"]["key"]`
+    while isinstance(node, (ast.Attribute, ast.Subscript)):
+        if _is_annotation(node):
+            return True
+        node = node.value
+    return False
+
+
+def _annotation_attribute_error(
+    node: ast.Attribute,
+    valid_eval_attributes: typing.Sequence[str],
+) -> SyntaxError:
+    """The one authority on how an unsupported annotation attribute is reported.
+
+    Validation and aliasing both reach it, so the set they accept cannot drift apart.
+    """
+    source_segment = ast.unparse(node)
+    attr = node.attr
+    # suggest a valid attribute most similar to the one given
+    choice, score = _find_best_match(attr, valid_eval_attributes)
+    if choice and score > 0.75:  # arbitrary threshold
+        return SyntaxError(
+            f"invalid attribute `.{attr}` in `{source_segment}`" + f", did you mean `.{choice}`?"
+        )
+    expected = _disjunction([f"`.{attribute}`" for attribute in valid_eval_attributes])
+    return SyntaxError(
+        f"invalid eval attribute `.{attr}` in `{source_segment}`" + f", expected {expected}"
+        if expected
+        else ""
     )
 
 
@@ -1805,16 +1816,128 @@ def _find_best_match(
     return best_choice, best_score
 
 
+class _AnnotationAliaser(ast.NodeTransformer):
+    """Rewrites each annotation expression to the alias its relation is bound under.
+
+    The rewrite walks the parse tree rather than the source text, so it reaches only real
+    annotation expressions: text inside a string literal that happens to spell one stays
+    data, and a form the compiler cannot honor is rejected against the source the user wrote
+    rather than compiled into something else.
+    """
+
+    def __init__(self, bindings: _FilterBindings) -> None:
+        self._bindings = bindings
+        self._relations: dict[AnnotationName, AliasedAnnotationRelation] = {}
+        self._comprehension_depth = 0
+
+    @property
+    def relations(self) -> tuple[AliasedAnnotationRelation, ...]:
+        return tuple(self._relations.values())
+
+    def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
+        if _is_annotation(node.value):
+            # e.g. `evals["name"].score`
+            if (attribute := node.attr) not in _VALID_EVAL_ATTRIBUTES:
+                raise _annotation_attribute_error(node, _VALID_EVAL_ATTRIBUTES)
+            relation = self._relation(node.value, node, attribute)
+            return _aliased_name(relation.attribute_alias(attribute), node)
+        self._reject_traversal(node)
+        return self.generic_visit(node)
+
+    def visit_Subscript(self, node: ast.Subscript) -> typing.Any:
+        if _is_annotation(node):
+            # e.g. `evals["name"]`, an existence check
+            relation = self._relation(node, node, None)
+            return _aliased_name(relation._exists_attribute_alias, node)
+        self._reject_traversal(node)
+        return self.generic_visit(node)
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> typing.Any:
+        return self._visit_comprehension(node)
+
+    def visit_ListComp(self, node: ast.ListComp) -> typing.Any:
+        return self._visit_comprehension(node)
+
+    def visit_SetComp(self, node: ast.SetComp) -> typing.Any:
+        return self._visit_comprehension(node)
+
+    def visit_DictComp(self, node: ast.DictComp) -> typing.Any:
+        return self._visit_comprehension(node)
+
+    def _visit_comprehension(self, node: ast.expr) -> typing.Any:
+        self._comprehension_depth += 1
+        try:
+            return self.generic_visit(node)
+        finally:
+            self._comprehension_depth -= 1
+
+    def _relation(
+        self,
+        subscript: ast.Subscript,
+        source: ast.expr,
+        attribute: typing.Optional[AnnotationAttribute],
+    ) -> AliasedAnnotationRelation:
+        if self._comprehension_depth:
+            raise self._comprehension_scope_error(subscript, source, attribute)
+        if (name := _get_subscript_key(subscript)) is None:
+            raise SyntaxError(f"invalid expression: {ast.unparse(subscript)}")
+        if (relation := self._relations.get(name)) is None:
+            relation = AliasedAnnotationRelation(
+                index=len(self._relations),
+                name=name,
+                annotation_model=self._bindings.annotation_model,
+                table_prefix=self._bindings.annotation_table_prefix,
+            )
+            self._relations[name] = relation
+        return relation
+
+    def _comprehension_scope_error(
+        self,
+        subscript: ast.Subscript,
+        source: ast.expr,
+        attribute: typing.Optional[AnnotationAttribute],
+    ) -> SyntaxError:
+        # The annotation join is built at the grain's own scope, so it has nothing to bind to
+        # one element down. Name the collection that does read annotations element-wise.
+        segment = ast.unparse(source)
+        if not (iterable := self._bindings.annotation_iterable):
+            return SyntaxError(f"`{segment}` is not available inside a comprehension")
+        name = _get_subscript_key(subscript)
+        predicate = f'annotation.name == "{name}"' if name is not None else "annotation.name == ..."
+        if attribute is not None:
+            predicate += f" and annotation.{attribute} is not None"
+        return SyntaxError(
+            f"`{segment}` is not available inside a comprehension; "
+            f"iterate `{iterable}` instead, e.g. "
+            f"`any({predicate} for annotation in {iterable})`"
+        )
+
+    def _reject_traversal(self, node: typing.Union[ast.Attribute, ast.Subscript]) -> None:
+        # e.g. `evals["name"].score.label`. Left alone, the trailing step would read as an
+        # attribute keyed by the internal alias -- an expression that compiles, matches
+        # nothing, and differs on every compile because the alias carries a fresh uuid.
+        if not _is_annotation_rooted(node.value):
+            return
+        expected = _disjunction([f"`.{attribute}`" for attribute in _VALID_EVAL_ATTRIBUTES])
+        raise SyntaxError(
+            f"invalid expression: {ast.unparse(node)}; an annotation exposes only {expected}"
+        )
+
+
+def _aliased_name(alias: str, node: ast.expr) -> ast.Name:
+    return ast.copy_location(ast.Name(id=alias, ctx=ast.Load()), node)
+
+
 def _apply_eval_aliasing(
     source: str,
     bindings: _FilterBindings = SPAN_BINDINGS,
 ) -> tuple[
-    str,
+    ast.Expression,
     tuple[AliasedAnnotationRelation, ...],
 ]:
     """
     Substitutes `evals[<eval-name>].<attribute>` with aliases. Returns the
-    updated source code in addition to the aliased relations.
+    rewritten parse tree in addition to the aliased relations.
 
     Example:
 
@@ -1830,63 +1953,7 @@ def _apply_eval_aliasing(
     span_annotation_0_label_123 == 'correct' or span_annotation_0_score_456 < 0.5
     ```
     """
-
-    def _relation(index: int, name: str) -> AliasedAnnotationRelation:
-        return AliasedAnnotationRelation(
-            index=index,
-            name=name,
-            annotation_model=bindings.annotation_model,
-            table_prefix=bindings.annotation_table_prefix,
-        )
-
-    eval_aliases: dict[AnnotationName, AliasedAnnotationRelation] = {}
-    for (
-        annotation_expression,
-        _annotation_type,
-        annotation_name,
-        annotation_attribute,
-    ) in _parse_annotation_expressions_and_names(source):
-        if (eval_alias := eval_aliases.get(annotation_name)) is None:
-            eval_alias = _relation(len(eval_aliases), annotation_name)
-            eval_aliases[annotation_name] = eval_alias
-        alias_name = eval_alias.attribute_alias(annotation_attribute)
-        source = source.replace(annotation_expression, alias_name)
-
-    for match in EVAL_NAME_PATTERN.finditer(source):
-        annotation_expression, _, quoted_eval_name = match.groups()
-        annotation_name = quoted_eval_name[1:-1]
-        if (eval_alias := eval_aliases.get(annotation_name)) is None:
-            eval_alias = _relation(len(eval_aliases), annotation_name)
-            eval_aliases[annotation_name] = eval_alias
-        alias_name = eval_alias._exists_attribute_alias
-        source = source.replace(annotation_expression, alias_name)
-    return source, tuple(eval_aliases.values())
-
-
-def _parse_annotation_expressions_and_names(
-    source: str,
-) -> typing.Iterator[
-    tuple[AnnotationExpression, AnnotationType, AnnotationName, AnnotationAttribute]
-]:
-    """
-    Parses filter conditions for evaluation expressions of the form:
-
-    ```
-    evals["<eval-name>"].<attribute>
-    annotations["eval-name"].<attribute>
-    ```
-    """
-    for match in EVAL_EXPRESSION_PATTERN.finditer(source):
-        (
-            annotation_expression,
-            _annotation_type,
-            quoted_eval_name,
-            evaluation_attribute_name,
-        ) = match.groups()
-        annotation_type = typing.cast(AnnotationType, _annotation_type)
-        yield (
-            annotation_expression,
-            annotation_type,
-            quoted_eval_name[1:-1],
-            typing.cast(AnnotationAttribute, evaluation_attribute_name),
-        )
+    aliaser = _AnnotationAliaser(bindings)
+    root = typing.cast(ast.Expression, aliaser.visit(ast.parse(source, mode="eval")))
+    ast.fix_missing_locations(root)
+    return root, aliaser.relations
