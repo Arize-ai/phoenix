@@ -2,6 +2,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { ExpandableContent } from "@phoenix/components/core/content";
+
 import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import {
   SpanInfoCardsProvider,
@@ -43,10 +45,9 @@ function InputSection({ spanId }: { spanId: string }) {
       extra={<button type="button">Copy</button>}
       {...sectionProps}
     >
-      <details open>
-        <summary>Nested content</summary>
-        Body
-      </details>
+      <ExpandableContent height={100} isOverflowing>
+        Nested content
+      </ExpandableContent>
     </SpanDetailsDisclosureSection>
   );
 }
@@ -95,19 +96,31 @@ describe("SpanInfoCardsProvider", () => {
     );
   });
 
-  it("preserves controlled section state across spans without changing nested content", () => {
+  it("preserves controlled section state across spans without expanding overflow affordances", () => {
     render(<Fixture spanId="span-a" />);
 
     click(query('button[aria-label="Collapse all sections"]'));
     expect(query("button[aria-controls]").getAttribute("aria-expanded")).toBe(
       "false"
     );
-    expect(query("details").hasAttribute("open")).toBe(true);
+    expect(
+      query('button[aria-label="Show more"]').getAttribute("aria-expanded")
+    ).toBe("false");
 
     render(<Fixture spanId="span-b" />);
     expect(query("button[aria-controls]").getAttribute("aria-expanded")).toBe(
       "false"
     );
-    expect(query("details").hasAttribute("open")).toBe(true);
+    expect(
+      query('button[aria-label="Show more"]').getAttribute("aria-expanded")
+    ).toBe("false");
+
+    click(query('button[aria-label="Expand all sections"]'));
+    expect(query("button[aria-controls]").getAttribute("aria-expanded")).toBe(
+      "true"
+    );
+    expect(
+      query('button[aria-label="Show more"]').getAttribute("aria-expanded")
+    ).toBe("false");
   });
 });

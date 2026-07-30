@@ -10,6 +10,7 @@ import {
 import { SpanKindIcon } from "@phoenix/components/trace";
 
 import { defaultCardProps } from "./constants";
+import { ExpandableSpanContent } from "./ExpandableSpanContent";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 
 /**
@@ -38,7 +39,9 @@ function LLMToolSchema({
       borderColor="yellow-300"
       extra={<CopyToClipboardButton text={toolSchema} />}
     >
-      <MimeTypeCodeBlock value={toolSchema} mimeType={"json"} />
+      <ExpandableSpanContent overlayBackgroundColor="var(--global-color-yellow-100)">
+        <MimeTypeCodeBlock value={toolSchema} mimeType={"json"} />
+      </ExpandableSpanContent>
     </Card>
   );
 }

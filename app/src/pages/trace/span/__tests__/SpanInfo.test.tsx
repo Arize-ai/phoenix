@@ -181,6 +181,11 @@ describe("SpanInfo", () => {
     expect(container.querySelectorAll("#tool-definitions .card")).toHaveLength(
       2
     );
+    expect(
+      container.querySelectorAll(
+        "#tool-definitions .card > .card__body > .expandable-content"
+      )
+    ).toHaveLength(2);
   });
 
   it("wraps input content without its own card in the shared prompt surface", () => {
@@ -239,6 +244,9 @@ describe("SpanInfo", () => {
       container.querySelector("#input .span-details-input-section__surface")
     ).toBeNull();
     expect(container.querySelector("#input .card")).not.toBeNull();
+    expect(
+      container.querySelector("#input .disclosure__panel > .expandable-content")
+    ).not.toBeNull();
   });
 
   it("wraps a reranker query without wrapping its document cards", () => {

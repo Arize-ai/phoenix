@@ -28,6 +28,7 @@ import {
 } from "@phoenix/utils/jsonUtils";
 
 import { defaultCardProps } from "./constants";
+import { ExpandableSpanContent } from "./ExpandableSpanContent";
 import { getMessageContentPreview } from "./messageContentPreview";
 import { MessageContentsList } from "./MessageContentsList";
 import { formatJSONForCopy, getToolCalls } from "./utils";
@@ -177,20 +178,22 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
                         {id ? <CopyToClipboardButton text={id} /> : null}
                       </DisclosureTrigger>
                       <DisclosurePanel>
-                        <pre
-                          key={idx}
-                          css={css`
-                            text-wrap: wrap;
-                            margin: 0;
-                            padding: var(--global-dimension-size-200);
-                          `}
-                        >
-                          {toolCall.function?.name}(
-                          {parsedArguments.json
-                            ? JSON.stringify(parsedArguments.json, null, 2)
-                            : `${toolCall?.function?.arguments}`}
-                          )
-                        </pre>
+                        <ExpandableSpanContent>
+                          <pre
+                            key={idx}
+                            css={css`
+                              text-wrap: wrap;
+                              margin: 0;
+                              padding: var(--global-dimension-size-200);
+                            `}
+                          >
+                            {toolCall.function?.name}(
+                            {parsedArguments.json
+                              ? JSON.stringify(parsedArguments.json, null, 2)
+                              : `${toolCall?.function?.arguments}`}
+                            )
+                          </pre>
+                        </ExpandableSpanContent>
                       </DisclosurePanel>
                     </Disclosure>
                   );
@@ -203,21 +206,23 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
                   <Text>Function Call</Text>
                 </DisclosureTrigger>
                 <DisclosurePanel>
-                  <pre
-                    css={css`
-                      text-wrap: wrap;
-                      margin: var(--global-dimension-size-100) 0;
-                    `}
-                  >
-                    {message[MessageAttributePostfixes.function_call_name]}(
-                    {formatContentAsString(
-                      message[
-                        MessageAttributePostfixes.function_call_arguments_json
-                      ],
-                      { unquotePlainString: true }
-                    )}
-                    )
-                  </pre>
+                  <ExpandableSpanContent>
+                    <pre
+                      css={css`
+                        text-wrap: wrap;
+                        margin: var(--global-dimension-size-100) 0;
+                      `}
+                    >
+                      {message[MessageAttributePostfixes.function_call_name]}(
+                      {formatContentAsString(
+                        message[
+                          MessageAttributePostfixes.function_call_arguments_json
+                        ],
+                        { unquotePlainString: true }
+                      )}
+                      )
+                    </pre>
+                  </ExpandableSpanContent>
                 </DisclosurePanel>
               </Disclosure>
             ) : null}
