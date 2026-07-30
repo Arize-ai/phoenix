@@ -167,6 +167,11 @@ COMPREHENSION_NAMES: frozenset[str] = QUANTIFIER_NAMES | REDUCTION_NAMES
 _QUANTIFIER_RESULT_PREFIX = "__quantifier_"
 _REDUCTION_RESULT_PREFIX = "__reduction_"
 
+# The two string-containment lowerings `in` can translate to, named in the compiled expression so
+# the rendered tree states which polarity a grain got.
+_TEXT_CONTAINS = "TextContains"
+_CASE_INSENSITIVE_CONTAINS = "CaseInsensitiveContains"
+
 
 RootSpanScope = typing.Literal["strict", "orphan_aware"]
 """Which definition of "root span" a filter condition restricts to.
@@ -207,6 +212,9 @@ class _FilterBindings:
     # The iterable that reads this grain's annotations element-wise, named when an
     # `annotations[...]` expression is rejected for being out of scope.
     annotation_iterable: typing.Optional[str] = None
+    # Whether `in` against a string haystack ignores case. Per-grain, not global: the session
+    # grain matches the text search it replaced, while the span grain keeps `in` exact.
+    case_insensitive_containment: bool = False
 
     @property
     def names(self) -> NameMap:
@@ -780,7 +788,8 @@ def _eval_globals(
         "String": sqlalchemy.String,
         "SafeJsonBoolean": SafeJsonBoolean,
         "SafeJsonFloat": SafeJsonFloat,
-        "TextContains": models.TextContains,
+        _TEXT_CONTAINS: models.TextContains,
+        _CASE_INSENSITIVE_CONTAINS: models.CaseInsensitiveContains,
         _DATETIME_CONVERTER: _parse_datetime_literal,
         # Last so a caller can override an entry -- e.g. the session grain
         # swaps in SafeJson* shims that understand its root-span attribute
@@ -1941,6 +1950,14 @@ class _FilterTranslator(_ProjectionTranslator):
         self._string_keywords = frozenset(string_keywords)
         self.literal_bindings: dict[str, typing.Any] = {}
 
+    @property
+    def _containment_function(self) -> str:
+        return (
+            _CASE_INSENSITIVE_CONTAINS
+            if self._bindings.case_insensitive_containment
+            else _TEXT_CONTAINS
+        )
+
     def visit_Name(self, node: ast.Name) -> typing.Any:
         if self._bindings.supports_parent_keyword and _is_parent_name(node):
             # A bare `parent_span` that reaches this point is not part of a supported
@@ -2097,7 +2114,7 @@ class _FilterTranslator(_ProjectionTranslator):
                 and right.id in self._string_keywords
             ):
                 call = ast.Call(
-                    func=ast.Name(id="TextContains", ctx=ast.Load()),
+                    func=ast.Name(id=self._containment_function, ctx=ast.Load()),
                     args=[right, left],
                     keywords=[],
                 )

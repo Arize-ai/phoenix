@@ -2822,12 +2822,15 @@ class TestProject:
             projects=projects,
         )
 
-    async def test_session_dsl_containment_is_case_sensitive(
+    async def test_session_dsl_containment_ignores_case(
         self,
         _case_insensitive_data: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
+        """The DSL reaches every session the retired text search did: casing, non-ASCII, and
+        SQL wildcard characters carried literally."""
         project = _case_insensitive_data.projects[0]
+        sessions = _case_insensitive_data.project_sessions
 
         async def _matched(condition: str) -> set[str]:
             result = await self._node(
@@ -2837,12 +2840,18 @@ class TestProject:
             )
             return {e["node"]["id"] for e in result["edges"]}
 
-        # Sessions 0 and 4 spell it "Hello"; `in` matches the exact casing only.
-        assert await _matched("'Hello' in any_input") == {
-            _gid(_case_insensitive_data.project_sessions[0]),
-            _gid(_case_insensitive_data.project_sessions[4]),
-        }
-        assert await _matched("'hello' in any_input") == set()
+        # Sessions 0 and 4 spell it "Hello" on the input side; either casing finds both.
+        hello_sessions = {_gid(sessions[0]), _gid(sessions[4])}
+        assert await _matched("'Hello' in any_input") == hello_sessions
+        assert await _matched("'hello' in any_input") == hello_sessions
+        # Session 1 spells it "HELLO" on the output side.
+        assert await _matched("'hello' in any_output") == {_gid(sessions[1])}
+        # Non-ASCII case folding, in both directions.
+        assert await _matched("'wörld' in any_input") == {_gid(sessions[0])}
+        assert await _matched("'WÖRLD' in any_output") == {_gid(sessions[1])}
+        # LIKE wildcards are literal text, not patterns.
+        assert await _matched("'%' in any_input") == {_gid(sessions[2])}
+        assert await _matched("'_' in any_output") == {_gid(sessions[3])}
 
     @pytest.mark.parametrize("orphan_span_as_root_span", [False, True])
     async def test_root_spans_only_with_orphan_spans(
@@ -4244,6 +4253,10 @@ class TestProject:
         }
         assert static_names == set(SESSION_BINDINGS.binding_names)
         assert {"any_input", "any_output"}.issubset(static_names)
+        # The `in`-only IO terms are typed apart from plain strings so the UI doesn't
+        # offer them as equality comparands.
+        assert terms_by_name["any_input"]["type"] == "containment"
+        assert terms_by_name["any_output"]["type"] == "containment"
         # Every served term carries a non-empty gloss.
         assert all(t["description"] for t in terms)
         num_traces_term = next(t for t in terms if t["name"] == "num_traces")

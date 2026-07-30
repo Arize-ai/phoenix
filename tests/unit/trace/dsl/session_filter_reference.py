@@ -5,6 +5,9 @@ here, independently of the SQLAlchemy translation in `phoenix.trace.dsl.session_
 differential suite in `test_session_filter.py` seeds the same fixtures into the database and
 asserts the compiled row set equals this module's selection.
 
+String containment (`in`) ignores case at this grain, while equality stays exact — see
+`_contains`.
+
 An absent value is `MISSING`, and every comparison it takes part in evaluates to `MISSING`
 rather than to True or False, so a session is selected only when the whole condition
 evaluates to exactly True. Reductions skip missing values: `len`/`sum` of nothing is 0, while
@@ -546,7 +549,9 @@ def _contains(haystack: Any, needle: Any) -> bool:
     if isinstance(haystack, (list, tuple)):
         return needle in haystack
     if isinstance(haystack, str) and isinstance(needle, str):
-        return needle in haystack
+        # Session-grain string containment ignores case; membership in a literal list, and
+        # equality anywhere, stay exact.
+        return needle.lower() in haystack.lower()
     raise SyntaxError(f"`in` expects a list or a string, got {haystack!r}")
 
 
@@ -916,4 +921,19 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'attributes["llm.model_name"] is None',
     'metadata["tier"] == "gold"',
     'num_traces >= 1 and attributes["llm.model_name"] is not None',
+    # Case polarity: `in` over a string haystack ignores case wherever the haystack comes from
+    # — a session column, a root-span attribute, or an element field — including a needle that
+    # lands mid-string and one that the uppercase-coerced fields rewrite first. `==` is exact,
+    # and membership in a literal list is unaffected.
+    '"GPT" in attributes["llm.model_name"]',
+    '"4O" in attributes["llm.model_name"]',
+    'attributes["llm.model_name"] == "GPT-4O"',
+    '"ATTR" in session_id',
+    'session_id == "ATTR-NESTED"',
+    'any("SEARCH" in s.name for s in spans)',
+    'any("too" in s.span_kind for s in spans)',
+    'any("CORRECT" in a.label for a in span_annotations)',
+    'any(a.label == "CORRECT" for a in span_annotations)',
+    'any(a.name in ["Quality", "Coverage"] for a in session_annotations)',
+    'any(a.name in ["QUALITY"] for a in session_annotations)',
 )

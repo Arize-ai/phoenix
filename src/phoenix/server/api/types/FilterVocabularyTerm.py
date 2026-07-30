@@ -13,6 +13,7 @@ _NUMBER = "number"
 _DATETIME = "datetime"
 _BOOLEAN = "boolean"
 _ITERABLE_TYPE = "iterable"
+_CONTAINMENT_TYPE = "containment"
 
 _INTRINSIC = "session"
 _AGGREGATE = "aggregate"
@@ -36,7 +37,8 @@ class FilterVocabularyTerm:
     type: str = strawberry.field(
         description="Value-type hint for the comparand: 'string', 'number', 'datetime', "
         "or 'boolean'. Collections carry 'iterable' — they are looped over rather than "
-        "compared."
+        "compared. 'containment' marks a term that only takes `in` / `not in` against a "
+        "string literal and never `==`."
     )
     description: str = strawberry.field(
         description="Human-readable gloss of what the term means and how it evaluates."
@@ -94,7 +96,7 @@ def session_filter_vocabulary_terms(
     for name in sorted(SESSION_BINDINGS.aggregate_names):
         add(name, _NUMBER, _AGGREGATE)
     for name in sorted(SESSION_BINDINGS.exists_names):
-        add(name, _STRING, _INTRINSIC)
+        add(name, _CONTAINMENT_TYPE, _INTRINSIC)
 
     for name in _ATTRIBUTE_PROXY_TERMS:
         add(name, _STRING, _ATTRIBUTE)
