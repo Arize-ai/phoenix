@@ -148,7 +148,11 @@ from phoenix.server.agents.vercel_ui_message_stream import (
     create_streaming_ui_message_state,
     process_ui_message_stream,
 )
-from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, is_turn_active
+from phoenix.server.api.helpers.agent_sessions import (
+    TURN_LOCK_STALENESS,
+    derive_otel_session_id,
+    is_turn_active,
+)
 from phoenix.server.api.helpers.playground_registry import (
     PLAYGROUND_CLIENT_REGISTRY,
     PROVIDER_DEFAULT,
@@ -1739,7 +1743,6 @@ def create_agents_router(
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         async with request.app.state.db() as session:
             agent_session = models.AgentSession(
-                project_session_id=str(uuid4()),
                 user_id=int(phoenix_user.identity) if phoenix_user is not None else None,
                 title=title,
                 project_name=get_env_phoenix_agents_assistant_project_name(),
@@ -2060,7 +2063,10 @@ def create_agents_router(
                 project_name = agent_session.project_name
                 session_needs_title = not agent_session.title
                 agent_session_rowid = agent_session.id
-                otel_session_id = agent_session.project_session_id
+                otel_session_id = derive_otel_session_id(
+                    project_name=project_name,
+                    agent_session_rowid=agent_session_rowid,
+                )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 

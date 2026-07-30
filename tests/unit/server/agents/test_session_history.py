@@ -45,7 +45,6 @@ async def test_load_agent_session_history_returns_the_full_uncompacted_transcrip
     ]
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id=str(uuid4()),
             user_id=None,
             title="Session",
             project_name="assistant_agent",
@@ -90,7 +89,6 @@ async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
     ]
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id=str(uuid4()),
             user_id=None,
             title="Session",
             project_name="assistant_agent",
@@ -127,7 +125,6 @@ async def test_uppercase_and_lowercase_uuids_are_both_accepted(
 ) -> None:
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id=str(uuid4()),
             user_id=None,
             title="Session",
             project_name="assistant_agent",

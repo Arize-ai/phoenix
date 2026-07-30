@@ -124,7 +124,6 @@ class AgentSessionMutationMixin:
             raise BadRequest(str(exc)) from exc
         async with info.context.db() as session:
             agent_session = models.AgentSession(
-                project_session_id=str(uuid4()),
                 user_id=info.context.user_id,
                 title=title,
                 project_name=get_env_phoenix_agents_assistant_project_name(),
@@ -228,7 +227,6 @@ class AgentSessionMutationMixin:
                 message.model_copy(update={"id": str(uuid4())}) for message in message_prefix
             ]
             branch_session = models.AgentSession(
-                project_session_id=str(uuid4()),
                 user_id=info.context.user_id,
                 title=truncate_agent_session_title(source_session.title),
                 project_name=get_env_phoenix_agents_assistant_project_name(),

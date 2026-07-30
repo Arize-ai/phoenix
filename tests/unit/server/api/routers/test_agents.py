@@ -60,16 +60,13 @@ class TestAgentSessionPersistence:
     ) -> None:
         async with db() as session:
             created = models.AgentSession(
-                project_session_id="11111111-1111-4111-8111-111111111111",
                 user_id=None,
                 title="",
                 project_name="assistant_agent",
             )
             session.add(created)
             await session.flush()
-            assert created.project_session_id == "11111111-1111-4111-8111-111111111111"
             created_rowid = created.id
-            created_project_session_id = created.project_session_id
 
         async with db() as session:
             loaded = await _refresh_and_load_agent_session(
@@ -79,7 +76,6 @@ class TestAgentSessionPersistence:
             )
             assert loaded is not None
             assert loaded.id == created_rowid
-            assert loaded.project_session_id == created_project_session_id
             await session.execute(
                 delete(models.AgentSession).where(models.AgentSession.id == created_rowid)
             )
@@ -97,7 +93,6 @@ class TestAgentSessionPersistence:
     async def test_deleted_rowid_is_not_reused(self, db: DbSessionFactory) -> None:
         async with db() as session:
             first = models.AgentSession(
-                project_session_id="11111111-1111-4111-8111-111111111111",
                 user_id=None,
                 title="first",
                 project_name="assistant_agent",
@@ -109,7 +104,6 @@ class TestAgentSessionPersistence:
 
         async with db() as session:
             second = models.AgentSession(
-                project_session_id="22222222-2222-4222-8222-222222222222",
                 user_id=None,
                 title="second",
                 project_name="assistant_agent",
@@ -124,7 +118,6 @@ class TestAgentSessionPersistence:
     ) -> None:
         async with db() as session:
             temporary = models.AgentSession(
-                project_session_id="33333333-3333-4333-8333-333333333333",
                 user_id=None,
                 title="",
                 project_name="assistant_agent",
@@ -161,7 +154,6 @@ class TestAgentSessionPersistence:
         stale = datetime.now(timezone.utc) - timedelta(days=30)
         async with db() as session:
             persistent = models.AgentSession(
-                project_session_id="44444444-4444-4444-8444-444444444444",
                 user_id=None,
                 title="",
                 project_name="assistant_agent",
@@ -199,7 +191,6 @@ class TestAgentSessionPersistence:
     ) -> None:
         async with db() as session:
             temporary = models.AgentSession(
-                project_session_id="55555555-5555-4555-8555-555555555555",
                 user_id=None,
                 title="",
                 project_name="assistant_agent",
