@@ -2,6 +2,15 @@
 
 Use for exploration only. Validate before production.
 
+Pre-built evaluators are importable from `phoenix.evals.metrics` (Python) and
+`@arizeai/phoenix-evals` (TypeScript). They cover RAG quality (faithfulness,
+correctness, document relevance), response quality (conciseness, refusal),
+safety (toxicity), conversation signals (user friction), agent tool use
+(tool selection, invocation, response handling), and code-based checks
+(regex match, exact match, precision/recall/F-score). Naming follows
+`<Name>Evaluator` in Python and `create<Name>Evaluator` in TypeScript —
+enumerate the module exports for the full list.
+
 ## Python
 
 ```python
@@ -12,38 +21,22 @@ llm = LLM(provider="openai", model="gpt-4o")
 faithfulness_eval = FaithfulnessEvaluator(llm=llm)
 ```
 
-**Note**: `HallucinationEvaluator` is deprecated. Use `FaithfulnessEvaluator` instead.
-It uses "faithful"/"unfaithful" labels with score 1.0 = faithful.
-
 ## TypeScript
 
 ```typescript
-import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
-const hallucinationEval = createHallucinationEvaluator({ model: openai("gpt-4o") });
+const faithfulnessEval = createFaithfulnessEvaluator({ model: openai("gpt-4o") });
 ```
 
-## Available (2.0)
+Before using an evaluator, check its required input fields and score direction —
+some score toward 1.0 for the *bad* outcome and are meant to be minimized
+(e.g., toxicity, user friction). Input field names follow the runtime's
+convention: snake_case in Python, camelCase in TypeScript.
 
-| Evaluator | Type | Description |
-| --------- | ---- | ----------- |
-| `FaithfulnessEvaluator` | LLM | Is the response faithful to the context? |
-| `CorrectnessEvaluator` | LLM | Is the response correct? |
-| `DocumentRelevanceEvaluator` | LLM | Are retrieved documents relevant? |
-| `ToolSelectionEvaluator` | LLM | Did the agent select the right tool? |
-| `ToolInvocationEvaluator` | LLM | Did the agent invoke the tool correctly? |
-| `ToolResponseHandlingEvaluator` | LLM | Did the agent handle the tool response well? |
-| `MatchesRegex` | Code | Does output match a regex pattern? |
-| `PrecisionRecallFScore` | Code | Precision/recall/F-score metrics |
-| `exact_match` | Code | Exact string match |
-
-Legacy evaluators (`HallucinationEvaluator`, `QAEvaluator`, `RelevanceEvaluator`,
-`ToxicityEvaluator`, `SummarizationEvaluator`) are in `phoenix.evals.legacy` and deprecated.
-
-**TypeScript**: `PrecisionRecallFScore` is also available via `@arizeai/phoenix-evals/code`
-as `createPrecisionEvaluator`, `createRecallEvaluator`, `createF1Evaluator`,
-`createFBetaEvaluator`, and `createPrecisionRecallFScoreEvaluators` — see
+Code-based evaluators (precision/recall/F-score) are also available in
+TypeScript via `@arizeai/phoenix-evals/code` — see
 [evaluators-code-typescript.md](evaluators-code-typescript.md).
 
 ## When to Use
