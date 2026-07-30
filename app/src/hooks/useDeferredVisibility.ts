@@ -3,8 +3,8 @@ import { startTransition, useState } from "react";
 
 export type UseDeferredVisibilityParams = {
   /**
-   * Stop observing after the element is first seen; `isVisible` then stays
-   * true. Use when only the first reveal matters.
+   * Stop observing after the observer first reports the element visible;
+   * `isVisible` then stays true. Use when only the first reveal matters.
    */
   once?: boolean;
   /**
@@ -53,24 +53,25 @@ export function useDeferredVisibility<T extends Element>({
 
   // Ref callback, not an effect: it runs before paint, so elements already
   // in view start loading a frame earlier than the observer's first entries.
-  // The rect check ignores ancestor clipping — worst case, a still-clipped
-  // element is marked visible early.
+  // The rect check ignores ancestor clipping — an element below the fold of
+  // a scroll container can still overlap the viewport geometrically — so it
+  // is only a hint. `once` mode skips it entirely and waits for the observer
+  // to confirm an intersection before it stops watching.
   const ref: RefCallback<T> = (element) => {
     if (element == null) {
       return () => {};
     }
-    const rect = element.getBoundingClientRect();
-    // A zero-size rect means no layout (e.g. a display: none ancestor)
-    const hasLayout = rect.width > 0 || rect.height > 0;
-    const overlapsViewport =
-      rect.bottom >= 0 &&
-      rect.top <= window.innerHeight &&
-      rect.right >= 0 &&
-      rect.left <= window.innerWidth;
-    if (hasLayout && overlapsViewport) {
-      setIsVisible(true);
-      if (once) {
-        return () => {};
+    if (!once) {
+      const rect = element.getBoundingClientRect();
+      // A zero-size rect means no layout (e.g. a display: none ancestor)
+      const hasLayout = rect.width > 0 || rect.height > 0;
+      const overlapsViewport =
+        rect.bottom >= 0 &&
+        rect.top <= window.innerHeight &&
+        rect.right >= 0 &&
+        rect.left <= window.innerWidth;
+      if (hasLayout && overlapsViewport) {
+        setIsVisible(true);
       }
     }
     // scrollMargin is not yet in TypeScript's IntersectionObserverInit
