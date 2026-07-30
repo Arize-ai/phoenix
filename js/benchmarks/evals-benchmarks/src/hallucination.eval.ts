@@ -230,6 +230,12 @@ const examplesByCategory: Record<string, Example[]> = {
     },
     {
       input:
+        "User: I'm planning a trip to Paris.\nUser: Where is my hotel located?",
+      output: "Your hotel is in the 7th arrondissement near the Eiffel Tower.",
+      expectedLabel: "hallucinated",
+    },
+    {
+      input:
         "User: Convert this recipe to metric.\nAssistant: Sure.\nUser: How many grams are in a kilogram?",
       output: "There are 1,000 grams in a kilogram.",
       expectedLabel: "grounded",
