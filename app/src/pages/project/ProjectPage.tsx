@@ -133,13 +133,18 @@ export function ProjectPageContent({
   );
 }
 
-/** The URL's condition when it needs no server answer, else null. */
-function settledSeedFromUrl(
-  search: string,
-  fallback: string
-): SettledSpanFilterSeed | null {
+/**
+ * The URL's condition when it needs no server answer, else null.
+ *
+ * Reads `location` rather than taking the search string, so the `useState`
+ * initializers below close over nothing local. The React Compiler hoists those
+ * initializers out of the component, and a captured local does not survive it.
+ */
+function settledSeedFromUrl(fallback: string): SettledSpanFilterSeed | null {
   const seed = spanFilterSeed(
-    new URLSearchParams(search).get(SPAN_FILTER_CONDITION_PARAM) ?? fallback
+    new URLSearchParams(window.location.search).get(
+      SPAN_FILTER_CONDITION_PARAM
+    ) ?? fallback
   );
   return seed.requiresServerValidation ? null : seed;
 }
@@ -173,9 +178,6 @@ function ProjectPageContentBody({
       fetchKey: `${projectId}-${timeRangeISOStrings.start}-${timeRangeISOStrings.end}`,
     }
   );
-  // Read once for the state initializers below, which run before this
-  // component's `useSearchParams` call.
-  const initialSearch = window.location.search;
   const [tracesQueryReference, loadTracesQuery] =
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
   const [spansQueryReference, loadSpansQuery] =
@@ -186,12 +188,10 @@ function ProjectPageContentBody({
   // moves into the table.
   const [spansFilterSeed, setSpansFilterSeed] =
     useState<SettledSpanFilterSeed | null>(() =>
-      settledSeedFromUrl(initialSearch, DEFAULT_SPAN_FILTER_CONDITION)
+      settledSeedFromUrl(DEFAULT_SPAN_FILTER_CONDITION)
     );
   const [tracesFilterSeed, setTracesFilterSeed] =
-    useState<SettledSpanFilterSeed | null>(() =>
-      settledSeedFromUrl(initialSearch, "")
-    );
+    useState<SettledSpanFilterSeed | null>(() => settledSeedFromUrl(""));
   const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
@@ -203,6 +203,14 @@ function ProjectPageContentBody({
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  // React Router recreates this setter on every location change. The resolvers
+  // below are handed to the filter field, whose validation effect keys on their
+  // identity -- depending on the setter directly would revalidate on every URL
+  // write, and each pass would load and dispose another query.
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
   // Read at load time rather than depended on, so a live window sliding
   // forward does not reload the preload -- see the note on the tab loader.
   const timeRangeRef = useRef(timeRangeISOStrings);
@@ -228,7 +236,7 @@ function ProjectPageContentBody({
         // still in the address bar. Written even when empty: an absent param
         // seeds the default, an empty one means deliberately cleared.
         if (persistToUrl) {
-          setSearchParams(
+          setSearchParamsRef.current(
             (prev) => {
               const next = new URLSearchParams(prev);
               next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
@@ -246,7 +254,7 @@ function ProjectPageContentBody({
         });
       });
     },
-    [projectId, loadSpansQuery, setSearchParams]
+    [projectId, loadSpansQuery]
   );
 
   // Load the preloaded query backing the active tab's table. The time range is
@@ -262,7 +270,7 @@ function ProjectPageContentBody({
       startTransition(() => {
         setTracesFilterSeed(seed);
         if (persistToUrl) {
-          setSearchParams(
+          setSearchParamsRef.current(
             (prev) => {
               const next = new URLSearchParams(prev);
               next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
@@ -278,7 +286,7 @@ function ProjectPageContentBody({
         });
       });
     },
-    [projectId, loadTracesQuery, setSearchParams]
+    [projectId, loadTracesQuery]
   );
 
   const loadTableQueryForTab = useEffectEvent(
