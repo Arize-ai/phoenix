@@ -94,19 +94,26 @@ function getExamplePredicate(iterableName: string): string {
 }
 
 /**
- * Example conditions for the typeahead's "Suggestions" group, ordered simple
- * to complex. `${placeholder}` segments become tab-through fields on insert;
- * subscripted names use double quotes to match the served vocabulary.
+ * Example conditions for the typeahead's "Suggestions" group.
+ * `${placeholder}` segments become tab-through fields on insert; subscripted
+ * names use double quotes to match the served vocabulary.
  *
  * Every snippet is valid as inserted — placeholders carry working example
  * values, never blanks — and each teaches something no other snippet (or
  * plain aggregate) already covers. The first `MAX_BROWSE_SUGGESTIONS` are
- * what a browsing user sees: one construct each, in rising complexity —
- * aggregate, quantifier, compound, reduction, nested comprehension. The
- * remainder runs the one-line field filters before the parameterized
- * comprehension templates.
+ * what a browsing user sees: one construct each — text search, aggregate,
+ * quantifier, reduction, nested comprehension. Text search leads on a
+ * `boost`, since it is the query the retired search field used to serve and
+ * the one a user arriving at an empty filter most often wants; the rest sort
+ * alphabetically among themselves. The remainder of the array runs the
+ * one-line field filters before the parameterized comprehension templates.
  */
-const sessionFilterSnippets: DSLFilterSnippet[] = [
+export const sessionFilterSnippets: DSLFilterSnippet[] = [
+  {
+    label: "search inputs and outputs for text",
+    snippet: "'${search text}' in any_input or '${search text}' in any_output",
+    boost: 1,
+  },
   {
     label: "filter by number of turns",
     snippet: "num_traces >= ${5}",
@@ -116,11 +123,6 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
     snippet: 'any(span.status_code == "ERROR" for span in spans)',
   },
   {
-    label: "combine session and span conditions",
-    snippet:
-      'num_traces >= ${5} and any(span.status_code == "ERROR" for span in spans)',
-  },
-  {
     label: "slowest span in the session",
     snippet: "max(span.latency_ms for span in spans) > ${5_000}",
   },
@@ -128,6 +130,11 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
     label: "any turn used a tool",
     snippet:
       'any(any(span.span_kind == "TOOL" for span in trace.spans) for trace in traces)',
+  },
+  {
+    label: "combine session and span conditions",
+    snippet:
+      'num_traces >= ${5} and any(span.status_code == "ERROR" for span in spans)',
   },
   {
     label: "filter by errors",
@@ -182,8 +189,12 @@ const sessionFilterSnippets: DSLFilterSnippet[] = [
     snippet: "any(${span.latency_ms > 1000} for span in ${spans})",
   },
   {
+    // `all` over an empty collection is vacuously true, so the template
+    // carries the non-empty guard rather than teaching a query that matches
+    // every session with no spans at all.
     label: "all spans match a condition",
-    snippet: "all(${span.latency_ms < 1000} for span in ${spans})",
+    snippet:
+      "len([span for span in ${spans}]) > 0 and all(${span.latency_ms < 1000} for span in ${spans})",
   },
   {
     label: "count spans matching a condition",
@@ -313,7 +324,7 @@ export function SessionFilterConditionField(
   const {
     onValidCondition,
     vocabulary,
-    placeholder = "filter condition (e.x. num_traces >= 5)",
+    placeholder = "filter condition (e.g. num_traces >= 5)",
   } = props;
   const { filterCondition, setFilterCondition } = useSessionFilters();
   const projectId = useTracingContext((state) => state.projectId);
