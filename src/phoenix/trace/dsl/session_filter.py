@@ -325,18 +325,24 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             "Session identifier string. `in` containment ignores case, `==` matches exactly."
         ),
         "start_time": (
-            "Session start timestamp (earliest trace). Compare against ISO 8601 strings, "
-            "e.g. start_time > '2026-07-01'; values without a timezone are read as UTC."
+            "Session start timestamp (earliest trace) — a point comparison against the "
+            "session's own bound, unlike the view's time range, which selects sessions that "
+            "overlap a window. Compare against ISO 8601 strings, e.g. "
+            "start_time > '2026-07-01T00:00:00+00:00'; values without a timezone are read as "
+            "UTC, so prefer an offset-bearing literal."
         ),
         "end_time": (
-            "Session end timestamp (latest trace). Compare against ISO 8601 strings, "
-            "e.g. end_time < '2026-07-04T12:00:00+00:00'; values without a timezone are "
-            "read as UTC."
+            "Session end timestamp (latest trace) — a point comparison against the session's "
+            "own bound, unlike the view's time range, which selects sessions that overlap a "
+            "window. Compare against ISO 8601 strings, e.g. "
+            "end_time < '2026-07-04T12:00:00+00:00'; values without a timezone are read as "
+            "UTC, so prefer an offset-bearing literal."
         ),
         "duration_ms": "Session wall-clock duration in milliseconds (end_time - start_time).",
         "num_traces": (
-            "Number of traces in the session — ≈ conversation turns (one trace records one "
-            "exchange: an input and the response produced for it); 0 when absent, never null."
+            "Number of traces in the session; 0 when absent, never null. Instrumentation that "
+            "starts one trace per exchange makes this an approximate conversation-turn count, "
+            "but Phoenix does not enforce that shape."
         ),
         "num_traces_with_error": (
             "Number of traces in the session containing an errored span; 0 when absent, never null."
@@ -365,28 +371,32 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "tool_span_count": "Number of TOOL spans in the session; 0 when absent, never null.",
         "llm_span_count": "Number of LLM spans in the session; 0 when absent, never null.",
         "any_input": (
-            "Case-insensitive containment in some root span's input payload; "
-            "instrumentation-shaped, not a user-role message. Containment only — write "
-            "`'x' in any_input`, never `any_input == 'x'`. "
-            "`'x' not in any_input` also matches sessions with no input (NOT EXISTS)."
+            "Whether ANY root span in the session has an input.value containing the given text, "
+            "ignoring case — an existential test over root spans, not a value. Containment "
+            "only: write `'x' in any_input`, never `any_input == 'x'`. `'x' not in any_input` "
+            "also matches sessions with no root-span input at all. Payloads are "
+            "instrumentation-shaped, not user-role messages."
         ),
         "any_output": (
-            "Case-insensitive containment in some root span's output payload; "
-            "instrumentation-shaped, not an agent-role message. Containment only — write "
-            "`'x' in any_output`, never `any_output == 'x'`. "
-            "`'x' not in any_output` also matches sessions with no output (NOT EXISTS)."
+            "Whether ANY root span in the session has an output.value containing the given "
+            "text, ignoring case — an existential test over root spans, not a value. "
+            "Containment only: write `'x' in any_output`, never `any_output == 'x'`. "
+            "`'x' not in any_output` also matches sessions with no root-span output at all. "
+            "Payloads are instrumentation-shaped, not agent-role messages."
         ),
         "first_input": (
-            "Turn-1-only root span input.value string — the input of the session's first "
-            "trace. `in` containment ignores case, `==` is exact; a session with no first "
-            "input is SQL null, so `not in` and comparisons exclude it (target it with "
-            "`is None`). For containment anywhere in the session, prefer the cheaper any_input."
+            "The input.value string of the session's earliest root span, ordered by trace "
+            "start time, then trace id, then span id. `in` containment ignores case, `==` is "
+            "exact; a session with no such value is SQL null, so `not in` and comparisons "
+            "exclude it (target it with `is None`). To search every root span rather than the "
+            "earliest one, use the cheaper any_input."
         ),
         "last_output": (
-            "Final-turn-only root span output.value string — the output of the session's last "
-            "trace. `in` containment ignores case, `==` is exact; a session with no last "
-            "output is SQL null, so `not in last_output` excludes it (target it with "
-            "`is None`). For containment anywhere in the session, prefer the cheaper any_output."
+            "The output.value string of the session's latest root span, ordered by trace "
+            "start time, then trace id, then span id, descending. `in` containment ignores "
+            "case, `==` is exact; a session with no such value is SQL null, so "
+            "`not in last_output` excludes it (target it with `is None`). To search every "
+            "root span rather than the latest one, use the cheaper any_output."
         ),
         "attributes[...]": (
             "Root-span attribute access by OTel wire key: string subscripts are joined with dots, "
@@ -411,9 +421,10 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             'any(span.status_code == "ERROR" for span in spans).'
         ),
         "traces": (
-            "The session's traces — each records one conversation turn (one exchange). "
-            "A trace element also iterates its spans, e.g. "
-            'any(any(span.span_kind == "TOOL" for span in trace.spans) for trace in traces).'
+            "The session's traces, ordered by start time. A trace element also iterates its "
+            'spans, e.g. any(any(span.span_kind == "TOOL" for span in trace.spans) for trace '
+            "in traces). Instrumentation that starts one trace per exchange makes a trace an "
+            "approximate conversation turn, but Phoenix does not enforce that shape."
         ),
         "session_annotations": (
             "Annotations attached to the session itself, e.g. "
@@ -442,9 +453,9 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "spans.llm_token_count_total": (
             "Prompt plus completion tokens recorded on this span; 0 when it records none."
         ),
-        "traces.start_time": "Turn start timestamp. Compare against ISO 8601 strings.",
-        "traces.end_time": "Turn end timestamp. Compare against ISO 8601 strings.",
-        "traces.latency_ms": "Turn duration in milliseconds.",
+        "traces.start_time": "Trace start timestamp. Compare against ISO 8601 strings.",
+        "traces.end_time": "Trace end timestamp. Compare against ISO 8601 strings.",
+        "traces.latency_ms": "Trace duration in milliseconds.",
         "session_annotations.name": "Annotation name.",
         "session_annotations.label": "Annotation label; null when the annotation has none.",
         "session_annotations.score": "Annotation score; null when the annotation has none.",

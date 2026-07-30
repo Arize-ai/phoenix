@@ -81,8 +81,21 @@ Direct columns of the session row:
 | `start_time`, `end_time` | datetime | Earliest and latest trace timestamps |
 | `duration_ms` | float | Wall-clock duration in milliseconds |
 
-Datetime comparands are ISO 8601 strings, e.g. `start_time > '2026-07-01'`; values without a
-timezone are read as UTC.
+Datetime comparands are ISO 8601 strings, e.g.
+`start_time > '2026-07-01T00:00:00+00:00'`; values without a timezone are read as UTC.
+Prefer an offset-bearing literal: the DSL reads naive input as UTC, but general REST
+normalization localizes naive input to the server timezone, and an expression that means
+different instants in different places is a bad thing to save.
+
+`start_time` and `end_time` are not the view's time range, and the difference is easy to trip
+over. `timeRange` selects the candidate universe by *interval overlap* with a half-open
+window — a session counts if it was active inside it, however long before it started. These
+two are *point comparisons* against the session's own bounds. So a session that started
+yesterday and is still running is inside today's `timeRange` and outside
+`start_time > '<today>'`. Supplied together they compose with `AND`; neither changes how
+aggregates or comprehension subqueries are scoped beyond the session-scope join they already
+carry. Keep relative intents such as "last 7 days" in the time-range surface, where they
+belong, and keep saved DSL text deterministic with absolute literals.
 
 ### Aggregates
 
@@ -91,11 +104,16 @@ never null:
 
 | Name | Meaning |
 | --- | --- |
-| `num_traces` | Trace count, ≈ conversation turns |
+| `num_traces` | Trace count |
 | `num_traces_with_error` | Traces containing an errored span |
 | `token_count_prompt`, `token_count_completion`, `token_count_total` | LLM token totals |
 | `prompt_cost`, `completion_cost`, `total_cost` | Cost totals |
 | `tool_span_count`, `llm_span_count` | Spans of kind TOOL / LLM |
+
+A trace is one trace. Instrumentation that opens a trace per exchange makes `num_traces` an
+approximate conversation-turn count, and it is a useful thing to say to a user reaching for
+turns — but it is an ingestion convention Phoenix does not enforce, so neither the glosses
+nor this table state it as the meaning of the term.
 
 ### Root-span access
 
@@ -106,19 +124,27 @@ A session has no attributes of its own, so several names read from the session's
   `attributes["llm"]["model_name"]` names the same key. The lookup matches the key however
   ingestion nested it. A missing key is treated as missing (see the deviation rule above).
 - `user.id` and `metadata["key"]` — accepted shorthands for the matching `attributes` keys.
-- `first_input` / `last_output` — the root-span input of the first trace and output of the
-  last trace, as strings. Useful for "did the session end well" checks.
-- `'refund' in any_input` / `any_output` — containment over *some* root span's input or
-  output, anywhere in the session. Cheaper than the first/last forms and the right default
-  for "does this session mention X". These two are containment-only: they take `in` and
-  `not in` against a string literal and never `==`, and the served vocabulary types them
-  `containment` so autocomplete does not invite the equality form.
+- `first_input` / `last_output` — strings, read from the session's earliest and latest root
+  span. "Earliest" is a deterministic ordering, not a claim about roles: trace start time,
+  then trace id, then span id. Useful for "did the session end well" checks.
+- `'refund' in any_input` / `any_output` — an EXISTS over the session's root spans: does
+  *some* root span's input or output contain this text. Cheaper than the first/last forms and
+  the right default for "does this session mention X". Note the three universes a search can
+  address — every span, every root span (`any_*`), and one root span (`first_input`,
+  `attributes[...]`) — and that they narrow in that order. These two are containment-only:
+  they take `in` and `not in` against a string literal and never `==`, and the served
+  vocabulary types them `containment` so autocomplete does not invite the equality form.
 
 ### Annotations
 
 `annotations["quality"].score > 0.8` reads session-level annotations, using the same idiom as
 the span language. Annotations on individual spans are reached through the `span_annotations`
 iterable below.
+
+The spelling is entity-relative: `annotations[...]` reads `project_session_annotation` rows
+here and `span_annotation` rows in the span filter. That is ordinary — the filter is always
+about its own grain — but nothing about the expression says so, so the served vocabulary says
+it for anyone who uses both filters.
 
 ### Comprehensions
 

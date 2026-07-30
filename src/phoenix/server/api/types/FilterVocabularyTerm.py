@@ -137,7 +137,8 @@ def session_filter_vocabulary_terms(
             description=(
                 f"Numeric score of the {annotation_subscript} session annotation; null when the "
                 "session lacks this annotation, so comparisons exclude those sessions "
-                "(target them with `is None`)."
+                "(target them with `is None`). Here `annotations[...]` reads session "
+                "annotations; the same spelling in the span filter reads span annotations."
             ),
             category=_ANNOTATION,
         )
@@ -147,7 +148,8 @@ def session_filter_vocabulary_terms(
             description=(
                 f"Label of the {annotation_subscript} session annotation; null when the session "
                 "lacks this annotation, so `!=` excludes those sessions "
-                "(target them with `is None`)."
+                "(target them with `is None`). Here `annotations[...]` reads session "
+                "annotations; the same spelling in the span filter reads span annotations."
             ),
             category=_ANNOTATION,
         )

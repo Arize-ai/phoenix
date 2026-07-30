@@ -145,21 +145,37 @@ def test_session_filter_rejects_any_input_misuse(condition: str) -> None:
     )
 
 
-def test_session_filter_any_io_glosses_are_instrumentation_shaped() -> None:
-    assert "instrumentation-shaped" in SESSION_FILTER_DESCRIPTIONS["any_input"]
-    assert "instrumentation-shaped" in SESSION_FILTER_DESCRIPTIONS["any_output"]
-    assert "turn-1-only" in SESSION_FILTER_DESCRIPTIONS["first_input"].lower()
-    assert "final-turn-only" in SESSION_FILTER_DESCRIPTIONS["last_output"].lower()
+def test_session_filter_io_glosses_describe_mechanics_not_a_turn_model() -> None:
+    """The served vocabulary is a public contract, so it states what the compiler does.
+
+    One trace per exchange is an ingestion convention Phoenix does not enforce, so the turn
+    model may appear only as a labeled approximation, never as a term's meaning.
+    """
+    for name in ("any_input", "any_output"):
+        description = SESSION_FILTER_DESCRIPTIONS[name]
+        assert "ANY root span" in description
+        assert "instrumentation-shaped" in description
+        assert "turn" not in description.lower()
     assert "user said" not in SESSION_FILTER_DESCRIPTIONS["any_input"].lower()
     assert "agent said" not in SESSION_FILTER_DESCRIPTIONS["any_output"].lower()
+    for name in ("first_input", "last_output"):
+        description = SESSION_FILTER_DESCRIPTIONS[name]
+        assert "root span" in description
+        assert "trace start time" in description
+        assert "turn" not in description.lower()
+    for name in ("num_traces", "traces"):
+        description = SESSION_FILTER_DESCRIPTIONS[name].lower()
+        if "turn" in description:
+            assert "approximate" in description
+            assert "does not enforce" in description
 
 
 def test_session_filter_text_glosses_state_case_insensitive_containment() -> None:
     """No gloss may still advertise the retired case-sensitive containment."""
     for name in ("any_input", "any_output", "first_input", "last_output", "session_id"):
-        assert "case-sensitive" not in SESSION_FILTER_DESCRIPTIONS[name].lower()
-    assert "Case-insensitive containment" in SESSION_FILTER_DESCRIPTIONS["any_input"]
-    assert "Case-insensitive containment" in SESSION_FILTER_DESCRIPTIONS["any_output"]
+        description = SESSION_FILTER_DESCRIPTIONS[name].lower()
+        assert "case-sensitive" not in description
+        assert "ignor" in description and "case" in description
 
 
 async def _add_span_cost(
