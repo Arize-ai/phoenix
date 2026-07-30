@@ -8,8 +8,9 @@ import {
 import invariant from "tiny-invariant";
 
 import { Dialog, Drawer, DialogContent } from "@phoenix/components";
-import { getTraceTreeMaximumWidth } from "@phoenix/components/trace/traceTreeSizing";
+import { getTraceTreePanelSizing } from "@phoenix/components/trace/traceTreeSizing";
 import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
@@ -40,6 +41,17 @@ export function SessionPage() {
   const pagination = useSessionPagination();
   const { rootPath, tab } = useProjectRootPath();
   const parentSearch = clearSelectionScopedParams(location.search);
+  const sessionViewParam = searchParams.get(SESSION_VIEW_PARAM);
+  const sessionView: SessionView = isSessionView(sessionViewParam)
+    ? sessionViewParam
+    : "turns";
+  const showMetricsInTraceTree = usePreferencesContext(
+    (state) => state.showMetricsInTraceTree
+  );
+  const hasTraceTreeTiming = sessionView === "traces" && showMetricsInTraceTree;
+  const { treeAddonWidth, treeMaximumWidth } = getTraceTreePanelSizing({
+    hasTiming: hasTraceTreeTiming,
+  });
   const {
     defaultDrawerSize,
     isTreeCollapsed,
@@ -51,16 +63,13 @@ export function SessionPage() {
     onTreeCollapsedChange,
     preferredTreeWidth,
   } = useDetailsPanelSizing({
-    treeMaximumWidth: getTraceTreeMaximumWidth({ hasTiming: false }),
+    treeAddonWidth,
+    treeMaximumWidth,
   });
   const preview = getSessionPreview(
     pagination?.sessionSequence ?? [],
     sessionId
   ) ?? { sessionId };
-  const sessionViewParam = searchParams.get(SESSION_VIEW_PARAM);
-  const sessionView: SessionView = isSessionView(sessionViewParam)
-    ? sessionViewParam
-    : "turns";
   // The loaded view and every loading fallback replace their navigation DOM.
   // Keep pointer ownership in the stable page shell so the collapsed overlay
   // cannot lose its width while a first-time view switch suspends.
@@ -113,12 +122,15 @@ export function SessionPage() {
                 dataTestId={
                   sessionView === "traces" ? "session-traces-view" : undefined
                 }
-                navigationAriaLabel="Resize session turns"
+                navigationAriaLabel={
+                  sessionView === "traces"
+                    ? "Resize session traces"
+                    : "Resize session turns"
+                }
                 preferredTreeWidth={preferredTreeWidth}
                 onPreferredTreeWidthChange={onPreferredTreeWidthChange}
-                treeMaximumWidth={getTraceTreeMaximumWidth({
-                  hasTiming: false,
-                })}
+                treeAddonWidth={treeAddonWidth}
+                treeMaximumWidth={treeMaximumWidth}
               >
                 <DetailsPanelContentBoundary
                   subjectKey={sessionId}

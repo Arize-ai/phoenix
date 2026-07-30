@@ -20,6 +20,7 @@ import {
 } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { ExpandCollapseAllButton } from "@phoenix/components/trace/ExpandCollapseAllButton";
 import { TRACE_TREE_ROW_SELECTION_BORDER_WIDTH } from "@phoenix/components/trace/traceTreeStyles";
+import { TraceTreeTimingToggleButton } from "@phoenix/components/trace/TraceTreeToolbar";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import type { SessionDetailsQuery } from "./__generated__/SessionDetailsQuery.graphql";
@@ -301,12 +302,15 @@ export function SessionDetails({
         onCollapsedChange={onTreePanelCollapsedChange}
       >
         {options ? (
-          <ExpandCollapseAllButton
-            className="details-panel-navigation-controls__expand-collapse-all"
-            contentLabel="traces"
-            isCollapsed={options.isAllCollapsed}
-            onCollapsedChange={options.onAllCollapsedChange}
-          />
+          <>
+            <ExpandCollapseAllButton
+              className="details-panel-navigation-controls__expand-collapse-all"
+              contentLabel="traces"
+              isCollapsed={options.isAllCollapsed}
+              onCollapsedChange={options.onAllCollapsedChange}
+            />
+            <TraceTreeTimingToggleButton />
+          </>
         ) : null}
       </DetailsPanelNavigationControlsRow>
     </>
