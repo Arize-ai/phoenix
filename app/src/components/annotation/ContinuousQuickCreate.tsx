@@ -42,7 +42,7 @@ const continuousQuickCreateCSS = css`
     &:hover:not([disabled]),
     &[data-hovered]:not([disabled]) {
       > [data-appearance="compact"] {
-        color: var(--global-static-color-white-900);
+        color: var(--global-text-color-900);
       }
     }
 

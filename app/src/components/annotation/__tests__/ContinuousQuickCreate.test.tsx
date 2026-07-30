@@ -130,7 +130,7 @@ describe("ContinuousQuickCreate", () => {
     }
     await act(async () => user.hover(firstScoreButton));
     expect(getComputedStyle(firstScore).color).toBe(
-      "var(--global-static-color-white-900)"
+      "var(--global-text-color-900)"
     );
     await act(async () => user.unhover(firstScoreButton));
 
