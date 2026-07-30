@@ -10,7 +10,12 @@ import {
   skewWindowIsClear,
   waitForFirstTrace,
 } from "../../src/setup/steps/verifyTraces";
-import { buildFakeDeps, fakeFetch, jsonResponse } from "./fakes";
+import {
+  buildFakeDeps,
+  fakeFetch,
+  jsonResponse,
+  scriptedPrompter,
+} from "./fakes";
 
 const CONNECTION = {
   endpoint: "http://localhost:6006",
@@ -96,7 +101,7 @@ describe("waitForFirstTrace", () => {
     const deps = buildFakeDeps({ fetch });
     expect(
       await waitForFirstTrace(deps, CONNECTION, { sinceMs: 120_000 })
-    ).toBe(true);
+    ).toBe("verified");
     expect(windowStarts).toEqual([60_000]);
   });
 
@@ -110,7 +115,7 @@ describe("waitForFirstTrace", () => {
     });
     expect(
       await waitForFirstTrace(deps, CONNECTION, { sinceMs: 0, headless: true })
-    ).toBe(false);
+    ).toBe("notVerified");
   });
 
   it("does not verify when the project does not exist", async () => {
@@ -125,6 +130,45 @@ describe("waitForFirstTrace", () => {
     });
     expect(
       await waitForFirstTrace(deps, CONNECTION, { sinceMs: 0, headless: true })
+    ).toBe("notVerified");
+  });
+
+  // "No trace arrived" sends the user to look at their exporter. If setup
+  // could not reach Phoenix to look at all, that is a different problem and
+  // the wrong remediation.
+  it("names an unreachable Phoenix rather than blaming the app", async () => {
+    const prompter = scriptedPrompter([]);
+    let clock = 0;
+    const deps = buildFakeDeps({
+      prompter,
+      fetch: (async () => {
+        throw new TypeError("connection reset");
+      }) as typeof fetch,
+      clock: { now: () => (clock += 61_000) },
+    });
+    await waitForFirstTrace(deps, CONNECTION, { sinceMs: 0, headless: true });
+    expect(
+      prompter.output.some((message) =>
+        message.includes(`Could not reach Phoenix at ${CONNECTION.endpoint}`)
+      )
+    ).toBe(true);
+  });
+
+  it("does not claim unreachable when Phoenix answered with no spans", async () => {
+    const prompter = scriptedPrompter([]);
+    let clock = 0;
+    const deps = buildFakeDeps({
+      prompter,
+      fetch: fakeFetch((url) =>
+        url.includes("/spans?") ? jsonResponse(200, { data: [] }) : undefined
+      ),
+      clock: { now: () => (clock += 61_000) },
+    });
+    await waitForFirstTrace(deps, CONNECTION, { sinceMs: 0, headless: true });
+    expect(
+      prompter.output.some((message) =>
+        message.includes("Could not reach Phoenix")
+      )
     ).toBe(false);
   });
 
@@ -136,7 +180,7 @@ describe("waitForFirstTrace", () => {
         sinceMs: 120_000,
         allowClockSkew: false,
       })
-    ).toBe(true);
+    ).toBe("verified");
     expect(windowStarts).toEqual([120_000]);
   });
 });

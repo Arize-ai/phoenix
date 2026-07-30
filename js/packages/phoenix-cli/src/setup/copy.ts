@@ -275,6 +275,13 @@ export const VERIFY = {
     ].join("\n"),
   received: (tracesUrl: string) =>
     `✓ Traces are flowing. View them: ${tracesUrl}`,
+  /**
+   * Emitted when the span search never came back with an answer. Distinct from
+   * "no traces yet" on purpose: this is setup unable to look, not the app
+   * failing to emit, and the two have opposite remediations.
+   */
+  unreachable: (endpoint: string) =>
+    `! Could not reach Phoenix at ${endpoint} to check for traces — check the endpoint and credentials in .env.phoenix. Traces may be arriving even though this could not confirm it.`,
   timeoutMessage: "No traces have arrived yet. Keep watching?",
   keepWatchingLabel: "Keep watching",
   finishLabel: "Finish setup — I'll verify later",
@@ -431,6 +438,18 @@ export const HEADLESS = {
       "  1. Export the vars:   set -a; source .env.phoenix; set +a",
       `  2. Instrument your app: ${DOCS.instrumentationIndex}`,
       `  3. Watch for traces:  ${tracesUrl}`,
+    ].join("\n"),
+  /**
+   * Next steps for a verified run. Still carries the export line: the trace
+   * came from the process setup handed the credentials to, so the user's own
+   * shell has them nowhere yet, and stdout is the only place a headless run
+   * says so.
+   */
+  verifiedNextSteps: (tracesUrl: string) =>
+    [
+      `✓ Traces are flowing. View them: ${tracesUrl}`,
+      "",
+      "To send traces from a new shell: set -a; source .env.phoenix; set +a",
     ].join("\n"),
   /**
    * Next steps for a run that instrumented and saw nothing arrive. Separate

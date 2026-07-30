@@ -105,36 +105,55 @@ async function probeForNewSpans(
   }
 }
 
-/** Poll until a span arrives or the window elapses. */
+/**
+ * Poll until a span arrives or the window elapses, and report how it ended.
+ *
+ * The terminal probe is returned rather than a bare boolean so the caller can
+ * tell "Phoenix says there are no spans" from "Phoenix never answered" — the
+ * difference between the user's app not emitting and setup being unable to
+ * look, which need different remediation.
+ */
 async function pollWindow(
   deps: Pick<SetupDeps, "clock">,
   client: PhoenixClient,
   connection: Connection,
   startTime: string
-): Promise<boolean> {
+): Promise<SpanProbe> {
   const deadline = deps.clock.now() + POLL_WINDOW_MS;
   for (;;) {
-    if (
-      (await probeForNewSpans(client, connection.projectName, startTime)) ===
-      "found"
-    ) {
-      return true;
+    const probe = await probeForNewSpans(
+      client,
+      connection.projectName,
+      startTime
+    );
+    if (probe === "found") {
+      return probe;
     }
     if (deps.clock.now() >= deadline) {
-      return false;
+      return probe;
     }
     await deps.clock.sleep(POLL_INTERVAL_MS);
   }
 }
 
 /**
- * Watch for the first trace since `sinceMs`. Resolves true when a span is
- * observed via the API, false when the wait ends without one — the user gave
- * up at the timeout prompt, or, in a headless run, the first window elapsed.
+ * How the wait for the first trace ended.
+ *
+ * `deferred` is the outcome that is not a failure: the user was asked whether
+ * to keep watching and chose to stop. Verification was withdrawn, not attempted
+ * and lost, so setup must not report it as a broken setup — the escape hatch
+ * says "everything else is already configured" and means it.
+ */
+export type TraceVerification = "verified" | "notVerified" | "deferred";
+
+/**
+ * Watch for the first trace since `sinceMs`.
  *
  * The "keep watching?" prompt is the only thing that can extend the wait, so a
  * headless run gets exactly one window: there is no terminal to ask on, and
- * looping forever would hang an unattended caller.
+ * looping forever would hang an unattended caller. That also means only an
+ * interactive run can return `deferred` — a headless timeout is nobody's
+ * decision.
  *
  * @param args.sinceMs - instrumentation start; only spans after it count.
  * @param args.allowClockSkew - widen the window by the skew tolerance. Pass
@@ -150,7 +169,7 @@ export async function waitForFirstTrace(
     allowClockSkew = true,
     headless = false,
   }: { sinceMs: number; allowClockSkew?: boolean; headless?: boolean }
-): Promise<boolean> {
+): Promise<TraceVerification> {
   const url = tracesUrl(connection);
   const startTime = searchStartTime(
     sinceMs,
@@ -159,13 +178,20 @@ export async function waitForFirstTrace(
   const client = spanSearchClient(deps, connection);
   deps.prompter.note(COPY.VERIFY.waitingBody(url), COPY.VERIFY.title);
   for (;;) {
-    if (await pollWindow(deps, client, connection, startTime)) {
+    const probe = await pollWindow(deps, client, connection, startTime);
+    if (probe === "found") {
       deps.prompter.line(COPY.VERIFY.received(url));
-      return true;
+      return "verified";
+    }
+    // Say which problem this is. "No trace arrived" sends the user to look at
+    // their exporter; an unanswered probe means setup could not look at all,
+    // and pointing them at instrumentation would be a wild goose chase.
+    if (probe === "unknown") {
+      deps.prompter.line(COPY.VERIFY.unreachable(connection.endpoint));
     }
     if (headless) {
       deps.prompter.line(COPY.VERIFY.notVerifiedHeadless(url));
-      return false;
+      return "notVerified";
     }
     const keepWatching = await deps.prompter.select<boolean>({
       message: COPY.VERIFY.timeoutMessage,
@@ -183,7 +209,7 @@ export async function waitForFirstTrace(
         COPY.VERIFY.notVerifiedBody(url),
         COPY.VERIFY.notVerifiedTitle
       );
-      return false;
+      return "deferred";
     }
   }
 }

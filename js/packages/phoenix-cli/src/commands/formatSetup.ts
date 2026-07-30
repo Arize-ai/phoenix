@@ -8,7 +8,7 @@
 
 import * as COPY from "../setup/copy";
 import type { McpSetupReport } from "../setup/mcp/runSetupMcp";
-import type { SetupReport } from "../setup/runSetup";
+import { tracesConfirmed, type SetupReport } from "../setup/runSetup";
 import type { ToolingResult } from "../setup/steps/installTooling";
 
 export type OutputFormat = "pretty" | "json" | "raw";
@@ -42,11 +42,17 @@ export interface SetupOutput {
   };
   /** True when the API confirmed a trace arrived after this run started. */
   tracesVerified: boolean;
+  /**
+   * How the wait ended, when there was one. Absent on a registration-only run,
+   * which is what distinguishes "nothing to verify" — a success, exit 0 — from
+   * `notVerified`. `tracesVerified` alone reads `false` for both.
+   */
+  verification?: "verified" | "notVerified" | "deferred";
   tooling?: ToolingResult;
 }
 
 export function toSetupOutput(report: SetupReport): SetupOutput {
-  const { docs, docsMcp, instrumentation } = report;
+  const { docs, docsMcp, instrumentation, verification } = report;
   return {
     endpoint: report.connection.endpoint,
     project: report.connection.projectName,
@@ -79,7 +85,8 @@ export function toSetupOutput(report: SetupReport): SetupOutput {
             exitCode: instrumentation.exitCode,
           }
         : { lane: instrumentation.kind }),
-    tracesVerified: report.tracesVerified === true,
+    tracesVerified: tracesConfirmed(report),
+    verification,
     tooling: report.tooling,
   };
 }
@@ -112,16 +119,16 @@ export function headlessSummary(report: SetupReport): string {
     `project: ${report.connection.projectName}`,
     `files: ${report.files.join(", ")}`,
   ];
-  if (!report.instrumentation) {
+  if (!report.verification) {
     return [...lines, "", COPY.HEADLESS.nextSteps(report.tracesUrl)].join("\n");
   }
-  const verified = report.tracesVerified === true;
+  const verified = tracesConfirmed(report);
   return [
     ...lines,
     `traces: ${verified ? "verified" : "NOT VERIFIED"}`,
     "",
     verified
-      ? COPY.VERIFY.received(report.tracesUrl)
+      ? COPY.HEADLESS.verifiedNextSteps(report.tracesUrl)
       : COPY.HEADLESS.notVerifiedNextSteps(report.tracesUrl),
   ].join("\n");
 }

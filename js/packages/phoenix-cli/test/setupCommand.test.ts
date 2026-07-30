@@ -20,7 +20,7 @@ const REPORT: SetupReport = {
   files: [".env.phoenix"],
   gitignored: [".env.phoenix"],
   instrumentation: { kind: "agent", agent: "claude", exitCode: 0 },
-  tracesVerified: true,
+  verification: "verified",
   tracesUrl: "http://localhost:6006/redirects/projects/my-app",
 };
 
@@ -29,15 +29,18 @@ describe("setupExitCode", () => {
     expect(setupExitCode(REPORT)).toBe(ExitCode.SUCCESS);
   });
 
-  it("reports NOT_VERIFIED when instrumentation landed no trace", () => {
-    expect(setupExitCode({ ...REPORT, tracesVerified: false })).toBe(
+  it("reports NOT_VERIFIED when the wait ran out with no trace", () => {
+    expect(setupExitCode({ ...REPORT, verification: "notVerified" })).toBe(
       ExitCode.NOT_VERIFIED
     );
   });
 
-  it("reports NOT_VERIFIED when verification never produced a verdict", () => {
-    expect(setupExitCode({ ...REPORT, tracesVerified: undefined })).toBe(
-      ExitCode.NOT_VERIFIED
+  // Setup offers "Finish setup — I'll verify later" with the hint "everything
+  // else is already configured". Failing the process on the answer it invited
+  // would break `px setup && npm run dev` and every `set -e` bootstrap script.
+  it("succeeds when the user chose to verify later", () => {
+    expect(setupExitCode({ ...REPORT, verification: "deferred" })).toBe(
+      ExitCode.SUCCESS
     );
   });
 
@@ -46,7 +49,7 @@ describe("setupExitCode", () => {
       setupExitCode({
         ...REPORT,
         instrumentation: undefined,
-        tracesVerified: undefined,
+        verification: undefined,
       })
     ).toBe(ExitCode.SUCCESS);
   });
@@ -64,7 +67,7 @@ describe("setupExitCode", () => {
       setupExitCode({
         ...REPORT,
         instrumentation: { kind: "agent", agent: "claude", exitCode: 0 },
-        tracesVerified: false,
+        verification: "notVerified",
       })
     ).toBe(ExitCode.NOT_VERIFIED);
   });

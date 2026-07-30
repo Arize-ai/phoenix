@@ -28,8 +28,13 @@ import {
   type SetupInputs,
   type SetupOptions,
 } from "../setup/options";
-import type { SetupReport } from "../setup/runSetup";
-import { runInstrument, runSetup, runSkills } from "../setup/runSetup";
+import {
+  runInstrument,
+  runSetup,
+  runSkills,
+  verificationFailed,
+  type SetupReport,
+} from "../setup/runSetup";
 import { writeStructuredError } from "../structuredError";
 import { ENDPOINT_REQUIREMENT, isEndpointUrl } from "../validation/endpoint";
 import { WORKERS_REQUIREMENT } from "./docs";
@@ -237,12 +242,17 @@ function toSetupOptions(options: SetupCommandOptions): SetupOptions {
  *
  * It gets its own code rather than FAILURE because nothing failed: the
  * connection, the env file, and the agent's edits are all real and worth
- * keeping. A registration-only run has nothing to verify and exits 0.
+ * keeping.
+ *
+ * Only a wait that ran out counts. A run that never instrumented had nothing
+ * to verify, and a user who picked "Finish setup — I'll verify later" made a
+ * decision setup offered them — failing the process on either would break
+ * `px setup && npm run dev` and every `set -e` bootstrap script for a run that
+ * did exactly what was asked. `verificationFailed` owns that distinction so
+ * this and the printed verdict cannot disagree.
  */
 export function setupExitCode(report: SetupReport): ExitCode {
-  return report.instrumentation && report.tracesVerified !== true
-    ? ExitCode.NOT_VERIFIED
-    : ExitCode.SUCCESS;
+  return verificationFailed(report) ? ExitCode.NOT_VERIFIED : ExitCode.SUCCESS;
 }
 
 /**
@@ -407,8 +417,8 @@ Examples:
   px setup instrument --no-input --agent claude --yolo --format raw
 
 Exit codes:
-  0  A trace was verified arriving after the hand-off
-  6  Instrumented, but no trace arrived — tracing is not confirmed working
+  0  A trace was verified arriving, or you chose to verify later
+  6  The wait ran out with no trace — tracing is not confirmed working
 `
   );
 }
@@ -472,8 +482,8 @@ Subcommands:
   px setup mcp          Register the Phoenix MCP server with a coding agent
 
 Exit codes:
-  0  Setup completed — a trace was verified, or the run only registered
-  6  Instrumented, but no trace arrived — tracing is not confirmed working
+  0  Verified, registered only, or you chose to verify later
+  6  The wait ran out with no trace — tracing is not confirmed working
 `
     );
 

@@ -173,17 +173,27 @@ A run that instruments is only a success if a trace actually arrived — the
 agent's own claim that it finished doesn't count. Every output says so, and so
 does the exit code:
 
-| Exit | Meaning                                                            |
-| ---- | ------------------------------------------------------------------ |
-| `0`  | A trace was verified arriving, or the run only registered          |
-| `6`  | Instrumented, but no trace arrived — tracing is not confirmed      |
-| `2`  | Cancelled                                                          |
-| `3`  | Missing or invalid flags (the error prints the correct invocation) |
+| Exit | Meaning                                                              |
+| ---- | -------------------------------------------------------------------- |
+| `0`  | Verified, registered only, or you chose "verify later" at the prompt |
+| `1`  | Unexpected error                                                     |
+| `2`  | Cancelled                                                            |
+| `3`  | Missing or invalid flags (the error prints the correct invocation)   |
+| `4`  | Not authenticated, or the credentials lack permission                |
+| `5`  | Could not reach the Phoenix endpoint                                 |
+| `6`  | The wait ran out with no trace — tracing is not confirmed working    |
 
-`--format json|raw` carries the same verdict as `tracesVerified`; `--format
-pretty` prints a `traces:` line. Don't score a run on the agent's exit code —
-it may edit the app correctly and then exit badly, or exit cleanly having
-delivered nothing.
+Only a wait that ran out gives `6`. Registering without `--instrument`, and
+answering "Finish setup — I'll verify later" at the timeout prompt, both exit
+`0` — so `px setup && npm run dev` and `set -e` scripts keep working when you
+deliberately defer.
+
+In `--format json|raw`, `verification` is `verified`, `notVerified`, or
+`deferred`, and is absent when there was nothing to verify; `tracesVerified` is
+the boolean shorthand for `verification == "verified"`. `--format pretty`
+prints a `traces:` line. Don't score a run on the hand-off agent's own exit
+code — it may edit the app correctly and then exit badly, or exit cleanly
+having delivered nothing.
 
 Re-run pieces later with:
 
