@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   getTraceTreeMaximumWidth,
+  getTraceTreePanelSizing,
   TRACE_TREE_NAME_MAX_WIDTH_PIXELS,
   TRACE_TREE_TIMING_MAX_WIDTH_PIXELS,
+  TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
 } from "@phoenix/components/trace/traceTreeSizing";
 import {
   SPAN_DETAILS_FACTORY_WIDTH_PIXELS,
@@ -325,6 +327,15 @@ describe("details panel sizing", () => {
     expect(getTraceTreeMaximumWidth({ hasTiming: true })).toBe(
       TRACE_TREE_NAME_MAX_WIDTH_PIXELS + TRACE_TREE_TIMING_MAX_WIDTH_PIXELS
     );
+    expect(getTraceTreePanelSizing({ hasTiming: false })).toEqual({
+      treeAddonWidth: 0,
+      treeMaximumWidth: TRACE_TREE_NAME_MAX_WIDTH_PIXELS,
+    });
+    expect(getTraceTreePanelSizing({ hasTiming: true })).toEqual({
+      treeAddonWidth: TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
+      treeMaximumWidth:
+        TRACE_TREE_NAME_MAX_WIDTH_PIXELS + TRACE_TREE_TIMING_MAX_WIDTH_PIXELS,
+    });
   });
 
   it("derives the factory drawer width from its inner columns", () => {

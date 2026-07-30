@@ -7,10 +7,7 @@ import {
 
 import { Dialog, Drawer } from "@phoenix/components";
 import { DialogContent } from "@phoenix/components/core/dialog";
-import {
-  getTraceTreeMaximumWidth,
-  TRACE_TREE_TIMING_MIN_WIDTH_PIXELS,
-} from "@phoenix/components/trace/traceTreeSizing";
+import { getTraceTreePanelSizing } from "@phoenix/components/trace/traceTreeSizing";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -43,12 +40,9 @@ export function TracePage({
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
   );
-  const treeMaximumWidth = getTraceTreeMaximumWidth({
+  const { treeAddonWidth, treeMaximumWidth } = getTraceTreePanelSizing({
     hasTiming: showMetricsInTraceTree,
   });
-  const treeAddonWidth = showMetricsInTraceTree
-    ? TRACE_TREE_TIMING_MIN_WIDTH_PIXELS
-    : 0;
   const parentSearch = clearSelectionScopedParams(searchParams);
   const {
     defaultDrawerSize,

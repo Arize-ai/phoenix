@@ -25,3 +25,15 @@ export function getTraceTreeMaximumWidth({
     (hasTiming ? TRACE_TREE_TIMING_MAX_WIDTH_PIXELS : 0)
   );
 }
+
+/** Keeps the rendered trace-tree regions and their panel constraints aligned. */
+export function getTraceTreePanelSizing({
+  hasTiming,
+}: {
+  hasTiming: boolean;
+}): { treeAddonWidth: number; treeMaximumWidth: number } {
+  return {
+    treeAddonWidth: hasTiming ? TRACE_TREE_TIMING_MIN_WIDTH_PIXELS : 0,
+    treeMaximumWidth: getTraceTreeMaximumWidth({ hasTiming }),
+  };
+}
