@@ -183,7 +183,7 @@ describe("SpanInfo", () => {
     );
   });
 
-  it("wraps the input section body in the shared prompt surface", () => {
+  it("wraps input content without its own card in the shared prompt surface", () => {
     act(() => {
       root.render(
         <TestProviders>
@@ -205,13 +205,70 @@ describe("SpanInfo", () => {
 
     expect(
       container.querySelector(
-        "#input > [aria-labelledby] > .span-details-input-section__body"
+        "#input > [aria-labelledby] > .span-details-input-section__surface"
       )
     ).not.toBeNull();
     expect(
       container.querySelector(
-        "#output > [aria-labelledby] > .span-details-input-section__body"
+        "#output > [aria-labelledby] > .span-details-input-section__surface"
       )
     ).toBeNull();
+  });
+
+  it("does not wrap LLM message cards in the prompt surface", () => {
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanInfo
+            sectionIds={sectionIds}
+            span={{
+              id: "span-node-id",
+              spanKind: "llm",
+              attributes: malformedAttributes,
+              input: { value: "input", mimeType: "text" },
+              output: null,
+              documentRetrievalMetrics: [],
+              documentEvaluations: [],
+            }}
+          />
+        </TestProviders>
+      );
+    });
+
+    expect(
+      container.querySelector("#input .span-details-input-section__surface")
+    ).toBeNull();
+    expect(container.querySelector("#input .card")).not.toBeNull();
+  });
+
+  it("wraps a reranker query without wrapping its document cards", () => {
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanInfo
+            sectionIds={sectionIds}
+            span={{
+              id: "span-node-id",
+              spanKind: "reranker",
+              attributes: malformedAttributes,
+              input: null,
+              output: null,
+              documentRetrievalMetrics: [],
+              documentEvaluations: [],
+            }}
+          />
+        </TestProviders>
+      );
+    });
+
+    expect(
+      container.querySelectorAll("#input .span-details-input-section__surface")
+    ).toHaveLength(1);
+    expect(
+      container.querySelector(
+        "#input .span-details-input-section__surface .card"
+      )
+    ).toBeNull();
+    expect(container.querySelector("#input .card")).not.toBeNull();
   });
 });

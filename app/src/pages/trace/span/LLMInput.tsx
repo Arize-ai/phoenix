@@ -10,7 +10,10 @@ import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { SpanDetailsInputSection } from "../SpanDetailsInputSection";
+import {
+  SpanDetailsInputSection,
+  SpanDetailsInputSurface,
+} from "../SpanDetailsInputSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 import { LLMInvocationParams } from "./LLMInvocationParams";
@@ -157,7 +160,11 @@ export function LLMInput({
             leadingItems={messageLeadingItems}
           />
         )}
-        {isRawView && <MimeTypeCodeBlock {...input} initializeImmediately />}
+        {isRawView && (
+          <SpanDetailsInputSurface>
+            <MimeTypeCodeBlock {...input} initializeImmediately />
+          </SpanDetailsInputSurface>
+        )}
         {view === "prompts" && <LLMPromptsList prompts={prompts} />}
       </SpanDetailsInputSection>
     </MarkdownDisplayProvider>

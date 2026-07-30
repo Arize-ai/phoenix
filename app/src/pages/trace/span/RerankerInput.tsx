@@ -14,7 +14,10 @@ import {
 import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
 import { DocumentItem } from "../DocumentItem";
-import { SpanDetailsInputSection } from "../SpanDetailsInputSection";
+import {
+  SpanDetailsInputSection,
+  SpanDetailsInputSurface,
+} from "../SpanDetailsInputSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { documentsListCSS } from "./constants";
 import type { SpanInfoSectionProps } from "./types";
@@ -62,11 +65,13 @@ export function RerankerInput({
             <Disclosure id="query">
               <DisclosureTrigger arrowPosition="start">Query</DisclosureTrigger>
               <DisclosurePanel>
-                <View paddingX="size-200" paddingY="size-100">
-                  <ConnectedMarkdownBlock margin="none">
-                    {query}
-                  </ConnectedMarkdownBlock>
-                </View>
+                <SpanDetailsInputSurface>
+                  <View paddingX="size-200" paddingY="size-100">
+                    <ConnectedMarkdownBlock margin="none">
+                      {query}
+                    </ConnectedMarkdownBlock>
+                  </View>
+                </SpanDetailsInputSurface>
               </DisclosurePanel>
             </Disclosure>
           )}

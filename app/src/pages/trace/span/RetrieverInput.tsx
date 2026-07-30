@@ -4,7 +4,10 @@ import {
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 
-import { SpanDetailsInputSection } from "../SpanDetailsInputSection";
+import {
+  SpanDetailsInputSection,
+  SpanDetailsInputSurface,
+} from "../SpanDetailsInputSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanInfoSectionProps, SpanIOValue } from "./types";
@@ -33,11 +36,13 @@ export function RetrieverInput({
           </Flex>
         }
       >
-        <MimeTypeCodeBlock
-          value={value}
-          mimeType={mimeType}
-          initializeImmediately
-        />
+        <SpanDetailsInputSurface>
+          <MimeTypeCodeBlock
+            value={value}
+            mimeType={mimeType}
+            initializeImmediately
+          />
+        </SpanDetailsInputSurface>
       </SpanDetailsInputSection>
     </MarkdownDisplayProvider>
   );
