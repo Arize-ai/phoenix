@@ -3278,11 +3278,6 @@ class AgentSession(HasId):
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     user: Mapped[Optional["User"]] = relationship("User")
-    snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
-        "AgentSessionSnapshot",
-        back_populates="agent_session",
-        uselist=False,
-    )
     messages: Mapped[list["AgentSessionMessage"]] = relationship(
         "AgentSessionMessage",
         order_by="AgentSessionMessage.position",
@@ -3342,6 +3337,12 @@ class AgentSessionMessage(HasId):
         "AgentSession",
         back_populates="messages",
     )
+    snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
+        "AgentSessionSnapshot",
+        back_populates="agent_session_message",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
     __table_args__ = (
         UniqueConstraint("agent_session_id", "position"),
         Index(
@@ -3356,19 +3357,50 @@ class AgentSessionMessage(HasId):
 
 
 class AgentSessionSnapshot(HasId):
+    """One point in a session's chain of bashkit shell snapshots.
+
+    Rows are anchored to the message whose turn produced them. A ``full`` row
+    stands alone; a ``delta`` row is encoded against ``base_snapshot`` and is
+    only decodable by walking back to the nearest ``full`` checkpoint and
+    replaying forward. ``chain_depth`` counts the deltas since that checkpoint,
+    which bounds the walk and drives when the next checkpoint is written.
+
+    Truncating or deleting messages drops the snapshots taken after that point
+    via ``ON DELETE CASCADE``. Deltas cascade with the base they depend on, so
+    a chain can lose its tail but never its middle.
+    """
+
     __tablename__ = "agent_session_snapshots"
-    agent_session_id: Mapped[int] = mapped_column(
-        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+    agent_session_message_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_session_messages.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
     )
-    bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    kind: Mapped[str] = mapped_column(String, nullable=False)
+    base_snapshot_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("agent_session_snapshots.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    chain_depth: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    codec: Mapped[str] = mapped_column(String, nullable=False)
+    bashkit_snapshot: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    agent_session: Mapped[AgentSession] = relationship(
-        "AgentSession",
+    agent_session_message: Mapped[AgentSessionMessage] = relationship(
+        "AgentSessionMessage",
         back_populates="snapshot",
     )
-    __table_args__ = (dict(sqlite_autoincrement=True),)
+    base_snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
+        "AgentSessionSnapshot",
+        remote_side="AgentSessionSnapshot.id",
+    )
+    __table_args__ = (
+        CheckConstraint("kind IN ('full', 'delta')", name="valid_snapshot_kind"),
+        CheckConstraint(
+            "(kind = 'full') = (base_snapshot_id IS NULL)",
+            name="delta_snapshots_have_a_base",
+        ),
+        dict(sqlite_autoincrement=True),
+    )

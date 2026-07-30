@@ -35,7 +35,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     TextStartChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
@@ -51,6 +51,7 @@ from phoenix.db.types.data_stream_protocol import (
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
+from phoenix.server.agents.snapshots import decode_snapshot, encode_snapshot
 from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS
@@ -225,6 +226,59 @@ async def _load_session_messages(
     ]
 
 
+async def _load_session_snapshots(
+    session: AsyncSession,
+    agent_session_rowid: int,
+) -> list[bytes]:
+    """Replay the session's snapshot chain in transcript order.
+
+    A session's chain is linear in message order, so each delta decodes
+    against the snapshot reconstructed for the row before it.
+    """
+    rows = (
+        await session.execute(
+            select(
+                models.AgentSessionSnapshot.kind,
+                models.AgentSessionSnapshot.codec,
+                models.AgentSessionSnapshot.bashkit_snapshot,
+            )
+            .join(
+                models.AgentSessionMessage,
+                models.AgentSessionMessage.id
+                == models.AgentSessionSnapshot.agent_session_message_id,
+            )
+            .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+            .order_by(models.AgentSessionMessage.position)
+        )
+    ).all()
+    snapshots: list[bytes] = []
+    previous: bytes | None = None
+    for kind, codec, payload in rows:
+        previous = decode_snapshot(codec, payload, None if kind == "full" else previous)
+        snapshots.append(previous)
+    return snapshots
+
+
+async def _load_snapshot_kinds(
+    session: AsyncSession,
+    agent_session_rowid: int,
+) -> list[str]:
+    return list(
+        (
+            await session.scalars(
+                select(models.AgentSessionSnapshot.kind)
+                .join(
+                    models.AgentSessionMessage,
+                    models.AgentSessionMessage.id
+                    == models.AgentSessionSnapshot.agent_session_message_id,
+                )
+                .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+                .order_by(models.AgentSessionMessage.position)
+            )
+        ).all()
+    )
+
+
 def _scripted_model(
     *,
     bash_command: str | None = None,
@@ -394,10 +448,21 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     async with db() as session:
         seeded_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert seeded_session_rowid is not None
+        last_message_rowid = await session.scalar(
+            select(models.AgentSessionMessage.id)
+            .where(models.AgentSessionMessage.agent_session_id == seeded_session_rowid)
+            .order_by(models.AgentSessionMessage.position.desc())
+            .limit(1)
+        )
+        assert last_message_rowid is not None
+        codec, payload = encode_snapshot(b"shell-state")
         session.add(
             models.AgentSessionSnapshot(
-                agent_session_id=seeded_session_rowid,
-                bashkit_snapshot=b"shell-state",
+                agent_session_message_id=last_message_rowid,
+                kind="full",
+                chain_depth=0,
+                codec=codec,
+                bashkit_snapshot=payload,
             )
         )
 
@@ -435,10 +500,8 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     assert "What should I inspect next?" in str(summary_messages)
     assert "Inspect the latest model call." in str(summary_messages)
     async with db() as session:
-        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
-        assert snapshot is not None
-        assert snapshot.bashkit_snapshot == b"shell-state"
-        agent_session_rowid = snapshot.agent_session_id
+        assert await _load_session_snapshots(session, seeded_session_rowid) == [b"shell-state"]
+        agent_session_rowid = seeded_session_rowid
         original_messages = await _load_session_messages(session, agent_session_rowid)
         compaction_message_count = await session.scalar(
             select(func.count())
@@ -1919,11 +1982,14 @@ async def test_bash_shell_state_persists_across_chat_turns(
     assert first_response.status_code == 200
     first_chunks = _stream_chunks(first_response.text)
     async with db() as session:
-        snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        snapshots = await _load_session_snapshots(session, agent_session_rowid)
         assert len(snapshots) == 1
-        first_snapshot = snapshots[0].bashkit_snapshot
+        first_snapshot = snapshots[0]
         assert first_snapshot
-        agent_session_rowid = snapshots[0].agent_session_id
+        # The chain starts with a checkpoint: there is nothing to delta against.
+        assert await _load_snapshot_kinds(session, agent_session_rowid) == ["full"]
         stored_messages = await _load_session_messages(session, agent_session_rowid)
 
     assistant_messages = [message for message in stored_messages if message["role"] == "assistant"]
@@ -1945,10 +2011,10 @@ async def test_bash_shell_state_persists_across_chat_turns(
     )
     assert second_response.status_code == 200
     async with db() as session:
-        # A turn without bash activity leaves the stored shell state intact.
-        snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
-        assert len(snapshots) == 1
-        assert snapshots[0].bashkit_snapshot == first_snapshot
+        # A turn without bash activity adds no snapshot and leaves the stored
+        # shell state intact.
+        snapshots = await _load_session_snapshots(session, agent_session_rowid)
+        assert snapshots == [first_snapshot]
         stored_messages = await _load_session_messages(session, agent_session_rowid)
 
     third_response = await httpx_client.post(
@@ -1969,10 +2035,43 @@ async def test_bash_shell_state_persists_across_chat_turns(
     ]
     assert any(output.get("stdout") == "hello\n" for output in bash_outputs)
     async with db() as session:
-        # A turn with bash activity overwrites the session's single snapshot
-        # row in place rather than accumulating rows.
-        snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
-        assert len(snapshots) == 1
+        # The second bash turn is stored as a delta against the first, and the
+        # chain replays back to the exact bytes each turn captured.
+        snapshots = await _load_session_snapshots(session, agent_session_rowid)
+        assert len(snapshots) == 2
+        assert snapshots[0] == first_snapshot
+        assert snapshots[1] != first_snapshot
+        assert await _load_snapshot_kinds(session, agent_session_rowid) == ["full", "delta"]
+        # The delta is a small fraction of the checkpoint it is encoded against.
+        payload_sizes = list(
+            (
+                await session.scalars(
+                    select(func.length(models.AgentSessionSnapshot.bashkit_snapshot))
+                    .join(
+                        models.AgentSessionMessage,
+                        models.AgentSessionMessage.id
+                        == models.AgentSessionSnapshot.agent_session_message_id,
+                    )
+                    .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+                    .order_by(models.AgentSessionMessage.position)
+                )
+            ).all()
+        )
+        assert payload_sizes[1] < payload_sizes[0] // 2
+        # Truncating the transcript cascades the snapshots taken after the
+        # truncation point, and leaves the earlier chain restorable.
+        last_message_rowid = await session.scalar(
+            select(models.AgentSessionMessage.id)
+            .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+            .order_by(models.AgentSessionMessage.position.desc())
+            .limit(1)
+        )
+        await session.execute(
+            delete(models.AgentSessionMessage).where(
+                models.AgentSessionMessage.id == last_message_rowid
+            )
+        )
+        assert await _load_session_snapshots(session, agent_session_rowid) == [first_snapshot]
 
 
 async def test_server_agent_chat_turn_persists_session_transcript(
@@ -2050,9 +2149,11 @@ async def test_server_agent_bash_shell_state_persists_across_chat_turns(
     )
     assert first_response.status_code == 200
     async with db() as session:
-        snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        snapshots = await _load_session_snapshots(session, agent_session_rowid)
         assert len(snapshots) == 1
-        assert snapshots[0].bashkit_snapshot
+        assert snapshots[0]
 
     second_response = await httpx_client.post(
         _server_agent_chat_url(agent_session_id),

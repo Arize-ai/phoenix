@@ -65,11 +65,11 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from sqlalchemy import Insert, exists, func, or_, select, tuple_, update
+from sqlalchemy import Insert, Row, exists, func, or_, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from strawberry.relay import GlobalID
@@ -130,6 +130,7 @@ from phoenix.server.agents.skill_requests import (
     resolve_requested_skills,
 )
 from phoenix.server.agents.skills import get_skills_for_contexts
+from phoenix.server.agents.snapshots import decode_snapshot, encode_delta, encode_snapshot
 from phoenix.server.agents.summarization import (
     summarize_messages,
     summarize_messages_for_compaction,
@@ -1518,23 +1519,105 @@ async def _persist_agent_session_title(
         )
 
 
+SNAPSHOT_CHECKPOINT_INTERVAL = 20
+"""Deltas allowed between full checkpoints.
+
+Caps how many deltas a restore replays. At ~2 ms per delta the replay stays
+well under the cost of the model call the restored shell is feeding.
+"""
+
+SNAPSHOT_DELTA_RATIO_THRESHOLD = 0.5
+"""Write a checkpoint instead of a delta once the delta stops paying for itself.
+
+Deltas are normally a fraction of a percent of the compressed snapshot, so a
+delta this large means the workspace changed wholesale or holds incompressible
+data. A checkpoint is then no bigger to store and cheaper to restore.
+"""
+
+
+@dataclass(frozen=True)
+class _SnapshotChainTip:
+    """The newest snapshot in a session's chain, already reconstructed."""
+
+    snapshot_rowid: int
+    chain_depth: int
+    snapshot: bytes
+
+
+@dataclass(frozen=True)
+class _EncodedSnapshot:
+    kind: str
+    codec: str
+    payload: bytes
+    base_snapshot_rowid: int | None
+    chain_depth: int
+
+
+def _encode_for_chain(
+    snapshot: bytes,
+    base: _SnapshotChainTip | None,
+) -> _EncodedSnapshot:
+    """Encode a snapshot as a delta against ``base``, or as a new checkpoint.
+
+    Always encodes the full snapshot as well, both to compare sizes against and
+    to fall back to. That costs ~2 ms next to the ~230 ms the delta itself
+    takes, and it is what lets the threshold below be expressed in stored
+    bytes rather than guessed at from the workspace.
+    """
+    codec, payload = encode_snapshot(snapshot)
+    checkpoint = _EncodedSnapshot(
+        kind="full",
+        codec=codec,
+        payload=payload,
+        base_snapshot_rowid=None,
+        chain_depth=0,
+    )
+    if base is None or base.chain_depth >= SNAPSHOT_CHECKPOINT_INTERVAL:
+        return checkpoint
+    delta_codec, delta_payload = encode_delta(base.snapshot, snapshot)
+    if len(delta_payload) > len(payload) * SNAPSHOT_DELTA_RATIO_THRESHOLD:
+        return checkpoint
+    return _EncodedSnapshot(
+        kind="delta",
+        codec=delta_codec,
+        payload=delta_payload,
+        base_snapshot_rowid=base.snapshot_rowid,
+        chain_depth=base.chain_depth + 1,
+    )
+
+
 async def _upsert_agent_session_snapshot(
     session: AsyncSession,
     *,
-    agent_session_rowid: int,
+    agent_session_message_rowid: int,
     bashkit_snapshot: bytes,
+    base: _SnapshotChainTip | None,
 ) -> None:
+    """Store the turn's shell state against the last message the turn persisted.
+
+    Conflicts only on client-tool continuations, which rewrite the trailing
+    assistant message they are anchored to rather than appending a new one.
+    """
+    # Encoding a delta is CPU-bound and can run into hundreds of milliseconds
+    # on a large workspace, so it stays off the event loop.
+    encoded = await asyncio.to_thread(_encode_for_chain, bashkit_snapshot, base)
+    values = {
+        "agent_session_message_id": agent_session_message_rowid,
+        "kind": encoded.kind,
+        "base_snapshot_id": encoded.base_snapshot_rowid,
+        "chain_depth": encoded.chain_depth,
+        "codec": encoded.codec,
+        "bashkit_snapshot": encoded.payload,
+    }
     await session.execute(
         insert_on_conflict(
-            {
-                "agent_session_id": agent_session_rowid,
-                "bashkit_snapshot": bashkit_snapshot,
-            },
+            values,
             table=models.AgentSessionSnapshot,
             dialect=SupportedSQLDialect(session.bind.dialect.name),
-            unique_by=("agent_session_id",),
+            unique_by=("agent_session_message_id",),
             on_conflict=OnConflict.DO_UPDATE,
-            set_={"bashkit_snapshot": bashkit_snapshot, "updated_at": func.now()},
+            set_={key: value for key, value in values.items() if key != "agent_session_message_id"}
+            | {"updated_at": func.now()},
         )
     )
 
@@ -1545,8 +1628,11 @@ async def _update_trailing_assistant_message(
     agent_session_rowid: int,
     position: int,
     message: PhoenixUIMessage,
-) -> None:
-    """Replace the matching trailing assistant message or reject a stale continuation."""
+) -> int:
+    """Replace the matching trailing assistant message or reject a stale continuation.
+
+    Returns the rowid of the replaced message.
+    """
     updated_message_rowid = await session.scalar(
         update(models.AgentSessionMessage)
         .where(
@@ -1565,6 +1651,7 @@ async def _update_trailing_assistant_message(
                 "latest transcript message; reload the conversation"
             ),
         )
+    return updated_message_rowid
 
 
 async def _persist_agent_session_turn(
@@ -1574,6 +1661,7 @@ async def _persist_agent_session_turn(
     user_id: int | None,
     new_messages: list[PhoenixUIMessage],
     bashkit_snapshot: bytes | None,
+    base_snapshot: _SnapshotChainTip | None = None,
     title: str | None = None,
 ) -> None:
     if not new_messages:
@@ -1598,40 +1686,125 @@ async def _persist_agent_session_turn(
             )
         )
         assert next_position is not None
+        # The snapshot is anchored to the last message this turn persists, so
+        # that truncating the transcript also discards the shell states that
+        # only existed after the truncation point.
+        snapshot_anchor_rowid: int | None = None
         if new_messages[0].role == "assistant":
             # Client-tool continuations replace the persisted assistant message.
-            await _update_trailing_assistant_message(
+            snapshot_anchor_rowid = await _update_trailing_assistant_message(
                 session,
                 agent_session_rowid=agent_session_rowid,
                 position=next_position - 1,
                 message=new_messages[0],
             )
             new_messages = new_messages[1:]
-        session.add_all(
+        message_rows = [
             models.AgentSessionMessage(
                 agent_session_id=agent_session_rowid,
                 position=position,
                 message=message,
             )
             for position, message in enumerate(new_messages, start=next_position)
-        )
-        if bashkit_snapshot is not None:
+        ]
+        session.add_all(message_rows)
+        if message_rows:
+            await session.flush()
+            snapshot_anchor_rowid = message_rows[-1].id
+        if bashkit_snapshot is not None and snapshot_anchor_rowid is not None:
             await _upsert_agent_session_snapshot(
                 session,
-                agent_session_rowid=agent_session_rowid,
+                agent_session_message_rowid=snapshot_anchor_rowid,
                 bashkit_snapshot=bashkit_snapshot,
+                base=base_snapshot,
             )
+
+
+async def _load_snapshot_chain(
+    session: AsyncSession,
+    *,
+    tip_snapshot_rowid: int,
+) -> list[Row[Any]]:
+    """Walk back from a snapshot to its checkpoint, oldest row first.
+
+    Recursion terminates at the first ``full`` row, whose ``base_snapshot_id``
+    is NULL and therefore joins to nothing.
+    """
+    snapshot = models.AgentSessionSnapshot
+    columns = (
+        snapshot.id,
+        snapshot.codec,
+        snapshot.bashkit_snapshot,
+        snapshot.base_snapshot_id,
+    )
+    chain = select(*columns).where(snapshot.id == tip_snapshot_rowid).cte("chain", recursive=True)
+    base = aliased(snapshot)
+    chain = chain.union_all(
+        select(base.id, base.codec, base.bashkit_snapshot, base.base_snapshot_id).join(
+            chain, chain.c.base_snapshot_id == base.id
+        )
+    )
+    rows = (await session.execute(select(chain))).all()
+    by_rowid = {row.id: row for row in rows}
+    ordered: list[Row[Any]] = []
+    rowid: int | None = tip_snapshot_rowid
+    while rowid is not None:
+        row = by_rowid.get(rowid)
+        if row is None:
+            raise ValueError(f"Snapshot chain is missing row {rowid}")
+        ordered.append(row)
+        rowid = row.base_snapshot_id
+    ordered.reverse()
+    return ordered
 
 
 async def _load_bash_snapshot(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
-) -> bytes | None:
-    return await session.scalar(
-        select(models.AgentSessionSnapshot.bashkit_snapshot).where(
-            models.AgentSessionSnapshot.agent_session_id == agent_session_rowid
+) -> _SnapshotChainTip | None:
+    """Reconstruct the shell state at the session's latest snapshotted message."""
+    tip = (
+        await session.execute(
+            select(
+                models.AgentSessionSnapshot.id,
+                models.AgentSessionSnapshot.chain_depth,
+            )
+            .join(
+                models.AgentSessionMessage,
+                models.AgentSessionMessage.id
+                == models.AgentSessionSnapshot.agent_session_message_id,
+            )
+            .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+            .order_by(models.AgentSessionMessage.position.desc())
+            .limit(1)
         )
+    ).first()
+    if tip is None:
+        return None
+    tip_snapshot_rowid, chain_depth = tip
+    try:
+        chain = await _load_snapshot_chain(session, tip_snapshot_rowid=tip_snapshot_rowid)
+        snapshot: bytes | None = None
+        for row in chain:
+            snapshot = await asyncio.to_thread(
+                decode_snapshot, row.codec, row.bashkit_snapshot, snapshot
+            )
+        assert snapshot is not None
+    except Exception:
+        # `_build_shell` starts a fresh shell when restoration fails, which is
+        # strictly better than failing the turn over unreadable shell state.
+        logger.warning(
+            "Failed to decode bash snapshot chain for agent session %r; "
+            "ignoring stored shell state",
+            str(GlobalID("AgentSession", str(agent_session_rowid))),
+            exc_info=True,
+        )
+        return None
+    return _SnapshotChainTip(
+        snapshot_rowid=tip_snapshot_rowid,
+        chain_depth=chain_depth,
+        snapshot=snapshot,
     )
 
 
@@ -2037,6 +2210,9 @@ def create_agents_router(
         )
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
+        # The chain tip the turn restored from is also the base its own
+        # snapshot is encoded against.
+        restored_bash_snapshot: _SnapshotChainTip | None = None
         try:
             async with request.app.state.db() as session:
                 agent_session = await _refresh_and_load_agent_session(
@@ -2106,10 +2282,12 @@ def create_agents_router(
                         session=session,
                         phoenix_user=phoenix_user,
                     )
-                    initial_bash_snapshot = await _load_bash_snapshot(
+                    restored_bash_snapshot = await _load_bash_snapshot(
                         session,
                         agent_session_rowid=agent_session_rowid,
                     )
+                    if restored_bash_snapshot is not None:
+                        initial_bash_snapshot = restored_bash_snapshot.snapshot
                 model = await build_model(
                     body.model,
                     db=db_session_factory,
@@ -2426,6 +2604,7 @@ def create_agents_router(
                         user_id=request_user_id,
                         new_messages=turn_messages,
                         bashkit_snapshot=bash_snapshot_to_persist,
+                        base_snapshot=restored_bash_snapshot,
                         title=session_title,
                     )
                     return TranscriptPersistedChunk(

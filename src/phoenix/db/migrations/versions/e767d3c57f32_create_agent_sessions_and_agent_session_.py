@@ -144,13 +144,22 @@ def upgrade() -> None:
         "agent_session_snapshots",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
-            "agent_session_id",
+            "agent_session_message_id",
             _Integer,
-            sa.ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+            sa.ForeignKey("agent_session_messages.id", ondelete="CASCADE"),
             nullable=False,
             unique=True,
         ),
-        sa.Column("bashkit_snapshot", sa.LargeBinary, nullable=True),
+        sa.Column("kind", sa.String, nullable=False),
+        sa.Column(
+            "base_snapshot_id",
+            _Integer,
+            sa.ForeignKey("agent_session_snapshots.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column("chain_depth", sa.Integer, nullable=False),
+        sa.Column("codec", sa.String, nullable=False),
+        sa.Column("bashkit_snapshot", sa.LargeBinary, nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -163,6 +172,11 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
+        ),
+        sa.CheckConstraint("kind IN ('full', 'delta')", name="valid_snapshot_kind"),
+        sa.CheckConstraint(
+            "(kind = 'full') = (base_snapshot_id IS NULL)",
+            name="delta_snapshots_have_a_base",
         ),
         sqlite_autoincrement=True,
     )
