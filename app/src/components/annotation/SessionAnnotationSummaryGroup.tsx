@@ -1,9 +1,16 @@
-import React, { useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
+import React from "react";
+import { graphql, useRefetchableFragment } from "react-relay";
 
 import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
+import type { SessionAnnotationSummaryGroupRefetchQuery } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroupRefetchQuery.graphql";
 import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import {
+  getAnnotationConfig,
+  getAnnotations,
+  useAnnotationConfigMutationHandlers,
+  useAnnotationMutationHandlers,
+} from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import {
   Summary,
   SummaryValue,
@@ -13,40 +20,26 @@ import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types"
 const useSessionAnnotationSummaryGroup = (
   session: SessionAnnotationSummaryGroup$key
 ) => {
-  const data = useFragment<SessionAnnotationSummaryGroup$key>(
+  const [data, refetch] = useRefetchableFragment<
+    SessionAnnotationSummaryGroupRefetchQuery,
+    SessionAnnotationSummaryGroup$key
+  >(
     graphql`
-      fragment SessionAnnotationSummaryGroup on ProjectSession {
+      fragment SessionAnnotationSummaryGroup on ProjectSession
+      @refetchable(queryName: "SessionAnnotationSummaryGroupRefetchQuery") {
+        id
         project {
           id
           annotationConfigs {
             edges {
               node {
-                ... on AnnotationConfigBase {
-                  annotationType
-                }
-                ... on CategoricalAnnotationConfig {
-                  id
-                  name
-                  optimizationDirection
-                  values {
-                    label
-                    score
-                  }
-                }
+                ...ConnectedDetailPanelAnnotationBarConfigFields
               }
             }
           }
         }
         sessionAnnotations {
-          id
-          name
-          label
-          score
-          annotatorKind
-          user {
-            username
-            profilePictureUrl
-          }
+          ...ConnectedDetailPanelAnnotationBarAnnotationFields
         }
         sessionAnnotationSummaries {
           count
@@ -63,48 +56,59 @@ const useSessionAnnotationSummaryGroup = (
     `,
     session
   );
-  const { sessionAnnotations, sessionAnnotationSummaries } = data;
-  const sortedSummariesByName = useMemo(
-    () =>
-      sessionAnnotationSummaries
-        // Note annotations are not displayed in summary groups
-        .filter((summary) => summary.name !== "note")
-        .sort((a, b) => {
-          return a.name.localeCompare(b.name);
-        }),
-    [sessionAnnotationSummaries]
+  const { sessionAnnotationSummaries } = data;
+  const sessionAnnotations = getAnnotations(data.sessionAnnotations);
+  const projectAnnotationConfigs = data.project.annotationConfigs.edges.map(
+    ({ node }) => getAnnotationConfig(node)
   );
-  // newest first - sessions don't have createdAt on annotations
-  const annotationsByName = useMemo(
-    () =>
-      sessionAnnotations.reduce<Record<string, typeof sessionAnnotations>>(
-        (acc, annotation) => {
-          if (annotation.label == null && annotation.score == null) {
-            return acc;
-          }
-          if (!acc[annotation.name]) {
-            acc[annotation.name] = [annotation];
-          } else {
-            acc[annotation.name] = [annotation, ...acc[annotation.name]];
-          }
-          return acc;
-        },
-        {}
-      ),
-    [sessionAnnotations]
+  const sortedSummariesByName = sessionAnnotationSummaries
+    // Note annotations are not displayed in summary groups
+    .filter((summary) => summary.name !== "note")
+    .sort((firstSummary, secondSummary) => {
+      return firstSummary.name.localeCompare(secondSummary.name);
+    });
+  // newest first
+  const annotationsByName = sessionAnnotations.reduce<
+    Record<string, typeof sessionAnnotations>
+  >((annotationsByName, annotation) => {
+    if (annotation.label == null && annotation.score == null) {
+      return annotationsByName;
+    }
+    if (!annotationsByName[annotation.name]) {
+      annotationsByName[annotation.name] = [annotation];
+    } else {
+      annotationsByName[annotation.name] = [
+        annotation,
+        ...annotationsByName[annotation.name],
+      ].sort((firstAnnotation, secondAnnotation) => {
+        return (
+          new Date(secondAnnotation.createdAt ?? 0).getTime() -
+          new Date(firstAnnotation.createdAt ?? 0).getTime()
+        );
+      });
+    }
+    return annotationsByName;
+  }, {});
+  const categoricalAnnotationConfigsByName = projectAnnotationConfigs.reduce<
+    Record<string, AnnotationConfigCategorical>
+  >((configsByName, annotationConfig) => {
+    if (annotationConfig.annotationType === "CATEGORICAL") {
+      configsByName[annotationConfig.name] = annotationConfig;
+    }
+    return configsByName;
+  }, {});
+  const annotationConfigsByName = Object.fromEntries(
+    projectAnnotationConfigs.map((annotationConfig) => [
+      annotationConfig.name,
+      annotationConfig,
+    ])
   );
-  const categoricalAnnotationConfigsByName = useMemo(() => {
-    return data.project.annotationConfigs.edges.reduce<
-      Record<string, AnnotationConfigCategorical>
-    >((acc, edge) => {
-      const name = edge.node.name;
-      if (name && edge.node.annotationType === "CATEGORICAL") {
-        acc[name] = edge.node as AnnotationConfigCategorical;
-      }
-      return acc;
-    }, {});
-  }, [data.project.annotationConfigs]);
   return {
+    annotationConfigsByName,
+    projectId: data.project.id,
+    refetch,
+    sessionAnnotations,
+    sessionId: data.id,
     sortedSummariesByName,
     annotationsByName,
     categoricalAnnotationConfigsByName,
@@ -123,20 +127,53 @@ export const SessionAnnotationSummaryGroupTokens = ({
   renderEmptyState,
 }: SessionAnnotationSummaryGroupProps) => {
   const {
+    annotationConfigsByName,
+    projectId,
+    refetch,
+    sessionAnnotations,
+    sessionId,
     sortedSummariesByName,
     annotationsByName,
     categoricalAnnotationConfigsByName,
   } = useSessionAnnotationSummaryGroup(session);
+  const refresh = () => {
+    refetch({}, { fetchPolicy: "network-only" });
+  };
+  const configHandlers = useAnnotationConfigMutationHandlers({
+    projectId,
+    refresh,
+  });
+  const annotationHandlers = useAnnotationMutationHandlers({ refresh });
 
-  if (sortedSummariesByName.length === 0 && renderEmptyState) {
+  const summariesWithTokens = sortedSummariesByName.filter(
+    (summary) => annotationsByName[summary.name]?.[0] != null
+  );
+
+  if (summariesWithTokens.length === 0 && renderEmptyState) {
     return renderEmptyState();
   }
 
   return (
     <AnnotationSummaryTokens
-      summaries={sortedSummariesByName}
+      summaries={summariesWithTokens}
       annotationsByName={annotationsByName}
       categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
+      editableAnnotationPopover={
+        showFilterActions
+          ? {
+              annotationConfigsByName,
+              onCreateAnnotationConfig: configHandlers.onCreateAnnotationConfig,
+              onUpdateAnnotationConfig: configHandlers.onUpdateAnnotationConfig,
+              ...annotationHandlers,
+              target: {
+                annotations: sessionAnnotations,
+                id: sessionId,
+                kind: "session",
+                label: "This session",
+              },
+            }
+          : undefined
+      }
       showFilterActions={showFilterActions}
     />
   );

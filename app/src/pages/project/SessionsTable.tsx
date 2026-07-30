@@ -358,7 +358,10 @@ export function SessionsTable(props: SessionsTableProps) {
       cell: ({ row }) => {
         return (
           <OverflowRow isExpanded={areRowsExpanded}>
-            <SessionAnnotationSummaryGroupTokens session={row.original} />
+            <SessionAnnotationSummaryGroupTokens
+              session={row.original}
+              showFilterActions
+            />
           </OverflowRow>
         );
       },
