@@ -35,7 +35,6 @@ import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } 
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import type { ProjectPageQuery as ProjectPageQueryType } from "./__generated__/ProjectPageQuery.graphql";
-import { DEFAULT_PAGE_SIZE } from "./constants";
 import {
   ProjectPageQueriesProjectConfigQuery,
   ProjectPageQueriesSessionsQuery,
@@ -259,7 +258,6 @@ function ProjectPageContentBody({
           timeRange: timeRangeRef.current,
           filterCondition: seed.condition || null,
           rootSpansOnly: seed.rootSpansOnly,
-          first: DEFAULT_PAGE_SIZE,
         });
       });
     },

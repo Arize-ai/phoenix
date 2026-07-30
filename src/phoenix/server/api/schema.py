@@ -9,7 +9,6 @@ from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
 
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import get_mask_errors_extension
-from phoenix.server.api.extensions.pagination import EmptyPageExtension
 from phoenix.server.api.mutations import Mutation
 from phoenix.server.api.queries import Query
 from phoenix.server.api.subscriptions import Subscription
@@ -42,7 +41,7 @@ def build_graphql_schema(
     return strawberry.Schema(
         query=Query,
         mutation=Mutation,
-        extensions=list(chain(extensions or [], [EmptyPageExtension, get_mask_errors_extension()])),
+        extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
         subscription=Subscription,
         config=StrawberryConfig(
             scalar_map={

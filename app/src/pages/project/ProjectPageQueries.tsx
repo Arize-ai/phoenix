@@ -26,22 +26,17 @@ export const ProjectPageQueriesTracesQuery = graphql`
   }
 `;
 
-// The spans table starts from a filter condition -- the page default, or one
-// restored from the URL -- so this query carries it rather than fetching every
-// span and letting the table correct itself on mount. `rootSpansOnly` rides
-// along because it selects between cumulative and per-span metric fields, and
-// fetching the wrong set is what forces a second round-trip.
-//
-// A condition awaiting server validation cannot be carried, and the rows this
-// query returns for it are discarded unseen. `first` is exposed so that case
-// can ask for the smallest page the API allows instead of a full one.
+// The spans table starts from a resolved filter condition, so this query
+// carries it rather than fetching every span and letting the table correct
+// itself on mount. `rootSpansOnly` rides along because it selects between
+// cumulative and per-span metric fields, and fetching the wrong set is what
+// would force a second round-trip.
 export const ProjectPageQueriesSpansQuery = graphql`
   query ProjectPageQueriesSpansQuery(
     $id: ID!
     $timeRange: TimeRange!
     $filterCondition: String
     $rootSpansOnly: Boolean!
-    $first: Int!
   ) {
     project: node(id: $id) {
       ... on Project {
@@ -52,7 +47,6 @@ export const ProjectPageQueriesSpansQuery = graphql`
         @arguments(
           filterCondition: $filterCondition
           rootSpansOnly: $rootSpansOnly
-          first: $first
         )
     }
   }

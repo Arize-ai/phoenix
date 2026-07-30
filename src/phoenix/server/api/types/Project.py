@@ -2567,7 +2567,7 @@ async def _paginate_span_by_trace_start_time(
             has_next_page = False
 
     # Retry if we need more edges and more traces exist
-    if first and len(edges) < first and has_next_page:
+    if len(edges) < first and has_next_page:
         while retries and (num_needed := first - len(edges)) and has_next_page:
             retries -= 1
             batch_size = max(first, 1000)
