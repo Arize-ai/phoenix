@@ -763,6 +763,16 @@ class ProjectSession(HasId):
     )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    last_activity_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        nullable=False,
+        server_default=func.now(),
+    )
+    content_complete: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("true"),
+    )
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
@@ -778,6 +788,10 @@ class ProjectSession(HasId):
             "ix_project_sessions_project_id_end_time",
             "project_id",
             text("end_time DESC"),
+        ),
+        Index(
+            "ix_project_sessions_last_activity_at",
+            "last_activity_at",
         ),
     )
 
@@ -3402,19 +3416,69 @@ class EvalWorkUnit(HasId):
     )
 
 
-class EvalSessionActivity(HasId):
-    """Latest observed span activity, one row per project session."""
-
-    __tablename__ = "eval_session_activity"
+class EvalSessionWorkUnit(HasId):
+    __tablename__ = "eval_session_work_units"
     project_session_rowid: Mapped[int] = mapped_column(
         ForeignKey("project_sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
-    observed_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    criteria_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
+    evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    status: Mapped[EvalWorkStatus] = mapped_column(
+        CheckConstraint(
+            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
+            name="valid_eval_work_status",
+        ),
+        default="PENDING",
+        server_default="PENDING",
+    )
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    error: Mapped[Optional[str]] = mapped_column(String)
+    cooldown_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
 
     project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    criteria: Mapped["ProjectEvaluatorCriteria"] = relationship("ProjectEvaluatorCriteria")
 
     __table_args__ = (
-        UniqueConstraint("project_session_rowid"),
-        Index("ix_eval_session_activity_observed_at", "observed_at"),
+        UniqueConstraint(
+            "project_session_rowid",
+            "evaluator_id",
+            "config_fingerprint",
+        ),
+        Index(
+            "ix_eval_session_work_units_claimable",
+            "status",
+            "id",
+            postgresql_where=text("status NOT IN ('DONE', 'EXPIRED')"),
+            sqlite_where=text("status NOT IN ('DONE', 'EXPIRED')"),
+        ),
+        Index(
+            "ix_eval_session_work_units_terminal",
+            "updated_at",
+            postgresql_where=text("status IN ('DONE', 'EXPIRED')"),
+            sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
+        ),
+        Index(
+            "ix_eval_session_work_units_error_attempts",
+            "attempts",
+            postgresql_where=text("status = 'ERROR'"),
+            sqlite_where=text("status = 'ERROR'"),
+        ),
     )

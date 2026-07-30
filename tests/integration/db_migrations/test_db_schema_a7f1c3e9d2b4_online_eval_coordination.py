@@ -19,6 +19,7 @@ from . import (
 )
 
 _DOWN = "d4e5f6a7b8c9"
+_PREVIOUS = "c9d0e1f2a3b4"
 _UP = "a7f1c3e9d2b4"
 
 
@@ -215,39 +216,101 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         )
 
 
-class _ActivitySchemaTest(_OnlineEvalSchemaTest):
-    entity_column: str
-    entity_table: str
+class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
+    table_name = "eval_session_work_units"
 
     @override
     @classmethod
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
-        unique_name = f"uq_{cls.table_name}_{cls.entity_column}"
-        index_names = {f"ix_{cls.table_name}_observed_at"}
+        unique_name = _constraint_name(
+            "uq_eval_session_work_units_project_session_rowid_evaluator_id_config_fingerprint",
+            db_backend,
+        )
+        index_names = {
+            "ix_eval_session_work_units_claimable",
+            "ix_eval_session_work_units_evaluator_id",
+            "ix_eval_session_work_units_criteria_id",
+            "ix_eval_session_work_units_error_attempts",
+            "ix_eval_session_work_units_terminal",
+        }
         constraint_names = {
-            f"pk_{cls.table_name}",
+            "pk_eval_session_work_units",
             unique_name,
             _constraint_name(
-                f"fk_{cls.table_name}_{cls.entity_column}_{cls.entity_table}",
+                "fk_eval_session_work_units_project_session_rowid_project_sessions",
                 db_backend,
             ),
+            _constraint_name(
+                "fk_eval_session_work_units_evaluator_id_evaluators",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_eval_session_work_units_criteria_id_project_evaluator_criteria",
+                db_backend,
+            ),
+            "ck_eval_session_work_units_`valid_eval_work_status`",
         }
         if db_backend == "postgresql":
-            index_names.update({f"pk_{cls.table_name}", unique_name})
+            index_names.update({"pk_eval_session_work_units", unique_name})
         elif db_backend == "sqlite":
-            index_names.add(f"sqlite_autoindex_{cls.table_name}_1")
+            index_names.add("sqlite_autoindex_eval_session_work_units_1")
         else:
             assert_never(db_backend)
         return _TableSchemaInfo(
             table_name=cls.table_name,
-            column_names=frozenset({"id", cls.entity_column, "observed_at"}),
+            column_names=frozenset(
+                {
+                    "id",
+                    "project_session_rowid",
+                    "evaluator_id",
+                    "criteria_id",
+                    "config_fingerprint",
+                    "evaluated_through",
+                    "status",
+                    "claimed_at",
+                    "claimed_by",
+                    "attempts",
+                    "error",
+                    "cooldown_until",
+                    "created_at",
+                    "updated_at",
+                }
+            ),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(),
+            nullable_column_names=frozenset(
+                {"claimed_at", "claimed_by", "error", "cooldown_until"}
+            ),
         )
 
 
-class TestEvalSessionActivity(_ActivitySchemaTest):
-    table_name = "eval_session_activity"
-    entity_column = "project_session_rowid"
-    entity_table = "project_sessions"
+async def test_project_session_liveness_schema(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _db_backend: _DBBackend,
+    _schema: str,
+) -> None:
+    await _verify_clean_state(_engine, _schema)
+    await _up(_engine, _alembic_config, _PREVIOUS, _schema)
+
+    def _get(conn: Connection) -> Optional[_TableSchemaInfo]:
+        return _get_table_schema_info(conn, "project_sessions", _db_backend, _schema)
+
+    before = await _run_async(_engine, _get)
+    assert before is not None
+    assert "last_activity_at" not in before["column_names"]
+    assert "content_complete" not in before["column_names"]
+
+    await _up(_engine, _alembic_config, _UP, _schema)
+    after = await _run_async(_engine, _get)
+    assert after is not None
+    assert after["column_names"] == before["column_names"] | {
+        "last_activity_at",
+        "content_complete",
+    }
+    assert after["index_names"] == before["index_names"] | {"ix_project_sessions_last_activity_at"}
+    assert after["constraint_names"] == before["constraint_names"]
+    assert after["nullable_column_names"] == before["nullable_column_names"]
+
+    await _down(_engine, _alembic_config, _PREVIOUS, _schema)
+    assert await _run_async(_engine, _get) == before
