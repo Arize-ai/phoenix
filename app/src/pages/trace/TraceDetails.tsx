@@ -15,6 +15,7 @@ import {
   View,
 } from "@phoenix/components";
 import {
+  SessionDetailPanelAnnotationBar,
   SessionDetailPanelAnnotationButton,
   SpanDetailPanelAnnotationButton,
   TraceDetailPanelAnnotationBar,
@@ -30,11 +31,12 @@ import type {
   SpanStatusCodeType,
 } from "@phoenix/components/trace/types";
 import {
+  SELECTED_SESSION_NODE_ID_PARAM,
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
 } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
-import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
+import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
   TraceDetailsQuery,
@@ -42,6 +44,12 @@ import type {
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { DetailsPanelContent } from "./DetailsPanel";
+import { SessionDetailsHeader } from "./SessionDetailsHeader";
+import { SessionConversationSkeleton } from "./SessionDetailsSkeleton";
+import {
+  SessionConversation,
+  type SessionTraceUrlBuilder,
+} from "./SessionDetailsTraceList";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 import { TraceDetailsHeader } from "./TraceDetailsHeader";
@@ -148,6 +156,7 @@ export function TraceDetails({
   const gqlSpans = trace.rootSpans.edges || [];
   const rootSpans: RootSpan[] = gqlSpans.map((node) => node.span);
   const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const urlSessionNodeId = searchParams.get(SELECTED_SESSION_NODE_ID_PARAM);
   const urlTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
   invariant(rootSpans.length > 0, "At least one root must be resolvable");
   const rootSpan = rootSpans[0];
@@ -160,24 +169,48 @@ export function TraceDetails({
   const selectedSpanPreview = isLocalSpanSelectionCurrent
     ? localSpanSelection.spanPreview
     : undefined;
-  const isTraceSelected = selectedSpanPreview == null && isRouteTraceSelected;
+  const session = trace.session;
+  const isSessionSelected =
+    selectedSpanPreview == null &&
+    session != null &&
+    urlSessionNodeId === session.id;
+  const isTraceSelected =
+    !isSessionSelected && selectedSpanPreview == null && isRouteTraceSelected;
   const selectedSpanNodeId =
     selectedSpanPreview?.id ??
-    urlSpanNodeId ??
-    (isTraceSelected ? null : rootSpan.id);
-  const session = trace.session;
+    (isSessionSelected
+      ? null
+      : (urlSpanNodeId ?? (isTraceSelected ? null : rootSpan.id)));
   const treeSession = session
     ? {
         actions: (
           <SessionDetailPanelAnnotationButton sessionNodeId={session.id} />
         ),
+        isSelected: isSessionSelected,
+        onSelect: () => {
+          setLocalSpanSelection(null);
+          setSearchParams(
+            (searchParams) => {
+              searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+              searchParams.delete(SELECTED_TRACE_ID_PARAM);
+              searchParams.set(SELECTED_SESSION_NODE_ID_PARAM, session.id);
+              return searchParams;
+            },
+            { replace: true, flushSync: true }
+          );
+        },
         sessionId: session.sessionId,
-        to: `/projects/${projectId}/sessions/${getSessionDetailsPath({
-          sessionId: session.id,
-          searchParams,
-        })}`,
       }
     : undefined;
+  const getSessionTraceUrl: SessionTraceUrlBuilder = ({
+    spanNodeId,
+    traceId,
+  }) =>
+    `/projects/${projectId}/traces/${getTraceDetailsPath({
+      traceId,
+      spanNodeId,
+      searchParams,
+    })}`;
 
   return (
     <DetailsPanelContent
@@ -203,6 +236,7 @@ export function TraceDetails({
                 setLocalSpanSelection(null);
                 setSearchParams(
                   (searchParams) => {
+                    searchParams.delete(SELECTED_SESSION_NODE_ID_PARAM);
                     searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
                     searchParams.set(SELECTED_TRACE_ID_PARAM, trace.traceId);
                     return searchParams;
@@ -226,6 +260,7 @@ export function TraceDetails({
             onSpanClick={(span) => {
               setSearchParams(
                 (searchParams) => {
+                  searchParams.delete(SELECTED_SESSION_NODE_ID_PARAM);
                   searchParams.delete(SELECTED_TRACE_ID_PARAM);
                   searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
                   return searchParams;
@@ -250,7 +285,12 @@ export function TraceDetails({
     >
       <SpanInfoCardsProvider>
         <SpanDetailsWrapper>
-          {isTraceSelected ? (
+          {isSessionSelected && session ? (
+            <TraceSessionDetails
+              getTraceUrl={getSessionTraceUrl}
+              session={session}
+            />
+          ) : isTraceSelected ? (
             <TraceTurnDetails
               traceId={trace.traceId}
               traceNodeId={trace.id}
@@ -265,6 +305,62 @@ export function TraceDetails({
         </SpanDetailsWrapper>
       </SpanInfoCardsProvider>
     </DetailsPanelContent>
+  );
+}
+
+type TraceSession = NonNullable<
+  TraceDetailsQuery$data["project"]["trace"]
+>["session"];
+
+function TraceSessionDetails({
+  getTraceUrl,
+  session,
+}: {
+  getTraceUrl: SessionTraceUrlBuilder;
+  session: NonNullable<TraceSession>;
+}) {
+  return (
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      `}
+    >
+      <SessionDetailsHeader
+        annotationBar={
+          <Suspense
+            fallback={
+              <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+            }
+          >
+            <SessionDetailPanelAnnotationBar sessionNodeId={session.id} />
+          </Suspense>
+        }
+        preview={{
+          sessionId: session.id,
+          sessionDisplayId: session.sessionId,
+          tokenCountTotal: session.tokenUsage.total,
+          totalCost: session.costSummary.total.cost,
+        }}
+      />
+      <div
+        css={css`
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow: hidden;
+        `}
+      >
+        <Suspense fallback={<SessionConversationSkeleton />}>
+          <SessionConversation
+            getTraceUrl={getTraceUrl}
+            sessionId={session.id}
+          />
+        </Suspense>
+      </div>
+    </div>
   );
 }
 

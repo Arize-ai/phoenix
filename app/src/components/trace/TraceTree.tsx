@@ -1,8 +1,6 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import type { To } from "react-router";
-import { Link } from "react-router";
 
 import {
   DisclosureArrow,
@@ -13,7 +11,6 @@ import {
   Text,
 } from "@phoenix/components";
 import { expandableContentExpandButtonCSS } from "@phoenix/components/core/content/ExpandableContent";
-import { CopyableIDBadge } from "@phoenix/components/core/id";
 import { popoverSurfaceCSS } from "@phoenix/components/core/overlay/styles";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
@@ -59,8 +56,9 @@ export type TraceTreeProps = {
   isChildTruncationEnabled?: boolean;
   session?: {
     actions?: ReactNode;
+    isSelected: boolean;
+    onSelect: () => void;
     sessionId: string;
-    to: To;
   };
   traceSelection?: {
     actions?: ReactNode;
@@ -554,13 +552,16 @@ export function TraceTree(props: TraceTreeProps) {
         >
           {session ? (
             <li>
-              <Link
+              <button
+                type="button"
                 className="trace-tree-icon-rail__item"
-                to={session.to}
+                data-selected={session.isSelected}
                 aria-label={`View session ${session.sessionId}`}
+                aria-pressed={session.isSelected}
+                onClick={session.onSelect}
               >
                 <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
-              </Link>
+              </button>
             </li>
           ) : null}
           {traceSelection ? (
@@ -659,24 +660,13 @@ const entityTreeItemCSS = css`
     outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
 
-  .trace-tree-entity-item__id {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex: 1 1 120px;
-    justify-content: flex-end;
-    max-width: 120px;
-    margin-left: auto;
-    min-width: 0;
-    overflow: hidden;
-  }
-
   .trace-tree-entity-item__actions {
     position: relative;
     z-index: 1;
     display: flex;
     flex: none;
     align-items: center;
+    margin-left: auto;
     opacity: 0;
     pointer-events: none;
   }
@@ -689,14 +679,6 @@ const entityTreeItemCSS = css`
     pointer-events: auto;
   }
 
-  .trace-tree-entity-item__id > button {
-    width: 100%;
-    max-width: 100%;
-    justify-content: flex-end;
-    margin-right: 0;
-    overflow: hidden;
-  }
-
   .icon-wrap {
     flex: none;
     color: var(--global-text-color-700);
@@ -705,29 +687,26 @@ const entityTreeItemCSS = css`
 
 function SessionTreeItem({
   actions,
+  isSelected,
+  onSelect,
   sessionId,
-  to,
 }: {
   actions?: ReactNode;
+  isSelected: boolean;
+  onSelect: () => void;
   sessionId: string;
-  to: To;
 }) {
   return (
-    <div css={entityTreeItemCSS}>
-      <Link
+    <div css={entityTreeItemCSS} data-selected={isSelected}>
+      <button
+        type="button"
         className="trace-tree-entity-item__action"
-        to={to}
         aria-label={`View session ${sessionId}`}
+        aria-pressed={isSelected}
+        onClick={onSelect}
       />
       <Icon aria-hidden="true" svg={<Icons.MessagesSquare />} />
       <Text size="S">Session</Text>
-      <div className="trace-tree-entity-item__id">
-        <CopyableIDBadge
-          id={sessionId}
-          overflowMode="truncate"
-          tooltipText="Copy Session ID"
-        />
-      </div>
       {actions ? (
         <div className="trace-tree-entity-item__actions">{actions}</div>
       ) : null}

@@ -5,6 +5,12 @@
 export const SELECTED_SPAN_NODE_ID_PARAM = "selectedSpanNodeId";
 
 /**
+ * The search param that contains the node id of the selected session in a
+ * trace details view.
+ */
+export const SELECTED_SESSION_NODE_ID_PARAM = "selectedSessionNodeId";
+
+/**
  * The search param that contains the selected session details sub-view.
  * This is used to preserve the active session tab across reloads and links.
  */
@@ -23,6 +29,7 @@ export const SELECTED_TRACE_ID_PARAM = "selectedTraceId";
  * recreatable params (such as the time range) are preserved.
  */
 export const SELECTION_SCOPED_SEARCH_PARAMS = [
+  SELECTED_SESSION_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
   SELECTED_SPAN_NODE_ID_PARAM,
 ] as const;

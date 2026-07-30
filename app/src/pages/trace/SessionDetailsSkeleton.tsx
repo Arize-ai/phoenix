@@ -67,6 +67,20 @@ const bodySkeletonCSS = css`
   margin: 0 auto;
 `;
 
+/** Loading placeholder shared by every session turns conversation surface. */
+export function SessionConversationSkeleton() {
+  return (
+    <View padding="size-200" overflow="hidden" flex="1 1 auto">
+      <div css={bodySkeletonCSS}>
+        <Skeleton width="30%" height={16} animation="wave" />
+        <Skeleton width="100%" height={112} animation="wave" />
+        <Skeleton width="30%" height={16} animation="wave" />
+        <Skeleton width="100%" height={140} animation="wave" />
+      </div>
+    </View>
+  );
+}
+
 export function SessionDetailsSkeleton({
   isTreePanelCollapsed,
   isNavigationPointerOpen,
@@ -158,14 +172,7 @@ export function SessionDetailsSkeleton({
           }
           preview={preview}
         />
-        <View padding="size-200" overflow="hidden" flex="1 1 auto">
-          <div css={bodySkeletonCSS}>
-            <Skeleton width="30%" height={16} animation="wave" />
-            <Skeleton width="100%" height={112} animation="wave" />
-            <Skeleton width="30%" height={16} animation="wave" />
-            <Skeleton width="100%" height={140} animation="wave" />
-          </div>
-        </View>
+        <SessionConversationSkeleton />
       </div>
     </DetailsPanelContent>
   );

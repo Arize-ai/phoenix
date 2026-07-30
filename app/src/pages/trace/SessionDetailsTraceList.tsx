@@ -3,7 +3,12 @@ import throttle from "lodash/throttle";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { PreloadedQuery } from "react-relay";
-import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
+import {
+  graphql,
+  useLazyLoadQuery,
+  usePaginationFragment,
+  usePreloadedQuery,
+} from "react-relay";
 import type { To } from "react-router";
 import { useLocation, useSearchParams } from "react-router";
 
@@ -93,6 +98,11 @@ type RootSpanProps = {
   rootSpan: SessionTraceRootSpan;
 };
 
+export type SessionTraceUrlBuilder = (trace: {
+  traceId: string;
+  spanNodeId: string;
+}) => To;
+
 const sessionTurnDividerCSS = css`
   .session-turn-divider__rule {
     flex: 1;
@@ -107,12 +117,25 @@ const sessionTurnDividerCSS = css`
  * controls belong here rather than inside the OUTPUT bubble.
  */
 function SessionTurnDivider({
+  getTraceUrl,
   index,
   traceId,
   rootSpan,
-}: RootSpanProps & { traceId: string; index: number }) {
+}: RootSpanProps & {
+  getTraceUrl?: SessionTraceUrlBuilder;
+  traceId: string;
+  index: number;
+}) {
   const location = useLocation();
   const paddedIndex = String(index + 1).padStart(2, "0");
+  const traceUrl = getTraceUrl
+    ? getTraceUrl({ traceId, spanNodeId: rootSpan.id })
+    : getSessionTraceUrl({
+        pathname: location.pathname,
+        search: location.search,
+        traceId,
+        spanNodeId: rootSpan.id,
+      });
   return (
     <Flex
       direction="row"
@@ -129,12 +152,7 @@ function SessionTurnDivider({
         variant="quiet"
         aria-label="View trace"
         leadingVisual={<Icon svg={<Icons.Trace />} />}
-        to={getSessionTraceUrl({
-          pathname: location.pathname,
-          search: location.search,
-          traceId,
-          spanNodeId: rootSpan.id,
-        })}
+        to={traceUrl}
       >
         Trace
       </LinkButton>
@@ -144,15 +162,21 @@ function SessionTurnDivider({
 }
 
 function SessionTurnDetail({
+  getTraceUrl,
   index,
   traceId,
   rootSpan,
-}: RootSpanProps & { traceId: string; index: number }) {
+}: RootSpanProps & {
+  getTraceUrl?: SessionTraceUrlBuilder;
+  traceId: string;
+  index: number;
+}) {
   return (
     <TraceTurnContent
       rootSpan={rootSpan}
       header={
         <SessionTurnDivider
+          getTraceUrl={getTraceUrl}
           index={index}
           traceId={traceId}
           rootSpan={rootSpan}
@@ -376,30 +400,18 @@ const turnDetailRowCSS = css`
   }
 `;
 
-export function SessionDetailsTraceList({
-  queryRef,
-  renderNavigationHeader,
-  sessionViewControl,
-  isTreePanelCollapsed,
-  isNavigationPointerOpen,
-  onNavigationPointerOpenChange,
-  renderMainContent,
+function SessionTurns({
+  children,
+  getTraceUrl,
+  session,
 }: {
-  queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
-  renderNavigationHeader: SessionNavigationHeaderRenderer;
-  sessionViewControl: ReactNode;
-  isTreePanelCollapsed: boolean;
-  isNavigationPointerOpen: boolean;
-  onNavigationPointerOpenChange: (isOpen: boolean) => void;
-  renderMainContent: (content: ReactNode) => ReactNode;
+  children: (content: {
+    turnDetails: ReactNode;
+    turnListPanel: ReactNode;
+  }) => ReactNode;
+  getTraceUrl?: SessionTraceUrlBuilder;
+  session: SessionDetailsTraceList_traces$key;
 }) {
-  const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
-    sessionDetailsTraceListQuery,
-    queryRef
-  );
-  if (queryData.session == null) {
-    throw new Error("Session not found");
-  }
   const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment<
     SessionDetailsTraceListRefetchQuery,
     SessionDetailsTraceList_traces$key
@@ -448,7 +460,7 @@ export function SessionDetailsTraceList({
         }
       }
     `,
-    queryData.session
+    session
   );
 
   const sessionRootSpans = useMemo(() => {
@@ -571,6 +583,7 @@ export function SessionDetailsTraceList({
           >
             <View padding="var(--global-grid-margin-xsmall)">
               <SessionTurnDetail
+                getTraceUrl={getTraceUrl}
                 index={index}
                 traceId={traceId}
                 rootSpan={rootSpan}
@@ -594,23 +607,76 @@ export function SessionDetailsTraceList({
     </div>
   );
 
+  return children({ turnDetails, turnListPanel });
+}
+
+export function SessionConversation({
+  getTraceUrl,
+  sessionId,
+}: {
+  getTraceUrl?: SessionTraceUrlBuilder;
+  sessionId: string;
+}) {
+  const queryData = useLazyLoadQuery<SessionDetailsTraceListQuery>(
+    sessionDetailsTraceListQuery,
+    { id: sessionId, first: SESSION_DETAILS_PAGE_SIZE },
+    { fetchPolicy: "store-or-network" }
+  );
+  if (queryData.session == null) {
+    throw new Error("Session not found");
+  }
   return (
-    <DetailsPanelContent
-      navigation={
-        <>
-          {renderNavigationHeader()}
-          <SessionDetailsNavigation
-            control={sessionViewControl}
-            isCollapsed={isTreePanelCollapsed}
-            isPointerOpen={isNavigationPointerOpen}
-            onPointerOpenChange={onNavigationPointerOpenChange}
-          >
-            {turnListPanel}
-          </SessionDetailsNavigation>
-        </>
-      }
-    >
-      {renderMainContent(turnDetails)}
-    </DetailsPanelContent>
+    <SessionTurns session={queryData.session} getTraceUrl={getTraceUrl}>
+      {({ turnDetails }) => turnDetails}
+    </SessionTurns>
+  );
+}
+
+export function SessionDetailsTraceList({
+  queryRef,
+  renderNavigationHeader,
+  sessionViewControl,
+  isTreePanelCollapsed,
+  isNavigationPointerOpen,
+  onNavigationPointerOpenChange,
+  renderMainContent,
+}: {
+  queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
+  renderNavigationHeader: SessionNavigationHeaderRenderer;
+  sessionViewControl: ReactNode;
+  isTreePanelCollapsed: boolean;
+  isNavigationPointerOpen: boolean;
+  onNavigationPointerOpenChange: (isOpen: boolean) => void;
+  renderMainContent: (content: ReactNode) => ReactNode;
+}) {
+  const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
+    sessionDetailsTraceListQuery,
+    queryRef
+  );
+  if (queryData.session == null) {
+    throw new Error("Session not found");
+  }
+  return (
+    <SessionTurns session={queryData.session}>
+      {({ turnDetails, turnListPanel }) => (
+        <DetailsPanelContent
+          navigation={
+            <>
+              {renderNavigationHeader()}
+              <SessionDetailsNavigation
+                control={sessionViewControl}
+                isCollapsed={isTreePanelCollapsed}
+                isPointerOpen={isNavigationPointerOpen}
+                onPointerOpenChange={onNavigationPointerOpenChange}
+              >
+                {turnListPanel}
+              </SessionDetailsNavigation>
+            </>
+          }
+        >
+          {renderMainContent(turnDetails)}
+        </DetailsPanelContent>
+      )}
+    </SessionTurns>
   );
 }

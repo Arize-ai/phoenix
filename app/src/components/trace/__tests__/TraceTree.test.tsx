@@ -163,8 +163,9 @@ describe("TraceTree", () => {
       selectedSpanNodeId: ROOT_SPAN.id,
       isNavigationCollapsed: true,
       session: {
+        isSelected: true,
+        onSelect: vi.fn(),
         sessionId: "session-12345678",
-        to: "/projects/project-1/sessions/session-node-id",
       },
       traceSelection: {
         isSelected: false,
@@ -267,8 +268,9 @@ describe("TraceTree", () => {
       spans: [ROOT_SPAN, CHILD_SPAN],
       isNavigationCollapsed: true,
       session: {
+        isSelected: false,
+        onSelect: vi.fn(),
         sessionId: "session-12345678",
-        to: "/projects/project-1/sessions/session-node-id",
       },
       traceSelection: {
         isSelected: false,
@@ -528,6 +530,8 @@ describe("TraceTree", () => {
   });
 
   it("renders the session, trace, and root span in order", () => {
+    const onSessionAction = vi.fn();
+    const onSessionSelect = vi.fn();
     const onTraceSelect = vi.fn();
 
     act(() => {
@@ -543,10 +547,12 @@ describe("TraceTree", () => {
                       <button
                         type="button"
                         aria-label="Add session annotation"
+                        onClick={onSessionAction}
                       />
                     ),
+                    isSelected: true,
+                    onSelect: onSessionSelect,
                     sessionId: "session-12345678",
-                    to: "/projects/project-1/sessions/session-node-id",
                   }}
                   traceSelection={{
                     actions: (
@@ -569,7 +575,12 @@ describe("TraceTree", () => {
     const treeItems = container.querySelectorAll(
       '[data-testid="trace-tree"] > li'
     );
-    const sessionLink = treeItems[0]?.querySelector("a");
+    const sessionButton = treeItems[0]?.querySelector<HTMLButtonElement>(
+      'button[aria-label="View session session-12345678"]'
+    );
+    const sessionActionButton = treeItems[0]?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add session annotation"]'
+    );
     const traceButton = treeItems[1]?.querySelector<HTMLButtonElement>(
       'button[aria-label="View trace trace-12345678"]'
     );
@@ -581,14 +592,6 @@ describe("TraceTree", () => {
     const traceActionContainer = container.querySelector<HTMLElement>(
       ".trace-summary-row__annotation-action"
     );
-    const idContainers = Array.from(
-      container.querySelectorAll<HTMLElement>(".trace-tree-entity-item__id")
-    );
-    const idBadges = idContainers
-      .map((idContainer) =>
-        idContainer.querySelector<HTMLButtonElement>(".copyable-id-badge")
-      )
-      .filter((badge): badge is HTMLButtonElement => badge !== null);
     const titleFontWeights = [
       treeItems[0]?.querySelector<HTMLElement>(".text"),
       treeItems[1]?.querySelector<HTMLElement>(".text"),
@@ -596,31 +599,20 @@ describe("TraceTree", () => {
     ]
       .filter((title): title is HTMLElement => title != null)
       .map((title) => getComputedStyle(title).fontWeight);
-    expect(treeItems[0]?.textContent).toContain("Sessionsession-12345678");
-    expect(sessionLink?.getAttribute("href")).toBe(
-      "/projects/project-1/sessions/session-node-id"
-    );
+    expect(treeItems[0]?.textContent).toBe("Session");
+    expect(sessionButton?.getAttribute("aria-pressed")).toBe("true");
+    expect(treeItems[0]?.querySelector("a")).toBeNull();
     expect(
       treeItems[0]?.querySelector(
         'button[aria-label="Copy Session ID session-12345678"]'
       )
-    ).not.toBeNull();
-    expect(sessionLink?.querySelector("button")).toBeNull();
+    ).toBeNull();
     expect(treeItems[1]?.textContent).toContain("root span");
     expect(
       treeItems[1]?.querySelector(
         'button[aria-label="Collapse trace trace-12345678"]'
       )
     ).not.toBeNull();
-    expect(
-      idContainers.map((idContainer) => ({
-        justifyContent: getComputedStyle(idContainer).justifyContent,
-        overflow: getComputedStyle(idContainer).overflow,
-      }))
-    ).toEqual([{ justifyContent: "flex-end", overflow: "hidden" }]);
-    expect(idBadges.map((badge) => badge.dataset.overflowMode)).toEqual([
-      "truncate",
-    ]);
     expect(titleFontWeights).toEqual(["400", "600", "400"]);
     expect(
       entityActionContainers.map((actions) => ({
@@ -645,11 +637,6 @@ describe("TraceTree", () => {
             rule.style.pointerEvents === "auto"
         )
     ).toBe(true);
-    expect(
-      idBadges.map((badge) =>
-        Number.parseFloat(getComputedStyle(badge).marginRight)
-      )
-    ).toEqual([0]);
     expect(treeItems[0]?.textContent).toContain("Session");
     expect(treeItems[1]?.querySelector(".trace-summary-row")).not.toBeNull();
     expect(
@@ -657,6 +644,15 @@ describe("TraceTree", () => {
         `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
       )?.textContent
     ).toContain("root span");
+
+    act(() => sessionActionButton?.click());
+
+    expect(onSessionAction).toHaveBeenCalledOnce();
+    expect(onSessionSelect).not.toHaveBeenCalled();
+
+    act(() => sessionButton?.click());
+
+    expect(onSessionSelect).toHaveBeenCalledOnce();
 
     act(() => traceButton?.click());
 

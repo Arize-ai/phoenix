@@ -653,7 +653,11 @@ function TracePanelComposition({
 }: {
   selectedSpan: SelectedSpan;
 }) {
-  const [activeSpan, setActiveSpan] = useState(selectedSpan);
+  const [activeSelection, setActiveSelection] = useState<
+    SelectedSpan | "session"
+  >(selectedSpan);
+  const isSessionSelected = activeSelection === "session";
+  const activeSpan = isSessionSelected ? selectedSpan : activeSelection;
   const header =
     activeSpan === "root"
       ? ROOT_SPAN
@@ -666,8 +670,9 @@ function TracePanelComposition({
       : activeSpan === "child"
         ? CHILD_SPAN_DETAILS
         : TOOL_SPAN_DETAILS;
-  const selectedSpanNodeId =
-    activeSpan === "root"
+  const selectedSpanNodeId = isSessionSelected
+    ? ""
+    : activeSpan === "root"
       ? ROOT_SPAN.id
       : activeSpan === "child"
         ? CHILD_SPAN.id
@@ -703,10 +708,11 @@ function TracePanelComposition({
           <TraceTreeFixture
             selectedSpanNodeId={selectedSpanNodeId}
             session={{
+              isSelected: isSessionSelected,
+              onSelect: () => setActiveSelection("session"),
               sessionId: "support-chat-01J5QX8G6N4M2K7P",
-              to: "/projects/project-storybook/sessions/storybook-session",
             }}
-            onSpanClick={(span) => setActiveSpan(getSelectedSpan(span.id))}
+            onSpanClick={(span) => setActiveSelection(getSelectedSpan(span.id))}
           />
         </Panel>
         <Separator
@@ -722,7 +728,14 @@ function TracePanelComposition({
           id={`span-details-${selectedSpan}`}
           minSize={SPAN_DETAILS_MIN_WIDTH_PIXELS}
         >
-          <SpanDetailsFixture header={header} details={details} />
+          {isSessionSelected ? (
+            <div css={panelContentCSS}>
+              <SessionMetricsHeader />
+              <SessionTurnsFixture />
+            </div>
+          ) : (
+            <SpanDetailsFixture header={header} details={details} />
+          )}
         </Panel>
       </Group>
     </DetailPanelFrame>

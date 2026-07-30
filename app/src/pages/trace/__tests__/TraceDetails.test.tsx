@@ -4,6 +4,17 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const searchParams = new URLSearchParams("selectedTraceId=trace-display-id");
+const setSearchParams = vi.fn(
+  (
+    update:
+      | URLSearchParams
+      | ((currentSearchParams: URLSearchParams) => URLSearchParams)
+  ) => {
+    if (typeof update === "function") {
+      update(searchParams);
+    }
+  }
+);
 
 vi.mock("react-relay", () => ({
   graphql: vi.fn(),
@@ -42,7 +53,9 @@ vi.mock("react-relay", () => ({
 }));
 
 vi.mock("react-router", () => ({
-  useSearchParams: () => [searchParams, vi.fn()],
+  useLocation: () => ({ pathname: "/projects/project-node-id/traces" }),
+  useParams: () => ({ projectId: "project-node-id" }),
+  useSearchParams: () => [searchParams, setSearchParams],
 }));
 
 vi.mock(
@@ -79,7 +92,25 @@ vi.mock("@phoenix/contexts/PreferencesContext", () => ({
 }));
 
 vi.mock("../ConnectedTraceTree", () => ({
-  ConnectedTraceTree: () => null,
+  ConnectedTraceTree: ({
+    session,
+  }: {
+    session?: {
+      isSelected: boolean;
+      onSelect: () => void;
+      sessionId: string;
+    };
+  }) =>
+    session ? (
+      <button
+        type="button"
+        aria-label={`View session ${session.sessionId}`}
+        aria-pressed={session.isSelected}
+        onClick={session.onSelect}
+      >
+        Session
+      </button>
+    ) : null,
 }));
 
 vi.mock("../DetailsPanel", () => ({
@@ -105,6 +136,26 @@ vi.mock("../SpanInfoCardsContext", () => ({
   SpanInfoCardsProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
+vi.mock("../SessionDetailsTraceList", () => ({
+  SessionConversation: ({
+    getTraceUrl,
+    sessionId,
+  }: {
+    getTraceUrl?: (trace: { traceId: string; spanNodeId: string }) => string;
+    sessionId: string;
+  }) => (
+    <div
+      data-testid="session-conversation"
+      data-trace-url={getTraceUrl?.({
+        traceId: "other-trace-id",
+        spanNodeId: "other-span-node-id",
+      })}
+    >
+      {sessionId}
+    </div>
+  ),
+}));
+
 vi.mock("../TraceDetailsSkeleton", () => ({
   DetailPanelAnnotationBarSkeleton: () => null,
 }));
@@ -115,6 +166,8 @@ vi.mock("../TraceTurnContent", () => ({
   ),
 }));
 
+import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
+
 import { TraceDetails } from "../TraceDetails";
 
 describe("TraceDetails", () => {
@@ -123,6 +176,17 @@ describe("TraceDetails", () => {
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn(() => ({
+        addEventListener: vi.fn(),
+        matches: false,
+        removeEventListener: vi.fn(),
+      })),
+    });
+    searchParams.forEach((_, key) => searchParams.delete(key));
+    searchParams.set("selectedTraceId", "trace-display-id");
+    setSearchParams.mockClear();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -136,7 +200,13 @@ describe("TraceDetails", () => {
   it("shows annotations for the selected trace without a scope selector", () => {
     act(() => {
       root.render(
-        <TraceDetails traceId="trace-display-id" projectId="project-node-id" />
+        <ThemeProvider>
+          <TraceDetails
+            key={searchParams.toString()}
+            traceId="trace-display-id"
+            projectId="project-node-id"
+          />
+        </ThemeProvider>
       );
     });
 
@@ -172,6 +242,56 @@ describe("TraceDetails", () => {
     ).toBeNull();
     expect(
       traceHeader.querySelector("[data-testid='session-annotation-bar']")
+    ).toBeNull();
+  });
+
+  it("selects the session in place and shows its header and conversation", () => {
+    const renderDetails = () =>
+      root.render(
+        <ThemeProvider>
+          <TraceDetails
+            key={searchParams.toString()}
+            traceId="trace-display-id"
+            projectId="project-node-id"
+          />
+        </ThemeProvider>
+      );
+    act(renderDetails);
+
+    const sessionButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="View session session-display-id"]'
+    );
+    expect(sessionButton?.getAttribute("aria-pressed")).toBe("false");
+
+    act(() => sessionButton?.click());
+    expect(searchParams.get("selectedSessionNodeId")).toBe("session-node-id");
+    expect(searchParams.has("selectedTraceId")).toBe(false);
+
+    act(renderDetails);
+
+    expect(
+      container
+        .querySelector('button[aria-label="View session session-display-id"]')
+        ?.getAttribute("aria-pressed")
+    ).toBe("true");
+    expect(
+      container.querySelector("[data-testid='session-annotation-bar']")
+        ?.textContent
+    ).toBe("session-node-id");
+    expect(
+      container.querySelector("[data-testid='session-conversation']")
+        ?.textContent
+    ).toBe("session-node-id");
+    expect(
+      container
+        .querySelector("[data-testid='session-conversation']")
+        ?.getAttribute("data-trace-url")
+    ).toBe(
+      "/projects/project-node-id/traces/other-trace-id?selectedSpanNodeId=other-span-node-id"
+    );
+    expect(container.querySelector("[data-testid='span-details']")).toBeNull();
+    expect(
+      container.querySelector("[data-testid='trace-turn-content']")
     ).toBeNull();
   });
 });

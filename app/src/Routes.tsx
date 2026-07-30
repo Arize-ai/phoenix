@@ -339,7 +339,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Trace Details",
                       description:
-                        "Inspect a trace's turn input and output, trace annotations, and span tree. The trace itself is selected by default; selecting a span uses selectedSpanNodeId. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id.",
+                        "Inspect a trace's turn input and output, trace annotations, span tree, and its session conversation. The trace itself is selected by default; select the session to view all turns in place, or select a span using selectedSpanNodeId. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id.",
                     },
                   }}
                 />
@@ -362,7 +362,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Trace Details",
                       description:
-                        "Inspect a trace's turn input and output and its span tree from the spans table. Supports independently selecting the trace or a span and viewing their annotations. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id.",
+                        "Inspect a trace's turn input and output, span tree, and session conversation from the spans table. Supports independently selecting the session, trace, or a span and viewing their annotations. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id.",
                     },
                   }}
                 />
