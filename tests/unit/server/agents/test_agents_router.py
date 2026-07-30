@@ -53,7 +53,7 @@ from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
 from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
-from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS
+from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, get_otel_session_id
 from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
     _emit_turn_root_span,
@@ -144,7 +144,6 @@ def _stream_chunks(response_text: str) -> list[dict[str, Any]]:
 async def _create_agent_session_row(
     db: DbSessionFactory,
     *,
-    project_session_id: str,
     title: str = "",
     messages: list[dict[str, Any]] | None = None,
 ) -> str:
@@ -152,7 +151,6 @@ async def _create_agent_session_row(
     does before its first chat request, optionally seeded with a transcript."""
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id=project_session_id,
             user_id=None,
             title=title,
             project_name=get_env_phoenix_agents_assistant_project_name(),
@@ -390,7 +388,6 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     ]
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id="91919191-9191-4191-8191-919191919191",
         title="Existing session",
         messages=transcript,
     )
@@ -534,7 +531,6 @@ async def test_compact_agent_session_without_a_completed_turn_is_a_noop(
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _unexpected_build_model)
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id="92929292-9292-4292-8292-929292929292",
         title="Incomplete turn",
         messages=[
             _user_message("Hello", message_id=_message_uuid("user-1")),
@@ -564,7 +560,6 @@ async def test_compact_is_rejected_while_a_turn_holds_the_session_lock(
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _unexpected_build_model)
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id="93939393-9393-4393-8393-939393939393",
         title="Busy session",
         messages=[
             _user_message("Hello", message_id=_message_uuid("user-1")),
@@ -621,7 +616,6 @@ async def test_compact_takes_over_a_stale_session_lock(
     _mock_turn_models(monkeypatch, FunctionModel(function=compact_function))
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id="94949494-9494-4494-8494-949494949494",
         title="Abandoned turn",
         messages=[
             _user_message("Hello", message_id=_message_uuid("user-1")),
@@ -668,7 +662,6 @@ async def test_chat_send_during_compaction_is_rejected_as_busy(
     concurrent_sends: list[tuple[int, dict[str, Any]]] = []
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id=session_id,
         title="Compacting session",
         messages=[
             _user_message("Hello", message_id=_message_uuid("user-1")),
@@ -738,7 +731,6 @@ async def test_server_agent_compact_route_matches_chat_route_gating(
     _mock_turn_models(monkeypatch, FunctionModel(function=compact_function))
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id="96969696-9696-4696-8696-969696969696",
         title="Server session",
         messages=[
             _user_message("Hello", message_id=_message_uuid("user-1")),
@@ -786,7 +778,7 @@ async def test_chat_turn_persists_session_transcript(
 
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
     session_id = "44444444-4444-4444-8444-444444444444"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
     body = _chat_body(
         session_id,
         _user_message("What datasets exist?"),
@@ -814,7 +806,6 @@ async def test_chat_turn_persists_session_transcript(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.user_id is None
-        assert UUID(agent_session.project_session_id).version == 4
         assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
         # The in-stream summary is persisted as the session title.
         assert agent_session.title == "a"
@@ -826,7 +817,10 @@ async def test_chat_turn_persists_session_transcript(
                 .order_by(models.AgentSessionMessage.id)
             )
         )
-        persisted_session_id = agent_session.project_session_id
+        persisted_session_id = get_otel_session_id(
+            project_name=agent_session.project_name,
+            agent_session_rowid=agent_session.id,
+        )
         # No bash command this turn, so no shell-state snapshot row.
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 
@@ -920,7 +914,6 @@ async def test_failed_chat_turn_does_not_persist_partial_transcript(
     persisted_messages = [_user_message("earlier message")]
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id=session_id,
         title="Already titled",
         messages=persisted_messages,
     )
@@ -955,7 +948,6 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
     session_id = "45454545-4545-4454-8454-454545454545"
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id=session_id,
         title="Already titled",
     )
     model = _client_tool_model()
@@ -1476,7 +1468,7 @@ async def test_chat_stream_metadata_uses_turn_trace_context(
 
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
     session_id = "11111111-1111-4111-8111-111111111111"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
 
     response = await httpx_client.post(
         _chat_url(agent_session_id),
@@ -1523,7 +1515,7 @@ async def test_chat_turn_without_a_message_is_rejected(
 ) -> None:
     """A submit request must carry the turn's new message."""
     session_id = "22222222-2222-4222-8222-222222222222"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
 
     response = await httpx_client.post(
         _chat_url(agent_session_id),
@@ -1546,7 +1538,6 @@ async def test_chat_turn_with_stale_last_message_id_is_rejected(
     session_id = "23232323-2323-4323-8323-232323232323"
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id=session_id,
         title="Already titled",
         messages=[
             _user_message("earlier question"),
@@ -1598,7 +1589,7 @@ async def test_chat_turn_on_an_empty_session_rejects_a_last_message_id(
     """Providing ``lastMessageId`` against an empty transcript is stale too:
     the client believes messages exist that the server does not have."""
     session_id = "24242424-2424-4424-8424-242424242424"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
 
     response = await httpx_client.post(
         _chat_url(agent_session_id),
@@ -1628,7 +1619,6 @@ async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
     session_id = "26262626-2626-4626-8626-262626262626"
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id=session_id,
         title="Already titled",
         messages=[
             _user_message("earlier question"),
@@ -1795,7 +1785,6 @@ async def test_chat_endpoint_rejects_regenerate_requests(
     session_id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
     agent_session_id = await _create_agent_session_row(
         db,
-        project_session_id=session_id,
         title="Already titled",
         messages=[
             _user_message("first question"),
@@ -1825,7 +1814,7 @@ async def test_generated_session_title_is_limited(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session_id = "33333333-3333-4333-8333-333333333333"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
     generated_title = "x" * (MAX_AGENT_SESSION_TITLE_LENGTH + 20)
     _mock_turn_models(monkeypatch, _scripted_model(summary=generated_title))
 
@@ -1855,7 +1844,7 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
     leaves the session untitled; the next turn retries summarization and the
     non-empty title then wins over the stored empty one."""
     session_id = "33333333-3333-4333-8333-333333333333"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
     _mock_turn_models(
         monkeypatch,
         _scripted_model(summary=None),
@@ -1912,7 +1901,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
     turns: the snapshot is persisted, left intact by turns without bash
     activity, and restored into the next turn's shell."""
     session_id = "55555555-5555-4555-8555-555555555555"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
     note_path = "/home/user/workspace/note.txt"
     _mock_turn_models(
         monkeypatch,
@@ -1997,7 +1986,7 @@ async def test_server_agent_chat_turn_persists_session_transcript(
 
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
     session_id = "56565656-5656-4656-8656-565656565656"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
 
     response = await httpx_client.post(
         _server_agent_chat_url(agent_session_id),
@@ -2048,7 +2037,7 @@ async def test_server_agent_bash_shell_state_persists_across_chat_turns(
     ``agent_id="server"``: pins the snapshot wiring ``build_server_agent``
     gained for the session route."""
     session_id = "57575757-5757-4757-8757-575757575757"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
     note_path = "/home/user/workspace/note.txt"
     _mock_turn_models(
         monkeypatch,
@@ -2099,7 +2088,7 @@ async def test_server_agent_chat_is_forbidden_when_bash_is_disabled(
 
     monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
     session_id = "58585858-5858-4858-8858-585858585858"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
 
     server_response = await httpx_client.post(
         _server_agent_chat_url(agent_session_id),
@@ -2233,7 +2222,7 @@ async def test_agents_router_is_forbidden_in_read_only_mode(
 ) -> None:
     """Read-only mode turns off the whole agents router, chat included."""
     session_id = "77777777-7777-4777-8777-777777777777"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
     app.state.read_only = True
 
     create_response = await httpx_client.post("/agents/server/sessions", json={})
@@ -2346,7 +2335,7 @@ async def test_chat_turn_trace_ingestion_merges_backend_spans_into_browser_trace
     await _ingest_browser_trace(db)
     _mock_traced_test_model(monkeypatch)
     session_id = "66666666-6666-4666-8666-666666666666"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
 
     response = await _post_traced_chat_turn(httpx_client, session_id, agent_session_id)
     assert response.status_code == 200
@@ -2399,7 +2388,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
     await _ingest_browser_trace(db)
     _mock_traced_test_model(monkeypatch)
     session_id = "77777777-7777-4777-8777-777777777777"
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_id)
+    agent_session_id = await _create_agent_session_row(db)
 
     with warnings.catch_warnings():
         warnings.simplefilter("error", SAWarning)
@@ -2411,7 +2400,11 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
         assert agent_session is not None
         project_session = await session.scalar(
             select(models.ProjectSession).where(
-                models.ProjectSession.session_id == agent_session.project_session_id
+                models.ProjectSession.session_id
+                == get_otel_session_id(
+                    project_name=agent_session.project_name,
+                    agent_session_rowid=agent_session.id,
+                )
             )
         )
         assert project_session is not None
@@ -2452,7 +2445,7 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
     session_request_id = "88888888-8888-4888-8888-888888888888"
 
     monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", original_project_name)
-    agent_session_id = await _create_agent_session_row(db, project_session_id=session_request_id)
+    agent_session_id = await _create_agent_session_row(db)
     first_response = await httpx_client.post(
         _chat_url(agent_session_id),
         json=_chat_body(

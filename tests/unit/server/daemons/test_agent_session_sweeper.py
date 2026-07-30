@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 
 from sqlalchemy import select
 
@@ -33,7 +32,6 @@ async def _add_agent_session(
 ) -> int:
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id=str(uuid4()),
             project_name="assistant_agent",
             user_id=user_id,
             title=title,
@@ -81,21 +79,18 @@ async def test_agent_session_sweeper_deletes_only_expired_sessions_and_cascades(
     now = datetime.now(timezone.utc)
     async with db() as session:
         expired = models.AgentSession(
-            project_session_id="11111111-1111-4111-8111-111111111111",
             project_name="assistant_agent",
             user_id=None,
             title="expired",
             expires_at=now - timedelta(hours=1),
         )
         future = models.AgentSession(
-            project_session_id="22222222-2222-4222-8222-222222222222",
             project_name="assistant_agent",
             user_id=None,
             title="future",
             expires_at=now + timedelta(hours=1),
         )
         persistent = models.AgentSession(
-            project_session_id="33333333-3333-4333-8333-333333333333",
             project_name="assistant_agent",
             user_id=None,
             title="persistent",

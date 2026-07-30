@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from uuid import uuid4
 
 from sqlalchemy import select
 from strawberry.relay import GlobalID
@@ -24,7 +23,6 @@ async def _seed_agent_session(
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id=str(uuid4()),
             user_id=user_id,
             title=title,
             project_name="assistant_agent",
