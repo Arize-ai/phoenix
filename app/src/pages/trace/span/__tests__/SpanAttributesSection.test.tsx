@@ -62,6 +62,9 @@ describe("SpanAttributesSection", () => {
       container.querySelectorAll(".span-details-section-heading")
     ).toHaveLength(1);
     expect(container.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(getComputedStyle(container.querySelector("thead")!).position).toBe(
+      "static"
+    );
 
     const toggle = getToggle();
     const bodyId = toggle.getAttribute("aria-controls");

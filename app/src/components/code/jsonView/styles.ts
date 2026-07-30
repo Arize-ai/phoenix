@@ -14,6 +14,13 @@ export const jsonTableCSS = css(
     // which every other table in the app also uses.
     ${embeddedCopyButtonCSS}
 
+    // A JSON table scrolls with the document that owns it. Keeping its small
+    // Key / Value header pinned inside that document detaches it from the
+    // Attributes section heading and leaves it hovering over later sections.
+    thead {
+      position: static;
+    }
+
     // the key column carries an explicit width so it can be dragged; the value
     // column absorbs whatever is left
     table-layout: fixed;
