@@ -66,7 +66,6 @@ class TestAgentSessionPersistence:
             created = models.AgentSession(
                 user_id=None,
                 title="",
-                project_name="assistant_agent",
             )
             session.add(created)
             await session.flush()
@@ -99,7 +98,6 @@ class TestAgentSessionPersistence:
             first = models.AgentSession(
                 user_id=None,
                 title="first",
-                project_name="assistant_agent",
             )
             session.add(first)
             await session.flush()
@@ -110,7 +108,6 @@ class TestAgentSessionPersistence:
             second = models.AgentSession(
                 user_id=None,
                 title="second",
-                project_name="assistant_agent",
             )
             session.add(second)
             await session.flush()
@@ -126,7 +123,6 @@ class TestAgentSessionPersistence:
             ephemeral = models.AgentSession(
                 user_id=None,
                 title="",
-                project_name="assistant_agent",
                 is_ephemeral=True,
             )
             ephemeral.created_at = stale
@@ -164,7 +160,6 @@ class TestAgentSessionPersistence:
             persistent = models.AgentSession(
                 user_id=None,
                 title="",
-                project_name="assistant_agent",
             )
             persistent.created_at = stale
             persistent.updated_at = stale
@@ -210,7 +205,6 @@ class TestAgentSessionPersistence:
             ephemeral = models.AgentSession(
                 user_id=None,
                 title="",
-                project_name="assistant_agent",
                 is_ephemeral=True,
             )
             ephemeral.created_at = stale

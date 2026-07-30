@@ -154,7 +154,6 @@ async def _create_agent_session_row(
         agent_session = models.AgentSession(
             user_id=None,
             title=title,
-            project_name=get_env_phoenix_agents_assistant_project_name(),
         )
         session.add(agent_session)
         await session.flush()
@@ -807,7 +806,6 @@ async def test_chat_turn_persists_session_transcript(
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
         assert agent_session.user_id is None
-        assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
         # The in-stream summary is persisted as the session title.
         assert agent_session.title == "a"
         messages = await _load_session_messages(session, agent_session.id)
@@ -819,7 +817,7 @@ async def test_chat_turn_persists_session_transcript(
             )
         )
         persisted_session_id = get_otel_session_id(
-            project_name=agent_session.project_name,
+            project_name=get_env_phoenix_agents_assistant_project_name(),
             agent_session_rowid=agent_session.id,
         )
         # No bash command this turn, so no shell-state snapshot row.
@@ -2127,7 +2125,6 @@ async def test_create_session_route_creates_a_temporary_session(
         assert agent_session is not None
         assert agent_session.title == "CLI session"
         assert agent_session.user_id is None
-        assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
         assert agent_session.is_ephemeral is True
 
 
@@ -2402,7 +2399,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
             select(models.ProjectSession).where(
                 models.ProjectSession.session_id
                 == get_otel_session_id(
-                    project_name=agent_session.project_name,
+                    project_name=get_env_phoenix_agents_assistant_project_name(),
                     agent_session_rowid=agent_session.id,
                 )
             )
@@ -2415,13 +2412,13 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
         assert merged_trace.project_session_rowid == project_session.id
 
 
-async def test_resumed_chat_turn_keeps_original_trace_project(
+async def test_resumed_chat_turn_follows_the_configured_trace_project(
     db: DbSessionFactory,
     app: FastAPI,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A session's persisted project remains authoritative after configuration changes."""
+    """Every turn traces to the project configured when the turn runs."""
     await _enable_local_trace_recording(app)
     tracer_project_names: list[str] = []
 
@@ -2478,30 +2475,49 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
     )
     assert second_response.status_code == 200
 
-    assert tracer_project_names == [original_project_name, original_project_name]
+    assert tracer_project_names == [original_project_name, changed_project_name]
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
-        assert agent_session.project_name == original_project_name
-        traces = (
-            await session.scalars(
-                select(models.Trace).where(
-                    models.Trace.trace_id.in_([first_trace_id, second_trace_id])
+        traces = {
+            trace.trace_id: trace
+            for trace in (
+                await session.scalars(
+                    select(models.Trace).where(
+                        models.Trace.trace_id.in_([first_trace_id, second_trace_id])
+                    )
+                )
+            ).all()
+        }
+        assert len(traces) == 2
+        project_names = {}
+        for trace_id, trace in traces.items():
+            project = await session.get(models.Project, trace.project_rowid)
+            assert project is not None
+            project_names[trace_id] = project.name
+        assert project_names == {
+            first_trace_id: original_project_name,
+            second_trace_id: changed_project_name,
+        }
+        # The OTel session id embeds the project name, so the two turns group
+        # under one project session per project rather than one for the session.
+        session_ids = {}
+        for trace_id, trace in traces.items():
+            session_ids[trace_id] = await session.scalar(
+                select(models.ProjectSession.session_id).where(
+                    models.ProjectSession.id == trace.project_session_rowid
                 )
             )
-        ).all()
-        assert len(traces) == 2
-        assert len({trace.project_rowid for trace in traces}) == 1
-        assert len({trace.project_session_rowid for trace in traces}) == 1
-        project = await session.get(models.Project, traces[0].project_rowid)
-        assert project is not None
-        assert project.name == original_project_name
-        assert (
-            await session.scalar(
-                select(func.count()).where(models.Project.name == changed_project_name)
-            )
-            == 0
-        )
+        assert session_ids == {
+            first_trace_id: get_otel_session_id(
+                project_name=original_project_name,
+                agent_session_rowid=agent_session.id,
+            ),
+            second_trace_id: get_otel_session_id(
+                project_name=changed_project_name,
+                agent_session_rowid=agent_session.id,
+            ),
+        }
 
 
 async def test_chat_is_rejected_with_storage_guidance_when_writes_are_already_locked(

@@ -20,7 +20,6 @@ async def _insert_agent_session(
 ) -> models.AgentSession:
     async with db() as session:
         agent_session = models.AgentSession(
-            project_name="pxi-test",
             title=title,
             is_ephemeral=is_ephemeral,
             created_at=updated_at,

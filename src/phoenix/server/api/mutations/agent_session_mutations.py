@@ -9,7 +9,6 @@ from sqlalchemy.orm import aliased
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.agents.session_titles import (
@@ -129,7 +128,6 @@ class AgentSessionMutationMixin:
             agent_session = models.AgentSession(
                 user_id=info.context.user_id,
                 title=title,
-                project_name=get_env_phoenix_agents_assistant_project_name(),
                 is_ephemeral=input.is_ephemeral,
             )
             session.add(agent_session)
@@ -229,7 +227,6 @@ class AgentSessionMutationMixin:
             branch_session = models.AgentSession(
                 user_id=info.context.user_id,
                 title=truncate_agent_session_title(source_session.title),
-                project_name=get_env_phoenix_agents_assistant_project_name(),
                 is_ephemeral=source_session.is_ephemeral,
             )
             session.add(branch_session)
