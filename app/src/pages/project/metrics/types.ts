@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-import { useVisibleValue } from "@phoenix/hooks/useDeferredVisibility";
+import { useFrozenWhileHidden } from "@phoenix/hooks/useDeferredVisibility";
 
 /**
  * Recharts syncId shared by every project metric chart so tooltip hover and
@@ -39,7 +39,9 @@ export const MetricFetchKeyProvider = MetricFetchKeyContext.Provider;
  * chart scrolled back into view picks up the latest fetchKey and catches up.
  */
 export function useMetricQueryFetchOptions() {
-  const visibleFetchKey = useVisibleValue(useContext(MetricFetchKeyContext));
+  const visibleFetchKey = useFrozenWhileHidden(
+    useContext(MetricFetchKeyContext)
+  );
   return visibleFetchKey != null
     ? ({ fetchKey: visibleFetchKey, fetchPolicy: "store-and-network" } as const)
     : undefined;

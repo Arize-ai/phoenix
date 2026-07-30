@@ -6,7 +6,7 @@ import {
   type ChartTypeIconType,
   DeferredChartPanel,
 } from "@phoenix/components/chart";
-import { useVisibleValue } from "@phoenix/hooks/useDeferredVisibility";
+import { useFrozenWhileHidden } from "@phoenix/hooks/useDeferredVisibility";
 import type {
   BuiltInProjectMetricChartKey,
   MetricChartTableView,
@@ -277,7 +277,7 @@ function DeferredPanelContent({
   chart: ProjectMetricChart;
   fillHeight?: boolean;
 }) {
-  const visibleTimeRange = useVisibleValue(timeRange);
+  const visibleTimeRange = useFrozenWhileHidden(timeRange);
   return (
     <chart.Panel
       {...props}

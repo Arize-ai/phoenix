@@ -117,18 +117,18 @@ export function useDeferredVisibility<T extends Element>({
 export const DeferredVisibilityContext = createContext<boolean>(true);
 
 /**
- * The latest `value` seen while the nearest deferred container was in view;
- * while it is out of view the last-seen value is returned unchanged. Use it
- * to freeze query inputs (fetch keys, live time ranges) so background
+ * Passes `value` through while the nearest deferred container is in view,
+ * and freezes it at the last-seen value while the container is hidden. Use
+ * it to freeze query inputs (fetch keys, live time ranges) so background
  * refreshes don't refetch content the user can't see — content scrolled back
  * into view picks up the current value and catches up. Passes `value`
  * through when there is no deferred container ancestor.
  */
-export function useVisibleValue<T>(value: T): T {
+export function useFrozenWhileHidden<T>(value: T): T {
   const isVisible = useContext(DeferredVisibilityContext);
-  const [visibleValue, setVisibleValue] = useState(value);
-  if (isVisible && visibleValue !== value) {
-    setVisibleValue(value);
+  const [frozenValue, setFrozenValue] = useState(value);
+  if (isVisible && frozenValue !== value) {
+    setFrozenValue(value);
   }
-  return visibleValue;
+  return frozenValue;
 }

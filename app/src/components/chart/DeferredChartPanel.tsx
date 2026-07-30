@@ -33,8 +33,8 @@ const deferredChartPanelCSS = css`
  * Once mounted, a chart stays mounted when it scrolls back out of view — its
  * data is already cached and unmounting would discard interaction state
  * (legend toggles, brushes). Children can read the provided
- * {@link DeferredVisibilityContext} (e.g. via `useVisibleValue`) to pause
- * background refreshes while hidden.
+ * {@link DeferredVisibilityContext} (e.g. via `useFrozenWhileHidden`) to
+ * pause background refreshes while hidden.
  */
 export function DeferredChartPanel({
   title,
