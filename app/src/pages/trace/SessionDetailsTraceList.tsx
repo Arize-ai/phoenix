@@ -24,6 +24,7 @@ import { TraceDetailPanelAnnotationButton } from "@phoenix/components/annotation
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { TraceErrorCount } from "@phoenix/components/trace/TraceErrorCount";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
@@ -349,6 +350,7 @@ function SessionTurnList({
                 {row.rootSpan.latencyMs != null ? (
                   <LatencyText latencyMs={row.rootSpan.latencyMs} size="S" />
                 ) : null}
+                <TraceErrorCount errorCount={row.errorCount} />
               </Flex>
             </Flex>
           </ListBoxItem>
@@ -419,6 +421,7 @@ export function SessionDetailsTraceList({
             trace: node {
               id
               traceId
+              errorCount
               rootSpan {
                 ...TraceTurnContent_rootSpan
                 trace {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab9cfd369a02fbb2e0811f1a0fb931a8>>
+ * @generated SignedSource<<8ebf4a7163061f7e3afa6c44a0b90936>>
  * @lightSyntaxTransform
  */
 
@@ -16,6 +16,7 @@ export type SessionDetailsTraceList_traces$data = {
   readonly traces: {
     readonly edges: ReadonlyArray<{
       readonly trace: {
+        readonly errorCount: number;
         readonly id: string;
         readonly rootSpan: {
           readonly cumulativeTokenCountTotal: number | null;
@@ -162,6 +163,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "traceId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "errorCount",
                   "storageKey": null
                 },
                 {
@@ -342,6 +350,6 @@ return {
 };
 })();
 
-(node as any).hash = "f4a68fab0f429f4d34f9f3cbebad1f00";
+(node as any).hash = "7ca19594521e6c03b537d75599269dea";
 
 export default node;

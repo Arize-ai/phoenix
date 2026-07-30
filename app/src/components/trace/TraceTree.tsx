@@ -31,6 +31,7 @@ import { classNames } from "@phoenix/utils/classNames";
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
+import { TraceErrorCount } from "./TraceErrorCount";
 import { useTraceTree } from "./TraceTreeContext";
 import {
   TRACE_TREE_CHILD_NESTING_INDENT_PIXELS,
@@ -344,7 +345,12 @@ export function TraceTree(props: TraceTreeProps) {
     fullyVisibleChildListSpanNodeIds,
     setFullyVisibleChildListSpanNodeIds,
   ] = useState<Set<string>>(() => new Set());
-  const { isCollapsed: isTreeCollapsed, searchQuery } = useTraceTree();
+  const {
+    errorCount,
+    hasErrors,
+    isCollapsed: isTreeCollapsed,
+    searchQuery,
+  } = useTraceTree();
   const spanTree = createSpanTree(spans);
   const filteredSpanTree = filterSpanTree(spanTree, searchQuery);
   const selectedSpanPathNodeIds = getSelectedSpanPathNodeIds({
@@ -464,7 +470,7 @@ export function TraceTree(props: TraceTreeProps) {
         ) : null}
         {traceSelection ? (
           <li>
-            <TraceTreeItem {...traceSelection} />
+            <TraceTreeItem {...traceSelection} errorCount={errorCount} />
           </li>
         ) : null}
         {noSearchResults ? (
@@ -544,7 +550,11 @@ export function TraceTree(props: TraceTreeProps) {
                 type="button"
                 className="trace-tree-icon-rail__item"
                 data-selected={traceSelection.isSelected}
-                aria-label={`View trace ${traceSelection.traceId}`}
+                aria-label={
+                  hasErrors
+                    ? `View trace ${traceSelection.traceId}, ${errorCount} ${errorCount === 1 ? "error" : "errors"}`
+                    : `View trace ${traceSelection.traceId}`
+                }
                 aria-pressed={traceSelection.isSelected}
                 onClick={traceSelection.onSelect}
               >
@@ -607,6 +617,10 @@ const entityTreeItemCSS = css`
   &[data-selected="true"] {
     background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
     border-left-color: var(--global-color-gray-300);
+  }
+
+  .trace-tree-entity-item__label {
+    color: var(--trace-tree-row-text-color-rest);
   }
 
   .trace-tree-entity-item__action {
@@ -700,26 +714,36 @@ function SessionTreeItem({
 
 function TraceTreeItem({
   actions,
+  errorCount,
   isSelected,
   onSelect,
   traceId,
 }: {
   actions?: ReactNode;
+  errorCount: number;
   isSelected: boolean;
   onSelect: () => void;
   traceId: string;
 }) {
+  const hasErrors = errorCount > 0;
   return (
     <div css={entityTreeItemCSS} data-selected={isSelected}>
       <button
         type="button"
         className="trace-tree-entity-item__action"
-        aria-label={`View trace ${traceId}`}
+        aria-label={
+          hasErrors
+            ? `View trace ${traceId}, ${errorCount} ${errorCount === 1 ? "error" : "errors"}`
+            : `View trace ${traceId}`
+        }
         aria-pressed={isSelected}
         onClick={onSelect}
       />
       <Icon aria-hidden="true" svg={<Icons.Trace />} />
-      <Text size="S">Trace</Text>
+      <Text className="trace-tree-entity-item__label" size="S">
+        Trace
+      </Text>
+      <TraceErrorCount errorCount={errorCount} />
       <div className="trace-tree-entity-item__id">
         <CopyableIDBadge
           id={traceId}
@@ -769,7 +793,7 @@ function TraceTreeSearchEmpty({ searchQuery }: { searchQuery: string }) {
 
 const spanNameCSS = css`
   font-weight: 500;
-  color: var(--global-text-color-900);
+  color: var(--trace-tree-row-text-color-rest);
   display: inline-block;
   white-space: nowrap;
   overflow: hidden;
@@ -1417,7 +1441,7 @@ function SpanNodeWrap(
           pointer-events: auto;
         }
         &[data-status-code="ERROR"] .span-tree-name__label {
-          color: var(--global-color-red-1000);
+          color: var(--trace-tree-row-text-color-error);
         }
         & > *:first-of-type {
           box-sizing: border-box;

@@ -14,6 +14,7 @@ import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 import type { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
 import type { SpanHeader_span$data } from "./__generated__/SpanHeader_span.graphql";
 import {
+  DetailHeaderBadge,
   DetailHeaderIdentityRow,
   DetailHeaderMetaItem,
   DetailHeaderMetaRow,
@@ -112,7 +113,7 @@ export function SpanHeaderContent({
           tooltipText="Copy Span ID"
         />
         {span.code === "ERROR" && span.statusMessage ? (
-          <span
+          <DetailHeaderBadge
             className="span-header__status-message"
             title={span.statusMessage}
           >
@@ -124,7 +125,7 @@ export function SpanHeaderContent({
             >
               {span.statusMessage}
             </Badge>
-          </span>
+          </DetailHeaderBadge>
         ) : null}
         {actions ? (
           <div className="detail-header__actions span-header__actions">

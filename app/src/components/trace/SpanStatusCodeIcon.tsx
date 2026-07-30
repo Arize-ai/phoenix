@@ -26,6 +26,12 @@ export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
       assertUnreachable(statusCode);
   }
   return (
-    <Icon svg={iconSVG} color={color} aria-label={statusCode} {...restProps} />
+    <Icon
+      svg={iconSVG}
+      color={color}
+      aria-label={statusCode}
+      {...restProps}
+      title={statusCode === "ERROR" ? "Error span" : undefined}
+    />
   );
 }

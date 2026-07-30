@@ -317,7 +317,6 @@ function TraceTurnDetails({
         trace={{
           id: traceNodeId,
           traceId,
-          statusCode: rootSpan.statusCode,
           latencyMs: rootSpan.latencyMs,
           startTime: rootSpan.startTime,
           tokenCountTotal: rootSpan.cumulativeTokenCountTotal,

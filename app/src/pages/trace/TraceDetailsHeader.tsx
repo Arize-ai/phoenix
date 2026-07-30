@@ -4,7 +4,6 @@ import { CopyableIDBadge, Flex, Text } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
-import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -15,13 +14,11 @@ import {
   DetailHeaderMetaRow,
   DetailHeaderTitle,
 } from "../DetailHeader";
-import { SpanStatusIndicator } from "../SpanHeader";
 
 export type TraceDetailsHeaderData = {
   id: string;
   latencyMs: number | null;
   startTime: string;
-  statusCode: SpanStatusCodeType;
   tokenCountTotal: number | null;
   totalCost: number | null;
   traceId: string;
@@ -43,7 +40,6 @@ export function TraceDetailsHeader({
     <DetailHeader annotationBar={annotationBar}>
       <Flex direction="column" gap="size-50" width="100%">
         <DetailHeaderIdentityRow>
-          <SpanStatusIndicator statusCode={trace.statusCode} />
           <DetailHeaderTitle title="Trace" />
           <CopyableIDBadge
             id={trace.traceId}
@@ -97,7 +93,6 @@ export function TraceDetailsHeaderSkeleton({
     <DetailHeader annotationBar={annotationBar}>
       <Flex direction="column" gap="size-50" width="100%">
         <DetailHeaderIdentityRow>
-          <Skeleton width={3} height={20} animation="wave" />
           <DetailHeaderTitle title="Trace" />
           <Skeleton width={20} height={20} animation="wave" />
         </DetailHeaderIdentityRow>

@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 
 import { Text, View } from "@phoenix/components";
+import { classNames } from "@phoenix/utils/classNames";
 
 const identityRowCSS = css`
   display: flex;
@@ -23,10 +24,14 @@ const identityRowCSS = css`
     ) {
     flex: none;
   }
-  .span-header__status-message {
+  .detail-header__badge {
     display: flex;
-    flex: 0 1 auto;
+    flex: none;
     min-width: 0;
+    max-width: 40ch;
+  }
+  .detail-header__badge > .badge {
+    max-width: 100%;
   }
   .detail-header__actions {
     display: flex;
@@ -119,6 +124,21 @@ export function DetailHeaderTitle({ title }: { title: string }) {
     >
       {title}
     </Text>
+  );
+}
+
+export function DetailHeaderBadge({
+  children,
+  className,
+  title,
+}: PropsWithChildren<{ className?: string; title?: string }>) {
+  return (
+    <span
+      className={classNames("detail-header__badge", className)}
+      title={title}
+    >
+      {children}
+    </span>
   );
 }
 

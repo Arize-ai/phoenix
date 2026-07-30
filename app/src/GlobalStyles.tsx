@@ -1289,6 +1289,14 @@ const listCSS = (theme: Theme) => css`
   }
 `;
 
+const traceTreeCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --trace-tree-row-text-color-rest: var(--global-text-color-900);
+    --trace-tree-row-text-color-error: var(--global-color-red-1000);
+  }
+`;
+
 const tableCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1461,6 +1469,7 @@ export const derivedCSS = (theme: Theme) =>
     popoverCSS(theme),
     roundingCSS(theme),
     listCSS(theme),
+    traceTreeCSS(theme),
     tableCSS(theme),
     markdownCSS(theme),
     borderAndGridCSS(theme),

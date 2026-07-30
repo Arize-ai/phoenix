@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<efb590a14bbe92e3ab050ad72e90f6b3>>
+ * @generated SignedSource<<a6e67816eeb1e2bddb3212281d44befc>>
  * @lightSyntaxTransform
  */
 
@@ -158,6 +158,13 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "traceId",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "errorCount",
                             "storageKey": null
                           },
                           {
@@ -326,12 +333,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5beab8c37f14a2a449ac3daae168bb2b",
+    "cacheID": "99b042b6ec71018698d5087c502964a9",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsTracesViewQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsTracesViewQuery(\n  $id: ID!\n  $first: Int!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      ...SessionDetailsTracesView_traces_3ASum4\n    }\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_3ASum4 on ProjectSession {\n  numTraces\n  traces(first: $first) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionDetailsTracesViewQuery(\n  $id: ID!\n  $first: Int!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      ...SessionDetailsTracesView_traces_3ASum4\n    }\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_3ASum4 on ProjectSession {\n  numTraces\n  traces(first: $first) {\n    edges {\n      trace: node {\n        id\n        traceId\n        errorCount\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

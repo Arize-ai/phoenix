@@ -41,6 +41,7 @@ import {
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { TraceErrorCount } from "@phoenix/components/trace/TraceErrorCount";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
 import type { SpanDetailsPreview } from "@phoenix/components/trace/types";
@@ -179,6 +180,7 @@ export function SessionDetailsTracesView({
             trace: node {
               id
               traceId
+              errorCount
               rootSpan {
                 id
                 name
@@ -758,6 +760,7 @@ function TraceRowMetricsLine({ trace }: { trace: SessionTraceRow }) {
       {latencyMs != null ? (
         <LatencyText latencyMs={latencyMs} size="S" />
       ) : null}
+      <TraceErrorCount errorCount={trace.errorCount} />
     </Flex>
   );
 }

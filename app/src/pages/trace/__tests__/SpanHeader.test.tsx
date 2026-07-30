@@ -73,9 +73,12 @@ describe("SpanHeaderContent", () => {
     expect(title?.nextElementSibling).toBe(copyIdButton);
     expect(copyIdButton?.nextElementSibling).toBe(statusMessage);
     expect(statusMessage?.textContent).toBe("The model request failed.");
-    expect(
-      statusMessage?.querySelector<HTMLElement>(".badge")?.dataset.variant
-    ).toBe("danger");
+    const badge = statusMessage?.querySelector<HTMLElement>(".badge");
+    expect(badge?.dataset.variant).toBe("danger");
+    expect(getComputedStyle(statusMessage!).flexShrink).toBe("0");
+    expect(getComputedStyle(statusMessage!).maxWidth).toBe("40ch");
+    expect(getComputedStyle(badge!).maxWidth).toBe("100%");
+    expect(getComputedStyle(badge!).textOverflow).toBe("ellipsis");
   });
 
   it("does not show a status message badge for a non-error span", () => {

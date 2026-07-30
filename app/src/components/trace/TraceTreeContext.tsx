@@ -10,6 +10,9 @@ import { createContext, startTransition, useContext, useState } from "react";
  * `startTransition` policy and consumers call these actions directly.
  */
 export type TraceTreeContextType = {
+  /** Authoritative count of error spans in the full trace. */
+  errorCount: number;
+
   /** Whether the full trace contains at least one error span. */
   hasErrors: boolean;
 
@@ -102,6 +105,7 @@ export function TraceTreeProvider({
   return (
     <TraceTreeContext.Provider
       value={{
+        errorCount,
         hasErrors,
         isCollapsed,
         searchQuery,

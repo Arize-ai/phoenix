@@ -91,6 +91,7 @@ describe("TraceTree", () => {
     onSpanClick,
     onSpanSelectionStart,
     renderSpanActions,
+    errorCount = 0,
     searchQuery,
     isChildTruncationEnabled = false,
     isHoverOverlayEnabled = true,
@@ -103,6 +104,7 @@ describe("TraceTree", () => {
     onSpanClick?: (span: ISpanItem) => void;
     onSpanSelectionStart?: (span: ISpanItem) => void;
     renderSpanActions?: TraceTreeProps["renderSpanActions"];
+    errorCount?: number;
     searchQuery?: string;
     isChildTruncationEnabled?: boolean;
     isHoverOverlayEnabled?: boolean;
@@ -131,10 +133,13 @@ describe("TraceTree", () => {
           <ThemeProvider>
             <PreferencesProvider>
               {searchQuery === undefined ? (
-                <TraceTreeProvider>{traceTree}</TraceTreeProvider>
+                <TraceTreeProvider errorCount={errorCount}>
+                  {traceTree}
+                </TraceTreeProvider>
               ) : (
                 <TraceTreeContext.Provider
                   value={{
+                    errorCount: 0,
                     hasErrors: false,
                     isCollapsed: false,
                     setIsCollapsed: vi.fn(),
@@ -380,6 +385,15 @@ describe("TraceTree", () => {
     const fullRowClassName = Array.from(fullRow?.classList ?? []).find(
       (className) => className.startsWith("css-")
     );
+    const spanLabel = fullRow?.querySelector<HTMLElement>(
+      ".span-tree-name__label"
+    );
+    const errorIcon = fullRow?.querySelector<HTMLElement>(
+      '[aria-label="ERROR"]'
+    );
+    const spanLabelClassName = Array.from(spanLabel?.classList ?? []).find(
+      (className) => className.startsWith("css-")
+    );
     const styleRules = Array.from(document.styleSheets).flatMap((styleSheet) =>
       Array.from(styleSheet.cssRules)
     );
@@ -403,16 +417,27 @@ describe("TraceTree", () => {
         ) &&
         rule.selectorText.includes(".span-tree-name__label")
     );
+    const spanRestTextRule = styleRules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule &&
+        rule.selectorText === `.${spanLabelClassName}`
+    );
 
     expect(compactRow?.dataset.statusCode).toBe("ERROR");
     expect(fullRow?.dataset.statusCode).toBe("ERROR");
+    expect(errorIcon?.title).toBe("Error span");
     expect(compactErrorRule?.style.borderLeftColor).toBe(
       "var(--global-color-danger)"
     );
     expect(fullErrorRule?.style.borderLeftColor).toBe(
       "var(--global-color-danger)"
     );
-    expect(fullErrorTextRule?.style.color).toBe("var(--global-color-red-1000)");
+    expect(fullErrorTextRule?.style.color).toBe(
+      "var(--trace-tree-row-text-color-error)"
+    );
+    expect(spanRestTextRule?.style.color).toBe(
+      "var(--trace-tree-row-text-color-rest)"
+    );
   });
 
   it("preserves span disclosure state while switching between full and compact navigation", () => {
@@ -668,6 +693,80 @@ describe("TraceTree", () => {
     act(() => traceButton?.click());
 
     expect(onTraceSelect).toHaveBeenCalledOnce();
+  });
+
+  it("shows an error count without styling the trace as an error", () => {
+    renderTraceTree({
+      errorCount: 3,
+      isNavigationCollapsed: true,
+      spans: [ROOT_SPAN],
+      traceSelection: {
+        isSelected: true,
+        onSelect: vi.fn(),
+        traceId: "trace-12345678",
+      },
+    });
+
+    const traceButton = container.querySelector<HTMLButtonElement>(
+      '.trace-tree-navigation__overlay button[aria-label="View trace trace-12345678, 3 errors"]'
+    );
+    const traceRow = traceButton?.parentElement;
+    const traceLabel = traceRow?.querySelector<HTMLElement>(
+      ".trace-tree-entity-item__label"
+    );
+    const errorCounter = traceRow?.querySelector<HTMLElement>(".counter");
+    const compactTraceButton = container.querySelector<HTMLButtonElement>(
+      '[data-testid="trace-tree-icon-rail"] button[aria-label="View trace trace-12345678, 3 errors"]'
+    );
+    const rowClassName = Array.from(traceRow?.classList ?? []).find(
+      (className) => className.startsWith("css-")
+    );
+    const rail = container.querySelector<HTMLElement>(
+      '[data-testid="trace-tree-icon-rail"]'
+    );
+    const railClassName = Array.from(rail?.classList ?? []).find((className) =>
+      className.startsWith("css-")
+    );
+    const styleRules = Array.from(document.styleSheets).flatMap((styleSheet) =>
+      Array.from(styleSheet.cssRules)
+    );
+    const fullRowSelectionRule = styleRules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule &&
+        rule.selectorText.includes(`.${rowClassName}[data-selected="true"]`) &&
+        !rule.selectorText.includes(".trace-tree-entity-item__label")
+    );
+    const fullRowRestTextRule = styleRules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule &&
+        rule.selectorText.includes(`.${rowClassName} `) &&
+        rule.selectorText.includes(".trace-tree-entity-item__label")
+    );
+    const compactSelectionRule = styleRules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule &&
+        rule.selectorText.includes(`.${railClassName} `) &&
+        rule.selectorText.includes(
+          '.trace-tree-icon-rail__item[data-selected="true"]'
+        ) &&
+        !rule.selectorText.includes('[data-status-code="ERROR"]')
+    );
+
+    expect(traceRow?.dataset.selected).toBe("true");
+    expect(traceLabel?.textContent).toBe("Trace");
+    expect(errorCounter?.textContent).toBe("3");
+    expect(errorCounter?.dataset.variant).toBe("danger");
+    expect(traceRow?.querySelector('[aria-label="ERROR"]')).toBeNull();
+    expect(compactTraceButton?.dataset.statusCode).toBeUndefined();
+    expect(fullRowSelectionRule?.style.borderLeftColor).toBe(
+      "var(--global-color-gray-300)"
+    );
+    expect(fullRowRestTextRule?.style.color).toBe(
+      "var(--trace-tree-row-text-color-rest)"
+    );
+    expect(compactSelectionRule?.style.borderLeftColor).toBe(
+      "var(--global-color-gray-300)"
+    );
   });
 
   it("reveals span actions on row hover without removing row content or selecting the span", () => {

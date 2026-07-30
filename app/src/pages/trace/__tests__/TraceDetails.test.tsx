@@ -155,6 +155,9 @@ describe("TraceDetails", () => {
     expect(
       traceHeader.querySelector('[aria-label="Copy Trace ID trace-display-id"]')
     ).not.toBeNull();
+    expect(
+      traceHeader.querySelector('[aria-label^="Span status:"]')
+    ).toBeNull();
     expect(traceHeader.textContent).not.toContain("trace-display-id");
     expect(
       container.querySelector("[data-testid='trace-turn-content']")?.textContent
