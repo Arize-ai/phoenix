@@ -664,10 +664,6 @@ def _is_bool_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, bool)
 
 
-def _is_none_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
-    return isinstance(node, ast.Constant) and node.value is None
-
-
 def _is_bool_sequence(node: typing.Any) -> TypeGuard[typing.Union[ast.List, ast.Tuple]]:
     return (
         isinstance(node, (ast.List, ast.Tuple))
