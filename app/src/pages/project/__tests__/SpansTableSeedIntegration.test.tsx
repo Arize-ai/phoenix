@@ -179,6 +179,7 @@ describe("SpansTable seed loading integration", () => {
             <SpansTable
               project={{} as SpansTable_spans$key}
               seed={settledSeed}
+              fragmentKey="spanFilterCondition"
             />
             <HashProbe />
           </MemoryRouter>
@@ -256,6 +257,8 @@ describe("SpansTable seed loading integration", () => {
       });
     });
 
+    // Under the key the host page passed, so surfaces with their own keys
+    // (the traces tab, the evaluator view) never share an entry.
     expect(probedHash).toContain("spanFilterCondition=span_kind");
   });
 });

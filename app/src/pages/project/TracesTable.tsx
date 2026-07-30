@@ -96,7 +96,7 @@ import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
-import { useWriteSpanFilterToHash } from "./spanFilterUrlState";
+import { useWriteFilterConditionToHash } from "./spanFilterUrlState";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
@@ -112,6 +112,8 @@ import {
 type TracesTableProps = {
   /** The condition the preload carried; always settled. */
   seed: SettledSpanFilterSeed;
+  /** The fragment key this surface persists applied filters under. */
+  fragmentKey: string;
   project: TracesTable_spans$key;
 };
 
@@ -243,7 +245,9 @@ export function TracesTable(props: TracesTableProps) {
   const [searchParams] = useSearchParams();
   const { hash } = useLocation();
   // Persist an applied filter so the tab is shareable, as the spans tab is.
-  const writeFilterConditionToUrl = useWriteSpanFilterToHash();
+  const writeFilterConditionToUrl = useWriteFilterConditionToHash(
+    props.fragmentKey
+  );
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);

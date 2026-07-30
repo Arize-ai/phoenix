@@ -17,6 +17,7 @@ import {
   spanFilterSeed,
 } from "@phoenix/pages/project/spanFilterSeed";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
+import { EVALUATOR_SPAN_FILTER_CONDITION_KEY } from "@phoenix/utils/scopedFragmentState";
 
 export function DatasetEvaluatorSpans({ projectId }: { projectId: string }) {
   // Reset the mount-time filter and time-range seed if this component is reused
@@ -33,7 +34,11 @@ function DatasetEvaluatorSpansContent({ projectId }: { projectId: string }) {
   // before the filter became a DSL condition. An evaluator project can be
   // ingested without the parent span that its spans point at, and the strict
   // predicate would drop exactly those rows.
+  // Under this view's own fragment key: a filter applied on a project's spans
+  // tab must never seed an evaluator's view, or the reverse, no matter how a
+  // URL was carried here.
   const initialFilterCondition = useInitialSpanFilterCondition(
+    EVALUATOR_SPAN_FILTER_CONDITION_KEY,
     ORPHAN_AWARE_ROOT_SPANS_CONDITION
   );
   // A condition this app can classify loads straight away. Anything else waits
@@ -49,6 +54,7 @@ function DatasetEvaluatorSpansContent({ projectId }: { projectId: string }) {
         <TracingProvider projectId={projectId} tableId="spans">
           <SpanFiltersProvider
             key={seed ? seed.condition : "pending"}
+            fragmentKey={EVALUATOR_SPAN_FILTER_CONDITION_KEY}
             fallbackFilterCondition={seed?.condition ?? initialFilterCondition}
           >
             {seed ? (
@@ -108,5 +114,11 @@ function DatasetEvaluatorSpansTable({
       fetchKey: projectId,
     }
   );
-  return <SpansTable project={data.project} seed={seed} />;
+  return (
+    <SpansTable
+      project={data.project}
+      seed={seed}
+      fragmentKey={EVALUATOR_SPAN_FILTER_CONDITION_KEY}
+    />
+  );
 }

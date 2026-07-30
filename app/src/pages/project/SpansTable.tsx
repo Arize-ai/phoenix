@@ -90,7 +90,7 @@ import {
   type SpanFilterValidConditionArgs,
 } from "./SpanFilterConditionField";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
-import { useWriteSpanFilterToHash } from "./spanFilterUrlState";
+import { useWriteFilterConditionToHash } from "./spanFilterUrlState";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { SpansTableAside } from "./SpansTableAside";
@@ -114,6 +114,12 @@ type SpansTableProps = {
    * match both its text and its root scope from the first render.
    */
   seed: SettledSpanFilterSeed;
+  /**
+   * The fragment key this surface persists applied filters under. Passed by
+   * the host page so the same table serves the spans tab and the dataset
+   * evaluator view without their filters sharing a URL entry.
+   */
+  fragmentKey: string;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -224,7 +230,9 @@ export function SpansTable(props: SpansTableProps) {
 
   // Persist the applied filter to the URL. Written only from the change
   // handler, so in-progress edits and render churn never touch the URL.
-  const writeFilterConditionToUrl = useWriteSpanFilterToHash();
+  const writeFilterConditionToUrl = useWriteFilterConditionToHash(
+    props.fragmentKey
+  );
   const handleValidFilterCondition = useCallback(
     ({
       condition,

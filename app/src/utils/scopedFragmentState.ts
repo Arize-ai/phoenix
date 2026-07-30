@@ -25,11 +25,27 @@
  */
 
 /**
- * The fragment key carrying the span filter condition. Shared by a project's
- * spans and traces tabs (deliberately -- an applied filter follows the user
- * across them) and by the dataset evaluator spans view for its own URLs.
+ * The fragment key carrying a project's spans-tab filter condition.
+ *
+ * Each filter-consuming view owns its own key. The spans and traces tabs
+ * deliberately do not share one: the same condition string changes meaning
+ * between them -- on the spans tab it selects among all spans, while on the
+ * traces tab it is combined with root-span scoping, so a condition written
+ * for spans can silently empty the traces table. A filter therefore applies
+ * only to the view it was authored in.
  */
 export const SPAN_FILTER_CONDITION_KEY = "spanFilterCondition";
+
+/** The fragment key carrying a project's traces-tab filter condition. */
+export const TRACE_FILTER_CONDITION_KEY = "traceFilterCondition";
+
+/**
+ * The fragment key carrying a dataset evaluator's spans-view filter
+ * condition. A distinct key, so a project's filter can never seed an
+ * evaluator's view or the reverse, no matter how a URL was carried.
+ */
+export const EVALUATOR_SPAN_FILTER_CONDITION_KEY =
+  "evaluatorSpanFilterCondition";
 
 type ScopedFragmentKey = {
   key: string;
@@ -46,20 +62,22 @@ type ScopedFragmentKey = {
  * Router-relative pathnames, so a configured basename never appears here:
  * `useLocation().pathname` and `useMatches()[n].pathname` both exclude it.
  */
-function spanFilterScope(pathname: string): string | null {
+function projectScope(pathname: string): string | null {
   const project = /^\/projects\/([^/]+)/.exec(pathname);
-  if (project) {
-    return `projects/${project[1]}`;
-  }
+  return project ? `projects/${project[1]}` : null;
+}
+
+function evaluatorScope(pathname: string): string | null {
   const evaluator = /^\/datasets\/([^/]+)\/evaluators\/([^/]+)/.exec(pathname);
-  if (evaluator) {
-    return `datasets/${evaluator[1]}/evaluators/${evaluator[2]}`;
-  }
-  return null;
+  return evaluator
+    ? `datasets/${evaluator[1]}/evaluators/${evaluator[2]}`
+    : null;
 }
 
 const SCOPED_FRAGMENT_KEYS: ScopedFragmentKey[] = [
-  { key: SPAN_FILTER_CONDITION_KEY, scopeOf: spanFilterScope },
+  { key: SPAN_FILTER_CONDITION_KEY, scopeOf: projectScope },
+  { key: TRACE_FILTER_CONDITION_KEY, scopeOf: projectScope },
+  { key: EVALUATOR_SPAN_FILTER_CONDITION_KEY, scopeOf: evaluatorScope },
 ];
 
 /**

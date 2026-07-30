@@ -10,6 +10,7 @@ import type { SettledSpanFilterSeed } from "@phoenix/pages/project/spanFilterSee
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
+import { TRACE_FILTER_CONDITION_KEY } from "@phoenix/utils/scopedFragmentState";
 
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import { ProjectOnboarding } from "./ProjectOnboarding";
@@ -36,7 +37,13 @@ const TracesTabContent = ({
     );
   }
 
-  return <TracesTable project={data.project} seed={seed} />;
+  return (
+    <TracesTable
+      project={data.project}
+      seed={seed}
+      fragmentKey={TRACE_FILTER_CONDITION_KEY}
+    />
+  );
 };
 
 export const ProjectTracesPage = () => {
@@ -49,6 +56,7 @@ export const ProjectTracesPage = () => {
       <TracePaginationProvider>
         <SpanFiltersProvider
           key={tracesFilterSeed ? tracesFilterSeed.condition : "pending"}
+          fragmentKey={TRACE_FILTER_CONDITION_KEY}
           fallbackFilterCondition={tracesFilterSeed?.condition ?? ""}
         >
           <Suspense fallback={<Loading />}>

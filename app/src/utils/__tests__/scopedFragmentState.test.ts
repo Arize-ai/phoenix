@@ -42,20 +42,59 @@ describe("retainScopedFragmentState", () => {
     ).toBe("");
   });
 
-  it("treats a dataset evaluator's spans view as its own scope", () => {
+  it("scopes the traces-tab key to its project like the spans-tab key", () => {
+    const traceHash = "#traceFilterCondition=latency_ms+%3E+10";
     expect(
       retainScopedFragmentState({
-        hash: FILTER_HASH,
+        hash: traceHash,
+        fromPathname: `${PROJECT_A}/traces/abc123`,
+        toPathname: PROJECT_A,
+      })
+    ).toBe(traceHash);
+    expect(
+      retainScopedFragmentState({
+        hash: traceHash,
+        fromPathname: `${PROJECT_A}/traces`,
+        toPathname: "/projects",
+      })
+    ).toBe("");
+  });
+
+  it("treats a dataset evaluator's spans view as its own scope", () => {
+    const evaluatorHash = "#evaluatorSpanFilterCondition=latency_ms+%3E+10";
+    expect(
+      retainScopedFragmentState({
+        hash: evaluatorHash,
         fromPathname: `${EVALUATOR}/traces/abc123`,
         toPathname: EVALUATOR,
       })
-    ).toBe(FILTER_HASH);
+    ).toBe(evaluatorHash);
     // The dataset page itself does not consume the filter.
+    expect(
+      retainScopedFragmentState({
+        hash: evaluatorHash,
+        fromPathname: EVALUATOR,
+        toPathname: "/datasets/RGF0YXNldDox",
+      })
+    ).toBe("");
+  });
+
+  it("cleans a project key stranded on an evaluator URL, and the reverse", () => {
+    // Per-view keys mean a project's filter is foreign state everywhere
+    // outside a project. Crumb navigation on an evaluator page removes it
+    // rather than carrying it along.
     expect(
       retainScopedFragmentState({
         hash: FILTER_HASH,
         fromPathname: EVALUATOR,
-        toPathname: "/datasets/RGF0YXNldDox",
+        toPathname: EVALUATOR,
+      })
+    ).toBe("");
+    expect(
+      retainScopedFragmentState({
+        hash: "#evaluatorSpanFilterCondition=latency_ms+%3E+10",
+        fromPathname: `${PROJECT_A}/spans`,
+        toPathname: PROJECT_A,
       })
     ).toBe("");
   });

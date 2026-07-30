@@ -19,6 +19,8 @@ vi.mock("@phoenix/contexts/TracingContext", () => ({
     selector({ projectId: "UHJvamVjdDox" }),
 }));
 
+import { SPAN_FILTER_CONDITION_KEY } from "@phoenix/utils/scopedFragmentState";
+
 import {
   SpanFiltersProvider,
   useInitialSpanFilterCondition,
@@ -72,7 +74,7 @@ describe("SpanFiltersProvider URL seeding", () => {
     await act(async () => {
       root.render(
         <MemoryRouter initialEntries={[path]}>
-          <SpanFiltersProvider>
+          <SpanFiltersProvider fragmentKey={SPAN_FILTER_CONDITION_KEY}>
             <FilterConditionReader />
           </SpanFiltersProvider>
         </MemoryRouter>
@@ -85,10 +87,21 @@ describe("SpanFiltersProvider URL seeding", () => {
 
     expect(container.textContent).toBe("span_kind == 'LLM'");
   });
+
+  it("ignores another surface's fragment key", async () => {
+    // Each view reads only its own key: a traces-tab condition in the URL must
+    // not seed a provider mounted for the spans tab.
+    await renderAt("/spans#traceFilterCondition=span_kind%20%3D%3D%20'LLM'");
+
+    expect(container.textContent).toBe("");
+  });
 });
 
 function InitialConditionReader() {
-  const condition = useInitialSpanFilterCondition("parent_id is None");
+  const condition = useInitialSpanFilterCondition(
+    SPAN_FILTER_CONDITION_KEY,
+    "parent_id is None"
+  );
   return <div>{condition}</div>;
 }
 

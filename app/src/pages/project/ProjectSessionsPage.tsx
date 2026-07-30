@@ -13,6 +13,7 @@ import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
 import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SessionPaginationProvider } from "@phoenix/pages/trace/SessionPaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
+import { SPAN_FILTER_CONDITION_KEY } from "@phoenix/utils/scopedFragmentState";
 
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 
@@ -40,7 +41,10 @@ export const ProjectSessionsPage = () => {
   return (
     <TracingRoot>
       <SessionPaginationProvider>
-        <SpanFiltersProvider>
+        {/* Sessions hosts no filter field; the provider is here for the
+            agent's set_spans_filter registration. The spans-tab key keeps its
+            draft aligned with the tab the condition would apply to. */}
+        <SpanFiltersProvider fragmentKey={SPAN_FILTER_CONDITION_KEY}>
           <Suspense fallback={<Loading />}>
             <SessionsTabContent queryReference={sessionsQueryReference} />
           </Suspense>

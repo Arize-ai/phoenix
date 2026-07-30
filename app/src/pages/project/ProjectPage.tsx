@@ -36,11 +36,16 @@ import {
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
+import {
+  SPAN_FILTER_CONDITION_KEY,
+  TRACE_FILTER_CONDITION_KEY,
+} from "@phoenix/utils/scopedFragmentState";
+
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
 import {
-  readSpanFilterFromHash,
-  useWriteSpanFilterToHash,
+  readFilterConditionFromHash,
+  useWriteFilterConditionToHash,
 } from "./spanFilterUrlState";
 
 const mainCSS = css`
@@ -129,21 +134,24 @@ export function ProjectPageContent({
   );
 }
 
-/** Whether the URL already carries this condition. */
-function urlAlreadyHasCondition(condition: string): boolean {
-  return readSpanFilterFromHash(window.location.hash) === condition;
+/** Whether the URL already carries this condition under this key. */
+function urlAlreadyHasCondition(key: string, condition: string): boolean {
+  return readFilterConditionFromHash(window.location.hash, key) === condition;
 }
 
 /**
- * The URL's condition when it needs no server answer, else null.
+ * The URL's condition under `key` when it needs no server answer, else null.
  *
  * Reads `location` rather than taking the search string, so the `useState`
  * initializers below close over nothing local. The React Compiler hoists those
  * initializers out of the component, and a captured local does not survive it.
  */
-function settledSeedFromUrl(fallback: string): SettledSpanFilterSeed | null {
+function settledSeedFromUrl(
+  key: string,
+  fallback: string
+): SettledSpanFilterSeed | null {
   const seed = spanFilterSeed(
-    readSpanFilterFromHash(window.location.hash) ?? fallback
+    readFilterConditionFromHash(window.location.hash, key) ?? fallback
   );
   return seed.requiresServerValidation ? null : seed;
 }
@@ -187,10 +195,15 @@ function ProjectPageContentBody({
   // moves into the table.
   const [spansFilterSeed, setSpansFilterSeed] =
     useState<SettledSpanFilterSeed | null>(() =>
-      settledSeedFromUrl(DEFAULT_SPAN_FILTER_CONDITION)
+      settledSeedFromUrl(
+        SPAN_FILTER_CONDITION_KEY,
+        DEFAULT_SPAN_FILTER_CONDITION
+      )
     );
   const [tracesFilterSeed, setTracesFilterSeed] =
-    useState<SettledSpanFilterSeed | null>(() => settledSeedFromUrl(""));
+    useState<SettledSpanFilterSeed | null>(() =>
+      settledSeedFromUrl(TRACE_FILTER_CONDITION_KEY, "")
+    );
   const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
@@ -202,7 +215,12 @@ function ProjectPageContentBody({
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const location = useLocation();
 
-  const writeSpanFilterToUrl = useWriteSpanFilterToHash();
+  const writeSpansTabFilterToUrl = useWriteFilterConditionToHash(
+    SPAN_FILTER_CONDITION_KEY
+  );
+  const writeTracesTabFilterToUrl = useWriteFilterConditionToHash(
+    TRACE_FILTER_CONDITION_KEY
+  );
   // Read at load time rather than depended on, so a live window sliding
   // forward does not reload the preload -- see the note on the tab loader.
   const timeRangeRef = useRef(timeRangeISOStrings);
@@ -219,7 +237,8 @@ function ProjectPageContentBody({
    * for -- a fallback after validation failed, or this tab's own default when
    * the URL named no condition. A fallback leaves the rejected text in the URL
    * so it stays visible and editable while the field reports why it failed; a
-   * default is left out entirely, so the other tab does not inherit it.
+   * default is left out entirely, so the URL records only user-applied
+   * filters and an absent entry re-seeds the default next time.
    */
   const resolveSpansSeed = useCallback(
     (seed: SettledSpanFilterSeed, persistToUrl = true) => {
@@ -231,8 +250,11 @@ function ProjectPageContentBody({
         // other -- a present-but-empty entry means deliberately cleared, while
         // an absent one seeds the tab's default -- though when it arrived from
         // the URL the already-has-it check makes the write a no-op.
-        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
-          writeSpanFilterToUrl(seed.condition);
+        if (
+          persistToUrl &&
+          !urlAlreadyHasCondition(SPAN_FILTER_CONDITION_KEY, seed.condition)
+        ) {
+          writeSpansTabFilterToUrl(seed.condition);
         }
         loadSpansQuery({
           id: projectId,
@@ -242,7 +264,7 @@ function ProjectPageContentBody({
         });
       });
     },
-    [projectId, loadSpansQuery, writeSpanFilterToUrl]
+    [projectId, loadSpansQuery, writeSpansTabFilterToUrl]
   );
 
   // Load the preloaded query backing the active tab's table. The time range is
@@ -257,8 +279,11 @@ function ProjectPageContentBody({
     (seed: SettledSpanFilterSeed, persistToUrl = true) => {
       startTransition(() => {
         setTracesFilterSeed(seed);
-        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
-          writeSpanFilterToUrl(seed.condition);
+        if (
+          persistToUrl &&
+          !urlAlreadyHasCondition(TRACE_FILTER_CONDITION_KEY, seed.condition)
+        ) {
+          writeTracesTabFilterToUrl(seed.condition);
         }
         loadTracesQuery({
           id: projectId,
@@ -267,7 +292,7 @@ function ProjectPageContentBody({
         });
       });
     },
-    [projectId, loadTracesQuery, writeSpanFilterToUrl]
+    [projectId, loadTracesQuery, writeTracesTabFilterToUrl]
   );
 
   const loadTableQueryForTab = useEffectEvent(
@@ -277,7 +302,10 @@ function ProjectPageContentBody({
         // server, and asking needs the filter field, which `ProjectSpansPage`
         // mounts on its own while this stays null. Nothing is fetched until
         // the condition is known good.
-        const fromUrl = readSpanFilterFromHash(window.location.hash);
+        const fromUrl = readFilterConditionFromHash(
+          window.location.hash,
+          SPAN_FILTER_CONDITION_KEY
+        );
         const seed = spanFilterSeed(fromUrl ?? DEFAULT_SPAN_FILTER_CONDITION);
         // Returning to a tab whose rows already answer this condition is not a
         // reason to reload it. Re-resolving would tear the table down and
@@ -291,14 +319,16 @@ function ProjectPageContentBody({
         if (seed.requiresServerValidation) {
           setSpansFilterSeed(null);
         } else {
-          // Persist only a condition the URL already carried. The two tabs
-          // share one key but default differently -- spans to root spans,
-          // traces to every span -- so writing a tab's own default would
-          // impose it on the other one at the next tab switch.
+          // Persist only a condition the URL already carried. A tab's own
+          // default is never written: the URL records what the user chose,
+          // and an absent entry is what re-seeds the default next time.
           resolveSpansSeed(seed, fromUrl !== null);
         }
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
-        const fromUrl = readSpanFilterFromHash(window.location.hash);
+        const fromUrl = readFilterConditionFromHash(
+          window.location.hash,
+          TRACE_FILTER_CONDITION_KEY
+        );
         const seed = spanFilterSeed(fromUrl ?? "");
         if (
           tracesQueryReference &&

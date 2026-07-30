@@ -19,8 +19,8 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import {
-  readSpanFilterFromHash,
-  useSpanFilterFromHash,
+  readFilterConditionFromHash,
+  useFilterConditionFromHash,
 } from "./spanFilterUrlState";
 import { validateSpanFilterCondition } from "./spanFilterValidation";
 
@@ -50,18 +50,22 @@ export function useSpanFilters() {
 }
 
 /**
- * Captures the mount-time condition from the URL, falling back to the caller's
- * supplied value. Whitespace-only text is normalized to the empty condition so
- * the editor and query seed agree.
+ * Captures the mount-time condition from the URL under `fragmentKey`, falling
+ * back to the caller's supplied value. Whitespace-only text is normalized to
+ * the empty condition so the editor and query seed agree.
  *
  * This hook is intentionally mount-only for call sites that own query preload
  * state. `SpanFiltersProvider` separately follows later URL changes so browser
  * navigation still updates its controlled editor.
  */
-export function useInitialSpanFilterCondition(fallbackFilterCondition = "") {
+export function useInitialSpanFilterCondition(
+  fragmentKey: string,
+  fallbackFilterCondition = ""
+) {
   const { hash } = useLocation();
   const [initialCondition] = useState<string>(() => {
-    const condition = readSpanFilterFromHash(hash) ?? fallbackFilterCondition;
+    const condition =
+      readFilterConditionFromHash(hash, fragmentKey) ?? fallbackFilterCondition;
     return condition.trim() === "" ? "" : condition;
   });
   return initialCondition;
@@ -69,6 +73,12 @@ export function useInitialSpanFilterCondition(fallbackFilterCondition = "") {
 
 export function SpanFiltersProvider(
   props: PropsWithChildren<{
+    /**
+     * The fragment key this surface's filter lives under in the URL. Each
+     * filter-consuming view owns its own key -- see `scopedFragmentState` --
+     * so a condition applied on one surface never seeds another.
+     */
+    fragmentKey: string;
     /**
      * The condition used whenever the URL carries none. Query-owning callers
      * pass the same resolved seed used for their preload so the editor and
@@ -79,8 +89,9 @@ export function SpanFiltersProvider(
 ) {
   // Writes back to the URL happen where the state is applied (SpansTable), so
   // only valid conditions are persisted.
-  const hashCondition = useSpanFilterFromHash();
+  const hashCondition = useFilterConditionFromHash(props.fragmentKey);
   const initialUrlCondition = useInitialSpanFilterCondition(
+    props.fragmentKey,
     props.fallbackFilterCondition
   );
   const [filterCondition, _setFilterCondition] =

@@ -9,6 +9,7 @@ import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
+import { SPAN_FILTER_CONDITION_KEY } from "@phoenix/utils/scopedFragmentState";
 
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import { PendingSpanFilter } from "./PendingSpanFilter";
@@ -37,7 +38,13 @@ function SpansTabContent({
     );
   }
 
-  return <SpansTable project={data.project} seed={seed} />;
+  return (
+    <SpansTable
+      project={data.project}
+      seed={seed}
+      fragmentKey={SPAN_FILTER_CONDITION_KEY}
+    />
+  );
 }
 
 export const ProjectSpansPage = () => {
@@ -56,6 +63,7 @@ export const ProjectSpansPage = () => {
       <TracePaginationProvider>
         <SpanFiltersProvider
           key={seedKey}
+          fragmentKey={SPAN_FILTER_CONDITION_KEY}
           fallbackFilterCondition={
             spansFilterSeed?.condition ?? DEFAULT_SPAN_FILTER_CONDITION
           }
