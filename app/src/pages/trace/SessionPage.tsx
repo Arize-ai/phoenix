@@ -8,7 +8,6 @@ import {
 import invariant from "tiny-invariant";
 
 import { Dialog, Drawer, DialogContent } from "@phoenix/components";
-import { getTraceTreePanelSizing } from "@phoenix/components/trace/traceTreeSizing";
 import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -21,6 +20,7 @@ import {
   DetailsPanelHeader,
 } from "./DetailsPanel";
 import { SessionDetails } from "./SessionDetails";
+import { getSessionDetailsPanelSizing } from "./sessionDetailsPanelSizing";
 import { SessionDetailsSkeleton } from "./SessionDetailsSkeleton";
 import {
   getSessionPreview,
@@ -48,9 +48,9 @@ export function SessionPage() {
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
   );
-  const hasTraceTreeTiming = sessionView === "traces" && showMetricsInTraceTree;
-  const { treeAddonWidth, treeMaximumWidth } = getTraceTreePanelSizing({
-    hasTiming: hasTraceTreeTiming,
+  const { treeAddonWidth, treeMaximumWidth } = getSessionDetailsPanelSizing({
+    sessionView,
+    showMetricsInTraceTree,
   });
   const {
     defaultDrawerSize,
