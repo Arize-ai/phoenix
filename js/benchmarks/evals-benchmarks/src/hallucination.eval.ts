@@ -30,7 +30,6 @@ const examplesByCategory: Record<string, Example[]> = {
       expectedLabel: "hallucinated",
     },
     {
-    {
       input:
         "User: The launch is scheduled for March 3.\nAssistant: Got it.\nUser: What's the launch date?",
       output: "The launch is on April 3.",
