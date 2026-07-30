@@ -7,6 +7,7 @@ import type { TraceAnnotationScoreTimeSeriesQuery } from "./__generated__/TraceA
 import { AnnotationScoreTimeSeriesChart } from "./AnnotationScoreTimeSeriesChart";
 import type { ProjectMetricViewProps } from "./types";
 import { useMetricQueryFetchOptions } from "./types";
+import { useProjectAnnotationConfigsByName } from "./useProjectAnnotationConfigsByName";
 
 export function TraceAnnotationScoreTimeSeries({
   projectId,
@@ -25,6 +26,7 @@ export function TraceAnnotationScoreTimeSeries({
       ) {
         project: node(id: $projectId) {
           ... on Project {
+            ...ProjectAnnotationMetricsConfigFragment
             traceAnnotationScoreTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
@@ -55,6 +57,9 @@ export function TraceAnnotationScoreTimeSeries({
     },
     useMetricQueryFetchOptions()
   );
+  const annotationConfigsByName = useProjectAnnotationConfigsByName(
+    data.project
+  );
 
   return (
     <AnnotationScoreTimeSeriesChart
@@ -63,6 +68,7 @@ export function TraceAnnotationScoreTimeSeries({
       scale={scale}
       timeRange={timeRange}
       onTimeRangeSelected={onTimeRangeSelected}
+      annotationConfigsByName={annotationConfigsByName}
     />
   );
 }

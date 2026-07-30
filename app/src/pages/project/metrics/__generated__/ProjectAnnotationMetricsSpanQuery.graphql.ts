@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6ba864683af320ddb58f89e156571760>>
+ * @generated SignedSource<<59472cb0779d4bb862d68fafc03e6fec>>
  * @lightSyntaxTransform
  */
 
@@ -76,20 +76,25 @@ v4 = [
   }
 ],
 v5 = {
+  "kind": "Literal",
+  "name": "first",
+  "value": 1
+},
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": [
     {
@@ -136,7 +141,7 @@ v7 = {
           "name": "annotationSummaries",
           "plural": true,
           "selections": [
-            (v5/*:: as any*/),
+            (v6/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -152,7 +157,7 @@ v7 = {
               "name": "labelFractions",
               "plural": true,
               "selections": [
-                (v6/*:: as any*/),
+                (v7/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -172,35 +177,35 @@ v7 = {
   ],
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -231,11 +236,24 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "args": null,
+                "args": [
+                  {
+                    "items": [
+                      {
+                        "kind": "Variable",
+                        "name": "annotationConfigNames.0",
+                        "variableName": "annotationName"
+                      }
+                    ],
+                    "kind": "ListValue",
+                    "name": "annotationConfigNames"
+                  },
+                  (v5/*:: as any*/)
+                ],
                 "kind": "FragmentSpread",
                 "name": "ProjectAnnotationMetricsConfigFragment"
               },
-              (v7/*:: as any*/)
+              (v8/*:: as any*/)
             ],
             "type": "Project",
             "abstractKey": null
@@ -266,18 +284,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v8/*:: as any*/),
+          (v9/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
                 "args": [
-                  {
-                    "kind": "Literal",
-                    "name": "first",
-                    "value": 1
-                  },
+                  (v5/*:: as any*/),
                   {
                     "items": [
                       {
@@ -311,11 +325,11 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v5/*:: as any*/),
+                              (v6/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -330,7 +344,7 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v9/*:: as any*/),
+                              (v10/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -339,7 +353,7 @@ return {
                                 "name": "values",
                                 "plural": true,
                                 "selections": [
-                                  (v6/*:: as any*/),
+                                  (v7/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -357,9 +371,9 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v9/*:: as any*/),
                               (v10/*:: as any*/),
-                              (v11/*:: as any*/)
+                              (v11/*:: as any*/),
+                              (v12/*:: as any*/)
                             ],
                             "type": "ContinuousAnnotationConfig",
                             "abstractKey": null
@@ -367,7 +381,7 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v9/*:: as any*/),
+                              (v10/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -375,8 +389,8 @@ return {
                                 "name": "threshold",
                                 "storageKey": null
                               },
-                              (v10/*:: as any*/),
-                              (v11/*:: as any*/)
+                              (v11/*:: as any*/),
+                              (v12/*:: as any*/)
                             ],
                             "type": "FreeformAnnotationConfig",
                             "abstractKey": null
@@ -384,7 +398,7 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v12/*:: as any*/)
+                              (v13/*:: as any*/)
                             ],
                             "type": "Node",
                             "abstractKey": "__isNode"
@@ -398,28 +412,28 @@ return {
                 ],
                 "storageKey": null
               },
-              (v7/*:: as any*/)
+              (v8/*:: as any*/)
             ],
             "type": "Project",
             "abstractKey": null
           },
-          (v12/*:: as any*/)
+          (v13/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "ee8a132b6d710fb63bde1b8e9802018c",
+    "cacheID": "e8a1283a79a9bf9e5e0ee542ffe9e19b",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationMetricsSpanQuery",
     "operationKind": "query",
-    "text": "query ProjectAnnotationMetricsSpanQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationMetricsConfigFragment\n      spanAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment on Project {\n  annotationConfigs(first: 1, names: [$annotationName]) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectAnnotationMetricsSpanQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationMetricsConfigFragment_3DyRD9\n      spanAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment_3DyRD9 on Project {\n  annotationConfigs(first: 1, names: [$annotationName]) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "94a5fc9e42b34163f053b1391f5dda5d";
+(node as any).hash = "dd03c54fb9301e3f0ae6e1d3d498879f";
 
 export default node;
