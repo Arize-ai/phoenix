@@ -117,4 +117,31 @@ describe("formatSetupOutput", () => {
       pretty
     );
   });
+
+  // All of setup's narration goes to stderr, so for a caller reading stdout the
+  // pretty summary is the entire report — it cannot be silent about the verdict.
+  it("pretty states the verdict on an instrumented run", () => {
+    const verified = formatSetupOutput({ report: REPORT });
+    const notVerified = formatSetupOutput({
+      report: { ...REPORT, tracesVerified: false },
+    });
+    expect(verified).toContain("traces: verified");
+    expect(notVerified).toContain("traces: NOT VERIFIED");
+    expect(notVerified).toContain("no trace arrived");
+    expect(notVerified).not.toBe(verified);
+  });
+
+  it("pretty omits the verdict when nothing was instrumented", () => {
+    const pretty = formatSetupOutput({
+      report: {
+        ...REPORT,
+        instrumentation: undefined,
+        tracesVerified: undefined,
+      },
+    });
+    // A register-only run had nothing to verify; "not verified" would misread
+    // as a failure of something it never attempted.
+    expect(pretty).not.toMatch(/^traces: /m);
+    expect(pretty).toContain("Instrument your app");
+  });
 });

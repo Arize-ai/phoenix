@@ -95,14 +95,34 @@ function renderJson(value: unknown, format: OutputFormat): string | undefined {
   return undefined;
 }
 
-/** The pretty rendering — what a headless run prints on stdout. */
+/**
+ * The pretty rendering — what a headless run prints on stdout.
+ *
+ * All of setup's narration goes to stderr, so for anything reading stdout this
+ * summary is the whole report. It therefore has to carry the verification
+ * verdict: without it, a run where no trace ever landed prints byte-identical
+ * output to one where tracing works, and reads as success.
+ *
+ * A run that never instrumented has nothing to verify, so it gets no verdict
+ * line rather than a misleading "not verified".
+ */
 export function headlessSummary(report: SetupReport): string {
-  return [
+  const lines = [
     `endpoint: ${report.connection.endpoint}`,
     `project: ${report.connection.projectName}`,
     `files: ${report.files.join(", ")}`,
+  ];
+  if (!report.instrumentation) {
+    return [...lines, "", COPY.HEADLESS.nextSteps(report.tracesUrl)].join("\n");
+  }
+  const verified = report.tracesVerified === true;
+  return [
+    ...lines,
+    `traces: ${verified ? "verified" : "NOT VERIFIED"}`,
     "",
-    COPY.HEADLESS.nextSteps(report.tracesUrl),
+    verified
+      ? COPY.VERIFY.received(report.tracesUrl)
+      : COPY.HEADLESS.notVerifiedNextSteps(report.tracesUrl),
   ].join("\n");
 }
 

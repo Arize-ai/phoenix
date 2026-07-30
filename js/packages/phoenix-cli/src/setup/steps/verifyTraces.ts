@@ -7,7 +7,7 @@
  * anyway") — never asked to eyeball the UI as the definition of done.
  */
 
-import type { PhoenixClient } from "@arizeai/phoenix-client";
+import { HttpError, type PhoenixClient } from "@arizeai/phoenix-client";
 
 import * as COPY from "../copy";
 import type { SetupDeps } from "../deps";
@@ -35,20 +35,26 @@ function searchStartTime(sinceMs: number, skewMs: number): string {
 }
 
 /**
- * True when the project already has spans inside the clock-skew window at
- * `sinceMs`. Checked before instrumentation begins: any span visible at that
- * point predates this run, so verification must not credit the skew window.
+ * True when the clock-skew window at `sinceMs` is known to be empty, and so
+ * safe for verification to count as part of this run.
+ *
+ * Checked before instrumentation begins: any span already visible at that
+ * point predates this run, so verification must not credit the window. An
+ * indeterminate probe answers false for the same reason — widening the window
+ * on an answer we could not get would let a span from before this run satisfy
+ * verification, which is the false success this whole step exists to prevent.
  */
-export async function hasSpansInSkewWindow(
+export async function skewWindowIsClear(
   deps: Pick<SetupDeps, "createClient">,
   connection: Connection,
   { sinceMs }: { sinceMs: number }
 ): Promise<boolean> {
-  return hasNewSpans(
+  const probe = await probeForNewSpans(
     spanSearchClient(deps, connection),
     connection.projectName,
     searchStartTime(sinceMs, START_TIME_SKEW_MS)
   );
+  return probe === "none";
 }
 
 function spanSearchClient(
@@ -62,15 +68,19 @@ function spanSearchClient(
 }
 
 /**
- * One span-search request. Any failure is a "not yet": a 404 means the project
- * has no spans to have created it, and a network hiccup mid-poll should keep
- * setup watching rather than abort it.
+ * What one span search established. `unknown` is the important one: the
+ * request did not come back with an answer, which is not the same as an answer
+ * of "no". Polling treats both as "keep watching", but the skew pre-check must
+ * not read a failed request as proof the window was empty.
  */
-async function hasNewSpans(
+type SpanProbe = "found" | "none" | "unknown";
+
+/** One span-search request. */
+async function probeForNewSpans(
   client: PhoenixClient,
   projectName: string,
   startTime: string
-): Promise<boolean> {
+): Promise<SpanProbe> {
   try {
     const { data } = await client.GET(
       "/v1/projects/{project_identifier}/spans",
@@ -82,9 +92,16 @@ async function hasNewSpans(
         signal: AbortSignal.timeout(POLL_REQUEST_TIMEOUT_MS),
       }
     );
-    return (data?.data.length ?? 0) > 0;
-  } catch {
-    return false;
+    return (data?.data.length ?? 0) > 0 ? "found" : "none";
+  } catch (error) {
+    // The client's middleware turns every non-2xx into an HttpError, so a
+    // status is only reachable from here. A 404 is a definite "none": the
+    // project does not exist, so nothing has ever been delivered to it.
+    // Everything else — an auth rejection, a 5xx, a timeout, a dropped
+    // socket — is an answer we did not get.
+    return error instanceof HttpError && error.status === 404
+      ? "none"
+      : "unknown";
   }
 }
 
@@ -97,7 +114,10 @@ async function pollWindow(
 ): Promise<boolean> {
   const deadline = deps.clock.now() + POLL_WINDOW_MS;
   for (;;) {
-    if (await hasNewSpans(client, connection.projectName, startTime)) {
+    if (
+      (await probeForNewSpans(client, connection.projectName, startTime)) ===
+      "found"
+    ) {
       return true;
     }
     if (deps.clock.now() >= deadline) {
@@ -118,8 +138,8 @@ async function pollWindow(
  *
  * @param args.sinceMs - instrumentation start; only spans after it count.
  * @param args.allowClockSkew - widen the window by the skew tolerance. Pass
- * false when the project had spans before instrumentation began (see
- * `hasSpansInSkewWindow`), so stale spans cannot satisfy verification.
+ * false unless the window was confirmed empty before instrumentation began
+ * (see {@link skewWindowIsClear}), so stale spans cannot satisfy verification.
  * @param args.headless - no prompting; give up after one window.
  */
 export async function waitForFirstTrace(

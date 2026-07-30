@@ -34,7 +34,7 @@ import { instrumentApp, type InstrumentationLane } from "./steps/instrumentApp";
 import type { DocsMcpResult } from "./steps/offerDocsMcp";
 import { offerPxProfile } from "./steps/offerPxProfile";
 import {
-  hasSpansInSkewWindow,
+  skewWindowIsClear,
   waitForFirstTrace,
   tracesUrl,
 } from "./steps/verifyTraces";
@@ -119,9 +119,24 @@ export async function runSetup(
   );
   // Untitled: the outro below already says it, and closes the rail.
   deps.prompter.note(COPY.OUTRO_BODY);
-  deps.prompter.outro(COPY.OUTRO_TITLE);
+  deps.prompter.outro(outroTitle(report));
 
   return { ...report, tooling };
+}
+
+/**
+ * The closing line, which is the last thing left on screen and so the run's
+ * verdict as the user reads it. It has to follow `tracesVerified`: the notes
+ * above it are informational either way, and closing on "You're set up." after
+ * an unverified hand-off is a success claim setup did not earn.
+ *
+ * A run that never instrumented has nothing to verify and keeps the plain
+ * title — registering is all it was asked to do.
+ */
+function outroTitle(report: SetupReport): string {
+  return report.instrumentation && !report.tracesVerified
+    ? COPY.OUTRO_TITLE_NOT_VERIFIED
+    : COPY.OUTRO_TITLE;
 }
 
 /**
@@ -144,7 +159,7 @@ export async function runInstrument(
   }
   const report = await registerAndInstrument(deps, inputs, { agentDetection });
   if (!inputs.headless) {
-    deps.prompter.outro(COPY.OUTRO_TITLE);
+    deps.prompter.outro(outroTitle(report));
   }
   return report;
 }
@@ -199,7 +214,7 @@ async function registerAndInstrument(
   // Any span already visible inside the clock-skew window predates this run —
   // verification must then require spans strictly after the start time, or a
   // pre-existing trace would falsely verify the hand-off.
-  const hadRecentSpans = await hasSpansInSkewWindow(deps, connection, {
+  const allowClockSkew = await skewWindowIsClear(deps, connection, {
     sinceMs: startedAt,
   });
 
@@ -232,7 +247,7 @@ async function registerAndInstrument(
   // even when no trace showed up.
   const tracesVerified = await waitForFirstTrace(deps, connection, {
     sinceMs: startedAt,
-    allowClockSkew: !hadRecentSpans,
+    allowClockSkew,
     headless: inputs.headless,
   });
 

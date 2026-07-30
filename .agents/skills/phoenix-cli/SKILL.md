@@ -104,6 +104,11 @@ falls back to the download. `--no-docs-mcp` suppresses the interactive offer.
 — check `tracesVerified`, which is set only when the API confirmed a trace
 arriving, not when the agent claims it finished.
 
+A run that instrumented and saw no trace exits `6`, not `0`: the configuration
+and edits are real, but tracing is not confirmed working. Treat that as a
+failure to report, not a success — and do not substitute the hand-off agent's
+own exit code or summary for the verdict.
+
 Re-runnable slices, so an already-registered repo skips the questions:
 
 ```bash

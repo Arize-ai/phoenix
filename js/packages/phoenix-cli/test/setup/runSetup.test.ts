@@ -393,8 +393,15 @@ describe("runSetup", () => {
 
     const result = await runSetupLane(deps);
     expect(result.headless).toBe(false);
+    expect(result.tracesVerified).toBe(false);
     expect(
       prompter.output.some((message) => message.includes("Not seeing traces?"))
+    ).toBe(true);
+    // The closing line is the last thing on screen and so the run's verdict as
+    // the user reads it: it must not claim success the run did not earn.
+    expect(prompter.output).not.toContain("You're set up.");
+    expect(
+      prompter.output.some((message) => message.includes("no trace arrived"))
     ).toBe(true);
   });
 
