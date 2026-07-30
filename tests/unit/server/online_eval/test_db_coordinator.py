@@ -96,6 +96,7 @@ async def _seed_session_work_units(db: DbSessionFactory, n: int) -> tuple[int, l
                 evaluator_id=evaluator.id,
                 criteria_id=criteria.id,
                 config_fingerprint=f"session-fp-{i}-{token_hex(8)}",
+                evaluated_through=project_session.last_span_seen_at,
             )
             for i in range(n)
         ]
@@ -509,6 +510,66 @@ async def test_session_claim_lifecycle_and_lag(db: DbSessionFactory) -> None:
     assert lag.frontier_gap == 0
     assert lag.oldest_pending_age_seconds is not None
     assert 100.0 <= lag.oldest_pending_age_seconds < 300.0
+
+
+@pytest.mark.parametrize("terminal_kind", ["exhausted_error", "expired"])
+async def test_session_no_result_terminal_history_allows_replacement(
+    db: DbSessionFactory,
+    terminal_kind: str,
+) -> None:
+    project_session_id, (unit_id,) = await _seed_session_work_units(db, 1)
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    async with db() as session:
+        original = await session.get(models.EvalSessionWorkUnit, unit_id)
+        assert original is not None
+        scheduled_at = original.evaluated_through
+    if terminal_kind == "exhausted_error":
+        async with db() as session:
+            await session.execute(
+                update(models.EvalSessionWorkUnit)
+                .where(models.EvalSessionWorkUnit.id == unit_id)
+                .values(attempts=MAX_ATTEMPTS - 1)
+            )
+    (claimed,) = await coordinator.claim(claimed_by="session-consumer", limit=1)
+
+    if terminal_kind == "exhausted_error":
+        assert await coordinator.fail(
+            work_unit_id=unit_id,
+            claimed_by=claimed.claimed_by,
+            error="no writable result",
+        )
+    else:
+        assert await coordinator.expire(
+            work_unit_id=unit_id,
+            claimed_by=claimed.claimed_by,
+            error=STALE_FINGERPRINT_ERROR,
+        )
+
+    async with db() as session:
+        terminal = await session.get(models.EvalSessionWorkUnit, unit_id)
+        assert terminal is not None
+        assert terminal.status == ("ERROR" if terminal_kind == "exhausted_error" else "EXPIRED")
+        assert terminal.evaluated_through == scheduled_at
+        replacement = models.EvalSessionWorkUnit(
+            project_session_rowid=terminal.project_session_rowid,
+            evaluator_id=terminal.evaluator_id,
+            criteria_id=terminal.criteria_id,
+            config_fingerprint=terminal.config_fingerprint,
+            evaluated_through=terminal.evaluated_through,
+        )
+        session.add(replacement)
+        await session.flush()
+        replacement_id = replacement.id
+        annotations = (
+            await session.scalars(
+                select(models.ProjectSessionAnnotation).where(
+                    models.ProjectSessionAnnotation.project_session_id == project_session_id
+                )
+            )
+        ).all()
+
+    assert replacement_id != unit_id
+    assert annotations == []
 
 
 @pytest.mark.postgres_only

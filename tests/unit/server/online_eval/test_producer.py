@@ -6,7 +6,6 @@ import pytest
 from sqlalchemy import delete, func, select, update
 
 from phoenix.db import models
-from phoenix.db.insertion.span import insert_span
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
