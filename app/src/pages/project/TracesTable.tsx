@@ -94,7 +94,10 @@ import {
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
-import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import {
+  SpanFilterConditionField,
+  type SpanFilterValidConditionArgs,
+} from "./SpanFilterConditionField";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
@@ -255,6 +258,16 @@ export function TracesTable(props: TracesTableProps) {
       { replace: true }
     );
   }, []);
+  const handleValidFilterCondition = useCallback(
+    ({ condition }: SpanFilterValidConditionArgs) => {
+      setFilterCondition(condition);
+      writeFilterConditionParam(condition);
+    },
+    // `writeFilterConditionParam` is stable; keeping this one stable too keeps
+    // the field's validation effect from re-running on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
@@ -1104,10 +1117,7 @@ export function TracesTable(props: TracesTableProps) {
         >
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
             <SpanFilterConditionField
-              onValidCondition={({ condition }) => {
-                setFilterCondition(condition);
-                writeFilterConditionParam(condition);
-              }}
+              onValidCondition={handleValidFilterCondition}
             />
             <TableMetricsChartSelector view="traces" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />

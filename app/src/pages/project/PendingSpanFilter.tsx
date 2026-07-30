@@ -1,6 +1,11 @@
+import { useCallback } from "react";
+
 import { Loading, View } from "@phoenix/components";
 
-import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import {
+  SpanFilterConditionField,
+  type SpanFilterValidConditionArgs,
+} from "./SpanFilterConditionField";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
@@ -22,6 +27,33 @@ export function PendingSpanFilter({
    */
   onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
 }) {
+  // Stable identities: the field's validation effect keys on these, so inline
+  // arrows would revalidate on every render.
+  const handleValidCondition = useCallback(
+    ({ condition, selectsRootSpansOnly }: SpanFilterValidConditionArgs) => {
+      onResolved({
+        condition,
+        requiresServerValidation: false,
+        rootSpansOnly: selectsRootSpansOnly ?? false,
+      });
+    },
+    [onResolved]
+  );
+  // A rejected or unanswerable condition still has to resolve to something
+  // loadable. The default shows root spans, as a link with no filter does,
+  // rather than every span -- wider than was asked for. The field keeps showing
+  // the text and its own error.
+  const handleValidationFailed = useCallback(() => {
+    onResolved(
+      {
+        condition: DEFAULT_SPAN_FILTER_CONDITION,
+        requiresServerValidation: false,
+        rootSpansOnly: true,
+      },
+      false
+    );
+  }, [onResolved]);
+
   return (
     <>
       <View
@@ -34,27 +66,8 @@ export function PendingSpanFilter({
         flex="none"
       >
         <SpanFilterConditionField
-          onValidCondition={({ condition, selectsRootSpansOnly }) =>
-            onResolved({
-              condition,
-              requiresServerValidation: false,
-              rootSpansOnly: selectsRootSpansOnly ?? false,
-            })
-          }
-          // A rejected or unanswerable condition still has to resolve to
-          // something loadable. The default shows root spans, as a link with no
-          // filter does, rather than every span -- wider than was asked for.
-          // The field keeps showing the text and its own error.
-          onValidationFailed={() =>
-            onResolved(
-              {
-                condition: DEFAULT_SPAN_FILTER_CONDITION,
-                requiresServerValidation: false,
-                rootSpansOnly: true,
-              },
-              false
-            )
-          }
+          onValidCondition={handleValidCondition}
+          onValidationFailed={handleValidationFailed}
         />
       </View>
       <Loading />

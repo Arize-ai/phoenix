@@ -133,6 +133,15 @@ export function ProjectPageContent({
   );
 }
 
+/** Whether the URL already carries this condition. */
+function urlAlreadyHasCondition(condition: string): boolean {
+  return (
+    new URLSearchParams(window.location.search).get(
+      SPAN_FILTER_CONDITION_PARAM
+    ) === condition
+  );
+}
+
 /**
  * The URL's condition when it needs no server answer, else null.
  *
@@ -235,7 +244,7 @@ function ProjectPageContentBody({
         // the URL, or a condition typed while waiting loses to the stale one
         // still in the address bar. Written even when empty: an absent param
         // seeds the default, an empty one means deliberately cleared.
-        if (persistToUrl) {
+        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
           setSearchParamsRef.current(
             (prev) => {
               const next = new URLSearchParams(prev);
@@ -269,7 +278,7 @@ function ProjectPageContentBody({
     (seed: SettledSpanFilterSeed, persistToUrl = true) => {
       startTransition(() => {
         setTracesFilterSeed(seed);
-        if (persistToUrl) {
+        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
           setSearchParamsRef.current(
             (prev) => {
               const next = new URLSearchParams(prev);
