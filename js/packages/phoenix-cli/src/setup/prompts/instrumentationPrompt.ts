@@ -102,7 +102,7 @@ Rules:
    ArizeExporter, a bare OTLPTraceExporter — must be given ${endpoint}/v1/traces. Handed the
    base URL it posts to the wrong path, and batching exporters swallow the delivery error, so
    every span is lost with nothing logged. Do not rewrite PHOENIX_COLLECTOR_ENDPOINT to carry
-   the path: \`px\` and the Phoenix clients read that variable as a base URL.
+   the path: \`px\` and the Phoenix SDKs read that variable as a base URL.
 5. Prefer auto-instrumentation packages over hand-written span wrappers. Make the smallest
    correct change.
 6. Verify your work by emitting exactly one trace: run the app briefly, or a minimal

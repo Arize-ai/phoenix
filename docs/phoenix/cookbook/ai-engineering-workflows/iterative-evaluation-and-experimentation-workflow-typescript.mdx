@@ -93,7 +93,7 @@ Always use multiple tools in sequence to provide comprehensive recommendations. 
     PHOENIX_API_KEY=your-api-key  # Only if authentication is enabled
     ```
 
-    `PHOENIX_COLLECTOR_ENDPOINT` is the Phoenix server's base URL. `src/mastra/index.ts` appends `/v1/traces` to it when constructing the `ArizeExporter`, because that exporter POSTs to the URL it is given exactly as given — pointed at the base URL, spans go to the wrong path and Mastra's batching exporter swallows the error, so no trace ever arrives. Leave the variable itself unsuffixed: Phoenix's own SDKs and clients read it as a base URL.
+    `PHOENIX_COLLECTOR_ENDPOINT` is the Phoenix server's base URL. `src/mastra/index.ts` appends `/v1/traces` to it when constructing the `ArizeExporter`, because that exporter POSTs to exactly the URL it is given — pointed at the base URL, spans go to the wrong path and Mastra's batching exporter swallows the error, so no trace ever arrives. Leave the variable itself unsuffixed: everything of Phoenix's that reads it treats it as a base URL.
   </Step>
 
   <Step title="Run the Agent">

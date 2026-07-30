@@ -66,7 +66,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     </Note>
 
     <Warning>
-      Don't append `/v1/traces` to `PHOENIX_COLLECTOR_ENDPOINT` itself. Phoenix's own SDKs and clients read that variable as a base URL and add the path they need, so a suffixed value breaks them. `ArizeExporter`, by contrast, POSTs to the URL it is given exactly as given: hand it the base URL and every span goes to the wrong path, where Mastra's batching exporter swallows the error and no trace ever appears.
+      Don't append `/v1/traces` to `PHOENIX_COLLECTOR_ENDPOINT` itself. Everything of Phoenix's that reads that variable — `register()`, the `px` CLI, the Python client — treats it as a base URL and builds its own request paths on top of it. `ArizeExporter`, by contrast, POSTs to exactly the URL it is given: hand it the base URL and every span goes to the wrong path, where Mastra's batching exporter swallows the error and no trace ever appears.
     </Warning>
 
     ### **Connect Your Project in Phoenix** 

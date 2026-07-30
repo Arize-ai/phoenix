@@ -40,8 +40,8 @@ PHOENIX_PROJECT_NAME=mastra-project
 ```
 
 `PHOENIX_COLLECTOR_ENDPOINT` is the Phoenix server's base URL. `src/mastra/index.ts` appends
-`/v1/traces` to it when constructing the `ArizeExporter`, because that exporter POSTs to the URL
-it is given exactly as given — pointed at the base URL, spans go to the wrong path and Mastra's
+`/v1/traces` to it when constructing the `ArizeExporter`, because that exporter POSTs to exactly
+the URL it is given — pointed at the base URL, spans go to the wrong path and Mastra's
 batching exporter swallows the error, so no trace ever arrives.
 
 If you are using Phoenix Cloud or any instance with authentication enabled, also set

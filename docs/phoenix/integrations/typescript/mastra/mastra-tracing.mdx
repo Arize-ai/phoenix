@@ -58,14 +58,15 @@ export const mastra = new Mastra({
 
 <Warning>
   Pass the exporter the suffixed URL, not `PHOENIX_COLLECTOR_ENDPOINT` itself. `ArizeExporter`
-  POSTs to the `endpoint` it is given exactly as given — unlike Phoenix's own SDKs, it does not
+  POSTs to exactly the `endpoint` it is given — unlike Phoenix's own SDKs, it does not
   append the OTLP path — so a base URL such as `http://localhost:6006` sends spans to the wrong
   path. Mastra's batching exporter swallows the delivery error, so traces simply never appear
   and nothing is logged.
 
   For the same reason, do not move `/v1/traces` into `PHOENIX_COLLECTOR_ENDPOINT`. That variable
-  is [documented](/docs/phoenix/environments) as the server's base URL, and the Phoenix clients,
-  the `px` CLI, and `register()` all build their request paths on top of it.
+  is [documented](/docs/phoenix/environments) as the server's base URL, and everything of
+  Phoenix's that reads it — `register()`, the `px` CLI, the Python client — builds its own
+  request paths on top of it.
 </Warning>
 
 Constructing `new ArizeExporter()` with no arguments reads `PHOENIX_COLLECTOR_ENDPOINT` and posts

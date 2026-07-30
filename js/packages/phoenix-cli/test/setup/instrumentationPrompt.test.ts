@@ -44,8 +44,8 @@ describe("buildInstrumentationPrompt", () => {
   });
 
   it("forbids moving the OTLP path into PHOENIX_COLLECTOR_ENDPOINT", () => {
-    // px and both Phoenix clients read that variable as a base URL, so a
-    // suffixed value fixes one exporter and breaks everything else.
+    // px and the Phoenix SDKs read that variable as a base URL, so a
+    // suffixed value fixes one exporter at everything else's expense.
     expect(buildInstrumentationPrompt(ARGS)).toContain(
       "Do not rewrite PHOENIX_COLLECTOR_ENDPOINT to carry"
     );
