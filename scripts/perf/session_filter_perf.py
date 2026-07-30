@@ -1,21 +1,22 @@
-"""Aggregate-predicate perf harness for the session filter DSL.
+"""Perf harness for the session filter DSL, measured through the seams the server calls.
 
-Benchmarks the two SQL shapes a session aggregate predicate can compile to — Option A (the
-grouped-subquery LEFT JOIN that ``SessionFilter`` emits) and Option B (per-session correlated
-scalar subqueries) — across cardinality tiers and both dialects, in two load shapes:
+Every measured query is built by ``phoenix.server.session_filters`` —
+``apply_session_filter_to_page`` for a page and ``get_filtered_session_rowids_subquery`` for a
+count or a sweep — so the harness tracks the shipped dispatch instead of a local reconstruction
+of it. The filter-and-sort overlap case composes ``ProjectSessionSort`` with the page seam the
+same way the sessions resolver does.
 
-- **view-shaped**: a paginated, project-wide filter (single ``num_traces >= 5`` and combined
-  ``num_traces >= 5 AND total_cost > 0.1``);
-- **sweep-shaped**: the online-eval tick — the filter scoped to a small candidate set
-  (10/100/1000 sessions), asserting per-tick latency stays ~flat as total session count grows.
+The report is a matrix over three axes:
 
-Both shapes also measure the two comprehension forms — a quantifier (``any(... for s in spans)``,
-which compiles to a correlated ``EXISTS``) and a filtered reduction (``len([...]) >= 3``, a
-correlated ``COUNT``) — against the aggregate baselines.
+- **construct family** — aggregate, quantifier (``any`` and ``all``), reduction, root-span IO in
+  both its window and its ``EXISTS`` form, wire-key attribute, and annotation;
+- **access pattern** — page (a paginated, project-wide filter), count (an exact filtered count),
+  and sweep (the online-eval tick, scoped to a small candidate set);
+- **selectivity** — frequent, rare, and zero-match, because ``any`` exits on the first match and
+  ``all`` on the first counterexample, so their costs invert across those regimes.
 
-Each measured query runs ``--runs`` times in randomized order; we report median + p95 wall-clock
-and a structural plan check (SQLite: no ``CORRELATED SCALAR SUBQUERY`` for Option A; PostgreSQL:
-HashAggregate + Hash/Merge Join, no per-row ``SubPlan``).
+Each measured query runs ``--runs`` times in randomized order; we report median and p95
+wall-clock.
 
 Usage::
 
@@ -23,8 +24,9 @@ Usage::
     uv run python scripts/perf/session_filter_perf.py --dialect postgresql \
         --postgres-url postgresql+psycopg://user@localhost:5432/perf --sessions 1000
 
-SQLite seeds a temp file DB; PostgreSQL requires an empty target database (``--postgres-url``).
-Seeding is bulk Core inserts; larger tiers require proportionally more memory for seeding.
+SQLite seeds a temp file DB. PostgreSQL needs an empty target database; pointing
+``--postgres-url`` at one that already has tables requires ``--drop-existing``. Seeding is bulk
+Core inserts; larger tiers require proportionally more memory for seeding.
 """
 
 from __future__ import annotations
@@ -35,24 +37,78 @@ import statistics
 import time
 from datetime import datetime, timedelta, timezone
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Optional
+from typing import Any, Callable, NamedTuple, Optional
 
-from sqlalchemy import Engine, create_engine, select, text
+from sqlalchemy import Engine, create_engine, func, inspect, select, text
 from sqlalchemy.sql.expression import Select
 
 from phoenix.db import models
-from phoenix.trace.dsl.session_filter import SessionFilter
+from phoenix.server.api.input_types.ProjectSessionSort import (
+    ProjectSessionColumn,
+    ProjectSessionSort,
+)
+from phoenix.server.api.types.SortDir import SortDir
+from phoenix.server.session_filters import (
+    apply_session_filter_to_page,
+    get_filtered_session_rowids_subquery,
+)
 
 _EPOCH = datetime(2024, 1, 1, tzinfo=timezone.utc)
-_SINGLE = "num_traces >= 5"
-_COMBINED = "num_traces >= 5 and total_cost > 0.1"
-# Comprehension shapes, which compile to correlated subqueries over the span table regardless of
-# `aggregate_shape` — the quantifier can early-exit, the reduction has to count every match.
-_QUANTIFIER = 'any(s.span_kind == "TOOL" for s in spans)'
-_REDUCTION = 'len([s for s in spans if s.span_kind == "TOOL"]) >= 3'
-# Root-span attribute predicate: wire-key resolution reads the earliest root span's JSON through
-# a COALESCE over the candidate storage paths (unindexed on both dialects).
-_ATTRIBUTE = '"gpt" in attributes["llm.model_name"]'
+_PAGE_SIZE = 50
+_ABSENT = "no-such-value-in-the-seed"
+
+# Seeded frequencies the selectivity labels below are read from.
+_ERROR_SESSION_RATE = 0.05
+_LLM_ONLY_SESSION_RATE = 0.05
+_ANNOTATED_SESSION_RATE = 0.30
+_MULTI_IDENTIFIER_RATE = 0.20
+_SPAN_ANNOTATION_RATE = 0.10
+_MODELS = ("gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", None)
+_INPUTS = ("where is my refund", "cancel my order", "reset my password")
+
+
+class Condition(NamedTuple):
+    family: str
+    selectivity: str
+    condition: str
+
+
+CONDITIONS: tuple[Condition, ...] = (
+    Condition("aggregate", "frequent", "num_traces >= 2"),
+    Condition("aggregate", "rare", "num_traces >= 30"),
+    Condition("aggregate", "zero", "num_traces >= 100000"),
+    Condition("quantifier any", "frequent", 'any(s.span_kind == "TOOL" for s in spans)'),
+    Condition("quantifier any", "rare", 'any(s.status_code == "ERROR" for s in spans)'),
+    Condition("quantifier any", "zero", f'any(s.name == "{_ABSENT}" for s in spans)'),
+    Condition("quantifier all", "frequent", 'all(s.status_code == "OK" for s in spans)'),
+    Condition("quantifier all", "rare", 'all(s.span_kind == "LLM" for s in spans)'),
+    Condition("quantifier all", "zero", f'all(s.name == "{_ABSENT}" for s in spans)'),
+    Condition("reduction", "frequent", 'len([s for s in spans if s.span_kind == "TOOL"]) >= 1'),
+    Condition("reduction", "rare", 'len([s for s in spans if s.span_kind == "TOOL"]) >= 60'),
+    Condition("reduction", "zero", 'len([s for s in spans if s.span_kind == "TOOL"]) >= 100000'),
+    Condition("cost detail reduction", "frequent", "sum(d.tokens for d in span_cost_details) > 0"),
+    Condition("cost detail reduction", "rare", "sum(d.tokens for d in span_cost_details) > 400"),
+    Condition(
+        "cost detail reduction", "zero", "sum(d.tokens for d in span_cost_details) > 1000000000"
+    ),
+    Condition("span annotation", "frequent", "any(a.score >= 0.0 for a in span_annotations)"),
+    Condition("span annotation", "rare", "any(a.score > 0.99 for a in span_annotations)"),
+    Condition("span annotation", "zero", "any(a.score > 1.5 for a in span_annotations)"),
+    Condition("io window", "frequent", "'refund' in first_input or 'order' in first_input"),
+    Condition("io window", "rare", "'password' in first_input"),
+    Condition("io window", "zero", f"'{_ABSENT}' in first_input"),
+    Condition("io exists", "frequent", "'refund' in any_input or 'order' in any_input"),
+    Condition("io exists", "rare", "'password' in any_input"),
+    Condition("io exists", "zero", f"'{_ABSENT}' in any_input"),
+    Condition("attribute", "frequent", '"gpt" in attributes["llm.model_name"]'),
+    Condition("attribute", "rare", 'attributes["llm.model_name"] == "claude-3-5-sonnet"'),
+    Condition("attribute", "zero", f'attributes["llm.model_name"] == "{_ABSENT}"'),
+    Condition("annotation", "frequent", 'annotations["Quality"].score >= 0.0'),
+    Condition("annotation", "rare", 'annotations["Quality"].score > 0.95'),
+    Condition("annotation", "zero", 'annotations["Quality"].score > 1.5'),
+)
+
+_SORT_OVERLAP_CONDITION = "num_traces >= 5"
 
 
 # --- seeding ---------------------------------------------------------------------------------
@@ -70,13 +126,13 @@ def _skewed_num_traces(rng: random.Random) -> int:
 
 def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
     """Bulk-seed one project with ``n_sessions`` skewed sessions; return counts + rowids."""
-    # Reset between tiers: a reused PostgreSQL database is not empty (a fresh SQLite temp file is).
     models.Base.metadata.drop_all(engine)
     models.Base.metadata.create_all(engine)
     trace_rows: list[dict[str, Any]] = []
     span_rows: list[dict[str, Any]] = []
     cost_rows: list[dict[str, Any]] = []
     session_rows: list[dict[str, Any]] = []
+    session_annotation_rows: list[dict[str, Any]] = []
 
     with engine.begin() as conn:
         if engine.dialect.name == "sqlite":
@@ -105,11 +161,17 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
             ).scalars()
         )
 
+        erroring_sessions: set[int] = set()
+        llm_only_sessions: set[int] = set()
         span_counter = 0
         trace_counter = 0
         for session_rowid in session_ids:
             # 0.02 flat cost per trace ⇒ any session with >=5 traces clears the 0.1 cost bar.
             num_traces = _skewed_num_traces(rng)
+            if rng.random() < _ERROR_SESSION_RATE:
+                erroring_sessions.add(session_rowid)
+            if rng.random() < _LLM_ONLY_SESSION_RATE:
+                llm_only_sessions.add(session_rowid)
             base = _EPOCH + timedelta(seconds=rng.randint(0, 10_000_000))
             for trace_index in range(num_traces):
                 trace_start = base + timedelta(seconds=trace_index)
@@ -123,7 +185,23 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
                     }
                 )
                 trace_counter += 1
+            if rng.random() < _ANNOTATED_SESSION_RATE:
+                identifiers = ["primary"]
+                if rng.random() < _MULTI_IDENTIFIER_RATE:
+                    identifiers.append("second-pass")
+                for identifier in identifiers:
+                    session_annotation_rows.append(
+                        _annotation_row(
+                            {"project_session_id": session_rowid},
+                            score=round(rng.random(), 3),
+                            identifier=identifier,
+                        )
+                    )
         conn.execute(models.Trace.__table__.insert(), trace_rows)
+        if session_annotation_rows:
+            conn.execute(
+                models.ProjectSessionAnnotation.__table__.insert(), session_annotation_rows
+            )
         trace_ids = list(
             conn.execute(
                 select(models.Trace.id, models.Trace.project_session_rowid).where(
@@ -132,20 +210,17 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
             )
         )
 
+        annotated_span_ids: list[str] = []
         for trace_id, session_rowid in trace_ids:
             spans_in_trace = rng.randint(8, 16)
             root_span_id = f"sp{span_counter:x}"
             root_start = _EPOCH + timedelta(seconds=rng.randint(0, 10_000_000))
-            model = rng.choice(["gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", None])
+            model = rng.choice(_MODELS)
+            attributes: dict[str, Any] = {"input": {"value": rng.choice(_INPUTS)}}
+            if model is not None:
+                attributes["llm"] = {"model_name": model}
             span_rows.append(
-                _span_row(
-                    root_span_id,
-                    None,
-                    trace_id,
-                    "LLM",
-                    root_start,
-                    attributes=None if model is None else {"llm": {"model_name": model}},
-                )
+                _span_row(root_span_id, None, trace_id, "LLM", root_start, attributes=attributes)
             )
             span_counter += 1
             cost_rows.append(
@@ -160,22 +235,65 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
                 }
             )
             for _ in range(spans_in_trace - 1):
-                kind = "TOOL" if rng.random() < 0.5 else "LLM"
+                if session_rowid in llm_only_sessions:
+                    kind = "LLM"
+                else:
+                    kind = "TOOL" if rng.random() < 0.5 else "LLM"
+                errored = session_rowid in erroring_sessions and rng.random() < 0.2
+                span_id = f"sp{span_counter:x}"
                 span_rows.append(
-                    _span_row(f"sp{span_counter:x}", root_span_id, trace_id, kind, root_start)
+                    _span_row(
+                        span_id,
+                        root_span_id,
+                        trace_id,
+                        kind,
+                        root_start,
+                        status_code="ERROR" if errored else "OK",
+                    )
                 )
+                if rng.random() < _SPAN_ANNOTATION_RATE:
+                    annotated_span_ids.append(span_id)
                 span_counter += 1
         conn.execute(models.Span.__table__.insert(), span_rows)
 
-        # Resolve root span rowids for the cost rows (SpanCost.span_rowid is NOT NULL).
-        root_ids = dict(
+        span_rowids = dict(
             conn.execute(
-                select(models.Span.span_id, models.Span.id).where(models.Span.parent_id.is_(None))
+                select(models.Span.span_id, models.Span.id).where(
+                    models.Span.trace_rowid.in_(select(models.Trace.id))
+                )
             ).all()
         )
         for cost_row in cost_rows:
-            cost_row["span_rowid"] = root_ids[cost_row.pop("_root_span_id")]
+            cost_row["span_rowid"] = span_rowids[cost_row.pop("_root_span_id")]
         conn.execute(models.SpanCost.__table__.insert(), cost_rows)
+
+        if annotated_span_ids:
+            conn.execute(
+                models.SpanAnnotation.__table__.insert(),
+                [
+                    _annotation_row(
+                        {"span_rowid": span_rowids[span_id]},
+                        score=round(rng.random(), 3),
+                        identifier="primary",
+                    )
+                    for span_id in annotated_span_ids
+                ],
+            )
+
+        cost_ids = list(conn.execute(select(models.SpanCost.id)).scalars())
+        detail_rows = [
+            {
+                "span_cost_id": cost_id,
+                "token_type": token_type,
+                "is_prompt": is_prompt,
+                "cost": 0.01,
+                "tokens": 5,
+                "cost_per_token": 0.002,
+            }
+            for cost_id in cost_ids
+            for token_type, is_prompt in (("input", True), ("output", False))
+        ]
+        conn.execute(models.SpanCostDetail.__table__.insert(), detail_rows)
 
         if engine.dialect.name == "postgresql":
             conn.exec_driver_sql("ANALYZE")
@@ -186,6 +304,22 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
         "n_sessions": len(session_ids),
         "n_traces": len(trace_rows),
         "n_spans": len(span_rows),
+        "n_session_annotations": len(session_annotation_rows),
+        "n_span_annotations": len(annotated_span_ids),
+        "n_cost_details": len(detail_rows),
+    }
+
+
+def _annotation_row(key: dict[str, Any], score: float, identifier: str) -> dict[str, Any]:
+    return {
+        **key,
+        "name": "Quality",
+        "label": "good" if score >= 0.5 else "poor",
+        "score": score,
+        "metadata": {},
+        "annotator_kind": "HUMAN",
+        "source": "APP",
+        "identifier": identifier,
     }
 
 
@@ -196,6 +330,7 @@ def _span_row(
     kind: str,
     start: datetime,
     attributes: Optional[dict[str, Any]] = None,
+    status_code: str = "OK",
 ) -> dict[str, Any]:
     return {
         "trace_rowid": trace_rowid,
@@ -207,9 +342,9 @@ def _span_row(
         "end_time": start + timedelta(seconds=1),
         "attributes": attributes or {},
         "events": [],
-        "status_code": "OK",
+        "status_code": status_code,
         "status_message": "",
-        "cumulative_error_count": 0,
+        "cumulative_error_count": 1 if status_code == "ERROR" else 0,
         "cumulative_llm_token_count_prompt": 5,
         "cumulative_llm_token_count_completion": 7,
         "llm_token_count_prompt": 5 if kind == "LLM" else None,
@@ -220,34 +355,52 @@ def _span_row(
 # --- query shapes ----------------------------------------------------------------------------
 
 
-def option_a(
-    condition: str, project_id: int, candidates: Optional[list[int]] = None
-) -> Select[Any]:
-    # No DISTINCT: PostgreSQL rejects DISTINCT + ORDER BY a non-selected column in the view shape.
-    base = select(models.ProjectSession.id).where(models.ProjectSession.project_id == project_id)
-    if candidates is not None:
-        base = base.where(models.ProjectSession.id.in_(candidates))
-    return SessionFilter(condition)(
-        base,
-        candidate_session_rowids=candidates,
+def page(condition: str, project_id: int) -> Select[Any]:
+    """A paginated project-wide filter, built exactly as the sessions resolver builds it."""
+    stmt = select(models.ProjectSession.id).where(models.ProjectSession.project_id == project_id)
+    stmt = apply_session_filter_to_page(stmt, condition, project_rowids=[project_id])
+    return stmt.order_by(models.ProjectSession.start_time.desc()).limit(_PAGE_SIZE)
+
+
+def sorted_page(condition: str, project_id: int) -> Select[Any]:
+    """A page ordered by an aggregate column while filtering on the same aggregate."""
+    stmt = select(models.ProjectSession).where(models.ProjectSession.project_id == project_id)
+    sort_config = ProjectSessionSort(
+        col=ProjectSessionColumn.numTraces, dir=SortDir.desc
+    ).update_orm_expr(stmt, project_rowids=[project_id])
+    stmt = apply_session_filter_to_page(
+        sort_config.stmt,
+        condition,
         project_rowids=[project_id],
-        aggregate_shape="grouped",
+        prejoined_aggregate=sort_config.prejoined_aggregate,
+    )
+    return stmt.limit(_PAGE_SIZE)
+
+
+def count(condition: str, project_id: int) -> Select[Any]:
+    """An exact filtered session count."""
+    return (
+        select(func.count(models.ProjectSession.id))
+        .where(models.ProjectSession.project_id == project_id)
+        .where(
+            models.ProjectSession.id.in_(
+                get_filtered_session_rowids_subquery(condition, project_rowids=[project_id])
+            )
+        )
     )
 
 
-def option_b(
-    condition: str, project_id: int, candidates: Optional[list[int]] = None
-) -> Select[Any]:
-    """The same predicate expressed with the production correlated aggregate shape."""
-    session_col = models.ProjectSession.id
-    base = select(session_col).where(models.ProjectSession.project_id == project_id)
-    if candidates is not None:
-        base = base.where(session_col.in_(candidates))
-    return SessionFilter(condition)(
-        base,
-        candidate_session_rowids=candidates,
-        project_rowids=[project_id],
-        aggregate_shape="correlated",
+def sweep(condition: str, project_id: int, candidates: list[int]) -> Select[Any]:
+    """The online-eval tick: the filter resolved against a small candidate set."""
+    return (
+        select(models.ProjectSession.id)
+        .where(models.ProjectSession.project_id == project_id)
+        .where(models.ProjectSession.id.in_(candidates))
+        .where(
+            models.ProjectSession.id.in_(
+                get_filtered_session_rowids_subquery(condition, project_rowids=[project_id])
+            )
+        )
     )
 
 
@@ -286,6 +439,11 @@ def _p95(times: list[float]) -> float:
     return ordered[index]
 
 
+def _matched(engine: Engine, condition: str, project_id: int) -> int:
+    with engine.connect() as conn:
+        return int(conn.execute(count(condition, project_id)).scalar_one())
+
+
 def explain(engine: Engine, stmt: Select[Any]) -> str:
     compiled = str(stmt.compile(engine, compile_kwargs={"literal_binds": True}))
     keyword = "EXPLAIN QUERY PLAN" if engine.dialect.name == "sqlite" else "EXPLAIN ANALYZE"
@@ -294,105 +452,77 @@ def explain(engine: Engine, stmt: Select[Any]) -> str:
     return "\n".join(" ".join(str(cell) for cell in row) for row in rows)
 
 
-def plan_check(dialect: str, plan_a: str, plan_b: str) -> dict[str, bool]:
-    upper_a = plan_a.upper()
-    upper_b = plan_b.upper()
-    if dialect == "sqlite":
-        return {
-            "option_a_no_correlated_scalar": "CORRELATED SCALAR SUBQUERY" not in upper_a,
-            "option_b_has_correlated_scalar": "CORRELATED SCALAR SUBQUERY" in upper_b,
-        }
-    return {
-        "option_a_has_hashaggregate": "HASHAGGREGATE" in upper_a,
-        "option_a_no_subplan": "SUBPLAN" not in upper_a,
-        "option_b_has_subplan": "SUBPLAN" in upper_b,
-    }
-
-
 # --- driver ----------------------------------------------------------------------------------
 
 
 def run_tier(engine: Engine, dialect: str, n_sessions: int, runs: int, rng: random.Random) -> str:
     stats = seed(engine, n_sessions, rng)
     project_id = stats["project_id"]
+    session_ids = stats["session_ids"]
     lines: list[str] = []
     lines.append(
         f"### {dialect} — {stats['n_sessions']} sessions, "
-        f"{stats['n_traces']} traces, {stats['n_spans']} spans\n"
+        f"{stats['n_traces']} traces, {stats['n_spans']} spans, "
+        f"{stats['n_session_annotations']} session annotations, "
+        f"{stats['n_span_annotations']} span annotations, "
+        f"{stats['n_cost_details']} cost details\n"
     )
 
-    # View-shaped: paginated project-wide filter.
-    def view(builder: Callable[..., Select[Any]], condition: str) -> Select[Any]:
-        return (
-            builder(condition, project_id)
-            .order_by(models.ProjectSession.start_time.desc())
-            .limit(50)
-        )
+    sweep_candidates = rng.sample(session_ids, min(1000, len(session_ids)))
+    matched = {spec.condition: _matched(engine, spec.condition, project_id) for spec in CONDITIONS}
 
-    view_tasks: dict[str, Callable[[], Select[Any]]] = {
-        "A single (num_traces>=5)": lambda: view(option_a, _SINGLE),
-        "B single (num_traces>=5)": lambda: view(option_b, _SINGLE),
-        "A combined": lambda: view(option_a, _COMBINED),
-        "B combined": lambda: view(option_b, _COMBINED),
-        "quantifier EXISTS (any TOOL span)": lambda: view(option_a, _QUANTIFIER),
-        "filtered reduction (>=3 TOOL spans)": lambda: view(option_a, _REDUCTION),
-        "attribute wire-key (gpt in llm.model_name)": lambda: view(option_a, _ATTRIBUTE),
-        "unfiltered page": lambda: (
-            select(models.ProjectSession.id)
-            .where(models.ProjectSession.project_id == project_id)
-            .order_by(models.ProjectSession.start_time.desc())
-            .limit(50)
-        ),
-    }
-    view_results = measure(engine, view_tasks, runs)
-    lines.append("**View-shaped** (median / p95 ms, {} runs):\n".format(runs))
-    lines.append("| query | median ms | p95 ms |")
-    lines.append("|---|---|---|")
-    for label, result in view_results.items():
-        lines.append(f"| {label} | {result['median_ms']:.1f} | {result['p95_ms']:.1f} |")
+    tasks: dict[str, Callable[[], Select[Any]]] = {}
+    for spec in CONDITIONS:
+        key = f"{spec.family}|{spec.selectivity}"
+        tasks[f"{key}|page"] = lambda c=spec.condition: page(c, project_id)
+        tasks[f"{key}|count"] = lambda c=spec.condition: count(c, project_id)
+        tasks[f"{key}|sweep"] = lambda c=spec.condition, k=sweep_candidates: sweep(c, project_id, k)
+    tasks["baseline|-|unfiltered page"] = lambda: (
+        select(models.ProjectSession.id)
+        .where(models.ProjectSession.project_id == project_id)
+        .order_by(models.ProjectSession.start_time.desc())
+        .limit(_PAGE_SIZE)
+    )
+    tasks["sort overlap|-|page"] = lambda: sorted_page(_SORT_OVERLAP_CONDITION, project_id)
+    results = measure(engine, tasks, runs)
+
+    lines.append(f"**Matrix** (median / p95 ms, {runs} runs):\n")
+    lines.append("| family | selectivity | access | matched sessions | median ms | p95 ms |")
+    lines.append("|---|---|---|---|---|---|")
+    for spec in CONDITIONS:
+        for access in ("page", "count", "sweep"):
+            result = results[f"{spec.family}|{spec.selectivity}|{access}"]
+            lines.append(
+                f"| {spec.family} | {spec.selectivity} | {access} | {matched[spec.condition]} "
+                f"| {result['median_ms']:.1f} | {result['p95_ms']:.1f} |"
+            )
+    for label in ("baseline|-|unfiltered page", "sort overlap|-|page"):
+        family, selectivity, access = label.split("|")
+        result = results[label]
+        lines.append(
+            f"| {family} | {selectivity} | {access} | — "
+            f"| {result['median_ms']:.1f} | {result['p95_ms']:.1f} |"
+        )
     lines.append("")
 
-    plan_a = explain(engine, view(option_a, _COMBINED))
-    plan_b = explain(engine, view(option_b, _COMBINED))
-    checks = plan_check(dialect, plan_a, plan_b)
-    lines.append("**Structural plan check:** " + ", ".join(f"{k}={v}" for k, v in checks.items()))
-    lines.append(
-        "\n<details><summary>Option A plan</summary>\n\n```\n" + plan_a + "\n```\n</details>"
-    )
-    lines.append(
-        "<details><summary>Option B plan</summary>\n\n```\n" + plan_b + "\n```\n</details>\n"
-    )
-
-    # Sweep-shaped: candidate-scoped tick at 10/100/1000.
-    session_ids = stats["session_ids"]
-    sweep_tasks: dict[str, Callable[[], Select[Any]]] = {}
-    for k in (10, 100, 1000):
-        if k > len(session_ids):
-            continue
-        candidates = rng.sample(session_ids, k)
-        sweep_tasks[f"A sweep k={k}"] = lambda cond=_COMBINED, cands=candidates: option_a(
-            cond, project_id, cands
-        )
-        sweep_tasks[f"B sweep k={k}"] = lambda cond=_COMBINED, cands=candidates: option_b(
-            cond, project_id, cands
-        )
-        sweep_tasks[f"quantifier sweep k={k}"] = lambda cond=_QUANTIFIER, cands=candidates: (
-            option_a(cond, project_id, cands)
-        )
-        sweep_tasks[f"reduction sweep k={k}"] = lambda cond=_REDUCTION, cands=candidates: option_a(
-            cond, project_id, cands
-        )
-    sweep_results = measure(engine, sweep_tasks, runs)
-    lines.append("**Sweep-shaped** (candidate-scoped):\n")
-    lines.append("| query | median ms | p95 ms |")
+    lines.append("**Conditions measured:**\n")
+    lines.append("| family | selectivity | condition |")
     lines.append("|---|---|---|")
-    for label, result in sweep_results.items():
-        lines.append(f"| {label} | {result['median_ms']:.1f} | {result['p95_ms']:.1f} |")
+    for spec in CONDITIONS:
+        lines.append(f"| {spec.family} | {spec.selectivity} | `{spec.condition}` |")
+    lines.append(f"| sort overlap | — | `{_SORT_OVERLAP_CONDITION}` ordered by numTraces |")
     lines.append("")
+
+    plan = explain(engine, sorted_page(_SORT_OVERLAP_CONDITION, project_id))
+    lines.append(
+        "<details><summary>Sorted-page plan</summary>\n\n```\n" + plan + "\n```\n</details>\n"
+    )
     return "\n".join(lines)
 
 
-def build_engine(dialect: str, postgres_url: Optional[str]) -> tuple[Engine, Optional[str]]:
+def build_engine(
+    dialect: str, postgres_url: Optional[str], drop_existing: bool
+) -> tuple[Engine, Optional[str]]:
     if dialect == "sqlite":
         # The production driver: sqlean's `text` extension supplies the `text_contains` UDF the
         # containment predicates compile to on SQLite.
@@ -404,7 +534,17 @@ def build_engine(dialect: str, postgres_url: Optional[str]) -> tuple[Engine, Opt
         return create_engine(f"sqlite:///{tmp.name}", module=sqlean), tmp.name
     if not postgres_url:
         raise SystemExit("--postgres-url is required for --dialect postgresql")
-    return create_engine(postgres_url), None
+    engine = create_engine(postgres_url)
+    # Seeding drops every table it is about to recreate, so a mistyped URL would destroy whatever
+    # lives at the target. Refuse unless the database is empty or the caller opted in explicitly.
+    existing = inspect(engine).get_table_names()
+    if existing and not drop_existing:
+        engine.dispose()
+        raise SystemExit(
+            f"{postgres_url} already has {len(existing)} tables; seeding would drop them. "
+            "Point --postgres-url at an empty database, or pass --drop-existing."
+        )
+    return engine, None
 
 
 def main() -> None:
@@ -414,16 +554,21 @@ def main() -> None:
     parser.add_argument("--sessions", type=int, nargs="+", default=[1000, 10000])
     parser.add_argument("--runs", type=int, default=20)
     parser.add_argument("--seed", type=int, default=1234)
+    parser.add_argument(
+        "--drop-existing",
+        action="store_true",
+        help="Allow seeding to drop the tables already present in the target database.",
+    )
     args = parser.parse_args()
 
+    engine, _ = build_engine(args.dialect, args.postgres_url, args.drop_existing)
     report: list[str] = [f"## {args.dialect} ({args.runs} runs/query)\n"]
-    for n_sessions in args.sessions:
-        engine, tmp_path = build_engine(args.dialect, args.postgres_url)
-        rng = random.Random(args.seed)
-        try:
+    try:
+        for n_sessions in args.sessions:
+            rng = random.Random(args.seed)
             report.append(run_tier(engine, args.dialect, n_sessions, args.runs, rng))
-        finally:
-            engine.dispose()
+    finally:
+        engine.dispose()
     print("\n".join(report))
 
 
