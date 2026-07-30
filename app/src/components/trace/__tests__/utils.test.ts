@@ -278,6 +278,19 @@ describe("createSpanTree", () => {
       `);
   });
 
+  it("matches the ERR shortcut against error span statuses", () => {
+    const spansWithError = traceSpans.map((span) =>
+      span.id === "5" ? { ...span, statusCode: "ERROR" as const } : span
+    );
+    const filteredTree = filterSpanTree(createSpanTree(spansWithError), "ERR");
+
+    expect(filteredTree[0]?.children).toHaveLength(1);
+    expect(filteredTree[0]?.children[0]?.span.id).toBe("4");
+    expect(filteredTree[0]?.children[0]?.children[0]?.span.statusCode).toBe(
+      "ERROR"
+    );
+  });
+
   it("returns the original tree for an empty search query", () => {
     const spanTree = createSpanTree(traceSpans);
     expect(filterSpanTree(spanTree, " ")).toBe(spanTree);

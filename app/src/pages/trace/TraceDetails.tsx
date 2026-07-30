@@ -97,6 +97,7 @@ export function TraceDetails({
             trace(traceId: $traceId) {
               id
               traceId
+              errorCount
               session {
                 id
                 sessionId
@@ -184,7 +185,7 @@ export function TraceDetails({
   return (
     <DetailsPanelContent
       navigation={
-        <TraceTreeProvider>
+        <TraceTreeProvider key={trace.id} errorCount={trace.errorCount}>
           {treeHeader}
           <TraceTreeToolbar
             isTreePanelCollapsed={isTreePanelCollapsed}

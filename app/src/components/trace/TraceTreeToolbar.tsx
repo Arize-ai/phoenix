@@ -4,6 +4,7 @@ import {
   Button,
   DebouncedSearch,
   Icon,
+  IconButton,
   Icons,
   Tooltip,
   TooltipTrigger,
@@ -74,8 +75,13 @@ export function TraceTreeToolbar({
   isTreePanelCollapsed?: boolean;
   onTreePanelCollapsedChange?: (isCollapsed: boolean) => void;
 }) {
-  const { isCollapsed, searchQuery, setIsCollapsed, setSearchQuery } =
-    useTraceTree();
+  const {
+    hasErrors,
+    isCollapsed,
+    searchQuery,
+    setIsCollapsed,
+    setSearchQuery,
+  } = useTraceTree();
 
   return (
     <div
@@ -108,7 +114,7 @@ export function TraceTreeToolbar({
         .trace-tree-toolbar__search .react-aria-Input {
           min-width: 0;
           padding-left: var(--global-dimension-size-100) !important;
-          padding-right: var(--global-dimension-size-300) !important;
+          padding-right: var(--global-button-height-s) !important;
           color: var(--global-text-color-900);
           font-size: var(--global-font-size-s);
           line-height: var(--global-line-height-s);
@@ -126,6 +132,14 @@ export function TraceTreeToolbar({
           padding-left: calc(
             var(--global-dimension-size-200) + var(--searchfield-icon-size)
           ) !important;
+        }
+
+        .trace-tree-toolbar__error-search-shortcut {
+          position: absolute;
+          right: 0;
+          top: 50%;
+          z-index: 1;
+          transform: translateY(-50%);
         }
 
         .trace-tree-toolbar__controls {
@@ -163,8 +177,22 @@ export function TraceTreeToolbar({
             transform: translate(-50%, -50%);
           }
 
-          .trace-tree-toolbar__search .search-field__clear {
+          .trace-tree-toolbar__search
+            .search-field:has(
+              .trace-tree-toolbar__error-search-shortcut,
+              .search-field__clear:not([data-empty])
+            )
+            .search-field__icon {
             display: none;
+          }
+
+          .trace-tree-toolbar__search .search-field__clear:not([data-empty]),
+          .trace-tree-toolbar__error-search-shortcut {
+            right: 0;
+            top: 0;
+            width: var(--global-button-height-s);
+            height: var(--global-button-height-s);
+            transform: none;
           }
         }
 
@@ -177,12 +205,28 @@ export function TraceTreeToolbar({
         <div className="trace-tree-toolbar__search">
           <DebouncedSearch
             aria-label="Search trace tree"
-            defaultValue={searchQuery}
+            value={searchQuery}
             onChange={setSearchQuery}
             placeholder="Search"
             size="S"
             variant="quiet"
-          />
+          >
+            {({ isEmpty }) =>
+              isEmpty && hasErrors ? (
+                <TooltipTrigger>
+                  <IconButton
+                    className="trace-tree-toolbar__error-search-shortcut"
+                    size="S"
+                    aria-label="Show error spans"
+                    onPress={() => setSearchQuery("ERR")}
+                  >
+                    <Icon svg={<Icons.SearchAlert />} />
+                  </IconButton>
+                  <Tooltip offset={-5}>Show error spans</Tooltip>
+                </TooltipTrigger>
+              ) : null
+            }
+          </DebouncedSearch>
         </div>
         <div className="trace-tree-toolbar__controls">
           <ExpandCollapseAllButton

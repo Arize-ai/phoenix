@@ -135,6 +135,7 @@ describe("TraceTree", () => {
               ) : (
                 <TraceTreeContext.Provider
                   value={{
+                    hasErrors: false,
                     isCollapsed: false,
                     setIsCollapsed: vi.fn(),
                     searchQuery,

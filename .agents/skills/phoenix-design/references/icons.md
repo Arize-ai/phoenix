@@ -13,6 +13,7 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Trace | `Icons.Trace` | A single trace. |
 | Span | `Icons.Workflow` | A single span. The Lucide-style workflow glyph (two connected nodes) reads as a step in a workflow, which matches how spans relate. |
 | Span filter | `Icons.Funnel` | A validated span filter expression. |
+| Error search shortcut | `Icons.SearchAlert` | Filters a trace tree to error spans by populating its search field. |
 | Source / citation | `Icons.Book` | Source documents surfaced from RAG / search. |
 | Document (generic) | `Icons.FileText` | Text-bearing documents (PDF, txt, md). |
 | File (generic / unknown) | `Icons.File` | Default file fallback when the media type is not specifically handled. |

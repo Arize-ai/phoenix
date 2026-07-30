@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Input } from "react-aria-components";
 
 import { useDebouncedChange } from "@phoenix/hooks/useDebouncedChange";
@@ -7,7 +8,7 @@ import { SearchField, SearchIcon } from "./SearchField";
 
 export interface DebouncedSearchProps extends Omit<
   SearchFieldProps,
-  "value" | "onChange"
+  "onChange"
 > {
   onChange: (value: string) => void;
   /**
@@ -27,23 +28,54 @@ export interface DebouncedSearchProps extends Omit<
 }
 
 /**
- * A simple search field with an icon that has built-in debouncing
+ * A search field whose visible value updates immediately while expensive
+ * consumers receive changes after a debounce. A controlled `value` can also
+ * update the field programmatically without delaying typing.
  */
 export function DebouncedSearch({
   onChange: propsOnChange,
   debounceMs = 200,
   placeholder,
+  value,
+  defaultValue,
+  children,
   ...props
 }: DebouncedSearchProps) {
-  const onChange = useDebouncedChange({
+  const debouncedOnChange = useDebouncedChange({
     onChange: propsOnChange,
     debounceMs,
   });
+  const [inputValue, setInputValue] = useState(
+    () => value ?? defaultValue ?? ""
+  );
+  const [previousValue, setPreviousValue] = useState(value);
+
+  if (value !== previousValue) {
+    setPreviousValue(value);
+    setInputValue(value ?? "");
+  }
+
+  useEffect(() => {
+    debouncedOnChange.cancel();
+    return () => debouncedOnChange.cancel();
+  }, [debouncedOnChange, value]);
 
   return (
-    <SearchField onChange={onChange} {...props}>
-      <SearchIcon />
-      <Input placeholder={placeholder} />
+    <SearchField
+      value={inputValue}
+      onChange={(nextValue) => {
+        setInputValue(nextValue);
+        debouncedOnChange(nextValue);
+      }}
+      {...props}
+    >
+      {(renderProps) => (
+        <>
+          <SearchIcon />
+          <Input placeholder={placeholder} />
+          {typeof children === "function" ? children(renderProps) : children}
+        </>
+      )}
     </SearchField>
   );
 }

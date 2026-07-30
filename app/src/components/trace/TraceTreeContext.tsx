@@ -10,6 +10,9 @@ import { createContext, startTransition, useContext, useState } from "react";
  * `startTransition` policy and consumers call these actions directly.
  */
 export type TraceTreeContextType = {
+  /** Whether the full trace contains at least one error span. */
+  hasErrors: boolean;
+
   /** Whether nested span nodes should be collapsed across the trace tree. */
   isCollapsed: boolean;
 
@@ -66,10 +69,15 @@ export function useTraceTree() {
  *
  * @param props - Provider props.
  * @param props.children - Trace tree UI that consumes the shared view state.
+ * @param props.errorCount - Authoritative count of error spans in the trace.
  */
-export function TraceTreeProvider(props: PropsWithChildren) {
+export function TraceTreeProvider({
+  children,
+  errorCount = 0,
+}: PropsWithChildren<{ errorCount?: number }>) {
   const [isCollapsed, setIsCollapsedState] = useState(false);
   const [searchQuery, setSearchQueryState] = useState("");
+  const hasErrors = errorCount > 0;
 
   /**
    * Applies a global collapse/expand request as a non-urgent update because
@@ -93,9 +101,15 @@ export function TraceTreeProvider(props: PropsWithChildren) {
 
   return (
     <TraceTreeContext.Provider
-      value={{ isCollapsed, setIsCollapsed, searchQuery, setSearchQuery }}
+      value={{
+        hasErrors,
+        isCollapsed,
+        searchQuery,
+        setIsCollapsed,
+        setSearchQuery,
+      }}
     >
-      {props.children}
+      {children}
     </TraceTreeContext.Provider>
   );
 }
