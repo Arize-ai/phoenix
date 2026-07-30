@@ -3,18 +3,24 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Every navigation target must carry the URL fragment.
+ * Object-form navigation targets must carry the URL fragment.
  *
  * The span filter condition lives in the fragment, and React Router reads an
  * omitted `hash` as an empty one, so a target built without it silently resets
  * the user's filter. The detail-path builders in `urlUtils` make that a compile
  * error by requiring `hash`, but an inline `to={{ pathname, search }}` bypasses
- * them, and four such links were missed one at a time during review.
+ * them, and several such links were missed one at a time during review.
  *
  * `no-restricted-syntax` would express this directly, but oxlint does not
  * implement it, so the check lives here instead: find every object literal that
  * names a `pathname` in a navigation position and require a `hash` beside it.
  * Pass an explicit `hash: ""` where a location genuinely has no fragment.
+ *
+ * What this does NOT cover: targets built as bare strings, such as
+ * ``navigate(`/projects/${id}/traces/${traceId}`)``. Whether such a path should
+ * carry the fragment depends on where it leads -- leaving the project view
+ * legitimately drops project-scoped state -- and that is not decidable
+ * lexically. Prefer the builders or the object form, which are checked.
  */
 
 const SRC = join(__dirname, "..", "..");
@@ -74,7 +80,7 @@ function targetsMissingHash(source: string): number[] {
   return lines;
 }
 
-describe("navigation targets keep the URL fragment", () => {
+describe("object-form navigation targets keep the URL fragment", () => {
   it("has no object-form target that omits hash", () => {
     const offenders = sourceFiles(SRC).flatMap((file) =>
       targetsMissingHash(readFileSync(file, "utf8")).map(

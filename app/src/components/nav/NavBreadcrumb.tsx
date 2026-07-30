@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import {
   Breadcrumb,
@@ -10,6 +10,9 @@ import { useMatchesWithCrumb } from "@phoenix/hooks/useMatchesWithCrumb";
 
 export function NavBreadcrumb() {
   const matchesWithCrumb = useMatchesWithCrumb();
+  // Crumbs deliberately reset the search, but the fragment carries the span
+  // filter, and dropping it silently clears a filter the user is looking at.
+  const { hash } = useLocation();
   const numMatches = matchesWithCrumb.length;
   return (
     <Breadcrumbs size="L">
@@ -23,7 +26,7 @@ export function NavBreadcrumb() {
         return (
           <Breadcrumb key={index}>
             <Flex direction="row" gap="size-100">
-              <Link to={match.pathname} title={crumb}>
+              <Link to={{ pathname: match.pathname, hash }} title={crumb}>
                 {crumb}
               </Link>
               {showCopyableItems ? (

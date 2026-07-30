@@ -215,9 +215,11 @@ function ProjectPageContentBody({
    * both settled. Called for the conditions this app classifies itself, and by
    * `ProjectSpansPage` once the field has validated one it cannot.
    *
-   * `persistToUrl` is false when the seed is a fallback rather than what was
-   * asked for. The URL then keeps the rejected text so it stays visible and
-   * editable, and the field goes on reporting why it failed.
+   * `persistToUrl` is false whenever the seed is not something the user asked
+   * for -- a fallback after validation failed, or this tab's own default when
+   * the URL named no condition. A fallback leaves the rejected text in the URL
+   * so it stays visible and editable while the field reports why it failed; a
+   * default is left out entirely, so the other tab does not inherit it.
    */
   const resolveSpansSeed = useCallback(
     (seed: SettledSpanFilterSeed, persistToUrl = true) => {

@@ -18,8 +18,9 @@ export function PendingSpanFilter({
   fallbackCondition = DEFAULT_SPAN_FILTER_CONDITION,
 }: {
   /**
-   * Receives the settled seed. `persistToUrl` is false for a fallback, so the
-   * URL keeps the text that was rejected rather than the one being loaded.
+   * Receives the settled seed. This component passes `persistToUrl: false` for
+   * a fallback, so the URL keeps the text that was rejected rather than the one
+   * being loaded. Other callers pass it for their own reasons.
    */
   onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
   /**
