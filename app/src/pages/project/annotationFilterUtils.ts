@@ -1,4 +1,4 @@
-import { getDslStringLiteral } from "@phoenix/components/filter/filterUtils";
+import { getDslStringLiteral } from "@phoenix/utils/filterConditionUtils";
 
 export type AnnotationFilterInput = {
   name: string;
