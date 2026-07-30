@@ -132,6 +132,15 @@ export type DSLFilterValidConditionArgs<
 > = {
   condition: string;
   validationResult: TValidationResult | null;
+  /**
+   * True when this settlement is of the value the field mounted with, rather
+   * than of a change made while it was on screen. A mount value arrives from a
+   * URL or a caller's default, so consumers that persist applied conditions --
+   * to the URL, to a search history -- should skip it: the user did not apply
+   * anything, and writing a default somewhere durable turns "no filter chosen"
+   * into "this filter chosen" for whoever reads it next.
+   */
+  isInitialSettlement: boolean;
 };
 
 export type DSLFilterValidationFailureReason = "invalid" | "transport";
@@ -199,8 +208,8 @@ export type DSLFilterConditionFieldProps<
   /**
    * Callback when validation rejects the expression or cannot reach the
    * validator. Valid conditions use `onValidCondition`, so the two outcomes
-   * cannot be mistaken for the same settlement event. Must be referentially
-   * stable: a new identity re-runs the validation effect.
+   * cannot be mistaken for the same settlement event. Held as an effect event,
+   * like `onValidCondition`, so its identity does not re-run validation.
    */
   onValidationFailed?: (reason: DSLFilterValidationFailureReason) => void;
   /**
@@ -400,6 +409,11 @@ export function DSLFilterConditionField<
     // shows once the current text has settled and failed validation.
     setErrorMessage(null);
 
+    // Whether this run settles the mount-time value. Read before the branches
+    // below flip the ref: both settle paths report it, so consumers can tell
+    // a seeded default apart from something applied while the field was up.
+    const isInitialSettlement = !hasSettled.current;
+
     // An empty condition means "no filter" — resolve it here rather than
     // asking the validator about a blank (or whitespace-only) expression
     if (value.trim() === "") {
@@ -408,7 +422,11 @@ export function DSLFilterConditionField<
       hasSettled.current = true;
       reportValidationState(true);
       startTransition(() => {
-        reportValidCondition({ condition: "", validationResult: null });
+        reportValidCondition({
+          condition: "",
+          validationResult: null,
+          isInitialSettlement,
+        });
       });
       return undefined;
     }
@@ -444,6 +462,7 @@ export function DSLFilterConditionField<
               reportValidCondition({
                 condition: value,
                 validationResult: result,
+                isInitialSettlement,
               });
             });
           }

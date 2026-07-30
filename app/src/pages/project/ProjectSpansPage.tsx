@@ -17,14 +17,14 @@ import {
   ProjectPageQueriesSpansQuery,
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
-import type { SpanFilterSeed } from "./spanFilterSeed";
+import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
 function SpansTabContent({
   queryReference,
   seed,
 }: {
   queryReference: PreloadedQuery<ProjectPageSpansQueryType>;
-  seed: SpanFilterSeed;
+  seed: SettledSpanFilterSeed;
 }) {
   const data = usePreloadedQuery<ProjectPageSpansQueryType>(
     ProjectPageQueriesSpansQuery,

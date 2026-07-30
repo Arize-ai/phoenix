@@ -241,8 +241,10 @@ function ProjectPageContentBody({
         setSpansFilterSeed(seed);
         // Before the new condition re-keys `SpanFiltersProvider` and it re-reads
         // the URL, or a condition typed while waiting loses to the stale one
-        // still in the address bar. Written even when empty: an absent param
-        // seeds the default, an empty one means deliberately cleared.
+        // still in the address bar. An empty condition is as writable as any
+        // other -- a present-but-empty param means deliberately cleared, while
+        // an absent one seeds the tab's default -- though when it arrived from
+        // the URL the already-has-it check makes the write a no-op.
         if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
           setSearchParamsRef.current(
             (prev) => {

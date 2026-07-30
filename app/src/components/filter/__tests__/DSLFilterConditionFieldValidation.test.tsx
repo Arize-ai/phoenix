@@ -86,12 +86,51 @@ describe("DSLFilterConditionField validation outcomes", () => {
     });
     expect(validateCondition).toHaveBeenCalledTimes(2);
   });
+
+  it("marks only the mount-time settlement as initial", async () => {
+    const onValidCondition = vi.fn();
+    const onValidationFailed = vi.fn();
+    const validateCondition = vi.fn().mockResolvedValue({ isValid: true });
+
+    // The mount value arrives from a URL or a caller's default, not from the
+    // user -- consumers use the flag to avoid persisting it anywhere.
+    await renderField({
+      root,
+      value: "condition-seeded",
+      validateCondition,
+      onValidCondition,
+      onValidationFailed,
+      validationRetryKey: 0,
+    });
+    expect(onValidCondition).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        condition: "condition-seeded",
+        isInitialSettlement: true,
+      })
+    );
+
+    await renderField({
+      root,
+      value: "condition-typed",
+      validateCondition,
+      onValidCondition,
+      onValidationFailed,
+      validationRetryKey: 0,
+    });
+    expect(onValidCondition).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        condition: "condition-typed",
+        isInitialSettlement: false,
+      })
+    );
+  });
 });
 
 async function renderField({
   root,
   value,
   validateCondition,
+  onValidCondition = () => undefined,
   onValidationFailed,
   validationRetryKey,
 }: {
@@ -100,6 +139,10 @@ async function renderField({
   validateCondition: (
     condition: string
   ) => Promise<{ isValid: boolean; errorMessage?: string }>;
+  onValidCondition?: (args: {
+    condition: string;
+    isInitialSettlement: boolean;
+  }) => void;
   onValidationFailed: (reason: "invalid" | "transport") => void;
   validationRetryKey: number;
 }) {
@@ -110,7 +153,7 @@ async function renderField({
         onChange={() => undefined}
         completions={[]}
         validateCondition={validateCondition}
-        onValidCondition={() => undefined}
+        onValidCondition={onValidCondition}
         onValidationFailed={onValidationFailed}
         validationRetryKey={validationRetryKey}
       />

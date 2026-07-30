@@ -265,6 +265,14 @@ async function fetchAnnotationCompletions(
 export type SpanFilterValidConditionArgs = {
   condition: string;
   selectsRootSpansOnly: boolean | null;
+  /**
+   * True when this settlement is of the value the field mounted with -- a
+   * seeded default or a condition already in the URL -- rather than one
+   * applied while the field was on screen. Consumers that persist applied
+   * conditions to the URL must skip initial settlements: persisting a tab's
+   * default imposes it on the other tab, which defaults differently.
+   */
+  isInitialSettlement: boolean;
 };
 
 export type SpanFilterValidationFailureReason =
@@ -325,8 +333,15 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     ({
       condition,
       validationResult,
+      isInitialSettlement,
     }: DSLFilterValidConditionArgs<SpanFilterConditionValidation>) => {
-      recordValidCondition(condition);
+      // Only conditions applied while the field was on screen enter the
+      // recent-searches history. The mount value is a seeded default or a
+      // URL's condition -- recording it would stamp text the user never typed
+      // into one of the few history slots on every visit.
+      if (!isInitialSettlement) {
+        recordValidCondition(condition);
+      }
       // A null validation result means the condition was empty, which the
       // field resolves without asking the server. An empty condition restricts
       // nothing, so it is knowably not root-scoped. Otherwise the server's
@@ -336,6 +351,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         selectsRootSpansOnly: validationResult
           ? validationResult.selectsRootSpansOnly
           : false,
+        isInitialSettlement,
       });
     },
     [recordValidCondition, onValidCondition]

@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelayModule from "react-relay";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
@@ -21,6 +21,7 @@ const fieldMocks = vi.hoisted(() => ({
     onValidCondition: (args: {
       condition: string;
       selectsRootSpansOnly: boolean | null;
+      isInitialSettlement: boolean;
     }) => void;
   },
 }));
@@ -148,6 +149,7 @@ describe("SpansTable seed loading integration", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     fieldMocks.props = null;
+    probedSearch = "";
     relayMocks.refetch.mockReset();
     relayMocks.usePaginationFragment.mockReturnValue({
       data: {
@@ -178,6 +180,7 @@ describe("SpansTable seed loading integration", () => {
               project={{} as SpansTable_spans$key}
               seed={settledSeed}
             />
+            <SearchProbe />
           </MemoryRouter>
         </ThemeProvider>
       );
@@ -200,6 +203,7 @@ describe("SpansTable seed loading integration", () => {
       fieldMocks.props?.onValidCondition({
         condition: "span_kind == 'LLM'",
         selectsRootSpansOnly: false,
+        isInitialSettlement: false,
       });
     });
 
@@ -216,9 +220,49 @@ describe("SpansTable seed loading integration", () => {
       fieldMocks.props?.onValidCondition({
         condition: settledSeed.condition,
         selectsRootSpansOnly: settledSeed.rootSpansOnly,
+        isInitialSettlement: false,
       });
     });
 
     expect(relayMocks.refetch).not.toHaveBeenCalled();
   });
+
+  it("does not write the mount-time settlement to the URL param", async () => {
+    // The field settles its seeded value as soon as it mounts. Persisting that
+    // settlement would write this tab's default into the param the tabs
+    // share, imposing it on the other tab -- the leak the seed resolvers'
+    // `persistToUrl` flag exists to prevent.
+    await renderTable();
+
+    await act(async () => {
+      fieldMocks.props?.onValidCondition({
+        condition: settledSeed.condition,
+        selectsRootSpansOnly: settledSeed.rootSpansOnly,
+        isInitialSettlement: true,
+      });
+    });
+
+    expect(probedSearch).not.toContain("spanFilterCondition");
+  });
+
+  it("writes a user-applied condition to the URL param", async () => {
+    await renderTable();
+
+    await act(async () => {
+      fieldMocks.props?.onValidCondition({
+        condition: "span_kind == 'LLM'",
+        selectsRootSpansOnly: false,
+        isInitialSettlement: false,
+      });
+    });
+
+    expect(probedSearch).toContain("spanFilterCondition=span_kind");
+  });
 });
+
+let probedSearch = "";
+/** Records the router's current search so tests can observe param writes. */
+function SearchProbe() {
+  probedSearch = useLocation().search;
+  return null;
+}
