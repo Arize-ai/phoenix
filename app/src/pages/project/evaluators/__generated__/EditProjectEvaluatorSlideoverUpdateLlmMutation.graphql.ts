@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f1fa28698f4555c59bbd78a7c387d23>>
+ * @generated SignedSource<<f2c1941226debc1a9f7f80ace39b9454>>
  * @lightSyntaxTransform
  */
 
@@ -19,7 +19,7 @@ export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type UpdateProjectLLMEvaluatorInput = {
   description?: string | null;
-  enabled: boolean;
+  enabled?: boolean | null;
   evaluationTarget: EvaluationTarget;
   filterCondition: string;
   inputMapping: EvaluatorInputMappingInput;

@@ -429,7 +429,7 @@ class UpdateProjectLLMEvaluatorInput:
     sampling_rate: float
     evaluation_target: EvaluationTarget
     filter_condition: str
-    enabled: bool
+    enabled: Optional[bool] = UNSET
     description: Optional[str] = None
     prompt_version_id: Optional[GlobalID] = UNSET
 
@@ -693,6 +693,8 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid project evaluator id: {input.project_evaluator_id}")
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        if input.enabled is None:
+            raise BadRequest("enabled cannot be set to null")
         try:
             name = IdentifierModel.model_validate(input.name)
             prompt_version = input.prompt_version.to_orm_prompt_version(None)
@@ -792,7 +794,9 @@ class EvaluatorMutationMixin:
                 criteria.sampling_rate = input.sampling_rate
                 criteria.evaluation_target = input.evaluation_target.value
                 criteria.input_mapping = input.input_mapping.to_orm()
-                criteria.enabled = input.enabled
+                if input.enabled is not UNSET:
+                    assert input.enabled is not None
+                    criteria.enabled = input.enabled
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")

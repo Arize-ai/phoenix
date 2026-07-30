@@ -423,7 +423,6 @@ function EditLlmProjectEvaluatorContent({
             samplingRate: scope.samplingRate,
             evaluationTarget: toProjectEvaluatorGraphQLTarget(scope.targetType),
             filterCondition: scope.filterCondition,
-            enabled: evaluator.enabled,
           },
         },
         onCompleted: () => {

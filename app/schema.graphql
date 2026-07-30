@@ -4840,7 +4840,7 @@ input UpdateProjectLLMEvaluatorInput {
   samplingRate: Float!
   evaluationTarget: EvaluationTarget!
   filterCondition: String!
-  enabled: Boolean!
+  enabled: Boolean
   description: String = null
   promptVersionId: ID
 }

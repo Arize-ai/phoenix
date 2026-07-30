@@ -503,8 +503,15 @@ async def test_project_llm_evaluator_create_update_delete(
     assert created["evaluationTarget"] == "TRACE"
     assert created["evaluator"]["kind"] == "LLM"
 
+    disable_result = await gql_client.execute(
+        _SET_ENABLED,
+        {"input": {"projectEvaluatorId": created["id"], "enabled": False}},
+    )
+    assert disable_result.data and not disable_result.errors
+
     update_input = _llm_input(project, name="updated-llm", text="Updated {{input}}")
     update_input.pop("projectId")
+    update_input.pop("enabled")
     update_input["projectEvaluatorId"] = created["id"]
     update_input["evaluationTarget"] = "SPAN"
     update_result = await gql_client.execute(_UPDATE_LLM, {"input": update_input})
@@ -512,6 +519,7 @@ async def test_project_llm_evaluator_create_update_delete(
     updated = update_result.data["updateProjectLlmEvaluator"]["evaluator"]
     assert updated["evaluator"]["name"] == "updated-llm"
     assert updated["evaluationTarget"] == "SPAN"
+    assert updated["enabled"] is False
 
     delete_result = await gql_client.execute(
         _DELETE,
