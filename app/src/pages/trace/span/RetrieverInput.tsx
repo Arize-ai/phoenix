@@ -4,7 +4,7 @@ import {
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 
-import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
+import { SpanDetailsInputSection } from "../SpanDetailsInputSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanInfoSectionProps, SpanIOValue } from "./types";
@@ -22,10 +22,9 @@ export function RetrieverInput({
   const cardProps = useSpanInfoCardProps("input");
   return (
     <MarkdownDisplayProvider>
-      <SpanDetailsDisclosureSection
+      <SpanDetailsInputSection
         sectionId={sectionId}
         bordered={bordered}
-        title="Input"
         {...cardProps}
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -39,7 +38,7 @@ export function RetrieverInput({
           mimeType={mimeType}
           initializeImmediately
         />
-      </SpanDetailsDisclosureSection>
+      </SpanDetailsInputSection>
     </MarkdownDisplayProvider>
   );
 }

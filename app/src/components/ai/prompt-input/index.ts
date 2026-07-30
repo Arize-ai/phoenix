@@ -7,6 +7,7 @@ export { PromptInputTextarea } from "./PromptInputTextarea";
 export { PromptInputSubmit } from "./PromptInputSubmit";
 export { PromptInputButton } from "./PromptInputButton";
 export { usePromptInputContext } from "./PromptInputContext";
+export { promptInputSurfaceCSS } from "./styles";
 export type {
   PromptInputProps,
   PromptInputBodyProps,

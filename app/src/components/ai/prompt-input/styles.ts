@@ -1,11 +1,16 @@
 import { css } from "@emotion/react";
 
-export const promptInputContainerCSS = css`
-  display: flex;
-  flex-direction: column;
+export const promptInputSurfaceCSS = css`
   background-color: var(--prompt-input-background-color);
   border: var(--global-border-size-thin) solid var(--prompt-input-border-color);
   border-radius: var(--prompt-input-border-radius);
+`;
+
+export const promptInputContainerCSS = css`
+  ${promptInputSurfaceCSS}
+
+  display: flex;
+  flex-direction: column;
   transition: border-color 0.2s ease-in-out;
 
   &[data-input-mode="prompt"]:focus-within {

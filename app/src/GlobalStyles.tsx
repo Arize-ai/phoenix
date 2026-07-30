@@ -1403,7 +1403,7 @@ const promptInputCSS = (theme: Theme) => css`
     --prompt-input-background-color: var(--global-color-gray-100);
     --prompt-input-border-color: var(--global-color-gray-300);
     --prompt-input-border-color-focus: var(--global-color-gray-500);
-    --prompt-input-border-radius: var(--global-rounding-medium);
+    --prompt-input-border-radius: var(--global-rounding-small);
     --prompt-input-textarea-color: var(--global-text-color-900);
     --prompt-input-textarea-placeholder-color: var(--global-color-gray-400);
     --prompt-input-submit-background-color: var(--global-text-color-900);

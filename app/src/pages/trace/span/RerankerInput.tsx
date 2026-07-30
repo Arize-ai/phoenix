@@ -14,7 +14,7 @@ import {
 import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
 import { DocumentItem } from "../DocumentItem";
-import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
+import { SpanDetailsInputSection } from "../SpanDetailsInputSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { documentsListCSS } from "./constants";
 import type { SpanInfoSectionProps } from "./types";
@@ -37,10 +37,9 @@ export function RerankerInput({
   const numInputDocuments = inputDocuments.length;
   const cardProps = useSpanInfoCardProps("input");
   return (
-    <SpanDetailsDisclosureSection
+    <SpanDetailsInputSection
       sectionId={sectionId}
       bordered={bordered}
-      title="Input"
       titleExtra={
         <Text color="text-700">
           {`${numInputDocuments} ${
@@ -87,6 +86,6 @@ export function RerankerInput({
           </Disclosure>
         </DisclosureGroup>
       </MarkdownDisplayProvider>
-    </SpanDetailsDisclosureSection>
+    </SpanDetailsInputSection>
   );
 }

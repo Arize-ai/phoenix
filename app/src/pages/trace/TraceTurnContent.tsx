@@ -17,6 +17,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { promptInputSurfaceCSS } from "@phoenix/components/ai/prompt-input";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
@@ -25,7 +26,6 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { useTimeFormatters } from "@phoenix/hooks";
-import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import type {
   TraceTurnContent_rootSpan$data,
   TraceTurnContent_rootSpan$key,
@@ -38,6 +38,21 @@ import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
 const messageWrapCSS = css`
   width: fit-content;
   max-width: 80%;
+`;
+
+const traceTurnContentCSS = css`
+  gap: var(--global-grid-gutter-xsmall);
+`;
+
+const rootSpanMessageCSS = css`
+  box-sizing: border-box;
+  overflow: hidden;
+  width: 100%;
+  padding: var(--global-dimension-size-200);
+  background-color: var(--global-background-color-default);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
 `;
 
 const outputMetadataMutedCSS = css`
@@ -68,11 +83,10 @@ type RootSpanMessageProps = {
 /** Presentational trace message bubble used by turn views and Storybook. */
 export function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
   const isInput = role === "INPUT";
-  const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
   const overlayBackgroundColor = isInput
-    ? "var(--global-color-gray-100)"
-    : "var(--global-color-blue-100)";
+    ? "var(--prompt-input-background-color)"
+    : "var(--global-background-color-default)";
   return (
     <Flex
       direction="column"
@@ -88,13 +102,8 @@ export function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
       >
         <Text color="text-700">{label ?? defaultLabel}</Text>
       </Flex>
-      <View
-        borderRadius="medium"
-        borderColor="default"
-        borderWidth="thin"
-        padding="size-200"
-        width="100%"
-        {...styles}
+      <div
+        css={[rootSpanMessageCSS, isInput ? promptInputSurfaceCSS : undefined]}
       >
         <ExpandableContent
           height={TRACE_TURN_MESSAGE_MAX_HEIGHT}
@@ -103,7 +112,7 @@ export function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
         >
           <DynamicContent value={value} />
         </ExpandableContent>
-      </View>
+      </div>
     </Flex>
   );
 }
@@ -263,7 +272,7 @@ export function TraceTurnContent({
 
   return (
     <View width="100%" maxWidth={TRACE_TURN_MAX_WIDTH} marginX="auto">
-      <Flex direction="column" gap="size-200">
+      <Flex direction="column" css={traceTurnContentCSS}>
         {header}
         <Flex
           direction="column"

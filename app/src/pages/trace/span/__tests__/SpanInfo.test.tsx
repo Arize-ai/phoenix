@@ -182,4 +182,36 @@ describe("SpanInfo", () => {
       2
     );
   });
+
+  it("wraps the input section body in the shared prompt surface", () => {
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanInfo
+            sectionIds={sectionIds}
+            span={{
+              id: "span-node-id",
+              spanKind: "chain",
+              attributes: "{}",
+              input: { value: "input", mimeType: "text" },
+              output: { value: "output", mimeType: "text" },
+              documentRetrievalMetrics: [],
+              documentEvaluations: [],
+            }}
+          />
+        </TestProviders>
+      );
+    });
+
+    expect(
+      container.querySelector(
+        "#input > [aria-labelledby] > .span-details-input-section__body"
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        "#output > [aria-labelledby] > .span-details-input-section__body"
+      )
+    ).toBeNull();
+  });
 });

@@ -8,7 +8,7 @@ import {
 } from "@phoenix/components/markdown";
 import type { AttributeEmbeddingEmbedding } from "@phoenix/openInference/tracing/types";
 
-import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
+import { SpanDetailsInputSection } from "../SpanDetailsInputSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 import type { SpanInfoSectionProps } from "./types";
@@ -30,10 +30,9 @@ export function EmbeddingInput({
     (embedding) => embedding[EmbeddingAttributePostfixes.text] || ""
   );
   return (
-    <SpanDetailsDisclosureSection
+    <SpanDetailsInputSection
       sectionId={sectionId}
       bordered={bordered}
-      title="Input"
       titleExtra={
         <Text color="text-700">
           {`${numTexts} ${numTexts === 1 ? "text" : "texts"}`}
@@ -70,6 +69,6 @@ export function EmbeddingInput({
           })}
         </ul>
       }
-    </SpanDetailsDisclosureSection>
+    </SpanDetailsInputSection>
   );
 }

@@ -10,7 +10,7 @@ import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
+import { SpanDetailsInputSection } from "../SpanDetailsInputSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
 import { LLMInvocationParams } from "./LLMInvocationParams";
@@ -129,11 +129,10 @@ export function LLMInput({
 
   return (
     <MarkdownDisplayProvider>
-      <SpanDetailsDisclosureSection
+      <SpanDetailsInputSection
         sectionId={sectionId}
         bordered={bordered}
         {...cardProps}
-        title="Input"
         titleExtra={subTitleEl}
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -160,7 +159,7 @@ export function LLMInput({
         )}
         {isRawView && <MimeTypeCodeBlock {...input} initializeImmediately />}
         {view === "prompts" && <LLMPromptsList prompts={prompts} />}
-      </SpanDetailsDisclosureSection>
+      </SpanDetailsInputSection>
     </MarkdownDisplayProvider>
   );
 }
