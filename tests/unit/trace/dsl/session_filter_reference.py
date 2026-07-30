@@ -14,15 +14,22 @@ evaluates to exactly True. Reductions skip missing values: `len`/`sum` of nothin
 `max`/`min` of nothing is `MISSING`.
 
 Modeled: session intrinsics, the flat aggregate names, the comprehension grammar over the five
-iterables, and root-span `attributes[...]` / `metadata[...]` access resolved by OTel wire key.
-Not modeled: the root-span IO names and the `annotations[...]` subscript, which have their own
-tests.
+iterables, root-span `attributes[...]` / `metadata[...]` access resolved by OTel wire key, the
+root-span IO names (`first_input`, `last_output`, `any_input`, `any_output`), and the
+`annotations[...]` subscript.
+
+`annotations["q"]` compiles to an outer join on the annotation relation, so a session with
+several rows under one name is several candidate rows and matches when *any* of them satisfies
+the whole condition. That is modeled here by binding one row per referenced annotation name and
+trying every combination — the same reason two spellings of one name share a row while two
+different names vary independently.
 """
 
 import ast
 import operator
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from itertools import product
 from typing import Any, Callable, Iterator, Mapping, Optional, Sequence, Union
 
 
@@ -34,12 +41,21 @@ class _Missing:
 MISSING = _Missing()
 """An absent value: every comparison it takes part in yields `MISSING`, never True or False."""
 
+_INPUT_VALUE_PATH: tuple[str, ...] = ("input", "value")
+_OUTPUT_VALUE_PATH: tuple[str, ...] = ("output", "value")
+_EXISTS_NAME_PATHS: Mapping[str, tuple[str, ...]] = {
+    "any_input": _INPUT_VALUE_PATH,
+    "any_output": _OUTPUT_VALUE_PATH,
+}
+
 
 @dataclass(frozen=True)
 class ReferenceAnnotation:
     name: str
     label: Optional[str] = None
     score: Optional[float] = None
+    # Annotations are unique on (name, entity, identifier), so several rows can share one name.
+    identifier: str = ""
 
 
 @dataclass(frozen=True)
@@ -75,6 +91,8 @@ class ReferenceSpan:
     annotations: tuple[ReferenceAnnotation, ...] = ()
     cost: Optional[ReferenceSpanCost] = None
     attributes: Optional[Mapping[str, Any]] = None
+    # The root-span names read parentless spans only, so a child span's IO is not the session's.
+    is_root: bool = True
 
     @property
     def llm_token_count_total(self) -> int:
@@ -106,12 +124,36 @@ class ReferenceSession:
         return tuple(span for turn in self.turns for span in turn.spans)
 
     @property
+    def root_spans(self) -> tuple[ReferenceSpan, ...]:
+        """Every parentless span, earliest turn first — the universe the IO names read."""
+        return tuple(span for turn in self.turns for span in turn.spans if span.is_root)
+
+    @property
     def root_span_attributes(self) -> Mapping[str, Any]:
         """The earliest root span's attributes — what `attributes[...]` / `metadata[...]` read."""
-        for turn in self.turns:
-            for span in turn.spans:
-                return span.attributes or {}
-        return {}
+        roots = self.root_spans
+        return (roots[0].attributes or {}) if roots else {}
+
+    @property
+    def first_input(self) -> Any:
+        return self._root_span_io(0, _INPUT_VALUE_PATH)
+
+    @property
+    def last_output(self) -> Any:
+        return self._root_span_io(-1, _OUTPUT_VALUE_PATH)
+
+    def _root_span_io(self, index: int, path: Sequence[str]) -> Any:
+        """One end of the root-span window. The path is read literally, not by wire key: the
+        compiler's window subquery indexes the stored JSON directly."""
+        roots = self.root_spans
+        return _traverse(roots[index].attributes or {}, path) if roots else MISSING
+
+    def any_root_span_io(self, path: Sequence[str]) -> tuple[Any, ...]:
+        """Every root span's value at `path` — the universe `any_input` / `any_output` search."""
+        return tuple(_traverse(span.attributes or {}, path) for span in self.root_spans)
+
+    def annotations_named(self, name: str) -> tuple[ReferenceAnnotation, ...]:
+        return tuple(annotation for annotation in self.annotations if annotation.name == name)
 
     @property
     def span_costs(self) -> tuple[ReferenceSpanCost, ...]:
@@ -187,6 +229,8 @@ _FLAT_NAMES: frozenset[str] = frozenset(
         "total_cost",
         "tool_span_count",
         "llm_span_count",
+        "first_input",
+        "last_output",
     }
 )
 
@@ -253,8 +297,37 @@ _Scope = Mapping[str, tuple[str, Any]]
 
 
 def matches(condition: str, session: ReferenceSession) -> bool:
-    """Whether `session` satisfies `condition` — true only when the condition is exactly True."""
-    return _Evaluator(session).evaluate(ast.parse(condition, mode="eval").body, {}) is True
+    """Whether `session` satisfies `condition` — true only when the condition is exactly True.
+
+    Each referenced annotation name contributes one candidate row (or a single absent row when
+    the session carries none), and the session matches if any combination of them satisfies the
+    whole condition — the outer join plus `DISTINCT` the compiler emits, read as Python.
+    """
+    tree = ast.parse(condition, mode="eval").body
+    names = sorted(_annotation_names(tree))
+    candidates = [session.annotations_named(name) or (None,) for name in names]
+    return any(
+        _Evaluator(session, dict(zip(names, rows))).evaluate(tree, {}) is True
+        for rows in product(*candidates)
+    )
+
+
+def _annotation_names(tree: ast.expr) -> set[str]:
+    names = (_annotation_key(node) for node in ast.walk(tree) if isinstance(node, ast.expr))
+    return {name for name in names if name is not None}
+
+
+def _annotation_key(node: ast.expr) -> Optional[str]:
+    """The annotation name an `annotations["..."]` subscript reads, if that is what this is."""
+    if (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id in ("annotations", "evals")
+        and isinstance(node.slice, ast.Constant)
+        and isinstance(key := node.slice.value, str)
+    ):
+        return key
+    return None
 
 
 def matching_session_ids(
@@ -266,8 +339,13 @@ def matching_session_ids(
 
 
 class _Evaluator:
-    def __init__(self, session: ReferenceSession) -> None:
+    def __init__(
+        self,
+        session: ReferenceSession,
+        annotations: Optional[Mapping[str, Optional[ReferenceAnnotation]]] = None,
+    ) -> None:
         self._session = session
+        self._annotations = annotations or {}
 
     def evaluate(self, node: ast.expr, scope: _Scope) -> Any:
         if isinstance(node, ast.BoolOp):
@@ -295,10 +373,23 @@ class _Evaluator:
         if isinstance(node, ast.Name):
             return self._name(node, scope)
         if isinstance(node, ast.Attribute):
+            if _annotation_key(node.value) is not None:
+                return self._annotation_attribute(node)
             return self._element_field(node, scope)
         if isinstance(node, ast.Subscript):
+            if (key := _annotation_key(node)) is not None:
+                # A bare annotation reference is an existence check, so it is a value already.
+                return self._annotations.get(key) is not None
             return self._root_span_attribute(node)
         raise SyntaxError(f"unsupported expression: {ast.unparse(node)}")
+
+    def _annotation_attribute(self, node: ast.Attribute) -> Any:
+        key = _annotation_key(node.value)
+        annotation = self._annotations.get(str(key))
+        if annotation is None or node.attr not in ("score", "label"):
+            return MISSING
+        value = getattr(annotation, node.attr)
+        return MISSING if value is None else value
 
     def _name(self, node: ast.Name, scope: _Scope) -> Any:
         if node.id in scope:
@@ -338,6 +429,19 @@ class _Evaluator:
     def _compare(
         self, left_node: ast.expr, op: ast.cmpop, right_node: ast.expr, scope: _Scope
     ) -> Any:
+        if (
+            isinstance(op, (ast.In, ast.NotIn))
+            and isinstance(right_node, ast.Name)
+            and (path := _EXISTS_NAME_PATHS.get(right_node.id)) is not None
+        ):
+            # EXISTS / NOT EXISTS over the session's root spans: a boolean either way, so a
+            # session with no input at all is matched by `not in` rather than dropped.
+            needle = self.evaluate(left_node, scope)
+            found = any(
+                value is not MISSING and _contains(value, needle)
+                for value in self._session.any_root_span_io(path)
+            )
+            return found if isinstance(op, ast.In) else not found
         if isinstance(op, (ast.Is, ast.IsNot, ast.Eq, ast.NotEq)):
             if _is_none_literal(right_node):
                 value_node: Optional[ast.expr] = left_node
@@ -593,12 +697,14 @@ FIXTURE_SESSIONS: tuple[ReferenceSession, ...] = (
                         latency_ms=100.0,
                         llm_token_count_prompt=10,
                         llm_token_count_completion=5,
+                        attributes={"input": {"value": "hello there"}},
                     ),
                     ReferenceSpan(
                         name="chat",
                         latency_ms=200.0,
                         llm_token_count_prompt=20,
                         llm_token_count_completion=5,
+                        attributes={"output": {"value": "goodbye"}},
                         cost=ReferenceSpanCost(
                             prompt_cost=0.125,
                             details=(
@@ -630,9 +736,16 @@ FIXTURE_SESSIONS: tuple[ReferenceSession, ...] = (
                         latency_ms=100.0,
                         llm_token_count_prompt=1,
                         llm_token_count_completion=1,
+                        attributes={"input": {"value": "please refund my order"}},
                     ),
+                    # A child span: its input is not the session's, so `any_input` must not see it.
                     ReferenceSpan(
-                        name="search", span_kind="TOOL", status_code="ERROR", latency_ms=50.0
+                        name="search",
+                        span_kind="TOOL",
+                        status_code="ERROR",
+                        latency_ms=50.0,
+                        attributes={"input": {"value": "internal tool payload"}},
+                        is_root=False,
                     ),
                 ),
             ),
@@ -645,6 +758,7 @@ FIXTURE_SESSIONS: tuple[ReferenceSession, ...] = (
                         latency_ms=1500.0,
                         llm_token_count_prompt=2,
                         llm_token_count_completion=2,
+                        attributes={"output": {"value": "sorry about that"}},
                     ),
                 ),
             ),
@@ -702,6 +816,7 @@ FIXTURE_SESSIONS: tuple[ReferenceSession, ...] = (
                         latency_ms=5900.0,
                         llm_token_count_prompt=100,
                         llm_token_count_completion=100,
+                        attributes={"input": {"value": "Hello Slow"}},
                     ),
                 ),
             ),
@@ -714,6 +829,7 @@ FIXTURE_SESSIONS: tuple[ReferenceSession, ...] = (
                         latency_ms=6800.0,
                         llm_token_count_prompt=100,
                         llm_token_count_completion=100,
+                        attributes={"output": {"value": "done"}},
                     ),
                 ),
             ),
@@ -740,10 +856,28 @@ FIXTURE_SESSIONS: tuple[ReferenceSession, ...] = (
                 ),
             ),
         ),
+        # Several rows share the name `Quality`, one of them with neither label nor score: the
+        # shape that makes `annotations["Quality"]` a set of candidate rows rather than a value.
         annotations=(
-            ReferenceAnnotation(name="Quality", label="good", score=0.9),
+            ReferenceAnnotation(name="Quality", label="good", score=0.95),
+            ReferenceAnnotation(name="Quality", label="bad", score=0.4, identifier="second"),
+            ReferenceAnnotation(name="Quality", identifier="third"),
             ReferenceAnnotation(name="Coverage"),
         ),
+    ),
+    # One annotation under the same name, scoring below every threshold the corpus asks about.
+    ReferenceSession(
+        session_id="annotated-low",
+        start_time=_BASE_TIME,
+        end_time=_BASE_TIME + timedelta(seconds=5),
+        turns=(
+            ReferenceTurn(
+                start_time=_BASE_TIME,
+                latency_ms=500.0,
+                spans=(ReferenceSpan(name="chat", latency_ms=100.0),),
+            ),
+        ),
+        annotations=(ReferenceAnnotation(name="Quality", label="bad", score=0.3),),
     ),
     # Root-span attribute storage shapes for wire-key resolution: fully nested, whole-literal,
     # both shapes at once (the full split must win), and a prefix collision whose remainder is a
@@ -936,4 +1070,64 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'any(a.label == "CORRECT" for a in span_annotations)',
     'any(a.name in ["Quality", "Coverage"] for a in session_annotations)',
     'any(a.name in ["QUALITY"] for a in session_annotations)',
+    # Root-span IO names. `first_input` / `last_output` read the two ends of the root-span window
+    # and are SQL null when that end records nothing, so `not in` and `==` exclude those
+    # sessions; `any_input` / `any_output` are EXISTS over every root span, so `not in` matches a
+    # session with no input at all. A child span's IO belongs to neither.
+    "'hello' in first_input",
+    "'HELLO' in first_input",
+    "'hello' not in first_input",
+    "first_input == 'hello there'",
+    "first_input is None",
+    "first_input is not None",
+    "'bye' in last_output",
+    "'done' in last_output",
+    "last_output is None",
+    "'refund' in any_input",
+    "'REFUND' in any_input",
+    "'refund' not in any_input",
+    "'internal' in any_input",
+    "'sorry' in any_output",
+    "'sorry' not in any_output",
+    "'hello' in any_input and num_traces > 0",
+    "'hello' in first_input or 'hello' in last_output",
+    # Annotation point access: several rows can share one name, so the subscript is existential
+    # over them, and two attributes of one name read the same row.
+    'annotations["Quality"]',
+    'annotations["Missing"]',
+    'annotations["Quality"].score > 0.9',
+    'annotations["Quality"].score > 0.5',
+    'annotations["Quality"].label == "good"',
+    'annotations["Quality"].score > 0.5 and annotations["Quality"].label == "good"',
+    'annotations["Quality"].score > 0.5 and annotations["Quality"].label == "bad"',
+    'annotations["Quality"].score is None',
+    'annotations["Missing"].score > 0',
+    'annotations["Quality"].score > 0.5 and num_traces > 0',
+)
+
+# `annotations["q"].<attr>` and the equivalent quantification over `session_annotations` are two
+# grammars over one table — an aliased outer join versus an EXISTS. Where they overlap they must
+# select the same sessions, whatever the row multiplicity under a name.
+AGREEMENT_PAIRS: tuple[tuple[str, str], ...] = (
+    (
+        'annotations["Quality"]',
+        'any(a.name == "Quality" for a in session_annotations)',
+    ),
+    (
+        'annotations["Quality"].score > 0.9',
+        'any(a.name == "Quality" and a.score > 0.9 for a in session_annotations)',
+    ),
+    (
+        'annotations["Quality"].label == "good"',
+        'any(a.name == "Quality" and a.label == "good" for a in session_annotations)',
+    ),
+    (
+        'annotations["Quality"].score > 0.5 and annotations["Quality"].label == "good"',
+        'any(a.name == "Quality" and a.score > 0.5 and a.label == "good" '
+        "for a in session_annotations)",
+    ),
+    (
+        'annotations["Missing"].score > 0',
+        'any(a.name == "Missing" and a.score > 0 for a in session_annotations)',
+    ),
 )

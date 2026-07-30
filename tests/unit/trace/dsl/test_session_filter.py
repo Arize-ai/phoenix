@@ -20,6 +20,7 @@ from phoenix.trace.dsl.session_filter import (
 )
 from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
 from tests.unit.trace.dsl.session_filter_reference import (
+    AGREEMENT_PAIRS,
     DIFFERENTIAL_CONDITIONS,
     FIXTURE_SESSIONS,
     ReferenceSession,
@@ -762,10 +763,14 @@ async def _seed_reference_session(
             start_time=turn.start_time,
             end_time=turn.end_time,
         )
+        turn_root: Optional[models.Span] = None
         for reference_span in turn.spans:
             span = await _add_span(
                 session,
                 trace,
+                # A non-root fixture span hangs off the turn's root, which is what keeps it out
+                # of the root-span window the IO names read.
+                parent_span=None if reference_span.is_root else turn_root,
                 span_kind=reference_span.span_kind,
                 attributes=None
                 if reference_span.attributes is None
@@ -780,6 +785,7 @@ async def _seed_reference_session(
             )
             span.name = reference_span.name
             span.status_code = reference_span.status_code
+            turn_root = turn_root or span
             for annotation in reference_span.annotations:
                 session.add(
                     models.SpanAnnotation(
@@ -790,7 +796,7 @@ async def _seed_reference_session(
                         metadata_={},
                         annotator_kind="HUMAN",
                         source="APP",
-                        identifier="",
+                        identifier=annotation.identifier,
                     )
                 )
             if (cost := reference_span.cost) is not None:
@@ -825,7 +831,7 @@ async def _seed_reference_session(
                 metadata_={},
                 annotator_kind="HUMAN",
                 source="APP",
-                identifier="",
+                identifier=annotation.identifier,
             )
         )
     await session.flush()
@@ -854,6 +860,27 @@ async def test_session_filter_agrees_with_reference_evaluator(
                 session, SessionFilter(condition), project, lowering=lowering
             )
             assert actual == expected, condition
+
+
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_session_annotation_idioms_select_the_same_sessions(
+    db: DbSessionFactory, lowering: FilterLowering
+) -> None:
+    """`annotations["q"].score > x` and the equivalent `session_annotations` quantification lower
+    differently — an aliased outer join versus an EXISTS — so their agreement is pinned directly,
+    over fixtures carrying duplicate names, null scores and labels, and missing annotations."""
+    async with db() as session:
+        project = await _add_project(session)
+        for fixture in FIXTURE_SESSIONS:
+            await _seed_reference_session(session, project, fixture)
+        for subscript, quantifier in AGREEMENT_PAIRS:
+            by_subscript = await _matched_rowids(
+                session, SessionFilter(subscript), project, lowering=lowering
+            )
+            by_quantifier = await _matched_rowids(
+                session, SessionFilter(quantifier), project, lowering=lowering
+            )
+            assert by_subscript == by_quantifier, subscript
 
 
 async def test_session_filter_attributes_resolve_by_wire_key(db: DbSessionFactory) -> None:
