@@ -113,7 +113,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk import trace as trace_sdk
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-PHOENIX_COLLECTOR_ENDPOINT = "http://127.0.0.1:6006/v1/traces"
+endpoint = "http://127.0.0.1:6006/v1/traces"  # full OTLP traces URL — not PHOENIX_COLLECTOR_ENDPOINT, which is a base URL
 tracer_provider = trace_sdk.TracerProvider()
 trace_api.set_tracer_provider(tracer_provider)
 tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))

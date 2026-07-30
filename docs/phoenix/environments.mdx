@@ -76,9 +76,9 @@ Phoenix reads its connection settings from environment variables. Three of them 
 | `PHOENIX_CLIENT_HEADERS` | Extra headers (JSON) sent with every request, e.g. `api_key=...`. | Only when a deployment requires custom headers. |
 
 <Warning>
-Point `PHOENIX_COLLECTOR_ENDPOINT` at the server's **base URL**. Setting it (or the legacy `PHOENIX_HOST`) to a full endpoint path such as `.../v1/traces` will misconfigure the exporter and your traces will not arrive.
+Point `PHOENIX_COLLECTOR_ENDPOINT` at the server's **base URL**, never a full endpoint path such as `.../v1/traces`. Everything of Phoenix's that reads the variable — `register()`, the `px` CLI, the Python client — treats it as a base URL and builds its own request paths on top of it, so a suffixed value ends up in the middle of the URLs those tools construct. (The TypeScript client reads its base URL from `PHOENIX_HOST` instead.)
 
-Some third-party exporters — `@mastra/arize`'s `ArizeExporter`, a bare `OTLPTraceExporter` — take the *full* OTLP/HTTP URL and POST to it exactly as given, rather than appending the path the way `register()` does. Append `/v1/traces` where you construct those exporters, not in the variable: everything else Phoenix ships (the clients, the `px` CLI, `register()`) reads `PHOENIX_COLLECTOR_ENDPOINT` as a base URL and builds its own paths on top of it.
+Some third-party exporters — `@mastra/arize`'s `ArizeExporter`, a bare `OTLPTraceExporter` — take the *full* OTLP/HTTP URL and POST to it exactly as given, rather than appending the path the way `register()` does. Append `/v1/traces` where you construct those exporters, not in the variable.
 </Warning>
 
 ### Choosing a project

@@ -35,8 +35,8 @@ A quickstart that combines [Mastra](https://mastra.ai) (multi-agent framework) w
    - `PHOENIX_HOST` – (optional) base URL the eval and experiment scripts read from; defaults to `http://localhost:6006`
 
    `src/mastra/index.ts` appends `/v1/traces` to `PHOENIX_COLLECTOR_ENDPOINT` when constructing the
-   `ArizeExporter`, because that exporter POSTs to the URL it is given exactly as given. Leave the
-   variable itself as the base URL — Phoenix's own SDKs and clients add the paths they need.
+   `ArizeExporter`, because that exporter POSTs to exactly the URL it is given. Leave the
+   variable itself as the base URL — everything of Phoenix's that reads it adds the paths it needs.
 
 ## Scripts
 
