@@ -228,4 +228,88 @@ describe("SpanDetails headers", () => {
     expect(inputFeedback?.style.opacity).toBe("");
     expect(motionMocks.animate).toHaveBeenCalledTimes(2);
   });
+
+  it("separates regular and exception event counters", () => {
+    spanDetailsContentTestState.events = [
+      {
+        attributes: {},
+        message: "started",
+        name: "start",
+        timestamp: "2026-07-28T12:00:00.000Z",
+      },
+      {
+        attributes: {},
+        message: "continued",
+        name: "progress",
+        timestamp: "2026-07-28T12:00:01.000Z",
+      },
+      {
+        attributes: {},
+        message: "retried",
+        name: "retry",
+        timestamp: "2026-07-28T12:00:02.000Z",
+      },
+      {
+        attributes: {},
+        message: "failed",
+        name: "exception",
+        timestamp: "2026-07-28T12:00:03.000Z",
+      },
+    ];
+    spanDetailsContentTestState.shouldSuspend = false;
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    const eventLink = container.querySelector(
+      'a[href="#span-details-span-display-id-events"]'
+    );
+    const eventSection = container.querySelector(
+      "#span-details-span-display-id-events"
+    );
+    for (const eventCountContainer of [eventLink, eventSection]) {
+      expect(
+        Array.from(
+          eventCountContainer?.querySelectorAll<HTMLElement>(".counter") ?? []
+        ).map((counter) => ({
+          count: counter.textContent,
+          variant: counter.dataset.variant,
+        }))
+      ).toEqual([
+        { count: "3", variant: "default" },
+        { count: "1", variant: "danger" },
+      ]);
+    }
+  });
+
+  it("keeps the notes bar outside the scrolling sections", () => {
+    spanDetailsContentTestState.shouldSuspend = false;
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    const sectionsContent = container.querySelector(
+      "[data-span-details-sections-content]"
+    );
+    const sectionsViewport = sectionsContent?.parentElement;
+    const notesSection = container.querySelector("[data-span-details-notes]");
+    const notesBar = container.querySelector("[data-span-details-notes-bar]");
+
+    expect(sectionsViewport).not.toBeNull();
+    expect(sectionsViewport?.contains(notesSection)).toBe(true);
+    expect(sectionsViewport?.contains(notesBar)).toBe(false);
+    expect(sectionsViewport?.nextElementSibling).toBe(notesBar);
+    expect(notesBar?.textContent).toContain("Notes");
+    expect(notesBar?.textContent).toContain("Take notes");
+  });
 });

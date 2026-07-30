@@ -64,6 +64,25 @@ const spanInfoSectionNavigationLabels: Record<SpanInfoSectionKey, string> = {
   metadata: "Metadata",
 };
 
+function SpanEventCounters({
+  exceptionEventCount,
+  nonExceptionEventCount,
+}: {
+  exceptionEventCount: number;
+  nonExceptionEventCount: number;
+}) {
+  return (
+    <>
+      {nonExceptionEventCount > 0 || exceptionEventCount === 0 ? (
+        <Counter>{nonExceptionEventCount}</Counter>
+      ) : null}
+      {exceptionEventCount > 0 ? (
+        <Counter variant="danger">{exceptionEventCount}</Counter>
+      ) : null}
+    </>
+  );
+}
+
 const spanDetailsAnchorNavCSS = css`
   display: flex;
   align-items: center;
@@ -282,7 +301,6 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const notesHeadingRef = useRef<HTMLDivElement>(null);
   const spanDetailsSectionsDimensions = useDimensions(spanDetailsSectionsRef);
   const spanDetailsMainDimensions = useDimensions(spanDetailsMainRef);
-  const notesHeadingDimensions = useDimensions(notesHeadingRef);
   const scrollAnimationRef = useRef<ReturnType<typeof animate> | null>(null);
   const sectionFeedbackAnimationRef = useRef<ReturnType<typeof animate> | null>(
     null
@@ -360,13 +378,14 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     );
   }
 
-  const hasExceptions = span.events.some((event) => event.name === "exception");
+  const exceptionEventCount = span.events.filter(
+    (event) => event.name === "exception"
+  ).length;
+  const nonExceptionEventCount = span.events.length - exceptionEventCount;
   const isNotesPushedBelowViewport =
     spanDetailsSectionsDimensions != null &&
     spanDetailsMainDimensions != null &&
-    notesHeadingDimensions != null &&
-    spanDetailsMainDimensions.height + notesHeadingDimensions.height >
-      spanDetailsSectionsDimensions.height;
+    spanDetailsMainDimensions.height > spanDetailsSectionsDimensions.height;
   const shouldRenderNotesContent =
     span.spanNotes.length > 0 || isNotesPushedBelowViewport;
   const spanInfoSectionIds: SpanInfoSectionIds = {
@@ -386,9 +405,15 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   } as const;
 
   const showSectionNavigationFeedback = (targetSection: HTMLElement) => {
-    const sectionFeedbackElement = targetSection.querySelector<HTMLElement>(
-      "[data-section-navigation-feedback]"
-    );
+    const sectionFeedbackElement =
+      targetSection.querySelector<HTMLElement>(
+        "[data-section-navigation-feedback]"
+      ) ??
+      (targetSection.id === spanDetailsSectionIds.notes
+        ? notesHeadingRef.current?.querySelector<HTMLElement>(
+            "[data-section-navigation-feedback]"
+          )
+        : null);
     if (!sectionFeedbackElement) {
       return;
     }
@@ -538,9 +563,10 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             sectionId={spanDetailsSectionIds.events}
             onClick={handleSectionLinkClick}
           >
-            <Counter variant={hasExceptions ? "danger" : "default"}>
-              {span.events.length}
-            </Counter>
+            <SpanEventCounters
+              exceptionEventCount={exceptionEventCount}
+              nonExceptionEventCount={nonExceptionEventCount}
+            />
           </SpanDetailSectionLink>
           <SpanDetailSectionLink
             label="Notes"
@@ -592,9 +618,10 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
                   alignItems="center"
                 >
                   Events
-                  <Counter variant={hasExceptions ? "danger" : "default"}>
-                    {span.events.length}
-                  </Counter>
+                  <SpanEventCounters
+                    exceptionEventCount={exceptionEventCount}
+                    nonExceptionEventCount={nonExceptionEventCount}
+                  />
                 </Flex>
               </SpanDetailsSectionHeading>
               <DeferredSpanDetailsContent
@@ -611,26 +638,6 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             aria-label="Notes"
             data-span-details-notes
           >
-            <SpanDetailsSectionHeading
-              ref={notesHeadingRef}
-              extra={
-                openSpanNoteBar ? (
-                  <Button size="S" variant="quiet" onPress={openSpanNoteBar}>
-                    Take notes
-                  </Button>
-                ) : null
-              }
-            >
-              <Flex
-                elementType="span"
-                direction="row"
-                gap="size-100"
-                alignItems="center"
-              >
-                Notes
-                <Counter>{span.spanNotes.length}</Counter>
-              </Flex>
-            </SpanDetailsSectionHeading>
             {shouldRenderNotesContent ? (
               <DeferredSpanDetailsContent
                 placeholderHeight={NOTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
@@ -642,6 +649,28 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             ) : null}
           </section>
         </div>
+      </div>
+      <div data-span-details-notes-bar>
+        <SpanDetailsSectionHeading
+          ref={notesHeadingRef}
+          extra={
+            openSpanNoteBar ? (
+              <Button size="S" variant="quiet" onPress={openSpanNoteBar}>
+                Take notes
+              </Button>
+            ) : null
+          }
+        >
+          <Flex
+            elementType="span"
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+          >
+            Notes
+            <Counter>{span.spanNotes.length}</Counter>
+          </Flex>
+        </SpanDetailsSectionHeading>
       </div>
     </Flex>
   );
