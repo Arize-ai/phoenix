@@ -1536,6 +1536,9 @@ const spanTimingCSS = css`
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .theme--light & .latency-text .text {
+    color: var(--global-text-color-700);
+  }
   .timeline-bar {
     grid-column: 2;
     width: 100%;

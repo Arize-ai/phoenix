@@ -688,6 +688,43 @@ describe("TraceTree", () => {
     ).toEqual(new Set(["2"]));
   });
 
+  it("uses darker timing text only in the light theme", () => {
+    renderTraceTree({ spans: [ROOT_SPAN] });
+
+    const timingColumn =
+      container.querySelector<HTMLElement>(".span-tree-timing");
+    const latencyText = timingColumn?.querySelector<HTMLElement>(
+      ".latency-text .text"
+    );
+    const timingClassName = Array.from(timingColumn?.classList ?? []).find(
+      (className) => className.startsWith("css-")
+    );
+    const latencyTextClassName = Array.from(latencyText?.classList ?? []).find(
+      (className) => className.startsWith("css-")
+    );
+    const styleRules = Array.from(document.styleSheets).flatMap((styleSheet) =>
+      Array.from(styleSheet.cssRules)
+    );
+    const defaultTextRule = styleRules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule &&
+        rule.selectorText === `.${latencyTextClassName}` &&
+        rule.style.color !== ""
+    );
+    const lightThemeTextRule = styleRules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule &&
+        rule.selectorText.includes(".theme--light") &&
+        rule.selectorText.includes(`.${timingClassName}`) &&
+        rule.selectorText.includes(".latency-text .text")
+    );
+
+    expect(defaultTextRule?.style.color).toBe("var(--global-text-color-500)");
+    expect(lightThemeTextRule?.style.color).toBe(
+      "var(--global-text-color-700)"
+    );
+  });
+
   it("reserves collapse-toggle space for spans without children", () => {
     renderTraceTree({
       spans: [ROOT_SPAN, CHILD_SPAN],
