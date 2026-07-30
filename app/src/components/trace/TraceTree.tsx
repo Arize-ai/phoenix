@@ -310,6 +310,10 @@ const traceTreeIconRailCSS = css`
     background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
   }
 
+  .trace-tree-icon-rail__item[data-selected="true"][data-status-code="ERROR"] {
+    border-left-color: var(--global-color-danger);
+  }
+
   .trace-tree-icon-rail__item:focus-visible {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: calc(-1 * var(--focus-ring-thickness));
@@ -556,6 +560,7 @@ export function TraceTree(props: TraceTreeProps) {
                   type="button"
                   className="trace-tree-icon-rail__item"
                   data-selected={isSelected}
+                  data-status-code={span.statusCode}
                   data-trace-tree-span-node-id={span.id}
                   aria-label={`View span ${span.name}`}
                   aria-pressed={isSelected}
@@ -1081,6 +1086,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
           isSelected={selectedSpanNodeId === node.span.id}
           nestingLevel={nestingLevel}
           spanNodeId={node.span.id}
+          statusCode={statusCode}
         >
           <Flex
             className="span-tree-name"
@@ -1096,7 +1102,11 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             `}
           >
             <SpanKindIcon spanKind={node.span.spanKind} />
-            <span css={spanNameCSS} title={name}>
+            <span
+              className="span-tree-name__label"
+              css={spanNameCSS}
+              title={name}
+            >
               {name}
             </span>
             {statusCode === "ERROR" ? (
@@ -1355,11 +1365,13 @@ function SpanNodeWrap(
     isSelected: boolean;
     nestingLevel: number;
     spanNodeId?: string;
+    statusCode?: SpanStatusCodeType;
   }>
 ) {
   return (
     <div
       data-selected={props.isSelected}
+      data-status-code={props.statusCode}
       data-trace-tree-span-node-id={props.spanNodeId}
       className={classNames("span-node-wrap", {
         "is-selected": props.isSelected,
@@ -1383,6 +1395,12 @@ function SpanNodeWrap(
           // Keep the fill translucent so the latency bar remains visible
           background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
           border-color: var(--global-color-gray-300);
+        }
+        &.is-selected[data-status-code="ERROR"] {
+          border-left-color: var(--global-color-danger);
+        }
+        &[data-status-code="ERROR"] .span-tree-name__label {
+          color: var(--global-color-red-1000);
         }
         & > *:first-of-type {
           box-sizing: border-box;

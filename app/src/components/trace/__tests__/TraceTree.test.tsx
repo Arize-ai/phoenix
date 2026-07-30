@@ -353,6 +353,67 @@ describe("TraceTree", () => {
     expect(rail.scrollTop).toBe(144);
   });
 
+  it("colors the selected error span's row marker red", () => {
+    const errorSpan: ISpanItem = {
+      ...ROOT_SPAN,
+      statusCode: "ERROR",
+    };
+    renderTraceTree({
+      spans: [errorSpan],
+      selectedSpanNodeId: errorSpan.id,
+      isNavigationCollapsed: true,
+    });
+
+    const rail = container.querySelector<HTMLElement>(
+      '[data-testid="trace-tree-icon-rail"]'
+    );
+    const compactRow = rail?.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${errorSpan.id}"]`
+    );
+    const fullRow = container.querySelector<HTMLElement>(
+      `.trace-tree-navigation__overlay [data-trace-tree-span-node-id="${errorSpan.id}"]`
+    );
+    const railClassName = Array.from(rail?.classList ?? []).find((className) =>
+      className.startsWith("css-")
+    );
+    const fullRowClassName = Array.from(fullRow?.classList ?? []).find(
+      (className) => className.startsWith("css-")
+    );
+    const styleRules = Array.from(document.styleSheets).flatMap((styleSheet) =>
+      Array.from(styleSheet.cssRules)
+    );
+    const compactErrorRule = styleRules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule &&
+        rule.selectorText.includes(`.${railClassName} `) &&
+        rule.selectorText.includes('[data-status-code="ERROR"]')
+    );
+    const fullErrorRule = styleRules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule &&
+        rule.selectorText.includes(`.${fullRowClassName}.is-selected`) &&
+        rule.selectorText.includes('[data-status-code="ERROR"]')
+    );
+    const fullErrorTextRule = styleRules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule &&
+        rule.selectorText.includes(
+          `.${fullRowClassName}[data-status-code="ERROR"]`
+        ) &&
+        rule.selectorText.includes(".span-tree-name__label")
+    );
+
+    expect(compactRow?.dataset.statusCode).toBe("ERROR");
+    expect(fullRow?.dataset.statusCode).toBe("ERROR");
+    expect(compactErrorRule?.style.borderLeftColor).toBe(
+      "var(--global-color-danger)"
+    );
+    expect(fullErrorRule?.style.borderLeftColor).toBe(
+      "var(--global-color-danger)"
+    );
+    expect(fullErrorTextRule?.style.color).toBe("var(--global-color-red-1000)");
+  });
+
   it("preserves span disclosure state while switching between full and compact navigation", () => {
     const renderNavigation = (isNavigationCollapsed: boolean) =>
       renderTraceTree({
