@@ -43,6 +43,7 @@ import {
 import { EvaluatorCategoricalChoiceConfig } from "@phoenix/components/evaluators/EvaluatorCategoricalChoiceConfig";
 import {
   buildOutputConfigsInput,
+  computePositiveOptimization,
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
@@ -467,7 +468,7 @@ const samplingSliderCSS = css`
      otherwise wins with width: 100% and collapses the track. */
   &[data-orientation="horizontal"] {
     width: 220px;
-    height: var(--global-dimension-size-400);
+    height: var(--global-input-height-m);
   }
   .slider__output {
     display: flex;
@@ -476,10 +477,11 @@ const samplingSliderCSS = css`
   }
   /* The base slider styles this input under an orientation-qualified selector;
      restate that qualification so these later, equal-specificity rules win.
-     Height matches the neighboring Select trigger and toggle buttons. */
+     The input height matches the neighboring M-sized Select trigger and
+     Target toggle buttons so the row reads as one control strip. */
   &[data-orientation="horizontal"] .slider__number-field .react-aria-Input {
     margin-bottom: 0;
-    height: var(--global-dimension-size-400);
+    height: var(--global-input-height-m);
   }
 `;
 
@@ -868,9 +870,16 @@ const runRowCSS = css`
 
 /**
  * The run result pinned to a span row: the annotation the evaluator produced
- * (or a failure marker), persisting across runs on other rows.
+ * (or a failure marker), persisting across runs on other rows. Colored by the
+ * annotation's optimization direction and threshold — the same rule the
+ * evaluator output previews apply — and neutral when no direction can be
+ * determined.
  */
 function SpanRunResultChip({ run }: { run: SpanRun | undefined }) {
+  const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
+  const evaluatorName = useEvaluatorStore(
+    (state) => state.evaluator.name || state.evaluator.globalName
+  );
   if (run == null || run.status === "running") {
     return null;
   }
@@ -881,12 +890,28 @@ function SpanRunResultChip({ run }: { run: SpanRun | undefined }) {
   const annotated = run.results.find((result) => result.annotation != null);
   if (annotated?.annotation) {
     const { annotation } = annotated;
+    const positiveOptimization = computePositiveOptimization({
+      annotationName: annotation.name,
+      score: annotation.score,
+      evaluatorName,
+      outputConfigs,
+    });
     const valueParts = [
       annotation.label,
       annotation.score != null ? annotation.score.toLocaleString() : null,
     ].filter((part): part is string => part != null);
     return (
-      <span css={resultChipCSS} title={annotation.explanation ?? undefined}>
+      <span
+        css={resultChipCSS}
+        data-direction={
+          positiveOptimization == null
+            ? undefined
+            : positiveOptimization
+              ? "positive"
+              : "negative"
+        }
+        title={annotation.explanation ?? undefined}
+      >
         {annotation.name}
         {valueParts.length ? ` · ${valueParts.join(" · ")}` : ""}
       </span>
@@ -907,10 +932,22 @@ const resultChipCSS = css`
   font-family: var(--global-font-family-code, monospace);
   font-size: var(--global-font-size-xs);
   font-weight: 600;
-  color: var(--global-color-success);
+  color: var(--global-text-color-700);
   border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-small);
   padding: var(--global-dimension-size-25) var(--global-dimension-size-100);
+  &[data-direction="positive"] {
+    color: var(--global-color-optimization-direction-positive);
+    background-color: var(
+      --global-color-background-optimization-direction-positive
+    );
+  }
+  &[data-direction="negative"] {
+    color: var(--global-color-optimization-direction-negative);
+    background-color: var(
+      --global-color-background-optimization-direction-negative
+    );
+  }
 `;
 
 const resultChipDangerCSS = css`
