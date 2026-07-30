@@ -18,6 +18,46 @@ import { ExpandCollapseAllButton } from "./ExpandCollapseAllButton";
 import { useTraceTree } from "./TraceTreeContext";
 import { TraceTreePanelToggleButton } from "./TraceTreePanelToggleButton";
 
+export function TraceTreeTimingToggleButton({
+  className,
+}: {
+  className?: string;
+}) {
+  const showMetricsInTraceTree = usePreferencesContext(
+    (state) => state.showMetricsInTraceTree
+  );
+  const setShowMetricsInTraceTree = usePreferencesContext(
+    (state) => state.setShowMetricsInTraceTree
+  );
+
+  return (
+    <TooltipTrigger>
+      <Button
+        className={className}
+        size="S"
+        variant="quiet"
+        aria-label={
+          showMetricsInTraceTree
+            ? "Hide metrics in trace tree"
+            : "Show metrics in trace tree"
+        }
+        onPress={() => {
+          setShowMetricsInTraceTree(!showMetricsInTraceTree);
+        }}
+      >
+        <Icon
+          svg={showMetricsInTraceTree ? <Icons.Timer /> : <Icons.TimerOff />}
+        />
+      </Button>
+      <Tooltip offset={-5}>
+        {showMetricsInTraceTree
+          ? "Hide metrics in trace tree"
+          : "Show metrics in trace tree"}
+      </Tooltip>
+    </TooltipTrigger>
+  );
+}
+
 /**
  * Header controls for the trace tree panel.
  *
@@ -34,12 +74,6 @@ export function TraceTreeToolbar({
   isTreePanelCollapsed?: boolean;
   onTreePanelCollapsedChange?: (isCollapsed: boolean) => void;
 }) {
-  const showMetricsInTraceTree = usePreferencesContext(
-    (state) => state.showMetricsInTraceTree
-  );
-  const setShowMetricsInTraceTree = usePreferencesContext(
-    (state) => state.setShowMetricsInTraceTree
-  );
   const { isCollapsed, searchQuery, setIsCollapsed, setSearchQuery } =
     useTraceTree();
 
@@ -106,10 +140,6 @@ export function TraceTreeToolbar({
           padding: 0 !important;
         }
 
-        .trace-tree-toolbar__action-label {
-          display: none;
-        }
-
         @container trace-tree-panel (width < ${TRACE_TREE_HOVER_WIDTH_PIXELS}px) {
           .trace-tree-toolbar__search {
             flex: none;
@@ -161,35 +191,7 @@ export function TraceTreeToolbar({
             isCollapsed={isCollapsed}
             onCollapsedChange={setIsCollapsed}
           />
-          <TooltipTrigger>
-            <Button
-              className="trace-tree-toolbar__action"
-              size="S"
-              variant="quiet"
-              aria-label={
-                showMetricsInTraceTree
-                  ? "Hide metrics in trace tree"
-                  : "Show metrics in trace tree"
-              }
-              onPress={() => {
-                setShowMetricsInTraceTree(!showMetricsInTraceTree);
-              }}
-            >
-              <Icon
-                svg={
-                  showMetricsInTraceTree ? <Icons.Timer /> : <Icons.TimerOff />
-                }
-              />
-              <span className="trace-tree-toolbar__action-label">
-                {showMetricsInTraceTree ? "Hide timing" : "Show timing"}
-              </span>
-            </Button>
-            <Tooltip offset={-5}>
-              {showMetricsInTraceTree
-                ? "Hide metrics in trace tree"
-                : "Show metrics in trace tree"}
-            </Tooltip>
-          </TooltipTrigger>
+          <TraceTreeTimingToggleButton className="trace-tree-toolbar__action" />
           {isTreePanelCollapsed !== undefined &&
           onTreePanelCollapsedChange != null ? (
             <TraceTreePanelToggleButton
