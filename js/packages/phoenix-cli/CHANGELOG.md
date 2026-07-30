@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 1.14.0
+
+### Minor Changes
+
+- df9db47: Suggest upgrading `px` when an unknown command is run and a newer version is published.
+
 ## 1.13.1
 
 ### Patch Changes
