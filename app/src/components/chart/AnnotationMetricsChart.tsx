@@ -15,6 +15,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { AnnotationScoreText } from "@phoenix/components/annotation";
 import { useTheme } from "@phoenix/contexts";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 import {
@@ -69,8 +70,10 @@ function AnnotationMetricsTooltip({
   active,
   payload,
   renderHeader,
+  getMeanScoreOptimization,
 }: TooltipContentProps & {
   renderHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
+  getMeanScoreOptimization?: (meanScore: number) => boolean | null;
 }) {
   if (!active || !payload || payload.length === 0) {
     return null;
@@ -84,6 +87,10 @@ function AnnotationMetricsTooltip({
           return null;
         }
         const isMeanScore = entry.dataKey === MEAN_SCORE_DATA_KEY;
+        const numericValue = Number(entry.value);
+        const formattedValue = isMeanScore
+          ? floatFormatter(numericValue)
+          : formatAnnotationFraction(numericValue);
         return (
           <ChartTooltipItem
             key={String(entry.dataKey)}
@@ -91,9 +98,15 @@ function AnnotationMetricsTooltip({
             shape={isMeanScore ? "line" : "square"}
             name={String(entry.name)}
             value={
-              isMeanScore
-                ? floatFormatter(Number(entry.value))
-                : formatAnnotationFraction(Number(entry.value))
+              isMeanScore && getMeanScoreOptimization ? (
+                <AnnotationScoreText
+                  positiveOptimization={getMeanScoreOptimization(numericValue)}
+                >
+                  {formattedValue}
+                </AnnotationScoreText>
+              ) : (
+                formattedValue
+              )
             }
           />
         );
@@ -109,6 +122,7 @@ type AnnotationMetricsChartProps = {
   yAxisProps: YAxisProps;
   syncId: string;
   renderTooltipHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
+  getMeanScoreOptimization?: (meanScore: number) => boolean | null;
   chartProps?: ComponentProps<typeof ComposedChart>;
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
   emptyStateMessage?: string;
@@ -136,6 +150,7 @@ function AnnotationMetricsChartContent({
   yAxisProps,
   syncId,
   renderTooltipHeader,
+  getMeanScoreOptimization,
   chartProps,
   additionalLegendItems,
   renderReference,
@@ -214,6 +229,7 @@ function AnnotationMetricsChartContent({
               <AnnotationMetricsTooltip
                 {...props}
                 renderHeader={renderTooltipHeader}
+                getMeanScoreOptimization={getMeanScoreOptimization}
               />
             )}
           />
