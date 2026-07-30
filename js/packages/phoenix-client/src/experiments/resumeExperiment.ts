@@ -309,7 +309,7 @@ export async function resumeExperiment({
   const baseUrl = client.config.baseUrl;
   invariant(
     baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
+    "Phoenix base URL not found. Please set PHOENIX_COLLECTOR_ENDPOINT (or PHOENIX_HOST) or set baseUrl on the client."
   );
 
   // Initialize tracer (only if experiment has a project_name)

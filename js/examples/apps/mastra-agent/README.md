@@ -45,9 +45,9 @@ the URL it is given — pointed at the base URL, spans go to the wrong path and 
 batching exporter swallows the error, so no trace ever arrives.
 
 If you are using Phoenix Cloud or any instance with authentication enabled, also set
-`PHOENIX_API_KEY=your-api-key`. Point `PHOENIX_COLLECTOR_ENDPOINT` at the instance's base URL
-(e.g. `https://app.phoenix.arize.com`), and set `PHOENIX_HOST` to the same value so the eval
-script reads spans back from it — `@arizeai/phoenix-client` defaults to `http://localhost:6006`.
+`PHOENIX_API_KEY=your-api-key` and point `PHOENIX_COLLECTOR_ENDPOINT` at the instance's base
+URL (e.g. `https://app.phoenix.arize.com`). The eval script reads spans back through
+`@arizeai/phoenix-client`, which resolves the same variable.
 
 ## Running the Agent
 

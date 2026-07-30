@@ -272,7 +272,7 @@ export async function runExperiment({
     const baseUrl = client.config.baseUrl;
     invariant(
       baseUrl,
-      "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
+      "Phoenix base URL not found. Please set PHOENIX_COLLECTOR_ENDPOINT (or PHOENIX_HOST) or set baseUrl on the client."
     );
 
     taskProvider = register({
@@ -623,7 +623,7 @@ export async function evaluateExperiment({
   const baseUrl = client.config.baseUrl;
   invariant(
     baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
+    "Phoenix base URL not found. Please set PHOENIX_COLLECTOR_ENDPOINT (or PHOENIX_HOST) or set baseUrl on the client."
   );
   let provider: NodeTracerProvider;
   let globalRegistration: GlobalTracerProviderRegistration | null = null;

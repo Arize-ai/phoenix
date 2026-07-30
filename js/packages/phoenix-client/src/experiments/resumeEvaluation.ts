@@ -325,7 +325,7 @@ export async function resumeEvaluation({
   const baseUrl = client.config.baseUrl;
   invariant(
     baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
+    "Phoenix base URL not found. Please set PHOENIX_COLLECTOR_ENDPOINT (or PHOENIX_HOST) or set baseUrl on the client."
   );
 
   const tracerSetup = setupEvaluationTracer({

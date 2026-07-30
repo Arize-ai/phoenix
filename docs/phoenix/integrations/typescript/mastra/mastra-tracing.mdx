@@ -65,7 +65,7 @@ export const mastra = new Mastra({
 
   For the same reason, do not move `/v1/traces` into `PHOENIX_COLLECTOR_ENDPOINT`. That variable
   is [documented](/docs/phoenix/environments) as the server's base URL, and everything of
-  Phoenix's that reads it — `register()`, the `px` CLI, the Python client — builds its own
+  Phoenix's that reads it — `register()`, the `px` CLI, the API clients — builds its own
   request paths on top of it.
 </Warning>
 
