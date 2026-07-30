@@ -20,6 +20,22 @@ export function isApiKeyError(message: string | null | undefined): boolean {
   return message != null && API_KEY_ERROR_PATTERN.test(message);
 }
 
+/**
+ * Matches the message the server reports when the database has run out of
+ * storage and writes are locked: the HTTP 507 body from `is_not_locked`, the
+ * `InsufficientStorage` GraphQL error from `IsLocked`, and the notice appended
+ * when a turn's transcript could not be written. All three are built from
+ * `INSUFFICIENT_STORAGE_MESSAGE` on the server, so this tracks one sentence.
+ */
+const INSUFFICIENT_STORAGE_ERROR_PATTERN = /insufficient storage/i;
+
+/** Return whether an error message reports that the database is out of storage. */
+export function isInsufficientStorageError(
+  message: string | null | undefined
+): boolean {
+  return message != null && INSUFFICIENT_STORAGE_ERROR_PATTERN.test(message);
+}
+
 const chatErrorMessageCSS = css`
   align-self: flex-start;
   display: flex;
@@ -78,21 +94,27 @@ export function ChatErrorMessage({
   onRetry?: () => void;
   onRewind?: MessageRewindRequest;
 }) {
-  const canRetry = onRetry != null;
+  const isStorageError = isInsufficientStorageError(error.message);
+  // Retrying against a locked database fails identically, so don't offer it.
+  const canRetry = onRetry != null && !isStorageError;
   const canUndoOrFork = latestUserMessageId != null && onRewind != null;
-  const isCredentialError = isApiKeyError(error.message);
+  const isCredentialError = !isStorageError && isApiKeyError(error.message);
 
   return (
     <div css={chatErrorMessageCSS} role="alert">
       <div className="chat-error-message__title">
-        {isCredentialError
-          ? "The model provider rejected your API key."
-          : "The assistant response failed."}
+        {isStorageError
+          ? "Phoenix has run out of database storage."
+          : isCredentialError
+            ? "The model provider rejected your API key."
+            : "The assistant response failed."}
       </div>
       <p className="chat-error-message__copy">
-        {isCredentialError
-          ? "The API key for the selected model is missing, invalid, or misconfigured. Add a valid key in AI provider settings, then retry."
-          : "You can retry the response, undo this turn, or branch before the error."}
+        {isStorageError
+          ? "Writes are locked until space is freed, so this turn was not saved. Delete old data or increase storage, then send the message again."
+          : isCredentialError
+            ? "The API key for the selected model is missing, invalid, or misconfigured. Add a valid key in AI provider settings, then retry."
+            : "You can retry the response, undo this turn, or branch before the error."}
       </p>
       {canRetry || canUndoOrFork || isCredentialError ? (
         <div className="chat-error-message__actions">
