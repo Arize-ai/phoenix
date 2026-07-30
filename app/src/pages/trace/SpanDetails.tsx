@@ -457,10 +457,13 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   useEffect(() => {
     const scrollContent = spanDetailsSectionsContentRef.current;
     return () => {
-      scrollAnimationRef.current?.stop();
-      sectionFeedbackAnimationRef.current?.stop();
+      scrollAnimationRef.current?.cancel();
+      sectionFeedbackAnimationRef.current?.cancel();
       if (scrollContent) {
         scrollContent.style.transform = "";
+      }
+      if (sectionFeedbackElementRef.current) {
+        sectionFeedbackElementRef.current.style.opacity = "";
       }
     };
   }, []);
@@ -504,12 +507,12 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
       return;
     }
 
-    sectionFeedbackAnimationRef.current?.stop();
+    sectionFeedbackAnimationRef.current?.cancel();
     if (sectionFeedbackElementRef.current) {
       sectionFeedbackElementRef.current.style.opacity = "";
     }
     sectionFeedbackElementRef.current = sectionFeedbackElement;
-    sectionFeedbackAnimationRef.current = animate(
+    const sectionFeedbackAnimation = animate(
       sectionFeedbackElement,
       { opacity: [0, 1, 1, 0] },
       {
@@ -517,12 +520,18 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
         ease: "easeInOut",
         times: [0, 0.15, 0.55, 1],
         onComplete: () => {
+          if (
+            sectionFeedbackAnimationRef.current !== sectionFeedbackAnimation
+          ) {
+            return;
+          }
           sectionFeedbackElement.style.opacity = "";
           sectionFeedbackAnimationRef.current = null;
           sectionFeedbackElementRef.current = null;
         },
       }
     );
+    sectionFeedbackAnimationRef.current = sectionFeedbackAnimation;
   };
 
   const handleSectionLinkClick = ({
@@ -561,10 +570,10 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
       event.currentTarget.hash
     );
 
-    scrollAnimationRef.current?.stop();
+    scrollAnimationRef.current?.cancel();
     scrollAnimationRef.current = null;
     scrollContent.style.transform = "";
-    sectionFeedbackAnimationRef.current?.stop();
+    sectionFeedbackAnimationRef.current?.cancel();
     sectionFeedbackAnimationRef.current = null;
     if (sectionFeedbackElementRef.current) {
       sectionFeedbackElementRef.current.style.opacity = "";
@@ -596,7 +605,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     const scrollDirection = Math.sign(scrollDistance);
     const initialContentTransform = `translateY(${scrollDirection * FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS}px)`;
     scrollContent.style.transform = initialContentTransform;
-    scrollAnimationRef.current = animate(
+    const scrollAnimation = animate(
       scrollContent,
       { transform: [initialContentTransform, "translateY(0px)"] },
       {
@@ -604,12 +613,16 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
         duration: FINAL_SCROLL_ANIMATION_DURATION_SECONDS,
         ease: "easeOut",
         onComplete: () => {
+          if (scrollAnimationRef.current !== scrollAnimation) {
+            return;
+          }
           scrollContent.style.transform = "";
           scrollAnimationRef.current = null;
           showSectionNavigationFeedback(targetSection);
         },
       }
     );
+    scrollAnimationRef.current = scrollAnimation;
   };
 
   return (

@@ -11,6 +11,15 @@ import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 const pendingContent = new Promise<never>(() => undefined);
+const spanDetailsContentTestState = vi.hoisted(() => ({
+  shouldSuspend: true,
+}));
+const motionMocks = vi.hoisted(() => ({
+  animate: vi.fn(() => ({ cancel: vi.fn(), stop: vi.fn() })),
+  useReducedMotion: vi.fn(() => false),
+}));
+
+vi.mock("motion/react", () => motionMocks);
 
 vi.mock("react-relay", () => ({
   graphql: vi.fn(),
@@ -18,7 +27,24 @@ vi.mock("react-relay", () => ({
   useLazyLoadQuery: vi.fn(
     (_query, variables: { id: string; includeSession?: boolean }) => {
       if (variables.includeSession === undefined) {
-        throw pendingContent;
+        if (spanDetailsContentTestState.shouldSuspend) {
+          throw pendingContent;
+        }
+        return {
+          span: {
+            __typename: "Span",
+            id: "span-node-id",
+            spanId: "span-display-id",
+            spanKind: "chain",
+            input: { value: "input", mimeType: "text" },
+            output: { value: "output", mimeType: "text" },
+            attributes: "{}",
+            events: [],
+            spanNotes: [],
+            documentRetrievalMetrics: [],
+            documentEvaluations: [],
+          },
+        };
       }
       return {
         span: {
@@ -129,6 +155,9 @@ describe("SpanDetails headers", () => {
   let root: Root;
 
   beforeEach(() => {
+    spanDetailsContentTestState.shouldSuspend = true;
+    motionMocks.animate.mockClear();
+    motionMocks.useReducedMotion.mockClear();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -207,5 +236,42 @@ describe("SpanDetails headers", () => {
     ).map((option) => option.textContent);
     expect(optionLabels).toContain("Trace");
     expect(optionLabels).not.toContain("Session");
+  });
+
+  it("clears an interrupted section-title highlight before animating the next title", async () => {
+    spanDetailsContentTestState.shouldSuspend = false;
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    const inputLink = Array.from(container.querySelectorAll("nav a")).find(
+      (link) => link.textContent === "Input"
+    );
+    const outputLink = Array.from(container.querySelectorAll("nav a")).find(
+      (link) => link.textContent === "Output"
+    );
+    expect(inputLink).toBeDefined();
+    expect(outputLink).toBeDefined();
+
+    const user = userEvent.setup();
+    await act(async () => user.click(inputLink!));
+    const firstAnimation = motionMocks.animate.mock.results[0]?.value;
+    const inputFeedback = container.querySelector<HTMLElement>(
+      "#span-details-span-display-id-input [data-section-navigation-feedback]"
+    );
+    expect(firstAnimation).toBeDefined();
+    expect(inputFeedback).not.toBeNull();
+
+    inputFeedback!.style.opacity = "0.4";
+    await act(async () => user.click(outputLink!));
+
+    expect(firstAnimation?.cancel).toHaveBeenCalledOnce();
+    expect(firstAnimation?.stop).not.toHaveBeenCalled();
+    expect(inputFeedback?.style.opacity).toBe("");
+    expect(motionMocks.animate).toHaveBeenCalledTimes(2);
   });
 });
