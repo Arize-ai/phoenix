@@ -376,7 +376,7 @@ const turnDetailRowCSS = css`
 `;
 
 const turnLaneContentCSS = css`
-  padding-inline: var(--global-grid-margin-xsmall);
+  padding: var(--global-grid-margin-xsmall);
 `;
 
 export function SessionDetailsTraceList({
@@ -572,11 +572,7 @@ export function SessionDetailsTraceList({
               }
             }}
           >
-            <View
-              paddingTop="size-100"
-              paddingBottom="size-200"
-              css={turnLaneContentCSS}
-            >
+            <View css={turnLaneContentCSS}>
               <SessionTurnDetail
                 index={index}
                 traceId={traceId}
