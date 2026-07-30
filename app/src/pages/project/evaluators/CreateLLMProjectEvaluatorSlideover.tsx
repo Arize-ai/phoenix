@@ -90,8 +90,6 @@ export const CreateLLMProjectEvaluatorSlideover = ({
       return creationMode.initialState.defaultMessages;
     }
     if (creationMode.kind === "scratch") {
-      // Span-grain defaults: only variables that exist in the span evaluation
-      // context, so the template binds zero-config on real spans.
       return getSpanEvaluatorDefaultMessages();
     }
     return undefined;
@@ -100,8 +98,6 @@ export const CreateLLMProjectEvaluatorSlideover = ({
     creationMode.kind === "copy"
       ? creationMode.initialState.templateFormat
       : undefined;
-  // Backdrop clicks close an untouched form immediately; once there are
-  // edits, the click asks for confirmation instead of silently dropping work.
   const dirtyCheckRef = useRef<EvaluatorFormDirtyCheck>(() => false);
   const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
   return (
@@ -110,8 +106,6 @@ export const CreateLLMProjectEvaluatorSlideover = ({
         {...props}
         isDismissable
         shouldCloseOnInteractOutside={(element) => {
-          // Portalled popovers/menus inside the form also register as
-          // "outside" the modal — only a genuine backdrop click may dismiss.
           if (!isModalUnderlay(element)) {
             return false;
           }
@@ -188,8 +182,8 @@ const CreateProjectEvaluatorDialog = ({
     registerDirtyCheck,
     scope,
     playgroundStore,
-    // The code source editor keeps its draft in local state this check cannot
-    // observe, so treat the new-code form as always worth confirming.
+    // The code source editor's draft lives in local state the dirty check
+    // cannot observe.
     alwaysDirty: creationMode.kind === "newCode",
   });
   const [addCodeEvaluator, isAddingCodeEvaluator] =

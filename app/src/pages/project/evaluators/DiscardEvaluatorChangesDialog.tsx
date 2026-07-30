@@ -14,20 +14,14 @@ import {
 } from "@phoenix/components/core/dialog";
 
 /**
- * True only when an interact-outside target is the slideover's dimmed
- * underlay. react-aria reports EVERY interaction outside the modal element —
- * including portalled popovers and menus that visually belong to the form —
- * so a dismissal decision (or a discard prompt) must fire only for genuine
- * backdrop clicks.
+ * react-aria reports every interaction outside the modal element, including
+ * portalled popovers and menus that visually belong to the form; only the
+ * dimmed underlay is a genuine backdrop click.
  */
 export function isModalUnderlay(element: Element): boolean {
   return element.classList.contains("react-aria-ModalOverlay");
 }
 
-/**
- * Confirms an outside-click dismissal of an evaluator slideover that has
- * unsaved edits, so a stray click cannot silently drop work.
- */
 export function DiscardEvaluatorChangesDialog({
   isOpen,
   onKeepEditing,

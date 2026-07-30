@@ -825,8 +825,7 @@ function getSandboxDependenciesConfigLabel(config: SandboxConfigForLabels) {
 
 /**
  * Editable source-code editor with a read-only auto-generated type footer.
- * Ships its own description line and Reset-to-default button. Shared by the
- * dataset and project code-evaluator authoring flows.
+ * Ships its own description line and Reset-to-default button.
  */
 export const CodeEvaluatorSourceEditor = ({
   language,
@@ -1012,8 +1011,7 @@ export const CodeEvaluatorSourceEditor = ({
 };
 
 /**
- * Heading + bordered card for the evaluator's output annotation config. Shared
- * by the dataset and project code-evaluator authoring flows.
+ * Heading + bordered card for the evaluator's output annotation config.
  */
 export const CodeEvaluatorAnnotationSection = () => {
   return (

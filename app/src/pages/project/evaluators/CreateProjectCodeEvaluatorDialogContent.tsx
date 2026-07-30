@@ -35,13 +35,6 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
-/**
- * Authors a brand-new code evaluator and binds it to the project in a single
- * `createProjectCodeEvaluator` mutation. Reuses the definition-focused
- * {@link ProjectEvaluatorFormSections} on the left (with code-authoring fields
- * in the definition section) and the shared {@link ProjectEvaluatorScopePanel}
- * on the right, previewing the unsaved source through the inline-code path.
- */
 export const CreateProjectCodeEvaluatorDialogContent = ({
   projectId,
   scope,
@@ -115,8 +108,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     [language, sourceCode]
   );
 
-  // A sandbox is only valid for the selected language; drop the selection when
-  // it no longer matches so create validation and preview stay consistent.
+  // A sandbox config is only valid for its own language.
   const selectedSandboxConfigId = sandboxConfigs.some(
     (config) => config.id === sandboxConfigId && config.language === language
   )
@@ -151,8 +143,6 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     `);
 
   const handleLanguageChange = (nextLanguage: CodeEvaluatorLanguage) => {
-    // Only swap the source when it is still an untouched generated default,
-    // never over user-authored code.
     if (getAllGeneratedSources(language).includes(sourceCode)) {
       setSourceCode(getDefaultCodeEvaluatorSource(nextLanguage));
     }
@@ -197,8 +187,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           evaluationTarget: toProjectEvaluatorGraphQLTarget(scope.targetType),
           description: state.evaluator.description.trim() || null,
           outputConfigs: buildOutputConfigsInput(state.outputConfigs),
-          // Per-project mapping is null on create so the evaluator's own
-          // mapping is inherited.
+          // A null per-project mapping inherits the evaluator's own mapping.
           inputMapping: null,
           filterCondition: scope.filterCondition,
           enabled: true,

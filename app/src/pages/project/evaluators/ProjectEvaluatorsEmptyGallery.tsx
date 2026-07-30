@@ -16,17 +16,10 @@ import {
   projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 
-// Keep the total number of cards manageable; the Add evaluator menu above is
-// the overflow path for the full list.
+// The Add evaluator menu is the overflow path for the full list.
 const MAX_COPY_CARDS = 4;
 const MAX_ATTACH_CARDS = 3;
 
-/**
- * Discoverable empty state for a project with no evaluators: cards to author a
- * new LLM or code evaluator plus cards to copy existing LLM evaluators or attach
- * existing code evaluators, each opening the creation slideover in the matching
- * mode. Mirrors the dataset Evaluators tab gallery.
- */
 export function ProjectEvaluatorsEmptyGallery({
   projectId,
   updateConnectionIds,

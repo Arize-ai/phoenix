@@ -30,10 +30,6 @@ const getDefaultMessages: () => PlaygroundChatTemplate["messages"] = () => [
   },
 ];
 
-/**
- * Default messages for an evaluator authored against spans, referencing only
- * span-context variables (`input`, `output`) so the defaults bind zero-config.
- */
 export const getSpanEvaluatorDefaultMessages: () => PlaygroundChatTemplate["messages"] =
   () => [
     {

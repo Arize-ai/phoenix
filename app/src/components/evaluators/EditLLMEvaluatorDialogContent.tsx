@@ -27,9 +27,7 @@ export const EditLLMEvaluatorDialogContent = ({
   onClose: () => void;
   onSubmit: () => Promise<EvaluatorSubmitResult>;
   isSubmitting: boolean;
-  /** Disables submit while some external form state (e.g. a filter) is invalid. */
   isSubmitDisabled?: boolean;
-  /** Names the one thing still missing before submit; see {@link EvaluatorFormDialogContent}. */
   submitHint?: ReactNode;
   mode: "create" | "update";
   error?: string;
@@ -39,7 +37,6 @@ export const EditLLMEvaluatorDialogContent = ({
    * Optional section rendered in the form's left panel below name/description.
    */
   formLeftPanelExtra?: ReactNode;
-  /** Replaces the form's left configuration panel. */
   formLeftPanel?: ReactNode;
   /**
    * Replaces the form's right (test) panel.

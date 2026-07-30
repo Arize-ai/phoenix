@@ -5,12 +5,8 @@ import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluator
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 
 /**
- * The left-panel definition flow for a project evaluator: what the judge
- * reads and does — name/description and the prompt (or code) definition.
- * Scope and the annotation template live in the right-panel
- * {@link ProjectEvaluatorScopePanel}. Input bindings stay zero-config —
- * `input`, `output`, and `metadata` bind automatically from the span
- * evaluation context, previewed per span in the scope panel's Bindings tab.
+ * The left definition panel; scope and the annotation template live in
+ * {@link ProjectEvaluatorScopePanel}.
  */
 export const ProjectEvaluatorFormSections = ({
   definitionKind,
@@ -19,7 +15,7 @@ export const ProjectEvaluatorFormSections = ({
 }: {
   definitionKind: "llm" | "code" | "newCode";
   codeEvaluatorName?: string;
-  /** Authoring fields rendered in the definition section when `newCode`. */
+  /** Rendered in the definition section when `definitionKind` is `newCode`. */
   codeDefinition?: ReactNode;
 }) => {
   return (

@@ -211,10 +211,8 @@ test.describe.serial("Projects", () => {
       name: "Create project evaluator",
     });
     await expect(createDialog).toBeVisible();
-    // The evaluator definition is always visible — an unfiltered evaluator
-    // needs no extra step, only a name.
-    // The always-visible definition also exposes the annotation output's
-    // "Name" field — the evaluator's own name is the first (autofocused) one.
+    // The annotation output has a "Name" field too; the evaluator's own name is
+    // the first one.
     await createDialog.getByLabel("Name").first().fill(evaluatorName);
     await createDialog.getByRole("button", { name: "Create" }).click();
     await expect(createDialog).not.toBeVisible();
@@ -224,8 +222,8 @@ test.describe.serial("Projects", () => {
       .getByRole("row")
       .filter({ hasText: evaluatorName });
     await expect(evaluatorRow).toBeVisible();
-    // Exact match: the row's name and action cells all contain "span" as a
-    // substring of the generated evaluator name.
+    // Exact, because the generated evaluator name contains "span" as a
+    // substring.
     await expect(
       evaluatorRow.getByRole("cell", { name: "Span", exact: true })
     ).toBeVisible();
@@ -233,7 +231,6 @@ test.describe.serial("Projects", () => {
       evaluatorRow.getByRole("cell", { name: "100%" })
     ).toBeVisible();
 
-    // Row actions live behind an overflow menu since the slideover rebuild.
     await evaluatorRow
       .getByRole("button", { name: "Evaluator actions" })
       .click();

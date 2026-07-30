@@ -53,8 +53,6 @@ export const AddProjectEvaluatorMenu = ({
     searchParams.get(CREATE_LLM_EVALUATOR_PARAM) === "true";
   const shouldOpenNewCodeFromUrl =
     searchParams.get(CREATE_CODE_EVALUATOR_PARAM) === "true";
-  // The URL params open the scratch-LLM or new-code create flow; an explicit
-  // menu selection is React-state only and takes precedence.
   const activeCreationMode: ProjectEvaluatorCreationMode | null =
     creationMode ??
     (shouldOpenScratchFromUrl
@@ -86,8 +84,8 @@ export const AddProjectEvaluatorMenu = ({
         >
           Add evaluator
         </Button>
-        {/* The query lives inside the popover so the evaluator list is only
-            fetched when the menu opens, not on every table render. */}
+        {/* Keep the query inside the popover so the evaluator list is fetched
+            only when the menu opens. */}
         <MenuContainer minHeight="auto">
           <Suspense fallback={<Loading />}>
             <AddProjectEvaluatorMenuItems

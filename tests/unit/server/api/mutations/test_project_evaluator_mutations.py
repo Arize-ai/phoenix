@@ -518,7 +518,6 @@ async def test_set_project_evaluator_enabled_toggles_only_enabled(
     disabled = disable_result.data["setProjectEvaluatorEnabled"]["evaluator"]
     assert disabled["id"] == created["id"]
     assert disabled["enabled"] is False
-    # Only the enabled flag flips; the rest of the binding is untouched.
     assert disabled["name"] == created["name"]
     assert disabled["evaluationTarget"] == created["evaluationTarget"]
     assert disabled["samplingRate"] == created["samplingRate"]

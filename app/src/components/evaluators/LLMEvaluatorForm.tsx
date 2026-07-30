@@ -14,10 +14,6 @@ export const LLMEvaluatorForm = ({
   showAnnotationConfig = true,
 }: {
   showInputMapping?: boolean;
-  /**
-   * Hide the annotation section when the surrounding flow renders it
-   * elsewhere (e.g. the project-evaluator scope panel).
-   */
   showAnnotationConfig?: boolean;
 }) => {
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);

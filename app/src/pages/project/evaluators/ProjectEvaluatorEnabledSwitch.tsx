@@ -5,11 +5,6 @@ import { toastQueue } from "@phoenix/contexts/NotificationContext";
 import type { ProjectEvaluatorEnabledSwitchMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-/**
- * In-row enable/disable toggle for a project evaluator. Flips only the enabled
- * flag on the project binding through a dedicated mutation, so it works for both
- * LLM and CODE evaluators without reconstructing the underlying evaluator.
- */
 export function ProjectEvaluatorEnabledSwitch({
   projectEvaluatorId,
   name,

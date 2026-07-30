@@ -71,8 +71,6 @@ export function EditProjectEvaluatorSlideover({
   projectEvaluatorId: string;
   evaluatorKind: "LLM" | "CODE";
 } & ModalOverlayProps) {
-  // Backdrop clicks close an untouched form immediately; once there are
-  // edits, the click asks for confirmation instead of silently dropping work.
   const dirtyCheckRef = useRef<EvaluatorFormDirtyCheck>(() => false);
   const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
   const registerDirtyCheck = (check: EvaluatorFormDirtyCheck) => {
@@ -84,8 +82,6 @@ export function EditProjectEvaluatorSlideover({
         {...props}
         isDismissable
         shouldCloseOnInteractOutside={(element) => {
-          // Portalled popovers/menus inside the form also register as
-          // "outside" the modal — only a genuine backdrop click may dismiss.
           if (!isModalUnderlay(element)) {
             return false;
           }
@@ -500,13 +496,11 @@ function EditCodeProjectEvaluator({
     language: evaluator.evaluator.language as CodeEvaluatorLanguage,
     sourceCode: evaluator.evaluator.sourceCode ?? "",
   });
-  // Snapshot the stored project mapping so submit can omit an unchanged mapping
-  // (omit=preserve) rather than pinning an otherwise-inherited setting.
+  // The update mutation treats an omitted inputMapping as "preserve", so
+  // snapshot the stored value to tell an edit from an inherited setting.
   const initialInputMappingJson = JSON.stringify(evaluator.inputMapping);
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [error, setError] = useState<string>();
-  // The attached-code form's editable state is the store (mapping, output
-  // configs) plus scope — there is no prompt template to track.
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
@@ -568,8 +562,6 @@ function EditCodeProjectEvaluator({
               onSubmit={() => {
                 setError(undefined);
                 const state = store.getState();
-                // Only override the project's CODE mapping when the user actually
-                // edited it; omitting preserves whatever is currently in effect.
                 const inputMappingChanged =
                   JSON.stringify(state.evaluator.inputMapping) !==
                   initialInputMappingJson;

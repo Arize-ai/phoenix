@@ -253,9 +253,8 @@ type SpanFilterConditionFieldProps = {
   placeholder?: string;
 };
 /**
- * Context-connected span filter field for the tracing pages. Reads the span
- * filter state and project id from `SpanFiltersProvider`/`TracingProvider` and
- * delegates rendering to the context-free {@link SpanFilterConditionFieldCore}.
+ * Requires `SpanFiltersProvider`/`TracingProvider`; use
+ * {@link SpanFilterConditionFieldCore} outside them.
  */
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const {
@@ -265,9 +264,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   } = props;
   const spanFilters = useSpanFilters();
   const projectId = useTracingContext((state) => state.projectId);
-  // When an initialCondition is provided the field manages its own local
-  // condition (e.g. inside the evaluator panel) instead of the shared
-  // span-filters context that drives the tracing views.
+  // Passing an initialCondition switches the field to local state instead of
+  // the shared span-filters context.
   const [localFilterCondition, setLocalFilterCondition] = useState(
     initialCondition ?? ""
   );
@@ -291,32 +289,22 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
 }
 
 export type SpanFilterConditionFieldCoreProps = {
-  /** The project whose spans the filter condition validates against. */
   projectId?: string;
-  /** The current filter condition text (controlled). */
   filterCondition: string;
-  /** Called on every edit to the filter condition text. */
   onFilterConditionChange: (condition: string) => void;
-  /** Called when the current condition validates as usable. */
   onValidCondition: (condition: string) => void;
-  /**
-   * Called whenever the condition's validity changes. An empty condition is
-   * treated as valid (unfiltered).
-   */
+  /** An empty condition reports as valid (unfiltered). */
   onValidityChange?: (isValid: boolean) => void;
   placeholder?: string;
   /**
-   * Advertise the current valid filter to the agent as project context. Only
-   * the tracing pages register the matching `set_spans_filter` client action,
-   * so only they should opt in.
+   * Opt in only where the `set_spans_filter` client action is registered (the
+   * tracing pages).
    */
   advertiseFilterToAgent?: boolean;
 };
 
 /**
- * Context-free span filter condition field. Delegates editing, completions,
- * and validation to {@link DSLFilterConditionField}, but takes all filter
- * state and the project id as props so it can mount outside
+ * Takes all filter state as props, so it can mount outside
  * `SpanFiltersProvider`/`TracingProvider`.
  */
 export function SpanFilterConditionFieldCore(
@@ -333,12 +321,9 @@ export function SpanFilterConditionFieldCore(
   } = props;
   const [isConditionValid, setIsConditionValid] = useState<boolean>(true);
   const deferredFilterCondition = useDeferredValue(filterCondition);
-  // The callback props are event handlers, not reactive inputs: the DSL
-  // field's validation effect keys on its callbacks, so a parent that passes
-  // a fresh closure per render would re-fire validation, reset validity,
-  // re-render, and produce yet another closure — an unbounded
-  // validation-request loop. Read the latest callbacks through refs so the
-  // handlers below keep stable identities regardless of the caller.
+  // DSLFilterConditionField's validation effect keys on its callbacks, so the
+  // handlers below must keep stable identities even when a caller passes a
+  // fresh closure per render.
   const onValidConditionRef = useRef(onValidCondition);
   onValidConditionRef.current = onValidCondition;
   const onValidityChangeRef = useRef(onValidityChange);
@@ -353,8 +338,6 @@ export function SpanFilterConditionFieldCore(
         ? () => fetchAnnotationCompletions(projectId)
         : undefined,
       validateCondition: (condition: string) =>
-        // Without a project there is nothing to validate against; treat the
-        // condition as valid rather than blocking the caller.
         projectId
           ? validateSpanFilterCondition(condition, projectId)
           : Promise.resolve({ isValid: true, errorMessage: null }),

@@ -48,10 +48,8 @@ const DEFAULT_OUTPUT_CONFIG: ClassificationEvaluatorAnnotationConfig = {
 };
 
 /**
- * The default template for evaluators that run against spans. Unlike
- * {@link DEFAULT_EVALUATOR_TEMPLATE}, it only references variables that exist
- * in the span evaluation context (`input`, `output`, `metadata`) — a span has
- * no dataset `reference`, so a template mentioning one can never bind.
+ * A span evaluation context has no dataset `reference`, so this template
+ * references only `input` and `output`.
  */
 export const SPAN_EVALUATOR_TEMPLATE: LLMEvaluatorTemplate = {
   systemPrompt: SYSTEM_PROMPT.trim(),

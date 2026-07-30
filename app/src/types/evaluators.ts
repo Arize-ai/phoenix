@@ -168,9 +168,8 @@ export type DatasetEvaluatorMappingSource = {
 };
 
 /**
- * The span evaluation context as produced by the server. `input` and `output`
- * are raw attribute values (commonly a string or null, occasionally an object),
- * while `metadata` is always an object rooted at `metadata.attributes`.
+ * As produced by the server: `input`/`output` are raw attribute values
+ * (commonly a string or null), and `metadata` is rooted at `metadata.attributes`.
  */
 export type SpanEvaluatorMappingSource = {
   input: unknown;

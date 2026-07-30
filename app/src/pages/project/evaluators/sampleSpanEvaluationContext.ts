@@ -1,17 +1,12 @@
 import type { EvaluatorMappingSource } from "@phoenix/types";
 
 /**
- * A sample span evaluation context shown when no project spans match the
- * evaluator's scope, so the authoring loop (mapping source, binding
- * diagnostics, and test runs) works before any matching traffic arrives.
- *
- * The shape mirrors the server's `span_eval_context()` exactly — `input` and
- * `output` are the raw `input.value`/`output.value` attribute values, and
- * `metadata.attributes` roots the OpenInference attribute tree — so paths
- * authored against the sample resolve the same way against real spans.
+ * Mirrors the server's `span_eval_context()`: `input` and `output` are the raw
+ * `input.value`/`output.value` attribute values, and `metadata.attributes`
+ * roots the OpenInference attribute tree.
  */
 export type SampleSpanEvaluationContext = {
-  /** OpenInference span kind the sample represents (e.g. "LLM"). */
+  /** OpenInference span kind (e.g. "LLM"). */
   spanKind: string;
   context: EvaluatorMappingSource<"span">;
 };
@@ -36,8 +31,7 @@ const LLM_SAMPLE: SampleSpanEvaluationContext = {
   spanKind: "LLM",
   context: {
     // Instrumentors record `input.value` for LLM spans as the serialized
-    // request payload, so the sample keeps it a JSON string — drilling into
-    // structured data happens through `metadata.attributes.llm.*`.
+    // request payload, so it stays a JSON string.
     input: JSON.stringify({ messages: LLM_INPUT_MESSAGES }),
     output: LLM_OUTPUT_TEXT,
     metadata: {
@@ -66,22 +60,12 @@ const LLM_SAMPLE: SampleSpanEvaluationContext = {
   },
 };
 
-/**
- * Samples keyed by OpenInference span kind. LLM is the only kind shipped so
- * far and doubles as the fallback; add kinds here (RETRIEVER, TOOL, ...) to
- * make filter-targeted samples more representative.
- */
 const SAMPLES_BY_SPAN_KIND: Record<string, SampleSpanEvaluationContext> = {
   LLM: LLM_SAMPLE,
 };
 
 const SPAN_KIND_FILTER_PATTERN = /span_kind\s*==\s*['"]([A-Za-z_]+)['"]/;
 
-/**
- * Picks the sample that best matches the evaluator's span filter: the kind
- * named by a `span_kind == '...'` condition when a sample for it exists,
- * otherwise the LLM sample.
- */
 export function getSampleSpanEvaluationContext(
   filterCondition: string
 ): SampleSpanEvaluationContext {

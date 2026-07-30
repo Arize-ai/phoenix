@@ -76,10 +76,8 @@ export const DisclosurePanel = ({
   className,
   ...props
 }: DisclosurePanelProps) => {
-  // Flag the panel as fully open (data-panel-open) once its expand animation
-  // finishes, so styles can restore visible overflow only when at rest. react-
-  // aria drives aria-hidden off the expanded state, which is a reliable read at
-  // transition end for both directions.
+  // react-aria drives aria-hidden off the expanded state; mirror it as
+  // data-panel-open, which the panel styles read to detect a fully open panel.
   const cleanupRef = useRef<(() => void) | null>(null);
   const refCallback = useCallback((node: HTMLElement | null) => {
     cleanupRef.current?.();

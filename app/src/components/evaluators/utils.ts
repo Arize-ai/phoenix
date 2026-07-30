@@ -427,13 +427,6 @@ export const getOutputConfigValidationErrors = (
   return errors;
 };
 
-/**
- * Computes whether an annotation score represents a positive optimization
- * result by matching the annotation name to the corresponding output config.
- * Multi-output evaluators name annotations "evaluatorName.configName"; a
- * single output config matches unconditionally. Returns null when no config
- * matches or the optimization status cannot be determined.
- */
 export function computePositiveOptimization({
   annotationName,
   score,

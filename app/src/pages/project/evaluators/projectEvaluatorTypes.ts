@@ -2,10 +2,7 @@ import type { EvaluatorInputMapping } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
-/**
- * Drops path-mapping entries that resolve against a dataset `reference`, which
- * has no counterpart in a span evaluation context.
- */
+/** A span evaluation context has no counterpart to a dataset `reference`. */
 export function dropReferencePathMappings(
   inputMapping: EvaluatorInputMapping
 ): EvaluatorInputMapping {
@@ -77,8 +74,8 @@ export type ProjectEvaluatorMappingDiagnostic = {
   status: "resolved" | "missing" | "unverified";
 };
 
-// Only dot-separated bare JSONPath identifiers can be resolved client-side.
-// Anything else (hyphens, brackets, quotes) is left to server validation.
+// Only dot-separated bare JSONPath identifiers resolve client-side; anything
+// else (hyphens, brackets, quotes) is left to server validation.
 const SIMPLE_MAPPING_PATH_PATTERN =
   /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/;
 

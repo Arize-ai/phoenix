@@ -77,10 +77,6 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
-/**
- * The unsaved source code being authored, used to preview a not-yet-created
- * code evaluator via the inline-code preview path.
- */
 export type ProjectEvaluatorInlineCode = {
   language: CodeEvaluatorLanguage;
   sourceCode: string;
@@ -113,9 +109,8 @@ const TIME_WINDOW_PRESETS = [
 type TimeWindowPresetId = (typeof TIME_WINDOW_PRESETS)[number]["id"];
 
 /**
- * The preview window applied to the matched-span count and span list. The
- * start is computed once when the preset is chosen so re-renders do not shift
- * the window and refire the queries.
+ * `startIso` is computed once when the preset is chosen so re-renders do not
+ * shift the window and refire the queries.
  */
 type TimeWindow = {
   presetId: TimeWindowPresetId;
@@ -134,14 +129,7 @@ function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
   };
 }
 
-/**
- * The right-column scope panel for a project evaluator: the always-live scope
- * editor (committed by the form's create/save action, not a local
- * confirmation), the recent matching spans it implies — each row expandable to
- * the span's evaluation context and keyword bindings, and runnable against the
- * evaluator being authored — and, for LLM evaluators, the annotation template
- * the evaluator will attach.
- */
+/** Scope is committed by the form's create/save action, not by this panel. */
 export const ProjectEvaluatorScopePanel = ({
   projectId,
   scope,
@@ -155,11 +143,8 @@ export const ProjectEvaluatorScopePanel = ({
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   onFilterValidityChange?: (isValid: boolean) => void;
-  /** Set when testing an existing CODE evaluator. */
   codeEvaluatorId?: string;
-  /** Set when testing not-yet-created code. */
   inlineCode?: ProjectEvaluatorInlineCode;
-  /** Renders the LLM annotation template section below the span list. */
   showAnnotationTemplate?: boolean;
 }) => {
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
@@ -225,10 +210,7 @@ const panelScrollCSS = css`
   padding: 0 var(--global-dimension-size-200) var(--global-dimension-size-200);
 `;
 
-/**
- * Counts spans matching the committed filter inside the preview window.
- * Bounded windows only — an all-time bucket scan is unbounded server work.
- */
+/** Bounded windows only — an all-time count is an unbounded bucket scan. */
 function useMatchedSpanCount({
   projectId,
   filterCondition,
@@ -274,11 +256,6 @@ function useMatchedSpanCount({
   );
 }
 
-/**
- * The scope's editor card: target, sampling, filter, and preview window. Kept
- * live the whole session — the form's create/save action is what commits it,
- * so there is no local done/confirm step.
- */
 function ScopeEditorCard({
   projectId,
   scope,
@@ -294,7 +271,7 @@ function ScopeEditorCard({
   timeWindow: TimeWindow;
   onTimeWindowChange: (timeWindow: TimeWindow) => void;
 }) {
-  // The editor's live text; only validated conditions are lifted into `scope`.
+  // Only validated conditions are lifted into `scope`.
   const [filterConditionDraft, setFilterConditionDraft] = useState(
     scope.filterCondition
   );
@@ -391,10 +368,6 @@ function ScopeEditorCard({
   );
 }
 
-/**
- * The "Matching spans" section subtitle: how many spans the current scope
- * matches inside the preview window, updating live as the filter changes.
- */
 function MatchedSpanCountLine({
   projectId,
   filterCondition,
@@ -453,13 +426,6 @@ const scopeEditorCardCSS = css`
   padding: var(--global-dimension-size-200);
 `;
 
-/**
- * Lays the sampling slider out as one compact row — track, then the
- * percent-formatted value — instead of the default label/value-over-track
- * grid, so the control sits under its external label like the neighboring
- * Target and Preview window fields. The row is pinned to the same height as
- * those controls so the three columns share a visual center.
- */
 const samplingSliderCSS = css`
   grid-template-areas: "track output";
   grid-template-columns: 1fr auto;
@@ -476,9 +442,7 @@ const samplingSliderCSS = css`
     min-height: 0;
   }
   /* The base slider styles this input under an orientation-qualified selector;
-     restate that qualification so these later, equal-specificity rules win.
-     The input height matches the neighboring M-sized Select trigger and
-     Target toggle buttons so the row reads as one control strip. */
+     restate that qualification so these later, equal-specificity rules win. */
   &[data-orientation="horizontal"] .slider__number-field .react-aria-Input {
     margin-bottom: 0;
     height: var(--global-input-height-m);
@@ -511,17 +475,8 @@ type SpanListRow = {
 
 const SAMPLE_ROW_KEY = "__sample__";
 
-/** The span list's initial size and the step each "Show more" press adds. */
 const SPAN_LIST_PAGE_SIZE = 5;
 
-/**
- * The recent spans the committed scope matches, each row expandable to the
- * span's evaluation context and keyword bindings, and individually runnable
- * against the evaluator being authored. Run results stick to their row so
- * testing several spans accumulates visible results side by side. The list
- * starts capped at {@link SPAN_LIST_PAGE_SIZE} rows; when the scope matches
- * more, a "Load More" action widens the cap in place.
- */
 function SpanRunList({
   projectId,
   filterCondition,
@@ -537,9 +492,8 @@ function SpanRunList({
 }) {
   const { shortDateTimeFormatter } = useTimeFormatters();
   const [limit, setLimit] = useState(SPAN_LIST_PAGE_SIZE);
-  // Widening the cap refetches with a larger `first`; a transition keeps the
-  // current rows visible instead of collapsing the list to its Suspense
-  // fallback while the wider page loads.
+  // A transition keeps the current rows visible instead of collapsing the list
+  // to its Suspense fallback while the wider page loads.
   const [isShowingMore, startShowMoreTransition] = useTransition();
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSpansQuery>(
     graphql`
@@ -584,10 +538,6 @@ function SpanRunList({
   );
   const spans = data.project?.spans?.edges.map(({ span }) => span) ?? [];
   const hasMoreSpans = data.project?.spans?.pageInfo.hasNextPage ?? false;
-  // With no matching spans, fall back to a semantic-convention sample so the
-  // full authoring loop — mapping source, bindings, and test runs — still
-  // works before matching traffic exists. Deriving it from the query result
-  // means real spans replace it automatically.
   const sample =
     spans.length === 0 ? getSampleSpanEvaluationContext(filterCondition) : null;
   const rows: SpanListRow[] = spans.length
@@ -609,11 +559,8 @@ function SpanRunList({
           },
         ]
       : [];
-  // `undefined` means "no explicit choice yet": the newest row opens expanded
-  // so the available bindings are visible as a reference while authoring.
-  // `null` records an explicit collapse-all. A stale key (its row left the
-  // list on a filter or window change) falls back to the newest row so the
-  // reference stays open.
+  // `undefined` is no explicit choice yet (the newest row opens); `null` is an
+  // explicit collapse-all.
   const [expandedKey, setExpandedKey] = useState<string | null | undefined>(
     undefined
   );
@@ -628,10 +575,7 @@ function SpanRunList({
   const pathMapping = useEvaluatorStore(
     (state) => state.evaluator.inputMapping.pathMapping
   );
-  // Push the active row's context into the store as the mapping source so
-  // prompt previews and template-variable resolution read a real span. Key the
-  // effect on the row key (a primitive) — the row object is rebuilt every
-  // render.
+  // Key the effect on the row key: the row object is rebuilt every render.
   const activeRowKey = activeRow?.key ?? null;
   const syncMappingSource = useEffectEvent(() => {
     const context = activeRow?.context;
@@ -651,8 +595,6 @@ function SpanRunList({
   }
   return (
     <div css={runListCSS}>
-      {/* The matched-count line above already states that nothing matched, so
-          this only introduces the fallback row. */}
       {rows[0]?.isSample ? (
         <Text size="S" color="text-500">
           Use this sample span to test your evaluator.
@@ -868,13 +810,6 @@ const runRowCSS = css`
   }
 `;
 
-/**
- * The run result pinned to a span row: the annotation the evaluator produced
- * (or a failure marker), persisting across runs on other rows. Colored by the
- * annotation's optimization direction and threshold — the same rule the
- * evaluator output previews apply — and neutral when no direction can be
- * determined.
- */
 function SpanRunResultChip({ run }: { run: SpanRun | undefined }) {
   const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
   const evaluatorName = useEvaluatorStore(
@@ -954,10 +889,6 @@ const resultChipDangerCSS = css`
   color: var(--global-color-danger);
 `;
 
-/**
- * The expanded view of a row's run: explanation text and any failures. The
- * chip carries the headline; this carries the reasoning.
- */
 function SpanRunDetail({ run }: { run: SpanRun | undefined }) {
   if (run == null || run.status === "running") {
     return null;
@@ -994,8 +925,8 @@ const contextViewerCSS = css`
   margin-top: var(--global-dimension-size-100);
   border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-small);
-  /* Cap the editor and scroll inside CodeMirror so long contexts virtualize
-     instead of rendering hundreds of thousands of pixels of DOM. */
+  /* CodeMirror only virtualizes long documents when it scrolls inside a
+     bounded height. */
   .cm-editor {
     max-height: 400px;
   }
@@ -1006,18 +937,11 @@ const contextViewerCSS = css`
 
 type BindingRow = {
   keyword: string;
-  /** Set only for explicit path mappings; automatic bindings need no verb. */
+  /** Set only for explicit path mappings. */
   path?: string;
   value: unknown;
 };
 
-/**
- * Previews what each keyword binds to on this span: every top-level context
- * key that binds automatically (data-driven, not a hard-coded vocabulary) and
- * every explicit mapping with its resolved value or failure state. Each row
- * expands in place to the full bound value, so the one-line snippet is a
- * teaser rather than the only view.
- */
 function BindingPreview({
   context,
   pathMapping,
@@ -1047,8 +971,6 @@ function BindingPreview({
   return (
     <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
-        // Bindings against the sample prove the mapping's shape, not that it
-        // resolves on this project's real spans — flag that up front.
         <Alert variant="info" title="Bindings use a sample span">
           Verify the bindings against a real span once matching spans exist.
         </Alert>
@@ -1088,11 +1010,6 @@ function BindingPreview({
   );
 }
 
-/**
- * One keyword's binding: a full-width toggle with the keyword, its source
- * path (explicit mappings only), and a one-line value snippet; expanding
- * reveals the full value — prose as text, everything else pretty-printed.
- */
 function BindingPreviewRow({
   row,
   isExpanded,
@@ -1192,7 +1109,6 @@ const bindingRowCSS = css`
   .binding-row__detail {
     border-top: 1px solid var(--global-border-color-default);
     padding: var(--global-dimension-size-75);
-    /* Scroll long values inside the row instead of growing the panel. */
     max-height: 240px;
     overflow: auto;
   }
@@ -1206,10 +1122,6 @@ const bindingRowCSS = css`
   }
 `;
 
-/**
- * Extracts a one-line preview of a span's evaluation-context input so
- * same-named spans in the list are distinguishable at a glance.
- */
 function getContextSnippet(context: unknown): string {
   if (!isStringKeyedObject(context)) {
     return "";
@@ -1235,15 +1147,11 @@ function getBoundValueSnippet(value: unknown): string {
 function isSpanEvaluatorMappingSource(
   value: unknown
 ): value is EvaluatorMappingSource<"span"> {
-  // `input`/`output` are raw attribute values (string, null, object, ...);
-  // only `metadata` is guaranteed to be an object by the server context shape.
+  // Only `metadata` is guaranteed to be an object by the server context shape;
+  // `input`/`output` are raw attribute values.
   return isStringKeyedObject(value) && isStringKeyedObject(value.metadata);
 }
 
-/**
- * Manages per-span evaluator preview runs. Runs are keyed by span so several
- * can be in flight concurrently and each result stays pinned to its row.
- */
 function useEvaluatorPreviewRuns({
   codeEvaluatorId,
   inlineCode,
@@ -1274,8 +1182,6 @@ function useEvaluatorPreviewRuns({
         }
       }
     `);
-  // The LLM path builds the evaluator from the annotation template, so runs
-  // unlock once that template validates (mirrored by the row play buttons).
   const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
   const isRunnable =
     codeEvaluatorId != null ||
@@ -1377,11 +1283,6 @@ function useEvaluatorPreviewRuns({
   return { runs, runOnSpan, isRunnable };
 }
 
-/**
- * The feedback the evaluator will attach to matched spans — name,
- * optimization direction, and choice labels/scores — collapsible so a settled
- * template gets out of the way of the span list above it.
- */
 function AnnotationTemplateDisclosure() {
   const isCategorical = useEvaluatorStore((state) => {
     const outputConfig = state.outputConfigs[0];
@@ -1404,10 +1305,8 @@ function AnnotationTemplateDisclosure() {
         </Text>
       </DisclosureTrigger>
       <DisclosurePanel>
-        {/* Padding (not margin) around the card: the panel's expand animation
-            measures content height, and child margins fall outside that
-            measurement — the mismatch re-triggers the measurement loop every
-            frame. */}
+        {/* Padding, not margin: the panel's expand animation measures content
+            height, which excludes child margins. */}
         <View padding="size-200">
           <EvaluatorCategoricalChoiceConfig />
         </View>
@@ -1417,9 +1316,8 @@ function AnnotationTemplateDisclosure() {
 }
 
 /**
- * Renders the standalone disclosure as a bordered card: the full card header
- * is the click target (a standalone disclosure trigger otherwise shrinks to
- * fit its text) and hover feedback spans the whole width.
+ * A standalone disclosure trigger shrinks to fit its text; widen it so the
+ * whole card header is the click target.
  */
 const annotationTemplateDisclosureCSS = css`
   border: 1px solid var(--global-border-color-default);
@@ -1431,8 +1329,8 @@ const annotationTemplateDisclosureCSS = css`
     width: 100%;
     padding: var(--global-dimension-size-200);
     border-bottom: none;
-    /* Keep the hover background inside the card's rounded corners without
-       overflow: hidden, which would clip focus rings. */
+    /* Inset by the card's 1px border so the hover background stays inside its
+       corners. */
     border-radius: calc(var(--global-rounding-medium) - 1px);
   }
   &[data-expanded="true"] [slot="trigger"] {

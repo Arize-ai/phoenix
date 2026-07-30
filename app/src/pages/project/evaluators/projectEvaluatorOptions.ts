@@ -14,11 +14,6 @@ import type {
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
 
-/**
- * The shared evaluator list feeding the project Add-evaluator menu and the
- * empty-state gallery. Both surfaces let a user copy an existing LLM evaluator
- * or attach an existing code evaluator, so they read from the same query.
- */
 export const projectEvaluatorOptionsQuery = graphql`
   query projectEvaluatorOptionsQuery {
     evaluators(first: 100, sort: { col: updatedAt, dir: desc }) {
@@ -126,10 +121,6 @@ export const projectEvaluatorOptionsQuery = graphql`
 export type ProjectEvaluatorOption =
   projectEvaluatorOptionsQuery$data["evaluators"]["edges"][number]["evaluator"];
 
-/**
- * Build the creation mode for copying an existing LLM evaluator, or null when
- * its prompt template cannot be reconstructed.
- */
 export function buildCopyLlmCreationMode(
   evaluator: ProjectEvaluatorOption
 ): ProjectEvaluatorCreationMode | null {
@@ -165,9 +156,6 @@ export function buildCopyLlmCreationMode(
   };
 }
 
-/**
- * Build the creation mode for attaching an existing code evaluator.
- */
 export function buildAttachCodeCreationMode(
   evaluator: ProjectEvaluatorOption
 ): ProjectEvaluatorCreationMode {
