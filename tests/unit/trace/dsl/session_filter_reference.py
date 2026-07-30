@@ -371,10 +371,10 @@ class _Evaluator:
     ) -> tuple[Any, Any]:
         left_kind = self._name_kind(left_node, scope)
         right_kind = self._name_kind(right_node, scope)
-        if left_kind == "uppercase" and right_kind is None:
-            right = _uppercase(right)
-        elif right_kind == "uppercase" and left_kind is None:
-            left = _uppercase(left)
+        # The compiler uppercases both sides of a comparison against an uppercase-normalized
+        # field, so stored casing never decides the outcome.
+        if "uppercase" in (left_kind, right_kind):
+            left, right = _uppercase(left), _uppercase(right)
         if left_kind == "datetime" and isinstance(right, str):
             right = _parse_datetime_literal(right)
         elif right_kind == "datetime" and isinstance(left, str):

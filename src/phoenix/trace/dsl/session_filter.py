@@ -243,13 +243,24 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
 )
 
 
+def _element_column(source: typing.Any, name: str, spec: _IterableSpec) -> typing.Any:
+    """What a loop variable's field compiles to on ``source`` — the element model or an alias.
+
+    An uppercased field is normalized on the column, not only on the comparand. Uppercasing
+    one side alone would let `s.span_kind == "TOOL"` disagree with the `tool_span_count`
+    aggregate, which uppercases the column, on any row stored in another casing.
+    """
+    column = getattr(source, spec.fields[name].attribute)
+    return func.upper(column) if name in spec.uppercase_fields else column
+
+
 def _element_bindings(spec: _IterableSpec) -> _FilterBindings:
     """The language a predicate written against one iterable's loop variable compiles in."""
 
     def columns(kind: str) -> NameMap:
         return MappingProxyType(
             {
-                name: getattr(spec.model, field.attribute)
+                name: _element_column(spec.model, name, spec)
                 for name, field in spec.fields.items()
                 if field.kind == kind
             }
@@ -419,8 +430,8 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             'in span_cost_details if cost_detail.token_type == "cache_read").'
         ),
         "spans.name": "Span name.",
-        "spans.span_kind": "Span kind, e.g. LLM, TOOL, RETRIEVER; comparands are uppercased.",
-        "spans.status_code": "Span status: OK, ERROR, or UNSET; comparands are uppercased.",
+        "spans.span_kind": "Span kind, e.g. LLM, TOOL, RETRIEVER; casing is ignored.",
+        "spans.status_code": "Span status: OK, ERROR, or UNSET; casing is ignored.",
         "spans.latency_ms": "Span duration in milliseconds.",
         "spans.llm_token_count_prompt": (
             "Prompt tokens recorded on this span; null on spans that record none."
@@ -514,9 +525,7 @@ def _comprehension_bindings(
         """Alias the element table and evaluate the spec's predicate in the element's language."""
         iterable = _ITERABLE_SPECS[spec.iterable]
         element = aliased(iterable.model, name=f"{spec.iterable}_{next(aliases)}")
-        columns = {
-            name: getattr(element, field.attribute) for name, field in iterable.fields.items()
-        }
+        columns = {name: _element_column(element, name, iterable) for name in iterable.fields}
         nested_bindings = {child.name: build(child, spec, element) for child in spec.children}
         element_globals = _eval_globals(
             _SESSION_ITERABLES[spec.iterable].element_bindings,
