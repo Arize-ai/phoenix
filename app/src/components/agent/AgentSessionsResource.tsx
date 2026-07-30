@@ -177,9 +177,8 @@ function AgentSessionsContent({
   // row yet, so listing it would only offer a "New chat" entry that cannot be
   // deleted or meaningfully switched to. The header still labels the active
   // draft via the display-name fallback below.
-  const orderedSessions = serverSessions;
-  const orderedSessionsRef = useRef(orderedSessions);
-  orderedSessionsRef.current = orderedSessions;
+  const serverSessionsRef = useRef(serverSessions);
+  serverSessionsRef.current = serverSessions;
 
   // On first open with no selection, resume the most recent conversation, or
   // start a draft when the user has no sessions yet.
@@ -187,7 +186,7 @@ function AgentSessionsContent({
     if (activeSessionId !== null || store.getState().activeSessionId !== null) {
       return;
     }
-    const mostRecentSession = orderedSessionsRef.current[0];
+    const mostRecentSession = serverSessionsRef.current[0];
     setActiveSession(mostRecentSession?.id ?? DRAFT_SESSION_ID);
   }, [activeSessionId, setActiveSession, store]);
 
@@ -216,7 +215,7 @@ function AgentSessionsContent({
       }
       const isDeletingActiveSession = activeSessionId === sessionId;
       if (isDeletingActiveSession) {
-        const nextSession = orderedSessionsRef.current.find(
+        const nextSession = serverSessionsRef.current.find(
           (candidate) => candidate.id !== sessionId
         );
         setActiveSession(nextSession?.id ?? DRAFT_SESSION_ID);
@@ -252,7 +251,7 @@ function AgentSessionsContent({
     ]
   );
 
-  const activeSession = orderedSessions.find(
+  const activeSession = serverSessions.find(
     (session) => session.id === activeSessionId
   );
   const sessionDisplayName = activeSession?.title || EMPTY_SESSION_DISPLAY_NAME;
@@ -295,7 +294,7 @@ function AgentSessionsContent({
           ConnectionHandler.deleteNode(connection, sessionId);
         }
       });
-      const nextSession = orderedSessionsRef.current.find(
+      const nextSession = serverSessionsRef.current.find(
         (session) => session.id !== sessionId
       );
       setActiveSession(nextSession?.id ?? DRAFT_SESSION_ID);
@@ -320,7 +319,7 @@ function AgentSessionsContent({
     <>
       <AgentChatHeader
         sessionDisplayName={sessionDisplayName}
-        orderedSessions={orderedSessions}
+        orderedSessions={serverSessions}
         activeSessionId={activeSessionId}
         activeSessionTitleFragment={
           activeSessionId == null
