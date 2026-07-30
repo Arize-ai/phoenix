@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { createContext, startTransition, useContext, useState } from "react";
 
-import { joinFilterConditions } from "@phoenix/components/filter";
+import { joinFilterConditions } from "@phoenix/utils/filterConditionUtils";
 
 export type SessionFiltersContextType = {
   filterCondition: string;

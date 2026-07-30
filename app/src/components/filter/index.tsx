@@ -1,4 +1,3 @@
-export * from "./filterUtils";
 export * from "./Toolbar";
 export * from "./ai";
 export * from "./annotationCompletions";
