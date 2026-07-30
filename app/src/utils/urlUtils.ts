@@ -48,9 +48,12 @@ export function clearSelectionScopedParams(
 /**
  * A relative path carries only what it spells out: React Router parses the
  * string and takes an absent `#` to mean an empty hash, so a navigation target
- * built without one erases the fragment. Callers inside the project views must
- * therefore pass `location.hash`, which is where the span filter condition
- * lives -- dropping it silently resets the user's filter on the way back.
+ * built without one erases the fragment. The span filter condition lives there,
+ * and dropping it silently resets the user's filter on the way back.
+ *
+ * `hash` is required on the builders below rather than optional, so omitting it
+ * is a compile error instead of a link that quietly loses the filter. Pass `""`
+ * where a location genuinely has no fragment to carry.
  */
 function withHash(path: string, hash: string | undefined): string {
   if (!hash || hash === "#") {
@@ -79,8 +82,8 @@ export function getTraceDetailsPath({
   traceId: string;
   spanNodeId?: string | null;
   searchParams: URLSearchParams;
-  /** The current `location.hash`. Omitted only where none can be set. */
-  hash?: string;
+  /** The current `location.hash`; `""` when the location has none. */
+  hash: string;
 }): string {
   return withHash(
     `${encodeURIComponent(traceId)}${withSearchParams(
@@ -106,8 +109,8 @@ export function getSessionDetailsPath({
 }: {
   sessionId: string;
   searchParams: URLSearchParams;
-  /** The current `location.hash`. Omitted only where none can be set. */
-  hash?: string;
+  /** The current `location.hash`; `""` when the location has none. */
+  hash: string;
 }): string {
   return withHash(
     `${encodeURIComponent(sessionId)}${clearSelectionScopedParams(

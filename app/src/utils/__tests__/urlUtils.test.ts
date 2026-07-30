@@ -23,6 +23,7 @@ describe("urlUtils", () => {
         searchParams: new URLSearchParams(
           "timeRangeKey=7d&selectedTraceId=trace-1&selectedSpanNodeId=span-1"
         ),
+        hash: "",
       })
     ).toBe("trace-2?timeRangeKey=7d&selectedSpanNodeId=span-2");
   });
@@ -53,7 +54,7 @@ describe("urlUtils", () => {
     });
 
     it("adds nothing when there is no fragment", () => {
-      for (const hash of [undefined, "", "#"]) {
+      for (const hash of ["", "#"]) {
         expect(
           getTraceDetailsPath({ traceId: "trace-1", searchParams, hash })
         ).toBe("trace-1?timeRangeKey=7d");
@@ -73,7 +74,11 @@ describe("urlUtils", () => {
 
   describe("getTraceDetailsPath encodes the trace ID into a same-origin segment", () => {
     const encode = (traceId: string) =>
-      getTraceDetailsPath({ traceId, searchParams: new URLSearchParams() });
+      getTraceDetailsPath({
+        traceId,
+        searchParams: new URLSearchParams(),
+        hash: "",
+      });
 
     it("encodes a protocol-relative trace ID into a single same-origin segment", () => {
       // Without encoding, React Router/the browser would resolve this as a
