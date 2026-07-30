@@ -99,6 +99,7 @@ const SESSION_BUSY_ERROR_CODE = "agent_session_busy";
  * session and this client is rendering a stale transcript.
  */
 const SESSION_STALE_ERROR_CODE = "agent_session_stale";
+const SESSION_POLL_INTERVAL_MS = 10_000;
 const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
 
 function buildAgentChatApiUrl(sessionId: string): string {
@@ -222,6 +223,7 @@ export function useAgentChat({
   sessionId,
   initialMessages,
   isActive = false,
+  shouldSyncOnMount = false,
 }: {
   /**
    * The session's Relay node ID, or {@link DRAFT_SESSION_ID} (or null) for a
@@ -236,12 +238,15 @@ export function useAgentChat({
    * entry into busy-elsewhere mode; the hook then polls until the lock clears.
    */
   isActive?: boolean;
+  /** Immediately synchronize runtimes that mounted without a fresh session query. */
+  shouldSyncOnMount?: boolean;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
   const relayEnvironment = useRelayEnvironment();
   const [operationError, setOperationError] =
     useState<AgentChatOperationError | null>(null);
+  const shouldSyncOnNextPollSetupRef = useRef(shouldSyncOnMount);
   const [compactionStatus, setCompactionStatus] = useState<string | null>(null);
   const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
   const isCompacting = useAgentContext((state) =>
@@ -524,18 +529,23 @@ export function useAgentChat({
     }
   }, [persistedSessionId, chatInstance, isActive, store]);
 
-  // While in busy-elsewhere mode, poll the session's canonical Relay record
-  // until the other client's turn completes, then swap in the persisted
-  // transcript. Refetching through Relay (rather than the REST session read)
-  // normalizes the fresh title/timestamps/transcript into the store, so every
-  // mounted session view updates alongside the chat. Transient fetch failures
-  // keep the poll alive; unmounting or switching sessions stops it.
+  const isSessionPollingPaused = isRequestActive(status) || isCompacting;
+
+  // Keep idle sessions synchronized with turns completed by other clients.
+  // Poll slowly during normal use and switch to the existing faster cadence
+  // while another client holds the turn lock. This client's own generation
+  // disables polling so an older persisted transcript cannot replace its
+  // in-flight optimistic messages. Refetching through Relay normalizes session
+  // metadata into every mounted view as well as refreshing this chat runtime.
   useEffect(() => {
-    if (!persistedSessionId || !chatInstance || !isBusyElsewhere) {
+    if (!persistedSessionId || !chatInstance || isSessionPollingPaused) {
+      // A runtime first observed during its own generation will be canonicalized
+      // by the turn-completion refetch, so it does not also need a mount sync.
+      shouldSyncOnNextPollSetupRef.current = false;
       return undefined;
     }
     let disposed = false;
-    const pollTurnLock = async () => {
+    const pollSession = async () => {
       try {
         const data = await refetchAgentSession({
           environment: relayEnvironment,
@@ -545,15 +555,19 @@ export function useAgentChat({
           data?.agentSession.__typename === "AgentSession"
             ? data.agentSession
             : null;
-        if (!agentSession || agentSession.isActive || disposed) {
+        if (!agentSession || disposed) {
           return;
         }
-        // The other client's turn completed and its transcript persisted;
-        // mirror the rewind path by replacing the runtime chat's messages.
-        // Clear any lingering 409 error first: the SDK assigns error state
-        // AFTER onError runs, so entry-time clearing is timing-fragile —
-        // this is the deterministic point where nothing can re-error.
-        chatInstance.clearError();
+        shouldSyncOnNextPollSetupRef.current = false;
+        if (agentSession.isActive) {
+          store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+          return;
+        }
+        // Clear a lingering conflict error only after the other client's turn
+        // has completed; the SDK can assign error state after onError runs.
+        if (isBusyElsewhere) {
+          chatInstance.clearError();
+        }
         chatInstance.messages = Array.isArray(agentSession.messages)
           ? (agentSession.messages as AgentUIMessage[])
           : [];
@@ -562,10 +576,14 @@ export function useAgentChat({
         // Transient failure: wait for the next poll tick.
       }
     };
-    void pollTurnLock();
+    // Resident runtimes skip the transcript loader when reopened, so refresh
+    // those once on mount. Newly seeded runtimes already came from this query.
+    if (shouldSyncOnNextPollSetupRef.current) {
+      void pollSession();
+    }
     const intervalId = setInterval(
-      () => void pollTurnLock(),
-      SESSION_BUSY_POLL_INTERVAL_MS
+      () => void pollSession(),
+      isBusyElsewhere ? SESSION_BUSY_POLL_INTERVAL_MS : SESSION_POLL_INTERVAL_MS
     );
     return () => {
       disposed = true;
@@ -575,6 +593,7 @@ export function useAgentChat({
     persistedSessionId,
     chatInstance,
     isBusyElsewhere,
+    isSessionPollingPaused,
     relayEnvironment,
     store,
   ]);
