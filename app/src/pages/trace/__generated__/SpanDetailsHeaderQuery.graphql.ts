@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<de4efaa7f9185df7c5f3a25783c51dfd>>
+ * @generated SignedSource<<a990e985253676c5c435d00c2f1f8d33>>
  * @lightSyntaxTransform
  */
 
@@ -12,31 +12,14 @@ import { FragmentRefs } from "relay-runtime";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanDetailsHeaderQuery$variables = {
   id: string;
-  includeSession: boolean;
 };
 export type SpanDetailsHeaderQuery$data = {
   readonly span: {
     readonly __typename: "Span";
     readonly id: string;
-    readonly name: string;
-    readonly parentId: string | null;
     readonly spanId: string;
     readonly spanKind: SpanKind;
     readonly trace: {
-      readonly id: string;
-      readonly session?: {
-        readonly id: string;
-      } | null;
-      readonly spans: {
-        readonly edges: ReadonlyArray<{
-          readonly node: {
-            readonly id: string;
-            readonly name: string;
-            readonly parentId: string | null;
-            readonly spanId: string;
-          };
-        }>;
-      };
       readonly traceId: string;
     };
     readonly " $fragmentSpreads": FragmentRefs<"SpanHeader_span">;
@@ -57,11 +40,6 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "id"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "includeSession"
   }
 ],
 v1 = [
@@ -89,105 +67,17 @@ v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "spanId",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "spanId",
+  "name": "traceId",
   "storageKey": null
 },
 v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "parentId",
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "Trace",
-  "kind": "LinkedField",
-  "name": "trace",
-  "plural": false,
-  "selections": [
-    (v3/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "traceId",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": [
-        {
-          "kind": "Literal",
-          "name": "first",
-          "value": 1000
-        }
-      ],
-      "concreteType": "SpanConnection",
-      "kind": "LinkedField",
-      "name": "spans",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "SpanEdge",
-          "kind": "LinkedField",
-          "name": "edges",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "Span",
-              "kind": "LinkedField",
-              "name": "node",
-              "plural": false,
-              "selections": [
-                (v3/*:: as any*/),
-                (v4/*:: as any*/),
-                (v5/*:: as any*/),
-                (v6/*:: as any*/)
-              ],
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": "spans(first:1000)"
-    },
-    {
-      "condition": "includeSession",
-      "kind": "Condition",
-      "passingValue": true,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "ProjectSession",
-          "kind": "LinkedField",
-          "name": "session",
-          "plural": false,
-          "selections": [
-            (v3/*:: as any*/)
-          ],
-          "storageKey": null
-        }
-      ]
-    }
-  ],
-  "storageKey": null
-},
-v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -215,10 +105,19 @@ return {
             "selections": [
               (v3/*:: as any*/),
               (v4/*:: as any*/),
-              (v5/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Trace",
+                "kind": "LinkedField",
+                "name": "trace",
+                "plural": false,
+                "selections": [
+                  (v5/*:: as any*/)
+                ],
+                "storageKey": null
+              },
               (v6/*:: as any*/),
-              (v7/*:: as any*/),
-              (v8/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -255,10 +154,27 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v4/*:: as any*/),
-              (v5/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Trace",
+                "kind": "LinkedField",
+                "name": "trace",
+                "plural": false,
+                "selections": [
+                  (v5/*:: as any*/),
+                  (v3/*:: as any*/)
+                ],
+                "storageKey": null
+              },
               (v6/*:: as any*/),
-              (v7/*:: as any*/),
-              (v8/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
               {
                 "alias": "code",
                 "args": null,
@@ -333,16 +249,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d8ae97782de344efe258b9f22876cfc8",
+    "cacheID": "8447da441c503b4e742c10d00f6099e1",
     "id": null,
     "metadata": {},
     "name": "SpanDetailsHeaderQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsHeaderQuery(\n  $id: ID!\n  $includeSession: Boolean!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      name\n      spanId\n      parentId\n      trace {\n        id\n        traceId\n        spans(first: 1000) {\n          edges {\n            node {\n              id\n              name\n              spanId\n              parentId\n            }\n          }\n        }\n        session @include(if: $includeSession) {\n          id\n        }\n      }\n      spanKind\n      ...SpanHeader_span\n    }\n    id\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  code: statusCode\n  statusMessage\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
+    "text": "query SpanDetailsHeaderQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        traceId\n        id\n      }\n      spanKind\n      ...SpanHeader_span\n    }\n    id\n  }\n}\n\nfragment SpanHeader_span on Span {\n  id\n  name\n  spanKind\n  spanId\n  code: statusCode\n  statusMessage\n  latencyMs\n  startTime\n  tokenCountTotal\n  costSummary {\n    total {\n      cost\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fe06e7bacf8e8c866595e8bc8e4b55ad";
+(node as any).hash = "8073871e4e1a5dc18c348bd0582a41f9";
 
 export default node;

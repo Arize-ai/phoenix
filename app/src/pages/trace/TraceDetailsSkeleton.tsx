@@ -206,8 +206,6 @@ export function SpanDetailsSkeleton({
 }: {
   spanPreview?: SpanDetailsPreview;
   isCondensedView?: boolean;
-  showSessionHeader?: boolean;
-  showTraceHeader?: boolean;
 }) {
   return (
     <Flex direction="column" flex="1 1 auto" height="100%" aria-busy="true">

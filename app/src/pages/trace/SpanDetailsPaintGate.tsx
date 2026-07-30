@@ -23,14 +23,10 @@ function createCachedSpanDetails({
   spanNodeId,
   spanPreview,
   initialIsCondensedView,
-  showSessionHeader,
-  showTraceHeader,
 }: {
   spanNodeId: string;
   spanPreview?: SpanDetailsPreview;
   initialIsCondensedView: boolean;
-  showSessionHeader: boolean;
-  showTraceHeader: boolean;
 }): CachedSpanDetails {
   return {
     content: (
@@ -39,8 +35,6 @@ function createCachedSpanDetails({
           <SpanDetailsSkeleton
             spanPreview={spanPreview}
             isCondensedView={initialIsCondensedView}
-            showSessionHeader={showSessionHeader}
-            showTraceHeader={showTraceHeader}
           />
         }
       >
@@ -49,8 +43,6 @@ function createCachedSpanDetails({
           spanNodeId={spanNodeId}
           spanPreview={spanPreview}
           initialIsCondensedView={initialIsCondensedView}
-          showSessionHeader={showSessionHeader}
-          showTraceHeader={showTraceHeader}
         />
       </Suspense>
     ),
@@ -68,8 +60,6 @@ type SpanDetailsPaintGateProps = {
   spanNodeId: string;
   spanPreview?: SpanDetailsPreview;
   onSpanDetailsReady?: (spanNodeId: string) => void;
-  showSessionHeader?: boolean;
-  showTraceHeader?: boolean;
 };
 
 export function SpanDetailsPaintGate(props: SpanDetailsPaintGateProps) {
@@ -85,8 +75,6 @@ function SpanDetailsPaintGateContent({
   spanNodeId,
   spanPreview,
   onSpanDetailsReady,
-  showSessionHeader = true,
-  showTraceHeader = true,
 }: SpanDetailsPaintGateProps) {
   const [cachedSpanDetails, setCachedSpanDetails] = useState<
     CachedSpanDetails[]
@@ -142,8 +130,6 @@ function SpanDetailsPaintGateContent({
               spanNodeId,
               spanPreview,
               initialIsCondensedView: isCondensedView,
-              showSessionHeader,
-              showTraceHeader,
             })
           );
           return nextCache;
@@ -158,14 +144,7 @@ function SpanDetailsPaintGateContent({
         cancelAnimationFrame(hydrationFrameId);
       }
     };
-  }, [
-    isCondensedView,
-    isTargetCached,
-    showSessionHeader,
-    showTraceHeader,
-    spanNodeId,
-    spanPreview,
-  ]);
+  }, [isCondensedView, isTargetCached, spanNodeId, spanPreview]);
 
   useLayoutEffect(() => {
     const gate = gateRef.current;
@@ -254,8 +233,6 @@ function SpanDetailsPaintGateContent({
               spanPreview?.id === spanNodeId ? spanPreview : undefined
             }
             isCondensedView={isCondensedView}
-            showSessionHeader={showSessionHeader}
-            showTraceHeader={showTraceHeader}
           />
         </div>
         {cachedSpanDetails.map((cachedDetails) => (

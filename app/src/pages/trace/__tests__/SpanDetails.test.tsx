@@ -12,6 +12,12 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 const pendingContent = new Promise<never>(() => undefined);
 const spanDetailsContentTestState = vi.hoisted(() => ({
+  events: [] as {
+    attributes: Record<string, unknown>;
+    message: string;
+    name: string;
+    timestamp: string;
+  }[],
   shouldSuspend: true,
 }));
 const motionMocks = vi.hoisted(() => ({
@@ -24,77 +30,67 @@ vi.mock("motion/react", () => motionMocks);
 vi.mock("react-relay", () => ({
   graphql: vi.fn(),
   useFragment: vi.fn((_fragment, data) => data),
-  useLazyLoadQuery: vi.fn(
-    (_query, variables: { id: string; includeSession?: boolean }) => {
-      if (variables.includeSession === undefined) {
-        if (spanDetailsContentTestState.shouldSuspend) {
-          throw pendingContent;
-        }
-        return {
-          span: {
-            __typename: "Span",
-            id: "span-node-id",
-            spanId: "span-display-id",
-            spanKind: "chain",
-            input: { value: "input", mimeType: "text" },
-            output: { value: "output", mimeType: "text" },
-            attributes: "{}",
-            events: [],
-            spanNotes: [],
-            documentRetrievalMetrics: [],
-            documentEvaluations: [],
-          },
-        };
+  useLazyLoadQuery: vi.fn((query: { params?: { name?: string } }) => {
+    if (query.params?.name === "SpanDetailsContentQuery") {
+      if (spanDetailsContentTestState.shouldSuspend) {
+        throw pendingContent;
       }
       return {
         span: {
           __typename: "Span",
           id: "span-node-id",
           spanId: "span-display-id",
-          spanKind: "llm",
-          name: "selected span",
-          parentId: "parent-span-display-id",
-          code: "OK",
-          statusMessage: "",
-          latencyMs: 125,
-          startTime: "2026-07-28T12:00:00.000Z",
-          tokenCountTotal: 42,
-          costSummary: { total: { cost: 0.01 } },
-          trace: {
-            id: "trace-node-id",
-            traceId: "trace-display-id",
-            latencyMs: 250,
-            startTime: "2026-07-28T11:59:59.000Z",
-            costSummary: { total: { cost: 0.02 } },
-            spans: {
-              edges: [
-                {
-                  node: {
-                    id: "parent-span-node-id",
-                    name: "parent span",
-                    spanId: "parent-span-display-id",
-                    parentId: null,
-                  },
-                },
-              ],
-            },
-            rootSpan: {
-              statusCode: "OK",
-              cumulativeTokenCountTotal: 84,
-            },
-            session: variables.includeSession
-              ? {
-                  id: "session-node-id",
-                  sessionId: "session-display-id",
-                  tokenUsage: { total: 168 },
-                  costSummary: { total: { cost: 0.04 } },
-                }
-              : undefined,
-          },
+          spanKind: "chain",
+          input: { value: "input", mimeType: "text" },
+          output: { value: "output", mimeType: "text" },
+          attributes: "{}",
+          events: spanDetailsContentTestState.events,
+          spanNotes: [],
+          documentRetrievalMetrics: [],
+          documentEvaluations: [],
         },
       };
     }
-  ),
+    return {
+      span: {
+        __typename: "Span",
+        id: "span-node-id",
+        spanId: "span-display-id",
+        spanKind: "llm",
+        name: "selected span",
+        parentId: "parent-span-display-id",
+        code: "OK",
+        statusMessage: "",
+        latencyMs: 125,
+        startTime: "2026-07-28T12:00:00.000Z",
+        tokenCountTotal: 42,
+        costSummary: { total: { cost: 0.01 } },
+        trace: {
+          id: "trace-node-id",
+          traceId: "trace-display-id",
+          latencyMs: 250,
+          startTime: "2026-07-28T11:59:59.000Z",
+          costSummary: { total: { cost: 0.02 } },
+          spans: {
+            edges: [
+              {
+                node: {
+                  id: "parent-span-node-id",
+                  name: "parent span",
+                  spanId: "parent-span-display-id",
+                  parentId: null,
+                },
+              },
+            ],
+          },
+          rootSpan: {
+            statusCode: "OK",
+            cumulativeTokenCountTotal: 84,
+          },
+        },
+      },
+    };
+  }),
 }));
 
 vi.mock("react-router", async (importOriginal) => {
@@ -155,6 +151,7 @@ describe("SpanDetails headers", () => {
   let root: Root;
 
   beforeEach(() => {
+    spanDetailsContentTestState.events = [];
     spanDetailsContentTestState.shouldSuspend = true;
     motionMocks.animate.mockClear();
     motionMocks.useReducedMotion.mockClear();
@@ -168,7 +165,7 @@ describe("SpanDetails headers", () => {
     container.remove();
   });
 
-  it("shows one span header and replaces its annotations with an ancestor selection", async () => {
+  it("shows annotations for the selected span without a scope selector", () => {
     act(() => {
       root.render(
         <TestProviders>
@@ -185,57 +182,14 @@ describe("SpanDetails headers", () => {
         ?.textContent
     ).toBe("span-node-id");
 
-    const user = userEvent.setup();
-    const trigger = container.querySelector<HTMLButtonElement>(
-      'button[aria-label^="Annotations for"]'
-    );
-    expect(trigger?.dataset.variant).toBe("quiet");
-    expect(trigger?.textContent).not.toContain("Annotations");
+    expect(
+      container.querySelector('button[aria-label^="Annotations for"]')
+    ).toBeNull();
     expect(
       getComputedStyle(
         headers.item(0).querySelector<HTMLElement>(".detail-header__meta")!
       ).flexWrap
     ).toBe("nowrap");
-    expect(
-      getComputedStyle(
-        trigger!.querySelector<HTMLElement>(".annotation-target-select__title")!
-      ).textOverflow
-    ).toBe("ellipsis");
-    await act(async () => user.click(trigger!));
-    const parentOption = Array.from(
-      document.querySelectorAll<HTMLElement>("[role='option']")
-    ).find((option) => option.textContent?.includes("parent span"));
-    await act(async () => user.click(parentOption!));
-
-    expect(
-      headers.item(0).querySelector("[data-testid='span-annotations']")
-        ?.textContent
-    ).toBe("parent-span-node-id");
-  });
-
-  it("can omit the session annotation target without adding another header", async () => {
-    act(() => {
-      root.render(
-        <TestProviders>
-          <SpanDetails spanNodeId="span-node-id" showSessionHeader={false} />
-        </TestProviders>
-      );
-    });
-
-    const headers = container.querySelectorAll("[data-detail-header]");
-    expect(headers).toHaveLength(1);
-    expect(headers.item(0).textContent).toContain("selected span");
-
-    const user = userEvent.setup();
-    const trigger = container.querySelector<HTMLButtonElement>(
-      'button[aria-label^="Annotations for"]'
-    );
-    await act(async () => user.click(trigger!));
-    const optionLabels = Array.from(
-      document.querySelectorAll<HTMLElement>("[role='option']")
-    ).map((option) => option.textContent);
-    expect(optionLabels).toContain("Trace");
-    expect(optionLabels).not.toContain("Session");
   });
 
   it("clears an interrupted section-title highlight before animating the next title", async () => {

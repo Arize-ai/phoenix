@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const searchParams = new URLSearchParams("selectedTraceId=trace-display-id");
@@ -134,7 +133,7 @@ describe("TraceDetails", () => {
     container.remove();
   });
 
-  it("shows one trace header and can replace its annotations with the session", async () => {
+  it("shows annotations for the selected trace without a scope selector", () => {
     act(() => {
       root.render(
         <TraceDetails traceId="trace-display-id" projectId="project-node-id" />
@@ -164,22 +163,11 @@ describe("TraceDetails", () => {
     ).toBe("root-span-node-id");
     expect(container.querySelector("[data-testid='span-details']")).toBeNull();
 
-    const user = userEvent.setup();
-    const trigger = container.querySelector<HTMLButtonElement>(
-      'button[aria-label^="Annotations for"]'
-    );
-    await act(async () => user.click(trigger!));
-    const sessionOption = Array.from(
-      document.querySelectorAll<HTMLElement>("[role='option']")
-    ).find((option) => option.textContent?.includes("Session"));
-    await act(async () => user.click(sessionOption!));
-
+    expect(
+      container.querySelector('button[aria-label^="Annotations for"]')
+    ).toBeNull();
     expect(
       traceHeader.querySelector("[data-testid='session-annotation-bar']")
-        ?.textContent
-    ).toBe("session-node-id");
-    expect(
-      traceHeader.querySelector("[data-testid='trace-annotation-bar']")
     ).toBeNull();
   });
 });

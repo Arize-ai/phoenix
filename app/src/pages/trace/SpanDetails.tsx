@@ -5,7 +5,7 @@ import type {
   PropsWithChildren,
   ReactNode,
 } from "react";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
@@ -29,11 +29,6 @@ import { SpanHeader } from "../SpanHeader";
 import type { SpanDetailsContentQuery } from "./__generated__/SpanDetailsContentQuery.graphql";
 import type { SpanDetailsHeaderQuery } from "./__generated__/SpanDetailsHeaderQuery.graphql";
 import { DeferredSpanDetailsContent } from "./DeferredSpanDetailsContent";
-import {
-  DetailHeaderAnnotationBar,
-  type DetailHeaderAnnotationTarget,
-  DetailHeaderAnnotationTargetSelect,
-} from "./DetailHeaderAnnotationTarget";
 import {
   getSpanInfoSectionKeys,
   parseSpanAttributes,
@@ -146,14 +141,10 @@ export function SpanDetails({
   spanNodeId,
   spanPreview,
   initialIsCondensedView = true,
-  showSessionHeader = true,
-  showTraceHeader = true,
 }: {
   spanNodeId: string;
   spanPreview?: SpanDetailsPreview;
   initialIsCondensedView?: boolean;
-  showSessionHeader?: boolean;
-  showTraceHeader?: boolean;
 }) {
   const { projectId } = useParams();
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
@@ -198,8 +189,6 @@ export function SpanDetails({
         <SpanDetailsHeader
           isCondensedView={isCondensedView}
           projectId={projectId}
-          showSessionTarget={showSessionHeader}
-          showTraceTarget={showTraceHeader}
           selectedSpanAnnotationBar={selectedSpanAnnotationBar}
           spanNodeId={spanNodeId}
         />
@@ -215,43 +204,23 @@ function SpanDetailsHeader({
   isCondensedView,
   projectId,
   selectedSpanAnnotationBar,
-  showSessionTarget,
-  showTraceTarget,
   spanNodeId,
 }: {
   isCondensedView: boolean;
   projectId: string;
   selectedSpanAnnotationBar: ReactNode;
-  showSessionTarget: boolean;
-  showTraceTarget: boolean;
   spanNodeId: string;
 }) {
   const { span } = useLazyLoadQuery<SpanDetailsHeaderQuery>(
     graphql`
-      query SpanDetailsHeaderQuery($id: ID!, $includeSession: Boolean!) {
+      query SpanDetailsHeaderQuery($id: ID!) {
         span: node(id: $id) {
           __typename
           ... on Span {
             id
-            name
             spanId
-            parentId
             trace {
-              id
               traceId
-              spans(first: 1000) {
-                edges {
-                  node {
-                    id
-                    name
-                    spanId
-                    parentId
-                  }
-                }
-              }
-              session @include(if: $includeSession) {
-                id
-              }
             }
             spanKind
             ...SpanHeader_span
@@ -259,7 +228,7 @@ function SpanDetailsHeader({
         }
       }
     `,
-    { id: spanNodeId, includeSession: showSessionTarget }
+    { id: spanNodeId }
   );
 
   if (span.__typename !== "Span") {
@@ -268,39 +237,21 @@ function SpanDetailsHeader({
     );
   }
 
-  const annotationTargets = getSpanAnnotationTargets({
-    currentSpan: span,
-    showSessionTarget,
-    showTraceTarget,
-  });
-  const [selectedTargetId, setSelectedTargetId] = useState(span.id);
-  const selectedTarget =
-    annotationTargets.find((target) => target.id === selectedTargetId) ??
-    annotationTargets[0];
-
   return (
     <DetailHeader
       annotationBar={
-        <DetailHeaderAnnotationBar
-          selectedSpanAnnotationBar={
-            selectedTarget.id === span.id
-              ? selectedSpanAnnotationBar
-              : undefined
+        <Suspense
+          fallback={
+            <DetailPanelAnnotationBarSkeleton variant="detail-header" />
           }
-          target={selectedTarget}
-        />
+        >
+          {selectedSpanAnnotationBar}
+        </Suspense>
       }
     >
       <div data-span-details-header-id={span.id} data-testid="span-header-row">
         <SpanHeader
           span={span}
-          metadataAction={
-            <DetailHeaderAnnotationTargetSelect
-              targets={annotationTargets}
-              selectedTarget={selectedTarget}
-              onTargetChange={setSelectedTargetId}
-            />
-          }
           actions={
             <SpanDetailsHeaderActions
               buttonText={{
@@ -319,71 +270,6 @@ function SpanDetailsHeader({
       </div>
     </DetailHeader>
   );
-}
-
-type SpanAnnotationTargetSource = {
-  id: string;
-  name: string;
-  parentId: string | null;
-  spanId: string;
-};
-
-function getSpanAnnotationTargets({
-  currentSpan,
-  showSessionTarget,
-  showTraceTarget,
-}: {
-  currentSpan: SpanAnnotationTargetSource & {
-    trace: {
-      id: string;
-      session?: { id: string } | null;
-      traceId: string;
-      spans: {
-        edges: readonly { node: SpanAnnotationTargetSource }[];
-      };
-    };
-  };
-  showSessionTarget: boolean;
-  showTraceTarget: boolean;
-}): DetailHeaderAnnotationTarget[] {
-  const targets: DetailHeaderAnnotationTarget[] = [
-    { id: currentSpan.id, kind: "span", label: currentSpan.name },
-  ];
-  const spansByDisplayId = new Map(
-    currentSpan.trace.spans.edges.map(({ node }) => [node.spanId, node])
-  );
-  const visitedSpanIds = new Set([currentSpan.spanId]);
-  let parentId = currentSpan.parentId;
-
-  while (parentId != null && !visitedSpanIds.has(parentId)) {
-    visitedSpanIds.add(parentId);
-    const parentSpan = spansByDisplayId.get(parentId);
-    if (parentSpan == null) {
-      break;
-    }
-    targets.push({
-      id: parentSpan.id,
-      kind: "span",
-      label: parentSpan.name,
-    });
-    parentId = parentSpan.parentId;
-  }
-
-  if (showTraceTarget) {
-    targets.push({
-      id: currentSpan.trace.id,
-      kind: "trace",
-      label: "Trace",
-    });
-  }
-  if (showSessionTarget && currentSpan.trace.session != null) {
-    targets.push({
-      id: currentSpan.trace.session.id,
-      kind: "session",
-      label: "Session",
-    });
-  }
-  return targets;
 }
 
 function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
