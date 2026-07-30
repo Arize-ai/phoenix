@@ -65,9 +65,14 @@ class SessionAggregate:
         project_rowids: Optional[Collection[int]] = None,
         start_time: Optional[Any] = None,
         end_time: Optional[Any] = None,
+        values: Optional[Collection[str]] = None,
     ) -> Select[Any]:
-        """One GROUP BY scan yielding a row per session: ``(project_session_rowid, *values)``."""
-        stmt = self._base((_GROUP_KEY.label(SESSION_ROWID), *self.values))
+        """One GROUP BY scan yielding a row per session, keyed ``project_session_rowid``.
+
+        ``values`` names the value columns to project; it defaults to all of them.
+        """
+        projected = self.values if values is None else tuple(self._value(name) for name in values)
+        stmt = self._base((_GROUP_KEY.label(SESSION_ROWID), *projected))
         if keys is not None:
             stmt = stmt.where(_GROUP_KEY.in_(keys))
         stmt = _apply_scope(stmt, project_rowids, start_time, end_time)

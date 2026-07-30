@@ -4,7 +4,7 @@ Session intrinsics bind to ``ProjectSession`` columns; per-session aggregate nam
 grouped-by-session subqueries from :mod:`phoenix.db.session_aggregates` that are LEFT JOINed on
 demand; ``user.id`` and ``metadata["k"]`` read the session's earliest root span. Comprehensions
 (``any(s.status_code == "ERROR" for s in spans)``) range over the iterables catalogued below and
-compile to correlated subqueries over the element table.
+compile over the element table in whichever of the two lowerings the caller asks for.
 """
 
 import ast
@@ -51,10 +51,10 @@ from phoenix.trace.dsl.filter import (
 
 __all__ = ["SessionFilter", "SESSION_BINDINGS", "SESSION_FILTER_DESCRIPTIONS"]
 
-# Benchmarked in scripts/perf/session_filter_perf.py: "grouped" costs 411ms pg / 1.44s sqlite per
-# page at 100k sessions, where "correlated" stays ~2ms flat; "grouped" only wins when every row is
-# scanned anyway (counts, sweeps).
-AggregateShape: typing.TypeAlias = typing.Literal["grouped", "correlated"]
+# Which physical shape a predicate takes. "probe" emits one subquery per candidate session row, so
+# a statement with a LIMIT stops as soon as it has enough matches; "scan" makes a single pass over
+# the element tables, joined once, and is what a statement that must touch every session wants.
+FilterLowering: typing.TypeAlias = typing.Literal["scan", "probe"]
 
 
 class _AggregateSpec(typing.NamedTuple):
@@ -497,20 +497,21 @@ _REDUCTION_FUNCTIONS: typing.Mapping[str, typing.Any] = MappingProxyType(
 
 
 def _comprehension_bindings(
+    stmt: Select[typing.Any],
     specs: typing.Iterable[ComprehensionSpec],
     candidate_session_rowids: CandidateRowids,
     project_rowids: typing.Optional[typing.Sequence[int]],
     start_time: typing.Optional[typing.Any],
     end_time: typing.Optional[typing.Any],
-) -> dict[str, typing.Any]:
-    """Build each comprehension's correlated subquery, keyed by the name it was extracted to."""
+    lowering: FilterLowering,
+) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
+    """Build each comprehension's subquery, keyed by the name it was extracted to."""
     aliases = count()
 
-    def build(
+    def element_scope(
         spec: ComprehensionSpec,
-        parent: typing.Optional[ComprehensionSpec] = None,
-        parent_element: typing.Optional[typing.Any] = None,
-    ) -> typing.Any:
+    ) -> tuple[_IterableSpec, typing.Any, dict[str, typing.Any], typing.Any]:
+        """Alias the element table and evaluate the spec's predicate in the element's language."""
         iterable = _ITERABLE_SPECS[spec.iterable]
         element = aliased(iterable.model, name=f"{spec.iterable}_{next(aliases)}")
         columns = {
@@ -525,6 +526,14 @@ def _comprehension_bindings(
         predicate: typing.Any = (
             None if spec.predicate is None else eval(spec.predicate, element_globals)
         )
+        return iterable, element, element_globals, predicate
+
+    def build(
+        spec: ComprehensionSpec,
+        parent: typing.Optional[ComprehensionSpec] = None,
+        parent_element: typing.Optional[typing.Any] = None,
+    ) -> typing.Any:
+        iterable, element, element_globals, predicate = element_scope(spec)
         if spec.kind in QUANTIFIER_NAMES:
             stmt = select(literal(1))
         elif spec.kind == "len":
@@ -566,7 +575,63 @@ def _comprehension_bindings(
         # `max`/`min` over nothing is SQL NULL, which reads as missing and fails every comparison.
         return stmt.scalar_subquery()
 
-    return {spec.name: build(spec) for spec in specs}
+    def build_scan(spec: ComprehensionSpec) -> typing.Any:
+        """The outermost comprehension as one uncorrelated pass over the element table.
+
+        Quantifiers become a semi- or anti-join on the session rowid; reductions become a
+        grouped subquery the caller LEFT JOINs. Nested comprehensions keep the correlated shape.
+        """
+        iterable, element, element_globals, predicate = element_scope(spec)
+        session_key = iterable.session_key(element)
+
+        def scan(*columns: typing.Any) -> Select[typing.Any]:
+            stmt = select(*columns).select_from(element)
+            for target in iterable.joins:
+                stmt = stmt.join(target)
+            stmt = apply_session_scope(
+                stmt,
+                session_key,
+                project_key=None if iterable.project_key is None else iterable.project_key(element),
+                keys=candidate_session_rowids,
+                project_rowids=project_rowids,
+                start_time=start_time,
+                end_time=end_time,
+            )
+            if spec.condition is not None:
+                stmt = stmt.where(eval(spec.condition, element_globals))
+            return stmt
+
+        if spec.kind == "any":
+            return models.ProjectSession.id.in_(scan(session_key).where(predicate))
+        if spec.kind == "all":
+            # An element whose predicate is NULL is a counterexample, same as the correlated
+            # shape. The NULL-key guard is what keeps `NOT IN` from returning nothing at all:
+            # Trace.project_session_rowid is nullable, and one NULL empties the whole result.
+            return models.ProjectSession.id.not_in(
+                scan(session_key).where(predicate.is_not(True)).where(session_key.is_not(None))
+            )
+        value = func.count() if spec.kind == "len" else _REDUCTION_FUNCTIONS[spec.kind](predicate)
+        return scan(session_key.label(SESSION_ROWID), value.label(VALUE)).group_by(session_key)
+
+    bindings_map: dict[str, typing.Any] = {}
+    for spec in specs:
+        if lowering == "probe":
+            bindings_map[spec.name] = build(spec)
+            continue
+        if lowering != "scan":
+            raise ValueError(f"Unknown filter lowering: {lowering}")
+        lowered = build_scan(spec)
+        if spec.kind in QUANTIFIER_NAMES:
+            bindings_map[spec.name] = lowered
+            continue
+        subquery = lowered.subquery()
+        stmt = stmt.outerjoin(subquery, models.ProjectSession.id == subquery.c[SESSION_ROWID])
+        column = subquery.c[VALUE]
+        # `max`/`min` over nothing is SQL NULL, which reads as missing and fails every comparison.
+        bindings_map[spec.name] = (
+            func.coalesce(column, 0) if spec.kind in ("len", "sum") else column
+        )
+    return stmt, bindings_map
 
 
 @dataclass(frozen=True)
@@ -589,6 +654,17 @@ class SessionFilter:
 
     def __bool__(self) -> bool:
         return bool(self.condition)
+
+    @property
+    def can_duplicate_sessions(self) -> bool:
+        """Whether applying this condition to a session query can emit several rows per session.
+
+        Annotation access is the only relation that joins a table keyed on more than the session
+        — ``ProjectSessionAnnotation`` is unique on ``(name, project_session_id, identifier)``, so
+        one session can carry several rows under one name. Every other relation the compiler joins
+        contributes at most one row per session.
+        """
+        return bool(self.condition) and bool(self._aliased_annotation_relations)
 
     def __post_init__(self) -> None:
         if not (source := self.condition):
@@ -626,11 +702,15 @@ class SessionFilter:
         project_rowids: typing.Optional[typing.Sequence[int]] = None,
         start_time: typing.Optional[typing.Any] = None,
         end_time: typing.Optional[typing.Any] = None,
-        aggregate_shape: AggregateShape = "grouped",
+        lowering: FilterLowering = "scan",
+        prejoined_aggregate: typing.Optional[tuple[str, typing.Any]] = None,
     ) -> Select[typing.Any]:
         """Join the referenced aggregate / annotation / root-span relations and apply the predicate.
 
         ``stmt`` must select from ``ProjectSession`` — the joins key on ``ProjectSession.id``.
+        ``prejoined_aggregate`` is a ``(builder key, subquery)`` pair already joined onto ``stmt``
+        by the caller; aggregate names from that family bind to its columns instead of emitting
+        another subquery.
         """
         if not self.condition:
             return stmt
@@ -642,18 +722,20 @@ class SessionFilter:
             project_rowids=project_rowids,
             start_time=start_time,
             end_time=end_time,
-            aggregate_shape=aggregate_shape,
+            lowering=lowering,
+            prejoined_aggregate=prejoined_aggregate,
         )
         extra_bindings.update(aggregate_bindings)
-        extra_bindings.update(
-            _comprehension_bindings(
-                self._comprehensions,
-                candidate_session_rowids=candidate_session_rowids,
-                project_rowids=project_rowids,
-                start_time=start_time,
-                end_time=end_time,
-            )
+        stmt, comprehension_bindings = _comprehension_bindings(
+            stmt,
+            self._comprehensions,
+            candidate_session_rowids=candidate_session_rowids,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+            lowering=lowering,
         )
+        extra_bindings.update(comprehension_bindings)
         extra_bindings.update(
             _exists_bindings(
                 self._referenced_exists_names,
@@ -697,7 +779,7 @@ class SessionFilter:
         start_time: typing.Optional[typing.Any] = None,
         end_time: typing.Optional[typing.Any] = None,
         candidate_session_rowids: CandidateRowids = None,
-        aggregate_shape: AggregateShape = "grouped",
+        lowering: FilterLowering = "scan",
     ) -> ScalarSelect[int]:
         stmt: Select[typing.Any] = select(distinct(models.ProjectSession.id))
         if project_rowids is not None:
@@ -715,7 +797,7 @@ class SessionFilter:
             project_rowids=project_rowids,
             start_time=start_time,
             end_time=end_time,
-            aggregate_shape=aggregate_shape,
+            lowering=lowering,
         )
         return stmt.scalar_subquery()
 
@@ -727,7 +809,8 @@ def _join_aggregates(
     project_rowids: typing.Optional[typing.Sequence[int]],
     start_time: typing.Optional[typing.Any],
     end_time: typing.Optional[typing.Any],
-    aggregate_shape: AggregateShape,
+    lowering: FilterLowering,
+    prejoined_aggregate: typing.Optional[tuple[str, typing.Any]] = None,
 ) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
     grouped: dict[str, tuple[typing.Callable[[], SessionAggregate], list[tuple[str, str]]]] = {}
     for name in referenced_aggregates:
@@ -735,10 +818,19 @@ def _join_aggregates(
         grouped.setdefault(spec.builder_key, (spec.builder, []))[1].append(
             (name, spec.value_column)
         )
+    prejoined_key, prejoined_subquery = prejoined_aggregate or (None, None)
     bindings_map: dict[str, typing.Any] = {}
-    for builder, names in grouped.values():
+    for builder_key, (builder, names) in grouped.items():
+        if (
+            prejoined_subquery is not None
+            and builder_key == prejoined_key
+            and all(value_column in prejoined_subquery.c for _, value_column in names)
+        ):
+            for name, value_column in names:
+                bindings_map[name] = func.coalesce(prejoined_subquery.c[value_column], 0)
+            continue
         aggregate = builder()
-        if aggregate_shape == "grouped":
+        if lowering == "scan":
             subquery = aggregate.as_grouped_subquery(
                 keys=candidate_session_rowids,
                 project_rowids=project_rowids,
@@ -748,7 +840,7 @@ def _join_aggregates(
             stmt = stmt.outerjoin(subquery, models.ProjectSession.id == subquery.c[SESSION_ROWID])
             for name, value_column in names:
                 bindings_map[name] = func.coalesce(subquery.c[value_column], 0)
-        elif aggregate_shape == "correlated":
+        elif lowering == "probe":
             for name, value_column in names:
                 bindings_map[name] = func.coalesce(
                     aggregate.as_correlated_scalar(
@@ -761,7 +853,7 @@ def _join_aggregates(
                     0,
                 )
         else:
-            raise ValueError(f"Unknown aggregate shape: {aggregate_shape}")
+            raise ValueError(f"Unknown filter lowering: {lowering}")
     return stmt, bindings_map
 
 
