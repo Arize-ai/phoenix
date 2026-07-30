@@ -223,6 +223,7 @@ export function useAgentChat({
   sessionId,
   initialMessages,
   isActive = false,
+  shouldSyncOnMount = false,
 }: {
   /**
    * The session's Relay node ID, or {@link DRAFT_SESSION_ID} (or null) for a
@@ -237,12 +238,15 @@ export function useAgentChat({
    * entry into busy-elsewhere mode; the hook then polls until the lock clears.
    */
   isActive?: boolean;
+  /** Immediately synchronize runtimes that mounted without a fresh session query. */
+  shouldSyncOnMount?: boolean;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
   const relayEnvironment = useRelayEnvironment();
   const [operationError, setOperationError] =
     useState<AgentChatOperationError | null>(null);
+  const shouldSyncOnNextPollSetupRef = useRef(shouldSyncOnMount);
   const [compactionStatus, setCompactionStatus] = useState<string | null>(null);
   const isDraft = sessionId == null || sessionId === DRAFT_SESSION_ID;
   const isCompacting = useAgentContext((state) =>
@@ -538,6 +542,9 @@ export function useAgentChat({
       isRequestActive(status) ||
       isCompacting
     ) {
+      // A runtime first observed during its own generation will be canonicalized
+      // by the turn-completion refetch, so it does not also need a mount sync.
+      shouldSyncOnNextPollSetupRef.current = false;
       return undefined;
     }
     let disposed = false;
@@ -554,6 +561,7 @@ export function useAgentChat({
         if (!agentSession || disposed) {
           return;
         }
+        shouldSyncOnNextPollSetupRef.current = false;
         if (agentSession.isActive) {
           store.getState().setSessionBusyElsewhere(persistedSessionId, true);
           return;
@@ -571,10 +579,11 @@ export function useAgentChat({
         // Transient failure: wait for the next poll tick.
       }
     };
-    // Synchronize immediately when the session surface mounts instead of
-    // waiting for the first interval. This also detects a turn that another
-    // client started after the session's initial route data was loaded.
-    void pollSession();
+    // Resident runtimes skip the transcript loader when reopened, so refresh
+    // those once on mount. Newly seeded runtimes already came from this query.
+    if (shouldSyncOnNextPollSetupRef.current) {
+      void pollSession();
+    }
     const intervalId = setInterval(
       () => void pollSession(),
       isBusyElsewhere ? SESSION_BUSY_POLL_INTERVAL_MS : SESSION_POLL_INTERVAL_MS

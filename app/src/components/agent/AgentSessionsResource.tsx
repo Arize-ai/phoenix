@@ -377,6 +377,7 @@ function AgentSessionsContent({
           key={activeSessionId}
           sessionId={activeSessionId}
           initialMessages={[]}
+          shouldSyncOnMount
         />
       )}
     </>
@@ -424,6 +425,7 @@ function AgentSessionTranscript({
       sessionId={sessionId}
       initialMessages={messages}
       isActive={agentSession.isActive}
+      shouldSyncOnMount={false}
     />
   );
 }
@@ -432,11 +434,14 @@ function AgentChatController({
   sessionId,
   initialMessages,
   isActive,
+  shouldSyncOnMount,
 }: {
   sessionId: string;
   initialMessages: AgentUIMessage[];
   /** Relay-derived: another client's turn holds the session's server lock. */
   isActive?: boolean;
+  /** Whether this runtime skipped a fresh transcript query when it mounted. */
+  shouldSyncOnMount: boolean;
 }) {
   const { menuValue, handleModelChange } = useAgentChatPanelState();
   const {
@@ -459,6 +464,7 @@ function AgentChatController({
     sessionId,
     initialMessages,
     isActive,
+    shouldSyncOnMount,
   });
 
   return (
