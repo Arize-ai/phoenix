@@ -32,13 +32,17 @@ class AgentAssistantEnabledSetting(BaseModel):
     enabled: bool = Field(default=True)
 
 
+DEFAULT_AGENT_SESSION_MAX_IDLE_DAYS = 30
+DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER = 30
+
+
 class AgentSessionRetentionSetting(BaseModel):
     """Workspace-wide retention for non-temporary agent sessions."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, validate_assignment=True)
 
-    max_idle_days: int = Field(default=0, ge=0)
-    max_count_per_user: int = Field(default=0, ge=0)
+    max_idle_days: int = Field(default=DEFAULT_AGENT_SESSION_MAX_IDLE_DAYS, ge=0)
+    max_count_per_user: int = Field(default=DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER, ge=0)
 
 
 SETTINGS_REGISTRY: Mapping[SystemSettingKey, type[BaseModel]] = MappingProxyType(
