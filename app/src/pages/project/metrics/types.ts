@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-import { useVisibleValue } from "@phoenix/components/chart";
+import { useVisibleValue } from "@phoenix/hooks/useDeferredVisibility";
 
 /**
  * Recharts syncId shared by every project metric chart so tooltip hover and

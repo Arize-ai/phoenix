@@ -5,8 +5,8 @@ import {
   ChartPanel,
   type ChartTypeIconType,
   DeferredChartPanel,
-  useVisibleValue,
 } from "@phoenix/components/chart";
+import { useVisibleValue } from "@phoenix/hooks/useDeferredVisibility";
 import type {
   BuiltInProjectMetricChartKey,
   MetricChartTableView,
@@ -185,18 +185,10 @@ function createProjectMetricPanel({
   description,
   Component,
 }: ProjectMetricChartDefinition): ComponentType<ProjectMetricPanelProps> {
-  return function ProjectMetricPanel({
-    fillHeight = false,
-    timeRange,
-    ...props
-  }) {
-    // Freeze the time range while the chart is out of view: the range is a
-    // query variable, so letting a live range keep advancing would refetch
-    // hidden charts on every stream refresh despite the frozen fetchKey
-    const visibleTimeRange = useVisibleValue(timeRange);
+  return function ProjectMetricPanel({ fillHeight = false, ...props }) {
     return (
       <ChartPanel title={name} subtitle={description} fillHeight={fillHeight}>
-        <Component {...props} timeRange={visibleTimeRange} />
+        <Component {...props} />
       </ChartPanel>
     );
   };
@@ -226,7 +218,6 @@ const CHARTS_BY_KEY = Object.fromEntries(
 function ProjectAnnotationChartPanel({
   annotationLevel,
   annotationName,
-  timeRange,
   ...props
 }: ProjectMetricPanelProps) {
   invariant(
@@ -237,12 +228,9 @@ function ProjectAnnotationChartPanel({
     annotationName != null,
     "annotationName is required for a project annotation metric chart"
   );
-  // See ProjectMetricPanel: hidden charts must not refetch as a live range advances
-  const visibleTimeRange = useVisibleValue(timeRange);
   return (
     <ProjectAnnotationMetricPanel
       {...props}
-      timeRange={visibleTimeRange}
       annotationLevel={annotationLevel}
       annotationName={annotationName}
     />
@@ -269,13 +257,35 @@ export function DeferredProjectMetricPanel({
       subtitle={chart.description}
       fillHeight={fillHeight}
     >
-      <chart.Panel
-        {...props}
-        annotationLevel={chart.annotationLevel}
-        annotationName={chart.annotationName}
-        fillHeight={fillHeight}
-      />
+      <DeferredPanelContent chart={chart} fillHeight={fillHeight} {...props} />
     </DeferredChartPanel>
+  );
+}
+
+/**
+ * Rendered inside the deferred panel's visibility context so the time range
+ * can be frozen while the chart is out of view: the range is a query
+ * variable, so letting a live range keep advancing would refetch hidden
+ * charts on every stream refresh despite the frozen fetchKey.
+ */
+function DeferredPanelContent({
+  chart,
+  timeRange,
+  fillHeight,
+  ...props
+}: ProjectMetricViewProps & {
+  chart: ProjectMetricChart;
+  fillHeight?: boolean;
+}) {
+  const visibleTimeRange = useVisibleValue(timeRange);
+  return (
+    <chart.Panel
+      {...props}
+      timeRange={visibleTimeRange}
+      annotationLevel={chart.annotationLevel}
+      annotationName={chart.annotationName}
+      fillHeight={fillHeight}
+    />
   );
 }
 

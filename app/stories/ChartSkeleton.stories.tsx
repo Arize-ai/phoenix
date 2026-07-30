@@ -8,11 +8,8 @@ const meta = {
   parameters: {
     layout: "centered",
   },
-  args: {
-    height: 190,
-  },
   render: (args) => (
-    <div style={{ width: 400 }}>
+    <div style={{ width: 400, height: 190 }}>
       <ChartSkeleton {...args} />
     </div>
   ),
@@ -24,20 +21,10 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
-export const Wave: Story = {
-  args: {
-    animation: "wave",
-  },
-};
-
-export const WithoutLegend: Story = {
-  args: {
-    showLegend: false,
-  },
-};
-
-export const CustomBars: Story = {
-  args: {
-    barValues: [35, 72, 48, 64, 30, 84, 58, 78, 44, 68, 52, 90, 40, 62, 36, 74],
-  },
+export const Compact: Story = {
+  render: (args) => (
+    <div style={{ width: 400, height: 100 }}>
+      <ChartSkeleton {...args} />
+    </div>
+  ),
 };

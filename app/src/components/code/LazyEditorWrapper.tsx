@@ -28,8 +28,9 @@ export function LazyEditorWrapper({
   children,
   ...rest
 }: LazyEditorWrapperProps) {
+  // once: only the first reveal matters here, so observation stops after it
   const { ref, hasBeenVisible: isInitialized } =
-    useDeferredVisibility<HTMLDivElement>();
+    useDeferredVisibility<HTMLDivElement>({ once: true });
 
   return (
     <div

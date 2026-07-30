@@ -9,11 +9,7 @@ import {
   YAxis,
 } from "recharts";
 
-import type { AnimationType } from "@phoenix/components/core/loading";
-import {
-  pulseKeyframes,
-  waveKeyframes,
-} from "@phoenix/components/core/loading";
+import { pulseAnimation } from "@phoenix/components/core/loading";
 import { classNames } from "@phoenix/utils/classNames";
 
 import {
@@ -28,9 +24,9 @@ import {
  * bins with a few spikes, so the skeleton reads as "a chart is coming" rather
  * than uniform noise.
  */
-const DEFAULT_BAR_VALUES = [
+const PLACEHOLDER_DATA = [
   15, 19, 23, 17, 88, 21, 85, 23, 96, 34, 42, 28, 64, 31, 55, 47,
-] as const;
+].map((value) => ({ value }));
 
 const SKELETON_FILL = "var(--global-color-gray-200)";
 
@@ -39,12 +35,6 @@ const SKELETON_FILL = "var(--global-color-gray-200)";
  * chart — wide enough for a typical 2–3 character tick (e.g. "40k").
  */
 const Y_AXIS_WIDTH = 26;
-
-type CSSLength = number | string;
-
-function getCSSLength(value: CSSLength): string {
-  return typeof value === "number" ? `${value}px` : value;
-}
 
 interface AxisTickProps {
   x?: string | number;
@@ -86,27 +76,6 @@ function YAxisSkeletonTick({ x = 0, y = 0 }: AxisTickProps) {
 }
 
 export interface ChartSkeletonProps extends HTMLAttributes<HTMLDivElement> {
-  /**
-   * Skeleton animation. `pulse` fades the chart's painted shapes in and out;
-   * `wave` sweeps a sheen across the whole plot.
-   * @default "pulse"
-   */
-  animation?: AnimationType;
-  /**
-   * Values for the placeholder bars, on a 0–100 scale.
-   */
-  barValues?: readonly number[];
-  /**
-   * Overall skeleton height. Numbers are treated as pixels.
-   * @default "100%"
-   */
-  height?: CSSLength;
-  /**
-   * Render a placeholder legend row beneath the plot, matching the compact
-   * legend of loaded metric charts.
-   * @default true
-   */
-  showLegend?: boolean;
   ref?: Ref<HTMLDivElement>;
 }
 
@@ -115,23 +84,14 @@ export interface ChartSkeletonProps extends HTMLAttributes<HTMLDivElement> {
  * placeholder. It shares the compact chart margin, axis, and grid defaults
  * with the loaded charts, so the skeleton's plot area, gridlines, and axis
  * gutters sit exactly where the real chart's will — the swap from loading to
- * loaded doesn't shift the layout.
- * @param props - chart skeleton props
- * @param props.animation - skeleton animation
- * @param props.barValues - values for the placeholder bars, on a 0–100 scale
- * @param props.height - overall skeleton height
- * @param props.showLegend - whether to render the placeholder legend row
+ * loaded doesn't shift the layout. Fills its container; size it with the
+ * parent.
  */
 export function ChartSkeleton({
-  animation = "pulse",
-  barValues = DEFAULT_BAR_VALUES,
   className,
-  height = "100%",
   ref,
-  showLegend = true,
   ...props
 }: ChartSkeletonProps) {
-  const data = barValues.map((value) => ({ value }));
   return (
     // The placeholder chart is purely decorative, so assistive tech gets a
     // loading status (matching the Loading spinner this replaces) and the
@@ -141,20 +101,13 @@ export function ChartSkeleton({
       aria-label="loading"
       ref={ref}
       className={classNames(className, "chart-skeleton")}
-      css={[
-        chartSkeletonCSS,
-        animation === "pulse" && pulseAnimationCSS,
-        animation === "wave" && waveAnimationCSS,
-        css`
-          height: ${getCSSLength(height)};
-        `,
-      ]}
+      css={chartSkeletonCSS}
       {...props}
     >
       <div className="chart-skeleton__plot" aria-hidden>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
-            data={data}
+            data={PLACEHOLDER_DATA}
             margin={compactChartMargin}
             barSize={10}
             accessibilityLayer={false}
@@ -184,16 +137,14 @@ export function ChartSkeleton({
           </BarChart>
         </ResponsiveContainer>
       </div>
-      {showLegend && (
-        <div className="chart-skeleton__legend" aria-hidden>
-          {Array.from({ length: 2 }, (_, itemIndex) => (
-            <span key={itemIndex} className="chart-skeleton__legend-item">
-              <span className="chart-skeleton__legend-icon" />
-              <span className="chart-skeleton__legend-label" />
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="chart-skeleton__legend" aria-hidden>
+        {Array.from({ length: 2 }, (_, itemIndex) => (
+          <span key={itemIndex} className="chart-skeleton__legend-item">
+            <span className="chart-skeleton__legend-icon" />
+            <span className="chart-skeleton__legend-label" />
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -203,7 +154,11 @@ const chartSkeletonCSS = css`
   display: flex;
   flex-direction: column;
   width: 100%;
+  height: 100%;
   min-width: 0;
+  /* Pulse only the painted shapes (bars, ticks, grid); the panel chrome
+     around the skeleton stays steady */
+  ${pulseAnimation}
 
   .chart-skeleton__plot {
     flex: 1 1 auto;
@@ -238,32 +193,5 @@ const chartSkeletonCSS = css`
     height: 6px;
     border-radius: 3px;
     background-color: ${SKELETON_FILL};
-  }
-`;
-
-const pulseAnimationCSS = css`
-  animation: ${pulseKeyframes} 2s ease-in-out 0.5s infinite;
-`;
-
-const waveAnimationCSS = css`
-  overflow: hidden;
-  /* Fix bug in Safari https://bugs.webkit.org/show_bug.cgi?id=68196 */
-  -webkit-mask-image: -webkit-radial-gradient(white, black);
-
-  &::after {
-    animation: ${waveKeyframes} 2s linear 0.5s infinite;
-    /* The sheen crosses transparent chart regions, so it must be translucent
-       rather than the solid gray the contained rect Skeleton uses */
-    background: linear-gradient(
-      90deg,
-      transparent,
-      color-mix(in srgb, var(--global-color-gray-300) 40%, transparent),
-      transparent
-    );
-    content: "";
-    position: absolute;
-    transform: translateX(-100%);
-    inset: 0;
-    pointer-events: none;
   }
 `;

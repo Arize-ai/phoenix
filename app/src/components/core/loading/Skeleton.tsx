@@ -36,7 +36,7 @@ export interface SkeletonProps extends HTMLAttributes<HTMLSpanElement> {
   className?: string;
 }
 
-export const pulseKeyframes = keyframes`
+const pulseKeyframes = keyframes`
   0% {
     opacity: 1;
   }
@@ -48,7 +48,7 @@ export const pulseKeyframes = keyframes`
   }
 `;
 
-export const waveKeyframes = keyframes`
+const waveKeyframes = keyframes`
   0% {
     transform: translateX(-100%);
   }
@@ -65,7 +65,11 @@ const skeletonStyles = css`
   background-color: var(--global-color-gray-200);
 `;
 
-const pulseAnimation = css`
+/**
+ * Shared by skeleton-style placeholders outside this component (e.g. the
+ * chart skeleton) so all skeletons pulse in unison.
+ */
+export const pulseAnimation = css`
   animation: ${pulseKeyframes} 2s ease-in-out 0.5s infinite;
 `;
 

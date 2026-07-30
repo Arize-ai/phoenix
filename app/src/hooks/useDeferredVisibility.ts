@@ -1,7 +1,14 @@
 import type { RefCallback } from "react";
-import { startTransition, useState } from "react";
+import { createContext, startTransition, useContext, useState } from "react";
 
 export type UseDeferredVisibilityParams = {
+  /**
+   * Stop observing after the element is first seen; `isVisible` (and so
+   * `hasBeenVisible`) then stays true. Use for mount-once deferral where
+   * later exits from the viewport don't matter — no observer work is done
+   * once the content has been revealed.
+   */
+  once?: boolean;
   /**
    * Margin around the viewport counted as visible, in CSS margin shorthand
    * (e.g. `"160px 440px"`). Use it to start loading content shortly before it
@@ -43,6 +50,7 @@ export type DeferredVisibility<T extends Element> = {
  * horizontally scrolling strip and a vertically scrolling page alike.
  */
 export function useDeferredVisibility<T extends Element>({
+  once = false,
   rootMargin,
   scrollMargin,
 }: UseDeferredVisibilityParams = {}): DeferredVisibility<T> {
@@ -64,14 +72,17 @@ export function useDeferredVisibility<T extends Element>({
       return () => {};
     }
     const rect = element.getBoundingClientRect();
-    if (
+    const isInitiallyInView =
       (rect.width > 0 || rect.height > 0) &&
       rect.bottom >= 0 &&
       rect.top <= window.innerHeight &&
       rect.right >= 0 &&
-      rect.left <= window.innerWidth
-    ) {
+      rect.left <= window.innerWidth;
+    if (isInitiallyInView) {
       setIsVisible(true);
+      if (once) {
+        return () => {};
+      }
     }
     // scrollMargin is not yet in TypeScript's IntersectionObserverInit
     const options: IntersectionObserverInit & { scrollMargin?: string } = {
@@ -86,10 +97,38 @@ export function useDeferredVisibility<T extends Element>({
       // deferred inputs (e.g. a chart catching up on a frozen time range)
       // keeps showing what is already rendered instead of a fallback.
       startTransition(() => setIsVisible(latestEntry.isIntersecting));
+      if (once && latestEntry.isIntersecting) {
+        observer.disconnect();
+      }
     }, options);
     observer.observe(element);
     return () => observer.disconnect();
   };
 
   return { ref, isVisible, hasBeenVisible };
+}
+
+/**
+ * Whether the nearest deferred container (e.g. a deferred chart panel) is
+ * currently scrolled into view; `true` when there is none. Containers that
+ * defer content with {@link useDeferredVisibility} provide it so descendants
+ * can pause work while out of view.
+ */
+export const DeferredVisibilityContext = createContext<boolean>(true);
+
+/**
+ * The latest `value` seen while the nearest deferred container was in view;
+ * while it is out of view the last-seen value is returned unchanged. Use it
+ * to freeze query inputs (fetch keys, live time ranges) so background
+ * refreshes don't refetch content the user can't see — content scrolled back
+ * into view picks up the current value and catches up. Passes `value`
+ * through when there is no deferred container ancestor.
+ */
+export function useVisibleValue<T>(value: T): T {
+  const isVisible = useContext(DeferredVisibilityContext);
+  const [visibleValue, setVisibleValue] = useState(value);
+  if (isVisible && visibleValue !== value) {
+    setVisibleValue(value);
+  }
+  return visibleValue;
 }

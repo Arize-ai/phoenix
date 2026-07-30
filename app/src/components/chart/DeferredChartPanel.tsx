@@ -1,10 +1,12 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { createContext, useContext, useState } from "react";
 
-import { useDeferredVisibility } from "@phoenix/hooks/useDeferredVisibility";
+import {
+  DeferredVisibilityContext,
+  useDeferredVisibility,
+} from "@phoenix/hooks/useDeferredVisibility";
 
-import { ChartPanel } from "./ChartPanel";
+import { CHART_MIN_WIDTH, ChartPanel } from "./ChartPanel";
 import { ChartSkeleton } from "./ChartSkeleton";
 
 /**
@@ -14,35 +16,7 @@ import { ChartSkeleton } from "./ChartSkeleton";
  * the viewport (rootMargin) and any nested scroll container the chart sits
  * in (scrollMargin, where supported).
  */
-const CHART_PRELOAD_MARGIN = "160px 440px";
-
-const ChartVisibilityContext = createContext<boolean>(true);
-
-/**
- * Whether the nearest {@link DeferredChartPanel} ancestor is currently
- * scrolled into view; `true` when there is none. Lets data layers pause
- * background refreshes for charts that are mounted but out of view.
- */
-export function useChartVisibility(): boolean {
-  return useContext(ChartVisibilityContext);
-}
-
-/**
- * The latest `value` seen while the nearest {@link DeferredChartPanel} was in
- * view; while it is out of view the last-seen value is returned unchanged. Use
- * it to freeze a chart's query inputs (fetch keys, live time ranges) so
- * background refreshes don't refetch charts the user can't see — a chart
- * scrolled back into view picks up the current value and catches up.
- * Passes `value` through when there is no DeferredChartPanel ancestor.
- */
-export function useVisibleValue<T>(value: T): T {
-  const isVisible = useChartVisibility();
-  const [visibleValue, setVisibleValue] = useState(value);
-  if (isVisible && visibleValue !== value) {
-    setVisibleValue(value);
-  }
-  return visibleValue;
-}
+const CHART_PRELOAD_MARGIN = `160px ${CHART_MIN_WIDTH + 40}px`;
 
 const deferredChartPanelCSS = css`
   width: 100%;
@@ -58,8 +32,9 @@ const deferredChartPanelCSS = css`
  *
  * Once mounted, a chart stays mounted when it scrolls back out of view — its
  * data is already cached and unmounting would discard interaction state
- * (legend toggles, brushes). Children can read {@link useChartVisibility} to
- * pause background refreshes while hidden.
+ * (legend toggles, brushes). Children can read the provided
+ * {@link DeferredVisibilityContext} (e.g. via `useVisibleValue`) to pause
+ * background refreshes while hidden.
  */
 export function DeferredChartPanel({
   title,
@@ -82,9 +57,9 @@ export function DeferredChartPanel({
   return (
     <div ref={ref} css={deferredChartPanelCSS} className="deferred-chart-panel">
       {hasBeenVisible ? (
-        <ChartVisibilityContext.Provider value={isVisible}>
+        <DeferredVisibilityContext.Provider value={isVisible}>
           {children}
-        </ChartVisibilityContext.Provider>
+        </DeferredVisibilityContext.Provider>
       ) : (
         <ChartPanel title={title} subtitle={subtitle} fillHeight={fillHeight}>
           <ChartSkeleton />
