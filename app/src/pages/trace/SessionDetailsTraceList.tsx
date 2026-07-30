@@ -88,11 +88,14 @@ const getUserFromRootSpanAttributes = (attributes: string) => {
 const getSessionTraceUrl = ({
   pathname,
   search,
+  hash,
   traceId,
   spanNodeId,
 }: {
   pathname: string;
   search: string;
+  /** Carries the span filter, which an omitted field would clear. */
+  hash: string;
   traceId: string;
   spanNodeId: string;
 }): To => {
@@ -103,6 +106,7 @@ const getSessionTraceUrl = ({
   return {
     pathname,
     search: params.toString(),
+    hash,
   };
 };
 
@@ -332,6 +336,7 @@ function SessionTurnDivider({
         to={getSessionTraceUrl({
           pathname: location.pathname,
           search: location.search,
+          hash: location.hash,
           traceId,
           spanNodeId: rootSpan.id,
         })}

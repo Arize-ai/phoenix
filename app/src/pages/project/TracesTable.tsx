@@ -930,7 +930,9 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
     ],
-    [annotationColumns, searchParams, selectRow]
+    // `hash` carries the span filter, and the trace links below embed it, so
+    // they go stale if the columns are not rebuilt when it changes.
+    [annotationColumns, searchParams, selectRow, hash]
   );
 
   useEffect(() => {
