@@ -98,6 +98,7 @@ const alertCSS = css`
   .alert__icon-title-wrap {
     display: flex;
     flex-direction: row;
+    min-width: 0;
 
     .icon-wrap {
       margin-right: var(--global-dimension-size-100);
@@ -106,6 +107,11 @@ const alertCSS = css`
       align-items: center;
       height: var(--global-line-height-s);
     }
+  }
+
+  .alert__content {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   &[data-has-title="true"] .alert__icon-title-wrap .icon-wrap {
@@ -160,7 +166,7 @@ export const Alert = ({
     >
       <div css={iconTitleWrapCSS} className="alert__icon-title-wrap">
         {icon}
-        <div>
+        <div className="alert__content">
           {title ? (
             <Text elementType="h5" size="M" weight="heavy" color="inherit">
               {title}

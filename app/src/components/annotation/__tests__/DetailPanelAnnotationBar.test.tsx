@@ -508,6 +508,168 @@ describe("DetailPanelAnnotationBar", () => {
     });
   });
 
+  it("rejects a continuous maximum that is not greater than the minimum", async () => {
+    const onCreateAnnotationConfig = vi
+      .fn<DetailPanelAnnotationBarProps["onCreateAnnotationConfig"]>()
+      .mockResolvedValue({ success: true });
+    renderAnnotationBar({ onCreateAnnotationConfig });
+    const user = userEvent.setup();
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Add annotation"]'
+    );
+
+    await act(async () => user.click(trigger!));
+    const newConfigButton = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "New annotation config");
+    await act(async () => user.click(newConfigButton!));
+
+    const name = document.querySelector<HTMLInputElement>(
+      'input:not([inputmode="decimal"])'
+    );
+    await act(async () => user.type(name!, "quality_score"));
+    const type = document.querySelector<HTMLSelectElement>("select");
+    await act(async () => user.selectOptions(type!, "CONTINUOUS"));
+
+    const bounds = document.querySelectorAll<HTMLInputElement>(
+      ".annotation-config-editor__number-field input"
+    );
+    await act(async () => {
+      await user.clear(bounds[1]!);
+      await user.type(bounds[1]!, "-1");
+    });
+
+    const save = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "Save");
+    await act(async () => user.click(save!));
+
+    expect(document.body.textContent).toContain(
+      "Maximum must be greater than minimum"
+    );
+    expect(save?.disabled).toBe(true);
+    expect(onCreateAnnotationConfig).not.toHaveBeenCalled();
+  });
+
+  it("preserves tiny continuous values within the conveyed precision", async () => {
+    const onCreateAnnotationConfig = vi
+      .fn<DetailPanelAnnotationBarProps["onCreateAnnotationConfig"]>()
+      .mockResolvedValue({ success: true });
+    renderAnnotationBar({ onCreateAnnotationConfig });
+    const user = userEvent.setup();
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Add annotation"]'
+    );
+
+    await act(async () => user.click(trigger!));
+    const newConfigButton = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "New annotation config");
+    await act(async () => user.click(newConfigButton!));
+    const name = document.querySelector<HTMLInputElement>(
+      'input:not([inputmode="decimal"])'
+    );
+    await act(async () => user.type(name!, "tiny_score"));
+    const type = document.querySelector<HTMLSelectElement>("select");
+    await act(async () => user.selectOptions(type!, "CONTINUOUS"));
+
+    const bounds = document.querySelectorAll<HTMLInputElement>(
+      ".annotation-config-editor__number-field input"
+    );
+    const tinyValue = "0.000000000000000000000002";
+    await act(async () => {
+      await user.clear(bounds[0]!);
+      await user.type(bounds[0]!, tinyValue);
+      await user.tab();
+    });
+
+    expect(bounds[0]?.value).toBe(tinyValue);
+    expect(document.body.textContent).not.toContain("significant digits");
+    const save = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "Save");
+    await act(async () => user.click(save!));
+    expect(onCreateAnnotationConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        annotationType: "CONTINUOUS",
+        lowerBound: 2e-24,
+      })
+    );
+  });
+
+  it("shows the numeric precision limit only when it is exceeded", async () => {
+    const onCreateAnnotationConfig = vi
+      .fn<DetailPanelAnnotationBarProps["onCreateAnnotationConfig"]>()
+      .mockResolvedValue({ success: true });
+    renderAnnotationBar({ onCreateAnnotationConfig });
+    const user = userEvent.setup();
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Add annotation"]'
+    );
+
+    await act(async () => user.click(trigger!));
+    const newConfigButton = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "New annotation config");
+    await act(async () => user.click(newConfigButton!));
+    const name = document.querySelector<HTMLInputElement>(
+      'input:not([inputmode="decimal"])'
+    );
+    await act(async () => user.type(name!, "precise_score"));
+    const type = document.querySelector<HTMLSelectElement>("select");
+    await act(async () => user.selectOptions(type!, "CONTINUOUS"));
+
+    const bounds = document.querySelectorAll<HTMLInputElement>(
+      ".annotation-config-editor__number-field input"
+    );
+    expect(document.body.textContent).not.toContain("significant digits");
+    await act(async () => {
+      await user.clear(bounds[0]!);
+      await user.type(bounds[0]!, "0.1234567890123456");
+    });
+
+    expect(document.body.textContent).toContain(
+      "Use 15 or fewer significant digits"
+    );
+    const save = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "Save");
+    expect(save?.disabled).toBe(true);
+    expect(onCreateAnnotationConfig).not.toHaveBeenCalled();
+  });
+
+  it("contains long annotation config creation errors", async () => {
+    const longError =
+      "createAnnotationConfig.validation.maximum_must_be_greater_than_minimum";
+    const onCreateAnnotationConfig = vi
+      .fn<DetailPanelAnnotationBarProps["onCreateAnnotationConfig"]>()
+      .mockResolvedValue({ error: longError, success: false });
+    renderAnnotationBar({ onCreateAnnotationConfig });
+    const user = userEvent.setup();
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Add annotation"]'
+    );
+
+    await act(async () => user.click(trigger!));
+    const newConfigButton = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "New annotation config");
+    await act(async () => user.click(newConfigButton!));
+    const name = document.querySelector<HTMLInputElement>(
+      'input:not([inputmode="decimal"])'
+    );
+    await act(async () => user.type(name!, "quality_score"));
+    const save = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    ).find((button) => button.textContent === "Save");
+    await act(async () => user.click(save!));
+
+    const alertContent = document.querySelector<HTMLElement>(".alert__content");
+    expect(alertContent?.textContent).toBe(longError);
+    expect(["0", "0px"]).toContain(getComputedStyle(alertContent!).minWidth);
+    expect(getComputedStyle(alertContent!).overflowWrap).toBe("anywhere");
+  });
+
   it("clears the menu search before Escape dismisses the menu", async () => {
     const user = userEvent.setup();
     const trigger = document.querySelector<HTMLButtonElement>(
@@ -1317,7 +1479,7 @@ describe("DetailPanelAnnotationBar", () => {
     expect(selects[0]?.value).toBe("CONTINUOUS");
     expect(selects[1]?.value).toBe("NONE");
     const bounds = document.querySelectorAll<HTMLInputElement>(
-      'input[inputmode="decimal"]'
+      ".annotation-config-editor__number-field input"
     );
     expect(Array.from(bounds).map((input) => input.value)).toEqual(["0", "3"]);
 

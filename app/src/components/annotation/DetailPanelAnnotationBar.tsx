@@ -20,6 +20,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  FieldError,
   Flex,
   CopyableIDBadge,
   Icon,
@@ -102,6 +103,12 @@ export type AnnotationBarMutationResult =
 export type AnnotationBarCreateResult =
   | { annotation: Annotation; success: true }
   | { error: string; success: false };
+
+const ANNOTATION_CONFIG_MAX_SIGNIFICANT_DIGITS = 15;
+const ANNOTATION_CONFIG_NUMBER_FORMAT_OPTIONS = {
+  maximumSignificantDigits: ANNOTATION_CONFIG_MAX_SIGNIFICANT_DIGITS,
+} satisfies Intl.NumberFormatOptions;
+const ANNOTATION_CONFIG_NUMBER_PRECISION_ERROR = `Use ${ANNOTATION_CONFIG_MAX_SIGNIFICANT_DIGITS} or fewer significant digits`;
 
 export type DetailPanelAnnotationBarProps = {
   allAnnotationConfigs: readonly AnnotationConfig[];
@@ -228,6 +235,42 @@ const compactIconButtonCSS = css`
   flex: none;
   padding: var(--global-dimension-size-50);
   min-width: var(--global-dimension-size-300);
+`;
+
+const annotationConfigEditorCSS = css`
+  width: min(
+    var(--global-dimension-size-5000),
+    calc(100vw - var(--global-dimension-size-400))
+  );
+
+  .annotation-config-editor__number-field {
+    min-width: 0;
+    --field-min-width: 0px;
+  }
+`;
+
+const continuousConfigFieldsCSS = css`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--global-dimension-size-100);
+`;
+
+const categoricalConfigValuesCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-50);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  .annotation-config-editor__category {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1fr) minmax(var(--global-dimension-size-900), 0.5fr)
+      auto;
+    gap: var(--global-dimension-size-50);
+    align-items: start;
+  }
 `;
 
 const annotationEntryListCSS = css`
@@ -400,6 +443,17 @@ function isMutationFailure(
   result: AnnotationBarMutationResult
 ): result is { error: string; success: false } {
   return !result.success;
+}
+
+function normalizeOptionalNumber(value: number): number | null {
+  return Number.isNaN(value) ? null : value;
+}
+
+function hasTooManySignificantDigits(value: string): boolean {
+  const digits = value.match(/[0-9]/g)?.join("") ?? "";
+  return (
+    digits.replace(/^0+/, "").length > ANNOTATION_CONFIG_MAX_SIGNIFICANT_DIGITS
+  );
 }
 
 /** Keeps Escape dismissal reliable when a popover swaps its focused form. */
@@ -1665,12 +1719,34 @@ function AnnotationConfigEditor({
   onDraftChange: (draft: AnnotationConfigDraft) => void;
   onSave: () => Promise<void>;
 }) {
+  const [numberPrecisionErrors, setNumberPrecisionErrors] = useState<{
+    lowerBound: boolean;
+    scores: boolean[];
+    upperBound: boolean;
+  }>({ lowerBound: false, scores: [], upperBound: false });
+  const hasInvalidContinuousRange =
+    draft.annotationType === "CONTINUOUS" &&
+    draft.lowerBound != null &&
+    draft.upperBound != null &&
+    draft.upperBound <= draft.lowerBound;
+  const hasNumberPrecisionError =
+    draft.annotationType === "CONTINUOUS"
+      ? numberPrecisionErrors.lowerBound || numberPrecisionErrors.upperBound
+      : draft.annotationType === "CATEGORICAL"
+        ? draft.values.some(
+            (_value, valueIndex) =>
+              numberPrecisionErrors.scores[valueIndex] === true
+          )
+        : false;
   const canSave =
     Boolean(draft.name.trim()) &&
+    !hasInvalidContinuousRange &&
+    !hasNumberPrecisionError &&
     (draft.annotationType !== "CATEGORICAL" ||
       draft.values.every((value) => Boolean(value.label.trim())));
   return (
     <form
+      css={annotationConfigEditorCSS}
       onSubmit={(event) => {
         event.preventDefault();
         if (canSave) {
@@ -1765,95 +1841,179 @@ function AnnotationConfigEditor({
             </label>
           ) : null}
           {draft.annotationType === "CONTINUOUS" ? (
-            <Flex direction="row" gap="size-100">
-              <TextField
-                value={draft.lowerBound}
+            <div css={continuousConfigFieldsCSS}>
+              <NumberField
+                className="annotation-config-editor__number-field"
+                formatOptions={ANNOTATION_CONFIG_NUMBER_FORMAT_OPTIONS}
+                isInvalid={numberPrecisionErrors.lowerBound}
+                value={draft.lowerBound ?? undefined}
                 onChange={(lowerBound) =>
-                  onDraftChange({ ...draft, lowerBound })
+                  onDraftChange({
+                    ...draft,
+                    lowerBound: normalizeOptionalNumber(lowerBound),
+                  })
                 }
-                inputMode="decimal"
               >
                 <Label>Minimum</Label>
-                <Input />
-              </TextField>
-              <TextField
-                value={draft.upperBound}
+                <Input
+                  onInput={(event) => {
+                    const hasError = hasTooManySignificantDigits(
+                      event.currentTarget.value
+                    );
+                    setNumberPrecisionErrors((currentErrors) => ({
+                      ...currentErrors,
+                      lowerBound: hasError,
+                    }));
+                  }}
+                />
+                <FieldError>
+                  {numberPrecisionErrors.lowerBound
+                    ? ANNOTATION_CONFIG_NUMBER_PRECISION_ERROR
+                    : null}
+                </FieldError>
+              </NumberField>
+              <NumberField
+                className="annotation-config-editor__number-field"
+                formatOptions={ANNOTATION_CONFIG_NUMBER_FORMAT_OPTIONS}
+                value={draft.upperBound ?? undefined}
                 onChange={(upperBound) =>
-                  onDraftChange({ ...draft, upperBound })
+                  onDraftChange({
+                    ...draft,
+                    upperBound: normalizeOptionalNumber(upperBound),
+                  })
                 }
-                inputMode="decimal"
+                isInvalid={
+                  hasInvalidContinuousRange || numberPrecisionErrors.upperBound
+                }
               >
                 <Label>Maximum</Label>
-                <Input />
-              </TextField>
-            </Flex>
+                <Input
+                  onInput={(event) => {
+                    const hasError = hasTooManySignificantDigits(
+                      event.currentTarget.value
+                    );
+                    setNumberPrecisionErrors((currentErrors) => ({
+                      ...currentErrors,
+                      upperBound: hasError,
+                    }));
+                  }}
+                />
+                <FieldError>
+                  {numberPrecisionErrors.upperBound
+                    ? ANNOTATION_CONFIG_NUMBER_PRECISION_ERROR
+                    : hasInvalidContinuousRange
+                      ? "Maximum must be greater than minimum"
+                      : null}
+                </FieldError>
+              </NumberField>
+            </div>
           ) : null}
           {draft.annotationType === "CATEGORICAL" ? (
             <Flex direction="column" gap="size-100">
               <Text size="XS" weight="heavy">
                 Categories
               </Text>
-              {draft.values.map((value, valueIndex) => (
-                <Flex key={valueIndex} direction="row" gap="size-50">
-                  <TextField
-                    value={value.label}
-                    onChange={(label) => {
-                      const values = draft.values.map(
-                        (currentValue, currentIndex) =>
-                          currentIndex === valueIndex
-                            ? { ...currentValue, label }
-                            : currentValue
-                      );
-                      onDraftChange({ ...draft, values });
-                    }}
-                    aria-label={`Category ${valueIndex + 1}`}
+              <ul css={categoricalConfigValuesCSS}>
+                {draft.values.map((value, valueIndex) => (
+                  <li
+                    className="annotation-config-editor__category"
+                    key={valueIndex}
                   >
-                    <Input placeholder="Label" />
-                  </TextField>
-                  <TextField
-                    value={value.score}
-                    onChange={(score) => {
-                      const values = draft.values.map(
-                        (currentValue, currentIndex) =>
-                          currentIndex === valueIndex
-                            ? { ...currentValue, score }
-                            : currentValue
-                      );
-                      onDraftChange({ ...draft, values });
-                    }}
-                    aria-label={`Category ${valueIndex + 1} score`}
-                    inputMode="decimal"
-                  >
-                    <Input placeholder="Score" />
-                  </TextField>
-                  <Button
-                    css={compactIconButtonCSS}
-                    size="S"
-                    variant="quiet"
-                    leadingVisual={<Icon svg={<Icons.Trash />} />}
-                    aria-label={`Remove category ${valueIndex + 1}`}
-                    onPress={() =>
-                      onDraftChange({
-                        ...draft,
-                        values: draft.values.filter(
-                          (_currentValue, currentIndex) =>
-                            currentIndex !== valueIndex
-                        ),
-                      })
-                    }
-                  />
-                </Flex>
-              ))}
+                    <TextField
+                      value={value.label}
+                      onChange={(label) => {
+                        const values = draft.values.map(
+                          (currentValue, currentIndex) =>
+                            currentIndex === valueIndex
+                              ? { ...currentValue, label }
+                              : currentValue
+                        );
+                        onDraftChange({ ...draft, values });
+                      }}
+                      aria-label={`Category ${valueIndex + 1}`}
+                    >
+                      <Input placeholder="Label" />
+                    </TextField>
+                    <NumberField
+                      className="annotation-config-editor__number-field"
+                      formatOptions={ANNOTATION_CONFIG_NUMBER_FORMAT_OPTIONS}
+                      isInvalid={
+                        numberPrecisionErrors.scores[valueIndex] === true
+                      }
+                      value={value.score ?? undefined}
+                      onChange={(score) => {
+                        const values = draft.values.map(
+                          (currentValue, currentIndex) =>
+                            currentIndex === valueIndex
+                              ? {
+                                  ...currentValue,
+                                  score: normalizeOptionalNumber(score),
+                                }
+                              : currentValue
+                        );
+                        onDraftChange({ ...draft, values });
+                      }}
+                      aria-label={`Category ${valueIndex + 1} score`}
+                    >
+                      <Input
+                        placeholder="Score"
+                        onInput={(event) => {
+                          const hasError = hasTooManySignificantDigits(
+                            event.currentTarget.value
+                          );
+                          setNumberPrecisionErrors((currentErrors) => {
+                            const scores = [...currentErrors.scores];
+                            scores[valueIndex] = hasError;
+                            return { ...currentErrors, scores };
+                          });
+                        }}
+                      />
+                      <FieldError>
+                        {numberPrecisionErrors.scores[valueIndex]
+                          ? ANNOTATION_CONFIG_NUMBER_PRECISION_ERROR
+                          : null}
+                      </FieldError>
+                    </NumberField>
+                    <Button
+                      css={compactIconButtonCSS}
+                      size="S"
+                      variant="quiet"
+                      leadingVisual={<Icon svg={<Icons.Trash />} />}
+                      aria-label={`Remove category ${valueIndex + 1}`}
+                      onPress={() => {
+                        setNumberPrecisionErrors((currentErrors) => ({
+                          ...currentErrors,
+                          scores: currentErrors.scores.filter(
+                            (_hasError, currentIndex) =>
+                              currentIndex !== valueIndex
+                          ),
+                        }));
+                        onDraftChange({
+                          ...draft,
+                          values: draft.values.filter(
+                            (_currentValue, currentIndex) =>
+                              currentIndex !== valueIndex
+                          ),
+                        });
+                      }}
+                    />
+                  </li>
+                ))}
+              </ul>
               <Button
                 size="S"
                 variant="default"
                 leadingVisual={<Icon svg={<Icons.Plus />} />}
-                onPress={() =>
+                onPress={() => {
+                  setNumberPrecisionErrors((currentErrors) => ({
+                    ...currentErrors,
+                    scores: [...currentErrors.scores, false],
+                  }));
                   onDraftChange({
                     ...draft,
-                    values: [...draft.values, { label: "", score: "" }],
-                  })
-                }
+                    values: [...draft.values, { label: "", score: null }],
+                  });
+                }}
               >
                 Add category
               </Button>

@@ -74,11 +74,11 @@ export type AnnotationConfigDraft = {
   annotationType: AnnotationConfig["annotationType"];
   description: string;
   id: string;
-  lowerBound: string;
+  lowerBound: number | null;
   name: string;
   optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE";
-  upperBound: string;
-  values: { label: string; score: string }[];
+  upperBound: number | null;
+  values: { label: string; score: number | null }[];
 };
 
 /**
@@ -97,23 +97,23 @@ export function getAnnotationConfigDraft({
     id: config.id ?? "",
     lowerBound:
       "lowerBound" in config && typeof config.lowerBound === "number"
-        ? String(config.lowerBound)
-        : "0",
+        ? config.lowerBound
+        : 0,
     name: config.name,
     optimizationDirection: config.optimizationDirection ?? "NONE",
     upperBound:
       "upperBound" in config && typeof config.upperBound === "number"
-        ? String(config.upperBound)
-        : "1",
+        ? config.upperBound
+        : 1,
     values:
       config.annotationType === "CATEGORICAL"
         ? (config.values ?? []).map((value) => ({
             label: value.label,
-            score: typeof value.score === "number" ? String(value.score) : "",
+            score: typeof value.score === "number" ? value.score : null,
           }))
         : [
-            { label: "positive", score: "1" },
-            { label: "negative", score: "0" },
+            { label: "positive", score: 1 },
+            { label: "negative", score: 0 },
           ],
   };
 }
@@ -128,13 +128,13 @@ export function getNewAnnotationConfigDraft({
     annotationType: "CATEGORICAL",
     description: "",
     id: "",
-    lowerBound: "0",
+    lowerBound: 0,
     name,
     optimizationDirection: "MAXIMIZE",
-    upperBound: "1",
+    upperBound: 1,
     values: [
-      { label: "positive", score: "1" },
-      { label: "negative", score: "0" },
+      { label: "positive", score: 1 },
+      { label: "negative", score: 0 },
     ],
   };
 }
@@ -167,8 +167,8 @@ export function getInferredAnnotationConfigDraft({
                 label: annotation.label,
                 score:
                   typeof annotation.score === "number"
-                    ? String(annotation.score)
-                    : "",
+                    ? annotation.score
+                    : null,
               },
             ] as const
         )
@@ -191,8 +191,8 @@ export function getInferredAnnotationConfigDraft({
       ...draft,
       annotationType: "CONTINUOUS",
       optimizationDirection: "NONE",
-      lowerBound: String(Math.min(0, ...scores)),
-      upperBound: String(Math.max(1, ...scores)),
+      lowerBound: Math.min(0, ...scores),
+      upperBound: Math.max(1, ...scores),
     };
   }
 
@@ -226,7 +226,7 @@ export function getAnnotationConfigFromDraft({
         optimizationDirection: draft.optimizationDirection,
         values: draft.values.map((value) => ({
           label: value.label.trim(),
-          score: value.score.trim() === "" ? null : Number(value.score),
+          score: value.score,
         })),
       };
     case "CONTINUOUS":
@@ -234,10 +234,8 @@ export function getAnnotationConfigFromDraft({
         ...shared,
         annotationType: "CONTINUOUS",
         optimizationDirection: draft.optimizationDirection,
-        lowerBound:
-          draft.lowerBound.trim() === "" ? null : Number(draft.lowerBound),
-        upperBound:
-          draft.upperBound.trim() === "" ? null : Number(draft.upperBound),
+        lowerBound: draft.lowerBound,
+        upperBound: draft.upperBound,
       };
     case "FREEFORM":
       return {

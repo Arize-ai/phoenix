@@ -390,6 +390,44 @@ class TestAnnotationConfigMutations:
         assert len(configs) == 1  # Only the seeded user_feedback config remains.
         assert configs[0]["node"]["name"] == "user_feedback"
 
+    async def test_preserves_small_continuous_bounds(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        lower_bound = 2e-24
+        create_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "continuous": {
+                            "name": "Small continuous bound",
+                            "optimizationDirection": "MAXIMIZE",
+                            "lowerBound": lower_bound,
+                            "upperBound": 1.0,
+                        }
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+
+        assert create_response.data and not create_response.errors
+        created_config = create_response.data["createAnnotationConfig"]["annotationConfig"]
+        assert created_config["lowerBound"] == lower_bound
+
+        list_response = await gql_client.execute(
+            query=self.QUERY,
+            operation_name="ListAnnotationConfigs",
+        )
+        assert list_response.data and not list_response.errors
+        persisted_config = next(
+            edge["node"]
+            for edge in list_response.data["annotationConfigs"]["edges"]
+            if edge["node"]["name"] == "Small continuous bound"
+        )
+        assert persisted_config["lowerBound"] == lower_bound
+
     async def test_user_feedback_config_cannot_be_updated_or_deleted(
         self,
         gql_client: AsyncGraphQLClient,

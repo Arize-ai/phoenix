@@ -77,10 +77,10 @@ describe("getInferredAnnotationConfigDraft", () => {
       })
     ).toMatchObject({
       annotationType: "CONTINUOUS",
-      lowerBound: "0",
+      lowerBound: 0,
       name: "tool_count_per_turn",
       optimizationDirection: "NONE",
-      upperBound: "3",
+      upperBound: 3,
     });
   });
 
@@ -97,8 +97,8 @@ describe("getInferredAnnotationConfigDraft", () => {
       annotationType: "CATEGORICAL",
       optimizationDirection: "NONE",
       values: [
-        { label: "good", score: "1" },
-        { label: "bad", score: "0" },
+        { label: "good", score: 1 },
+        { label: "bad", score: 0 },
       ],
     });
   });
