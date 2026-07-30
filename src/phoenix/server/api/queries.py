@@ -1641,9 +1641,9 @@ class Query:
 
     @strawberry.field(
         description=(
-            "Persisted assistant chat sessions, most recently active first. Admins "
-            "can see all sessions; other users can see their own sessions. When "
-            "authentication is disabled, all sessions are returned."
+            "Persisted assistant chat sessions, most recently active first. By default, "
+            "users see their own sessions. Admins can pass viewerOnly: false to see all "
+            "sessions. When authentication is disabled, all sessions are returned."
         ),
     )  # type: ignore
     async def agent_sessions(
@@ -1651,10 +1651,12 @@ class Query:
         info: Info[Context, None],
         first: Optional[int] = 20,
         after: Optional[CursorString] = UNSET,
+        viewer_only: bool = True,
     ) -> Connection[AgentSession]:
         page_size = first or 20
         stmt = select(models.AgentSession).where(models.AgentSession.expires_at.is_(None))
-        if (owner_filter := get_agent_session_owner_filter(info.context)) is not None:
+        owner_filter = get_agent_session_owner_filter(info.context, viewer_only=viewer_only)
+        if owner_filter is not None:
             stmt = stmt.where(owner_filter)
         after_cursor = Cursor.from_string(after) if isinstance(after, CursorString) else None
         if after_cursor is not None and after_cursor.sort_column is not None:

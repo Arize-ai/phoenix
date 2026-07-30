@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<19cc8f382015089cfbf84f9cef140146>>
+ * @generated SignedSource<<b8e5218c9ea809ee428339fed96ec09a>>
  * @lightSyntaxTransform
  */
 
@@ -28,14 +28,20 @@ var v0 = [
     "name": "first"
   }
 ],
-v1 = [
+v1 = {
+  "kind": "Variable",
+  "name": "first",
+  "variableName": "first"
+},
+v2 = [
+  (v1/*:: as any*/),
   {
-    "kind": "Variable",
-    "name": "first",
-    "variableName": "first"
+    "kind": "Literal",
+    "name": "viewerOnly",
+    "value": false
   }
 ],
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -50,7 +56,9 @@ return {
     "name": "settingsAgentsPageLoaderQuery",
     "selections": [
       {
-        "args": (v1/*:: as any*/),
+        "args": [
+          (v1/*:: as any*/)
+        ],
         "kind": "FragmentSpread",
         "name": "SettingsAgentSessionsCard_sessions"
       }
@@ -66,7 +74,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "AgentSessionConnection",
         "kind": "LinkedField",
         "name": "agentSessions",
@@ -88,7 +96,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*:: as any*/),
+                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -118,7 +126,7 @@ return {
                         "name": "profilePictureUrl",
                         "storageKey": null
                       },
-                      (v2/*:: as any*/)
+                      (v3/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -193,8 +201,8 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
-        "filters": null,
+        "args": (v2/*:: as any*/),
+        "filters": [],
         "handle": "connection",
         "key": "SettingsAgentSessionsCard_agentSessions",
         "kind": "LinkedHandle",
@@ -203,12 +211,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "07f53e46b4522a049e2f0b61167ff26a",
+    "cacheID": "5767a3de2d7583dfccbcf81d7395002d",
     "id": null,
     "metadata": {},
     "name": "settingsAgentsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsAgentsPageLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsAgentsPageLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
