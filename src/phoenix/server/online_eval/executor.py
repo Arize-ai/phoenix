@@ -28,6 +28,7 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.annotation_configs import (
+    CategoricalOutputConfig,
     OutputConfigType,
     as_output_configs,
 )

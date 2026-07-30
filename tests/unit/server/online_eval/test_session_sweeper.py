@@ -176,10 +176,13 @@ async def test_session_with_null_liveness_is_never_eligible(
     assert work_count == 0
 
 
-async def test_storage_pause_renews_lease_without_materializing_or_pruning(
+async def test_storage_pause_renews_lease_without_materializing(
     db: DbSessionFactory,
 ) -> None:
-    project_id, _, _ = await _add_session_activity(db, age_seconds=600)
+    project_id, project_session_id, last_span_seen_at = await _add_session_liveness(
+        db,
+        age_seconds=600,
+    )
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     async with db() as session:
         session.add(
@@ -201,9 +204,8 @@ async def test_storage_pause_renews_lease_without_materializing_or_pruning(
         work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
-        activity_count = await session.scalar(
-            select(func.count()).select_from(models.EvalSessionActivity)
-        )
+        project_session = await session.get(models.ProjectSession, project_session_id)
+        assert project_session is not None
         cursor = (
             await session.scalars(
                 select(models.EvalWorkCursor).where(
@@ -213,7 +215,7 @@ async def test_storage_pause_renews_lease_without_materializing_or_pruning(
             )
         ).one()
     assert work_count == 0
-    assert activity_count == 1
+    assert project_session.last_span_seen_at == last_span_seen_at
     assert cursor.claimed_by == sweeper._sweeper_id
 
 
@@ -225,9 +227,15 @@ async def test_terminalizes_exhausted_lapsed_session_lease(
     sweeper = SessionEvalSweeper(db)
     await sweeper._tick()
     async with db() as session:
+        unit_id = await session.scalar(
+            select(models.EvalSessionWorkUnit.id).where(
+                models.EvalSessionWorkUnit.project_session_rowid == project_session_id
+            )
+        )
+        assert unit_id is not None
         await session.execute(
             update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.project_session_rowid == project_session_id)
+            .where(models.EvalSessionWorkUnit.id == unit_id)
             .values(
                 status="RUNNING",
                 claimed_at=_now() - timedelta(seconds=LEASE_TTL_SECONDS + 1),
@@ -239,16 +247,19 @@ async def test_terminalizes_exhausted_lapsed_session_lease(
     await sweeper._tick()
 
     async with db() as session:
-        unit = (
+        units = (
             await session.scalars(
-                select(models.EvalSessionWorkUnit).where(
-                    models.EvalSessionWorkUnit.project_session_rowid == project_session_id
-                )
+                select(models.EvalSessionWorkUnit)
+                .where(models.EvalSessionWorkUnit.project_session_rowid == project_session_id)
+                .order_by(models.EvalSessionWorkUnit.id)
             )
-        ).one()
-    assert unit.status == "ERROR"
-    assert unit.attempts == MAX_ATTEMPTS
-    assert unit.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
+        ).all()
+    terminal, replacement = units
+    assert terminal.id == unit_id
+    assert terminal.status == "ERROR"
+    assert terminal.attempts == MAX_ATTEMPTS
+    assert terminal.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
+    assert replacement.status == "PENDING"
 
 
 async def test_retained_long_delay_pairs_do_not_block_later_due_pair(

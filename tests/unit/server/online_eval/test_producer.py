@@ -6,7 +6,6 @@ import pytest
 from sqlalchemy import func, select, update
 
 from phoenix.db import models
-from phoenix.db.insertion.span import insert_span
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.evaluators import ContainsEvaluator
