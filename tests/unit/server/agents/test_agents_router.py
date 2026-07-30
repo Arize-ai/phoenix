@@ -55,7 +55,6 @@ from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, get_otel_session_id
 from phoenix.server.api.routers.agents import (
-    TRANSCRIPT_NOT_SAVED_MESSAGE,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -65,7 +64,7 @@ from phoenix.server.api.routers.agents import (
     _synthesize_client_tool_spans,
     _turn_parent_context,
 )
-from phoenix.server.authorization import INSUFFICIENT_STORAGE_MESSAGE
+from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.settings.registry import (
     AgentAssistantEnabledSetting,
     AgentTraceRecordingSetting,
@@ -2524,8 +2523,7 @@ async def test_chat_is_rejected_with_storage_guidance_when_writes_are_already_lo
         db.should_not_insert_or_update = False
 
     assert response.status_code == 507
-    # The handler returns HTTPException details as text/plain, not JSON.
-    assert INSUFFICIENT_STORAGE_MESSAGE in response.text
+    assert insufficient_storage_message() in response.text
 
 
 async def test_transcript_write_failure_is_reported_as_an_unsaved_turn(
@@ -2568,9 +2566,9 @@ async def test_transcript_write_failure_is_reported_as_an_unsaved_turn(
 
     assert response.status_code == 200
     error_chunk = next(chunk for chunk in _stream_chunks(response.text) if chunk["type"] == "error")
-    assert TRANSCRIPT_NOT_SAVED_MESSAGE in error_chunk["errorText"]
+    assert "the conversation could not be saved" in error_chunk["errorText"]
     # Storage is the actionable cause, so it is named alongside the notice.
-    assert INSUFFICIENT_STORAGE_MESSAGE in error_chunk["errorText"]
+    assert insufficient_storage_message() in error_chunk["errorText"]
     # The raw driver text is not what the user reads.
     assert "database or disk is full" not in error_chunk["errorText"]
     assert "data-transcript-persisted" not in response.text

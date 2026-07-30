@@ -1624,21 +1624,12 @@ async def _persist_agent_session_turn(
             )
 
 
-TRANSCRIPT_NOT_SAVED_MESSAGE = (
-    "The assistant replied, but the conversation could not be saved, "
-    "so this turn will be missing when you reload."
-)
-
-
 def _transcript_persistence_error(db: DbSessionFactory) -> Exception:
-    """The error text shown when a turn ran but its transcript could not be written.
-
-    Storage exhaustion is the expected cause and the only one the user can act
-    on, so it gets named explicitly when the disk-usage monitor has locked
-    writes. Anything else keeps the generic notice — better to say the turn was
-    lost than to guess at why.
-    """
-    message = TRANSCRIPT_NOT_SAVED_MESSAGE
+    """The error shown when a turn ran but its transcript could not be written."""
+    message = (
+        "The assistant replied, but the conversation could not be saved, "
+        "so this turn will be missing when you reload."
+    )
     if db.should_not_insert_or_update:
         message += f" {insufficient_storage_message()}"
     return RuntimeError(message)
@@ -2452,10 +2443,6 @@ def create_agents_router(
                             title=session_title,
                         )
                     except Exception as exc:
-                        # The turn itself succeeded; only the write failed. The
-                        # stream handler puts whatever this raises in front of
-                        # the user, so say what happened instead of leaking the
-                        # driver's error text.
                         logger.exception(
                             "Failed to persist the transcript for agent session %r",
                             str(GlobalID("AgentSession", str(agent_session_rowid))),

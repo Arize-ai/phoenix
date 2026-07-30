@@ -18,7 +18,7 @@ from phoenix.server.api.routers.agents import (
     _build_compaction_message,
     _load_agent_session_history,
 )
-from phoenix.server.authorization import INSUFFICIENT_STORAGE_MESSAGE
+from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.settings.registry import AgentAssistantEnabledSetting
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _message_uuid
@@ -827,7 +827,7 @@ async def test_write_mutations_report_insufficient_storage_when_writes_are_locke
         response = await gql_client.execute(query=mutation, variables=variables)
 
         assert response.errors, mutation
-        assert INSUFFICIENT_STORAGE_MESSAGE in response.errors[0].message, mutation
+        assert insufficient_storage_message() in response.errors[0].message, mutation
 
 
 async def test_truncate_and_delete_still_work_when_writes_are_locked(

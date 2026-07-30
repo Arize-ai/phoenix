@@ -20,13 +20,7 @@ export function isApiKeyError(message: string | null | undefined): boolean {
   return message != null && API_KEY_ERROR_PATTERN.test(message);
 }
 
-/**
- * Matches the message the server reports when the database has run out of
- * storage and writes are locked: the HTTP 507 body from `is_not_locked`, the
- * `InsufficientStorage` GraphQL error from `IsLocked`, and the notice appended
- * when a turn's transcript could not be written. All three are built from
- * `INSUFFICIENT_STORAGE_MESSAGE` on the server, so this tracks one sentence.
- */
+/** Matches the message the server reports when writes are locked for storage. */
 const INSUFFICIENT_STORAGE_ERROR_PATTERN = /insufficient storage/i;
 
 /** Return whether an error message reports that the database is out of storage. */
@@ -95,7 +89,6 @@ export function ChatErrorMessage({
   onRewind?: MessageRewindRequest;
 }) {
   const isStorageError = isInsufficientStorageError(error.message);
-  // Retrying against a locked database fails identically, so don't offer it.
   const canRetry = onRetry != null && !isStorageError;
   const canUndoOrFork = latestUserMessageId != null && onRewind != null;
   const isCredentialError = !isStorageError && isApiKeyError(error.message);
