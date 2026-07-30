@@ -183,46 +183,104 @@ span language and the session language are the same machinery with different bin
 is what keeps the flavor identical. The session bindings reject unknown names at validation
 time and answer with a did-you-mean suggestion drawn from the bound vocabulary.
 
-### Comprehensions become correlated subqueries
+### Comprehensions become subqueries over the element table
 
 Validation whitelists expression shapes on the parsed syntax tree. A pre-pass then extracts
 each comprehension into a placeholder name and records what it needs: the kind (`any`, `sum`,
 …), the iterable, the loop variable, the optional `if` clause, and any nested comprehension.
-At query time each record builds one correlated subquery against the element's table, joined
-back to the session row:
+At query time each record builds a subquery against the element's table in one of the two
+lowerings described below.
+
+Under the probe lowering the subquery is correlated to the session row:
 
 - `any(...)` → `EXISTS (SELECT 1 … WHERE predicate)`
 - `all(...)` → `NOT EXISTS (SELECT 1 … WHERE predicate IS NOT TRUE)`
 - `len`/`sum` → correlated scalar `COUNT`/`SUM`, coalesced to `0`
 - `max`/`min` → correlated scalar, left NULL when empty
 
-Inner predicates compile against the iterable's own bindings, so they inherit the casting,
-uppercasing, and error behavior of a top-level condition.
+Under the scan lowering the outermost comprehension of each record is uncorrelated instead, so
+one pass over the element table answers the question for every session at once:
 
-### Aggregates have two physical shapes
+- `any(...)` → `session_id IN (SELECT session_key … WHERE predicate)`
+- `all(...)` → `session_id NOT IN (SELECT session_key … WHERE predicate IS NOT TRUE
+  AND session_key IS NOT NULL)`
+- `len`/`sum` → a `(session_key, aggregate)` subquery grouped by session and LEFT JOINed on
+  the session row, read through a `COALESCE(…, 0)`
+- `max`/`min` → the same grouped subquery, read raw so an empty set stays NULL
 
-Aggregate names compile to one of two SQL shapes, chosen by the caller:
+The two lowerings agree by construction. A session with no matching elements is absent from
+the `any` set and absent from the `all` counterexample set, which is exactly the vacuous-truth
+rule; `len` and `sum` coalesce to `0`; `max` and `min` stay NULL and so fail every comparison.
+The `session_key IS NOT NULL` guard on `all` is required, not defensive:
+`Trace.project_session_rowid` is nullable, and SQL `NOT IN` returns no rows at all when its
+subquery yields a single NULL.
 
-- **Grouped** — one grouped-by-session subquery per aggregate family, LEFT JOINed onto the
-  session query. Wins when every row is scanned anyway (counts, sweeps).
-- **Correlated** — a correlated scalar subquery per session row. Wins for a page of rows:
-  benchmarked at roughly 2 ms per page at 100k sessions, where the grouped shape costs
-  hundreds of milliseconds.
+Only the outermost comprehension changes shape. A nested comprehension stays correlated to the
+element enclosing it, which the enclosing subquery has already scoped to a session. Inner
+predicates compile against the iterable's own bindings under both lowerings, so they inherit
+the casting, uppercasing, and error behavior of a top-level condition.
 
-The benchmark harness lives at `scripts/perf/session_filter_perf.py`. `EXISTS` quantifiers
-stay cheap for the same reason: they exit on the first matching row.
+### Two lowerings, chosen by access pattern
 
-### One seam for every consumer
+Every construct that reaches beyond the session row — aggregates, comprehensions, root-span
+access — compiles to one of two physical shapes. The caller picks, because the compiler cannot
+see whether the statement it is handed has a `LIMIT`, and that is the whole of the question:
 
-`SessionFilter.as_session_rowids_subquery(...)` produces the set of matching session row ids
-under project, time-range, and candidate scoping. Every server consumer receives this one
-opaque subquery and applies it as a single `IN` clause; the language never leaks into
-consumer code. Consumers include the sessions list, the session count, and the project-level
-summary loaders (record counts, annotation summaries, latency quantiles, cost summaries), so
-a filter can never match different sessions in different places. Time scoping uses interval
-overlap: a session matches a window when their intervals intersect, identical to the
-sessions table's time range behavior — this is what keeps a filtered count and a filtered
-list in agreement at window edges.
+- **probe** — one subquery per candidate session row. A statement with a `LIMIT` can stop as
+  soon as it has enough matching rows, so it only pays for the rows it returns.
+- **scan** — one pass over the element or trace tables, joined once. This is what a statement
+  that has to touch every session wants, because there is no early exit to buy.
+
+The shipped dispatch follows from that:
+
+| Statement | Lowering | Why |
+|---|---|---|
+| Page, no annotation access, ordered by an indexed column | direct + probe | `LIMIT` stops after enough matching rows |
+| Page ordered by an aggregate column | direct + scan, reusing the sort's subquery | the sort must materialize that aggregate for every session before it can order rows, so the early exit is already gone |
+| Count, summary loaders, and any condition reading annotations | rowid subquery + scan | no `LIMIT` to exit on, or deduplication required |
+
+"Direct" means the predicate is applied to the statement being paginated. The alternative —
+wrapping it as `session_id IN (SELECT DISTINCT …)` — puts the per-session work outside that
+statement, so the database evaluates the condition for every session in the project before
+`LIMIT` sees a row. Measured at 100k sessions, one page cost about 2543 ms wrapped and about
+2 ms applied directly. Conditions that read annotations keep the wrapper anyway: a session
+annotation is unique on `(name, project_session_id, identifier)`, so one session can carry
+several rows under one name and the wrapper's `DISTINCT` is what collapses them. Everything
+else the compiler brings in contributes at most one row per session: quantifiers and the
+`any_input`/`any_output` predicates are `EXISTS` or `IN` predicates that add no rows at all,
+grouped aggregate and reduction subqueries carry one row per session by construction, and
+root-span IO and `attributes[...]` are rank-one-per-session windows outer joined on the
+session id.
+
+Selectivity is the one thing this dispatch cannot see. A page whose condition matches nothing
+never fills its `LIMIT`, so the probe lowering exhausts the project and loses to the scan
+lowering there — measured at 243 ms against 117 ms. That trade is deliberate: the rare case
+costs about 2x, the common case wins about 100x.
+
+The benchmark harness lives at `scripts/perf/session_filter_perf.py`. It builds every measured
+query from the two seams below, so it reports the shapes the server actually runs, across
+construct family, access pattern, and selectivity.
+
+### Two seams, one per access pattern
+
+Server consumers reach the language through exactly two functions in
+`src/phoenix/server/session_filters.py`, and the language never leaks past them.
+
+`get_filtered_session_rowids_subquery(...)` produces the set of matching session row ids under
+project and time-range scoping. Consumers apply it as a single `IN` clause: the session count
+and the project-level summary loaders (record counts, annotation summaries, latency quantiles,
+cost summaries) all take this one opaque subquery.
+
+`apply_session_filter_to_page(...)` takes the statement a caller is paginating and returns it
+with the condition applied — directly when that is safe, and through the rowid subquery when
+the condition reads annotations. The sessions list is its only consumer.
+
+The split exists because a page is the one access pattern with an early exit to protect, and
+protecting it means handing the compiler the statement rather than a set of row ids. Both
+seams answer with the same sessions for the same condition, which is what keeps a filtered
+count and a filtered list in agreement. Time scoping is shared for the same reason and uses
+interval overlap: a session matches a window when their intervals intersect, identical to the
+sessions table's time range behavior, which is what keeps them agreeing at window edges too.
 
 ## Correctness: the reference evaluator
 
@@ -363,3 +421,7 @@ separates searches the user meant from stepping stones on the way to them.
   rollups are the point.
 - **Python execution.** Running the same expressions as actual Python inside evaluator
   bindings, with the reference evaluator's semantics as the contract.
+- **A vocabulary benchmark.** The harness measures filter execution; nothing measures the
+  vocabulary resolver that feeds the filter bar. That needs its own script: configurable
+  distinct annotation-name counts, attribute payload sizes, and leaf-path cardinality across
+  project-size tiers, reporting rows and payload bytes decoded on both a cold and a warm run.
