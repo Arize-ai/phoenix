@@ -12,6 +12,7 @@ from phoenix.db.types.data_stream_protocol import (
     TextUIPart,
 )
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
+from phoenix.server.api.helpers.agent_sessions import get_otel_session_id
 from phoenix.server.api.routers.agents import (
     _build_compaction_message,
     _load_agent_session_history,
@@ -149,7 +150,6 @@ async def _seed_session_with_transcript(
 ) -> str:
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id="12121212-1212-4121-8121-121212121212",
             user_id=None,
             title=title,
             project_name="assistant_agent",
@@ -401,12 +401,18 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
         assert set(row.message_id for row in branch_messages).isdisjoint(
             row.message_id for row in source_messages
         )
-        # The branch mints its own OTel session identity and uses the currently
-        # configured trace project.
+        # The branch gets its own OTel session identity (derived from its own
+        # row id) and uses the currently configured trace project.
         source_session, branch_session = sorted(
             agent_sessions, key=lambda agent_session: agent_session.id
         )
-        assert branch_session.project_session_id != source_session.project_session_id
+        assert get_otel_session_id(
+            project_name=branch_session.project_name,
+            agent_session_rowid=branch_session.id,
+        ) != get_otel_session_id(
+            project_name=source_session.project_name,
+            agent_session_rowid=source_session.id,
+        )
         assert branch_session.project_name == configured_project_name
         assert branch_session.project_name != source_session.project_name
 
@@ -573,7 +579,6 @@ async def test_create_agent_session_creates_empty_owned_session(
         assert payload["id"] == str(GlobalID("AgentSession", str(agent_session.id)))
         assert agent_session.user_id is None
         assert agent_session.title == ""
-        assert agent_session.project_session_id
         assert agent_session.expires_at is None
         assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
 
@@ -638,10 +643,8 @@ async def test_create_agent_session_mints_distinct_sessions(
         != second.data["createAgentSession"]["agentSession"]["id"]
     )
     async with db() as session:
-        project_session_ids = (
-            await session.scalars(select(models.AgentSession.project_session_id))
-        ).all()
-        assert len(set(project_session_ids)) == 2
+        agent_session_rowids = (await session.scalars(select(models.AgentSession.id))).all()
+        assert len(set(agent_session_rowids)) == 2
 
 
 async def test_create_agent_session_rejects_long_title(
@@ -664,7 +667,6 @@ async def test_update_agent_session_title(
 ) -> None:
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id="11111111-1111-4111-8111-111111111111",
             user_id=None,
             title="Old title",
             project_name="assistant_agent",
@@ -692,7 +694,6 @@ async def test_update_agent_session_title_rejects_empty_title(
 ) -> None:
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id="11111111-1111-4111-8111-111111111111",
             user_id=None,
             title="Old title",
             project_name="assistant_agent",
@@ -718,7 +719,6 @@ async def test_update_agent_session_title_rejects_long_title(
 ) -> None:
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id="11111111-1111-4111-8111-111111111111",
             user_id=None,
             title="Old title",
             project_name="assistant_agent",
@@ -750,7 +750,6 @@ async def test_delete_agent_session_cascades_snapshot(
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id="11111111-1111-4111-8111-111111111111",
             user_id=None,
             title="doomed session",
             project_name="assistant_agent",

@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 
 import httpx
 from strawberry.relay import GlobalID
@@ -20,7 +19,6 @@ async def _insert_agent_session(
 ) -> models.AgentSession:
     async with db() as session:
         agent_session = models.AgentSession(
-            project_session_id=str(uuid4()),
             project_name="pxi-test",
             title=title,
             expires_at=expires_at,

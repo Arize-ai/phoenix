@@ -81,7 +81,6 @@ def upgrade() -> None:
     op.create_table(
         "agent_sessions",
         sa.Column("id", _Integer, primary_key=True),
-        sa.Column("project_session_id", sa.String, nullable=False),
         sa.Column("project_name", sa.String, nullable=False),
         sa.Column(
             "user_id",
@@ -105,7 +104,6 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
-        sa.UniqueConstraint("project_session_id", "project_name"),
         sqlite_autoincrement=True,
     )
     op.create_index(

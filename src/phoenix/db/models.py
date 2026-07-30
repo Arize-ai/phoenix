@@ -3380,7 +3380,6 @@ def _compile_matches_uuid_format_postgresql(
 
 class AgentSession(HasId):
     __tablename__ = "agent_sessions"
-    project_session_id: Mapped[str] = mapped_column(String, nullable=False)
     project_name: Mapped[str] = mapped_column(String, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -3406,7 +3405,6 @@ class AgentSession(HasId):
         back_populates="agent_session",
     )
     __table_args__ = (
-        UniqueConstraint("project_session_id", "project_name"),
         Index(
             "ix_agent_sessions_user_id_updated_at",
             "user_id",
