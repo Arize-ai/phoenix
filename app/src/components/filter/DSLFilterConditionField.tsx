@@ -73,6 +73,13 @@ export type DSLFilterConditionValidationResult = {
 export type DSLFilterSnippet = {
   label: string;
   snippet: string;
+  /**
+   * Ranks this snippet above its unboosted siblings in the dropdown. Within a
+   * section CodeMirror orders equally-scored options alphabetically by label,
+   * so array position decides only which snippets make the browse cut — this
+   * is what decides where one lands once it has.
+   */
+  boost?: number;
 };
 
 const pythonLanguage = python();
@@ -149,7 +156,7 @@ export function createLoadedCompletionSection(name: string): CompletionSection {
  * sections below the fold; the full list still surfaces via fuzzy matching
  * once the user types.
  */
-const MAX_BROWSE_SUGGESTIONS = 5;
+export const MAX_BROWSE_SUGGESTIONS = 5;
 // Sized to fit a grain's whole core vocabulary, so the cap only trims
 // data-derived names — a lower cap silently evicts the trailing core
 // sections, which callers rank-order expecting all of them to be browsable.
@@ -158,12 +165,17 @@ const MAX_BROWSE_FIELDS = 30;
 const defaultSnippets: DSLFilterSnippet[] = [];
 const defaultCompletionSources: CompletionSource[] = [];
 
-function snippetToCompletion({ label, snippet }: DSLFilterSnippet): Completion {
+function snippetToCompletion({
+  label,
+  snippet,
+  boost,
+}: DSLFilterSnippet): Completion {
   return snippetCompletion(snippet, {
     label,
     detail: snippet.replace(/\$\{([^{}]*)\}/g, "$1"),
     type: "text",
     section: suggestionsSection,
+    boost,
   });
 }
 
@@ -188,7 +200,8 @@ export type DSLFilterConditionFieldProps = {
    * become tab-through fields on insert. Order most-useful-first: while the
    * user is browsing (nothing typed at the cursor) only the first few are
    * shown so the group doesn't bury the fields below it; the rest surface
-   * via fuzzy matching as the user types.
+   * via fuzzy matching as the user types. Array order decides which snippets
+   * make that cut, not how they read once shown — set `boost` for that.
    */
   snippets?: DSLFilterSnippet[];
   /**
