@@ -6,8 +6,10 @@ import {
 } from "../spanFilterRootScopeConstants";
 import { spanFilterSeed } from "../spanFilterSeed";
 
+// Classification only. That the exempt conditions never reach the server is
+// asserted in spanFilterValidation.test.ts, where the request is observable.
 describe("spanFilterSeed", () => {
-  it("does not validate an empty condition on the server", () => {
+  it("classifies an empty condition as needing no server answer", () => {
     expect(spanFilterSeed("")).toEqual({
       condition: "",
       requiresServerValidation: false,
@@ -23,7 +25,7 @@ describe("spanFilterSeed", () => {
     });
   });
 
-  it("does not validate the strict root-span predicate on the server", () => {
+  it("classifies the strict root-span predicate as needing no server answer", () => {
     expect(spanFilterSeed(STRICT_ROOT_SPANS_CONDITION)).toEqual({
       condition: STRICT_ROOT_SPANS_CONDITION,
       requiresServerValidation: false,
@@ -31,7 +33,7 @@ describe("spanFilterSeed", () => {
     });
   });
 
-  it("does not validate the orphan-aware root predicate on the server", () => {
+  it("classifies the orphan-aware root predicate as needing no server answer", () => {
     expect(spanFilterSeed(ORPHAN_AWARE_ROOT_SPANS_CONDITION)).toEqual({
       condition: ORPHAN_AWARE_ROOT_SPANS_CONDITION,
       requiresServerValidation: false,

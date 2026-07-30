@@ -14,3 +14,20 @@ export const ORPHAN_AWARE_ROOT_SPANS_CONDITION = "parent_span is None";
  * counted as roots; the filter field suggests `parent_span is None` for those.
  */
 export const DEFAULT_SPAN_FILTER_CONDITION = STRICT_ROOT_SPANS_CONDITION;
+
+/**
+ * Whether a condition is one of the root-span predicates this app writes
+ * verbatim, making its validity and root scope known without asking the server.
+ *
+ * Literal string equality, deliberately: `parent_id is None and status_code ==
+ * 'ERROR'` is root-scoped too, but recognizing that would mean a second copy of
+ * the DSL grammar in TypeScript -- the duplication `SpanFilterConditionAnalysis`
+ * exists to prevent. Defined here, once, because both the seed and the filter
+ * field's validator act on the answer and must not drift apart.
+ */
+export function isKnownRootSpanCondition(condition: string) {
+  return (
+    condition === STRICT_ROOT_SPANS_CONDITION ||
+    condition === ORPHAN_AWARE_ROOT_SPANS_CONDITION
+  );
+}

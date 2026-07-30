@@ -12,6 +12,10 @@ vi.mock("relay-runtime", () => ({
 
 vi.mock("@phoenix/RelayEnvironment", () => ({ default: {} }));
 
+import {
+  ORPHAN_AWARE_ROOT_SPANS_CONDITION,
+  STRICT_ROOT_SPANS_CONDITION,
+} from "../spanFilterRootScopeConstants";
 import { validateSpanFilterCondition } from "../spanFilterValidation";
 
 type ValidationPayload = {
@@ -43,6 +47,76 @@ function mockValidationResponse(payload: ValidationPayload) {
     toPromise: () => Promise.resolve(payload),
   });
 }
+
+describe("validateSpanFilterCondition server exemptions", () => {
+  beforeEach(() => {
+    relayMocks.fetchQuery.mockReset();
+  });
+
+  it("answers the strict root-span predicate without asking the server", async () => {
+    await expect(
+      validateSpanFilterCondition(
+        STRICT_ROOT_SPANS_CONDITION,
+        "project-exempt-strict"
+      )
+    ).resolves.toEqual({
+      isValid: true,
+      errorMessage: null,
+      selectsRootSpansOnly: true,
+    });
+
+    expect(relayMocks.fetchQuery).not.toHaveBeenCalled();
+  });
+
+  it("answers the orphan-aware root predicate without asking the server", async () => {
+    await expect(
+      validateSpanFilterCondition(
+        ORPHAN_AWARE_ROOT_SPANS_CONDITION,
+        "project-exempt-orphan"
+      )
+    ).resolves.toEqual({
+      isValid: true,
+      errorMessage: null,
+      selectsRootSpansOnly: true,
+    });
+
+    expect(relayMocks.fetchQuery).not.toHaveBeenCalled();
+  });
+
+  it("answers an empty condition without asking the server", async () => {
+    await expect(
+      validateSpanFilterCondition("", "project-exempt-empty")
+    ).resolves.toEqual({
+      isValid: true,
+      errorMessage: null,
+      selectsRootSpansOnly: false,
+    });
+
+    expect(relayMocks.fetchQuery).not.toHaveBeenCalled();
+  });
+
+  it("still asks the server about a whitespace-only condition", async () => {
+    // The seed normalizes whitespace to the empty condition; the DSL does not,
+    // rejecting `   `. Exempting it would call valid what the server rejects.
+    mockValidationResponse(validPayload());
+
+    await validateSpanFilterCondition("   ", "project-exempt-whitespace");
+
+    expect(relayMocks.fetchQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it("still asks the server about a reformatted root-span predicate", async () => {
+    // Literal equality, so a semantically identical spelling is not exempt.
+    mockValidationResponse(validPayload(true));
+
+    await validateSpanFilterCondition(
+      "parent_id  is  None",
+      "project-exempt-reformatted"
+    );
+
+    expect(relayMocks.fetchQuery).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("validateSpanFilterCondition cache", () => {
   beforeEach(() => {

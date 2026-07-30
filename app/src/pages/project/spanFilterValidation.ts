@@ -3,6 +3,7 @@ import { fetchQuery, graphql } from "relay-runtime";
 import environment from "@phoenix/RelayEnvironment";
 
 import type { spanFilterValidationQuery } from "./__generated__/spanFilterValidationQuery.graphql";
+import { isKnownRootSpanCondition } from "./spanFilterRootScopeConstants";
 
 export type SpanFilterConditionValidation = {
   isValid: boolean;
@@ -71,6 +72,16 @@ export async function validateSpanFilterCondition(
       isValid: true,
       errorMessage: null,
       selectsRootSpansOnly: false,
+    };
+  }
+  if (isKnownRootSpanCondition(condition)) {
+    // Both answers are already known for a predicate this app wrote. Skipping
+    // the request also removes a failure mode: a transport error here would
+    // flag the default spans view as invalid over a condition that cannot be.
+    return {
+      isValid: true,
+      errorMessage: null,
+      selectsRootSpansOnly: true,
     };
   }
   const cacheKey = validationCacheKey(projectId, condition);
