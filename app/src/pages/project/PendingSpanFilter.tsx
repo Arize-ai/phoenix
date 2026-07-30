@@ -1,4 +1,6 @@
-import { Loading, View } from "@phoenix/components";
+import { useState } from "react";
+
+import { Alert, Button, Loading, View } from "@phoenix/components";
 
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
@@ -24,7 +26,7 @@ export function PendingSpanFilter({
    */
   onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
   /**
-   * What to load when the condition cannot be validated. Must be one this app
+   * What to load when the server rejects the condition. Must be one this app
    * can classify, and must match what the host view shows when the URL carries
    * no condition -- the traces tab shows every span, so it passes `""` rather
    * than inheriting the spans tab's root-span default.
@@ -37,6 +39,13 @@ export function PendingSpanFilter({
       `PendingSpanFilter fallback must not need validation: ${fallbackCondition}`
     );
   }
+  // A transport failure is not a verdict on the condition, so it does not
+  // resolve to the fallback: loading the fallback would swap in rows for a
+  // different, wider filter while the URL still names the intended one, and
+  // the table would read as the filtered result. Hold the pending state and
+  // offer a retry instead.
+  const [hasTransportError, setHasTransportError] = useState(false);
+  const [validationRetryKey, setValidationRetryKey] = useState(0);
   return (
     <>
       <View
@@ -56,14 +65,43 @@ export function PendingSpanFilter({
               rootSpansOnly: selectsRootSpansOnly ?? false,
             })
           }
-          // A rejected or unanswerable condition still has to resolve to
-          // something loadable, so fall back to what this view shows with no
-          // filter at all rather than to something wider or narrower. The field
-          // keeps showing the text and its own error.
-          onValidationFailed={() => onResolved(fallbackSeed, false)}
+          onValidationFailed={(reason) => {
+            if (reason === "transport") {
+              setHasTransportError(true);
+              return;
+            }
+            // A rejected condition still has to resolve to something loadable,
+            // so fall back to what this view shows with no filter at all
+            // rather than to something wider or narrower. The field keeps
+            // showing the text and its own error.
+            onResolved(fallbackSeed, false);
+          }}
+          validationRetryKey={validationRetryKey}
         />
       </View>
-      <Loading />
+      {hasTransportError ? (
+        <Alert
+          variant="danger"
+          banner
+          extra={
+            <Button
+              size="S"
+              variant="primary"
+              onPress={() => {
+                setHasTransportError(false);
+                setValidationRetryKey((key) => key + 1);
+              }}
+            >
+              Retry
+            </Button>
+          }
+        >
+          The filter condition could not be validated because the server could
+          not be reached, so the table has not been loaded.
+        </Alert>
+      ) : (
+        <Loading />
+      )}
     </>
   );
 }
