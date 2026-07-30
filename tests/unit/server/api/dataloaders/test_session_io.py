@@ -45,15 +45,18 @@ async def test_displayed_session_io_and_the_filter_term_select_the_same_root_spa
             start_time=base_time + timedelta(seconds=30),
         )
         await session.flush()
+        project_session_id = project_session.id
+        first_root_span_id = first_root_span.id
 
-        displayed = await SessionIODataLoader(db, "first_input").load(project_session.id)
+    displayed = await SessionIODataLoader(db, "first_input").load(project_session_id)
+    async with db() as session:
         filtered = (
             await session.execute(
-                root_span_io_value_by_session("first_input", keys=[project_session.id])
+                root_span_io_value_by_session("first_input", keys=[project_session_id])
             )
         ).all()
 
     assert displayed is not None
-    assert displayed.span_rowid == first_root_span.id
+    assert displayed.span_rowid == first_root_span_id
     assert displayed.truncated_value == "first root span"
-    assert filtered == [(project_session.id, "first root span")]
+    assert filtered == [(project_session_id, "first root span")]
