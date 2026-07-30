@@ -146,21 +146,37 @@ def test_session_filter_rejects_any_input_misuse(condition: str) -> None:
     )
 
 
-def test_session_filter_any_io_glosses_are_instrumentation_shaped() -> None:
-    assert "instrumentation-shaped" in SESSION_FILTER_DESCRIPTIONS["any_input"]
-    assert "instrumentation-shaped" in SESSION_FILTER_DESCRIPTIONS["any_output"]
-    assert "turn-1-only" in SESSION_FILTER_DESCRIPTIONS["first_input"].lower()
-    assert "final-turn-only" in SESSION_FILTER_DESCRIPTIONS["last_output"].lower()
+def test_session_filter_io_glosses_describe_mechanics_not_a_turn_model() -> None:
+    """The served vocabulary is a public contract, so it states what the compiler does.
+
+    One trace per exchange is an ingestion convention Phoenix does not enforce, so the turn
+    model may appear only as a labeled approximation, never as a term's meaning.
+    """
+    for name in ("any_input", "any_output"):
+        description = SESSION_FILTER_DESCRIPTIONS[name]
+        assert "ANY root span" in description
+        assert "instrumentation-shaped" in description
+        assert "turn" not in description.lower()
     assert "user said" not in SESSION_FILTER_DESCRIPTIONS["any_input"].lower()
     assert "agent said" not in SESSION_FILTER_DESCRIPTIONS["any_output"].lower()
+    for name in ("first_input", "last_output"):
+        description = SESSION_FILTER_DESCRIPTIONS[name]
+        assert "root span" in description
+        assert "trace start time" in description
+        assert "turn" not in description.lower()
+    for name in ("num_traces", "traces"):
+        description = SESSION_FILTER_DESCRIPTIONS[name].lower()
+        if "turn" in description:
+            assert "approximate" in description
+            assert "does not enforce" in description
 
 
 def test_session_filter_text_glosses_state_case_insensitive_containment() -> None:
     """No gloss may still advertise the retired case-sensitive containment."""
     for name in ("any_input", "any_output", "first_input", "last_output", "session_id"):
-        assert "case-sensitive" not in SESSION_FILTER_DESCRIPTIONS[name].lower()
-    assert "Case-insensitive containment" in SESSION_FILTER_DESCRIPTIONS["any_input"]
-    assert "Case-insensitive containment" in SESSION_FILTER_DESCRIPTIONS["any_output"]
+        description = SESSION_FILTER_DESCRIPTIONS[name].lower()
+        assert "case-sensitive" not in description
+        assert "ignor" in description and "case" in description
 
 
 async def _add_span_cost(
@@ -924,6 +940,37 @@ async def test_session_filter_attributes_resolve_by_wire_key(db: DbSessionFactor
             session, SessionFilter('attributes["llm.model_name"] == "claude"'), project
         )
         assert by_shadowed_literal == set()
+
+
+async def test_span_kind_spellings_agree_on_lowercase_data(db: DbSessionFactory) -> None:
+    """The aggregate and the comprehension count the same TOOL spans however they were stored.
+
+    Ingestion normally stores kinds uppercase, so only non-uppercase rows can tell the two
+    lowerings apart — and disagreeing there means the same intent returns different sessions
+    depending on which spelling the user picked.
+    """
+    start_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project, start_time=start_time)
+        trace = await _add_trace(session, project, project_session, start_time=start_time)
+        root_span = await _add_span(session, trace, span_kind="LLM", start_time=start_time)
+        for index, stored_kind in enumerate(("tool", "Tool", "TOOL")):
+            await _add_span(
+                session,
+                parent_span=root_span,
+                span_kind=stored_kind,
+                start_time=start_time + timedelta(milliseconds=index + 1),
+            )
+        await session.flush()
+
+        expected = {project_session.id}
+        for condition in (
+            "tool_span_count > 2",
+            'len([s for s in spans if s.span_kind == "TOOL"]) > 2',
+            'len([s for s in spans if s.span_kind == "tool"]) > 2',
+        ):
+            assert await _matched_rowids(session, SessionFilter(condition), project) == expected
 
 
 @pytest.mark.parametrize(

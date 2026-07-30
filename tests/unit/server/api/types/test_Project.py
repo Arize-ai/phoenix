@@ -4027,8 +4027,12 @@ class TestProject:
         assert terms_by_name["any_output"]["type"] == "containment"
         # Every served term carries a non-empty gloss.
         assert all(t["description"] for t in terms)
+        # The turn model is an unenforced ingestion convention, so the served gloss leads
+        # with the mechanic and labels the metaphor as the approximation it is.
         num_traces_term = next(t for t in terms if t["name"] == "num_traces")
-        assert "conversation turns" in num_traces_term["description"]
+        assert num_traces_term["description"].startswith("Number of traces in the session")
+        assert "approximate conversation-turn count" in num_traces_term["description"]
+        assert "does not enforce" in num_traces_term["description"]
         assert "earliest root span" in terms_by_name["attributes[...]"]["description"]
         assert 'attributes["user.id"]' in terms_by_name["user.id"]["description"]
         assert 'attributes["metadata.key"]' in terms_by_name['metadata["key"]']["description"]
@@ -4124,6 +4128,83 @@ class TestProject:
             )
             == 2
         )
+
+    async def test_aside_statistics_follow_the_active_session_filter(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Every statistic the sessions aside renders is scoped to the filtered table's rows."""
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        async with db() as session:
+            project = await _add_project(session, name="aside-filtered-statistics")
+            expected_gids = []
+            # (traces, duration, label): two traces puts a session past the filter below.
+            for trace_count, duration, label in (
+                (2, timedelta(seconds=10), "good"),
+                (2, timedelta(seconds=20), "bad"),
+                (1, timedelta(seconds=100), "good"),
+            ):
+                project_session = await _add_project_session(
+                    session, project, start_time=base_time, end_time=base_time + duration
+                )
+                for _ in range(trace_count):
+                    await _add_trace(session, project, project_session, start_time=base_time)
+                session.add(
+                    models.ProjectSessionAnnotation(
+                        project_session_id=project_session.id,
+                        name="quality",
+                        label=label,
+                        score=1.0,
+                        explanation=None,
+                        metadata_={},
+                        annotator_kind="HUMAN",
+                        source="APP",
+                    )
+                )
+                if trace_count >= 2:
+                    expected_gids.append(_gid(project_session))
+            await session.flush()
+
+        query = """
+          query ($id: ID!, $condition: String!) {
+            node(id: $id) {
+              ... on Project {
+                sessions(sessionFilterCondition: $condition) { edges { node { id } } }
+                sessionCount(sessionFilterCondition: $condition)
+                averageSessionDurationMs(sessionFilterCondition: $condition)
+                averageTracesPerSession(sessionFilterCondition: $condition)
+                sessionDurationMsQuantile(
+                  probability: 0.5, sessionFilterCondition: $condition
+                )
+                sessionAnnotationSummary(
+                  annotationName: "quality", sessionFilterCondition: $condition
+                ) { count labelFractions { label fraction } }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "condition": "num_traces >= 2",
+            },
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        aside = data["node"]
+        assert sorted(e["node"]["id"] for e in aside["sessions"]["edges"]) == sorted(expected_gids)
+        assert aside["sessionCount"] == 2
+        assert aside["averageSessionDurationMs"] == pytest.approx(15_000)
+        assert aside["averageTracesPerSession"] == pytest.approx(2.0)
+        assert 10_000 <= aside["sessionDurationMsQuantile"] <= 20_000
+        summary = aside["sessionAnnotationSummary"]
+        assert summary["count"] == 2
+        assert {lf["label"]: lf["fraction"] for lf in summary["labelFractions"]} == {
+            "good": pytest.approx(0.5),
+            "bad": pytest.approx(0.5),
+        }
 
     async def test_sessions_lookup_by_exact_session_id_via_dsl(
         self,
@@ -6974,3 +7055,31 @@ class TestProjectSessionsTimeRange:
             session_filter_condition="'input for before_window' in any_input",
         )
         assert actual == set()
+
+    async def test_dsl_start_time_compares_points_where_time_range_tests_overlap(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """`timeRange` selects by overlap; a DSL `start_time` cutoff compares a point.
+
+        `long_running` began before the window and is still active inside it, so overlap
+        includes it and a cutoff on its own start does not. Composing the two ANDs, which is
+        how the same session can be both in the window and out of the filter.
+        """
+        time_range = {
+            "start": self._WINDOW_START.isoformat(),
+            "end": self._WINDOW_END.isoformat(),
+        }
+        by_overlap = await self._get_session_ids(gql_client, _sessions_data, time_range)
+        assert _gid(_sessions_data.sessions_by_name["long_running"]) in by_overlap
+
+        cutoff = self._WINDOW_START.isoformat()
+        assert cutoff.endswith("+00:00")
+        with_cutoff = await self._get_session_ids(
+            gql_client,
+            _sessions_data,
+            time_range,
+            session_filter_condition=f"start_time >= '{cutoff}'",
+        )
+        assert with_cutoff == self._expected_ids(_sessions_data, "inside_window")

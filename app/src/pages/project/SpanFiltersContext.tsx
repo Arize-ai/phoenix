@@ -13,10 +13,10 @@ import {
   SET_SPANS_FILTER_TOOL_NAME,
   type SetSpansFilterInput,
 } from "@phoenix/agent/tools/spansFilter";
-import { joinFilterConditions } from "@phoenix/components/filter";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
+import { joinFilterConditions } from "@phoenix/utils/filterConditionUtils";
 
 import { validateSpanFilterCondition } from "./spanFilterValidation";
 

@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 
-import { joinFilterConditions } from "@phoenix/components/filter";
+import { joinFilterConditions } from "@phoenix/utils/filterConditionUtils";
 
 export type ExperimentRunFilterConditionContextType = {
   filterCondition: string;

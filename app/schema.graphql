@@ -2791,13 +2791,33 @@ type Project implements Node {
 
   """Whether the project has any trace data."""
   hasTraces: Boolean!
+
+  """
+  Number of spans in the project. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   recordCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
+
+  """
+  Number of traces in the project. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   traceCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
+
+  """
+  Token cost totals across the project's spans. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   costSummary(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): SpanCostSummary!
+
+  """
+  Quantile (e.g. p50, p99) of trace latency in milliseconds. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   latencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
+
+  """
+  Quantile (e.g. p50, p99) of span latency in milliseconds. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int!, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
@@ -2813,19 +2833,19 @@ type Project implements Node {
   sessionCount(timeRange: TimeRange, sessionFilterCondition: String): Int!
 
   """
-  Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range.
+  Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range or a session filter expression (see sessionFilterVocabulary).
   """
-  averageSessionDurationMs(timeRange: TimeRange): Float
+  averageSessionDurationMs(timeRange: TimeRange, sessionFilterCondition: String): Float
 
   """
-  Average number of traces (e.g. conversation turns) per session, optionally filtered by a time range.
+  Average number of traces per session, optionally filtered by a time range or a session filter expression (see sessionFilterVocabulary).
   """
-  averageTracesPerSession(timeRange: TimeRange): Float
+  averageTracesPerSession(timeRange: TimeRange, sessionFilterCondition: String): Float
 
   """
-  Quantile (e.g. p50, p99) of session duration in milliseconds, i.e. end time minus start time, optionally filtered by a time range.
+  Quantile (e.g. p50, p99) of session duration in milliseconds, i.e. end time minus start time, optionally filtered by a time range or a session filter expression (see sessionFilterVocabulary).
   """
-  sessionDurationMsQuantile(probability: Float!, timeRange: TimeRange): Float
+  sessionDurationMsQuantile(probability: Float!, timeRange: TimeRange, sessionFilterCondition: String): Float
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
@@ -2859,13 +2879,21 @@ type Project implements Node {
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
+
+  """
+  Summary (score and label fractions) of a trace annotation across the project's traces. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
+
+  """
+  Summary (score and label fractions) of a span annotation across the project's spans. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
+  """
   spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): AnnotationSummary
 
   """
-  Summary (score and label fractions) of a session annotation across the project's sessions, optionally filtered by a time range.
+  Summary (score and label fractions) of a session annotation across the project's sessions, optionally filtered by a time range or a session filter expression (see sessionFilterVocabulary).
   """
-  sessionAnnotationSummary(annotationName: String!, timeRange: TimeRange): AnnotationSummary
+  sessionAnnotationSummary(annotationName: String!, timeRange: TimeRange, sessionFilterCondition: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
@@ -2881,7 +2909,7 @@ type Project implements Node {
   validateSessionFilterCondition(condition: String!): ValidationResult!
 
   """
-  The bindable terms of the session filter expression language for this project, for autocomplete, agent discovery, and docs. Static terms derive from the filter compiler's own bindings so they cannot drift from what compiles; observed per-project names (session annotations, root-span attribute paths) are folded in.
+  The bindable terms of the session filter expression language for this project, for autocomplete, agent discovery, and docs. Static terms derive from the filter compiler's own bindings so they cannot drift from what compiles; observed per-project names (session annotations, root-span attribute paths) are folded in. Observed names come from the project's 1000 most recently started sessions, so this is a discovery aid rather than a complete list: a name that only older sessions carry drops out of the suggestions once 1000 newer sessions exist, and still filters correctly when typed by hand.
   """
   sessionFilterVocabulary: [FilterVocabularyTerm!]!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!

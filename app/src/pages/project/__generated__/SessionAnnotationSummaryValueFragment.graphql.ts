@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b5176527832ead65ed9479bd5e1705be>>
+ * @generated SignedSource<<0f2318542f7b7d0370a05d606ae18348>>
  * @lightSyntaxTransform
  */
 
@@ -82,6 +82,11 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "annotationName"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "sessionFilterCondition"
     },
     {
       "defaultValue": null,
@@ -192,6 +197,11 @@ return {
         },
         {
           "kind": "Variable",
+          "name": "sessionFilterCondition",
+          "variableName": "sessionFilterCondition"
+        },
+        {
+          "kind": "Variable",
           "name": "timeRange",
           "variableName": "timeRange"
         }
@@ -259,6 +269,6 @@ return {
 };
 })();
 
-(node as any).hash = "af7f6cdb76f31c843b0f860756045230";
+(node as any).hash = "93b73a746a593b64f93a918940c33105";
 
 export default node;

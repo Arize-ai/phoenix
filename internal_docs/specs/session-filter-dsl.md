@@ -93,8 +93,21 @@ Direct columns of the session row:
 | `start_time`, `end_time` | datetime | Earliest and latest trace timestamps |
 | `duration_ms` | float | Wall-clock duration in milliseconds |
 
-Datetime comparands are ISO 8601 strings, e.g. `start_time > '2026-07-01'`; values without a
-timezone are read as UTC.
+Datetime comparands are ISO 8601 strings, e.g.
+`start_time > '2026-07-01T00:00:00+00:00'`; values without a timezone are read as UTC.
+Prefer an offset-bearing literal: the DSL reads naive input as UTC, but general REST
+normalization localizes naive input to the server timezone, and an expression that means
+different instants in different places is a bad thing to save.
+
+`start_time` and `end_time` are not the view's time range, and the difference is easy to trip
+over. `timeRange` selects the candidate universe by *interval overlap* with a half-open
+window — a session counts if it was active inside it, however long before it started. These
+two are *point comparisons* against the session's own bounds. So a session that started
+yesterday and is still running is inside today's `timeRange` and outside
+`start_time > '<today>'`. Supplied together they compose with `AND`; neither changes how
+aggregates or comprehension subqueries are scoped beyond the session-scope join they already
+carry. Keep relative intents such as "last 7 days" in the time-range surface, where they
+belong, and keep saved DSL text deterministic with absolute literals.
 
 ### Aggregates
 
@@ -103,11 +116,16 @@ never null:
 
 | Name | Meaning |
 | --- | --- |
-| `num_traces` | Trace count, ≈ conversation turns |
+| `num_traces` | Trace count |
 | `num_traces_with_error` | Traces containing an errored span |
 | `token_count_prompt`, `token_count_completion`, `token_count_total` | LLM token totals |
 | `prompt_cost`, `completion_cost`, `total_cost` | Cost totals |
 | `tool_span_count`, `llm_span_count` | Spans of kind TOOL / LLM |
+
+A trace is one trace. Instrumentation that opens a trace per exchange makes `num_traces` an
+approximate conversation-turn count, and it is a useful thing to say to a user reaching for
+turns — but it is an ingestion convention Phoenix does not enforce, so neither the glosses
+nor this table state it as the meaning of the term.
 
 ### Root-span access
 
@@ -118,19 +136,27 @@ A session has no attributes of its own, so several names read from the session's
   `attributes["llm"]["model_name"]` names the same key. The lookup matches the key however
   ingestion nested it. A missing key is treated as missing (see the deviation rule above).
 - `user.id` and `metadata["key"]` — accepted shorthands for the matching `attributes` keys.
-- `first_input` / `last_output` — the root-span input of the first trace and output of the
-  last trace, as strings. Useful for "did the session end well" checks.
-- `'refund' in any_input` / `any_output` — containment over *some* root span's input or
-  output, anywhere in the session. Cheaper than the first/last forms and the right default
-  for "does this session mention X". These two are containment-only: they take `in` and
-  `not in` against a string literal and never `==`, and the served vocabulary types them
-  `containment` so autocomplete does not invite the equality form.
+- `first_input` / `last_output` — strings, read from the session's earliest and latest root
+  span. "Earliest" is a deterministic ordering, not a claim about roles: trace start time,
+  then trace id, then span id. Useful for "did the session end well" checks.
+- `'refund' in any_input` / `any_output` — an EXISTS over the session's root spans: does
+  *some* root span's input or output contain this text. Cheaper than the first/last forms and
+  the right default for "does this session mention X". Note the three universes a search can
+  address — every span, every root span (`any_*`), and one root span (`first_input`,
+  `attributes[...]`) — and that they narrow in that order. These two are containment-only:
+  they take `in` and `not in` against a string literal and never `==`, and the served
+  vocabulary types them `containment` so autocomplete does not invite the equality form.
 
 ### Annotations
 
 `annotations["quality"].score > 0.8` reads session-level annotations, using the same idiom as
 the span language. Annotations on individual spans are reached through the `span_annotations`
 iterable below.
+
+The spelling is entity-relative: `annotations[...]` reads `project_session_annotation` rows
+here and `span_annotation` rows in the span filter. That is ordinary — the filter is always
+about its own grain — but nothing about the expression says so, so the served vocabulary says
+it for anyone who uses both filters.
 
 ### Comprehensions
 
@@ -461,6 +487,29 @@ annotation summaries), so those numbers can be re-scoped to the filtered session
 that accepts both a span filter and a session filter rejects requests that pass the two
 together — the grains are mutually exclusive, not composable.
 
+The session-grain statistics the sessions aside renders take it too
+(`sessionAnnotationSummary`, `averageSessionDurationMs`, `averageTracesPerSession`,
+`sessionDurationMsQuantile`). They are the reason the argument reaches this far: with the
+sessions search box retired, the DSL is the only table filter, so a statistic that cannot
+follow it is a statistic that disagrees with the rows on screen. Every one of them scopes
+through the same helper as `sessionCount`, so the aside and the table always describe the
+same sessions, and the aside's session count doubles as the page's match count.
+
+**Release note.** On the seven span- and trace-grain fields that carried
+`sessionFilterCondition` before this change, the argument meant a substring of the session's
+input/output. It is now a filter expression. Plain-text inputs no longer match anything by
+substring — express them as `'text' in any_input or 'text' in any_output`.
+
+### The compile boundary
+
+Callers reach these resolvers without validating first, so every surface that compiles a
+session filter — the sessions connection, the counts, the summary fan-out, the four
+session-grain statistics, and `validateSessionFilterCondition` itself — goes through one
+compile path in `phoenix/server/session_filters.py`. Expressions the compiler cannot use
+come back as `BadRequest`; planner and database failures are not the caller's fault and stay
+server errors. Routing validation through the same path is what keeps `isValid` honest: it
+reports invalid exactly when a resolver would reject the expression.
+
 ### Validation
 
 `validateSessionFilterCondition` compiles the condition and renders the SQL under both the
@@ -476,6 +525,12 @@ invalid. A condition that compiles but references an annotation name never obser
 project comes back valid *and* warned — the filter still applies, and the warning names the
 observed alternatives. Warnings exist because dynamic names cannot be errors: the annotation
 may simply not have arrived yet.
+
+Checking a referenced name does not require enumerating the project's names: validation asks
+whether the names in the expression exist, scoped to the project, and only reaches for a
+suggestion list once it already has an unknown name to explain. That list is capped — a
+warning is read aloud in a screen-reader live region, so it names the closest few observed
+alternatives rather than every annotation on the project.
 
 ### Vocabulary
 
@@ -505,9 +560,16 @@ Two term groups are data-derived:
   (`attributes["llm.model_name"]`), however ingestion nested them, so one key never appears
   as two terms. The nested spelling remains an accepted synonym in the compiler but is not
   served. The scan is bounded because it is discovery, not correctness: an unlisted key
-  still filters fine when typed by hand.
+  still filters fine when typed by hand. A row bound alone says nothing about cost, since
+  the scan reads whole attribute blobs, so it also stops at a byte budget.
 - **Observed annotations.** Each observed annotation name is served as ready-to-use
-  `annotations["name"].score` and `.label` terms.
+  `annotations["name"].score` and `.label` terms, drawn from the same recent-session window
+  as the attributes so the vocabulary carries one contract rather than two.
+
+The consequence of that one contract is worth stating plainly, because it is what a user
+notices: a name only older sessions carry drops out of the suggestions once 1000 newer
+sessions exist. It has not stopped working — typed by hand it filters exactly as before.
+The vocabulary is a discovery aid, and completeness is not something it promises.
 
 ## The Filter Bar
 
