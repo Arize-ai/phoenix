@@ -7,6 +7,8 @@ import pytest
 from phoenix.db import models
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.settings.registry import (
+    DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER,
+    DEFAULT_AGENT_SESSION_MAX_IDLE_DAYS,
     SETTINGS_REGISTRY,
     AgentSessionRetentionSetting,
     AgentTraceRecordingSetting,
@@ -48,11 +50,13 @@ async def test_update_agent_trace_recording_persists_and_updates_cache(
 async def test_agent_session_retention_defaults_when_unset(
     db: DbSessionFactory,
 ) -> None:
+    """Both retention rules are on by default, so a workspace that never opens
+    the admin settings still bounds how much chat history it keeps."""
     settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     await settings.bootstrap()
     retention = settings.agent_session_retention
-    assert retention.max_idle_days == 0
-    assert retention.max_count_per_user == 0
+    assert retention.max_idle_days == DEFAULT_AGENT_SESSION_MAX_IDLE_DAYS == 30
+    assert retention.max_count_per_user == DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER == 30
 
 
 @pytest.mark.asyncio

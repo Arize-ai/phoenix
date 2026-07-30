@@ -12,9 +12,12 @@ import type { SettingsAgentsWorkspaceCardSetSessionRetentionMutation } from "./_
 import type { SettingsAgentsWorkspaceCardSetTraceRecordingMutation } from "./__generated__/SettingsAgentsWorkspaceCardSetTraceRecordingMutation.graphql";
 
 /**
- * Values restored when an admin re-enables a retention rule that was off
+ * Values restored when an admin re-enables a retention rule that was off.
+ * These mirror the server-side defaults in
+ * `phoenix.server.settings.registry.AgentSessionRetentionSetting`, so toggling
+ * a rule back on returns it to the value the workspace started from.
  */
-const DEFAULT_SESSION_RETENTION_MAX_IDLE_DAYS = 7;
+const DEFAULT_SESSION_RETENTION_MAX_IDLE_DAYS = 30;
 const DEFAULT_SESSION_RETENTION_MAX_COUNT_PER_USER = 30;
 
 const settingsListCSS = css`

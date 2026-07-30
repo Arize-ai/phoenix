@@ -6,6 +6,10 @@ from typing import Any
 
 import pytest
 
+from phoenix.server.settings.registry import (
+    DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER,
+    DEFAULT_AGENT_SESSION_MAX_IDLE_DAYS,
+)
 from tests.unit.graphql import AsyncGraphQLClient
 
 _RETENTION_QUERY = """
@@ -54,6 +58,28 @@ async def test_mutation_persists_and_query_reflects_write(
 async def test_query_returns_defaults_when_setting_is_unset(
     gql_client: AsyncGraphQLClient,
 ) -> None:
+    """Both rules are on out of the box, so the admin switches render on."""
+    q = await gql_client.execute(_RETENTION_QUERY, {})
+    assert not q.errors
+    assert q.data is not None
+    config = q.data["agentsConfig"]
+    assert config["sessionRetentionMaxIdleDays"] == DEFAULT_AGENT_SESSION_MAX_IDLE_DAYS == 30
+    assert (
+        config["sessionRetentionMaxCountPerUser"] == DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER == 30
+    )
+
+
+@pytest.mark.asyncio
+async def test_query_returns_null_once_an_admin_turns_a_rule_off(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """Null still means off — the new defaults do not take that away."""
+    disabled = await gql_client.execute(
+        _SET_RETENTION_MUTATION,
+        {"input": {"maxIdleDays": None, "maxCountPerUser": None}},
+    )
+    assert not disabled.errors
+
     q = await gql_client.execute(_RETENTION_QUERY, {})
     assert not q.errors
     assert q.data is not None
