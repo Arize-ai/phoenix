@@ -6,7 +6,7 @@ import {
   type ChartTypeIconType,
   DeferredChartPanel,
 } from "@phoenix/components/chart";
-import { useFrozenWhileHidden } from "@phoenix/hooks/useDeferredVisibility";
+import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
 import type {
   BuiltInProjectMetricChartKey,
   MetricChartTableView,

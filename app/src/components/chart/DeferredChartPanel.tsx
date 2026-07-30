@@ -1,10 +1,8 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import {
-  DeferredVisibilityContext,
-  useDeferredVisibility,
-} from "@phoenix/hooks/useDeferredVisibility";
+import { useDeferredVisibility } from "@phoenix/hooks/useDeferredVisibility";
+import { DeferredVisibilityContext } from "@phoenix/hooks/useFrozenWhileHidden";
 
 import { CHART_MIN_WIDTH, ChartPanel } from "./ChartPanel";
 import { ChartSkeleton } from "./ChartSkeleton";

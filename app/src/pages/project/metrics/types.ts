@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-import { useFrozenWhileHidden } from "@phoenix/hooks/useDeferredVisibility";
+import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
 
 /**
  * Recharts syncId shared by every project metric chart so tooltip hover and
