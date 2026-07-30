@@ -1,6 +1,8 @@
 import { useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 
+import { SPAN_FILTER_CONDITION_KEY } from "@phoenix/utils/scopedFragmentState";
+
 /**
  * The span filter lives in the URL fragment rather than the query string.
  *
@@ -12,8 +14,12 @@ import { useLocation, useNavigate } from "react-router";
  * of those. Fragments are never sent, so the condition reaches no server and
  * therefore no log, while still surviving reload, back/forward, and a shared
  * link. It does remain in the address bar and in history, which is the point.
+ *
+ * The key itself is defined in `scopedFragmentState`, which pairs it with the
+ * route scope that consumes it so cross-boundary links (the breadcrumbs) can
+ * drop it when a navigation leaves that scope.
  */
-export const SPAN_FILTER_CONDITION_KEY = "spanFilterCondition";
+export { SPAN_FILTER_CONDITION_KEY };
 
 /**
  * The condition carried by a location hash, or null when it carries none.
