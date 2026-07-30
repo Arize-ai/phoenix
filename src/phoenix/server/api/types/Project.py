@@ -1,8 +1,10 @@
 import ast
+import json
 import logging
 import operator
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timezone
+from difflib import get_close_matches
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
 
 import strawberry
@@ -65,19 +67,38 @@ from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.session_filters import (
+    SessionFilterConditionError,
     apply_session_filter_to_page,
+    compile_session_filter,
     get_filtered_session_rowids_subquery,
+    session_filter_errors,
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
 from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
-from phoenix.trace.dsl.session_filter import SessionFilter
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_PAGE_SIZE = 30
 _VOCABULARY_ATTRIBUTE_SCAN_LIMIT = 1000
+# A backstop on the attribute scan's cost: the row bound alone says nothing about how much
+# each root span carries, and the scan reads whole attribute blobs.
+_VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT = 2 * 1024 * 1024
+# Session annotation names are enumerated from the same recent-session window the attribute
+# scan uses, so the whole vocabulary carries one contract instead of two.
+_VOCABULARY_ANNOTATION_SCAN_LIMIT = _VOCABULARY_ATTRIBUTE_SCAN_LIMIT
+# How many observed annotation names an unknown-name warning may draw a suggestion from.
+_ANNOTATION_NAME_SUGGESTION_SCAN_LIMIT = 50
+# How many of those a single warning lists — the message reaches a screen-reader live region.
+_MAX_SUGGESTED_ANNOTATION_NAMES = 5
 _TOKEN_COUNT_DETAIL_EPSILON = 1e-9
+# Every field that takes sessionFilterCondition says the same thing about it, so the argument
+# never reads as the input/output substring it used to be.
+_SESSION_FILTER_CONDITION_NOTE = (
+    "sessionFilterCondition restricts the result to the sessions matching a session filter "
+    "expression (see sessionFilterVocabulary). It is an expression, not a substring of the "
+    "session's input/output."
+)
 _TOKEN_COUNT_DETAIL_SORT_ORDER = {
     "input": 0,
     "output": 0,
@@ -166,12 +187,16 @@ def _apply_project_session_filters(
     stmt: Select[Any],
     project_rowid: int,
     time_range: Optional[TimeRange],
+    session_filter_condition: Optional[str] = None,
 ) -> Select[Any]:
-    """Restrict a ``ProjectSession`` aggregation to the project and time range.
+    """Restrict a ``ProjectSession`` aggregation to the project, time range, and session filter.
 
     The time range uses interval-overlap semantics: a session is included iff
     [start_time, end_time] intersects [time_range.start, time_range.end), i.e.
     the session had activity inside the window.
+
+    Every statistic the sessions aside renders runs through here, so a filtered statistic is
+    scoped to exactly the sessions the filtered table lists.
     """
     table = models.ProjectSession
     stmt = stmt.where(table.project_id == project_rowid)
@@ -180,7 +205,23 @@ def _apply_project_session_filters(
             stmt = stmt.where(time_range.start <= table.end_time)
         if time_range.end:
             stmt = stmt.where(table.start_time < time_range.end)
+    if session_filter_condition:
+        stmt = stmt.where(
+            table.id.in_(
+                get_filtered_session_rowids_subquery(
+                    session_filter_condition=session_filter_condition,
+                    project_rowids=[project_rowid],
+                    start_time=time_range.start if time_range else None,
+                    end_time=time_range.end if time_range else None,
+                )
+            )
+        )
     return stmt
+
+
+def _attributes_size(attributes: Mapping[str, Any]) -> int:
+    """Approximate serialized size of an attributes blob, for bounding the vocabulary scan."""
+    return len(json.dumps(attributes, default=str))
 
 
 def _attribute_leaf_paths(
@@ -226,6 +267,22 @@ def _session_annotation_names_stmt(project_rowid: int) -> Select[Any]:
         .join(models.ProjectSession)
         .where(models.ProjectSession.project_id == project_rowid)
     )
+
+
+def _unknown_annotation_name_warning(name: str, observed_names: Sequence[str]) -> str:
+    """Warn about an unrecognized annotation name, naming its closest observed neighbors."""
+    if not observed_names:
+        return f"unknown annotation name '{name}' — this project has no session annotations"
+    closest = get_close_matches(
+        name,
+        sorted(observed_names),
+        n=_MAX_SUGGESTED_ANNOTATION_NAMES,
+        cutoff=0.0,
+    )
+    listed = ", ".join(f"'{observed}'" for observed in closest)
+    remainder = len(observed_names) - len(closest)
+    suffix = f" ({remainder} more not shown)" if remainder > 0 else ""
+    return f"unknown annotation name '{name}' — closest observed names: {listed}{suffix}"
 
 
 @strawberry.type
@@ -323,7 +380,9 @@ class Project(Node):
     ) -> bool:
         return await info.context.data_loaders.project_has_traces.load(self.id)
 
-    @strawberry.field
+    @strawberry.field(
+        description=f"Number of spans in the project. {_SESSION_FILTER_CONDITION_NOTE}"
+    )  # type: ignore
     async def record_count(
         self,
         info: Info[Context, None],
@@ -346,7 +405,9 @@ class Project(Node):
             ),
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description=f"Number of traces in the project. {_SESSION_FILTER_CONDITION_NOTE}"
+    )  # type: ignore
     async def trace_count(
         self,
         info: Info[Context, None],
@@ -402,7 +463,10 @@ class Project(Node):
             ("completion", self.id, time_range, filter_condition),
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description="Token cost totals across the project's spans. "
+        f"{_SESSION_FILTER_CONDITION_NOTE}"
+    )  # type: ignore
     async def cost_summary(
         self,
         info: Info[Context, None],
@@ -438,7 +502,10 @@ class Project(Node):
             ),
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description="Quantile (e.g. p50, p99) of trace latency in milliseconds. "
+        f"{_SESSION_FILTER_CONDITION_NOTE}"
+    )  # type: ignore
     async def latency_ms_quantile(
         self,
         info: Info[Context, None],
@@ -463,7 +530,10 @@ class Project(Node):
             ),
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description="Quantile (e.g. p50, p99) of span latency in milliseconds. "
+        f"{_SESSION_FILTER_CONDITION_NOTE}"
+    )  # type: ignore
     async def span_latency_ms_quantile(
         self,
         info: Info[Context, None],
@@ -743,27 +813,21 @@ class Project(Node):
             select(func.count(models.ProjectSession.id)),
             project_rowid=self.id,
             time_range=time_range or None,
+            session_filter_condition=session_filter_condition or None,
         )
-        if session_filter_condition:
-            filtered_session_rowids = get_filtered_session_rowids_subquery(
-                session_filter_condition=session_filter_condition,
-                project_rowids=[self.id],
-                start_time=time_range.start if time_range else None,
-                end_time=time_range.end if time_range else None,
-            )
-            stmt = stmt.where(models.ProjectSession.id.in_(filtered_session_rowids))
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
 
     @strawberry.field(
         description="Average session duration in milliseconds, i.e. the mean of "
         "end time minus start time across sessions, optionally filtered by a "
-        "time range."
+        "time range or a session filter expression (see sessionFilterVocabulary)."
     )  # type: ignore
     async def average_session_duration_ms(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> Optional[float]:
         stmt = _apply_project_session_filters(
             select(
@@ -776,19 +840,22 @@ class Project(Node):
             ),
             project_rowid=self.id,
             time_range=time_range or None,
+            session_filter_condition=session_filter_condition or None,
         )
         async with info.context.db.read() as session:
             average_duration_ms = await session.scalar(stmt)
         return None if average_duration_ms is None else float(average_duration_ms)
 
     @strawberry.field(
-        description="Average number of traces (e.g. conversation turns) per "
-        "session, optionally filtered by a time range."
+        description="Average number of traces per session, optionally filtered "
+        "by a time range or a session filter expression (see "
+        "sessionFilterVocabulary)."
     )  # type: ignore
     async def average_traces_per_session(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> Optional[float]:
         traces_per_session = _apply_project_session_filters(
             select(func.count(models.Trace.id).label("num_traces"))
@@ -800,6 +867,7 @@ class Project(Node):
             .group_by(models.ProjectSession.id),
             project_rowid=self.id,
             time_range=time_range or None,
+            session_filter_condition=session_filter_condition or None,
         ).subquery()
         stmt = select(func.avg(traces_per_session.c.num_traces))
         async with info.context.db.read() as session:
@@ -809,13 +877,15 @@ class Project(Node):
     @strawberry.field(
         description="Quantile (e.g. p50, p99) of session duration in "
         "milliseconds, i.e. end time minus start time, optionally filtered by "
-        "a time range."
+        "a time range or a session filter expression (see "
+        "sessionFilterVocabulary)."
     )  # type: ignore
     async def session_duration_ms_quantile(
         self,
         info: Info[Context, None],
         probability: float,
         time_range: Optional[TimeRange] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> Optional[float]:
         if not 0 <= probability <= 1:
             raise BadRequest("Probability must be between 0 and 1 (inclusive)")
@@ -835,6 +905,7 @@ class Project(Node):
             select(quantile),
             project_rowid=self.id,
             time_range=time_range or None,
+            session_filter_condition=session_filter_condition or None,
         )
         async with info.context.db.read() as session:
             quantile_value = await session.scalar(stmt)
@@ -1051,7 +1122,10 @@ class Project(Node):
         async with info.context.db.read() as session:
             return list(await session.scalars(stmt))
 
-    @strawberry.field
+    @strawberry.field(
+        description="Summary (score and label fractions) of a trace annotation across the "
+        f"project's traces. {_SESSION_FILTER_CONDITION_NOTE}"
+    )  # type: ignore
     async def trace_annotation_summary(
         self,
         info: Info[Context, None],
@@ -1076,7 +1150,10 @@ class Project(Node):
             ),
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description="Summary (score and label fractions) of a span annotation across the "
+        f"project's spans. {_SESSION_FILTER_CONDITION_NOTE}"
+    )  # type: ignore
     async def span_annotation_summary(
         self,
         info: Info[Context, None],
@@ -1104,16 +1181,24 @@ class Project(Node):
     @strawberry.field(
         description="Summary (score and label fractions) of a session "
         "annotation across the project's sessions, optionally filtered by a "
-        "time range."
+        "time range or a session filter expression (see sessionFilterVocabulary)."
     )  # type: ignore
     async def session_annotation_summary(
         self,
         info: Info[Context, None],
         annotation_name: str,
         time_range: Optional[TimeRange] = UNSET,
+        session_filter_condition: Optional[str] = UNSET,
     ) -> Optional[AnnotationSummary]:
         return await info.context.data_loaders.annotation_summaries.load(
-            ("session", self.id, time_range or None, None, None, annotation_name),
+            (
+                "session",
+                self.id,
+                time_range or None,
+                None,
+                session_filter_condition or None,
+                annotation_name,
+            ),
         )
 
     @strawberry.field
@@ -1210,13 +1295,18 @@ class Project(Node):
         info: Info[Context, None],
         condition: str,
     ) -> ValidationResult:
-        """Validate a session filter condition by compiling it for both SQLite and PostgreSQL."""
+        """Validate a session filter condition by compiling it for both SQLite and PostgreSQL.
+
+        Compilation goes through the same path the resolvers use, so a condition this reports
+        as valid is one they will accept.
+        """
         try:
-            session_filter = SessionFilter(condition=condition)
-            stmt = session_filter(select(models.ProjectSession))
-            str(stmt.compile(dialect=sqlite.dialect()))
-            str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
-        except Exception as e:
+            with session_filter_errors():
+                session_filter = compile_session_filter(condition)
+                stmt = session_filter(select(models.ProjectSession))
+                str(stmt.compile(dialect=sqlite.dialect()))
+                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+        except SessionFilterConditionError as e:
             return ValidationResult(is_valid=False, error_message=str(e))
         referenced_annotation_names = _referenced_subscript_names(
             condition, _ANNOTATION_SUBSCRIPT_NAMES
@@ -1224,36 +1314,59 @@ class Project(Node):
         warnings: list[str] = []
         if referenced_annotation_names:
             async with info.context.db.read() as session:
-                observed_annotation_names = set(
-                    await session.scalars(_session_annotation_names_stmt(self.id))
+                known = set(
+                    await session.scalars(
+                        _session_annotation_names_stmt(self.id).where(
+                            models.ProjectSessionAnnotation.name.in_(referenced_annotation_names)
+                        )
+                    )
                 )
-            for name in sorted(referenced_annotation_names - observed_annotation_names):
-                warnings.append(
-                    f"unknown annotation name '{name}' — "
-                    f"observed names: {sorted(observed_annotation_names)}"
+                unknown = sorted(referenced_annotation_names - known)
+                suggestions = (
+                    list(
+                        await session.scalars(
+                            _session_annotation_names_stmt(self.id).limit(
+                                _ANNOTATION_NAME_SUGGESTION_SCAN_LIMIT + 1
+                            )
+                        )
+                    )
+                    if unknown
+                    else []
                 )
+            for name in unknown:
+                warnings.append(_unknown_annotation_name_warning(name, suggestions))
         return ValidationResult(is_valid=True, error_message=None, warnings=warnings)
 
     @strawberry.field(
         description="The bindable terms of the session filter expression language for this "
         "project, for autocomplete, agent discovery, and docs. Static terms derive from the "
         "filter compiler's own bindings so they cannot drift from what compiles; observed "
-        "per-project names (session annotations, root-span attribute paths) are folded in."
+        "per-project names (session annotations, root-span attribute paths) are folded in. "
+        "Observed names come from the project's 1000 most recently started sessions, so this "
+        "is a discovery aid rather than a complete list: a name that only older sessions "
+        "carry drops out of the suggestions once 1000 newer sessions exist, and still "
+        "filters correctly when typed by hand."
     )  # type: ignore
     async def session_filter_vocabulary(
         self,
         info: Info[Context, None],
     ) -> list[FilterVocabularyTerm]:
-        annotation_names_stmt = _session_annotation_names_stmt(self.id)
         recent_session_rowids_stmt = (
             select(models.ProjectSession.id)
             .where(models.ProjectSession.project_id == self.id)
             .order_by(models.ProjectSession.start_time.desc(), models.ProjectSession.id.desc())
             .limit(_VOCABULARY_ATTRIBUTE_SCAN_LIMIT)
         )
+        root_span_attribute_paths: list[tuple[str, ...]] = []
         async with info.context.db.read() as session:
-            annotation_names = list(await session.scalars(annotation_names_stmt))
             recent_session_rowids = list(await session.scalars(recent_session_rowids_stmt))
+            annotation_names = list(
+                await session.scalars(
+                    _session_annotation_names_stmt(self.id)
+                    .where(models.ProjectSession.id.in_(recent_session_rowids))
+                    .limit(_VOCABULARY_ANNOTATION_SCAN_LIMIT)
+                )
+            )
             root_spans = earliest_root_span_by_session(
                 keys=recent_session_rowids,
                 project_rowids=[self.id],
@@ -1268,11 +1381,16 @@ class Project(Node):
                 )
                 .where(models.ProjectSession.project_id == self.id)
             )
-            root_span_attributes = list(await session.scalars(root_span_attributes_stmt))
-        root_span_attribute_paths: list[tuple[str, ...]] = []
-        for attributes in root_span_attributes:
-            if isinstance(attributes, Mapping):
+            # Stream so the row bound is also a byte bound: unusually large blobs stop the
+            # scan before it has read every one of the recent sessions' roots.
+            scanned_bytes = 0
+            async for attributes in await session.stream_scalars(root_span_attributes_stmt):
+                if not isinstance(attributes, Mapping):
+                    continue
                 root_span_attribute_paths.extend(_attribute_leaf_paths(attributes))
+                scanned_bytes += _attributes_size(attributes)
+                if scanned_bytes >= _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT:
+                    break
         return session_filter_vocabulary_terms(
             annotation_names,
             root_span_attribute_paths,

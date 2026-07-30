@@ -461,6 +461,29 @@ annotation summaries), so those numbers can be re-scoped to the filtered session
 that accepts both a span filter and a session filter rejects requests that pass the two
 together — the grains are mutually exclusive, not composable.
 
+The session-grain statistics the sessions aside renders take it too
+(`sessionAnnotationSummary`, `averageSessionDurationMs`, `averageTracesPerSession`,
+`sessionDurationMsQuantile`). They are the reason the argument reaches this far: with the
+sessions search box retired, the DSL is the only table filter, so a statistic that cannot
+follow it is a statistic that disagrees with the rows on screen. Every one of them scopes
+through the same helper as `sessionCount`, so the aside and the table always describe the
+same sessions, and the aside's session count doubles as the page's match count.
+
+**Release note.** On the seven span- and trace-grain fields that carried
+`sessionFilterCondition` before this change, the argument meant a substring of the session's
+input/output. It is now a filter expression. Plain-text inputs no longer match anything by
+substring — express them as `'text' in any_input or 'text' in any_output`.
+
+### The compile boundary
+
+Callers reach these resolvers without validating first, so every surface that compiles a
+session filter — the sessions connection, the counts, the summary fan-out, the four
+session-grain statistics, and `validateSessionFilterCondition` itself — goes through one
+compile path in `phoenix/server/session_filters.py`. Expressions the compiler cannot use
+come back as `BadRequest`; planner and database failures are not the caller's fault and stay
+server errors. Routing validation through the same path is what keeps `isValid` honest: it
+reports invalid exactly when a resolver would reject the expression.
+
 ### Validation
 
 `validateSessionFilterCondition` compiles the condition and renders the SQL under both the
@@ -476,6 +499,12 @@ invalid. A condition that compiles but references an annotation name never obser
 project comes back valid *and* warned — the filter still applies, and the warning names the
 observed alternatives. Warnings exist because dynamic names cannot be errors: the annotation
 may simply not have arrived yet.
+
+Checking a referenced name does not require enumerating the project's names: validation asks
+whether the names in the expression exist, scoped to the project, and only reaches for a
+suggestion list once it already has an unknown name to explain. That list is capped — a
+warning is read aloud in a screen-reader live region, so it names the closest few observed
+alternatives rather than every annotation on the project.
 
 ### Vocabulary
 
@@ -505,9 +534,16 @@ Two term groups are data-derived:
   (`attributes["llm.model_name"]`), however ingestion nested them, so one key never appears
   as two terms. The nested spelling remains an accepted synonym in the compiler but is not
   served. The scan is bounded because it is discovery, not correctness: an unlisted key
-  still filters fine when typed by hand.
+  still filters fine when typed by hand. A row bound alone says nothing about cost, since
+  the scan reads whole attribute blobs, so it also stops at a byte budget.
 - **Observed annotations.** Each observed annotation name is served as ready-to-use
-  `annotations["name"].score` and `.label` terms.
+  `annotations["name"].score` and `.label` terms, drawn from the same recent-session window
+  as the attributes so the vocabulary carries one contract rather than two.
+
+The consequence of that one contract is worth stating plainly, because it is what a user
+notices: a name only older sessions carry drops out of the suggestions once 1000 newer
+sessions exist. It has not stopped working — typed by hand it filters exactly as before.
+The vocabulary is a discovery aid, and completeness is not something it promises.
 
 ## The Filter Bar
 
