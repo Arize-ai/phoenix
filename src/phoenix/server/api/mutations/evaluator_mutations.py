@@ -479,12 +479,12 @@ class CreateProjectCodeEvaluatorInput:
 class UpdateProjectCodeEvaluatorInput:
     project_evaluator_id: GlobalID
     name: Identifier
-    evaluator_input_mapping: EvaluatorInputMappingInput
     sampling_rate: float
     evaluation_target: EvaluationTarget
     filter_condition: str
-    enabled: bool
-    description: Optional[str] = None
+    evaluator_input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
+    enabled: Optional[bool] = UNSET
+    description: Optional[str] = UNSET
     source_code: Optional[str] = UNSET
     sandbox_config_id: Optional[GlobalID] = UNSET
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
@@ -963,6 +963,10 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         _validate_project_evaluator_filter(input.filter_condition)
         _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        if input.evaluator_input_mapping is None:
+            raise BadRequest("evaluator_input_mapping cannot be set to null")
+        if input.enabled is None:
+            raise BadRequest("enabled cannot be set to null")
         if input.source_code is not UNSET and input.source_code is None:
             raise BadRequest("source_code cannot be set to null")
         if input.output_configs is None:
@@ -996,27 +1000,41 @@ class EvaluatorMutationMixin:
                         f"CODE project evaluator not found: {input.project_evaluator_id}"
                     )
                 criteria, evaluator = pair
+                shared_evaluator_changed = False
                 if criteria.name != name:
                     evaluator.name = await _generate_unique_evaluator_name(session, name)
-                evaluator.description = input.description
-                evaluator.user_id = user_id
-                evaluator.input_mapping = input.evaluator_input_mapping.to_orm()
+                    shared_evaluator_changed = True
+                if input.description is not UNSET and evaluator.description != input.description:
+                    evaluator.description = input.description
+                    shared_evaluator_changed = True
+                if input.evaluator_input_mapping is not UNSET:
+                    assert input.evaluator_input_mapping is not None
+                    evaluator_input_mapping = input.evaluator_input_mapping.to_orm()
+                    if evaluator.input_mapping != evaluator_input_mapping:
+                        evaluator.input_mapping = evaluator_input_mapping
+                        shared_evaluator_changed = True
 
                 if input.sandbox_config_id is not UNSET:
                     if input.sandbox_config_id is None:
-                        evaluator.sandbox_config_id = None
+                        sandbox_config_id = None
                     else:
-                        evaluator.sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+                        sandbox_config_id = await _validate_code_evaluator_sandbox_config(
                             session,
                             sandbox_config_global_id=input.sandbox_config_id,
                             language=evaluator.language,
                             action="updating this evaluator",
                         )
+                    if evaluator.sandbox_config_id != sandbox_config_id:
+                        evaluator.sandbox_config_id = sandbox_config_id
+                        shared_evaluator_changed = True
                 if input.output_configs is not UNSET:
-                    evaluator.output_configs = cast(
+                    output_configs = cast(
                         list[AnnotationConfigType],
                         _convert_output_config_inputs_to_pydantic(input.output_configs),
                     )
+                    if evaluator.output_configs != output_configs:
+                        evaluator.output_configs = output_configs
+                        shared_evaluator_changed = True
                 if input.source_code is not UNSET and input.source_code is not None:
                     _raise_on_uninferable_evaluate_signature(
                         input.source_code, Language(evaluator.language)
@@ -1038,6 +1056,10 @@ class EvaluatorMutationMixin:
                         candidate
                     ):
                         session.add(candidate)
+                        shared_evaluator_changed = True
+
+                if shared_evaluator_changed:
+                    evaluator.user_id = user_id
 
                 criteria.name = name
                 criteria.filter_condition = input.filter_condition
@@ -1047,7 +1069,9 @@ class EvaluatorMutationMixin:
                     criteria.input_mapping = (
                         input.input_mapping.to_orm() if input.input_mapping is not None else None
                     )
-                criteria.enabled = input.enabled
+                if input.enabled is not UNSET:
+                    assert input.enabled is not None
+                    criteria.enabled = input.enabled
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")

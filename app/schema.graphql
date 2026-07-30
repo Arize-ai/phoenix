@@ -4815,12 +4815,12 @@ type UpdateModelMutationPayload {
 input UpdateProjectCodeEvaluatorInput {
   projectEvaluatorId: ID!
   name: Identifier!
-  evaluatorInputMapping: EvaluatorInputMappingInput!
   samplingRate: Float!
   evaluationTarget: EvaluationTarget!
   filterCondition: String!
-  enabled: Boolean!
-  description: String = null
+  evaluatorInputMapping: EvaluatorInputMappingInput
+  enabled: Boolean
+  description: String
   sourceCode: String
   sandboxConfigId: ID
   outputConfigs: [AnnotationConfigInput!]
