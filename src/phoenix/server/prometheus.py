@@ -180,15 +180,15 @@ ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
     documentation="Span ingest rate derived from successive online-eval cursor "
     "high-water observations",
 )
-ONLINE_EVAL_SESSION_ACTIVITY_BACKLOG = Gauge(
+ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG = Gauge(
     namespace="phoenix",
-    name="online_eval_session_activity_backlog",
-    documentation="Current number of session activity rows awaiting a sweep",
+    name="online_eval_session_eligible_pair_backlog",
+    documentation="Current number of session and evaluator pairs eligible for work",
 )
-ONLINE_EVAL_SESSION_ACTIVITY_OLDEST_AGE_SECONDS = Gauge(
+ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS = Gauge(
     namespace="phoenix",
-    name="online_eval_session_activity_oldest_age_seconds",
-    documentation="Age in seconds of the oldest session activity row (0 when empty)",
+    name="online_eval_session_result_watermark_lag_seconds",
+    documentation="Largest gap between session activity and a successful result watermark",
 )
 ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS = Counter(
     namespace="phoenix",
