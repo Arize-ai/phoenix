@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8c42952be4aec591095278d723b82e4c>>
+ * @generated SignedSource<<dfcd972ad2148fb895d3ed19c8d09ce7>>
  * @lightSyntaxTransform
  */
 
@@ -34,19 +34,26 @@ var v0 = [
     "name": "first"
   }
 ],
-v1 = [
+v1 = {
+  "kind": "Variable",
+  "name": "after",
+  "variableName": "after"
+},
+v2 = {
+  "kind": "Variable",
+  "name": "first",
+  "variableName": "first"
+},
+v3 = [
+  (v1/*:: as any*/),
+  (v2/*:: as any*/),
   {
-    "kind": "Variable",
-    "name": "after",
-    "variableName": "after"
-  },
-  {
-    "kind": "Variable",
-    "name": "first",
-    "variableName": "first"
+    "kind": "Literal",
+    "name": "viewerOnly",
+    "value": false
   }
 ],
-v2 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -61,7 +68,10 @@ return {
     "name": "SettingsAgentSessionsCardPaginationQuery",
     "selections": [
       {
-        "args": (v1/*:: as any*/),
+        "args": [
+          (v1/*:: as any*/),
+          (v2/*:: as any*/)
+        ],
         "kind": "FragmentSpread",
         "name": "SettingsAgentSessionsCard_sessions"
       }
@@ -77,7 +87,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": "AgentSessionConnection",
         "kind": "LinkedField",
         "name": "agentSessions",
@@ -99,7 +109,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*:: as any*/),
+                  (v4/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -129,7 +139,7 @@ return {
                         "name": "profilePictureUrl",
                         "storageKey": null
                       },
-                      (v2/*:: as any*/)
+                      (v4/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -204,8 +214,8 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
-        "filters": null,
+        "args": (v3/*:: as any*/),
+        "filters": [],
         "handle": "connection",
         "key": "SettingsAgentSessionsCard_agentSessions",
         "kind": "LinkedHandle",
@@ -214,16 +224,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "af1106886dbee3356aa03310f2b0fdfa",
+    "cacheID": "fe0158fc790fda0cfba9cf7d113029e0",
     "id": null,
     "metadata": {},
     "name": "SettingsAgentSessionsCardPaginationQuery",
     "operationKind": "query",
-    "text": "query SettingsAgentSessionsCardPaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...SettingsAgentSessionsCard_sessions_2HEEH6\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SettingsAgentSessionsCardPaginationQuery(\n  $after: String = null\n  $first: Int = 20\n) {\n  ...SettingsAgentSessionsCard_sessions_2HEEH6\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_2HEEH6 on Query {\n  agentSessions(first: $first, after: $after, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ff5bc8370f3a4c07eb982c7b4d84f9e4";
+(node as any).hash = "70dfcc80abc2e6a267ffbfe41bc13c37";
 
 export default node;

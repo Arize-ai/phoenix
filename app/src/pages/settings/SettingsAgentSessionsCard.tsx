@@ -76,8 +76,11 @@ export function SettingsAgentSessionsCard({
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 20 }
       ) {
-        agentSessions(first: $first, after: $after)
-          @connection(key: "SettingsAgentSessionsCard_agentSessions") {
+        agentSessions(first: $first, after: $after, viewerOnly: false)
+          @connection(
+            key: "SettingsAgentSessionsCard_agentSessions"
+            filters: []
+          ) {
           edges {
             node {
               id

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<155fc9cff0762456a98a176540550d86>>
+ * @generated SignedSource<<a5c5ad4252569a83583adbdc9f42049b>>
  * @lightSyntaxTransform
  */
 
@@ -46,13 +46,11 @@ v1 = [
     "variableName": "input"
   }
 ],
-v2 = [
-  {
-    "kind": "Literal",
-    "name": "first",
-    "value": 20
-  }
-],
+v2 = {
+  "kind": "Literal",
+  "name": "first",
+  "value": 20
+},
 v3 = {
   "alias": null,
   "args": null,
@@ -66,7 +64,15 @@ v4 = {
   "kind": "ScalarField",
   "name": "title",
   "storageKey": null
-};
+},
+v5 = [
+  (v2/*:: as any*/),
+  {
+    "kind": "Literal",
+    "name": "viewerOnly",
+    "value": false
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -107,7 +113,9 @@ return {
             "plural": false,
             "selections": [
               {
-                "args": (v2/*:: as any*/),
+                "args": [
+                  (v2/*:: as any*/)
+                ],
                 "kind": "FragmentSpread",
                 "name": "SettingsAgentSessionsCard_sessions"
               }
@@ -158,7 +166,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*:: as any*/),
+                "args": (v5/*:: as any*/),
                 "concreteType": "AgentSessionConnection",
                 "kind": "LinkedField",
                 "name": "agentSessions",
@@ -275,12 +283,12 @@ return {
                     "storageKey": null
                   }
                 ],
-                "storageKey": "agentSessions(first:20)"
+                "storageKey": "agentSessions(first:20,viewerOnly:false)"
               },
               {
                 "alias": null,
-                "args": (v2/*:: as any*/),
-                "filters": null,
+                "args": (v5/*:: as any*/),
+                "filters": [],
                 "handle": "connection",
                 "key": "SettingsAgentSessionsCard_agentSessions",
                 "kind": "LinkedHandle",
@@ -295,12 +303,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2e0a472152d193c1fb6156a687888cc9",
+    "cacheID": "72442aa6f2edb2fca4b151eaf5b5d915",
     "id": null,
     "metadata": {},
     "name": "EditAgentSessionTitleDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation EditAgentSessionTitleDialogMutation(\n  $input: UpdateAgentSessionTitleInput!\n) {\n  updateAgentSessionTitle(input: $input) {\n    agentSession {\n      ...EditAgentSessionTitleDialog_session\n      id\n    }\n    query {\n      ...SettingsAgentSessionsCard_sessions_3dfUwN\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3dfUwN on Query {\n  agentSessions(first: 20) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation EditAgentSessionTitleDialogMutation(\n  $input: UpdateAgentSessionTitleInput!\n) {\n  updateAgentSessionTitle(input: $input) {\n    agentSession {\n      ...EditAgentSessionTitleDialog_session\n      id\n    }\n    query {\n      ...SettingsAgentSessionsCard_sessions_3dfUwN\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3dfUwN on Query {\n  agentSessions(first: 20, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
