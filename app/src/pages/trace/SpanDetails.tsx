@@ -10,11 +10,15 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
 import {
-  Button,
   Counter,
   ErrorBoundary,
   Flex,
+  Icon,
+  IconButton,
+  Icons,
   Loading,
+  Tooltip,
+  TooltipTrigger,
 } from "@phoenix/components";
 import {
   SpanDetailPanelAnnotationBar,
@@ -150,10 +154,15 @@ const spanDetailsSectionsCSS = css`
     flex-direction: column;
     min-height: 100%;
   }
+`;
 
-  [data-span-details-notes] {
-    margin-top: auto;
-  }
+const spanDetailsNotesBarCSS = css`
+  position: sticky;
+  bottom: 0;
+  z-index: var(--global-z-index-local-raised);
+  flex: none;
+  margin-top: auto;
+  background: var(--global-background-color-default);
 `;
 
 export function SpanDetails({
@@ -301,6 +310,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const notesHeadingRef = useRef<HTMLDivElement>(null);
   const spanDetailsSectionsDimensions = useDimensions(spanDetailsSectionsRef);
   const spanDetailsMainDimensions = useDimensions(spanDetailsMainRef);
+  const notesHeadingDimensions = useDimensions(notesHeadingRef);
   const scrollAnimationRef = useRef<ReturnType<typeof animate> | null>(null);
   const sectionFeedbackAnimationRef = useRef<ReturnType<typeof animate> | null>(
     null
@@ -382,12 +392,15 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     (event) => event.name === "exception"
   ).length;
   const nonExceptionEventCount = span.events.length - exceptionEventCount;
+  const hasEvents = span.events.length > 0;
+  const hasNotes = span.spanNotes.length > 0;
   const isNotesPushedBelowViewport =
     spanDetailsSectionsDimensions != null &&
     spanDetailsMainDimensions != null &&
-    spanDetailsMainDimensions.height > spanDetailsSectionsDimensions.height;
-  const shouldRenderNotesContent =
-    span.spanNotes.length > 0 || isNotesPushedBelowViewport;
+    notesHeadingDimensions != null &&
+    spanDetailsMainDimensions.height + notesHeadingDimensions.height >
+      spanDetailsSectionsDimensions.height;
+  const shouldRenderNotesContent = hasNotes || isNotesPushedBelowViewport;
   const spanInfoSectionIds: SpanInfoSectionIds = {
     input: `span-details-${span.spanId}-input`,
     output: `span-details-${span.spanId}-output`,
@@ -558,22 +571,24 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             sectionId={spanDetailsSectionIds.attributes}
             onClick={handleSectionLinkClick}
           />
-          <SpanDetailSectionLink
-            label="Events"
-            sectionId={spanDetailsSectionIds.events}
-            onClick={handleSectionLinkClick}
-          >
-            <SpanEventCounters
-              exceptionEventCount={exceptionEventCount}
-              nonExceptionEventCount={nonExceptionEventCount}
-            />
-          </SpanDetailSectionLink>
+          {hasEvents ? (
+            <SpanDetailSectionLink
+              label="Events"
+              sectionId={spanDetailsSectionIds.events}
+              onClick={handleSectionLinkClick}
+            >
+              <SpanEventCounters
+                exceptionEventCount={exceptionEventCount}
+                nonExceptionEventCount={nonExceptionEventCount}
+              />
+            </SpanDetailSectionLink>
+          ) : null}
           <SpanDetailSectionLink
             label="Notes"
             sectionId={spanDetailsSectionIds.notes}
             onClick={handleSectionLinkClick}
           >
-            <Counter>{span.spanNotes.length}</Counter>
+            {hasNotes ? <Counter>{span.spanNotes.length}</Counter> : null}
           </SpanDetailSectionLink>
         </ul>
         <SpanInfoCardsToggle />
@@ -609,29 +624,60 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
                 />
               </DeferredSpanDetailsContent>
             </section>
-            <section id={spanDetailsSectionIds.events} aria-label="Events">
-              <SpanDetailsSectionHeading>
-                <Flex
-                  elementType="span"
-                  direction="row"
-                  gap="size-100"
-                  alignItems="center"
+            {hasEvents ? (
+              <section id={spanDetailsSectionIds.events} aria-label="Events">
+                <SpanDetailsSectionHeading>
+                  <Flex
+                    elementType="span"
+                    direction="row"
+                    gap="size-100"
+                    alignItems="center"
+                  >
+                    Events
+                    <SpanEventCounters
+                      exceptionEventCount={exceptionEventCount}
+                      nonExceptionEventCount={nonExceptionEventCount}
+                    />
+                  </Flex>
+                </SpanDetailsSectionHeading>
+                <DeferredSpanDetailsContent
+                  placeholderHeight={EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
                 >
-                  Events
-                  <SpanEventCounters
-                    exceptionEventCount={exceptionEventCount}
-                    nonExceptionEventCount={nonExceptionEventCount}
-                  />
-                </Flex>
-              </SpanDetailsSectionHeading>
-              <DeferredSpanDetailsContent
-                placeholderHeight={EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS}
+                  <Suspense fallback={<Loading />}>
+                    <SpanEventsList spanId={span.id} />
+                  </Suspense>
+                </DeferredSpanDetailsContent>
+              </section>
+            ) : null}
+          </div>
+          <div data-span-details-notes-bar css={spanDetailsNotesBarCSS}>
+            <SpanDetailsSectionHeading
+              ref={notesHeadingRef}
+              extra={
+                openSpanNoteBar ? (
+                  <TooltipTrigger>
+                    <IconButton
+                      size="S"
+                      aria-label="Take notes"
+                      onPress={openSpanNoteBar}
+                    >
+                      <Icon svg={<Icons.NotebookPen />} />
+                    </IconButton>
+                    <Tooltip offset={-5}>Take notes</Tooltip>
+                  </TooltipTrigger>
+                ) : null
+              }
+            >
+              <Flex
+                elementType="span"
+                direction="row"
+                gap="size-100"
+                alignItems="center"
               >
-                <Suspense fallback={<Loading />}>
-                  <SpanEventsList spanId={span.id} />
-                </Suspense>
-              </DeferredSpanDetailsContent>
-            </section>
+                Notes
+                {hasNotes ? <Counter>{span.spanNotes.length}</Counter> : null}
+              </Flex>
+            </SpanDetailsSectionHeading>
           </div>
           <section
             id={spanDetailsSectionIds.notes}
@@ -649,28 +695,6 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
             ) : null}
           </section>
         </div>
-      </div>
-      <div data-span-details-notes-bar>
-        <SpanDetailsSectionHeading
-          ref={notesHeadingRef}
-          extra={
-            openSpanNoteBar ? (
-              <Button size="S" variant="quiet" onPress={openSpanNoteBar}>
-                Take notes
-              </Button>
-            ) : null
-          }
-        >
-          <Flex
-            elementType="span"
-            direction="row"
-            gap="size-100"
-            alignItems="center"
-          >
-            Notes
-            <Counter>{span.spanNotes.length}</Counter>
-          </Flex>
-        </SpanDetailsSectionHeading>
       </div>
     </Flex>
   );

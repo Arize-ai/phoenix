@@ -18,6 +18,7 @@ const spanDetailsContentTestState = vi.hoisted(() => ({
     name: string;
     timestamp: string;
   }[],
+  spanNotes: [] as { id: string }[],
   shouldSuspend: true,
 }));
 const motionMocks = vi.hoisted(() => ({
@@ -45,7 +46,7 @@ vi.mock("react-relay", () => ({
           output: { value: "output", mimeType: "text" },
           attributes: "{}",
           events: spanDetailsContentTestState.events,
-          spanNotes: [],
+          spanNotes: spanDetailsContentTestState.spanNotes,
           documentRetrievalMetrics: [],
           documentEvaluations: [],
         },
@@ -129,6 +130,7 @@ vi.mock("../SpanDetailsHeaderActions", () => ({
 
 import { SpanDetails } from "../SpanDetails";
 import { SpanInfoCardsProvider } from "../SpanInfoCardsContext";
+import { SpanNoteBarProvider } from "../SpanNoteBarContext";
 
 function TestProviders({ children }: { children: ReactNode }) {
   return (
@@ -136,7 +138,9 @@ function TestProviders({ children }: { children: ReactNode }) {
       <ThemeProvider>
         <PreferencesProvider>
           <SpanInfoCardsProvider>
-            <Suspense fallback={null}>{children}</Suspense>
+            <SpanNoteBarProvider isHotkeyEnabled={false}>
+              <Suspense fallback={null}>{children}</Suspense>
+            </SpanNoteBarProvider>
           </SpanInfoCardsProvider>
         </PreferencesProvider>
       </ThemeProvider>
@@ -152,6 +156,7 @@ describe("SpanDetails headers", () => {
 
   beforeEach(() => {
     spanDetailsContentTestState.events = [];
+    spanDetailsContentTestState.spanNotes = [];
     spanDetailsContentTestState.shouldSuspend = true;
     motionMocks.animate.mockClear();
     motionMocks.useReducedMotion.mockClear();
@@ -287,7 +292,72 @@ describe("SpanDetails headers", () => {
     }
   });
 
-  it("keeps the notes bar outside the scrolling sections", () => {
+  it("omits the events navigation and section when there are no events", () => {
+    spanDetailsContentTestState.shouldSuspend = false;
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    expect(
+      container.querySelector('a[href="#span-details-span-display-id-events"]')
+    ).toBeNull();
+    expect(
+      container.querySelector("#span-details-span-display-id-events")
+    ).toBeNull();
+  });
+
+  it("omits notes counters when there are no notes", () => {
+    spanDetailsContentTestState.shouldSuspend = false;
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    const notesLink = container.querySelector(
+      'a[href="#span-details-span-display-id-notes"]'
+    );
+    const notesBar = container.querySelector("[data-span-details-notes-bar]");
+
+    expect(notesLink?.textContent).toBe("Notes");
+    expect(notesLink?.querySelector(".counter")).toBeNull();
+    expect(notesBar?.textContent).toContain("Notes");
+    expect(notesBar?.querySelector(".counter")).toBeNull();
+    expect(
+      notesBar?.querySelector('button[aria-label="Take notes"] .icon-wrap')
+    ).not.toBeNull();
+  });
+
+  it("shows notes counters when there are notes", () => {
+    spanDetailsContentTestState.spanNotes = [{ id: "note-id" }];
+    spanDetailsContentTestState.shouldSuspend = false;
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    const notesLink = container.querySelector(
+      'a[href="#span-details-span-display-id-notes"]'
+    );
+    const notesBar = container.querySelector("[data-span-details-notes-bar]");
+
+    expect(notesLink?.querySelector(".counter")?.textContent).toBe("1");
+    expect(notesBar?.querySelector(".counter")?.textContent).toBe("1");
+  });
+
+  it("keeps the notes bar sticky until its place above the notes content", () => {
     spanDetailsContentTestState.shouldSuspend = false;
 
     act(() => {
@@ -303,12 +373,18 @@ describe("SpanDetails headers", () => {
     );
     const sectionsViewport = sectionsContent?.parentElement;
     const notesSection = container.querySelector("[data-span-details-notes]");
-    const notesBar = container.querySelector("[data-span-details-notes-bar]");
+    const notesBar = container.querySelector<HTMLElement>(
+      "[data-span-details-notes-bar]"
+    );
 
     expect(sectionsViewport).not.toBeNull();
     expect(sectionsViewport?.contains(notesSection)).toBe(true);
-    expect(sectionsViewport?.contains(notesBar)).toBe(false);
-    expect(sectionsViewport?.nextElementSibling).toBe(notesBar);
+    expect(sectionsContent?.contains(notesBar)).toBe(true);
+    expect(notesBar?.nextElementSibling).toBe(notesSection);
+    expect(getComputedStyle(notesBar!).position).toBe("sticky");
+    expect(getComputedStyle(notesBar!).bottom).toBe("0px");
+    expect(getComputedStyle(notesBar!).flexShrink).toBe("0");
+    expect(getComputedStyle(notesBar!).marginTop).toBe("auto");
     expect(notesBar?.textContent).toContain("Notes");
   });
 });
