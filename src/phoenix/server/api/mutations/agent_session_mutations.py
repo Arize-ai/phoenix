@@ -166,7 +166,7 @@ class AgentSessionMutationMixin:
             target = (
                 await session.execute(
                     select(
-                        models.AgentSessionMessage.position,
+                        models.AgentSessionMessage.id,
                         models.AgentSessionMessage.message["role"].as_string(),
                     ).where(
                         models.AgentSessionMessage.agent_session_id == agent_session.id,
@@ -176,16 +176,16 @@ class AgentSessionMutationMixin:
             ).one_or_none()
             if target is None:
                 raise NotFound(f"No message found for ID '{input.message_id}'")
-            target_position, target_role = target
+            target_rowid, target_role = target
             # A user target is removed along with everything after it; an
             # assistant target is kept, so deletion starts just after it.
-            delete_from_position = target_position
+            delete_from_rowid = target_rowid
             if target_role == "assistant":
-                delete_from_position += 1
+                delete_from_rowid += 1
             await session.execute(
                 delete(models.AgentSessionMessage).where(
                     models.AgentSessionMessage.agent_session_id == agent_session.id,
-                    models.AgentSessionMessage.position >= delete_from_position,
+                    models.AgentSessionMessage.id >= delete_from_rowid,
                 )
             )
             agent_session.updated_at = func.now()
@@ -244,10 +244,9 @@ class AgentSessionMutationMixin:
             regenerated_message_rows = [
                 models.AgentSessionMessage(
                     agent_session_id=branch_session.id,
-                    position=position,
                     message=message,
                 )
-                for position, message in enumerate(regenerated_messages)
+                for message in regenerated_messages
             ]
             session.add_all(regenerated_message_rows)
         return BranchAgentSessionMutationPayload(
@@ -354,8 +353,8 @@ async def _load_session_message_prefix(
     message_id: str,
 ) -> list[PhoenixUIMessage]:
     target_message = aliased(models.AgentSessionMessage)
-    target_position = (
-        select(target_message.position)
+    target_rowid = (
+        select(target_message.id)
         .where(
             target_message.agent_session_id == agent_session_rowid,
             target_message.message_id == message_id,
@@ -367,8 +366,8 @@ async def _load_session_message_prefix(
             select(models.AgentSessionMessage.message)
             .where(
                 models.AgentSessionMessage.agent_session_id == agent_session_rowid,
-                models.AgentSessionMessage.position <= target_position,
+                models.AgentSessionMessage.id <= target_rowid,
             )
-            .order_by(models.AgentSessionMessage.position)
+            .order_by(models.AgentSessionMessage.id)
         )
     )

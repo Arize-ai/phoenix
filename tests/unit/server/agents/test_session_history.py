@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+from sqlalchemy import select
+
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TextUIPart, UserMessageMetadata
 from phoenix.server.api.routers.agents import (
@@ -7,6 +9,7 @@ from phoenix.server.api.routers.agents import (
     _load_agent_session_history,
 )
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _message_uuid
 
 
 def _message(*, message_id: str, role: str, text: str) -> PhoenixUIMessage:
@@ -21,7 +24,7 @@ def _message(*, message_id: str, role: str, text: str) -> PhoenixUIMessage:
 
 def test_build_compaction_message_creates_a_marked_user_message() -> None:
     message = _build_compaction_message(
-        message_id="compaction-1",
+        message_id=_message_uuid("compaction-1"),
         summary='{"objectives":["continue"]}',
     )
 
@@ -37,8 +40,8 @@ async def test_load_agent_session_history_returns_the_full_uncompacted_transcrip
     db: DbSessionFactory,
 ) -> None:
     messages = [
-        _message(message_id="user-1", role="user", text="question"),
-        _message(message_id="assistant-1", role="assistant", text="answer"),
+        _message(message_id=_message_uuid("user-1"), role="user", text="question"),
+        _message(message_id=_message_uuid("assistant-1"), role="assistant", text="answer"),
     ]
     async with db() as session:
         agent_session = models.AgentSession(
@@ -52,10 +55,9 @@ async def test_load_agent_session_history_returns_the_full_uncompacted_transcrip
         session.add_all(
             models.AgentSessionMessage(
                 agent_session_id=agent_session.id,
-                position=position,
                 message=message,
             )
-            for position, message in enumerate(messages)
+            for message in messages
         )
         agent_session_rowid = agent_session.id
 
@@ -73,14 +75,18 @@ async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
     db: DbSessionFactory,
 ) -> None:
     messages = [
-        _message(message_id="user-1", role="user", text="old question"),
-        _message(message_id="assistant-1", role="assistant", text="old answer"),
-        _build_compaction_message(message_id="compaction-1", summary="first summary"),
-        _message(message_id="user-2", role="user", text="newer question"),
-        _message(message_id="assistant-2", role="assistant", text="newer answer"),
-        _build_compaction_message(message_id="compaction-2", summary="second summary"),
-        _message(message_id="user-3", role="user", text="retained question"),
-        _message(message_id="assistant-3", role="assistant", text="retained answer"),
+        _message(message_id=_message_uuid("user-1"), role="user", text="old question"),
+        _message(message_id=_message_uuid("assistant-1"), role="assistant", text="old answer"),
+        _build_compaction_message(
+            message_id=_message_uuid("compaction-1"), summary="first summary"
+        ),
+        _message(message_id=_message_uuid("user-2"), role="user", text="newer question"),
+        _message(message_id=_message_uuid("assistant-2"), role="assistant", text="newer answer"),
+        _build_compaction_message(
+            message_id=_message_uuid("compaction-2"), summary="second summary"
+        ),
+        _message(message_id=_message_uuid("user-3"), role="user", text="retained question"),
+        _message(message_id=_message_uuid("assistant-3"), role="assistant", text="retained answer"),
     ]
     async with db() as session:
         agent_session = models.AgentSession(
@@ -94,10 +100,9 @@ async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
         message_rows = [
             models.AgentSessionMessage(
                 agent_session_id=agent_session.id,
-                position=position,
                 message=message,
             )
-            for position, message in enumerate(messages)
+            for message in messages
         ]
         session.add_all(message_rows)
         agent_session_rowid = agent_session.id
@@ -109,9 +114,37 @@ async def test_load_agent_session_history_starts_at_the_latest_compaction_point(
         )
 
     assert [row.message.id for row in history] == [
-        "compaction-2",
-        "user-3",
-        "assistant-3",
+        _message_uuid("compaction-2"),
+        _message_uuid("user-3"),
+        _message_uuid("assistant-3"),
     ]
     assert history[0].is_compaction_point
-    assert history[0].message.id == "compaction-2"
+    assert history[0].message.id == _message_uuid("compaction-2")
+
+
+async def test_uppercase_and_lowercase_uuids_are_both_accepted(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        agent_session = models.AgentSession(
+            project_session_id=str(uuid4()),
+            user_id=None,
+            title="Session",
+            project_name="assistant_agent",
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_rowid = agent_session.id
+        lowercase_id = str(uuid4())
+        uppercase_id = str(uuid4()).upper()
+        session.add_all(
+            models.AgentSessionMessage(
+                agent_session_id=agent_session_rowid,
+                message=_message(message_id=message_id, role="user", text="accepted"),
+            )
+            for message_id in (lowercase_id, uppercase_id)
+        )
+
+    async with db() as session:
+        stored = list(await session.scalars(select(models.AgentSessionMessage.message_id)))
+    assert stored == [lowercase_id, uppercase_id]

@@ -21,6 +21,7 @@ from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
+from tests.unit._helpers import _message_uuid
 
 _LEGACY_BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.legacy_agents.build_model"
 _BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
@@ -28,7 +29,10 @@ _BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
 _CLIENT_MINTED_SESSION_ID = "12345678-1234-4123-8123-123456789012"
 
 
-def _user_message(text: str, *, message_id: str = "msg-user-1") -> dict[str, Any]:
+_DEFAULT_USER_MESSAGE_ID = _message_uuid("msg-user-1")
+
+
+def _user_message(text: str, *, message_id: str = _DEFAULT_USER_MESSAGE_ID) -> dict[str, Any]:
     return {
         "id": message_id,
         "role": "user",
@@ -131,7 +135,7 @@ async def test_legacy_chat_route_accepts_a_multi_turn_transcript(
     transcript = [
         _user_message("first question"),
         {
-            "id": "assistant-1",
+            "id": _message_uuid("assistant-1"),
             "role": "assistant",
             "parts": [{"type": "text", "text": "first answer"}],
             "metadata": {
@@ -139,7 +143,7 @@ async def test_legacy_chat_route_accepts_a_multi_turn_transcript(
                 "usage": {"tokens": {"prompt": 1, "completion": 2, "total": 3}},
             },
         },
-        _user_message("second question", message_id="msg-user-2"),
+        _user_message("second question", message_id=_message_uuid("msg-user-2")),
     ]
 
     response = await httpx_client.post(

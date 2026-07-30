@@ -18,6 +18,7 @@ from phoenix.server.api.routers.agents import (
 )
 from phoenix.server.settings.registry import AgentAssistantEnabledSetting
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _message_uuid
 from tests.unit.graphql import AsyncGraphQLClient
 
 _CREATE_MUTATION = """
@@ -118,22 +119,22 @@ def _transcript_messages() -> list[PhoenixUIMessage]:
     """A two-turn transcript."""
     return [
         PhoenixUIMessage(
-            id="user-1",
+            id=_message_uuid("user-1"),
             role="user",
             parts=[TextUIPart(text="How do I trace OpenAI?")],
         ),
         PhoenixUIMessage(
-            id="assistant-1",
+            id=_message_uuid("assistant-1"),
             role="assistant",
             parts=[TextUIPart(text="Use register().")],
         ),
         PhoenixUIMessage(
-            id="user-2",
+            id=_message_uuid("user-2"),
             role="user",
             parts=[TextUIPart(text="Show "), TextUIPart(text="an example")],
         ),
         PhoenixUIMessage(
-            id="assistant-2",
+            id=_message_uuid("assistant-2"),
             role="assistant",
             parts=[TextUIPart(text="Here is an example.")],
         ),
@@ -159,10 +160,9 @@ async def _seed_session_with_transcript(
         session.add_all(
             models.AgentSessionMessage(
                 agent_session_id=agent_session.id,
-                position=position,
                 message=message,
             )
-            for position, message in enumerate(_transcript_messages())
+            for message in _transcript_messages()
         )
         return str(GlobalID("AgentSession", str(agent_session.id)))
 
@@ -176,31 +176,37 @@ async def test_truncate_agent_session_at_a_user_message_removes_it_and_later_tur
         retained_message_rowids = list(
             await session.scalars(
                 select(models.AgentSessionMessage.id)
-                .where(models.AgentSessionMessage.position < 2)
-                .order_by(models.AgentSessionMessage.position)
+                .order_by(models.AgentSessionMessage.id)
+                .limit(2)
             )
         )
 
     response = await gql_client.execute(
         query=_TRUNCATE_MUTATION,
-        variables={"id": agent_session_id, "messageId": "user-2"},
+        variables={"id": agent_session_id, "messageId": _message_uuid("user-2")},
     )
     assert not response.errors
     assert response.data is not None
     payload = response.data["truncateAgentSession"]
     # The user target and everything after it are removed.
     assert [message["id"] for message in payload["agentSession"]["messages"]] == [
-        "user-1",
-        "assistant-1",
+        _message_uuid("user-1"),
+        _message_uuid("assistant-1"),
     ]
     async with db() as session:
         stored_message_rows = (
             await session.scalars(
-                select(models.AgentSessionMessage).order_by(models.AgentSessionMessage.position)
+                select(models.AgentSessionMessage).order_by(models.AgentSessionMessage.id)
             )
         ).all()
-    assert [row.message.id for row in stored_message_rows] == ["user-1", "assistant-1"]
-    assert [row.message_id for row in stored_message_rows] == ["user-1", "assistant-1"]
+    assert [row.message.id for row in stored_message_rows] == [
+        _message_uuid("user-1"),
+        _message_uuid("assistant-1"),
+    ]
+    assert [row.message_id for row in stored_message_rows] == [
+        _message_uuid("user-1"),
+        _message_uuid("assistant-1"),
+    ]
     assert [row.id for row in stored_message_rows] == retained_message_rowids
 
 
@@ -212,22 +218,22 @@ async def test_truncate_agent_session_at_an_assistant_message_retains_it(
 
     response = await gql_client.execute(
         query=_TRUNCATE_MUTATION,
-        variables={"id": agent_session_id, "messageId": "assistant-2"},
+        variables={"id": agent_session_id, "messageId": _message_uuid("assistant-2")},
     )
     assert not response.errors
     assert response.data is not None
     payload = response.data["truncateAgentSession"]
     messages = payload["agentSession"]["messages"]
     assert [message["id"] for message in messages] == [
-        "user-1",
-        "assistant-1",
-        "user-2",
-        "assistant-2",
+        _message_uuid("user-1"),
+        _message_uuid("assistant-1"),
+        _message_uuid("user-2"),
+        _message_uuid("assistant-2"),
     ]
     async with db() as session:
         stored_message = await session.scalar(
             select(models.AgentSessionMessage).where(
-                models.AgentSessionMessage.message_id == "assistant-2"
+                models.AgentSessionMessage.message_id == _message_uuid("assistant-2")
             )
         )
         assert stored_message is not None
@@ -243,25 +249,29 @@ async def test_truncate_agent_session_restores_the_latest_surviving_compaction_p
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert agent_session_rowid is not None
         additional_messages = [
-            _build_compaction_message(message_id="compaction-1", summary="first summary"),
+            _build_compaction_message(
+                message_id=_message_uuid("compaction-1"), summary="first summary"
+            ),
             PhoenixUIMessage(
-                id="user-3",
+                id=_message_uuid("user-3"),
                 role="user",
                 parts=[TextUIPart(text="Continue")],
             ),
             PhoenixUIMessage(
-                id="assistant-3",
+                id=_message_uuid("assistant-3"),
                 role="assistant",
                 parts=[TextUIPart(text="Continued")],
             ),
-            _build_compaction_message(message_id="compaction-2", summary="second summary"),
+            _build_compaction_message(
+                message_id=_message_uuid("compaction-2"), summary="second summary"
+            ),
             PhoenixUIMessage(
-                id="user-4",
+                id=_message_uuid("user-4"),
                 role="user",
                 parts=[TextUIPart(text="Continue again")],
             ),
             PhoenixUIMessage(
-                id="assistant-4",
+                id=_message_uuid("assistant-4"),
                 role="assistant",
                 parts=[TextUIPart(text="Continued again")],
             ),
@@ -269,22 +279,21 @@ async def test_truncate_agent_session_restores_the_latest_surviving_compaction_p
         additional_rows = [
             models.AgentSessionMessage(
                 agent_session_id=agent_session_rowid,
-                position=position,
                 message=message,
             )
-            for position, message in enumerate(additional_messages, start=4)
+            for message in additional_messages
         ]
         session.add_all(additional_rows)
 
     response = await gql_client.execute(
         query=_TRUNCATE_MUTATION,
-        variables={"id": agent_session_id, "messageId": "user-3"},
+        variables={"id": agent_session_id, "messageId": _message_uuid("user-3")},
     )
 
     assert not response.errors
     assert response.data is not None
     messages = response.data["truncateAgentSession"]["agentSession"]["messages"]
-    assert [message["id"] for message in messages][-1] == "compaction-1"
+    assert [message["id"] for message in messages][-1] == _message_uuid("compaction-1")
     async with db() as session:
         surviving_compaction_message_count = await session.scalar(
             select(func.count())
@@ -296,7 +305,7 @@ async def test_truncate_agent_session_restores_the_latest_surviving_compaction_p
             agent_session_rowid=agent_session_rowid,
         )
     assert surviving_compaction_message_count == 1
-    assert [row.message.id for row in history] == ["compaction-1"]
+    assert [row.message.id for row in history] == [_message_uuid("compaction-1")]
 
 
 async def test_truncate_agent_session_with_unknown_message_id_is_not_found(
@@ -328,7 +337,7 @@ async def test_truncate_agent_session_rejects_an_expired_temporary_session(
 
     response = await gql_client.execute(
         query=_TRUNCATE_MUTATION,
-        variables={"id": agent_session_id, "messageId": "user-2"},
+        variables={"id": agent_session_id, "messageId": _message_uuid("user-2")},
     )
 
     assert response.errors
@@ -351,7 +360,7 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
 
     response = await gql_client.execute(
         query=_BRANCH_MUTATION,
-        variables={"id": source_agent_session_id, "messageId": "user-2"},
+        variables={"id": source_agent_session_id, "messageId": _message_uuid("user-2")},
     )
     assert not response.errors
     assert response.data is not None
@@ -362,7 +371,9 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
     branch_message_ids = [message["id"] for message in branch["messages"]]
     assert len(branch_message_ids) == 2
     assert all(UUID(message_id).version == 4 for message_id in branch_message_ids)
-    assert set(branch_message_ids).isdisjoint({"user-1", "assistant-1"})
+    assert set(branch_message_ids).isdisjoint(
+        {_message_uuid("user-1"), _message_uuid("assistant-1")}
+    )
     async with db() as session:
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
         assert len(agent_sessions) == 2
@@ -372,14 +383,14 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
             await session.scalars(
                 select(models.AgentSessionMessage)
                 .where(models.AgentSessionMessage.agent_session_id == source_rowid)
-                .order_by(models.AgentSessionMessage.position)
+                .order_by(models.AgentSessionMessage.id)
             )
         ).all()
         branch_messages = (
             await session.scalars(
                 select(models.AgentSessionMessage)
                 .where(models.AgentSessionMessage.agent_session_id == branch_rowid)
-                .order_by(models.AgentSessionMessage.position)
+                .order_by(models.AgentSessionMessage.id)
             )
         ).all()
         assert len(source_messages) == len(_transcript_messages())
@@ -410,17 +421,15 @@ async def test_branch_agent_session_copies_durable_compaction_points(
         assert source_session_rowid is not None
         compaction_row = models.AgentSessionMessage(
             agent_session_id=source_session_rowid,
-            position=4,
             message=_build_compaction_message(
-                message_id="source-compaction",
+                message_id=_message_uuid("source-compaction"),
                 summary="durable summary",
             ),
         )
         assistant_row = models.AgentSessionMessage(
             agent_session_id=source_session_rowid,
-            position=5,
             message=PhoenixUIMessage(
-                id="assistant-after-compaction",
+                id=_message_uuid("assistant-after-compaction"),
                 role="assistant",
                 parts=[TextUIPart(text="retained answer")],
             ),
@@ -431,7 +440,7 @@ async def test_branch_agent_session_copies_durable_compaction_points(
         query=_BRANCH_MUTATION,
         variables={
             "id": source_agent_session_id,
-            "messageId": "assistant-after-compaction",
+            "messageId": _message_uuid("assistant-after-compaction"),
         },
     )
 
@@ -443,7 +452,7 @@ async def test_branch_agent_session_copies_durable_compaction_points(
         for message in branch_messages
         if message.get("metadata", {}).get("isCompactionMessage") is True
     )
-    assert copied_compaction["id"] != "source-compaction"
+    assert copied_compaction["id"] != _message_uuid("source-compaction")
     async with db() as session:
         compaction_message_count = await session.scalar(
             select(func.count())
@@ -461,7 +470,7 @@ async def test_branch_agent_session_copies_the_source_title(
 
     response = await gql_client.execute(
         query=_BRANCH_MUTATION,
-        variables={"id": source_agent_session_id, "messageId": "assistant-1"},
+        variables={"id": source_agent_session_id, "messageId": _message_uuid("assistant-1")},
     )
     assert not response.errors
     assert response.data is not None
@@ -479,7 +488,7 @@ async def test_branch_agent_session_preserves_temporary_mode(
 
     response = await gql_client.execute(
         query=_BRANCH_MUTATION,
-        variables={"id": source_agent_session_id, "messageId": "assistant-1"},
+        variables={"id": source_agent_session_id, "messageId": _message_uuid("assistant-1")},
     )
 
     assert not response.errors
@@ -495,7 +504,7 @@ async def test_branch_agent_session_at_an_assistant_message_includes_it(
 
     response = await gql_client.execute(
         query=_BRANCH_MUTATION,
-        variables={"id": source_agent_session_id, "messageId": "assistant-2"},
+        variables={"id": source_agent_session_id, "messageId": _message_uuid("assistant-2")},
     )
 
     assert not response.errors
@@ -533,7 +542,7 @@ async def test_branch_agent_session_rejects_an_expired_temporary_session(
 
     response = await gql_client.execute(
         query=_BRANCH_MUTATION,
-        variables={"id": source_agent_session_id, "messageId": "assistant-1"},
+        variables={"id": source_agent_session_id, "messageId": _message_uuid("assistant-1")},
     )
 
     assert response.errors
@@ -760,8 +769,7 @@ async def test_delete_agent_session_cascades_snapshot(
         session.add(
             models.AgentSessionMessage(
                 agent_session_id=agent_session.id,
-                position=0,
-                message=PhoenixUIMessage(id="m1", role="user", parts=[]),
+                message=PhoenixUIMessage(id=_message_uuid("m1"), role="user", parts=[]),
             )
         )
 
