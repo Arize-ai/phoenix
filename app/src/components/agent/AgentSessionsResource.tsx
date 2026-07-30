@@ -173,17 +173,11 @@ function AgentSessionsContent({
         chatStatusBySessionId[node.id] === "streaming",
     })
   );
-  const draftSession: AgentSessionListItem | null =
-    activeSessionId === DRAFT_SESSION_ID
-      ? {
-          id: DRAFT_SESSION_ID,
-          title: "",
-          createdAt: Date.now(),
-        }
-      : null;
-  const orderedSessions = draftSession
-    ? [draftSession, ...serverSessions]
-    : serverSessions;
+  // The active draft is deliberately absent from the menu: it has no server
+  // row yet, so listing it would only offer a "New chat" entry that cannot be
+  // deleted or meaningfully switched to. The header still labels the active
+  // draft via the display-name fallback below.
+  const orderedSessions = serverSessions;
   const orderedSessionsRef = useRef(orderedSessions);
   orderedSessionsRef.current = orderedSessions;
 
