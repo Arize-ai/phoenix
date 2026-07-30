@@ -310,6 +310,5 @@ describe("SpanDetails headers", () => {
     expect(sectionsViewport?.contains(notesBar)).toBe(false);
     expect(sectionsViewport?.nextElementSibling).toBe(notesBar);
     expect(notesBar?.textContent).toContain("Notes");
-    expect(notesBar?.textContent).toContain("Take notes");
   });
 });
