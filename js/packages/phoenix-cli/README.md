@@ -173,12 +173,12 @@ A run that instruments is only a success if a trace actually arrived — the
 agent's own claim that it finished doesn't count. Every output says so, and so
 does the exit code:
 
-| Exit | Meaning                                                             |
-| ---- | ------------------------------------------------------------------- |
-| `0`  | A trace was verified arriving, or the run only registered           |
-| `6`  | Instrumented, but no trace arrived — tracing is not confirmed       |
-| `2`  | Cancelled                                                           |
-| `3`  | Missing or invalid flags (the error prints the correct invocation)   |
+| Exit | Meaning                                                            |
+| ---- | ------------------------------------------------------------------ |
+| `0`  | A trace was verified arriving, or the run only registered          |
+| `6`  | Instrumented, but no trace arrived — tracing is not confirmed      |
+| `2`  | Cancelled                                                          |
+| `3`  | Missing or invalid flags (the error prints the correct invocation) |
 
 `--format json|raw` carries the same verdict as `tracesVerified`; `--format
 pretty` prints a `traces:` line. Don't score a run on the agent's exit code —
