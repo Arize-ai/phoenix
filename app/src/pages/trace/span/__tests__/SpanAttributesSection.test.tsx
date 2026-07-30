@@ -8,6 +8,8 @@ import { SpanAttributesSection } from "../SpanAttributesSection";
 
 let container: HTMLDivElement;
 let root: Root;
+let originalScrollHeight: PropertyDescriptor | undefined;
+let scrollHeightValue = 0;
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -23,6 +25,17 @@ beforeEach(() => {
       dispatchEvent: vi.fn(),
     }))
   );
+  originalScrollHeight = Object.getOwnPropertyDescriptor(
+    Element.prototype,
+    "scrollHeight"
+  );
+  Object.defineProperty(Element.prototype, "scrollHeight", {
+    configurable: true,
+    get() {
+      return scrollHeightValue;
+    },
+  });
+  scrollHeightValue = 0;
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -31,6 +44,15 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  if (originalScrollHeight) {
+    Object.defineProperty(
+      Element.prototype,
+      "scrollHeight",
+      originalScrollHeight
+    );
+  } else {
+    delete (Element.prototype as { scrollHeight?: number }).scrollHeight;
+  }
   vi.unstubAllGlobals();
 });
 
@@ -91,5 +113,33 @@ describe("SpanAttributesSection", () => {
 
     act(() => toggle.click());
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("offers to expand an attributes table taller than its generous preview", () => {
+    scrollHeightValue = 800;
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark" disableBodyTheme>
+          <SpanAttributesSection
+            attributes={JSON.stringify({ first: 1, second: 2 })}
+          />
+        </ThemeProvider>
+      );
+    });
+
+    const expandableContent = container.querySelector<HTMLElement>(
+      ".expandable-content"
+    );
+    expect(expandableContent?.style.maxHeight).toBe("640px");
+
+    const expandButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Show more"]'
+    );
+    expect(expandButton).not.toBeNull();
+
+    act(() => expandButton?.click());
+
+    expect(expandableContent?.style.maxHeight).toBe("");
+    expect(container.querySelector('[aria-label="Show less"]')).not.toBeNull();
   });
 });

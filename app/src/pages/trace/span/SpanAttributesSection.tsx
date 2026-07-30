@@ -5,6 +5,7 @@ import {
   ContextualHelp,
   Counter,
   DisclosureArrow,
+  ExpandableContent,
   ExternalLink,
   Heading,
   Text,
@@ -17,6 +18,8 @@ import {
 } from "@phoenix/components/code";
 
 import { SpanDetailsSectionHeading } from "../SpanDetailsSectionHeading";
+
+const ATTRIBUTES_PREVIEW_MAX_HEIGHT_PIXELS = 640;
 
 const attributesContextualHelp = (
   <ContextualHelp>
@@ -147,10 +150,15 @@ function SpanAttributesSectionContents({
         hidden={!isOpen}
         data-attributes-section-body
       >
-        <JSONViewBody
-          emptyMessage="This span has no attributes"
-          noResultsMessage="No matching attributes"
-        />
+        <ExpandableContent
+          height={ATTRIBUTES_PREVIEW_MAX_HEIGHT_PIXELS}
+          expandedBehavior="grow"
+        >
+          <JSONViewBody
+            emptyMessage="This span has no attributes"
+            noResultsMessage="No matching attributes"
+          />
+        </ExpandableContent>
       </div>
     </>
   );
