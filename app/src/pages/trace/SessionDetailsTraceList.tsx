@@ -229,6 +229,14 @@ const turnListCSS = css`
     display: flex;
     flex: none;
     align-items: center;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .react-aria-ListBoxItem[data-hovered] .session-turn-row__annotation-action,
+  .react-aria-ListBoxItem:focus-within .session-turn-row__annotation-action {
+    opacity: 1;
+    pointer-events: auto;
   }
 `;
 

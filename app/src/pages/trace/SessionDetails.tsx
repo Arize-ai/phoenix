@@ -98,6 +98,14 @@ const sessionNavigationAnnotationRowCSS = css`
     display: flex;
     flex: none;
     margin-left: auto;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &:hover .session-navigation-annotation-row__action,
+  &:focus-within .session-navigation-annotation-row__action {
+    opacity: 1;
+    pointer-events: auto;
   }
 `;
 

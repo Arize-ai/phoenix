@@ -938,12 +938,22 @@ const traceRowCSS = css`
     display: flex;
     flex: none;
     align-items: center;
+    opacity: 0;
+    pointer-events: none;
     padding-top: var(
       --global-session-details-navigation-top-level-row-padding-block
     );
     padding-right: var(
       --global-session-details-navigation-top-level-row-padding-inline-end
     );
+  }
+
+  .session-trace-row-header-shell:hover
+    .session-trace-row-header__annotation-action,
+  .session-trace-row-header-shell:focus-within
+    .session-trace-row-header__annotation-action {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   &[data-selected="true"] .session-trace-row-header-shell {

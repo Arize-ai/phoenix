@@ -514,10 +514,19 @@ describe("TraceTree", () => {
                 <TraceTree
                   spans={[ROOT_SPAN]}
                   session={{
+                    actions: (
+                      <button
+                        type="button"
+                        aria-label="Add session annotation"
+                      />
+                    ),
                     sessionId: "session-12345678",
                     to: "/projects/project-1/sessions/session-node-id",
                   }}
                   traceSelection={{
+                    actions: (
+                      <button type="button" aria-label="Add trace annotation" />
+                    ),
                     isSelected: false,
                     onSelect: onTraceSelect,
                     traceId: "trace-12345678",
@@ -538,6 +547,11 @@ describe("TraceTree", () => {
     const sessionLink = treeItems[0]?.querySelector("a");
     const traceButton = treeItems[1]?.querySelector<HTMLButtonElement>(
       'button[aria-label="View trace trace-12345678"]'
+    );
+    const entityActionContainers = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        ".trace-tree-entity-item__actions"
+      )
     );
     const idContainers = Array.from(
       container.querySelectorAll<HTMLElement>(".trace-tree-entity-item__id")
@@ -574,6 +588,28 @@ describe("TraceTree", () => {
       "truncate",
       "truncate",
     ]);
+    expect(
+      entityActionContainers.map((actions) => ({
+        opacity: getComputedStyle(actions).opacity,
+        pointerEvents: getComputedStyle(actions).pointerEvents,
+      }))
+    ).toEqual([
+      { opacity: "0", pointerEvents: "none" },
+      { opacity: "0", pointerEvents: "none" },
+    ]);
+    expect(
+      Array.from(document.styleSheets)
+        .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+        .some(
+          (rule) =>
+            rule instanceof CSSStyleRule &&
+            rule.selectorText.includes(
+              ":hover .trace-tree-entity-item__actions"
+            ) &&
+            rule.style.opacity === "1" &&
+            rule.style.pointerEvents === "auto"
+        )
+    ).toBe(true);
     expect(
       idBadges.map((badge) =>
         Number.parseFloat(getComputedStyle(badge).marginRight)
@@ -634,7 +670,7 @@ describe("TraceTree", () => {
     expect(onTraceSelect).toHaveBeenCalledOnce();
   });
 
-  it("renders span actions without removing row content or selecting the span", () => {
+  it("reveals span actions on row hover without removing row content or selecting the span", () => {
     const onSpanClick = vi.fn();
     const onAction = vi.fn();
     renderTraceTree({
@@ -653,8 +689,24 @@ describe("TraceTree", () => {
     const action = spanRow?.querySelector<HTMLButtonElement>(
       '.span-controls__actions button[aria-label="Add annotation"]'
     );
+    const actions = spanRow?.querySelector<HTMLElement>(
+      ".span-controls__actions"
+    );
 
     expect(spanRow?.textContent).toContain("root span");
+    expect(getComputedStyle(actions!).opacity).toBe("0");
+    expect(getComputedStyle(actions!).pointerEvents).toBe("none");
+    expect(
+      Array.from(document.styleSheets)
+        .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+        .some(
+          (rule) =>
+            rule instanceof CSSStyleRule &&
+            rule.selectorText.includes(":hover .span-controls__actions") &&
+            rule.style.opacity === "1" &&
+            rule.style.pointerEvents === "auto"
+        )
+    ).toBe(true);
     act(() => action?.click());
     expect(onAction).toHaveBeenCalledOnce();
     expect(onSpanClick).not.toHaveBeenCalled();

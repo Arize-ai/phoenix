@@ -642,6 +642,14 @@ const entityTreeItemCSS = css`
     display: flex;
     flex: none;
     align-items: center;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &:hover .trace-tree-entity-item__actions,
+  &:focus-within .trace-tree-entity-item__actions {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .trace-tree-entity-item__id > button {
@@ -1398,6 +1406,15 @@ function SpanNodeWrap(
         }
         &.is-selected[data-status-code="ERROR"] {
           border-left-color: var(--global-color-danger);
+        }
+        .span-controls__actions {
+          opacity: 0;
+          pointer-events: none;
+        }
+        &:hover .span-controls__actions,
+        &:focus-within .span-controls__actions {
+          opacity: 1;
+          pointer-events: auto;
         }
         &[data-status-code="ERROR"] .span-tree-name__label {
           color: var(--global-color-red-1000);
