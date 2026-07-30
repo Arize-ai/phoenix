@@ -11,7 +11,6 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
 } from "react";
@@ -90,11 +89,7 @@ import {
   SpanFilterConditionField,
   type SpanFilterValidConditionArgs,
 } from "./SpanFilterConditionField";
-import type { SpanFilterSeed } from "./spanFilterSeed";
-import {
-  createSpanFilterSeedLoadState,
-  spanFilterSeedLoadReducer,
-} from "./spanFilterSeedLoadState";
+import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 import { useWriteSpanFilterToHash } from "./spanFilterUrlState";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
@@ -114,7 +109,11 @@ import { TraceNotesTableCell } from "./TraceNotesTableCell";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
-  seed: SpanFilterSeed;
+  /**
+   * The condition the preload carried; always settled, so the rows on hand
+   * match both its text and its root scope from the first render.
+   */
+  seed: SettledSpanFilterSeed;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -214,27 +213,44 @@ export function SpansTable(props: SpansTableProps) {
   // The seed arrives settled: the owner that preloads `props.project` either
   // classified the condition itself or had it validated first, so the rows on
   // hand always match it. The table only tracks what the user applies after.
-  const [seedLoadState, dispatchSeedLoad] = useReducer(
-    spanFilterSeedLoadReducer,
-    props.seed,
-    createSpanFilterSeedLoadState
-  );
-  const {
-    appliedQuery: { condition: filterCondition, rootSpansOnly },
-  } = seedLoadState;
-  const nextRequestIdRef = useRef(0);
+  const [appliedQuery, setAppliedQuery] = useState<{
+    condition: string;
+    rootSpansOnly: boolean;
+  }>(() => ({
+    condition: props.seed.condition,
+    rootSpansOnly: props.seed.rootSpansOnly,
+  }));
+  const { condition: filterCondition, rootSpansOnly } = appliedQuery;
 
   // Persist the applied filter to the URL. Written only from the change
   // handler, so in-progress edits and render churn never touch the URL.
   const writeFilterConditionToUrl = useWriteSpanFilterToHash();
   const handleValidFilterCondition = useCallback(
-    ({ condition, selectsRootSpansOnly }: SpanFilterValidConditionArgs) => {
-      dispatchSeedLoad({
-        type: "validationSucceeded",
-        condition,
-        rootSpansOnly: selectsRootSpansOnly,
+    ({
+      condition,
+      selectsRootSpansOnly,
+      isInitialSettlement,
+    }: SpanFilterValidConditionArgs) => {
+      setAppliedQuery((previous) => {
+        const next = {
+          condition,
+          // `null` means the server did not answer the root-scope question;
+          // keep the previous presentation scope rather than guessing.
+          rootSpansOnly: selectsRootSpansOnly ?? previous.rootSpansOnly,
+        };
+        return next.condition === previous.condition &&
+          next.rootSpansOnly === previous.rootSpansOnly
+          ? previous
+          : next;
       });
-      writeFilterConditionToUrl(condition);
+      // The mount settlement is the seed (or the URL's condition) coming back
+      // around, not something the user applied. Writing it would persist a
+      // tab's own default into the fragment the tabs share, imposing it on
+      // the other tab -- the leak the `persistToUrl` flag on the seed
+      // resolvers exists to prevent.
+      if (!isInitialSettlement) {
+        writeFilterConditionToUrl(condition);
+      }
     },
     [writeFilterConditionToUrl]
   );
@@ -806,8 +822,8 @@ export function SpansTable(props: SpansTableProps) {
 
   useEffect(() => {
     // Skip the first render. The parent's query already carries what this
-    // table starts from: a seed exempt from server validation and its scope, or
-    // the provisional unfiltered state used while server validation is pending.
+    // table starts from: a settled seed and its scope, so the rows on hand
+    // answer the applied condition.
     if (isFirstRender.current === true) {
       isFirstRender.current = false;
       return;
@@ -815,9 +831,6 @@ export function SpansTable(props: SpansTableProps) {
     //if the sorting changes, we need to reset the pagination
     startTransition(() => {
       const sort = sorting[0];
-      const requestId = ++nextRequestIdRef.current;
-      const query = { condition: filterCondition, rootSpansOnly };
-      dispatchSeedLoad({ type: "requestStarted", requestId, query });
       refetch(
         {
           sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
@@ -827,17 +840,7 @@ export function SpansTable(props: SpansTableProps) {
           rootSpansOnly,
           timeRange: timeRangeISOStrings,
         },
-        {
-          fetchPolicy: "store-and-network",
-          onComplete: (error) => {
-            dispatchSeedLoad({
-              type: "requestCompleted",
-              requestId,
-              query,
-              error,
-            });
-          },
-        }
+        { fetchPolicy: "store-and-network" }
       );
     });
   }, [

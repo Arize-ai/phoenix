@@ -1096,9 +1096,16 @@ export function TracesTable(props: TracesTableProps) {
         >
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
             <SpanFilterConditionField
-              onValidCondition={({ condition }) => {
+              onValidCondition={({ condition, isInitialSettlement }) => {
                 setFilterCondition(condition);
-                writeFilterConditionToUrl(condition);
+                // The mount settlement is the seed coming back around, not a
+                // filter the user applied. Writing it would persist this tab's
+                // default (the empty condition) into the fragment the tabs
+                // share, and the spans tab would read it as "deliberately
+                // cleared".
+                if (!isInitialSettlement) {
+                  writeFilterConditionToUrl(condition);
+                }
               }}
             />
             <TableMetricsChartSelector view="traces" />
