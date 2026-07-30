@@ -1,7 +1,10 @@
 import type { Environment } from "react-relay";
 import { fetchQuery, graphql } from "react-relay";
 
-import { extractCodeEvaluatorVariables } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import {
+  extractCodeEvaluatorVariables,
+  extractRequiredCodeEvaluatorVariables,
+} from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
 import type { projectEvaluatorOptionsQuery$data } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
@@ -249,6 +252,10 @@ export function buildAttachCodeCreationMode(
     language: evaluator.language as CodeEvaluatorLanguage,
     sourceCode: evaluator.sourceCode ?? "",
   });
+  const requiredVariables = extractRequiredCodeEvaluatorVariables({
+    language: evaluator.language as CodeEvaluatorLanguage,
+    sourceCode: evaluator.sourceCode ?? "",
+  });
   return {
     kind: "code",
     evaluatorId: evaluator.id,
@@ -258,6 +265,7 @@ export function buildAttachCodeCreationMode(
       evaluator.outputConfigs ?? []
     ),
     variables,
+    requiredVariables,
   };
 }
 

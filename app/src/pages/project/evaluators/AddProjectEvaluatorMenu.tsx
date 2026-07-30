@@ -5,7 +5,6 @@ import type {
 } from "react-aria-components";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { useLazyLoadQuery, useRelayEnvironment } from "react-relay";
-import { useSearchParams } from "react-router";
 
 import { Alert } from "@phoenix/components/core/alert";
 import type { ButtonProps } from "@phoenix/components/core/button";
@@ -22,15 +21,8 @@ import {
   MenuTrigger,
 } from "@phoenix/components/core/menu";
 import { View } from "@phoenix/components/core/view";
-import {
-  CREATE_CODE_EVALUATOR_PARAM,
-  CREATE_LLM_EVALUATOR_PARAM,
-} from "@phoenix/constants/searchParams";
+import type { ProjectEvaluatorCreationMode } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
-import {
-  CreateProjectEvaluatorSlideover,
-  type ProjectEvaluatorCreationMode,
-} from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import {
   buildAttachCodeCreationMode,
   buildCopyLlmCreationMode,
@@ -43,41 +35,13 @@ import {
 
 export const AddProjectEvaluatorMenu = ({
   size,
-  projectId,
+  onSelectCreationMode,
   ...props
 }: {
   size: ButtonProps["size"];
-  projectId: string;
+  onSelectCreationMode: (mode: ProjectEvaluatorCreationMode) => void;
 } & Omit<MenuTriggerProps, "children">) => {
-  const [creationMode, setCreationMode] =
-    useState<ProjectEvaluatorCreationMode | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const shouldOpenScratchFromUrl =
-    searchParams.get(CREATE_LLM_EVALUATOR_PARAM) === "true";
-  const shouldOpenNewCodeFromUrl =
-    searchParams.get(CREATE_CODE_EVALUATOR_PARAM) === "true";
-  const activeCreationMode: ProjectEvaluatorCreationMode | null =
-    creationMode ??
-    (shouldOpenScratchFromUrl
-      ? { kind: "scratch" }
-      : shouldOpenNewCodeFromUrl
-        ? { kind: "newCode" }
-        : null);
-  const clearCreationMode = () => {
-    setCreationMode(null);
-    if (shouldOpenScratchFromUrl || shouldOpenNewCodeFromUrl) {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete(CREATE_LLM_EVALUATOR_PARAM);
-          next.delete(CREATE_CODE_EVALUATOR_PARAM);
-          return next;
-        },
-        { replace: true }
-      );
-    }
-  };
   return (
     <>
       <MenuTrigger {...props}>
@@ -95,7 +59,7 @@ export const AddProjectEvaluatorMenu = ({
             <AddProjectEvaluatorMenuItems
               onSelectCreationMode={(mode) => {
                 setSelectionError(null);
-                setCreationMode(mode);
+                onSelectCreationMode(mode);
               }}
               onSelectionError={setSelectionError}
             />
@@ -106,16 +70,6 @@ export const AddProjectEvaluatorMenu = ({
         <View paddingTop="size-100">
           <Alert variant="danger">{selectionError}</Alert>
         </View>
-      ) : null}
-      {activeCreationMode ? (
-        <CreateProjectEvaluatorSlideover
-          isOpen
-          onOpenChange={(isOpen) => {
-            if (!isOpen) clearCreationMode();
-          }}
-          projectId={projectId}
-          creationMode={activeCreationMode}
-        />
       ) : null}
     </>
   );

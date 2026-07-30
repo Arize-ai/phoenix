@@ -74,4 +74,22 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
       },
     ]);
   });
+
+  it("does not flag missing optional variables as errors", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { output: "answer" },
+        pathMapping: {},
+        variables: ["output", "reference"],
+        requiredVariables: ["output"],
+      })
+    ).toEqual([
+      { variable: "output", path: "output", status: "resolved" },
+      {
+        variable: "reference",
+        path: "reference",
+        status: "optional-missing",
+      },
+    ]);
+  });
 });

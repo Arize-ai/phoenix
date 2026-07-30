@@ -15,6 +15,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
   evaluatorId,
   evaluatorName,
   variables,
+  requiredVariables,
   codeDefinition,
   inlineCode,
   scope,
@@ -29,6 +30,8 @@ export const ProjectCodeEvaluatorDialogContent = ({
   evaluatorName: string;
   /** The evaluator's declared parameters, extracted from its source code. */
   variables: string[];
+  /** The evaluator parameters that must resolve before execution. */
+  requiredVariables: string[];
   codeDefinition?: ReactNode;
   inlineCode?: ProjectEvaluatorInlineCode;
   scope: ProjectEvaluatorScope;
@@ -77,6 +80,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
           onFilterValidityChange={setIsFilterValid}
           codeEvaluatorId={inlineCode ? undefined : evaluatorId}
           inlineCode={inlineCode}
+          requiredVariables={requiredVariables}
         />
       }
     />

@@ -73,6 +73,7 @@ export type ProjectEvaluatorCreationMode =
       description: string;
       outputConfigs: AnnotationConfig[];
       variables: string[];
+      requiredVariables: string[];
     };
 
 export const CreateProjectEvaluatorSlideover = ({
@@ -356,6 +357,7 @@ function AttachCodeProjectEvaluatorDialog({
       evaluatorId={creationMode.evaluatorId}
       evaluatorName={creationMode.name}
       variables={creationMode.variables}
+      requiredVariables={creationMode.requiredVariables}
       scope={scope}
       onScopeChange={onScopeChange}
       isSubmitting={isAddingCodeEvaluator}

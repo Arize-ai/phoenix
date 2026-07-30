@@ -6,7 +6,10 @@ import invariant from "tiny-invariant";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Dialog, Loading, Modal, ModalOverlay } from "@phoenix/components";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
-import { extractCodeEvaluatorVariables } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import {
+  extractCodeEvaluatorVariables,
+  extractRequiredCodeEvaluatorVariables,
+} from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
@@ -496,6 +499,10 @@ function EditCodeProjectEvaluator({
     initialSandboxConfigId
   );
   const variables = extractCodeEvaluatorVariables({ language, sourceCode });
+  const requiredVariables = extractRequiredCodeEvaluatorVariables({
+    language,
+    sourceCode,
+  });
   // The update mutation treats an omitted inputMapping as "preserve", so
   // snapshot the stored value to tell an edit from an inherited setting.
   const initialInputMappingJson = JSON.stringify(evaluator.inputMapping);
@@ -562,6 +569,7 @@ function EditCodeProjectEvaluator({
             evaluatorId={evaluator.evaluator.id}
             evaluatorName={evaluator.name}
             variables={variables}
+            requiredVariables={requiredVariables}
             codeDefinition={
               <CodeAuthoringFields
                 language={language}

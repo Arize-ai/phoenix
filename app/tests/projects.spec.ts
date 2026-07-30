@@ -211,6 +211,9 @@ test.describe.serial("Projects", () => {
       name: "Create project evaluator",
     });
     await expect(createDialog).toBeVisible();
+    await expect(
+      createDialog.getByRole("tab", { name: "Bindings" })
+    ).toBeVisible();
     // The annotation output has a "Name" field too; the evaluator's own name is
     // the first one.
     await createDialog.getByLabel("Name").first().fill(evaluatorName);

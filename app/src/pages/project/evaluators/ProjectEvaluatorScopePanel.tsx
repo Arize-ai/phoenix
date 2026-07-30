@@ -138,6 +138,7 @@ export const ProjectEvaluatorScopePanel = ({
   onFilterValidityChange,
   codeEvaluatorId,
   inlineCode,
+  requiredVariables,
   showAnnotationTemplate = false,
 }: {
   projectId: string;
@@ -146,6 +147,7 @@ export const ProjectEvaluatorScopePanel = ({
   onFilterValidityChange?: (isValid: boolean) => void;
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
+  requiredVariables?: string[];
   showAnnotationTemplate?: boolean;
 }) => {
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
@@ -190,12 +192,14 @@ export const ProjectEvaluatorScopePanel = ({
               timeWindow={timeWindow}
               codeEvaluatorId={codeEvaluatorId}
               inlineCode={inlineCode}
+              requiredVariables={requiredVariables}
             />
           ) : (
             <LlmSpanRunList
               projectId={projectId}
               filterCondition={scope.filterCondition}
               timeWindow={timeWindow}
+              requiredVariables={requiredVariables}
             />
           )}
         </Suspense>
@@ -507,6 +511,7 @@ function SpanRunList({
   codeEvaluatorId,
   inlineCode,
   playgroundStore,
+  requiredVariables,
 }: {
   projectId: string;
   filterCondition: string;
@@ -514,6 +519,7 @@ function SpanRunList({
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
   playgroundStore?: ReturnType<typeof usePlaygroundStore>;
+  requiredVariables?: string[];
 }) {
   const { shortDateTimeFormatter } = useTimeFormatters();
   const [limit, setLimit] = useState(SPAN_LIST_PAGE_SIZE);
@@ -637,6 +643,7 @@ function SpanRunList({
             isRunnable={isRunnable}
             onRun={() => runOnSpan(row.key, row.context)}
             pathMapping={pathMapping}
+            requiredVariables={requiredVariables}
             formattedTime={
               row.startTime
                 ? shortDateTimeFormatter(new Date(row.startTime))
@@ -684,6 +691,7 @@ function SpanRunRow({
   isRunnable,
   onRun,
   pathMapping,
+  requiredVariables,
   formattedTime,
 }: {
   row: SpanListRow;
@@ -694,6 +702,7 @@ function SpanRunRow({
   isRunnable: boolean;
   onRun: () => void;
   pathMapping: Record<string, string>;
+  requiredVariables?: string[];
   formattedTime: string | null;
 }) {
   const isRunning = run?.status === "running";
@@ -751,6 +760,7 @@ function SpanRunRow({
               <BindingPreview
                 context={row.context}
                 pathMapping={pathMapping}
+                requiredVariables={requiredVariables}
                 isSampleContext={row.isSample}
               />
             </TabPanel>
@@ -983,17 +993,24 @@ type BindingRow = {
 function BindingPreview({
   context,
   pathMapping,
+  requiredVariables,
   isSampleContext,
 }: {
   context: unknown;
   pathMapping: Record<string, string>;
+  requiredVariables?: string[];
   isSampleContext: boolean;
 }) {
-  const variables = useEvaluatorInputVariables();
+  const declaredVariables = useEvaluatorInputVariables();
+  const variables =
+    declaredVariables.length === 0 && isStringKeyedObject(context)
+      ? Object.keys(context)
+      : declaredVariables;
   const diagnostics = getProjectEvaluatorMappingDiagnostics({
     context,
     pathMapping,
     variables,
+    requiredVariables,
   });
   const automaticRows: BindingRow[] = diagnostics
     .filter(
@@ -1033,6 +1050,11 @@ function BindingPreview({
           }
         />
       ))}
+      {variables.length === 0 ? (
+        <Text size="S" color="text-500">
+          This evaluator declares no recognizable inputs.
+        </Text>
+      ) : null}
       {diagnostics.map(({ variable, path, status }) =>
         status === "missing" ? (
           <Alert
@@ -1050,6 +1072,10 @@ function BindingPreview({
           >
             {path} is checked by the server when the evaluator runs.
           </Alert>
+        ) : status === "optional-missing" ? (
+          <Text key={variable} size="S" color="text-500">
+            <code>{variable}</code> is optional and is not present on this span.
+          </Text>
         ) : null
       )}
     </Flex>

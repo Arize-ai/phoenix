@@ -16,6 +16,7 @@ import {
   getAllGeneratedSources,
   getDefaultCodeEvaluatorSource,
   extractCodeEvaluatorVariables,
+  extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import {
   CodeEvaluatorAnnotationSection,
@@ -108,6 +109,10 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   const [isFilterValid, setIsFilterValid] = useState(true);
 
   const variables = extractCodeEvaluatorVariables({ language, sourceCode });
+  const requiredVariables = extractRequiredCodeEvaluatorVariables({
+    language,
+    sourceCode,
+  });
 
   // A sandbox config is only valid for its own language.
   const selectedSandboxConfigId = sandboxConfigs.some(
@@ -275,6 +280,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
             sourceCode,
             sandboxConfigId: selectedSandboxConfigId,
           }}
+          requiredVariables={requiredVariables}
         />
       }
     />

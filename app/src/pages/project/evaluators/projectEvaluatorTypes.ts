@@ -71,7 +71,7 @@ export function toProjectEvaluatorSamplingFraction(percent: number): number {
 export type ProjectEvaluatorMappingDiagnostic = {
   variable: string;
   path: string;
-  status: "resolved" | "missing" | "unverified";
+  status: "resolved" | "missing" | "optional-missing" | "unverified";
 };
 
 // Only dot-separated bare JSONPath identifiers resolve client-side; anything
@@ -83,11 +83,14 @@ export function getProjectEvaluatorMappingDiagnostics({
   context,
   pathMapping,
   variables,
+  requiredVariables = variables,
 }: {
   context: unknown;
   pathMapping: Record<string, string>;
   variables: string[];
+  requiredVariables?: string[];
 }): ProjectEvaluatorMappingDiagnostic[] {
+  const requiredVariableNames = new Set(requiredVariables);
   return variables.map((variable) => {
     const path = pathMapping[variable] ?? variable;
     if (!SIMPLE_MAPPING_PATH_PATTERN.test(path)) {
@@ -97,7 +100,11 @@ export function getProjectEvaluatorMappingDiagnostics({
       variable,
       path,
       status:
-        getValueAtPath(context, path) === undefined ? "missing" : "resolved",
+        getValueAtPath(context, path) === undefined
+          ? requiredVariableNames.has(variable)
+            ? "missing"
+            : "optional-missing"
+          : "resolved",
     };
   });
 }
