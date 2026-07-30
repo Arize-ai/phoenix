@@ -302,7 +302,7 @@ const traceTreeIconRailCSS = css`
   }
 
   .trace-tree-icon-rail__item:hover {
-    background-color: var(--global-color-gray-75);
+    background-color: var(--global-list-item-hover-background-color);
   }
 
   .trace-tree-icon-rail__item[data-selected="true"] {
@@ -596,7 +596,7 @@ const entityTreeItemCSS = css`
   overflow: hidden;
 
   &:hover {
-    background-color: var(--global-color-gray-75);
+    background-color: var(--global-list-item-hover-background-color);
   }
 
   &[data-selected="true"] {
@@ -1143,17 +1143,19 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             data-testid="span-controls"
             className="span-controls"
           >
-            {hasChildren && !isSearching ? (
-              <CollapseToggleButton
-                isCollapsed={isCollapsed}
-                onClick={() => {
-                  onCollapsedChange({
-                    isCollapsed: !isCollapsed,
-                    spanNodeId: node.span.id,
-                  });
-                }}
-              />
-            ) : null}
+            <span className="span-controls__collapse-toggle">
+              {hasChildren && !isSearching ? (
+                <CollapseToggleButton
+                  isCollapsed={isCollapsed}
+                  onClick={() => {
+                    onCollapsedChange({
+                      isCollapsed: !isCollapsed,
+                      spanNodeId: node.span.id,
+                    });
+                  }}
+                />
+              ) : null}
+            </span>
             {renderSpanActions ? (
               <span
                 className="span-controls__actions"
@@ -1375,7 +1377,7 @@ function SpanNodeWrap(
         border-left: ${TRACE_TREE_ROW_SELECTION_BORDER_WIDTH} solid transparent;
         box-sizing: border-box;
         &:hover {
-          background-color: var(--global-color-gray-75);
+          background-color: var(--global-list-item-hover-background-color);
         }
         &.is-selected {
           // Keep the fill translucent so the latency bar remains visible
@@ -1480,6 +1482,15 @@ const spanControlsCSS = css`
   align-items: center;
   gap: var(--global-dimension-size-50);
   flex: none;
+
+  .span-controls__collapse-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex: none;
+  }
 
   .span-controls__actions {
     display: flex;

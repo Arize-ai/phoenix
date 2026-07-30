@@ -256,6 +256,64 @@ describe("TraceTree", () => {
     );
   });
 
+  it("uses the list-item hover background for every trace-tree row", () => {
+    renderTraceTree({
+      spans: [ROOT_SPAN, CHILD_SPAN],
+      isNavigationCollapsed: true,
+      session: {
+        sessionId: "session-12345678",
+        to: "/projects/project-1/sessions/session-node-id",
+      },
+      traceSelection: {
+        isSelected: false,
+        onSelect: vi.fn(),
+        traceId: "trace-12345678",
+      },
+    });
+
+    const iconRail = container.querySelector<HTMLElement>(
+      '[data-testid="trace-tree-icon-rail"]'
+    );
+    const traceEntityRow = container.querySelector<HTMLButtonElement>(
+      '.trace-tree-navigation__full button[aria-label="View trace trace-12345678"]'
+    )?.parentElement;
+    const spanRow = container.querySelector<HTMLElement>(
+      `.trace-tree-navigation__full [data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+    );
+    const getGeneratedClassName = (
+      element: Element | null | undefined
+    ): string => {
+      const className = Array.from(element?.classList ?? []).find((item) =>
+        item.startsWith("css-")
+      );
+      if (!className) throw new Error("Expected an Emotion class name");
+      return className;
+    };
+    const iconRailClassName = getGeneratedClassName(iconRail);
+    const traceEntityClassName = getGeneratedClassName(traceEntityRow);
+    const spanRowClassName = getGeneratedClassName(spanRow);
+    const styleRules = Array.from(document.styleSheets).flatMap((styleSheet) =>
+      Array.from(styleSheet.cssRules)
+    );
+    const hoverBackgrounds = [
+      `.${iconRailClassName} .trace-tree-icon-rail__item:hover`,
+      `.${traceEntityClassName}:hover`,
+      `.${spanRowClassName}:hover`,
+    ].map((selectorText) => {
+      const styleRule = styleRules.find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule && rule.selectorText === selectorText
+      );
+      return styleRule?.style.backgroundColor;
+    });
+
+    expect(hoverBackgrounds).toEqual([
+      "var(--global-list-item-hover-background-color)",
+      "var(--global-list-item-hover-background-color)",
+      "var(--global-list-item-hover-background-color)",
+    ]);
+  });
+
   it("synchronizes compact and hover-overlay scroll positions", () => {
     renderTraceTree({
       spans: [ROOT_SPAN, CHILD_SPAN, GRANDCHILD_SPAN],
@@ -567,6 +625,34 @@ describe("TraceTree", () => {
     expect(
       new Set(timelineBars.map((bar) => getComputedStyle(bar).gridColumn))
     ).toEqual(new Set(["2"]));
+  });
+
+  it("reserves collapse-toggle space for spans without children", () => {
+    renderTraceTree({
+      spans: [ROOT_SPAN, CHILD_SPAN],
+    });
+
+    const rootSpanRow = container.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+    );
+    const childSpanRow = container.querySelector<HTMLElement>(
+      `[data-trace-tree-span-node-id="${CHILD_SPAN.id}"]`
+    );
+    const rootToggleSlot = rootSpanRow?.querySelector<HTMLElement>(
+      ".span-controls__collapse-toggle"
+    );
+    const childToggleSlot = childSpanRow?.querySelector<HTMLElement>(
+      ".span-controls__collapse-toggle"
+    );
+
+    expect(
+      rootToggleSlot?.querySelector(".collapse-toggle-button")
+    ).not.toBeNull();
+    expect(
+      childToggleSlot?.querySelector(".collapse-toggle-button")
+    ).toBeNull();
+    expect(getComputedStyle(rootToggleSlot!).width).toBe("20px");
+    expect(getComputedStyle(childToggleSlot!).width).toBe("20px");
   });
 
   it("shows 12 direct children before an expandable tree node", () => {
