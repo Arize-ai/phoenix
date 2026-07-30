@@ -3728,9 +3728,9 @@ type Query {
   serverStatus: ServerStatus!
 
   """
-  Persisted assistant chat sessions, most recently active first. Admins can see all sessions; other users can see their own sessions. Pass viewerOnly to restrict the list to the viewer's own sessions regardless of role. When authentication is disabled, all sessions are returned.
+  Persisted assistant chat sessions, most recently active first. By default, users see their own sessions. Admins can pass viewerOnly: false to see all sessions. When authentication is disabled, all sessions are returned.
   """
-  agentSessions(first: Int = 20, after: String, viewerOnly: Boolean! = false): AgentSessionConnection!
+  agentSessions(first: Int = 20, after: String, viewerOnly: Boolean! = true): AgentSessionConnection!
   agentsConfig: AgentsConfig!
 
   """The assistant skills available given the supplied UI context."""

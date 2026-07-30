@@ -53,7 +53,11 @@ def get_agent_session_owner_filter(
     viewer_only: bool = False,
 ) -> Optional[ColumnElement[bool]]:
     viewer_id = context.user_id
-    if viewer_id is None or (not viewer_only and context.user.is_admin):
+    is_authentication_disabled = viewer_id is None
+    if is_authentication_disabled:
+        return None
+    is_admin_viewing_all_sessions = context.user.is_admin and not viewer_only
+    if is_admin_viewing_all_sessions:
         return None
     return models.AgentSession.user_id == viewer_id
 

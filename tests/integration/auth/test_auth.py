@@ -2017,7 +2017,7 @@ class TestApiAccessViaCookiesOrApiKeys:
             == 404
         )
 
-    def test_agent_sessions_viewer_only_restricts_admin_to_own_sessions(
+    def test_agent_sessions_default_to_admins_own_sessions(
         self,
         _get_user: _GetUser,
         _app: _AppInfo,
@@ -2052,7 +2052,16 @@ class TestApiAccessViaCookiesOrApiKeys:
         }
         assert {member_session_id, admin_session_id} <= all_session_ids
 
-        own_sessions_response, _ = admin.gql(_app, query=query, variables={"viewerOnly": True})
+        own_sessions_response, _ = admin.gql(
+            _app,
+            query="""
+              query {
+                agentSessions(first: 100) {
+                  edges { node { id } }
+                }
+              }
+            """,
+        )
         own_session_ids = {
             edge["node"]["id"] for edge in own_sessions_response["data"]["agentSessions"]["edges"]
         }
