@@ -70,11 +70,15 @@ from phoenix.server.settings.registry import (
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, extract_otel_context
+from tests.unit._helpers import _message_uuid
 
 _BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
 
 
-def _user_message(text: str, *, message_id: str = "msg-user-1") -> dict[str, Any]:
+_DEFAULT_USER_MESSAGE_ID = _message_uuid("msg-user-1")
+
+
+def _user_message(text: str, *, message_id: str = _DEFAULT_USER_MESSAGE_ID) -> dict[str, Any]:
     return {
         "id": message_id,
         "role": "user",
@@ -158,10 +162,9 @@ async def _create_agent_session_row(
         session.add_all(
             models.AgentSessionMessage(
                 agent_session_id=agent_session.id,
-                position=position,
                 message=PhoenixUIMessage.model_validate(message),
             )
-            for position, message in enumerate(messages or [])
+            for message in messages or []
         )
         return str(GlobalID("AgentSession", str(agent_session.id)))
 
@@ -172,7 +175,7 @@ async def _last_stored_message_id(db: DbSessionFactory) -> str:
     async with db() as session:
         message_id = await session.scalar(
             select(models.AgentSessionMessage.message_id)
-            .order_by(models.AgentSessionMessage.position.desc())
+            .order_by(models.AgentSessionMessage.id.desc())
             .limit(1)
         )
     assert message_id is not None
@@ -217,7 +220,7 @@ async def _load_session_messages(
         await session.scalars(
             select(models.AgentSessionMessage.message)
             .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
-            .order_by(models.AgentSessionMessage.position)
+            .order_by(models.AgentSessionMessage.id)
         )
     ).all()
     return [
@@ -372,15 +375,15 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     )
 
     transcript = [
-        _user_message("Find the slow span", message_id="user-1"),
+        _user_message("Find the slow span", message_id=_message_uuid("user-1")),
         {
-            "id": "assistant-1",
+            "id": _message_uuid("assistant-1"),
             "role": "assistant",
             "parts": [{"type": "text", "text": "The slow span is trace-id-123."}],
         },
-        _user_message("What should I inspect next?", message_id="user-2"),
+        _user_message("What should I inspect next?", message_id=_message_uuid("user-2")),
         {
-            "id": "assistant-2",
+            "id": _message_uuid("assistant-2"),
             "role": "assistant",
             "parts": [{"type": "text", "text": "Inspect the latest model call."}],
         },
@@ -447,10 +450,10 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
         )
     assert compaction_message_count == 1
     assert [message["id"] for message in original_messages] == [
-        "user-1",
-        "assistant-1",
-        "user-2",
-        "assistant-2",
+        _message_uuid("user-1"),
+        _message_uuid("assistant-1"),
+        _message_uuid("user-2"),
+        _message_uuid("assistant-2"),
         compaction_message["id"],
     ]
 
@@ -458,7 +461,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
         _chat_url(agent_session_id),
         json=_chat_body(
             "91919191-9191-4191-8191-919191919191",
-            _user_message("Continue", message_id="user-3"),
+            _user_message("Continue", message_id=_message_uuid("user-3")),
             lastMessageId=compaction_message["id"],
         ),
     )
@@ -474,13 +477,13 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     async with db() as session:
         stored_messages = await _load_session_messages(session, agent_session_rowid)
     assert [message["id"] for message in stored_messages[:5]] == [
-        "user-1",
-        "assistant-1",
-        "user-2",
-        "assistant-2",
+        _message_uuid("user-1"),
+        _message_uuid("assistant-1"),
+        _message_uuid("user-2"),
+        _message_uuid("assistant-2"),
         compaction_message["id"],
     ]
-    assert stored_messages[5]["id"] == "user-3"
+    assert stored_messages[5]["id"] == _message_uuid("user-3")
 
     second_compact_response = await httpx_client.post(
         _compact_url(agent_session_id),
@@ -507,7 +510,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
         _chat_url(agent_session_id),
         json=_chat_body(
             "91919191-9191-4191-8191-919191919191",
-            _user_message("Finish", message_id="user-4"),
+            _user_message("Finish", message_id=_message_uuid("user-4")),
             lastMessageId=second_compaction_message["id"],
         ),
     )
@@ -534,7 +537,7 @@ async def test_compact_agent_session_without_a_completed_turn_is_a_noop(
         project_session_id="92929292-9292-4292-8292-929292929292",
         title="Incomplete turn",
         messages=[
-            _user_message("Hello", message_id="user-1"),
+            _user_message("Hello", message_id=_message_uuid("user-1")),
         ],
     )
 
@@ -564,9 +567,9 @@ async def test_compact_is_rejected_while_a_turn_holds_the_session_lock(
         project_session_id="93939393-9393-4393-8393-939393939393",
         title="Busy session",
         messages=[
-            _user_message("Hello", message_id="user-1"),
+            _user_message("Hello", message_id=_message_uuid("user-1")),
             {
-                "id": "assistant-1",
+                "id": _message_uuid("assistant-1"),
                 "role": "assistant",
                 "parts": [{"type": "text", "text": "Hi there."}],
             },
@@ -621,9 +624,9 @@ async def test_compact_takes_over_a_stale_session_lock(
         project_session_id="94949494-9494-4494-8494-949494949494",
         title="Abandoned turn",
         messages=[
-            _user_message("Hello", message_id="user-1"),
+            _user_message("Hello", message_id=_message_uuid("user-1")),
             {
-                "id": "assistant-1",
+                "id": _message_uuid("assistant-1"),
                 "role": "assistant",
                 "parts": [{"type": "text", "text": "Hi there."}],
             },
@@ -668,9 +671,9 @@ async def test_chat_send_during_compaction_is_rejected_as_busy(
         project_session_id=session_id,
         title="Compacting session",
         messages=[
-            _user_message("Hello", message_id="user-1"),
+            _user_message("Hello", message_id=_message_uuid("user-1")),
             {
-                "id": "assistant-1",
+                "id": _message_uuid("assistant-1"),
                 "role": "assistant",
                 "parts": [{"type": "text", "text": "Hi there."}],
             },
@@ -686,8 +689,8 @@ async def test_chat_send_during_compaction_is_rejected_as_busy(
             _chat_url(agent_session_id),
             json=_chat_body(
                 session_id,
-                _user_message("follow-up", message_id="user-2"),
-                lastMessageId="assistant-1",
+                _user_message("follow-up", message_id=_message_uuid("user-2")),
+                lastMessageId=_message_uuid("assistant-1"),
             ),
         )
         concurrent_sends.append((chat_response.status_code, chat_response.json()))
@@ -738,9 +741,9 @@ async def test_server_agent_compact_route_matches_chat_route_gating(
         project_session_id="96969696-9696-4696-8696-969696969696",
         title="Server session",
         messages=[
-            _user_message("Hello", message_id="user-1"),
+            _user_message("Hello", message_id=_message_uuid("user-1")),
             {
-                "id": "assistant-1",
+                "id": _message_uuid("assistant-1"),
                 "role": "assistant",
                 "parts": [{"type": "text", "text": "Hi there."}],
             },
@@ -820,7 +823,7 @@ async def test_chat_turn_persists_session_transcript(
             await session.scalars(
                 select(models.AgentSessionMessage.id)
                 .where(models.AgentSessionMessage.agent_session_id == agent_session.id)
-                .order_by(models.AgentSessionMessage.position)
+                .order_by(models.AgentSessionMessage.id)
             )
         )
         persisted_session_id = agent_session.project_session_id
@@ -845,7 +848,7 @@ async def test_chat_turn_persists_session_transcript(
     async with db() as session:
         stored_message_rows = (
             await session.scalars(
-                select(models.AgentSessionMessage).order_by(models.AgentSessionMessage.position)
+                select(models.AgentSessionMessage).order_by(models.AgentSessionMessage.id)
             )
         ).all()
         assert [row.message_id for row in stored_message_rows] == [
@@ -858,7 +861,7 @@ async def test_chat_turn_persists_session_transcript(
         _chat_url(agent_session_id),
         json={
             **body,
-            "message": _user_message("And experiments?", message_id="msg-user-2"),
+            "message": _user_message("And experiments?", message_id=_message_uuid("msg-user-2")),
             "lastMessageId": assistant_messages[-1]["id"],
         },
     )
@@ -881,14 +884,14 @@ async def test_chat_turn_persists_session_transcript(
             await session.scalars(
                 select(models.AgentSessionMessage.id)
                 .where(models.AgentSessionMessage.agent_session_id == agent_session.id)
-                .order_by(models.AgentSessionMessage.position)
+                .order_by(models.AgentSessionMessage.id)
             )
         )
     # The merged transcript contains both turns in order, assembled server-side.
     user_message_ids = [
         message["id"] for message in second_turn_messages if message["role"] == "user"
     ]
-    assert user_message_ids == ["msg-user-1", "msg-user-2"]
+    assert user_message_ids == [_message_uuid("msg-user-1"), _message_uuid("msg-user-2")]
     assert len(second_turn_messages) > len(messages)
     assert second_turn_message_rowids[: len(message_rowids)] == message_rowids
 
@@ -926,8 +929,8 @@ async def test_failed_chat_turn_does_not_persist_partial_transcript(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("new message", message_id="msg-user-2"),
-            lastMessageId="msg-user-1",
+            _user_message("new message", message_id=_message_uuid("msg-user-2")),
+            lastMessageId=_message_uuid("msg-user-1"),
         ),
     )
 
@@ -1002,7 +1005,7 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
             await session.scalars(
                 select(models.AgentSessionMessage)
                 .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
-                .order_by(models.AgentSessionMessage.position)
+                .order_by(models.AgentSessionMessage.id)
             )
         ).all()
     assert len(stored_rows) == 2
@@ -1089,14 +1092,14 @@ def test_synthesizes_root_and_clamped_client_tool_span() -> None:
     messages = [
         UIMessage.model_validate(
             {
-                "id": "user-1",
+                "id": _message_uuid("user-1"),
                 "role": "user",
                 "parts": [{"type": "text", "text": "Use the tool"}],
             }
         ),
         UIMessage.model_validate(
             {
-                "id": "assistant-1",
+                "id": _message_uuid("assistant-1"),
                 "role": "assistant",
                 "parts": [
                     {
@@ -1165,14 +1168,14 @@ def test_error_parts_record_exception_events() -> None:
     messages = [
         UIMessage.model_validate(
             {
-                "id": "user-1",
+                "id": _message_uuid("user-1"),
                 "role": "user",
                 "parts": [{"type": "text", "text": "Use the tool"}],
             }
         ),
         UIMessage.model_validate(
             {
-                "id": "assistant-1",
+                "id": _message_uuid("assistant-1"),
                 "role": "assistant",
                 "parts": [
                     {
@@ -1548,7 +1551,7 @@ async def test_chat_turn_with_stale_last_message_id_is_rejected(
         messages=[
             _user_message("earlier question"),
             {
-                "id": "assistant-1",
+                "id": _message_uuid("assistant-1"),
                 "role": "assistant",
                 "parts": [{"type": "text", "text": "earlier answer"}],
             },
@@ -1558,7 +1561,9 @@ async def test_chat_turn_with_stale_last_message_id_is_rejected(
     # Omitted while the transcript is non-empty.
     omitted_response = await httpx_client.post(
         _chat_url(agent_session_id),
-        json=_chat_body(session_id, _user_message("follow-up", message_id="msg-user-2")),
+        json=_chat_body(
+            session_id, _user_message("follow-up", message_id=_message_uuid("msg-user-2"))
+        ),
     )
     assert omitted_response.status_code == 409
     assert omitted_response.json() == {"code": "agent_session_stale"}
@@ -1568,8 +1573,8 @@ async def test_chat_turn_with_stale_last_message_id_is_rejected(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("follow-up", message_id="msg-user-2"),
-            lastMessageId="msg-user-1",
+            _user_message("follow-up", message_id=_message_uuid("msg-user-2")),
+            lastMessageId=_message_uuid("msg-user-1"),
         ),
     )
     assert stale_response.status_code == 409
@@ -1600,7 +1605,7 @@ async def test_chat_turn_on_an_empty_session_rejects_a_last_message_id(
         json=_chat_body(
             session_id,
             _user_message("hello"),
-            lastMessageId="msg-user-0",
+            lastMessageId=_message_uuid("msg-user-0"),
         ),
     )
     assert response.status_code == 409
@@ -1628,12 +1633,12 @@ async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
         messages=[
             _user_message("earlier question"),
             {
-                "id": "assistant-1",
+                "id": _message_uuid("assistant-1"),
                 "role": "assistant",
                 "parts": [{"type": "text", "text": "earlier answer"}],
             },
             {
-                "id": "compaction-1",
+                "id": _message_uuid("compaction-1"),
                 "role": "user",
                 "metadata": {
                     "type": "user",
@@ -1651,8 +1656,8 @@ async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("follow-up", message_id="msg-user-2"),
-            lastMessageId="assistant-1",
+            _user_message("follow-up", message_id=_message_uuid("msg-user-2")),
+            lastMessageId=_message_uuid("assistant-1"),
         ),
     )
     assert stale_response.status_code == 409
@@ -1663,8 +1668,8 @@ async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("follow-up", message_id="msg-user-2"),
-            lastMessageId="compaction-1",
+            _user_message("follow-up", message_id=_message_uuid("msg-user-2")),
+            lastMessageId=_message_uuid("compaction-1"),
         ),
     )
     assert follow_up_response.status_code == 200
@@ -1691,7 +1696,7 @@ def _validated_messages(raw_messages: list[dict[str, Any]]) -> list[PhoenixUIMes
 
 def _assistant_message_with_tool_states() -> dict[str, Any]:
     return {
-        "id": "assistant-1",
+        "id": _message_uuid("assistant-1"),
         "role": "assistant",
         "parts": [
             {"type": "text", "text": "Working on it"},
@@ -1725,11 +1730,15 @@ def test_merge_appends_user_message_without_modifying_persisted_messages() -> No
     merged = _merge_messages(
         old_messages=persisted,
         new_message=PhoenixUIMessage.model_validate(
-            _user_message("never mind", message_id="msg-user-2")
+            _user_message("never mind", message_id=_message_uuid("msg-user-2"))
         ),
     )
 
-    assert [message.id for message in merged] == ["msg-user-1", "assistant-1", "msg-user-2"]
+    assert [message.id for message in merged] == [
+        _message_uuid("msg-user-1"),
+        _message_uuid("assistant-1"),
+        _message_uuid("msg-user-2"),
+    ]
     assert merged[1] is persisted[1]
 
 
@@ -1739,7 +1748,7 @@ def test_merge_replaces_the_trailing_assistant_message() -> None:
     )
     resolved_assistant = PhoenixUIMessage.model_validate(
         {
-            "id": "assistant-1",
+            "id": _message_uuid("assistant-1"),
             "role": "assistant",
             "parts": [
                 {
@@ -1758,14 +1767,17 @@ def test_merge_replaces_the_trailing_assistant_message() -> None:
         new_message=resolved_assistant,
     )
 
-    assert [message.id for message in merged] == ["msg-user-1", "assistant-1"]
+    assert [message.id for message in merged] == [
+        _message_uuid("msg-user-1"),
+        _message_uuid("assistant-1"),
+    ]
     assert merged[-1] is resolved_assistant
 
 
 def test_merge_rejects_an_assistant_message_that_is_not_the_trailing_one() -> None:
     persisted = _validated_messages([_user_message("hello")])
     stale_assistant = PhoenixUIMessage.model_validate(
-        {"id": "assistant-stale", "role": "assistant", "parts": []}
+        {"id": _message_uuid("assistant-stale"), "role": "assistant", "parts": []}
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -1788,7 +1800,7 @@ async def test_chat_endpoint_rejects_regenerate_requests(
         messages=[
             _user_message("first question"),
             {
-                "id": "assistant-1",
+                "id": _message_uuid("assistant-1"),
                 "role": "assistant",
                 "parts": [{"type": "text", "text": "stale answer"}],
             },
@@ -1801,7 +1813,7 @@ async def test_chat_endpoint_rejects_regenerate_requests(
             session_id,
             None,
             trigger="regenerate-message",
-            messageId="assistant-1",
+            messageId=_message_uuid("assistant-1"),
         ),
     )
     assert response.status_code == 422
@@ -1870,7 +1882,7 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("second question", message_id="msg-user-2"),
+            _user_message("second question", message_id=_message_uuid("msg-user-2")),
             lastMessageId=await _last_stored_message_id(db),
         ),
     )
@@ -1939,7 +1951,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("thanks", message_id="msg-user-2"),
+            _user_message("thanks", message_id=_message_uuid("msg-user-2")),
             lastMessageId=await _last_stored_message_id(db),
         ),
     )
@@ -1955,7 +1967,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("read it back", message_id="msg-user-3"),
+            _user_message("read it back", message_id=_message_uuid("msg-user-3")),
             lastMessageId=await _last_stored_message_id(db),
         ),
     )
@@ -2013,7 +2025,7 @@ async def test_server_agent_chat_turn_persists_session_transcript(
         _server_agent_chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("And experiments?", message_id="msg-user-2"),
+            _user_message("And experiments?", message_id=_message_uuid("msg-user-2")),
             lastMessageId=await _last_stored_message_id(db),
         ),
     )
@@ -2023,7 +2035,7 @@ async def test_server_agent_chat_turn_persists_session_transcript(
     user_message_ids = [
         message["id"] for message in second_turn_messages if message["role"] == "user"
     ]
-    assert user_message_ids == ["msg-user-1", "msg-user-2"]
+    assert user_message_ids == [_message_uuid("msg-user-1"), _message_uuid("msg-user-2")]
     assert len(second_turn_messages) > len(messages)
 
 
@@ -2058,7 +2070,7 @@ async def test_server_agent_bash_shell_state_persists_across_chat_turns(
         _server_agent_chat_url(agent_session_id),
         json=_chat_body(
             session_id,
-            _user_message("read it back", message_id="msg-user-2"),
+            _user_message("read it back", message_id=_message_uuid("msg-user-2")),
             lastMessageId=await _last_stored_message_id(db),
         ),
     )
@@ -2461,7 +2473,7 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
         _chat_url(agent_session_id),
         json=_chat_body(
             session_request_id,
-            _user_message("second question", message_id="msg-user-2"),
+            _user_message("second question", message_id=_message_uuid("msg-user-2")),
             lastMessageId=await _last_stored_message_id(db),
             ingestTraces=True,
             turnTraceContext={

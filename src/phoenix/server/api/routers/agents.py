@@ -1543,15 +1543,19 @@ async def _update_trailing_assistant_message(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
-    position: int,
     message: PhoenixUIMessage,
 ) -> None:
     """Replace the matching trailing assistant message or reject a stale continuation."""
+    latest_message_rowid = (
+        select(func.max(models.AgentSessionMessage.id))
+        .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+        .scalar_subquery()
+    )
     updated_message_rowid = await session.scalar(
         update(models.AgentSessionMessage)
         .where(
             models.AgentSessionMessage.agent_session_id == agent_session_rowid,
-            models.AgentSessionMessage.position == position,
+            models.AgentSessionMessage.id == latest_message_rowid,
             models.AgentSessionMessage.message_id == message.id,
         )
         .values(message=message)
@@ -1592,28 +1596,22 @@ async def _persist_agent_session_turn(
                 len(new_messages),
             )
             return
-        next_position = await session.scalar(
-            select(func.coalesce(func.max(models.AgentSessionMessage.position), -1) + 1).where(
-                models.AgentSessionMessage.agent_session_id == agent_session_rowid
-            )
-        )
-        assert next_position is not None
         if new_messages[0].role == "assistant":
             # Client-tool continuations replace the persisted assistant message.
             await _update_trailing_assistant_message(
                 session,
                 agent_session_rowid=agent_session_rowid,
-                position=next_position - 1,
                 message=new_messages[0],
             )
             new_messages = new_messages[1:]
+        # Transcript order is the order these rows are inserted in, which the
+        # autoincrementing primary key records for us.
         session.add_all(
             models.AgentSessionMessage(
                 agent_session_id=agent_session_rowid,
-                position=position,
                 message=message,
             )
-            for position, message in enumerate(new_messages, start=next_position)
+            for message in new_messages
         )
         if bashkit_snapshot is not None:
             await _upsert_agent_session_snapshot(
@@ -1641,13 +1639,13 @@ async def _load_agent_session_history(
     agent_session_rowid: int,
 ) -> list[models.AgentSessionMessage]:
     """Load messages from the latest surviving compaction point onward."""
-    latest_compaction_position = (
-        select(models.AgentSessionMessage.position)
+    latest_compaction_rowid = (
+        select(models.AgentSessionMessage.id)
         .where(
             models.AgentSessionMessage.agent_session_id == agent_session_rowid,
             models.AgentSessionMessage.is_compaction_message,
         )
-        .order_by(models.AgentSessionMessage.position.desc())
+        .order_by(models.AgentSessionMessage.id.desc())
         .limit(1)
         .scalar_subquery()
     )
@@ -1656,9 +1654,9 @@ async def _load_agent_session_history(
             select(models.AgentSessionMessage)
             .where(
                 models.AgentSessionMessage.agent_session_id == agent_session_rowid,
-                models.AgentSessionMessage.position >= func.coalesce(latest_compaction_position, 0),
+                models.AgentSessionMessage.id >= func.coalesce(latest_compaction_rowid, 0),
             )
-            .order_by(models.AgentSessionMessage.position)
+            .order_by(models.AgentSessionMessage.id)
         )
     )
 
@@ -1981,9 +1979,10 @@ def create_agents_router(
                     message_id=str(uuid4()),
                     summary=summary,
                 )
+                # The boundary row was just confirmed to be the session's last
+                # message, so appending puts the checkpoint right after it.
                 compaction_message_row = models.AgentSessionMessage(
                     agent_session_id=agent_session_rowid,
-                    position=boundary_row.position + 1,
                     message=compaction_message,
                 )
                 session.add(compaction_message_row)

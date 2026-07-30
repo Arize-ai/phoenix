@@ -3262,6 +3262,45 @@ def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProv
         raise ValueError("Config is not encrypted")
 
 
+_UUID_GLOB = "-".join("[0-9a-fA-F]" * length for length in (8, 4, 4, 4, 12))  # SQLite GLOB pattern
+_UUID_REGEX = "^{}$".format(
+    "-".join(f"[0-9a-fA-F]{{{length}}}" for length in (8, 4, 4, 4, 12))
+)  # PostgreSQL POSIX pattern
+
+
+class matches_uuid_format(ColumnElement[bool]):  # noqa: N801  -- a SQL construct
+    """A ``CHECK``-able predicate: does a column hold a UUID in 8-4-4-4-12 hex form?
+
+    SQLite has ``GLOB`` but no regex operator; PostgreSQL has ``~`` but no
+    ``GLOB``. Neither spelling is portable, so the predicate renders per
+    dialect and callers get one expression that works on both.
+    """
+
+    inherit_cache = True
+    type = Boolean()
+
+    def __init__(self, column_name: str) -> None:
+        self.column_name = column_name
+
+
+@compiles(matches_uuid_format, "sqlite")
+def _compile_matches_uuid_format_sqlite(
+    element: matches_uuid_format,
+    compiler: SQLCompiler,
+    **kw: Any,
+) -> str:
+    return f"{compiler.preparer.quote(element.column_name)} GLOB '{_UUID_GLOB}'"
+
+
+@compiles(matches_uuid_format, "postgresql")
+def _compile_matches_uuid_format_postgresql(
+    element: matches_uuid_format,
+    compiler: SQLCompiler,
+    **kw: Any,
+) -> str:
+    return f"{compiler.preparer.quote(element.column_name)} ~ '{_UUID_REGEX}'"
+
+
 class AgentSession(HasId):
     __tablename__ = "agent_sessions"
     project_session_id: Mapped[str] = mapped_column(String, nullable=False)
@@ -3285,7 +3324,8 @@ class AgentSession(HasId):
     )
     messages: Mapped[list["AgentSessionMessage"]] = relationship(
         "AgentSessionMessage",
-        order_by="AgentSessionMessage.position",
+        # Transcript order is insertion order, i.e. ascending primary key.
+        order_by="AgentSessionMessage.id",
         cascade="all, delete-orphan",
         back_populates="agent_session",
     )
@@ -3312,7 +3352,6 @@ class AgentSessionMessage(HasId):
         ForeignKey("agent_sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
-    position: Mapped[int] = mapped_column(Integer, nullable=False)
     message: Mapped[PhoenixUIMessage] = mapped_column(_UIMessage, nullable=False)
     message_id: Mapped[str] = mapped_column(
         String,
@@ -3343,11 +3382,11 @@ class AgentSessionMessage(HasId):
         back_populates="messages",
     )
     __table_args__ = (
-        UniqueConstraint("agent_session_id", "position"),
+        CheckConstraint(matches_uuid_format("message_id"), name="valid_message_id"),
         Index(
             "ix_agent_session_messages_compaction",
             "agent_session_id",
-            position.desc(),
+            sa.desc("id"),
             postgresql_where=text("is_compaction_message"),
             sqlite_where=text("is_compaction_message"),
         ),

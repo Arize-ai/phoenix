@@ -129,7 +129,7 @@ class AgentSession(Node):
         stmt = (
             select(models.AgentSessionMessage.message)
             .where(models.AgentSessionMessage.agent_session_id == self.id)
-            .order_by(models.AgentSessionMessage.position)
+            .order_by(models.AgentSessionMessage.id)
         )
         async with info.context.db.read() as session:
             messages = (await session.scalars(stmt)).all()

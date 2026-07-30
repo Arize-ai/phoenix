@@ -31,7 +31,7 @@ class AgentSessionMessageTextDataLoader(DataLoader[Key, Result]):
                 func.row_number()
                 .over(
                     partition_by=message.agent_session_id,
-                    order_by=message.position.asc(),
+                    order_by=message.id.asc(),
                 )
                 .label("rank"),
             ).where(
@@ -45,7 +45,7 @@ class AgentSessionMessageTextDataLoader(DataLoader[Key, Result]):
                 func.row_number()
                 .over(
                     partition_by=message.agent_session_id,
-                    order_by=message.position.desc(),
+                    order_by=message.id.desc(),
                 )
                 .label("rank"),
             ).where(message.message["role"].as_string() == "assistant")

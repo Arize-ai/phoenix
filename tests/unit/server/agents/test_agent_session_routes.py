@@ -7,6 +7,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TextUIPart
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _message_uuid
 
 
 async def _insert_agent_session(
@@ -28,11 +29,10 @@ async def _insert_agent_session(
         )
         session.add(agent_session)
         await session.flush()
-        for position, message in enumerate(messages or []):
+        for message in messages or []:
             session.add(
                 models.AgentSessionMessage(
                     agent_session_id=agent_session.id,
-                    position=position,
                     message=message,
                 )
             )
@@ -127,12 +127,12 @@ class TestGetAgentSession:
         now = datetime.now(timezone.utc)
         messages = [
             PhoenixUIMessage(
-                id="user-message",
+                id=_message_uuid("user-message"),
                 role="user",
                 parts=[TextUIPart(type="text", text="Hello")],
             ),
             PhoenixUIMessage(
-                id="assistant-message",
+                id=_message_uuid("assistant-message"),
                 role="assistant",
                 parts=[TextUIPart(type="text", text="Hi")],
             ),
@@ -153,8 +153,8 @@ class TestGetAgentSession:
         assert data["title"] == "Conversation"
         assert data["is_temporary"] is False
         assert [message["id"] for message in data["messages"]] == [
-            "user-message",
-            "assistant-message",
+            _message_uuid("user-message"),
+            _message_uuid("assistant-message"),
         ]
         assert data["messages"][0]["parts"] == [{"type": "text", "text": "Hello"}]
         assert data["messages"][1]["parts"] == [{"type": "text", "text": "Hi"}]

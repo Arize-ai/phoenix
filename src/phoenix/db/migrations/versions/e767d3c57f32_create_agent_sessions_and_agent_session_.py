@@ -41,6 +41,21 @@ _Integer = sa.Integer().with_variant(
     "postgresql",
 )
 
+_UUID_GLOB = "-".join("[0-9a-fA-F]" * length for length in (8, 4, 4, 4, 12))
+_UUID_REGEX = "^{}$".format("-".join(f"[0-9a-fA-F]{{{length}}}" for length in (8, 4, 4, 4, 12)))
+
+
+def _uuid_format_check(column_name: str, dialect_name: str) -> str:
+    """SQL for "this column holds a UUID in 8-4-4-4-12 hex form".
+
+    SQLite has ``GLOB`` but no regex operator; PostgreSQL has ``~`` but no
+    ``GLOB``, so the CHECK is spelled per-dialect.
+    """
+    if dialect_name == "postgresql":
+        return f"{column_name} ~ '{_UUID_REGEX}'"
+    return f"{column_name} GLOB '{_UUID_GLOB}'"
+
+
 # revision identifiers, used by Alembic.
 revision: str = "e767d3c57f32"
 down_revision: Union[str, None] = "c9d0e1f2a3b4"
@@ -102,7 +117,6 @@ def upgrade() -> None:
             sa.ForeignKey("agent_sessions.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("position", sa.Integer, nullable=False),
         message,
         sa.Column(
             "message_id",
@@ -129,13 +143,16 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("agent_session_id", "position"),
+        sa.CheckConstraint(
+            _uuid_format_check("message_id", op.get_bind().dialect.name),
+            name="valid_message_id",
+        ),
         sqlite_autoincrement=True,
     )
     op.create_index(
         "ix_agent_session_messages_compaction",
         "agent_session_messages",
-        ["agent_session_id", sa.column("position").desc()],
+        ["agent_session_id", sa.column("id").desc()],
         postgresql_where=sa.text("is_compaction_message"),
         sqlite_where=sa.text("is_compaction_message"),
     )
