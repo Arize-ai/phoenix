@@ -9,6 +9,7 @@ from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.settings.registry import SETTINGS_REGISTRY, AgentSessionRetentionSetting
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _message_uuid
 
 
 async def _make_settings(
@@ -108,8 +109,7 @@ async def test_agent_session_sweeper_deletes_only_expired_sessions_and_cascades(
         session.add(
             models.AgentSessionMessage(
                 agent_session_id=expired_id,
-                position=0,
-                message=PhoenixUIMessage(id="message-1", role="user", parts=[]),
+                message=PhoenixUIMessage(id=_message_uuid("message-1"), role="user", parts=[]),
             )
         )
         session.add(

@@ -8,6 +8,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _message_uuid
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -37,10 +38,9 @@ async def _seed_agent_session(
         session.add_all(
             models.AgentSessionMessage(
                 agent_session_id=agent_session.id,
-                position=position,
                 message=PhoenixUIMessage.model_validate(message),
             )
-            for position, message in enumerate(messages or [])
+            for message in messages or []
         )
         return str(GlobalID("AgentSession", str(agent_session.id)))
 
@@ -194,17 +194,17 @@ async def test_agent_session_loads_transcript_by_id(
         user_id = user.id
     messages: list[dict[str, Any]] = [
         {
-            "id": "message-1",
+            "id": _message_uuid("message-1"),
             "role": "user",
             "parts": [{"type": "text", "text": "First question"}],
         },
         {
-            "id": "message-2",
+            "id": _message_uuid("message-2"),
             "role": "assistant",
             "parts": [{"type": "text", "text": "Earlier answer"}],
         },
         {
-            "id": "compaction-1",
+            "id": _message_uuid("compaction-1"),
             "role": "user",
             "metadata": {
                 "type": "user",
@@ -215,7 +215,7 @@ async def test_agent_session_loads_transcript_by_id(
             "parts": [{"type": "text", "text": '{"objectives":["test"]}'}],
         },
         {
-            "id": "message-3",
+            "id": _message_uuid("message-3"),
             "role": "assistant",
             "parts": [
                 {"type": "text", "text": "Latest"},
