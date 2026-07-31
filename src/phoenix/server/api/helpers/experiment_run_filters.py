@@ -890,7 +890,19 @@ def _validate_python_surface(body: ast.expr) -> None:
             raise ExperimentRunFilterConditionSyntaxError(
                 "Formatted strings are not supported; use a plain string literal"
             )
-        elif isinstance(node, (ast.Await, ast.Yield, ast.YieldFrom)):
+        elif isinstance(node, (ast.Call, ast.Lambda)):
+            # This language has no functions -- there is no `visit_Call` -- so a
+            # call is never valid. Most spellings already fail on the callee as
+            # an unknown name, but one that never resolves a name (`(lambda:
+            # 1)()`) reached the transformer and failed there instead.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Function calls are not supported: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Comprehensions are not supported: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, (ast.Await, ast.Yield, ast.YieldFrom, ast.IfExp)):
             # Reachable only because `ast.parse` accepts them in an expression.
             raise ExperimentRunFilterConditionSyntaxError(
                 f"Unsupported expression: `{ast.unparse(node)}`"

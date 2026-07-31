@@ -794,6 +794,17 @@ class TestInheritedPythonSurface:
             pytest.param("f'{error}' == 'a'", "Formatted strings are not supported", id="fstring"),
             pytest.param("await error == 'a'", "Unsupported expression: `await error`", id="await"),
             pytest.param(
+                "(lambda: 1)() == 1", "Function calls are not supported", id="called-lambda"
+            ),
+            pytest.param(
+                "[x for x in [1]][0] == 1", "Comprehensions are not supported", id="comprehension"
+            ),
+            pytest.param(
+                "(error if 1 else error) == 'a'",
+                "Unsupported expression",
+                id="conditional-expression",
+            ),
+            pytest.param(
                 "input[-1] == 'a'", "Subscript key must be a literal: `-1`", id="negative-index"
             ),
             # `bool` is an `int` subclass, so these used to be read as index 1.
@@ -840,6 +851,7 @@ class TestInheritedPythonSurface:
                 "input[f'x'] == 'a'",
                 "input[-1] == 'a'",
                 "await error == 'a'",
+                "(lambda: 1)() == 1",
             ):
                 with pytest.raises(ExperimentRunFilterConditionSyntaxError):
                     compile_sqlalchemy_filter_condition(

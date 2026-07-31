@@ -92,6 +92,10 @@ ACCEPTED = [
     "+latency_ms > 0",
     # casts
     "str(latency_ms) == '1'",
+    # Casting a typed, non-boolean column is portable and stays allowed --
+    # verified by execution, not assumed: both backends render 1000.0 alike.
+    "str(annotations['q'].score) == '0.1'",
+    "str(annotations['q'].label) == 'a'",
     "float(attributes['x']) > 1",
     "int(attributes['x']) > 1",
 ]
@@ -113,8 +117,13 @@ REJECTED = [
     # VARCHAR holding a Python value. PostgreSQL refuses it outright; SQLite
     # coerces, and the two do not agree on the spelling (`True` -> `true` vs
     # `1`). Casting a column is portable and stays allowed.
-    ("str(True) == 'true'", "cannot cast the literal"),
-    ("str(False) == 'false'", "cannot cast the literal"),
+    # A boolean has no portable spelling as text: `true`/`false` on PostgreSQL,
+    # `1`/`0` on SQLite, so the same condition matches opposite rows. It arrives
+    # as a literal or as any boolean-valued expression -- notably the annotation
+    # existence check, which compiles to `CASE WHEN ... THEN <bind> ELSE <bind>`.
+    ("str(True) == 'true'", "cannot cast boolean to text"),
+    ("str(False) == 'false'", "cannot cast boolean to text"),
+    ("str(annotations['q']) == 'true'", "cannot cast boolean to text"),
     ("str(1) == '1'", "cannot cast the literal"),
     ("str(1.5) == '1.5'", "cannot cast the literal"),
     # datetime literals must carry an offset

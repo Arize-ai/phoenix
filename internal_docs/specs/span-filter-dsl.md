@@ -245,6 +245,27 @@ would translate to `1.in_([1, 2])` and raise a bare `AttributeError` from inside
 `len()`, lambdas, comprehensions, method calls like `name.upper()` — is
 rejected. `float()` and `int()` are equivalent; both produce a float.
 
+A cast is only admitted where its result is the same on both backends, which
+rules out two operands:
+
+| Rejected | Why |
+|---|---|
+| `float(True)`, `int(<boolean>)` | PostgreSQL rejects `CAST(true AS FLOAT)` |
+| `str(<boolean>)` | `true`/`false` on PostgreSQL, `1`/`0` on SQLite — the same condition matches opposite rows |
+| `str(<non-string literal>)` | binds a Python value into a VARCHAR parameter; PostgreSQL refuses it outright |
+
+The boolean rule is by inferred **type**, not by syntax, because a boolean
+reaches the cast in more than one shape. `annotations['q']` is an existence
+check that compiles to `CASE WHEN ... THEN <bind> ELSE <bind> END` over Python
+booleans, so `str(annotations['q'])` is the same defect as `str(True)` wearing a
+column's clothes. A rule written against literals catches one and not the other.
+
+Casting a typed, non-boolean *column* is portable and stays allowed:
+`str(latency_ms)` renders identically on both. Note this is a claim about typed
+columns only — a JSON attribute cast to text carries the unresolved boolean
+divergence in [Dialect Semantics](#dialect-semantics), because its type is not
+known until the row is read.
+
 ---
 
 ## Type System
