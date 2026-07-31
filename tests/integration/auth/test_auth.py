@@ -44,6 +44,7 @@ from .._helpers import (
     _SYSTEM_USER_GID,
     _VIEWER,
     _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+    _VIEWER_ALLOWED_WRITE_OPERATIONS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AccessToken,
     _AdminSecret,
@@ -2088,6 +2089,16 @@ class TestApiAccessViaCookiesOrApiKeys:
                     in _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS
                 ):
                     expected_status_code = 403
+                endpoint = endpoint.format(token_hex(4))
+                response = client.request(method, endpoint)
+                assert response.status_code == expected_status_code, (
+                    f"Expected {expected_status_code} but got {response.status_code} "
+                    f"for {method} {endpoint}"
+                )
+
+            # Test 5: Viewer-allowed writes (e.g. the LLM proxy) accept every
+            # authenticated principal, API keys included.
+            for expected_status_code, method, endpoint in _VIEWER_ALLOWED_WRITE_OPERATIONS:
                 endpoint = endpoint.format(token_hex(4))
                 response = client.request(method, endpoint)
                 assert response.status_code == expected_status_code, (
