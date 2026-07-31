@@ -1,9 +1,11 @@
 import type {
   PlaygroundChatTemplate,
+  PlaygroundInput,
   PlaygroundInstance,
 } from "@phoenix/store/playground";
 
 import { instanceToPromptVersion } from "../fetchPlaygroundPrompt";
+import { withMediaVariables } from "../playgroundMedia";
 import { getVariablesMapFromInstances } from "../playgroundUtils";
 import { promptTemplateToPlaygroundMessages } from "../promptConfigToPlaygroundInstance";
 
@@ -37,6 +39,24 @@ function chatInstance(
     activeRunId: null,
     selectedRepetitionNumber: 1,
   } as PlaygroundInstance;
+}
+
+/**
+ * The same composition the Inputs panel uses: upstream derives text variables, the
+ * fork layers media on top. Tests go through it so they exercise the real path.
+ */
+function deriveVariables(args: {
+  instances: PlaygroundInstance[];
+  templateFormat: Parameters<
+    typeof getVariablesMapFromInstances
+  >[0]["templateFormat"];
+  input: PlaygroundInput;
+}) {
+  const base = getVariablesMapFromInstances(args);
+  return withMediaVariables(base, {
+    instances: args.instances,
+    input: args.input,
+  });
 }
 
 describe("saving a message with images", () => {
@@ -263,7 +283,7 @@ describe("media variable derivation", () => {
     chatInstance(messages);
 
   it("surfaces image variables as playground inputs", () => {
-    const { variableKeys, mediaVariableKeys } = getVariablesMapFromInstances({
+    const { variableKeys, mediaVariableKeys } = deriveVariables({
       instances: [
         instanceWith([
           {
@@ -284,7 +304,7 @@ describe("media variable derivation", () => {
 
   it("keeps image variables even when the template format is NONE", () => {
     /** They are declared by a message part, not by template syntax. */
-    const { variableKeys, mediaVariableKeys } = getVariablesMapFromInstances({
+    const { variableKeys, mediaVariableKeys } = deriveVariables({
       instances: [
         instanceWith([
           {
@@ -304,7 +324,7 @@ describe("media variable derivation", () => {
   });
 
   it("deduplicates a variable used in more than one message", () => {
-    const { mediaVariableKeys } = getVariablesMapFromInstances({
+    const { mediaVariableKeys } = deriveVariables({
       instances: [
         instanceWith([
           {
@@ -329,7 +349,7 @@ describe("media variable derivation", () => {
   });
 
   it("reports no media variables for a stored image", () => {
-    const { mediaVariableKeys } = getVariablesMapFromInstances({
+    const { mediaVariableKeys } = deriveVariables({
       instances: [
         instanceWith([
           {

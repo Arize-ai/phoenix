@@ -19,7 +19,6 @@ import {
 } from "@phoenix/schemas";
 import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
-import type { MediaKind } from "@phoenix/schemas/promptSchemas";
 import type {
   AnthropicToolCall,
   LlmProviderToolCall,
@@ -86,8 +85,8 @@ import {
   TOOLS_PARSING_ERROR,
 } from "./constants";
 import {
-  extractMediaVariableDeclarationsFromInstances,
-  extractMediaVariablesFromInstances,
+  mediaContentPartInputs,
+  withMediaVariableValues,
 } from "./playgroundMedia";
 import {
   getVisibleInvocationParameterSpecs,
@@ -1233,17 +1232,15 @@ export const extractVariablesFromInstances = ({
   instances: PlaygroundInstance[];
   templateFormat: TemplateFormat;
 }) => {
-  const mediaVariables = extractMediaVariablesFromInstances({ instances });
   if (templateFormat === TemplateFormats.NONE) {
-    return mediaVariables;
+    return [];
   }
   return Array.from(
-    new Set([
-      ...instances.flatMap((instance) =>
+    new Set(
+      instances.flatMap((instance) =>
         extractVariablesFromInstance({ instance, templateFormat })
-      ),
-      ...mediaVariables,
-    ])
+      )
+    )
   );
 };
 
@@ -1278,32 +1275,8 @@ export const getVariablesMapFromInstances = ({
   templateFormat: TemplateFormat;
   input: PlaygroundInput;
 }) => {
-  // Media variables are structural, so they survive a NONE template format even
-  // though text variables do not.
-  const mediaVariableDeclarations =
-    extractMediaVariableDeclarationsFromInstances({ instances });
-  const mediaVariableKeys = mediaVariableDeclarations.map(
-    (declaration) => declaration.variable
-  );
-  const mediaVariableKinds = mediaVariableDeclarations.reduce<
-    Record<string, MediaKind>
-  >((acc, declaration) => {
-    acc[declaration.variable] = declaration.kind;
-    return acc;
-  }, {});
   if (templateFormat === TemplateFormats.NONE) {
-    const variableValueCache = input.variablesValueCache ?? {};
-    return {
-      variablesMap: mediaVariableKeys.reduce<
-        NonNullable<PlaygroundInput["variablesValueCache"]>
-      >((acc, key) => {
-        acc[key] = variableValueCache[key] || "";
-        return acc;
-      }, {}),
-      variableKeys: mediaVariableKeys,
-      mediaVariableKeys,
-      mediaVariableKinds,
-    };
+    return { variablesMap: {}, variableKeys: [] };
   }
   const variableKeys = extractVariablesFromInstances({
     instances,
@@ -1318,7 +1291,7 @@ export const getVariablesMapFromInstances = ({
     acc[key] = variableValueCache[key] || "";
     return acc;
   }, {});
-  return { variablesMap, variableKeys, mediaVariableKeys, mediaVariableKinds };
+  return { variablesMap, variableKeys };
 };
 
 /** Discriminator predicate for the function-tool branch of {@link Tool}. */
@@ -1627,24 +1600,7 @@ function chatMessageToPromptMessageInput(message: ChatMessage): {
     if (message.content) {
       content.push({ text: { text: message.content } });
     }
-    // Images follow the text, matching how the editor lays a message out.
-    for (const part of message.images ?? []) {
-      content.push({
-        image: { url: part.image.url, mediaType: part.image.mediaType },
-      });
-    }
-    for (const part of message.imageVariables ?? []) {
-      content.push({ imageVariable: { variable: part.image.variable } });
-    }
-    // Documents follow the images, so a message reads text, pictures, then papers.
-    for (const part of message.files ?? []) {
-      content.push({
-        file: { url: part.file.url, mediaType: part.file.mediaType },
-      });
-    }
-    for (const part of message.fileVariables ?? []) {
-      content.push({ fileVariable: { variable: part.file.variable } });
-    }
+    content.push(...mediaContentPartInputs(message));
   }
 
   return { role: chatRoleToPromptRole(message.role), content };
@@ -2224,7 +2180,10 @@ export const getChatCompletionInput = ({
     headers: baseChatCompletionVariables.headers,
     credentials: baseChatCompletionVariables.credentials,
     template: {
-      variables: variablesMap,
+      variables: withMediaVariableValues(variablesMap, {
+        instances: playgroundInstances,
+        input,
+      }),
       format: templateFormat,
     },
     promptName: instance.prompt?.name,

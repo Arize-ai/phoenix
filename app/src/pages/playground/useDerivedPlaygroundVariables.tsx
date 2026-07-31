@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
+import { withMediaVariables } from "./playgroundMedia";
 import {
   denormalizePlaygroundInstance,
   getVariablesMapFromInstances,
@@ -12,6 +13,11 @@ import {
  *
  * Variables are recomputed whenever _anything_ in the playground instances change
  * or when the template language changes. This can be optimized in the future.
+ *
+ * Media variables are layered on here rather than inside
+ * `getVariablesMapFromInstances`: they are declared by a message part instead of by
+ * template syntax, and keeping them out of that function leaves it exactly as
+ * upstream wrote it.
  */
 export const useDerivedPlaygroundVariables = () => {
   const input = usePlaygroundContext((state) => state.input);
@@ -27,9 +33,13 @@ export const useDerivedPlaygroundVariables = () => {
   }, [instances, allInstanceMessages]);
   const { variableKeys, variablesMap, mediaVariableKeys, mediaVariableKinds } =
     useMemo(() => {
-      return getVariablesMapFromInstances({
+      const base = getVariablesMapFromInstances({
         instances: enrichedInstances,
         templateFormat,
+        input,
+      });
+      return withMediaVariables(base, {
+        instances: enrichedInstances,
         input,
       });
     }, [input, enrichedInstances, templateFormat]);

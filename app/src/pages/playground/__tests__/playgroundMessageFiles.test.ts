@@ -1,9 +1,11 @@
 import type {
   PlaygroundChatTemplate,
+  PlaygroundInput,
   PlaygroundInstance,
 } from "@phoenix/store/playground";
 
 import { instanceToPromptVersion } from "../fetchPlaygroundPrompt";
+import { withMediaVariables } from "../playgroundMedia";
 import { getVariablesMapFromInstances } from "../playgroundUtils";
 import { promptTemplateToPlaygroundMessages } from "../promptConfigToPlaygroundInstance";
 
@@ -37,6 +39,24 @@ function chatInstance(
     activeRunId: null,
     selectedRepetitionNumber: 1,
   } as PlaygroundInstance;
+}
+
+/**
+ * The same composition the Inputs panel uses: upstream derives text variables, the
+ * fork layers media on top. Tests go through it so they exercise the real path.
+ */
+function deriveVariables(args: {
+  instances: PlaygroundInstance[];
+  templateFormat: Parameters<
+    typeof getVariablesMapFromInstances
+  >[0]["templateFormat"];
+  input: PlaygroundInput;
+}) {
+  const base = getVariablesMapFromInstances(args);
+  return withMediaVariables(base, {
+    instances: args.instances,
+    input: args.input,
+  });
 }
 
 describe("saving a message with documents", () => {
@@ -201,7 +221,7 @@ describe("loading a message with documents", () => {
 describe("document variable derivation", () => {
   it("surfaces a document variable as a playground input, tagged as a file", () => {
     const { variableKeys, mediaVariableKeys, mediaVariableKinds } =
-      getVariablesMapFromInstances({
+      deriveVariables({
         instances: [
           chatInstance([
             {
@@ -223,22 +243,21 @@ describe("document variable derivation", () => {
   });
 
   it("tags each media variable with its own kind", () => {
-    const { mediaVariableKeys, mediaVariableKinds } =
-      getVariablesMapFromInstances({
-        instances: [
-          chatInstance([
-            {
-              id: 1,
-              role: "user",
-              content: "",
-              imageVariables: [{ image: { variable: "photo" } }],
-              fileVariables: [{ file: { variable: "contract" } }],
-            },
-          ]),
-        ],
-        templateFormat: "MUSTACHE",
-        input: { variablesValueCache: {} },
-      });
+    const { mediaVariableKeys, mediaVariableKinds } = deriveVariables({
+      instances: [
+        chatInstance([
+          {
+            id: 1,
+            role: "user",
+            content: "",
+            imageVariables: [{ image: { variable: "photo" } }],
+            fileVariables: [{ file: { variable: "contract" } }],
+          },
+        ]),
+      ],
+      templateFormat: "MUSTACHE",
+      input: { variablesValueCache: {} },
+    });
 
     expect(mediaVariableKeys).toEqual(["photo", "contract"]);
     expect(mediaVariableKinds).toEqual({
@@ -248,7 +267,7 @@ describe("document variable derivation", () => {
   });
 
   it("keeps document variables when the template format is NONE", () => {
-    const { variableKeys, mediaVariableKinds } = getVariablesMapFromInstances({
+    const { variableKeys, mediaVariableKinds } = deriveVariables({
       instances: [
         chatInstance([
           {
@@ -268,7 +287,7 @@ describe("document variable derivation", () => {
   });
 
   it("reports no media variable for a stored document", () => {
-    const { mediaVariableKeys } = getVariablesMapFromInstances({
+    const { mediaVariableKeys } = deriveVariables({
       instances: [
         chatInstance([
           {
