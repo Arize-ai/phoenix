@@ -108,6 +108,44 @@ For models with complex pricing structures, you can configure detailed token pri
 * **Completion Price Breakdown**: Different rates for reasoning, audio, image tokens
 * **Provider Matching**: Match models by provider to avoid naming conflicts
 
+## Backfilling costs for historical spans
+
+Costs are computed at ingestion time, so LLM spans that were recorded **before** a model's pricing existed (or before cost tracking was available) will not have cost records. Once the pricing is configured, you can backfill those historical spans through a REST endpoint designed to be driven from a script.
+
+The endpoint processes one bounded batch of spans per request and returns a `next_cursor`. Call it repeatedly, passing the cursor back each time, until `next_cursor` is `null`. Each request only computes costs for LLM spans that do not already have one. Existing cost records are never modified — only missing ones are filled in. Backfills still consume database and application resources, so use smaller batches and an optional pause between requests on large or busy deployments.
+
+```python
+import time
+
+import httpx
+
+base_url = "http://localhost:6006"
+project = "your-project-name"  # project name or ID
+headers = {"Authorization": f"Bearer {api_key}"}  # only if auth is enabled
+
+cursor = None
+while True:
+    params = {"limit": 100}
+    if cursor is not None:
+        params["cursor"] = cursor
+    response = httpx.post(
+        f"{base_url}/v1/projects/{project}/spans/backfill_costs",
+        params=params,
+        headers=headers,
+    )
+    response.raise_for_status()
+    body = response.json()
+    print(body["data"])  # {"spans_scanned": ..., "costs_inserted": ..., "spans_skipped": ...}
+    cursor = body["next_cursor"]
+    if cursor is None:
+        break
+    time.sleep(0.2)  # optional pause to stay gentle on live ingestion
+```
+
+You can optionally scope a backfill to a time window with the `start_time` and `end_time` query parameters (ISO 8601, filtered on span start time). Spans without token counts, without a model name, or with no matching model price are counted under `spans_skipped` and left without a cost record.
+
+For large deployments, backfill one time window at a time during a low-traffic period. Start with the default batch size of 100, keep the pause between requests, and increase either value only after observing database and ingestion latency. A backfill writes a cost row plus cost-detail rows for every priced span, so monitor database free space and write-ahead-log or replication volume throughout the operation.
+
 ## Viewing cost data
 
 Once configured, Phoenix automatically displays cost information throughout the interface:

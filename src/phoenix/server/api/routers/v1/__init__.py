@@ -20,6 +20,7 @@ from .projects import router as projects_router
 from .prompts import router as prompts_router
 from .secrets import router as secrets_router
 from .sessions import router as sessions_router
+from .span_costs import router as span_costs_router
 from .spans import router as spans_router
 from .traces import router as traces_router
 from .users import router as users_router
@@ -67,6 +68,7 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     viewer_restricted_router.include_router(experiment_evaluations_router)
     viewer_restricted_router.include_router(traces_router)
     viewer_restricted_router.include_router(spans_router)
+    viewer_restricted_router.include_router(span_costs_router)
     viewer_restricted_router.include_router(prompts_router)
     viewer_restricted_router.include_router(projects_router)
     viewer_restricted_router.include_router(sessions_router)

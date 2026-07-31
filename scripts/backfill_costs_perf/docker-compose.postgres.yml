@@ -1,0 +1,40 @@
+# Postgres-backed Phoenix stack for the cost-backfill performance harness.
+#
+# Phoenix is built from the local source tree (../../Dockerfile) so that the
+# /v1/projects/{id}/spans/backfill_costs endpoint under test is included.
+#
+# Usage (driven by run_perf_test.py, but usable standalone):
+#   docker compose -p backfillperf -f docker-compose.postgres.yml up -d --build
+services:
+  phoenix:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "6006:6006"
+    environment:
+      - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+      # Keep the ingestion queue modest so backpressure (HTTP 503) is observable
+      # under load rather than silently absorbing everything.
+      - PHOENIX_MAX_SPANS_QUEUE_SIZE=5000
+      - PHOENIX_LOGGING_LEVEL=info
+
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+    volumes:
+      - phoenix_pg:/var/lib/postgresql/data
+
+volumes:
+  phoenix_pg:
