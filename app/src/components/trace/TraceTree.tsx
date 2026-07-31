@@ -317,6 +317,16 @@ const traceTreeIconRailCSS = css`
     );
   }
 
+  .trace-tree-icon-rail__item[data-has-active-descendant="true"] {
+    background-color: var(
+      --global-details-panel-navigation-row-with-active-descendant-background-color
+    );
+  }
+
+  .trace-tree-icon-rail__item[data-has-active-descendant="true"]:hover {
+    background-color: var(--global-list-item-hover-background-color);
+  }
+
   .trace-tree-icon-rail__item[data-selected="true"][data-status-code="ERROR"] {
     border-left-color: var(--global-color-danger);
   }
@@ -576,8 +586,12 @@ export function TraceTree(props: TraceTreeProps) {
               <button
                 type="button"
                 className="trace-tree-icon-rail__item"
-                data-selected={
-                  traceSelection.isActive ?? traceSelection.isSelected
+                data-selected={traceSelection.isSelected || undefined}
+                data-has-active-descendant={
+                  (traceSelection.isActive ?? traceSelection.isSelected) &&
+                  !traceSelection.isSelected
+                    ? true
+                    : undefined
                 }
                 aria-label={
                   hasErrors

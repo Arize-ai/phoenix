@@ -245,6 +245,18 @@ const turnListCSS = css`
         --global-details-panel-navigation-row-selected-border-color
       );
     }
+
+    &[data-has-active-descendant="true"] {
+      background: var(
+        --global-details-panel-navigation-row-with-active-descendant-background-color
+      );
+      border-left-color: transparent;
+    }
+
+    &[data-has-active-descendant="true"][data-hovered],
+    &[data-has-active-descendant="true"][data-focused] {
+      background: var(--global-list-item-hover-background-color);
+    }
   }
 
   .session-turn-row__annotation-action {
@@ -264,10 +276,12 @@ const turnListCSS = css`
 
 function SessionTurnList({
   rows,
+  selectedSpanNodeId,
   selectedTraceId,
   onTurnClick,
 }: {
   rows: ReadonlyArray<SessionTurnRow>;
+  selectedSpanNodeId: string | null;
   selectedTraceId: string | null;
   onTurnClick: (traceId: string) => void;
 }) {
@@ -295,12 +309,15 @@ function SessionTurnList({
       {(row) => {
         const paddedIndex = String(row.index + 1).padStart(2, "0");
         const turnLabel = `${paddedIndex} | ${row.rootSpan.name}`;
+        const hasActiveDescendant =
+          selectedSpanNodeId != null && row.traceId === selectedTraceId;
         return (
           <ListBoxItem
             id={row.traceId}
             textValue={turnLabel}
             className="react-aria-ListBoxItem session-turn-row"
             css={sessionDetailsNavigationTopLevelRowCSS}
+            data-has-active-descendant={hasActiveDescendant || undefined}
           >
             <Text
               className="session-turn-row__compact-index"
@@ -491,6 +508,7 @@ function SessionTurns({
 
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [searchParams, setSearchParams] = useSearchParams();
+  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
 
   const handleTurnClick = (traceId: string) => {
@@ -541,6 +559,7 @@ function SessionTurns({
     >
       <SessionTurnList
         rows={sessionRootSpans}
+        selectedSpanNodeId={selectedSpanNodeId}
         selectedTraceId={selectedTraceId}
         onTurnClick={handleTurnClick}
       />

@@ -1296,6 +1296,10 @@ const detailsPanelNavigationCSS = (theme: Theme) => css`
       var(--global-color-gray-200-rgb),
       0.5
     );
+    --global-details-panel-navigation-row-with-active-descendant-background-color: rgba(
+      var(--global-color-gray-200-rgb),
+      0.3
+    );
     --global-details-panel-navigation-row-selected-border-color: var(
       --global-color-gray-300
     );

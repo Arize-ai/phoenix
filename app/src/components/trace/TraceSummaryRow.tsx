@@ -49,6 +49,17 @@ const traceSummaryRowCSS = css`
     color: var(--global-text-color-900);
   }
 
+  &[data-has-active-descendant="true"] {
+    background-color: var(
+      --global-details-panel-navigation-row-with-active-descendant-background-color
+    );
+    color: var(--global-text-color-900);
+  }
+
+  &[data-has-active-descendant="true"]:hover {
+    background-color: var(--global-list-item-hover-background-color);
+  }
+
   &[data-selected="true"] .trace-summary-row__select {
     border-left-color: var(
       --global-details-panel-navigation-row-selected-border-color
@@ -162,12 +173,14 @@ export function TraceSummaryRow({
     errorCount > 0
       ? `View trace ${traceId}, ${errorCount} ${errorCount === 1 ? "error" : "errors"}`
       : `View trace ${traceId}`;
+  const hasActiveDescendant = isActive && !isSelected;
 
   return (
     <div
       className="trace-summary-row"
       css={traceSummaryRowCSS}
-      data-selected={isActive || undefined}
+      data-selected={isSelected || undefined}
+      data-has-active-descendant={hasActiveDescendant || undefined}
     >
       <button
         type="button"

@@ -645,7 +645,8 @@ function TraceRow({
   return (
     <div
       css={traceRowCSS}
-      data-selected={isActive || undefined}
+      data-selected={isSelected || undefined}
+      data-has-active-descendant={(isActive && !isSelected) || undefined}
       data-testid="session-trace-row"
       ref={(el) => {
         setTraceRowRef({ traceId: trace.traceId, el });

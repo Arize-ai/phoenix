@@ -822,7 +822,30 @@ describe("TraceTree", () => {
     const traceButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="View trace trace-12345678"]'
     );
-    expect(traceButton?.parentElement?.dataset.selected).toBe("true");
+    const traceRow = traceButton?.parentElement;
+    expect(traceRow?.dataset.selected).toBeUndefined();
+    expect(traceRow?.dataset.hasActiveDescendant).toBe("true");
+    expect(getComputedStyle(traceRow!).backgroundColor.replace(/\s/g, "")).toBe(
+      "var(--global-details-panel-navigation-row-with-active-descendant-background-color)"
+    );
+    const traceRowClassName = Array.from(traceRow?.classList ?? []).find(
+      (className) => className.startsWith("css-")
+    );
+    const activeDescendantHoverRule = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText.includes(
+            `.${traceRowClassName}[data-has-active-descendant="true"]:hover`
+          )
+      );
+    expect(activeDescendantHoverRule?.style.backgroundColor).toBe(
+      "var(--global-list-item-hover-background-color)"
+    );
+    expect(getComputedStyle(traceButton!).borderLeftColor).toBe(
+      "rgba(0, 0, 0, 0)"
+    );
     expect(traceButton?.getAttribute("aria-pressed")).toBe("false");
 
     act(() => traceButton?.click());

@@ -123,7 +123,11 @@ vi.mock("../ConnectedTraceTree", () => ({
         {traceSelection ? (
           <div
             data-testid="trace-row"
-            data-selected={traceSelection.isActive || undefined}
+            data-selected={traceSelection.isSelected || undefined}
+            data-has-active-descendant={
+              (traceSelection.isActive && !traceSelection.isSelected) ||
+              undefined
+            }
           >
             <button
               type="button"
@@ -295,6 +299,11 @@ describe("TraceDetails", () => {
       container
         .querySelector("[data-testid='trace-row']")
         ?.getAttribute("data-selected")
+    ).toBeNull();
+    expect(
+      container
+        .querySelector("[data-testid='trace-row']")
+        ?.getAttribute("data-has-active-descendant")
     ).toBe("true");
     expect(
       container.querySelector("[data-testid='span-details']")
