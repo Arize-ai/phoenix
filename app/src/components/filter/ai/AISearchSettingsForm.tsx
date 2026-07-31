@@ -12,10 +12,11 @@ import { resolveAISearchModelConfig } from "./types";
  * The AI search configuration for the settings and profile cards: the
  * feature description and, when the feature is enabled, the model choice —
  * one picker offering Browser AI (the on-device built-in model, the default
- * where available) alongside hosted model providers called with your
- * configured credentials. The hosting card owns the enable switch (in its
- * header); the filter field's gear popover renders the compact dropdown
- * instead. All surfaces read and write the same persisted preference.
+ * where available) alongside providers called through the Phoenix server
+ * with credentials configured there. The hosting card owns the enable
+ * switch (in its header); the filter field's gear popover renders the
+ * compact dropdown instead. All surfaces read and write the same persisted
+ * preference.
  */
 export function AISearchSettingsForm() {
   const isEnabled = usePreferencesContext((state) => state.isAISearchEnabled);

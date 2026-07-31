@@ -1,8 +1,7 @@
 import type { LanguageModel } from "ai";
 
 import { createBrowserModel } from "./browserModel";
-import type { ProviderCredentials } from "./providerModels";
-import { createProviderModel } from "./providerModels";
+import { createServerModel } from "./serverModel";
 import type { AISearchModelConfig } from "./types";
 
 /**
@@ -12,17 +11,11 @@ import type { AISearchModelConfig } from "./types";
  */
 export async function createAISearchModel({
   config,
-  credentials,
 }: {
   config: AISearchModelConfig;
-  credentials?: Partial<Record<ModelProvider, ProviderCredentials>>;
 }): Promise<LanguageModel> {
   if (config.kind === "browser") {
     return createBrowserModel();
   }
-  return createProviderModel({
-    provider: config.provider,
-    modelName: config.modelName,
-    credentials: credentials?.[config.provider],
-  });
+  return createServerModel(config);
 }

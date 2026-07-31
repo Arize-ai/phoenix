@@ -6,10 +6,7 @@ export * from "./AISearchSettingsForm";
 export * from "./browserAIMenuItem";
 export * from "./browserModel";
 export * from "./BrowserModelCard";
-export {
-  AI_SEARCH_PROVIDERS,
-  type ProviderCredentials,
-} from "./providerModels";
+export * from "./serverModel";
 export * from "./createAISearchDSL";
 export * from "./createAISearchModel";
 export * from "./buildAISearchPrompt";

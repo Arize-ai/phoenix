@@ -31,8 +31,8 @@ export default meta;
 /**
  * The feature switch and, once enabled, the model picker: Browser AI — the
  * on-device built-in model (availability reflects the browser viewing the
- * story) — alongside providers called with credentials held only in this
- * browser. Changes persist in this browser's storage.
+ * story) — alongside providers called through the Phoenix server with
+ * credentials configured there. Changes persist in this browser's storage.
  */
 export const Default: StoryFn = () => (
   <CredentialsProvider>

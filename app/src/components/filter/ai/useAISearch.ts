@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 
-import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import type { DSLFilterConditionValidationResult } from "../DSLFilterConditionField";
@@ -50,7 +49,7 @@ export function toErrorMessage(error: unknown, fallback = "AI search failed") {
 /**
  * Orchestrates one natural-language → filter-expression translation at a
  * time: resolves the configured model (on-device browser model by default,
- * a provider model with browser-held credentials otherwise), downloads the
+ * a provider called through the Phoenix server otherwise), downloads the
  * browser model on first use, streams the forming expression through
  * `onDelta`, and resolves with a {@link AISearchGenerateResult} describing
  * how the run ended.
@@ -58,9 +57,6 @@ export function toErrorMessage(error: unknown, fallback = "AI search failed") {
 export function useAISearch({ dsl, validate }: UseAISearchArgs) {
   const modelConfig = resolveAISearchModelConfig(
     usePreferencesContext((state) => state.aiSearchModelConfig)
-  );
-  const credentials = useCredentialsContext((state) =>
-    modelConfig.kind === "provider" ? state[modelConfig.provider] : undefined
   );
   const [status, setStatus] = useState<AISearchStatus>("idle");
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
@@ -100,13 +96,7 @@ export function useAISearch({ dsl, validate }: UseAISearchArgs) {
         return { outcome: "cancelled" };
       }
       setStatus("generating");
-      const model = await createAISearchModel({
-        config: modelConfig,
-        credentials:
-          modelConfig.kind === "provider"
-            ? { [modelConfig.provider]: credentials }
-            : undefined,
-      });
+      const model = await createAISearchModel({ config: modelConfig });
       const condition = await generateFilterCondition({
         model,
         dsl,
