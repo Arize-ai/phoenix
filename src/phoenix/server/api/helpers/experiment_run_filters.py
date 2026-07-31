@@ -115,8 +115,13 @@ def compile_sqlalchemy_filter_condition(
         return _compile_sqlalchemy_filter_condition(
             filter_condition=filter_condition, experiment_ids=experiment_ids
         )
-    except ExperimentRunFilterConditionSyntaxError:
-        raise
+    except ExperimentRunFilterConditionSyntaxError as error:
+        # Messages name the offending fragment, which can be a 320-digit
+        # literal or a multi-kilobyte expression reflected into the UI, logs,
+        # and GraphQL responses. Advice precedes the echo, so truncating the
+        # tail cuts only the reflection. Done here at the boundary rather than
+        # at each format site, so a new message cannot forget it.
+        raise ExperimentRunFilterConditionSyntaxError(_ellipsize(str(error))) from error
     except RecursionError:
         # Parsing, transformation, and compilation all recurse, so deeply
         # nested input can exhaust the stack at any of them.
@@ -136,6 +141,13 @@ def _compile_sqlalchemy_filter_condition(
     try:
         original_tree = ast.parse(filter_condition, mode="eval")
     except SyntaxError as error:
+        if "integer string conversion" in str(error):
+            # CPython's 4300-digit guard, whose message advises
+            # `sys.set_int_max_str_digits()` -- Python's remedy, not the
+            # condition's. Every such literal is invalid here anyway.
+            raise ExperimentRunFilterConditionSyntaxError(
+                "Invalid numeric literal: too many digits"
+            ) from error
         raise ExperimentRunFilterConditionSyntaxError(str(error))
     except ValueError as error:
         # A NUL anywhere in the source, which `ast.parse` reports as a
@@ -214,6 +226,15 @@ class FreeAttributeNameBinder(ast.NodeTransformer):
 
 class ExperimentRunFilterConditionSyntaxError(Exception):
     pass
+
+
+def _ellipsize(message: str, limit: int = 300) -> str:
+    """Bound an error message that echoes user-controlled text.
+
+    As in the span DSL: advice precedes the echoed fragment in every message,
+    so truncating the tail cuts only the reflection, never the guidance.
+    """
+    return message if len(message) <= limit else message[: limit - 1] + "…"
 
 
 @dataclass(frozen=True)
@@ -868,6 +889,29 @@ def _cast_json_value(compiled_operand: Any, cast_type: SQLAlchemyDataType) -> An
     return cast(compiled_operand, cast_type)
 
 
+# The node types a valid condition can contain: the expression forms the
+# transformer implements, their operator nodes, and the contexts `ast.walk`
+# yields alongside them. `List` / `Tuple` are included so they reach the
+# transformer's own named rejection rather than dying here with a worse
+# message; unsupported *operators* under an allowed parent (`~x`, `x ** y`)
+# are rejected at the parent before the walk descends to the operator node.
+_ALLOWED_PYTHON_SURFACE: tuple[type, ...] = (
+    ast.BoolOp,
+    ast.UnaryOp,
+    ast.Compare,
+    ast.Constant,
+    ast.Name,
+    ast.Attribute,
+    ast.Subscript,
+    ast.List,
+    ast.Tuple,
+    ast.boolop,
+    ast.unaryop,
+    ast.cmpop,
+    ast.expr_context,
+)
+
+
 def _validate_python_surface(body: ast.expr, source: str) -> None:
     """Reject Python constructs this language never implemented.
 
@@ -942,6 +986,16 @@ def _validate_python_surface(body: ast.expr, source: str) -> None:
             # a server fault with the full condition logged at error level.
             raise ExperimentRunFilterConditionSyntaxError(
                 f"Assignment is not supported: `{ast.unparse(node)}`"
+            )
+        elif not isinstance(node, _ALLOWED_PYTHON_SURFACE):
+            # The rejections above exist to *name* constructs for better
+            # messages; this is the default-deny floor beneath them. A denylist
+            # is a permanent backlog of node types nobody has thought of yet --
+            # the walrus operator escaped this walk for exactly that reason --
+            # and CPython adds node types over releases, so exhaustiveness has
+            # to come from an allowlist, not from enumeration of the bad.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Unsupported construct: `{ast.unparse(node)}`"
             )
         elif isinstance(node, (ast.Name, ast.Attribute)):
             # Python NFKC-normalizes identifiers while parsing, so a full-width

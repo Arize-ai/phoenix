@@ -964,7 +964,34 @@ class TestProjectorValidationGap:
     ``SpanFilter``'s on purpose -- a projection is a value, not a predicate,
     so the operand-type and boolean-position rules do not apply -- but the
     structural allowlist and the sandbox must hold.
+
+    ``SpanFilter.__call__`` evaluates through the same mechanism and gets the
+    same pin below: the pinning is one dict literal that a refactor could
+    "simplify" away while passing every grammar test.
     """
+
+    def test_span_filter_eval_namespace_has_no_builtins_access(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        span_filter = SpanFilter("name == 'x'")
+
+        captured_globals: list[dict[str, Any]] = []
+        real_eval = eval
+
+        def spy_eval(code: Any, globals_dict: dict[str, Any], locals_dict: Any = None) -> Any:
+            captured_globals.append(globals_dict)
+            return real_eval(code, globals_dict, locals_dict)
+
+        monkeypatch.setattr("phoenix.trace.dsl.filter.eval", spy_eval, raising=False)
+        span_filter(select(models.Span.id))
+
+        assert captured_globals
+        for globals_dict in captured_globals:
+            assert globals_dict.get("__builtins__") == {}, (
+                "SpanFilter eval namespace must pin __builtins__ to {}; "
+                "anything else exposes the full builtins dict to whatever "
+                "survives the translator."
+            )
 
     def test_projector_rejects_what_spanfilter_rejects(self) -> None:
         # ``SpanFilter`` rejects this via ``_validate_expression`` — but

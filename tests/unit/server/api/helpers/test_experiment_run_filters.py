@@ -829,11 +829,20 @@ class TestInheritedPythonSurface:
             pytest.param("error == 1j", "Unsupported literal: `1j`", id="complex"),
             pytest.param("error == 1e400", "Invalid numeric literal: `1e309`", id="non-finite"),
             # Python ints are unbounded; neither backend has a faithful float
-            # for one past the IEEE range.
+            # for one past the IEEE range. The echoed digits are truncated by
+            # the boundary, so only a prefix of the message is pinned.
             pytest.param(
                 "latency_ms == " + "9" * 320,
-                "Invalid numeric literal: `" + "9" * 320 + "`",
+                "Invalid numeric literal: `" + "9" * 100,
                 id="int-overflow",
+            ),
+            # No visitor implements Starred; the default-deny floor rejects it
+            # rather than letting it reach compilation. This is the allowlist
+            # working: the construct was never enumerated as dangerous.
+            pytest.param(
+                "error in [*error]",
+                "Unsupported construct: `*error`",
+                id="starred",
             ),
             # Python NFKC-normalizes identifiers while parsing, so a full-width
             # spelling silently resolved to a real column the user never typed.
@@ -951,6 +960,7 @@ class TestInheritedPythonSurface:
                 "5 in latency_ms",
                 "ｉｎｐｕｔ['x'] == 'yes'",
                 "error == (error := 'x')",
+                "error in [*error]",
             ):
                 with pytest.raises(ExperimentRunFilterConditionSyntaxError):
                     compile_sqlalchemy_filter_condition(
@@ -960,3 +970,22 @@ class TestInheritedPythonSurface:
 
     def test_supported_arithmetic_still_compiles(self) -> None:
         compile_sqlalchemy_filter_condition(filter_condition="-latency_ms > 1", experiment_ids=[1])
+
+    def test_error_messages_bound_echoed_fragments(self) -> None:
+        # Messages reflect condition text into the UI, logs, and GraphQL
+        # responses; the boundary truncates the echo so a multi-kilobyte
+        # expression cannot ride along. Advice precedes the echo, so nothing
+        # actionable is lost.
+        with pytest.raises(ExperimentRunFilterConditionSyntaxError) as exc_info:
+            compile_sqlalchemy_filter_condition(
+                filter_condition="latency_ms == " + "9" * 2000, experiment_ids=[1]
+            )
+        assert len(str(exc_info.value)) <= 300
+        assert str(exc_info.value).startswith("Invalid numeric literal")
+        # Past CPython's 4300-digit conversion guard the parser rejects the
+        # literal itself, with advice naming `sys.set_int_max_str_digits()` --
+        # Python's remedy, not the condition's. Reworded at the boundary.
+        with pytest.raises(ExperimentRunFilterConditionSyntaxError, match="too many digits"):
+            compile_sqlalchemy_filter_condition(
+                filter_condition="latency_ms == " + "9" * 5000, experiment_ids=[1]
+            )

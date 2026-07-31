@@ -118,6 +118,24 @@ def test_no_message_is_empty_or_truncated() -> None:
     )
 
 
+def test_messages_bound_echoed_fragments() -> None:
+    """Messages name the offending fragment, which reflects condition text into
+    the UI, logs, and GraphQL responses. The error boundary truncates the echo
+    so a multi-kilobyte expression cannot ride along; advice precedes the echo
+    in every message, so nothing actionable is lost."""
+    with pytest.raises(SyntaxError) as exc_info:
+        SpanFilter("latency_ms == " + "9" * 2000)
+    message = str(exc_info.value)
+    assert len(message) <= 300
+    assert message.startswith("invalid numeric literal")
+    # Past CPython's 4300-digit conversion guard, the parser itself rejects
+    # the literal -- with advice about `sys.set_int_max_str_digits()`, which
+    # is Python's remedy rather than the condition's. Reworded at the
+    # boundary.
+    with pytest.raises(SyntaxError, match="too many digits"):
+        SpanFilter("latency_ms == " + "9" * 5000)
+
+
 def test_every_message_says_something() -> None:
     """A message has to carry more than a label. The bar is deliberately low --
     it catches placeholders, not prose quality."""

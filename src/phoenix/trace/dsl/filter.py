@@ -1447,12 +1447,32 @@ def _format_syntax_error(error: SyntaxError) -> str:
     pass through as their message alone.
     """
     message = error.msg or "invalid syntax"
+    if "integer string conversion" in message:
+        # CPython's 4300-digit guard fires during parsing, and its message
+        # advises `sys.set_int_max_str_digits()` -- Python's remedy, not the
+        # condition's. Every such literal is invalid here anyway (nothing that
+        # long is a finite float), so say that instead.
+        return "invalid numeric literal: too many digits"
     # Single-line conditions make the line number noise.
     message = message.replace(" (detected at line 1)", "")
     offset = error.offset
     if offset is not None and offset > 0:
-        return f"{message} at character {offset}"
-    return message
+        return _ellipsize(f"{message} at character {offset}")
+    return _ellipsize(message)
+
+
+def _ellipsize(message: str, limit: int = 300) -> str:
+    """Bound an error message that echoes user-controlled text.
+
+    Messages name the offending fragment, which means reflecting condition
+    text into the UI, logs, and GraphQL responses -- and a fragment can be a
+    320-digit literal or a multi-kilobyte expression. Advice precedes the echo
+    in every message, so truncating the tail cuts only the reflection.
+
+    Applied at the error boundary rather than at each of the ~30 format sites,
+    so a new message cannot forget it.
+    """
+    return message if len(message) <= limit else message[: limit - 1] + "…"
 
 
 def _validate_python_surface(body: ast.expr, source: str) -> None:

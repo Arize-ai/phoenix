@@ -1026,7 +1026,10 @@ operator in the experiment filter for exactly the predicted reason — nobody
 had thought of it yet. The catch-all boundary made the miss survivable, not
 invisible: the condition was reported as a server fault and logged in full. A
 structural walk that rejects every node type not in an approved set makes the
-next unconsidered construct unreachable by construction.
+next unconsidered construct unreachable by construction. Both validators now
+end in that default-deny floor (`_ALLOWED_PYTHON_SURFACE` on the experiment
+side), with the named rejections kept above it for message quality — the
+enumeration now buys better errors, not correctness.
 
 ### 6. Every new *name* is a breaking change; new *operators* are not
 
@@ -1069,8 +1072,12 @@ Practical rules learned here:
 - **Echoed fragments need bounds.** Naming the offending fragment means
   reflecting user-controlled text into the UI, logs, and GraphQL responses; a
   message that interpolates a 320-digit literal or a multi-kilobyte expression
-  does so unbounded. Truncate what is echoed, and never let the echo change
-  the message's meaning.
+  does so unbounded. Both DSLs now truncate at their error boundary
+  (`_ellipsize`, 300 chars) — done there rather than at each format site so a
+  new message cannot forget it, and safe because advice precedes the echo in
+  every message. CPython's own 4300-digit parse guard is reworded at the same
+  boundary: its message advises `sys.set_int_max_str_digits()`, which is
+  Python's remedy, not the condition's.
 
 ### 8. Static analysis of the condition is part of its meaning
 
@@ -1374,9 +1381,10 @@ PostgreSQL error text as the *symptom*.
   pinned; `TestProjectorValidationGap` remains as the regression pin.
 - **Membership between two JSON operands** (`attributes['p'] in
   attributes['q']`) is accepted and compiles to string containment over the two
-  text renderings. That is the same class of divergence as two-JSON equality —
-  boolean spellings, key order, quoting can differ per backend — but unlike
-  equality it is not pinned by a test.
+  text renderings. The same class of divergence as two-JSON equality — boolean
+  spellings, key order, quoting differ per backend — and pinned the same way
+  (`test_membership_between_two_json_values_is_a_known_divergence`), with
+  per-backend expected sets rather than a fix.
 - **Collation and numeric precision** differ between backends and are not
   specified.
 

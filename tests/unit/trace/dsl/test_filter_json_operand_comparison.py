@@ -138,6 +138,28 @@ async def _matches(db: DbSessionFactory, condition: str) -> set[str]:
         return set(await session.scalars(SpanFilter(condition)(select(models.Span.span_id))))
 
 
+async def test_membership_between_two_json_values_is_a_known_divergence(
+    db: DbSessionFactory,
+    json_operand_project: None,
+    dialect: str,
+) -> None:
+    """`in` between two JSON operands is substring containment over the two
+    text renderings, so it inherits every rendering difference equality has --
+    boolean spellings, key order, numeric formatting -- plus partial-match
+    effects of its own. Pinned per backend, not fixed: like two-JSON equality,
+    agreement would require the JSON type extraction has already discarded.
+    """
+    contained = await _matches(db, "attributes['p'] in attributes['q']")
+    if dialect == "sqlite":
+        # Native extraction: `true` collapses to 1 before the containment
+        # sees it, so the boolean row matches a numeric needle.
+        assert contained == {"numstr", "numform", "numbool", "same"}
+    else:
+        # jsonb text: canonical key order makes the reordered objects render
+        # identically, while `true` stays `true` and does not contain `1`.
+        assert contained == {"keyorder", "numstr", "numform", "same"}
+
+
 async def test_ordered_comparison_of_two_json_values_is_numeric_on_every_backend(
     db: DbSessionFactory,
     json_ordering_project: None,
