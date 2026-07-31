@@ -312,6 +312,13 @@ the mechanism that makes schemaless attributes safe to filter on, and it is
 verified against deliberately hostile rows (`"abc"`, `"1_000"`, `"nan"`,
 `"inf"`, `" 12 "`, containers, nulls).
 
+Every rule above resolves an unknown type against a *known* one. When both
+operands are unknown — one attribute compared to another — there is nothing to
+resolve against, and the comparison falls to text with whatever type the
+extraction produced. This is the one place the type system has no answer, and
+the backends do not agree on what it means; see
+[Dialect Semantics](#dialect-semantics).
+
 Unknown types are *not* admitted in boolean position — see below.
 
 ---
@@ -388,6 +395,14 @@ Not guaranteed:
 - **JSON booleans rendered as text.** The same collapse with the opposite sign:
   extracted as text, `true` reads as `true` on PostgreSQL and as `1` on SQLite,
   so a substring test against a boolean reaches it on one backend only.
+- **Two JSON values compared against each other.** A literal fixes the type of
+  the comparison; a second JSON value fixes nothing, so the comparison happens
+  in whatever type extraction produced. PostgreSQL compares jsonb text, where
+  object key order is canonical but `1` and `1.0` are different strings; SQLite
+  compares native values, where `1 == 1.0` holds and `true` has already become
+  `1`. All three cases disagree, in both directions. Note that comparing a key
+  against *itself* is unaffected — both sides render identically whatever the
+  rule — and is only ever an expensive spelling of `is not None`.
 - **Row-level ordering and collation.** String comparison collation differs.
 - **Numeric precision.** PostgreSQL `NUMERIC` vs SQLite `REAL`.
 - **NULL sort position** in downstream `ORDER BY`.
