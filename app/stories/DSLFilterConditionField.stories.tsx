@@ -6,10 +6,12 @@ import { fn } from "storybook/test";
 import { Flex, Text, View } from "@phoenix/components";
 import type { DSLFilterSnippet } from "@phoenix/components/filter";
 import {
+  createAISearchDSL,
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
   type DSLFilterConditionFieldProps,
 } from "@phoenix/components/filter";
+import { CredentialsProvider } from "@phoenix/contexts/CredentialsContext";
 
 /**
  * An example DSL vocabulary: the fields an expression can reference
@@ -146,6 +148,49 @@ const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => {
  */
 export const Default = {
   render: Template,
+};
+
+/**
+ * The field with AI search available. Open the sparkle button to enable the
+ * feature and pick a model — the on-device browser model by default (real
+ * conversions in Chrome/Edge), or a provider with an API key. With AI
+ * search on, plain-language drafts show the AI affordance and the PXI
+ * treatment on the field border; Enter converts them to the DSL, and the
+ * result can be undone from the badge or with Escape.
+ */
+export const WithAISearch: StoryFn<DSLFilterConditionFieldProps> = (args) => {
+  const [value, setValue] = useState<string>("");
+  const [validCondition, setValidCondition] = useState<string>("");
+  return (
+    <CredentialsProvider>
+      <View width="600px">
+        <Flex direction="column" gap="size-100">
+          <DSLFilterConditionField
+            {...args}
+            value={value}
+            onChange={setValue}
+            completions={completions}
+            snippets={snippets}
+            validateCondition={validateCondition}
+            onValidCondition={(args) => setValidCondition(args.condition)}
+            aiSearch={{
+              dsl: createAISearchDSL({
+                noun: "records",
+                completions,
+                snippets,
+              }),
+              placeholder: "filter records — DSL or plain English",
+            }}
+          />
+          <Text color="text-700" size="XS">
+            {validCondition
+              ? `Applied condition: ${validCondition}`
+              : "No condition applied"}
+          </Text>
+        </Flex>
+      </View>
+    </CredentialsProvider>
+  );
 };
 
 /**

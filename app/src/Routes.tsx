@@ -262,12 +262,12 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Profile Preferences",
                 description:
-                  "Choose your theme, timezone, code language, and package manager defaults.",
+                  "Choose your theme, timezone, code language, and package manager defaults, and configure AI search for filter fields (enable it and pick the in-browser model or a provider).",
               },
               navigation: {
                 section: "Profile",
                 label: "Preferences",
-                description: "Theme, timezone, and code defaults",
+                description: "Theme, timezone, code defaults, and AI search",
                 icon: "Options",
               },
             }}
@@ -957,7 +957,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "AI Providers",
                 description:
-                  "Configure AI providers, custom providers, provider credentials, base URLs, default model, and provider headers.",
+                  "Configure AI providers, custom providers, provider credentials, base URLs, default model, provider headers, and AI search (natural-language filter conditions using the in-browser model or a provider).",
               },
             }}
           />

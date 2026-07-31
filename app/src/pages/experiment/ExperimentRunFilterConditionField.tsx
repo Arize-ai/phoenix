@@ -4,8 +4,10 @@ import { useSearchParams } from "react-router";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import {
+  createAISearchDSL,
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
+  type DSLFilterAISearchProps,
   type DSLFilterSnippet,
 } from "@phoenix/components/filter";
 import environment from "@phoenix/RelayEnvironment";
@@ -112,6 +114,24 @@ const experimentRunFilterSnippets: DSLFilterSnippet[] = [
     snippet: "latency_ms >= ${10_000}",
   },
 ];
+
+/**
+ * Everything the AI search model needs to translate plain language into the
+ * experiment run filter DSL — derived from the same vocabulary and examples
+ * that power the typeahead, so the two can never drift apart.
+ */
+const experimentRunFilterAISearch: DSLFilterAISearchProps = {
+  dsl: createAISearchDSL({
+    noun: "experiment runs",
+    completions: experimentRunFilterCompletions,
+    snippets: experimentRunFilterSnippets,
+    notes: [
+      "Evaluations are accessed by name, e.g. evals['Hallucination'], and expose .label, .score, and .explanation.",
+      "When experiments are compared side by side, experiments[i] scopes an expression to the i-th experiment, e.g. experiments[0].evals['name'].score.",
+    ],
+  }),
+  placeholder: "filter runs — DSL or plain English",
+};
 
 /**
  * Fetches the evaluation names that actually exist on the experiments so the
@@ -239,6 +259,7 @@ export function ExperimentRunFilterConditionField(
       loadCompletions={loadEvaluationCompletions}
       validateCondition={validateCondition}
       onValidCondition={onValidCondition}
+      aiSearch={experimentRunFilterAISearch}
     />
   );
 }

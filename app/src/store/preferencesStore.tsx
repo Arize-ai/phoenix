@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
+import type { AISearchModelConfig } from "@phoenix/components/filter/ai/types";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -173,6 +174,16 @@ export interface PreferencesProps {
    * When undefined, falls back to {@link DEFAULT_MODEL_NAME}.
    */
   defaultModelName?: string;
+  /**
+   * Whether AI search is enabled on filter condition fields
+   * @default false
+   */
+  isAISearchEnabled: boolean;
+  /**
+   * How AI search on filter fields resolves its language model. When
+   * undefined, the on-device browser model is used.
+   */
+  aiSearchModelConfig?: AISearchModelConfig;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -277,6 +288,17 @@ export interface PreferencesState extends PreferencesProps {
    * Pass `undefined` (or an empty string) to clear the preference.
    */
   setDefaultModelName: (defaultModelName: string | undefined) => void;
+  /**
+   * Setter for enabling/disabling AI search on filter condition fields
+   */
+  setIsAISearchEnabled: (isAISearchEnabled: boolean) => void;
+  /**
+   * Setter for how AI search resolves its language model. Pass `undefined`
+   * to fall back to the on-device browser model.
+   */
+  setAISearchModelConfig: (
+    aiSearchModelConfig: AISearchModelConfig | undefined
+  ) => void;
 }
 
 export const createPreferencesStore = (
@@ -418,6 +440,14 @@ export const createPreferencesStore = (
       set({ defaultModelName: trimmed ? trimmed : undefined }, false, {
         type: "setDefaultModelName",
       });
+    },
+    isAISearchEnabled: false,
+    setIsAISearchEnabled: (isAISearchEnabled) => {
+      set({ isAISearchEnabled }, false, { type: "setIsAISearchEnabled" });
+    },
+    aiSearchModelConfig: undefined,
+    setAISearchModelConfig: (aiSearchModelConfig) => {
+      set({ aiSearchModelConfig }, false, { type: "setAISearchModelConfig" });
     },
     ...initialProps,
   });

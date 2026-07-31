@@ -43,7 +43,7 @@ describe("profile route information", () => {
         path: "/profile/preferences",
         label: "Profile Preferences",
         description:
-          "Choose your theme, timezone, code language, and package manager defaults.",
+          "Choose your theme, timezone, code language, and package manager defaults, and configure AI search for filter fields (enable it and pick the in-browser model or a provider).",
       },
     ]);
   });
