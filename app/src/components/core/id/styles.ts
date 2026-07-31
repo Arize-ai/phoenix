@@ -78,7 +78,7 @@ export const copyableIDBadgeIconOnlyCSS = css`
 
 /** Gives full IDs room, then wraps them without preferring dash boundaries. */
 export const copyableIDBadgeTooltipCSS = css`
-  max-width: var(--global-dimension-size-3600);
+  max-width: var(--global-dimension-size-3500);
   white-space: normal;
 
   .copyable-id-badge__tooltip-id {

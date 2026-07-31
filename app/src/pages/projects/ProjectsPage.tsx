@@ -444,7 +444,7 @@ function ProjectsGrid({
           display: grid;
           grid-template-columns: repeat(
             auto-fill,
-            minmax(var(--global-dimension-size-3600), 1fr)
+            minmax(var(--global-dimension-size-3500), 1fr)
           );
           gap: var(--global-dimension-size-200);
         `}

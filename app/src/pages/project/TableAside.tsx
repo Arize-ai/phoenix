@@ -216,7 +216,7 @@ export function ProjectInfoTitledPanel({
       }}
     >
       <View padding="size-200" overflow="auto" height="100%">
-        <Flex direction="column" gap="size-100" minWidth="size-3400">
+        <Flex direction="column" gap="size-100" minWidth="size-3500">
           <CopyField value={name ?? ""}>
             <Label>Name</Label>
             <CopyInput />
@@ -241,7 +241,7 @@ export function ProjectInfoTitledPanel({
 function TableAsideSkeleton() {
   return (
     <View padding="size-200" overflow="hidden" height="100%" aria-hidden="true">
-      <Flex direction="column" gap="size-200" minWidth="size-3400">
+      <Flex direction="column" gap="size-200" minWidth="size-3500">
         <Skeleton width={96} height={20} animation="wave" />
         <Skeleton width="100%" height={32} animation="wave" />
         <Skeleton width={72} height={20} animation="wave" />

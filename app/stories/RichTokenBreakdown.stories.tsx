@@ -29,7 +29,7 @@ const meta = {
     },
   },
   render: (args) => (
-    <View width="size-3600">
+    <View width="size-3500">
       <RichTokenBreakdown {...args} />
     </View>
   ),
@@ -64,7 +64,7 @@ export const TokenCounts: Story = {
  */
 export const CachedConversation: Story = {
   render: (args) => (
-    <View width="size-3600">
+    <View width="size-3500">
       <Flex direction="column" gap="size-300">
         <RichTokenBreakdown {...args} />
         <RichTokenBreakdown

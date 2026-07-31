@@ -25,7 +25,7 @@ const MEDIUM_WIDTH_BREAKPOINT = 560;
 const NARROW_GLYPH_SIZE = 220;
 const COMPACT_HERO_PADDING_TOP = 176;
 const SMALL_HERO_PADDING_TOP = COMPACT_GLYPH_SIZE;
-const MEDIUM_HERO_PADDING_TOP = 288;
+const MEDIUM_HERO_PADDING_TOP = 280;
 const LARGE_HERO_PADDING_TOP = 320;
 const COMPACT_GLYPH_TOP_OFFSET = -40;
 const SMALL_GLYPH_TOP_OFFSET = -48;
@@ -98,7 +98,7 @@ const heroCSS = css`
 
   @media (max-height: ${MEDIUM_HEIGHT_BREAKPOINT}px) {
     --hero-glyph-size: ${MEDIUM_GLYPH_SIZE}px;
-    --hero-padding-top: var(--global-dimension-size-3600);
+    --hero-padding-top: var(--global-dimension-size-3500);
   }
 
   @media (max-height: ${SMALL_HEIGHT_BREAKPOINT}px) {

@@ -422,7 +422,7 @@ export function TraceHeaderContent({
             </Focusable>
             <RichTooltip placement="bottom">
               <TooltipArrow />
-              <View width="size-3600">
+              <View width="size-3500">
                 <TokenCostsDetails
                   total={costSummary?.total?.cost ?? 0}
                   prompt={costSummary?.prompt?.cost ?? 0}

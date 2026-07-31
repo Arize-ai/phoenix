@@ -99,7 +99,7 @@ export function ProjectStats(props: { project: ProjectStats_project$key }) {
           </Focusable>
           <RichTooltip placement="bottom">
             <TooltipArrow />
-            <View width="size-3600">
+            <View width="size-3500">
               <TokenCostsDetails
                 total={data?.costSummary?.total?.cost ?? 0}
                 prompt={data?.costSummary?.prompt?.cost ?? 0}
