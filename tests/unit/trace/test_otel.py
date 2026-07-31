@@ -9,7 +9,11 @@ import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from google.protobuf.json_format import MessageToJson
-from openinference.semconv.trace import SpanAttributes
+from openinference.semconv.trace import (
+    MessageAttributes,
+    MessageContentAttributes,
+    SpanAttributes,
+)
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from pytest import approx
 
@@ -565,6 +569,88 @@ def test_decode_otlp_span_existing_oi_attrs_win_over_gen_ai() -> None:
     decoded = decode_otlp_span(otlp_span)
 
     assert decoded.attributes["llm"]["model_name"] == "gpt-4-from-oi"
+
+
+def test_decode_otlp_span_does_not_interleave_partial_client_messages() -> None:
+    """A client-side mapping that already wrote part of ``llm.input_messages`` is kept
+    whole: the synthesized mapping numbers messages differently (it folds
+    ``gen_ai.system_instructions`` in at index 0), so gap-filling it key by key would
+    interleave the two into messages that were never emitted."""
+    system_instructions = json.dumps([{"type": "text", "content": "You translate requests."}])
+    input_messages = json.dumps(
+        [{"role": "user", "parts": [{"type": "text", "content": "only root spans"}]}]
+    )
+    otlp_span = otlp.Span(
+        name="invoke_agent",
+        trace_id=token_bytes(16),
+        span_id=token_bytes(8),
+        attributes=[
+            KeyValue(key="gen_ai.operation.name", value=AnyValue(string_value="chat")),
+            KeyValue(
+                key="gen_ai.system_instructions", value=AnyValue(string_value=system_instructions)
+            ),
+            KeyValue(key="gen_ai.input.messages", value=AnyValue(string_value=input_messages)),
+            # Partial client-side OI mapping: the user message only, at index 0.
+            KeyValue(
+                key=f"{SpanAttributes.LLM_INPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_ROLE}",
+                value=AnyValue(string_value="user"),
+            ),
+            KeyValue(
+                key=(
+                    f"{SpanAttributes.LLM_INPUT_MESSAGES}.0"
+                    f".{MessageAttributes.MESSAGE_CONTENTS}.0"
+                    f".{MessageContentAttributes.MESSAGE_CONTENT_TEXT}"
+                ),
+                value=AnyValue(string_value="only root spans"),
+            ),
+        ],
+    )
+
+    decoded = decode_otlp_span(otlp_span)
+
+    messages = decoded.attributes["llm"]["input_messages"]
+    assert len(messages) == 1
+    assert messages[0]["message"]["role"] == "user"
+    assert messages[0]["message"]["contents"][0]["message_content"]["text"] == "only root spans"
+    # The system prompt is not spliced into the client's message as its content.
+    assert "content" not in messages[0]["message"]
+
+
+def test_decode_otlp_span_synthesizes_namespaces_the_client_left_empty() -> None:
+    """Skipping a positional namespace the client already wrote does not suppress the
+    other namespaces the client did not write."""
+    input_messages = json.dumps([{"role": "user", "parts": [{"type": "text", "content": "hi"}]}])
+    output_messages = json.dumps(
+        [
+            {
+                "role": "assistant",
+                "finish_reason": "stop",
+                "parts": [{"type": "text", "content": "hello"}],
+            }
+        ]
+    )
+    otlp_span = otlp.Span(
+        name="chat",
+        trace_id=token_bytes(16),
+        span_id=token_bytes(8),
+        attributes=[
+            KeyValue(key="gen_ai.operation.name", value=AnyValue(string_value="chat")),
+            KeyValue(key="gen_ai.input.messages", value=AnyValue(string_value=input_messages)),
+            KeyValue(key="gen_ai.output.messages", value=AnyValue(string_value=output_messages)),
+            KeyValue(
+                key=f"{SpanAttributes.LLM_INPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_ROLE}",
+                value=AnyValue(string_value="user"),
+            ),
+        ],
+    )
+
+    decoded = decode_otlp_span(otlp_span)
+
+    # Client owns the input messages ...
+    assert len(decoded.attributes["llm"]["input_messages"]) == 1
+    assert "content" not in decoded.attributes["llm"]["input_messages"][0]["message"]
+    # ... but the untouched output namespace is still synthesized.
+    assert decoded.attributes["llm"]["output_messages"][0]["message"]["content"] == "hello"
 
 
 @pytest.fixture
