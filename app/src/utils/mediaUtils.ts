@@ -8,6 +8,16 @@ import { prependBasename } from "./routingUtils";
 const PHOENIX_MEDIA_URL_PREFIX = "phoenix://media/";
 
 /**
+ * Whether a URL points at media Phoenix stores.
+ *
+ * Lets a caller send only the fork's own references down the fork's rendering path
+ * and leave ordinary image URLs on the one that was already there.
+ */
+export function isHostedMediaUrl(url: string): boolean {
+  return url.startsWith(PHOENIX_MEDIA_URL_PREFIX);
+}
+
+/**
  * Resolves a prompt media reference into a URL the browser can load.
  *
  * Media stored in Phoenix is referenced as `phoenix://media/<sha256>` so that
@@ -15,7 +25,7 @@ const PHOENIX_MEDIA_URL_PREFIX = "phoenix://media/";
  * REST API. Data URLs and ordinary http(s) URLs are returned unchanged.
  */
 export function resolveMediaUrl(url: string): string {
-  if (!url.startsWith(PHOENIX_MEDIA_URL_PREFIX)) {
+  if (!isHostedMediaUrl(url)) {
     return url;
   }
   const sha256 = url.slice(PHOENIX_MEDIA_URL_PREFIX.length);

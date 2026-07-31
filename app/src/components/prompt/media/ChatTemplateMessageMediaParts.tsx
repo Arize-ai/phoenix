@@ -18,7 +18,7 @@ import {
   View,
 } from "@phoenix/components";
 import { ChatTemplateMessagePartContainer } from "@phoenix/components/prompt/ChatTemplateMessageCard";
-import { SpanImage } from "@phoenix/pages/trace/span/SpanImage";
+import { SpanMedia } from "@phoenix/pages/trace/span/media/SpanMedia";
 import type {
   FilePart,
   FileVariablePart,
@@ -51,7 +51,7 @@ export function ChatTemplateMessageImagePart({
     >
       <View paddingX="size-200" paddingY="size-100">
         <Flex direction="column" gap="size-100" alignItems="start">
-          <SpanImage url={image.image.url} />
+          <SpanMedia url={image.image.url} />
           <Text size="XS" color="text-700">
             {image.image.mediaType}
           </Text>

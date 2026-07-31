@@ -5,14 +5,10 @@ import { useState } from "react";
 import { Button, Icon, Icons } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import { classNames } from "@phoenix/utils/classNames";
-import { resolveMediaUrl } from "@phoenix/utils/mediaUtils";
-
-import { MediaNotAnImage } from "./media/MediaNotAnImage";
 
 type SpanImageProps = {
   /**
-   * The url of the image. Can be a data URL, a `phoenix://media/<sha256>`
-   * reference to media stored in Phoenix, a URL, or a redacted string
+   * The url of the image. Can be either be a data URL, a URL or a redacted string
    */
 
   url: string;
@@ -67,22 +63,12 @@ const imageContainerCSS = css`
  */
 export function SpanImage(props: SpanImageProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [didFailToLoad, setDidFailToLoad] = useState(false);
   let content: ReactNode;
   const isRedacted = isRedactedUrl(props.url);
-  const resolvedUrl = resolveMediaUrl(props.url);
   if (isRedacted) {
     content = <RedactedImageSVG />;
-  } else if (didFailToLoad) {
-    content = <MediaNotAnImage url={resolvedUrl} />;
   } else {
-    content = (
-      <img
-        src={resolvedUrl}
-        alt="Span image"
-        onError={() => setDidFailToLoad(true)}
-      />
-    );
+    content = <img src={props.url} alt="Span image" />;
   }
   return (
     <div
@@ -91,7 +77,7 @@ export function SpanImage(props: SpanImageProps) {
       })}
       css={imageContainerCSS}
     >
-      {!isRedacted && !didFailToLoad && (
+      {!isRedacted && (
         <Button
           variant="default"
           size="S"

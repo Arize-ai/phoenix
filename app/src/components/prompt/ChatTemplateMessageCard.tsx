@@ -1,5 +1,4 @@
-import { css } from "@emotion/react";
-import type { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren } from "react";
 import { useMemo } from "react";
 
 import {
@@ -8,10 +7,7 @@ import {
   DisclosureGroup,
   DisclosurePanel,
   DisclosureTrigger,
-  ExternalLink,
   Flex,
-  Icon,
-  Icons,
   Text,
   View,
 } from "@phoenix/components";
@@ -22,13 +18,6 @@ import {
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { SpanImage } from "@phoenix/pages/trace/span";
-import type {
-  FilePart,
-  FileVariablePart,
-  ImagePart,
-  ImageVariablePart,
-} from "@phoenix/schemas/mediaPartSchemas";
 import type {
   ToolCallPart,
   ToolResultPart,
@@ -38,7 +27,6 @@ import {
   formatContentAsString,
   safelyStringifyJSON,
 } from "@phoenix/utils/jsonUtils";
-import { mediaDisplayName, resolveMediaUrl } from "@phoenix/utils/mediaUtils";
 
 import { MEDIA_PART_TYPE_TITLE } from "./media/partTitles";
 

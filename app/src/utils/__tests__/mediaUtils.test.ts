@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mediaDisplayName, resolveMediaUrl, uploadMedia } from "../mediaUtils";
+import {
+  isHostedMediaUrl,
+  mediaDisplayName,
+  resolveMediaUrl,
+  uploadMedia,
+} from "../mediaUtils";
 
 const { authFetchMock } = vi.hoisted(() => ({ authFetchMock: vi.fn() }));
 
@@ -133,5 +138,22 @@ describe("mediaDisplayName", () => {
     expect(
       mediaDisplayName("data:application/pdf;base64,AAAA", "application/pdf")
     ).toBe("media.pdf");
+  });
+});
+
+describe("isHostedMediaUrl", () => {
+  /**
+   * The trace view routes only hosted references through the fork's renderer, so
+   * this predicate decides whether upstream's image path is used unchanged.
+   */
+  it("recognises media Phoenix stores", () => {
+    expect(isHostedMediaUrl(`phoenix://media/${DIGEST}`)).toBe(true);
+  });
+
+  it("leaves every other kind of URL to the path that already handled it", () => {
+    expect(isHostedMediaUrl("https://example.com/cat.png")).toBe(false);
+    expect(isHostedMediaUrl("data:image/png;base64,AAAA")).toBe(false);
+    expect(isHostedMediaUrl("__REDACTED__")).toBe(false);
+    expect(isHostedMediaUrl("")).toBe(false);
   });
 });
