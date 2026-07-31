@@ -278,9 +278,7 @@ Unknown types are *not* admitted in boolean position — see below.
 
 ## Boolean Position
 
-Every operand of `and`, `or`, `not` must be a condition. This is the rule that
-closes issues [#5802](https://github.com/Arize-ai/phoenix/issues/5802) and
-[#10306](https://github.com/Arize-ai/phoenix/issues/10306).
+Every operand of `and`, `or`, `not` must be a condition.
 
 ```
 name == 'x' and r                  ->  `r` is not a condition, expected a
@@ -325,13 +323,15 @@ Not guaranteed:
 - **Numeric precision.** PostgreSQL `NUMERIC` vs SQLite `REAL`.
 - **NULL sort position** in downstream `ORDER BY`.
 
-Historically the divergence was much larger, and it is the root cause of the
-filter-crash issue family: the same condition produced a crash on PostgreSQL and
-silently wrong rows on SQLite. Any new coercion should be checked against both
-before it lands.
+Divergence here is the most expensive kind of defect this language can have: the
+same condition can crash one backend and return silently wrong rows on the
+other. Any new coercion must be **executed** against both before it lands —
+compiling against both is not sufficient, for the reasons in
+[Validation Is Not Execution](#validation-is-not-execution).
 
-> PostgreSQL CI currently pins `postgres:12`, which reached end of life in
-> November 2024. See [#14940](https://github.com/Arize-ai/phoenix/issues/14940).
+The guarantees above only hold on versions where the JSON facilities they rely
+on exist, so the oldest supported PostgreSQL is part of this contract and should
+be stated rather than inferred from whatever CI happens to pin.
 
 ---
 
@@ -377,9 +377,9 @@ text. Compiling is not executing, and the gap is real:
 
 Consequences for design and testing:
 
-1. **A test that only constructs a `SpanFilter` proves very little.** Several
-   defects survived precisely because the tests never ran a query. Coercion
-   changes need execution-level tests that assert returned rows.
+1. **A test that only constructs a `SpanFilter` proves very little.** It
+   exercises parsing and validation and says nothing about the three layers
+   below. Coercion changes need execution-level tests that assert returned rows.
 2. **The UI cannot rely on validation alone.** The spans and traces tabs wrap
    their content in an `ErrorBoundary` whose fallback re-renders the filter
    field, so a condition that passes validation and still fails leaves the user
@@ -421,58 +421,51 @@ they change what they match.
 metric columns a stored condition renders, without changing the condition.
 
 **4. Loud — grammar tightening.** Any strictness increase invalidates stored
-rows. This has already happened twice in one change: quoted numbers
-(`latency_ms > '100'`) and naive datetime literals were both accepted before and
-are rejected now. Both were only ever valid on SQLite.
+rows wholesale. This is the one failure mode the additive-only policy exists to
+forbid, which is why the set of accepted forms has to be settled before the
+first condition is written.
 
-**5. Loud — new reserved keywords.** `parent_span` became reserved recently. Any
-new reserved name silently changes meaning for conditions that used it as an
-attribute, or starts rejecting them.
+**5. Silent, then loud — new reserved names.** Bare identifiers fall back to the
+attribute namespace, so reserving a name that was previously a valid attribute
+reference changes what existing conditions mean, or begins rejecting them. New
+*operators* are safe; new *vocabulary* is not.
 
 **6. Loud — removing a backward-compatibility alias.** The five aliases above
-are the only reason older conditions still parse.
+are the only reason conditions written against the older spellings still parse.
 
-**7. Environment-dependent — dialect migration.** A condition stored on SQLite
-may fail on PostgreSQL after a backend migration. This is not hypothetical: it
-is exactly the class of bug this DSL work exists to remove, and older stored
-conditions predate the fixes.
+**7. Environment-dependent — dialect migration.** A condition stored while
+running on SQLite may fail on PostgreSQL afterwards, since the looser backend
+accepts constructs the stricter one rejects. Validity is not a property of the
+condition alone until both backends agree on it.
 
 ### The compatibility policy: additive only
 
-**There is no grammar version, and there will not be one.** The standard set for
-the sibling SessionFilter DSL applies here verbatim:
+**There is no grammar version, and there will not be one.**
 
-> This product cannot reasonably ask GraphQL callers and client-managed/history
-> state to select a filter-language version. Existing expressions and argument
-> meanings must remain backwards-compatible. Internal compiler/planner
-> architecture can change later; shipped text and meaning cannot.
->
-> — `.scratch/pr_reviews/pr-14101-session-filter-dsl/review.md`
+A version field is only useful if every caller can be asked which version it
+meant. Conditions arrive from GraphQL arguments, from client-managed state, and
+from URLs and history entries that no server controls — none of which can carry
+or negotiate a version. Absent that, there is no branch point for a rewrite and
+no migration hook to hang one from.
 
 So the grammar evolves **additively**: new names, new operators, and new forms
 may be introduced; nothing already accepted may be removed or given a different
-meaning. There is no version field to branch on and no migration hook to hang a
-rewrite from.
+meaning. Internal structure — the translator, the planner, the generated SQL —
+is free to change. Accepted text and its meaning are not.
 
 ### The tightening window closes at persistence
 
-This has a consequence worth stating plainly, because it is time-boxed.
+The policy has a consequence worth stating plainly, because it is time-boxed.
 
-Every restriction is a breaking change *once conditions are stored*. Before
-that, a restriction only invalidates text a user can retype. The current change
-makes exactly two:
+A restriction is only a breaking change *once conditions are stored*. Before
+that, it invalidates text a user can retype; after, it invalidates data. So the
+set of things this language will accept forever is fixed on the day the first
+condition is written to the database, whether or not anyone decides it that day.
 
-- quoted numbers against numeric fields (`latency_ms > '100'`)
-- naive datetime literals (`start_time >= '2025-12-16T13:43:00'`)
-
-Both were only ever valid on SQLite — they failed at execution on PostgreSQL —
-so they were never portable behavior. Landing them now costs nothing beyond
-retyping. Landing them after persistence would be impossible under the policy
-above.
-
-**Anything else in [Known Gaps](#known-gaps) that should be rejected has to be
-rejected before conditions are written to the database.** After that, the only
-available response is to keep accepting it.
+**Anything that should be rejected has to be rejected before then.** Afterwards
+the only available response to a bad construct is to keep accepting it — which
+makes the final pre-persistence review the last chance to ask, of every accepted
+form, whether it can be evaluated honestly on both backends.
 
 ### Recommendations for the persistence work
 
@@ -484,17 +477,18 @@ available response is to keep accepting it.
   names, or warn at save time only.
 - **Never persist generated SQL or a parsed form.** Only the source text is
   stable across releases; the AST and SQL are implementation details.
-- **Pin or test the dialect.** A condition stored while on SQLite may fail after
-  a migration to PostgreSQL. Conditions written before the fixes in this change
-  are the likeliest to.
+- **Pin or test the dialect.** A condition stored while running on SQLite may
+  fail after a migration to PostgreSQL, because SQLite accepts constructs the
+  stricter backend rejects.
 
 ---
 
 ## Design Principles
 
-Everything below was paid for by a specific defect in this module. They are
-recorded as principles because the same mistakes are available again — in this
-DSL, in SessionFilter, and in whatever query language comes next.
+These follow from what this language is: a user-facing surface, borrowed from a
+host grammar, compiled to two SQL dialects, over partly schemaless data, whose
+accepted text becomes durable. Each constraint below is a consequence of one of
+those five facts.
 
 ### Decomposing the problem: the failure-time ladder
 
@@ -566,19 +560,19 @@ no `bool()` for the same reason.
 
 ### 4. The permissive backend is the dangerous one
 
-The original crash family — [#5802](https://github.com/Arize-ai/phoenix/issues/5802),
-[#10306](https://github.com/Arize-ai/phoenix/issues/10306) — survived from 2024
-to 2026 with two maintainer investigations. Not because it was hard, but because
-of this:
+When a condition is malformed in a way neither the parser nor the validator
+catches, the two backends do not fail alike:
 
 | `name == 'n' and r` | |
 |---|---|
 | PostgreSQL | aborts the statement |
 | SQLite | returns **zero rows**, no error |
 
-Development happens on SQLite. A maintainer reproducing locally saw an empty
-table and reasonably concluded "edge case". The strict backend is where the bug
-is *visible*; the permissive backend is where it is *written*.
+SQLite is the default for local development, so this class of defect is written
+against the backend that hides it and observed only against the one that does
+not. An empty table reads as "the filter matched nothing", which is a plausible
+enough answer to stop investigating. The strict backend is where such a bug is
+*visible*; the permissive backend is where it gets *written*.
 
 Two practical consequences:
 
@@ -651,27 +645,39 @@ answer, so the analysis can be improved later without changing existing verdicts
 ### 9. Test at the layer where the failure lives
 
 A test that only constructs a `SpanFilter` exercises layers 1–2 and proves
-nothing about 3–5. This is not hypothetical: `latency_ms > '100'` sat in a test
-named `test_filter_accepts_previously_valid_conditions` while being
-**permanently broken on PostgreSQL**. The test encoded a belief, not a behavior.
+nothing about 3–5. A construction test asserting that some condition "is valid"
+can therefore pass indefinitely while that condition is broken on one backend —
+it encodes a belief about the language, not an observation of it.
 
 - Grammar rules → construct and assert the message.
-- Coercion, casts, translation → **execute** and assert returned rows.
-- Anything data-dependent → execute against deliberately hostile rows. A clean
-  fixture will not exercise a cast; an *empty* one exercises nothing at all —
-  `label == 100` passed on an empty deployment precisely because there were no
-  annotations to fail on.
+- Coercion, casts, translation → **execute** and assert returned rows, on both
+  backends.
+- Anything data-dependent → execute against deliberately hostile rows.
+
+The fixture matters as much as the assertion. A clean fixture never exercises a
+cast, and an *empty* one exercises nothing at all: a per-row failure cannot occur
+where there are no rows, so a data-dependent bug passes every check against an
+empty project. Fixtures for this module should contain values chosen to break
+things — unconvertible text where numbers are expected, all three JSON boolean
+encodings, nulls, containers where scalars are expected, multi-byte names.
 
 ### 10. Reason about databases by running them
 
-Two claims in this work were confidently wrong and settled in minutes by
-execution: that `EXPLAIN` would catch column casts (it constant-folds literals
-only), and that PostgreSQL cannot cast `jsonb` to `NUMERIC` (it has since PG 11).
-Both were plausible. Neither survived a query.
+Database behavior is unusually resistant to reasoning from the outside. Casts,
+JSON functions, and type coercion are version-dependent, dialect-dependent, and
+full of rules that are individually sensible and jointly unguessable — whether a
+cast exists at all, whether it folds at plan time or evaluates per row, whether
+an error is raised or a `NULL` returned.
 
-Where a spec asserts backend behavior, it should be because someone ran it —
-and ideally on the oldest supported version, since that is where the guarantee
-actually has to hold.
+A plausible chain of reasoning about any of these is worth roughly nothing
+against thirty seconds of running the query. Where this document asserts backend
+behavior, it is because someone executed it — and on the **oldest supported
+version**, since that is where a guarantee actually has to hold and where the
+function you are relying on may simply not exist yet.
+
+The same applies to reviews and bug reports about this module, from any source:
+a claim about what a database does is a hypothesis until it has been run on both
+backends.
 
 ### Subtly overlooked
 
@@ -748,28 +754,26 @@ PostgreSQL error text as the *symptom*.
 - **Annotation name existence** is not checked in the GraphQL path (cost). A
   stored condition naming a deleted annotation stays valid and matches nothing.
 - **Annotation aliasing is a byte-offset splice**, not an AST transform. The
-  offset table now agrees with the tokenizer, and multi-byte/multi-line cases are
-  tested, but the SessionFilter review argues for AST-transform aliasing as the
-  structurally correct fix — it would also close escape-decoding and literal
-  corruption. Worth considering here before conditions become durable.
+  offset table agrees with the tokenizer and multi-byte/multi-line cases are
+  tested, but rewriting the tree instead of the text would close a whole class
+  at once: escape decoding, literal corruption, and diagnostics that leak
+  generated alias names. Worth doing before conditions become durable.
 - **No `EXPLAIN`-based differential test** against PostgreSQL; agreement between
   the validator and the database is asserted by hand-written cases only.
 - **`Projector`** (the projection sibling of `SpanFilter`) has weaker
   validation; `TestProjectorValidationGap` documents this deliberately.
-- **No declared minimum PostgreSQL version** — see
-  [#14940](https://github.com/Arize-ai/phoenix/issues/14940).
+- **No declared minimum PostgreSQL version**, so the version floor the JSON
+  guarantees depend on is implicit.
 - **Collation and numeric precision** differ between backends and are not
   specified.
 
 ## Inherited Python Surface
 
-This DSL was built before it had a database: conditions were evaluated in Python,
-and the language was whatever Python's parser accepted. The SQL backend came
-later, and with it a large surface that had no SQL meaning but was still
-admitted — because nothing had ever needed to reject it.
-
-That surface was closed in the final pre-persistence tightening. Each rule
-replaces a Python behavior that could not survive the move:
+Because the grammar is borrowed from Python's parser, everything Python accepts
+arrives here by default — including constructs that have no SQL meaning at all.
+Admitting them is never a decision; rejecting them is. The rules below are those
+decisions, and each names a Python behavior that cannot be expressed honestly
+against a SQL backend:
 
 | Rejected | Was | Why it cannot stand |
 |---|---|---|
@@ -803,15 +807,16 @@ always safe under the additive-only policy.
 
 ## Relationship to SessionFilter
 
-`SessionFilter` (PR [#14101](https://github.com/Arize-ai/phoenix/pull/14101),
-`src/phoenix/db/session_filters.py`) is a sibling language over sessions rather
-than spans. It shares this module's shape and several of its defects, including
-the unary-plus sign flip and non-boolean logical operands — both fixed here, both
-still open there at the time of that review.
+`SessionFilter` (`src/phoenix/db/session_filters.py`) is a sibling language over
+sessions rather than spans, built on the same shape: a borrowed Python grammar,
+a structural allowlist, annotation aliasing, and translation to the same two
+dialects.
 
-Fixes that touch shared machinery need regression coverage on **both** grains.
-The review for that PR is the authority on session-grain semantics and on the
-compatibility standard quoted above.
+Shared shape means shared defects. A construct that is unsound here is very
+likely unsound there, and the reverse — so a finding on either grain is worth
+checking against the other, and a fix to shared machinery needs regression
+coverage on **both**. The principles in this document are grain-independent;
+only the vocabulary and the scope analysis are specific to spans.
 
 ---
 
