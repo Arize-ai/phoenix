@@ -1736,7 +1736,7 @@ export interface components {
             is_active: boolean;
             /**
              * Last Message Id
-             * @description The message ID of the most recently persisted transcript message, or null for an empty transcript. Combined with updated_at and is_active, this lets clients cheaply detect whether the transcript has changed without fetching messages.
+             * @description The message ID of the most recently persisted transcript message, or null for an empty transcript.
              */
             last_message_id?: string | null;
             /**
@@ -11440,7 +11440,7 @@ export interface operations {
     getAgentSession: {
         parameters: {
             query?: {
-                /** @description Whether to include the persisted transcript in the response. Pass false for a cheap synchronization probe that returns only session metadata (including is_active and last_message_id). */
+                /** @description Whether to include the persisted transcript in the response. */
                 include_messages?: boolean;
             };
             header?: never;
