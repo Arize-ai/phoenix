@@ -1,4 +1,5 @@
 import ast
+import math
 import re
 import typing
 from dataclasses import dataclass, field
@@ -759,6 +760,12 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                 # disagree about (`float('1_000')`, `float('nan')`).
                 if not _is_numeric_string(argument.value):
                     raise SyntaxError("cannot cast string to number")
+                # The grammar bounds the spelling, not the magnitude:
+                # `float('1e400')` passes it and overflows to `inf`, the exact
+                # value the literal rule rejects. Check the converted value,
+                # not the text.
+                if not math.isfinite(float(argument.value)):
+                    raise SyntaxError(f"invalid numeric literal: {argument.value}")
             elif _get_filter_value_type(argument) == "string":
                 raise SyntaxError("cannot cast string to number")
             elif _get_filter_value_type(argument) == "boolean":
@@ -840,6 +847,16 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                         # column against.
                         raise SyntaxError(
                             f"`{ast.unparse(element)}` is not a value, collections cannot be nested"
+                        )
+                    if isinstance(element, ast.Constant) and element.value is None:
+                        # SQL `IN` compares elements with `=`, and `= NULL` is
+                        # never true, so a None element can never match --
+                        # worse, `NOT IN ('a', NULL)` is never true for *any*
+                        # row, silently emptying the result set.
+                        raise SyntaxError(
+                            f"`{ast.unparse(node)}` includes None"
+                            ", which never matches in SQL"
+                            "; test for missing values with `is None` / `is not None`"
                         )
                 if isinstance(left, ast.Constant):
                     # Membership against a literal collection is translated to
@@ -1044,7 +1061,14 @@ def _as_float_operand(node: ast.expr) -> ast.expr:
         and isinstance(node.value, str)
         and _is_numeric_string(node.value)
     ):
-        return ast.Constant(value=float(node.value), kind=None)
+        value = float(node.value)
+        # A spelling within the grammar can still overflow (`'1e400'` -> inf),
+        # and this path is reached by strings validation never saw as numeric
+        # (`attributes['x'] > '1e400'`), so the converted value is checked here
+        # rather than trusted to an earlier pass.
+        if not math.isfinite(value):
+            raise SyntaxError(f"invalid numeric literal: {node.value}")
+        return ast.Constant(value=value, kind=None)
     return _cast_as("Float", node)
 
 
@@ -1482,6 +1506,15 @@ def _validate_literal(node: ast.Constant) -> None:
             raise SyntaxError("string literals cannot contain a NUL character")
         return
     if isinstance(value, int):
+        # Python ints are unbounded; both backends evaluate numeric fields in
+        # float, so an int too large for a finite float has no faithful value
+        # to bind -- asyncpg refuses it while SQLite quietly stores infinity.
+        try:
+            representable = math.isfinite(float(value))
+        except OverflowError:
+            representable = False
+        if not representable:
+            raise SyntaxError(f"invalid numeric literal: {ast.unparse(node)}")
         return
     if isinstance(value, float):
         if value != value or value in (float("inf"), float("-inf")):

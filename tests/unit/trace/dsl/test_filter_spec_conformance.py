@@ -197,6 +197,22 @@ PYTHON_SURFACE_REJECTED = [
     pytest.param("latency_ms == 1j", "unsupported literal", id="complex-literal"),
     pytest.param("name == ...", "unsupported literal", id="ellipsis-literal"),
     pytest.param("latency_ms < 1e400", "invalid numeric literal", id="ieee-infinity"),
+    # the numeric-string grammar bounds the spelling, not the magnitude, so an
+    # in-grammar cast argument can still overflow to the value rejected above
+    pytest.param(
+        "latency_ms == float('1e400')", "invalid numeric literal", id="cast-overflow-infinity"
+    ),
+    pytest.param(
+        "latency_ms == int('" + "9" * 320 + "')", "invalid numeric literal", id="cast-overflow-int"
+    ),
+    # Python ints are unbounded; neither backend has a faithful float for one
+    # past the IEEE range
+    pytest.param("latency_ms == " + "9" * 320, "invalid numeric literal", id="int-overflow"),
+    # SQL `IN` compares with `=`, and `= NULL` is never true; `NOT IN` with a
+    # NULL element is never true for any row
+    pytest.param("name in [None]", "includes None", id="in-null-element"),
+    pytest.param("name not in ['a', None]", "includes None", id="not-in-null-element"),
+    pytest.param("metadata['x'] not in [1, None]", "includes None", id="not-in-null-mixed"),
     pytest.param("name == ('a', 'b')", "compares against a collection", id="tuple-as-scalar"),
     pytest.param("name in [['a']]", "collections cannot be nested", id="nested-container"),
     # the escape *sequence* in the source text, not a literal NUL byte -- the
