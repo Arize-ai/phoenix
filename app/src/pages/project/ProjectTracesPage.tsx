@@ -20,11 +20,8 @@ import {
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 
-/**
- * Stable module-level identity: an inline component would be a new type on
- * every render, remounting the fallback (and the field the user is typing in)
- * underneath them.
- */
+// Module-level so the identity is stable: an inline component would remount the
+// field on every render.
 function TracesFilterErrorFallback() {
   const { resolveTracesSeed } = useProjectPageQueryReferenceContext();
   return <SpanFilterErrorFallback onResolved={resolveTracesSeed} />;
@@ -63,11 +60,9 @@ export const ProjectTracesPage = () => {
           key={tracesFilterSeed ? tracesFilterSeed.condition : "pending"}
           fallbackFilterCondition={tracesFilterSeed?.condition ?? ""}
         >
-          {/* A condition the server called valid can still be rejected by the
-              database when the query runs, which Relay rethrows during render.
-              Without this the whole page is replaced by the route-level error
-              element. The boundary sits inside the provider so a resolved seed
-              -- a new `key` -- remounts it along with the table. */}
+          {/* A valid condition can still be rejected by the database, and Relay
+              rethrows that during render. Inside the provider so a resolved
+              seed -- a new `key` -- remounts the boundary with the table. */}
           <ErrorBoundary fallback={TracesFilterErrorFallback}>
             <Suspense fallback={<Loading />}>
               {isReady ? (

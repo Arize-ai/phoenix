@@ -4,28 +4,13 @@ import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
 /**
- * The filter field and an explanation, standing in for a table whose query
- * failed.
- *
- * Validation proves a condition parses and compiles to SQL, which is not the
- * same as proving the database will accept it: a comparison between
- * incompatible types compiles and is then rejected when the query runs. So a
- * condition can reach the table already blessed as valid and still fail, and
- * that failure arrives as a thrown error during render, taking the table --
- * and the field inside it -- with it.
- *
- * Rendering the field here is what makes the failure recoverable. The field
- * normally lives inside the table, so without this the user would be left
- * looking at an error with no way to edit the condition that caused it, short
- * of editing the URL.
+ * Stands in for a table whose query failed. Re-renders the filter field, which
+ * normally lives inside that table, so the condition that caused the failure is
+ * still editable.
  */
 export function SpanFilterErrorFallback({
   onResolved,
 }: {
-  /**
-   * Receives the settled seed for a condition the user has since edited,
-   * which is what reloads the table.
-   */
   onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
 }) {
   return (
@@ -46,9 +31,7 @@ export function SpanFilterErrorFallback({
             isInitialSettlement,
           }) => {
             // The mounted condition is the one that just failed, and it
-            // validates just as cleanly the second time -- that is why it got
-            // this far. Reloading on it would ask for the same failure again,
-            // so only an edit counts.
+            // revalidates just as cleanly, so only an edit should reload.
             if (isInitialSettlement) {
               return;
             }
