@@ -3,6 +3,7 @@ from functools import cached_property
 from typing import Any, Literal, Optional, cast
 
 import strawberry
+from pydantic import ValidationError
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
@@ -40,6 +41,12 @@ from phoenix.db.types.prompts import (
     ToolResultContentPart,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.input_types.MediaContentInput import (
+    ImageContentValueInput,
+    ImageVariableValueInput,
+    first_validation_error_message,
+    media_content_part,
+)
 from phoenix.server.api.input_types.PromptInvocationParametersInput import (
     PromptInvocationParametersInput,
 )
@@ -270,8 +277,20 @@ class ContentPartInput:
     text: Optional[TextContentValueInput] = strawberry.UNSET
     tool_call: Optional[ToolCallContentValueInput] = strawberry.UNSET
     tool_result: Optional[ToolResultContentValueInput] = strawberry.UNSET
+    image: Optional[ImageContentValueInput] = strawberry.UNSET
+    image_variable: Optional[ImageVariableValueInput] = strawberry.UNSET
+    file: Optional[ImageContentValueInput] = strawberry.field(
+        default=strawberry.UNSET,
+        description="A stored document, e.g. a PDF.",
+    )
+    file_variable: Optional[ImageVariableValueInput] = strawberry.field(
+        default=strawberry.UNSET,
+        description="A document supplied at run time under the named input.",
+    )
 
     def to_orm(self) -> ContentPart:
+        if (media := media_content_part(self)) is not None:
+            return media
         if self.text:
             return TextContentPart(
                 type="text",
@@ -307,10 +326,13 @@ class PromptMessageInput:
     content: list[ContentPartInput]
 
     def to_orm(self) -> PromptMessage:
-        return PromptMessage(
-            role=RoleConversion.from_gql(self.role),
-            content=[content_part.to_orm() for content_part in self.content],
-        )
+        try:
+            return PromptMessage(
+                role=RoleConversion.from_gql(self.role),
+                content=[content_part.to_orm() for content_part in self.content],
+            )
+        except ValidationError as error:
+            raise BadRequest(first_validation_error_message(error))
 
 
 @strawberry.input

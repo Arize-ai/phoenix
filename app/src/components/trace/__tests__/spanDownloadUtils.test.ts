@@ -8,6 +8,7 @@ import {
   getSpanDownloadTimestamp,
   sanitizeSpanDownloadFileName,
 } from "../spanDownloadUtils";
+import { mockSpansPageOnce } from "./__fixtures__/mockSpansPage";
 
 vi.mock("@phoenix/api/authApiFetch", () => ({
   authApiFetch: {
@@ -74,10 +75,7 @@ describe("spanDownloadUtils", () => {
       end_time: "2026-07-24T18:30:46Z",
       status_code: "OK",
     };
-    vi.mocked(authApiFetch.GET).mockResolvedValueOnce({
-      data: { data: [span], next_cursor: null },
-      response: new Response(null, { status: 200 }),
-    });
+    mockSpansPageOnce([span]);
 
     await downloadSingleSpan({
       projectId: "project-id",
@@ -102,10 +100,7 @@ describe("spanDownloadUtils", () => {
 
   it("wraps a single OTLP span in the OTLP JSON envelope", async () => {
     const otlpSpan = { span_id: "span-id", trace_id: "trace-id" };
-    vi.mocked(authApiFetch.GET).mockResolvedValueOnce({
-      data: { data: [otlpSpan], next_cursor: null },
-      response: new Response(null, { status: 200 }),
-    });
+    mockSpansPageOnce([otlpSpan]);
 
     await downloadSingleSpan({
       projectId: "project-id",
@@ -139,10 +134,7 @@ describe("spanDownloadUtils", () => {
       end_time: "2026-07-24T18:30:46Z",
       status_code: "OK",
     };
-    vi.mocked(authApiFetch.GET).mockResolvedValueOnce({
-      data: { data: [span], next_cursor: null },
-      response: new Response(null, { status: 200 }),
-    });
+    mockSpansPageOnce([span]);
 
     await downloadSpanCollection({
       projectId: "project-id",

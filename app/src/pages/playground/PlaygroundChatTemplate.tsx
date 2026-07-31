@@ -40,10 +40,13 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
+import { MessageMediaButtons } from "./media/MessageMediaButtons";
+import { useMessageMedia } from "./media/useMessageMedia";
 import type { AIMessageMode, MessageMode } from "./MessageContentRadioGroup";
 import { AIMessageContentRadioGroup } from "./MessageContentRadioGroup";
 import { MessageRoleSelect } from "./MessageRoleSelect";
 import { PlaygroundChatTemplateFooter } from "./PlaygroundChatTemplateFooter";
+import { PlaygroundMessageMedia } from "./PlaygroundMessageMedia";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
 import { createToolCallForProvider } from "./playgroundUtils";
@@ -186,6 +189,8 @@ function MessageEditor({
     }
     return validateMustacheSections(message.content ?? "");
   }, [message.content, templateFormat]);
+
+  const media = useMessageMedia({ message, updateMessage });
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -240,27 +245,30 @@ function MessageEditor({
   }
 
   return (
-    <TemplateEditorWrap>
-      {showValidation && sectionValidation?.errors.length ? (
-        <Alert variant="danger" banner title="Invalid mustache sections">
-          {sectionValidation.errors.join(", ")}
-        </Alert>
-      ) : null}
-      {showValidation && sectionValidation?.warnings.length ? (
-        <Alert variant="warning" banner title="Unclosed mustache sections">
-          {sectionValidation.warnings.join(", ")}
-        </Alert>
-      ) : null}
-      <TemplateEditor
-        height="100%"
-        defaultValue={message.content || ""}
-        aria-label="Message content"
-        templateFormat={templateFormat}
-        onChange={onChange}
-        onBlur={onBlur}
-        availablePaths={availablePaths}
-      />
-    </TemplateEditorWrap>
+    <div>
+      <TemplateEditorWrap>
+        {showValidation && sectionValidation?.errors.length ? (
+          <Alert variant="danger" banner title="Invalid mustache sections">
+            {sectionValidation.errors.join(", ")}
+          </Alert>
+        ) : null}
+        {showValidation && sectionValidation?.warnings.length ? (
+          <Alert variant="warning" banner title="Unclosed mustache sections">
+            {sectionValidation.warnings.join(", ")}
+          </Alert>
+        ) : null}
+        <TemplateEditor
+          height="100%"
+          defaultValue={message.content || ""}
+          aria-label="Message content"
+          templateFormat={templateFormat}
+          onChange={onChange}
+          onBlur={onBlur}
+          availablePaths={availablePaths}
+        />
+      </TemplateEditorWrap>
+      {media.canAttachMedia ? <PlaygroundMessageMedia {...media} /> : null}
+    </div>
   );
 }
 
@@ -424,6 +432,11 @@ function SortableMessageItem({
                 />
               ) : null
             }
+            <MessageMediaButtons
+              instanceId={playgroundInstanceId}
+              messageId={messageId}
+              role={message.role}
+            />
             <CopyToClipboardButton
               text={
                 aiMessageMode === "toolCalls"

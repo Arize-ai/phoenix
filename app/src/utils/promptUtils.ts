@@ -19,6 +19,8 @@ import {
 import { generateMessageId } from "@phoenix/store";
 import type { promptUtils_promptMessages$key } from "@phoenix/utils/__generated__/promptUtils_promptMessages.graphql";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
+import { flattenMediaContent } from "@phoenix/utils/mediaContentPartFragment";
+import { readMessageMedia } from "@phoenix/utils/messageMedia";
 
 export const asTextPart = (maybePart: unknown): TextPart | null => {
   const parsed = textPartSchema.safeParse(maybePart);
@@ -100,6 +102,7 @@ export const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
                 text
               }
             }
+            ...mediaContentPartFragment
           }
           role
         }
@@ -108,14 +111,18 @@ export const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
     )
   );
 
-  const instanceMessages = promptMessages.map((message) => ({
-    id: generateMessageId(),
-    content: message.content
-      .map((content) => content.text?.text ?? "")
-      .filter(Boolean)
-      .join("\n"),
-    role: getChatRole(message.role),
-  }));
+  const instanceMessages = promptMessages.map((message) => {
+    const content = flattenMediaContent(message.content);
+    return {
+      id: generateMessageId(),
+      content: content
+        .map((part) => asTextPart(part)?.text.text ?? "")
+        .filter(Boolean)
+        .join("\n"),
+      ...readMessageMedia(content),
+      role: getChatRole(message.role),
+    };
+  });
 
   return instanceMessages;
 };

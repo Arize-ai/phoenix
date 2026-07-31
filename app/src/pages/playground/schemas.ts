@@ -9,6 +9,7 @@ import { z } from "zod";
 import { jsonSchemaZodSchema } from "@phoenix/schemas";
 import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import { jsonLiteralSchema } from "@phoenix/schemas/jsonLiteralSchema";
+import { mediaMessageShape } from "@phoenix/schemas/mediaMessageShape";
 import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
 import {
   isObject,
@@ -103,6 +104,7 @@ export const chatMessageSchema = z.object({
   role: chatMessageRolesSchema,
   // Tool call messages may not have content
   content: z.string().optional(),
+  ...mediaMessageShape,
   toolCallId: z.string().optional(),
   toolCalls: z.array(llmProviderToolCallSchema).optional(),
 });

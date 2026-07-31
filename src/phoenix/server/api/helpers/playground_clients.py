@@ -84,7 +84,24 @@ from phoenix.db.types.prompts import (
     PromptTools,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, PlaygroundToolCall
+from phoenix.server.api.helpers.message_helpers import (
+    PlaygroundMessage,
+    PlaygroundToolCall,
+)
+from phoenix.server.api.helpers.message_media import (
+    content_blocks,
+    message_media,
+    message_text,
+    reject_media,
+)
+from phoenix.server.api.helpers.playground_media import (
+    anthropic_media_content,
+    bedrock_content_blocks,
+    google_parts,
+    oi_message_content,
+    openai_chat_media_message,
+    openai_responses_content_parts,
+)
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.ConnectionConfigInput import OPENAI_SDK_STYLE_PROVIDER_KEYS
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
@@ -108,7 +125,11 @@ if TYPE_CHECKING:
     from anthropic.types.message_create_params import MessageCreateParamsBase
     from anthropic.types.usage import Usage
     from google.genai.client import AsyncClient as GoogleAsyncClient
-    from google.genai.types import ContentDict, GenerateContentConfig, GenerateContentResponse
+    from google.genai.types import (
+        ContentDict,
+        GenerateContentConfig,
+        GenerateContentResponse,
+    )
     from openai import AsyncOpenAI
     from openai._streaming import AsyncStream
     from openai.lib.streaming.responses import AsyncResponseStreamManager
@@ -803,8 +824,22 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         result: list["ResponseInputItemParam"] = []
         for message in messages:
             role = message["role"]
-            content = message["content"] or ""
+            media = message_media(message)
+            if media and role is not ChatCompletionMessageRole.USER:
+                reject_media([message], provider="The OpenAI Responses API")
+            content = message_text(message)
             if role is ChatCompletionMessageRole.USER:
+                if input_parts := openai_responses_content_parts(
+                    message, provider="The OpenAI Responses API"
+                ):
+                    result.append(
+                        EasyInputMessageParam(
+                            role="user",
+                            content=input_parts,
+                            type="message",
+                        )
+                    )
+                    continue
                 result.append(
                     EasyInputMessageParam(
                         role="user",
@@ -1164,7 +1199,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
         role = message["role"]
-        content = message["content"]
+        if media_message := openai_chat_media_message(message, provider=self.provider):
+            return media_message
+        content = message_text(message)
         tool_call_id = message.get("tool_call_id")
         tool_calls = message.get("tool_calls")
 
@@ -1831,9 +1868,8 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         system_prompts = []
         for msg in messages:
             role = msg["role"]
-            content = msg["content"]
             if role == ChatCompletionMessageRole.SYSTEM:
-                system_prompts.append(content)
+                system_prompts.append(message_text(msg))
         return "\n".join(system_prompts)
 
     def _build_converse_messages(
@@ -1851,14 +1887,18 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         converse_messages: list[MessageTypeDef] = []
         for msg in messages:
             role = msg["role"]
-            content = msg["content"]
+            media = message_media(msg)
+            if media and role != ChatCompletionMessageRole.USER:
+                reject_media([msg], provider="Amazon Bedrock")
+            content = message_text(msg)
             tool_call_id = msg.get("tool_call_id")
             tool_calls = msg.get("tool_calls")
             if role == ChatCompletionMessageRole.USER:
+                user_blocks = bedrock_content_blocks(msg)
                 converse_messages.append(
                     MessageTypeDef(
                         role="user",
-                        content=[ContentBlockTypeDef(text=content)],
+                        content=user_blocks or [ContentBlockTypeDef(text=content)],
                     )
                 )
             elif role == ChatCompletionMessageRole.TOOL:
@@ -2000,7 +2040,9 @@ class OpenAIReasoningNonStreamingClient(
         from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
         role = message["role"]
-        content = message["content"]
+        if media_message := openai_chat_media_message(message, provider=self.provider):
+            return media_message
+        content = message_text(message)
         tool_call_id = message.get("tool_call_id")
         tool_calls = message.get("tool_calls")
 
@@ -2129,7 +2171,9 @@ class AzureOpenAIReasoningNonStreamingClient(
         from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
         role = message["role"]
-        content = message["content"]
+        if media_message := openai_chat_media_message(message, provider=self.provider):
+            return media_message
+        content = message_text(message)
         tool_call_id = message.get("tool_call_id")
         tool_calls = message.get("tool_calls")
 
@@ -2614,11 +2658,22 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         system_prompt = ""
         for msg in messages:
             role = msg["role"]
-            content = msg["content"]
+            media = message_media(msg)
+            if media and role != ChatCompletionMessageRole.USER:
+                reject_media([msg], provider="Anthropic")
+            content = message_text(msg)
             tool_call_id = msg.get("tool_call_id")
             tool_calls = msg.get("tool_calls")
             tool_aware_content = self._anthropic_message_content(content, tool_calls)
             if role == ChatCompletionMessageRole.USER:
+                if media:
+                    anthropic_messages.append(
+                        MessageParam(
+                            role="user",
+                            content=anthropic_media_content(content, media),
+                        )
+                    )
+                    continue
                 anthropic_messages.append(MessageParam(role="user", content=tool_aware_content))
             elif role == ChatCompletionMessageRole.AI:
                 anthropic_messages.append(
@@ -3012,18 +3067,25 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         self,
         messages: Sequence[PlaygroundMessage],
     ) -> tuple[list["ContentDict"], str]:
-        """Build Google messages following the standard pattern - process ALL messages."""
+        """
+        Build Google messages following the standard pattern - process ALL messages.
+
+        Media is sent as inline data, since Gemini's ``file_data`` accepts only
+        Google-hosted URIs. Callers must have resolved media bytes beforehand with
+        `resolve_message_media`.
+        """
         google_messages: list["ContentDict"] = []
         system_prompts = []
         for msg in messages:
             role = msg["role"]
-            content = msg["content"]
             if role == ChatCompletionMessageRole.USER:
-                google_messages.append({"role": "user", "parts": [{"text": content}]})
+                google_messages.append({"role": "user", "parts": google_parts(msg)})
             elif role == ChatCompletionMessageRole.AI:
-                google_messages.append({"role": "model", "parts": [{"text": content}]})
+                google_messages.append({"role": "model", "parts": google_parts(msg)})
             elif role == ChatCompletionMessageRole.SYSTEM:
-                system_prompts.append(content)
+                # Gemini takes a plain-text system instruction, so media is rejected
+                # for system messages when a prompt version is written.
+                system_prompts.append(message_text(msg))
             elif role == ChatCompletionMessageRole.TOOL:
                 raise NotImplementedError
             else:
@@ -4121,8 +4183,16 @@ def _playground_message_to_oi_message(message: PlaygroundMessage) -> oi.Message:
     oi_message = oi.Message()
     if (role := message.get("role")) is not None:
         oi_message["role"] = role.value.lower()
-    if (content := message.get("content")) is not None:
-        oi_message["content"] = content
+    if message_media(message):
+        # `contents` and `content` both render in the trace UI, so a message with
+        # media sets only `contents` — its text blocks are already in there.
+        #
+        # The media reference is recorded, never the bytes: a base64 data URL here
+        # would bloat every span. A `phoenix://media/<sha256>` reference stays small,
+        # and the UI resolves it through `GET /v1/media/<sha256>`.
+        oi_message["contents"] = [oi_message_content(block) for block in content_blocks(message)]
+    elif message.get("content") is not None:
+        oi_message["content"] = message_text(message)
     if (tool_call_id := message.get("tool_call_id")) is not None:
         oi_message["tool_call_id"] = tool_call_id
     if (tool_calls := message.get("tool_calls")) is not None:

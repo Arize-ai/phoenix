@@ -7,11 +7,17 @@ should be appended to prompt templates when running experiments.
 """
 
 import json
-from typing import Any, Iterable, Mapping, Optional, Sequence, TypedDict
+from typing import Any, Iterable, Mapping, Optional, Sequence, TypedDict, Union
 
 from typing_extensions import Required, assert_never
 
 from phoenix.db.types.prompts import PromptChatTemplate, PromptTemplateFormat
+from phoenix.server.api.helpers.message_media import (
+    ContentBlock,
+    TextContentBlock,
+    format_message_content,
+    media_content_block,
+)
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
@@ -37,14 +43,14 @@ class PlaygroundToolCall(TypedDict, total=False):
 
 class PlaygroundMessage(TypedDict, total=False):
     role: Required[ChatCompletionMessageRole]
-    content: Required[str]
+    content: Required[Union[str, list[ContentBlock]]]
     tool_call_id: str
     tool_calls: Sequence[PlaygroundToolCall]
 
 
 def create_playground_message(
     role: ChatCompletionMessageRole,
-    content: str,
+    content: Union[str, list[ContentBlock]],
     tool_call_id: Optional[str] = None,
     tool_calls: Optional[Sequence[PlaygroundToolCall]] = None,
 ) -> PlaygroundMessage:
@@ -209,23 +215,28 @@ def prompt_chat_template_to_playground_messages(
     dicts used by LLM streaming clients.
 
     Content part mapping:
-      - text part        → content str (joined with newline for multiple text parts)
+      - text part        → text block
+      - image part       → image block, ordered among the text blocks as authored
       - tool_call part   → tool_calls entry on the message
-      - tool_result part → content str + tool_call_id on the message
+      - tool_result part → text block + tool_call_id on the message
+
+    Media blocks carry only their reference here; call :func:`resolve_message_media`
+    to attach the bytes a provider needs.
     """
     messages: list[PlaygroundMessage] = []
     for msg in template.messages:
         role = _role_to_enum(msg.role)
-        text_parts: list[str] = []
+        blocks: list[ContentBlock] = []
         tool_calls: list[PlaygroundToolCall] = []
         tool_call_id: Optional[str] = None
 
         if isinstance(msg.content, str):
-            text_parts.append(msg.content)
+            if msg.content:
+                blocks.append(TextContentBlock(type="text", text=msg.content))
         else:
             for part in msg.content:
                 if part.type == "text":
-                    text_parts.append(part.text)
+                    blocks.append(TextContentBlock(type="text", text=part.text))
                 elif part.type == "tool_call":
                     try:
                         parsed_args: Any = json.loads(part.tool_call.arguments)
@@ -244,15 +255,18 @@ def prompt_chat_template_to_playground_messages(
                     tool_call_id = part.tool_call_id
                     result = part.tool_result
                     if isinstance(result, str):
-                        text_parts.append(result)
+                        blocks.append(TextContentBlock(type="text", text=result))
                     elif result is not None:
-                        text_parts.append(json.dumps(result))
+                        blocks.append(TextContentBlock(type="text", text=json.dumps(result)))
+                elif part.type == "image" or part.type == "file":
+                    blocks.append(media_content_block(part))
+                else:
+                    assert_never(part)
 
-        content = "\n".join(text_parts)
         messages.append(
             create_playground_message(
                 role=role,
-                content=content,
+                content=blocks,
                 tool_call_id=tool_call_id,
                 tool_calls=tool_calls if tool_calls else None,
             )
@@ -310,6 +324,13 @@ def formatted_messages(
 ) -> list[PlaygroundMessage]:
     """
     Formats the messages using the given template options.
+
+    Text is formatted, and a media block naming a variable takes its reference from
+    that variable — the same substitution, applied to a different kind of content.
+    A media block already holding a stored reference is left alone.
+
+    Raises:
+        BadRequest: A media variable has no value among the template variables.
     """
     messages_list = list(messages)
     if not messages_list:
@@ -317,7 +338,11 @@ def formatted_messages(
     template_formatter = _template_formatter(template_format=template_format)
     result: list[PlaygroundMessage] = []
     for msg in messages_list:
-        formatted_content = template_formatter.format(msg["content"], **template_variables)
+        formatted_content = format_message_content(
+            msg.get("content"),
+            template_formatter=template_formatter,
+            template_variables=template_variables,
+        )
         result.append(
             create_playground_message(
                 msg["role"],

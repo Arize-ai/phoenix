@@ -38,7 +38,7 @@ NC := \033[0m # No Color
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
-	gh-comment-watch \
+	gh-comment-watch sync-fork sync-fork-check \
 	clean clean-all
 
 help: ## Show this help message
@@ -423,6 +423,18 @@ dev-mock-llm: ## Start the mock LLM server
 gh-comment-watch: ## Start the GitHub comment watcher
 	@echo -e "$(CYAN)Starting GH Comment Watch...$(NC)"
 	cd $(GH_COMMENT_WATCH_DIR) && $(PNPM) start
+
+#=============================================================================
+# Fork maintenance
+#=============================================================================
+
+sync-fork-check: ## Report what syncing with upstream would conflict on (changes nothing)
+	@$(UV) run python scripts/sync_fork.py --check
+
+sync-fork: ## Merge upstream, regenerate generated files, re-point migrations
+	@echo -e "$(CYAN)Syncing with upstream...$(NC)"
+	@$(UV) run python scripts/sync_fork.py
+	@echo -e "$(GREEN)✓ Merge staged — review, run tests, then commit$(NC)"
 
 #=============================================================================
 # Cleanup

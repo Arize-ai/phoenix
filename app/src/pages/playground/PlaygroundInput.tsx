@@ -3,11 +3,13 @@ import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
+import { MediaVariableEditor } from "./MediaVariableEditor";
 import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 import { VariableEditor } from "./VariableEditor";
 
 export function PlaygroundInput() {
-  const { variableKeys, variablesMap } = useDerivedPlaygroundVariables();
+  const { variableKeys, variablesMap, mediaVariableKeys, mediaVariableKinds } =
+    useDerivedPlaygroundVariables();
   const setVariableValue = usePlaygroundContext(
     (state) => state.setVariableValue
   );
@@ -45,6 +47,20 @@ export function PlaygroundInput() {
   return (
     <Flex direction="column" gap="size-200" width="100%">
       {variableKeys.map((variableKey, i) => {
+        if (mediaVariableKeys.includes(variableKey)) {
+          return (
+            <MediaVariableEditor
+              // Keyed by name rather than index: a media picker holds no
+              // in-progress text to flicker, and the value must follow its
+              // variable if the list reorders.
+              key={variableKey}
+              label={variableKey}
+              kind={mediaVariableKinds[variableKey] ?? "image"}
+              value={variablesMap[variableKey] ?? ""}
+              onChange={(value) => setVariableValue(variableKey, value)}
+            />
+          );
+        }
         return (
           <VariableEditor
             // using the index as the key actually prevents the UI from

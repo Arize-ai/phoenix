@@ -118,6 +118,7 @@ from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
+from phoenix.server.daemons.media_sweeper import MediaSweeper
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.dml_event import DmlEvent
@@ -624,6 +625,7 @@ def _lifespan(
     dml_event_handler: DmlEventHandler,
     trace_data_sweeper: Optional[TraceDataSweeper],
     experiment_sweeper: ExperimentSweeper,
+    media_sweeper: MediaSweeper,
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
     system_settings: SystemSettings,
@@ -679,6 +681,7 @@ def _lifespan(
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(experiment_sweeper)
+            await stack.enter_async_context(media_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(system_settings)
@@ -1004,6 +1007,7 @@ def create_app(
         dml_event_handler=dml_event_handler,
     )
     experiment_sweeper = ExperimentSweeper(db)
+    media_sweeper = MediaSweeper(db)
     generative_model_store = GenerativeModelStore(db)
     system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     span_cost_calculator = SpanCostCalculator(db, generative_model_store)
@@ -1093,6 +1097,7 @@ def create_app(
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
             experiment_sweeper=experiment_sweeper,
+            media_sweeper=media_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
             system_settings=system_settings,

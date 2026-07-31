@@ -8,6 +8,7 @@ import { buildPlaygroundInstanceFieldsFromPromptConfig } from "@phoenix/pages/pl
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { PlaygroundInstance } from "@phoenix/store/playground";
 import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
+import { flattenTemplateMedia } from "@phoenix/utils/mediaContentPartFragment";
 import {
   makeTextPart,
   makeToolCallPart,
@@ -20,7 +21,6 @@ import type {
 } from "./__generated__/fetchPlaygroundPromptQuery.graphql";
 
 import "./PromptInvocationParametersReadableFragment";
-
 /**
  * Converts a playground chat message role to a prompt message role
  * @param role - The playground chat message role
@@ -76,6 +76,7 @@ const promptVersionToInstanceFragment = graphql`
                 text
               }
             }
+            ...mediaContentPartFragment
             ... on ToolCallContentPart {
               toolCall {
                 toolCallId
@@ -163,7 +164,7 @@ export const promptVersionToInstance = ({
   const instanceFields = buildPlaygroundInstanceFieldsFromPromptConfig({
     provider,
     modelName,
-    template: promptVersion.template,
+    template: flattenTemplateMedia(promptVersion.template),
     tools: promptVersion.tools,
     invocationParametersRef: promptVersion.invocationParameters,
     responseFormat: promptVersion.responseFormat,
@@ -215,6 +216,18 @@ export const instanceToPromptVersion = ({
     const toolResultParts = m.toolCallId
       ? [makeToolResultPart(m.toolCallId, m.content)]
       : [];
+    // images are rendered as their own attachments, so they survive a message
+    // that also carries tool traffic
+    const imageParts = m.images ?? [];
+    // The wire format names the variable variant `imageVariable`, keeping the
+    // one-of input unambiguous between a stored reference and a named one.
+    const imageVariableParts = (m.imageVariables ?? []).map((part) => ({
+      imageVariable: { variable: part.image.variable },
+    }));
+    const fileParts = m.files ?? [];
+    const fileVariableParts = (m.fileVariables ?? []).map((part) => ({
+      fileVariable: { variable: part.file.variable },
+    }));
     if (toolCallParts.length > 0 || toolResultParts.length > 0) {
       // this is a temporary solution until the playground is updated to natively render message parts
       // right now, it only support text, tool calls, or tool results, not a mix of them
@@ -224,7 +237,15 @@ export const instanceToPromptVersion = ({
     }
     return {
       content: (
-        [...textParts, ...toolCallParts, ...toolResultParts] satisfies (
+        [
+          ...textParts,
+          ...imageParts,
+          ...imageVariableParts,
+          ...fileParts,
+          ...fileVariableParts,
+          ...toolCallParts,
+          ...toolResultParts,
+        ] satisfies (
           | ChatPromptVersionInput["template"]["messages"][number]["content"][number]
           | null
         )[]
@@ -298,6 +319,7 @@ const fetchPlaygroundPromptQuery = graphql`
                       text
                     }
                   }
+                  ...mediaContentPartFragment
                   ... on ToolCallContentPart {
                     toolCall {
                       toolCallId

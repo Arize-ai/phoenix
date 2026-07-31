@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ed1ecb70c2bc72d927ce368ee3f02b70>>
+ * @generated SignedSource<<16758f68a80b06825bd2df42f86f11ec>>
  * @lightSyntaxTransform
  */
 
@@ -27,7 +27,52 @@ export type AddEvaluatorMenu_llmEvaluatorTemplates$key = {
   readonly " $fragmentSpreads": FragmentRefs<"AddEvaluatorMenu_llmEvaluatorTemplates">;
 };
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "__typename",
+    "storageKey": null
+  },
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "url",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "mediaType",
+        "storageKey": null
+      }
+    ],
+    "type": "ImageContentValue",
+    "abstractKey": null
+  },
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "variable",
+        "storageKey": null
+      }
+    ],
+    "type": "ImageVariableValue",
+    "abstractKey": null
+  }
+];
+return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
@@ -121,6 +166,48 @@ const node: ReaderFragment = {
                       ],
                       "type": "TextContentPart",
                       "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineDataFragmentSpread",
+                      "name": "mediaContentPartFragment",
+                      "selections": [
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": null,
+                              "kind": "LinkedField",
+                              "name": "image",
+                              "plural": false,
+                              "selections": (v0/*:: as any*/),
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "ImageContentPart",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": null,
+                              "kind": "LinkedField",
+                              "name": "file",
+                              "plural": false,
+                              "selections": (v0/*:: as any*/),
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "FileContentPart",
+                          "abstractKey": null
+                        }
+                      ],
+                      "args": null,
+                      "argumentDefinitions": []
                     }
                   ],
                   "storageKey": null
@@ -146,6 +233,7 @@ const node: ReaderFragment = {
   "type": "Query",
   "abstractKey": null
 };
+})();
 
 (node as any).hash = "ab4324142cba205b07920998d083b81b";
 
