@@ -1414,14 +1414,13 @@ PostgreSQL error text as the *symptom*.
   generated alias names. Worth doing before conditions become durable.
 - **No `EXPLAIN`-based differential test** against PostgreSQL; agreement between
   the validator and the database is asserted by hand-written cases only.
-- **`Projector`** validates structure only — an allowlist walk plus the
-  sandboxed `eval`, with none of `SpanFilter`'s NFKC, type, or operand rules.
-  Partly by design (a projection is a value, not a predicate, so
-  boolean-position and comparability rules have nothing to check), but the
-  NFKC gap is real: a confusable projection name resolves silently. Its two
-  historical defects — no validation at all, an unsandboxed namespace — are
-  fixed and pinned by `TestProjectorValidationGap`; what remains here is the
-  residual asymmetry, not the closed holes.
+- **`Projector`** validates structure and the inherited Python surface — the
+  allowlist walk, the NFKC and literal rules shared with `SpanFilter`, and
+  the sandboxed `eval` — but none of the type or operand rules, by design: a
+  projection is a value, not a predicate, so boolean-position and
+  comparability have nothing to check. Its historical defects (no validation,
+  an unsandboxed namespace, silently normalized confusable names) are fixed
+  and pinned by `TestProjectorValidationGap`.
 - **Membership between two JSON operands** (`attributes['p'] in
   attributes['q']`) is accepted and compiles to string containment over the two
   text renderings. The same class of divergence as two-JSON equality — boolean

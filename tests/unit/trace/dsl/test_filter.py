@@ -970,6 +970,13 @@ class TestProjectorValidationGap:
     "simplify" away while passing every grammar test.
     """
 
+    def test_projector_rejects_confusable_identifiers(self) -> None:
+        # Python NFKC-normalizes identifiers, so a full-width projection name
+        # silently resolved to the ASCII field the user never spelled. The
+        # projector now runs the same inherited-surface rules as the filter.
+        with pytest.raises(SyntaxError, match="is interpreted as"):
+            Projector("ｎａｍｅ")
+
     def test_span_filter_eval_namespace_has_no_builtins_access(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

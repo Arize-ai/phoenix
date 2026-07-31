@@ -367,7 +367,12 @@ def root_span_scope(condition: str) -> typing.Optional[RootSpanScope]:
     (and, in the orphan-aware branch, a CTE over `spans`) that select what one
     of them already selects.
     """
-    if not condition.strip():
+    # Normalize exactly as `SpanFilter` does at construction, so the two entry
+    # points always analyze the same text. They diverged here once: a leading
+    # space parses as an `IndentationError`, so `" parent_id is None "`
+    # validated (stripped) while this function reported `None` (unstripped) --
+    # and the UI chose metric columns from the wrong verdict.
+    if not (condition := condition.strip()):
         return None
     try:
         body = ast.parse(condition, mode="eval").body
@@ -537,6 +542,11 @@ class Projector:
         if not (source := self.expression):
             raise ValueError("missing expression")
         root = ast.parse(source, mode="eval")
+        # The same inherited-Python-surface rules `SpanFilter` applies --
+        # notably the NFKC check: a full-width projection name silently
+        # resolved to the ASCII field the user never spelled, exactly the
+        # confusable-identifier hazard the filter side already rejects.
+        _validate_python_surface(root.body, source)
         _validate_projection_expression(root)
         translated = _ProjectionTranslator(source).visit(root)
         ast.fix_missing_locations(translated)

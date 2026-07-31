@@ -335,6 +335,18 @@ def test_spec_rejected_grammar(condition: str, message: str) -> None:
         SpanFilter(condition)
 
 
+def test_root_span_scope_normalizes_like_span_filter() -> None:
+    """`SpanFilter` strips surrounding whitespace at construction; the
+    module-level analyzer must see the same text. The two diverged once: a
+    leading space parses as an `IndentationError`, so `" parent_id is None "`
+    validated and restricted the query while the analyzer reported None -- and
+    the UI chose metric columns from the wrong verdict."""
+    for condition, expected in SCOPES:
+        padded = f"  {condition}  "
+        assert root_span_scope(padded) == expected
+        assert root_span_scope(padded) == SpanFilter(padded).root_scope
+
+
 @pytest.mark.parametrize("condition,expected", SCOPES)
 def test_spec_root_span_scope(condition: str, expected: str | None) -> None:
     assert root_span_scope(condition) == expected
