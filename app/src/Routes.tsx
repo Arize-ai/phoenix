@@ -79,6 +79,7 @@ import {
   ProfileAccountPage,
   ProfileAPIKeysPage,
   ProfileAuthorizedApplicationsPage,
+  ProfileGenerativeAIPage,
   ProfilePage,
   ProfilePreferencesPage,
   ProjectIndexPage,
@@ -262,13 +263,31 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Profile Preferences",
                 description:
-                  "Choose your theme, timezone, code language, and package manager defaults, and configure AI search for filter fields (enable it and pick the in-browser model or a provider).",
+                  "Choose your theme, timezone, code language, and package manager defaults.",
               },
               navigation: {
                 section: "Profile",
                 label: "Preferences",
-                description: "Theme, timezone, code defaults, and AI search",
+                description: "Theme, timezone, and code defaults",
                 icon: "Options",
+              },
+            }}
+          />
+          <Route
+            path="generative-ai"
+            element={<ProfileGenerativeAIPage />}
+            handle={{
+              crumb: () => "Generative AI",
+              agentRoute: {
+                label: "Profile Generative AI",
+                description:
+                  "Configure generative AI features: enable AI search for filter fields, choose the model — your browser's built-in on-device AI or a model provider with an API key — and manage the on-device model (download status, download it ahead of time, how to remove it).",
+              },
+              navigation: {
+                section: "Profile",
+                label: "Generative AI",
+                description: "AI search and model configuration",
+                icon: "Sparkles",
               },
             }}
           />
