@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<217f4ec24301eb9f67d5e7c39bd0c773>>
+ * @generated SignedSource<<f00609ae006ae8a9ae9eea808048a1f3>>
  * @lightSyntaxTransform
  */
 
@@ -74,6 +74,18 @@ v4 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Project",
+  "kind": "LinkedField",
+  "name": "project",
+  "plural": false,
+  "selections": [
+    (v4/*:: as any*/)
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -121,6 +133,7 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v5/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -204,18 +217,7 @@ return {
                                 "name": "latencyMs",
                                 "storageKey": null
                               },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "Project",
-                                "kind": "LinkedField",
-                                "name": "project",
-                                "plural": false,
-                                "selections": [
-                                  (v4/*:: as any*/)
-                                ],
-                                "storageKey": null
-                              },
+                              (v5/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -333,16 +335,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6b1dd24ce509c143a297e1e2c92decdb",
+    "cacheID": "1919524324153a9f25a405fe37c5dc3e",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsTracesViewRefetchQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsTracesViewRefetchQuery(\n  $after: String = null\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionDetailsTracesView_traces_2HEEH6\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_2HEEH6 on ProjectSession {\n  numTraces\n  traces(first: $first, after: $after) {\n    edges {\n      trace: node {\n        id\n        traceId\n        errorCount\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionDetailsTracesViewRefetchQuery(\n  $after: String = null\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionDetailsTracesView_traces_2HEEH6\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_2HEEH6 on ProjectSession {\n  project {\n    id\n  }\n  numTraces\n  traces(first: $first, after: $after) {\n    edges {\n      trace: node {\n        id\n        traceId\n        errorCount\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "26f5a109e5b2409018bc47c7f9e19a11";
+(node as any).hash = "03f0d145c6e503e0b482dde8adeed31b";
 
 export default node;

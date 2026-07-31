@@ -18,7 +18,6 @@ import {
   SessionDetailPanelAnnotationBar,
   SessionDetailPanelAnnotationButton,
   SpanDetailPanelAnnotationButton,
-  TraceDetailPanelAnnotationBar,
   TraceDetailPanelAnnotationButton,
 } from "@phoenix/components/annotation/ConnectedDetailPanelAnnotationBar";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -52,9 +51,8 @@ import {
 } from "./SessionDetailsTraceList";
 import { SpanDetailsPaintGate } from "./SpanDetailsPaintGate";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
-import { TraceDetailsHeader } from "./TraceDetailsHeader";
 import { DetailPanelAnnotationBarSkeleton } from "./TraceDetailsSkeleton";
-import { TraceTurnContent } from "./TraceTurnContent";
+import { TraceTurnDetails } from "./TraceTurnDetails";
 
 type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -181,6 +179,7 @@ export function TraceDetails({
     (isSessionSelected
       ? null
       : (urlSpanNodeId ?? (isTraceSelected ? null : rootSpan.id)));
+  const isTraceActive = isTraceSelected || selectedSpanNodeId != null;
   const treeSession = session
     ? {
         actions: (
@@ -202,13 +201,9 @@ export function TraceDetails({
         sessionId: session.sessionId,
       }
     : undefined;
-  const getSessionTraceUrl: SessionTraceUrlBuilder = ({
-    spanNodeId,
-    traceId,
-  }) =>
+  const getSessionTraceUrl: SessionTraceUrlBuilder = ({ traceId }) =>
     `/projects/${projectId}/traces/${getTraceDetailsPath({
       traceId,
-      spanNodeId,
       searchParams,
     })}`;
 
@@ -230,6 +225,7 @@ export function TraceDetails({
               actions: (
                 <TraceDetailPanelAnnotationButton traceNodeId={trace.id} />
               ),
+              isActive: isTraceActive,
               isSelected: isTraceSelected,
               cost: rootSpan.trace.costSummary?.total?.cost,
               onSelect: () => {
@@ -359,59 +355,6 @@ function TraceSessionDetails({
             sessionId={session.id}
           />
         </Suspense>
-      </div>
-    </div>
-  );
-}
-
-function TraceTurnDetails({
-  rootSpan,
-  traceId,
-  traceNodeId,
-}: {
-  rootSpan: RootSpan;
-  traceId: string;
-  traceNodeId: string;
-}) {
-  return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-      `}
-    >
-      <TraceDetailsHeader
-        annotationBar={
-          <Suspense
-            fallback={
-              <DetailPanelAnnotationBarSkeleton variant="detail-header" />
-            }
-          >
-            <TraceDetailPanelAnnotationBar traceNodeId={traceNodeId} />
-          </Suspense>
-        }
-        trace={{
-          id: traceNodeId,
-          traceId,
-          latencyMs: rootSpan.latencyMs,
-          startTime: rootSpan.startTime,
-          tokenCountTotal: rootSpan.cumulativeTokenCountTotal,
-          totalCost: rootSpan.trace.costSummary.total.cost,
-        }}
-      />
-      <div
-        css={css`
-          flex: 1 1 auto;
-          min-height: 0;
-          overflow: auto;
-        `}
-      >
-        <View padding="var(--global-grid-margin-xsmall)">
-          <TraceTurnContent rootSpan={rootSpan} />
-        </View>
       </div>
     </div>
   );

@@ -1289,6 +1289,19 @@ const listCSS = (theme: Theme) => css`
   }
 `;
 
+const detailsPanelNavigationCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --global-details-panel-navigation-row-selected-background-color: rgba(
+      var(--global-color-gray-200-rgb),
+      0.5
+    );
+    --global-details-panel-navigation-row-selected-border-color: var(
+      --global-color-gray-300
+    );
+  }
+`;
+
 const traceTreeCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1469,6 +1482,7 @@ export const derivedCSS = (theme: Theme) =>
     popoverCSS(theme),
     roundingCSS(theme),
     listCSS(theme),
+    detailsPanelNavigationCSS(theme),
     traceTreeCSS(theme),
     tableCSS(theme),
     markdownCSS(theme),

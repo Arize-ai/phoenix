@@ -16,7 +16,10 @@ export type TraceSummaryRowProps = {
   disclosureTestId?: string;
   errorCount: number;
   index?: number;
+  /** Whether the trace or one of its descendant spans owns the active branch. */
+  isActive: boolean;
   isExpanded: boolean;
+  /** Whether the trace itself, rather than a descendant span, owns selection. */
   isSelected: boolean;
   latencyMs?: number | null;
   name: string;
@@ -40,12 +43,16 @@ const traceSummaryRowCSS = css`
   }
 
   &[data-selected="true"] {
-    background-color: var(--global-list-item-selected-background-color);
+    background-color: var(
+      --global-details-panel-navigation-row-selected-background-color
+    );
     color: var(--global-text-color-900);
   }
 
   &[data-selected="true"] .trace-summary-row__select {
-    border-left-color: var(--global-list-item-selected-border-color);
+    border-left-color: var(
+      --global-details-panel-navigation-row-selected-border-color
+    );
   }
 
   .trace-summary-row__select {
@@ -132,6 +139,7 @@ export function TraceSummaryRow({
   disclosureTestId,
   errorCount,
   index,
+  isActive,
   isExpanded,
   isSelected,
   latencyMs,
@@ -159,7 +167,7 @@ export function TraceSummaryRow({
     <div
       className="trace-summary-row"
       css={traceSummaryRowCSS}
-      data-selected={isSelected || undefined}
+      data-selected={isActive || undefined}
     >
       <button
         type="button"

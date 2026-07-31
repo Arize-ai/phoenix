@@ -69,17 +69,15 @@ const getSessionTraceUrl = ({
   pathname,
   search,
   traceId,
-  spanNodeId,
 }: {
   pathname: string;
   search: string;
   traceId: string;
-  spanNodeId: string;
 }): To => {
   const params = new URLSearchParams(search);
   params.set(SESSION_VIEW_PARAM, "traces");
   params.set(SELECTED_TRACE_ID_PARAM, traceId);
-  params.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
+  params.delete(SELECTED_SPAN_NODE_ID_PARAM);
   return {
     pathname,
     search: params.toString(),
@@ -98,10 +96,7 @@ type RootSpanProps = {
   rootSpan: SessionTraceRootSpan;
 };
 
-export type SessionTraceUrlBuilder = (trace: {
-  traceId: string;
-  spanNodeId: string;
-}) => To;
+export type SessionTraceUrlBuilder = (trace: { traceId: string }) => To;
 
 const sessionTurnDividerCSS = css`
   .session-turn-divider__rule {
@@ -120,8 +115,7 @@ function SessionTurnDivider({
   getTraceUrl,
   index,
   traceId,
-  rootSpan,
-}: RootSpanProps & {
+}: {
   getTraceUrl?: SessionTraceUrlBuilder;
   traceId: string;
   index: number;
@@ -129,12 +123,11 @@ function SessionTurnDivider({
   const location = useLocation();
   const paddedIndex = String(index + 1).padStart(2, "0");
   const traceUrl = getTraceUrl
-    ? getTraceUrl({ traceId, spanNodeId: rootSpan.id })
+    ? getTraceUrl({ traceId })
     : getSessionTraceUrl({
         pathname: location.pathname,
         search: location.search,
         traceId,
-        spanNodeId: rootSpan.id,
       });
   return (
     <Flex
@@ -179,7 +172,6 @@ function SessionTurnDetail({
           getTraceUrl={getTraceUrl}
           index={index}
           traceId={traceId}
-          rootSpan={rootSpan}
         />
       }
     />
@@ -245,9 +237,13 @@ const turnListCSS = css`
     }
 
     &[data-selected] {
-      background: var(--global-list-item-selected-background-color);
+      background: var(
+        --global-details-panel-navigation-row-selected-background-color
+      );
       color: var(--global-text-color-900);
-      border-left-color: var(--global-list-item-selected-border-color);
+      border-left-color: var(
+        --global-details-panel-navigation-row-selected-border-color
+      );
     }
   }
 
@@ -501,6 +497,7 @@ function SessionTurns({
     setSearchParams(
       (params) => {
         params.set(SELECTED_TRACE_ID_PARAM, traceId);
+        params.delete(SELECTED_SPAN_NODE_ID_PARAM);
         return params;
       },
       { replace: true }

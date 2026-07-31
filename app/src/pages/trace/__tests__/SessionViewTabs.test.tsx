@@ -59,6 +59,7 @@ function expectSessionNavigationRowGeometry(row: HTMLElement) {
   if (!rowStyleRule) {
     throw new Error(`Expected shared navigation row styles for ${selector}`);
   }
+  expect(rowStyleRule.style.flexShrink).toBe("0");
   expect(normalizeCSSValue(rowStyleRule.style.minHeight)).toBe(
     detailsPanelNavigationRowHeight
   );

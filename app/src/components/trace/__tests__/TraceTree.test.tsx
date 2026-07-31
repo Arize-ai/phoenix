@@ -806,6 +806,35 @@ describe("TraceTree", () => {
     expect(onSpanClick).not.toHaveBeenCalled();
   });
 
+  it("keeps a parent trace active without making it the selected entity", () => {
+    const onTraceSelect = vi.fn();
+    renderTraceTree({
+      spans: [ROOT_SPAN, CHILD_SPAN],
+      selectedSpanNodeId: CHILD_SPAN.id,
+      traceSelection: {
+        isActive: true,
+        isSelected: false,
+        onSelect: onTraceSelect,
+        traceId: "trace-12345678",
+      },
+    });
+
+    const traceButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="View trace trace-12345678"]'
+    );
+    expect(traceButton?.parentElement?.dataset.selected).toBe("true");
+    expect(traceButton?.getAttribute("aria-pressed")).toBe("false");
+
+    act(() => traceButton?.click());
+
+    expect(onTraceSelect).toHaveBeenCalledOnce();
+    expect(
+      container.querySelector(
+        `[data-trace-tree-span-node-id="${ROOT_SPAN.id}"]`
+      )
+    ).not.toBeNull();
+  });
+
   it("keeps trace selection separate from the tree disclosure", () => {
     const onTraceSelect = vi.fn();
     const onTraceAction = vi.fn();
@@ -905,6 +934,12 @@ describe("TraceTree", () => {
         rule.selectorText.includes(`.${rowClassName}[data-selected="true"]`) &&
         rule.selectorText.includes(".trace-summary-row__select")
     );
+    const fullRowBackgroundRule = styleRules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule &&
+        rule.selectorText.includes(`.${rowClassName}[data-selected="true"]`) &&
+        !rule.selectorText.includes(".trace-summary-row__select")
+    );
     const compactSelectionRule = styleRules.find(
       (rule): rule is CSSStyleRule =>
         rule instanceof CSSStyleRule &&
@@ -921,11 +956,19 @@ describe("TraceTree", () => {
     expect(errorCounter?.dataset.variant).toBe("danger");
     expect(traceRow?.querySelector('[aria-label="ERROR"]')).toBeNull();
     expect(compactTraceButton?.dataset.statusCode).toBeUndefined();
-    expect(fullRowSelectionRule?.style.borderLeftColor).toBe(
-      "var(--global-list-item-selected-border-color)"
+    expect(fullRowSelectionRule?.style.borderLeftColor.replace(/\s/g, "")).toBe(
+      "var(--global-details-panel-navigation-row-selected-border-color)"
     );
-    expect(compactSelectionRule?.style.borderLeftColor).toBe(
-      "var(--global-color-gray-300)"
+    expect(
+      fullRowBackgroundRule?.style.backgroundColor.replace(/\s/g, "")
+    ).toBe(
+      "var(--global-details-panel-navigation-row-selected-background-color)"
+    );
+    expect(compactSelectionRule?.style.borderLeftColor.replace(/\s/g, "")).toBe(
+      "var(--global-details-panel-navigation-row-selected-border-color)"
+    );
+    expect(compactSelectionRule?.style.backgroundColor.replace(/\s/g, "")).toBe(
+      "var(--global-details-panel-navigation-row-selected-background-color)"
     );
   });
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6e67816eeb1e2bddb3212281d44befc>>
+ * @generated SignedSource<<7e982db5fb897e1372679f0e484c185d>>
  * @lightSyntaxTransform
  */
 
@@ -61,6 +61,18 @@ v5 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Project",
+  "kind": "LinkedField",
+  "name": "project",
+  "plural": false,
+  "selections": [
+    (v5/*:: as any*/)
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -121,6 +133,7 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v6/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -204,18 +217,7 @@ return {
                                 "name": "latencyMs",
                                 "storageKey": null
                               },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "Project",
-                                "kind": "LinkedField",
-                                "name": "project",
-                                "plural": false,
-                                "selections": [
-                                  (v5/*:: as any*/)
-                                ],
-                                "storageKey": null
-                              },
+                              (v6/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -333,12 +335,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "99b042b6ec71018698d5087c502964a9",
+    "cacheID": "ad4181137b6d93ef7a587bca3e4b0d5c",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsTracesViewQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsTracesViewQuery(\n  $id: ID!\n  $first: Int!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      ...SessionDetailsTracesView_traces_3ASum4\n    }\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_3ASum4 on ProjectSession {\n  numTraces\n  traces(first: $first) {\n    edges {\n      trace: node {\n        id\n        traceId\n        errorCount\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionDetailsTracesViewQuery(\n  $id: ID!\n  $first: Int!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      ...SessionDetailsTracesView_traces_3ASum4\n    }\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_3ASum4 on ProjectSession {\n  project {\n    id\n  }\n  numTraces\n  traces(first: $first) {\n    edges {\n      trace: node {\n        id\n        traceId\n        errorCount\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

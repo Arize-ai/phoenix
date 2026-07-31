@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1e15434c3cb75d0513855613b22ac373>>
+ * @generated SignedSource<<92a13911ba54ed814aba1c754d6b45a7>>
  * @lightSyntaxTransform
  */
 
@@ -12,6 +12,9 @@ import { FragmentRefs } from "relay-runtime";
 export type SessionDetailsTracesView_traces$data = {
   readonly id: string;
   readonly numTraces: number;
+  readonly project: {
+    readonly id: string;
+  };
   readonly traces: {
     readonly edges: ReadonlyArray<{
       readonly trace: {
@@ -58,6 +61,18 @@ v1 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Project",
+  "kind": "LinkedField",
+  "name": "project",
+  "plural": false,
+  "selections": [
+    (v1/*:: as any*/)
+  ],
+  "storageKey": null
 };
 return {
   "argumentDefinitions": [
@@ -103,6 +118,7 @@ return {
   },
   "name": "SessionDetailsTracesView_traces",
   "selections": [
+    (v2/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -186,18 +202,7 @@ return {
                       "name": "latencyMs",
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "Project",
-                      "kind": "LinkedField",
-                      "name": "project",
-                      "plural": false,
-                      "selections": [
-                        (v1/*:: as any*/)
-                      ],
-                      "storageKey": null
-                    },
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -308,6 +313,6 @@ return {
 };
 })();
 
-(node as any).hash = "26f5a109e5b2409018bc47c7f9e19a11";
+(node as any).hash = "03f0d145c6e503e0b482dde8adeed31b";
 
 export default node;

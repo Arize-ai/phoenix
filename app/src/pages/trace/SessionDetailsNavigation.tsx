@@ -12,6 +12,9 @@ export const sessionDetailsNavigationTopLevelRowCSS = css`
   /* ListBox gives its items generic padding through a descendant selector.
    * Repeat the row selector so this shared geometry wins that cascade. */
   && {
+    /* The navigation list is a fixed-height flex column. Keep rows at their
+     * content height so overflow scrolls the list instead of shrinking rows. */
+    flex-shrink: 0;
     min-height: var(--global-details-panel-navigation-row-height);
     padding: var(
         --global-session-details-navigation-top-level-row-padding-block

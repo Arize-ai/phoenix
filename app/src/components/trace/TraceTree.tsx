@@ -64,6 +64,7 @@ export type TraceTreeProps = {
   traceSelection?: {
     actions?: ReactNode;
     cost?: number | null;
+    isActive?: boolean;
     isSelected: boolean;
     onSelect: () => void;
     tokenCountTotal?: number | null;
@@ -308,8 +309,12 @@ const traceTreeIconRailCSS = css`
   }
 
   .trace-tree-icon-rail__item[data-selected="true"] {
-    border-left-color: var(--global-color-gray-300);
-    background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
+    border-left-color: var(
+      --global-details-panel-navigation-row-selected-border-color
+    );
+    background-color: var(
+      --global-details-panel-navigation-row-selected-background-color
+    );
   }
 
   .trace-tree-icon-rail__item[data-selected="true"][data-status-code="ERROR"] {
@@ -476,6 +481,7 @@ export function TraceTree(props: TraceTreeProps) {
             <TraceSummaryRow
               {...traceSelection}
               errorCount={errorCount}
+              isActive={traceSelection.isActive ?? traceSelection.isSelected}
               isExpanded={isTraceExpanded}
               latencyMs={rootSpan?.latencyMs}
               name={rootSpan?.name ?? "Trace"}
@@ -570,7 +576,9 @@ export function TraceTree(props: TraceTreeProps) {
               <button
                 type="button"
                 className="trace-tree-icon-rail__item"
-                data-selected={traceSelection.isSelected}
+                data-selected={
+                  traceSelection.isActive ?? traceSelection.isSelected
+                }
                 aria-label={
                   hasErrors
                     ? `View trace ${traceSelection.traceId}, ${errorCount} ${errorCount === 1 ? "error" : "errors"}`
@@ -655,8 +663,12 @@ const entityTreeItemCSS = css`
   }
 
   &[data-selected="true"] {
-    background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
-    border-left-color: var(--global-color-gray-300);
+    background-color: var(
+      --global-details-panel-navigation-row-selected-background-color
+    );
+    border-left-color: var(
+      --global-details-panel-navigation-row-selected-border-color
+    );
   }
 
   .trace-tree-entity-item__label {
@@ -1406,8 +1418,12 @@ function SpanNodeWrap(
         }
         &.is-selected {
           // Keep the fill translucent so the latency bar remains visible
-          background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
-          border-color: var(--global-color-gray-300);
+          background-color: var(
+            --global-details-panel-navigation-row-selected-background-color
+          );
+          border-color: var(
+            --global-details-panel-navigation-row-selected-border-color
+          );
         }
         &.is-selected[data-status-code="ERROR"] {
           border-left-color: var(--global-color-danger);

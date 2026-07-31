@@ -90,6 +90,15 @@ export function createSessionDetailsSearchParamsStore(
       pendingSelection = nextSelection;
       spanSelectionListeners.forEach((listener) => listener());
     },
+    selectTrace(traceId: string) {
+      selection = { spanNodeId: null, traceId };
+      pendingSelection = null;
+      spanSelectionListeners.forEach((listener) => listener());
+      const nextSearchParams = new URLSearchParams(searchParams);
+      nextSearchParams.set(SELECTED_TRACE_ID_PARAM, traceId);
+      nextSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+      replaceSearchParams(nextSearchParams);
+    },
     synchronizeSpanSelection(nextSelection: {
       spanNodeId: string;
       traceId: string;

@@ -94,22 +94,48 @@ vi.mock("@phoenix/contexts/PreferencesContext", () => ({
 vi.mock("../ConnectedTraceTree", () => ({
   ConnectedTraceTree: ({
     session,
+    traceSelection,
   }: {
     session?: {
       isSelected: boolean;
       onSelect: () => void;
       sessionId: string;
     };
+    traceSelection?: {
+      isActive?: boolean;
+      isSelected: boolean;
+      onSelect: () => void;
+      traceId: string;
+    };
   }) =>
-    session ? (
-      <button
-        type="button"
-        aria-label={`View session ${session.sessionId}`}
-        aria-pressed={session.isSelected}
-        onClick={session.onSelect}
-      >
-        Session
-      </button>
+    session || traceSelection ? (
+      <>
+        {session ? (
+          <button
+            type="button"
+            aria-label={`View session ${session.sessionId}`}
+            aria-pressed={session.isSelected}
+            onClick={session.onSelect}
+          >
+            Session
+          </button>
+        ) : null}
+        {traceSelection ? (
+          <div
+            data-testid="trace-row"
+            data-selected={traceSelection.isActive || undefined}
+          >
+            <button
+              type="button"
+              aria-label={`View trace ${traceSelection.traceId}`}
+              aria-pressed={traceSelection.isSelected}
+              onClick={traceSelection.onSelect}
+            >
+              Trace
+            </button>
+          </div>
+        ) : null}
+      </>
     ) : null,
 }));
 
@@ -141,14 +167,13 @@ vi.mock("../SessionDetailsTraceList", () => ({
     getTraceUrl,
     sessionId,
   }: {
-    getTraceUrl?: (trace: { traceId: string; spanNodeId: string }) => string;
+    getTraceUrl?: (trace: { traceId: string }) => string;
     sessionId: string;
   }) => (
     <div
       data-testid="session-conversation"
       data-trace-url={getTraceUrl?.({
         traceId: "other-trace-id",
-        spanNodeId: "other-span-node-id",
       })}
     >
       {sessionId}
@@ -245,6 +270,47 @@ describe("TraceDetails", () => {
     ).toBeNull();
   });
 
+  it("keeps the parent trace active while a span is selected", () => {
+    searchParams.delete("selectedTraceId");
+    searchParams.set("selectedSpanNodeId", "root-span-node-id");
+
+    act(() => {
+      root.render(
+        <ThemeProvider>
+          <TraceDetails
+            key={searchParams.toString()}
+            traceId="trace-display-id"
+            projectId="project-node-id"
+          />
+        </ThemeProvider>
+      );
+    });
+
+    expect(
+      container
+        .querySelector('button[aria-label="View trace trace-display-id"]')
+        ?.getAttribute("aria-pressed")
+    ).toBe("false");
+    expect(
+      container
+        .querySelector("[data-testid='trace-row']")
+        ?.getAttribute("data-selected")
+    ).toBe("true");
+    expect(
+      container.querySelector("[data-testid='span-details']")
+    ).not.toBeNull();
+
+    act(() => {
+      container
+        .querySelector<HTMLButtonElement>(
+          'button[aria-label="View trace trace-display-id"]'
+        )
+        ?.click();
+    });
+    expect(searchParams.get("selectedTraceId")).toBe("trace-display-id");
+    expect(searchParams.has("selectedSpanNodeId")).toBe(false);
+  });
+
   it("selects the session in place and shows its header and conversation", () => {
     const renderDetails = () =>
       root.render(
@@ -286,9 +352,7 @@ describe("TraceDetails", () => {
       container
         .querySelector("[data-testid='session-conversation']")
         ?.getAttribute("data-trace-url")
-    ).toBe(
-      "/projects/project-node-id/traces/other-trace-id?selectedSpanNodeId=other-span-node-id"
-    );
+    ).toBe("/projects/project-node-id/traces/other-trace-id");
     expect(container.querySelector("[data-testid='span-details']")).toBeNull();
     expect(
       container.querySelector("[data-testid='trace-turn-content']")

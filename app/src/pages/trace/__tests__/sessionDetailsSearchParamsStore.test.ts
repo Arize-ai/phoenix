@@ -61,6 +61,28 @@ describe("sessionDetailsSearchParamsStore", () => {
     });
   });
 
+  it("selects a trace without proxying through its root span", () => {
+    const initialSearchParams = new URLSearchParams(
+      "sessionView=traces&selectedTraceId=trace-a&selectedSpanNodeId=span-a"
+    );
+    const store = createSessionDetailsSearchParamsStore(initialSearchParams);
+    const setSearchParams = vi.fn();
+    const onSelectionChange = vi.fn();
+    store.connectToRouter(initialSearchParams, setSearchParams);
+    store.subscribeToSpanSelection(onSelectionChange);
+
+    store.selectTrace("trace-b");
+
+    expect(store.getSpanSelection()).toEqual({
+      traceId: "trace-b",
+      spanNodeId: null,
+    });
+    expect(onSelectionChange).toHaveBeenCalledOnce();
+    const nextSearchParams = setSearchParams.mock.calls[0]?.[0];
+    expect(nextSearchParams.get("selectedTraceId")).toBe("trace-b");
+    expect(nextSearchParams.has("selectedSpanNodeId")).toBe(false);
+  });
+
   it("ignores a stale router echo while a newer local selection is pending", () => {
     const initialSearchParams = new URLSearchParams(
       "sessionView=traces&selectedTraceId=trace-a&selectedSpanNodeId=span-a"
