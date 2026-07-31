@@ -23,6 +23,48 @@ const gridCells = [
   ry: BRAND_CELL_RADIUS,
 }));
 
+export function getPxiGlyphSVGDataUrl({ fill }: { fill: string }) {
+  const rects = gridCells
+    .map(
+      ({ x, y, width, height, rx, ry }) =>
+        `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" ry="${ry}" fill="${fill}"/>`
+    )
+    .join("");
+  const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}">${rects}</svg>`;
+
+  return `data:image/svg+xml,${encodeURIComponent(svgMarkup)}`;
+}
+
+// The outline glyph sits in the same 24px viewBox as the icon set so it
+// renders at the same optical size as other icons — the inner margin keeps
+// the dense five-cell grid from reading larger than its neighbors.
+const OUTLINE_VIEWBOX_SIZE = 24;
+const OUTLINE_STROKE_WIDTH = 1.5;
+const OUTLINE_INSET = (OUTLINE_VIEWBOX_SIZE - svgSize) / 2;
+
+/**
+ * Stroked, icon-sized variant of the PXI brand glyph for places that use
+ * outline iconography (tab prefixes, menus) where the filled glyph reads too
+ * heavy.
+ */
+export function PxiGlyphOutline({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox={`0 0 ${OUTLINE_VIEWBOX_SIZE} ${OUTLINE_VIEWBOX_SIZE}`}
+      style={{ fill: "none", stroke: "currentColor" }}
+      strokeWidth={OUTLINE_STROKE_WIDTH}
+    >
+      <g transform={`translate(${OUTLINE_INSET} ${OUTLINE_INSET})`}>
+        {gridCells.map((cell, index) => (
+          <rect key={index} {...cell} />
+        ))}
+      </g>
+    </svg>
+  );
+}
+
 export type PxiGlyphAnimation =
   | "wave-reveal"
   | "orbit-reveal"
@@ -290,8 +332,8 @@ export function PxiGlyph({
       height={dim}
       viewBox={`0 0 ${svgSize} ${svgSize}`}
     >
-      {gridCells.map((cell, i) => (
-        <rect key={i} {...cell} fill={fill} />
+      {gridCells.map((cell, index) => (
+        <rect key={index} {...cell} fill={fill} />
       ))}
     </svg>
   );

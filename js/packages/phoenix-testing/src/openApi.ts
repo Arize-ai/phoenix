@@ -33,6 +33,36 @@ export function getOpenApiDocument({
 }
 
 /**
+ * `@mswjs/source` understands the OpenAPI `example` keyword but treats the
+ * JSON Schema `examples` keyword (an array of candidate values) as the value
+ * itself, generating an array wherever a schema declares one — e.g. a `Span`
+ * with `examples: [{...}]` yields `Span[]` in place of every `Span`. Rewrite
+ * array-form `examples` to a single `example` so generated responses conform
+ * to the schema. Map-form `examples` (OpenAPI media-type examples) are not
+ * arrays and pass through untouched.
+ */
+function normalizeSchemaExamples(node: unknown): unknown {
+  if (Array.isArray(node)) {
+    return node.map(normalizeSchemaExamples);
+  }
+  if (node === null || typeof node !== "object") {
+    return node;
+  }
+  const record: Record<string, unknown> = { ...node };
+  if (Array.isArray(record.examples)) {
+    const [firstExample] = record.examples;
+    delete record.examples;
+    if (record.example === undefined && firstExample !== undefined) {
+      record.example = firstExample;
+    }
+  }
+  for (const [key, value] of Object.entries(record)) {
+    record[key] = normalizeSchemaExamples(value);
+  }
+  return record;
+}
+
+/**
  * Create MSW request handlers for every operation in the Phoenix OpenAPI
  * definition. Responses are derived from the response schemas and examples
  * declared in the definition, so they are spec-conformant but contain
@@ -52,7 +82,9 @@ export async function createOpenApiHandlers({
 }: {
   baseUrl?: string;
 } = {}): Promise<RequestHandler[]> {
-  const document = getOpenApiDocument({ baseUrl });
+  const document = normalizeSchemaExamples(
+    getOpenApiDocument({ baseUrl })
+  ) as Record<string, unknown>;
   // The document is a runtime-validated JSON value; fromOpenApi's parameter
   // type is the openapi-types Document union, which structural typing of a
   // Record<string, unknown> cannot satisfy without a cast.

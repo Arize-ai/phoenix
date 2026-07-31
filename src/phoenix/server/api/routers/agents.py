@@ -65,7 +65,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolInputAvailableChunk,
     ToolOutputAvailableChunk,
 )
-from pydantic_ai.usage import RunUsage
+from pydantic_ai.usage import RequestUsage
 from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
@@ -93,6 +93,7 @@ from phoenix.server.agents.context import (
     ResolvedContexts,
     resolve_contexts,
 )
+from phoenix.server.agents.data_stream_protocol import build_stream_error_chunk
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
@@ -124,6 +125,7 @@ from phoenix.server.api.types.SandboxConfig import (
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
+from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import (
     Tracer,
@@ -471,7 +473,7 @@ def _build_message_metadata_chunk(
     span_context: SpanContext | None,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
-    usage: RunUsage,
+    usage: RequestUsage,
 ) -> MessageMetadataChunk:
     """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     trace_ids = (
@@ -499,9 +501,8 @@ def _build_message_metadata_chunk(
     )
 
 
-def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
-    """Convert a run's token usage into the metadata payload, including cache
-    read/write details only when the run actually used the prompt cache."""
+def _build_usage_payload(usage: RequestUsage) -> AssistantMessageMetadataUsage:
+    """Convert the final model request's usage into the current context size."""
     usage_payload = AssistantMessageMetadataUsage(
         tokens=AssistantMessageMetadataUsageTokens(
             prompt=usage.input_tokens,
@@ -515,6 +516,11 @@ def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
             cache_write=usage.cache_write_tokens,
         )
     return usage_payload
+
+
+def _get_current_context_usage(result: AgentRunResult[Any]) -> RequestUsage:
+    """Return the tokens retained after the run's final model response."""
+    return result.response.usage
 
 
 def _get_span_context(context: Context | None) -> SpanContext | None:
@@ -848,9 +854,11 @@ async def _load_available_sandbox_backend_types(
     *,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
+    runtime: SandboxRuntimeContext,
 ) -> frozenset[models.SandboxBackendType]:
     backend_info = await get_sandbox_backend_info(
         secrets=SecretsContext(session=session, decrypt=decrypt),
+        runtime=runtime,
     )
     return frozenset(
         info.backend_type.value
@@ -1249,7 +1257,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 span_context=agent_span_recorder.span_context if agent_span_recorder else None,
                 turn_trace_context=None,
                 session_id=session_id,
-                usage=result.usage,
+                usage=_get_current_context_usage(result),
             )
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
@@ -1266,6 +1274,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                     emitted_at=datetime.now(timezone.utc),
                                 )
                             yield chunk
+            except Exception as exc:
+                # Surface the failure to the client as an error chunk (e.g. a
+                # rejected API key) instead of letting the connection close
+                # silently, which leaves the agent appearing to hang.
+                logger.exception("Server agent chat stream failed for session %s", session_id)
+                yield build_stream_error_chunk(exc)
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
@@ -1339,6 +1353,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     available_backend_types = await _load_available_sandbox_backend_types(
                         session=session,
                         decrypt=request.app.state.decrypt,
+                        runtime=request.app.state.sandbox_runtime,
                     )
                     sandbox_availability = await _load_sandbox_availability(
                         session,
@@ -1476,10 +1491,15 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             if isinstance(result.output, str):
                 turn_is_terminal = True
                 turn_final_output_text = result.output.strip() or None
+            # Only advertise a trace when the tracer is actually recording
             span_context = (
-                agent_span_recorder.span_context
-                if agent_span_recorder and agent_span_recorder.span_context is not None
-                else request_parent_span_context
+                (
+                    agent_span_recorder.span_context
+                    if agent_span_recorder and agent_span_recorder.span_context is not None
+                    else request_parent_span_context
+                )
+                if tracer is not None
+                else None
             )
             yield _build_message_metadata_chunk(
                 span_context=span_context,
@@ -1493,7 +1513,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     else None
                 ),
                 session_id=session_id,
-                usage=result.usage,
+                usage=_get_current_context_usage(result),
             )
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
@@ -1565,7 +1585,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
                     ):
                         yield message_chunk
+            except Exception as exc:
+                # Surface the failure to the client as an error chunk (e.g. a
+                # rejected API key) instead of letting the connection close
+                # silently, which leaves the agent appearing to hang.
+                stream_error = exc
+                logger.exception("Agent chat stream failed for session %s", session_id)
+                yield build_stream_error_chunk(exc)
             except BaseException as exc:
+                # Cancellation and other non-``Exception`` failures propagate so
+                # client disconnects are not misreported as agent errors.
                 stream_error = exc
                 raise
             finally:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e1ad91adc07439de5465f29e2affa674>>
+ * @generated SignedSource<<69c723037eabdc92be4bbf078e9028b5>>
  * @lightSyntaxTransform
  */
 
@@ -16,6 +16,8 @@ export type RetentionPoliciesTable_retentionPolicy$data = {
   readonly projects: {
     readonly edges: ReadonlyArray<{
       readonly node: {
+        readonly gradientEndColor: string;
+        readonly gradientStartColor: string;
         readonly id: string;
         readonly name: string;
       };
@@ -48,6 +50,6 @@ const node: ReaderInlineDataFragment = {
   "name": "RetentionPoliciesTable_retentionPolicy"
 };
 
-(node as any).hash = "f4bc351137b27b6a15a8ebbf0cdd8447";
+(node as any).hash = "da2a0ca9f6bfed6895ca04372b118ce7";
 
 export default node;

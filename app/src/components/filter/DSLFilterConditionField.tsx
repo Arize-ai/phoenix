@@ -18,6 +18,7 @@ import CodeMirror, {
 import {
   startTransition,
   useEffect,
+  useEffectEvent,
   useId,
   useMemo,
   useRef,
@@ -101,6 +102,13 @@ export function createLoadedCompletionSection(name: string): CompletionSection {
 const MAX_BROWSE_SUGGESTIONS = 5;
 const MAX_BROWSE_FIELDS = 20;
 
+/**
+ * How long a typed condition must sit still before it is validated. Tuned by
+ * feel: long enough that a phrase being typed does not flash red, short enough
+ * that a finished one applies without a wait.
+ */
+const VALIDATION_DEBOUNCE_MS = 250;
+
 const defaultSnippets: DSLFilterSnippet[] = [];
 const defaultCompletionSources: CompletionSource[] = [];
 
@@ -113,7 +121,34 @@ function snippetToCompletion({ label, snippet }: DSLFilterSnippet): Completion {
   });
 }
 
-export type DSLFilterConditionFieldProps = {
+/**
+ * The argument handed to `onValidCondition`: the condition that passed
+ * validation, plus whatever `validateCondition` resolved to for it —
+ * `null` for an empty condition, which the field resolves itself.
+ */
+export type DSLFilterValidConditionArgs<
+  TValidationResult extends DSLFilterConditionValidationResult =
+    DSLFilterConditionValidationResult,
+> = {
+  condition: string;
+  validationResult: TValidationResult | null;
+  /**
+   * True when this settlement is of the value the field mounted with, rather
+   * than of a change made while it was on screen. A mount value arrives from a
+   * URL or a caller's default, so consumers that persist applied conditions --
+   * to the URL, to a search history -- should skip it: the user did not apply
+   * anything, and writing a default somewhere durable turns "no filter chosen"
+   * into "this filter chosen" for whoever reads it next.
+   */
+  isInitialSettlement: boolean;
+};
+
+export type DSLFilterValidationFailureReason = "invalid" | "transport";
+
+export type DSLFilterConditionFieldProps<
+  TValidationResult extends DSLFilterConditionValidationResult =
+    DSLFilterConditionValidationResult,
+> = {
   /**
    * The current filter condition expression (controlled)
    */
@@ -159,11 +194,29 @@ export type DSLFilterConditionFieldProps = {
    */
   validateCondition: (
     condition: string
-  ) => Promise<DSLFilterConditionValidationResult | null | undefined>;
+  ) => Promise<TValidationResult | null | undefined>;
   /**
-   * Callback when the condition passes validation
+   * Callback when the condition passes validation. Receives whatever
+   * `validateCondition` resolved to, so a caller that asks the server for more
+   * than validity gets the rest of the answer without a channel of its own.
+   * `validationResult` is `null` for an empty condition, which is resolved
+   * here rather than by the validator.
    */
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (
+    args: DSLFilterValidConditionArgs<TValidationResult>
+  ) => void;
+  /**
+   * Callback when validation rejects the expression or cannot reach the
+   * validator. Valid conditions use `onValidCondition`, so the two outcomes
+   * cannot be mistaken for the same settlement event. Held as an effect event,
+   * like `onValidCondition`, so its identity does not re-run validation.
+   */
+  onValidationFailed?: (reason: DSLFilterValidationFailureReason) => void;
+  /**
+   * Changing this value explicitly re-runs validation for the current text.
+   * Used by callers that offer a retry after a transport failure.
+   */
+  validationRetryKey?: number;
   /**
    * Callback whenever the validity of the condition changes, including when
    * a validation round-trip is in flight (invalid until proven valid)
@@ -192,7 +245,9 @@ export type DSLFilterConditionFieldProps = {
  * field — so an error can never fight the suggestions dropdown for the same
  * space.
  */
-export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
+export function DSLFilterConditionField<
+  TValidationResult extends DSLFilterConditionValidationResult,
+>(props: DSLFilterConditionFieldProps<TValidationResult>) {
   const {
     value,
     onChange,
@@ -202,12 +257,16 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     completionSources = defaultCompletionSources,
     validateCondition,
     onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
     onValidationStateChange,
     placeholder = "filter condition",
     "aria-label": ariaLabel = "filter condition",
     className,
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const hasSettled = useRef<boolean>(false);
+  const previousValidationRetryKey = useRef(validationRetryKey);
   // null means the condition is not known to be invalid; the empty string
   // means invalid with no server-provided detail
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -324,6 +383,24 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     }
   }, [hasError, errorId]);
 
+  // Held as effect events so the validation effect below does not depend on
+  // their identity. A caller passing an inline arrow would otherwise revalidate
+  // on each of its renders, and a caller whose callback writes the URL would
+  // re-enter itself. Neither should be a consumer's problem to avoid.
+  const reportValidCondition = useEffectEvent(
+    (args: DSLFilterValidConditionArgs<TValidationResult>) => {
+      onValidCondition(args);
+    }
+  );
+  const reportValidationFailed = useEffectEvent(
+    (reason: DSLFilterValidationFailureReason) => {
+      onValidationFailed?.(reason);
+    }
+  );
+  const reportValidationState = useEffectEvent((isValid: boolean) => {
+    onValidationStateChange?.(isValid);
+  });
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -332,20 +409,41 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     // shows once the current text has settled and failed validation.
     setErrorMessage(null);
 
+    // Whether this run settles the mount-time value. Read before the branches
+    // below flip the ref: both settle paths report it, so consumers can tell
+    // a seeded default apart from something applied while the field was up.
+    const isInitialSettlement = !hasSettled.current;
+
     // An empty condition means "no filter" — resolve it here rather than
     // asking the validator about a blank (or whitespace-only) expression
     if (value.trim() === "") {
-      onValidationStateChange?.(true);
+      // An empty mount is a settled field, so the next value is a typed one
+      // and takes the debounce.
+      hasSettled.current = true;
+      reportValidationState(true);
       startTransition(() => {
-        onValidCondition("");
+        reportValidCondition({
+          condition: "",
+          validationResult: null,
+          isInitialSettlement,
+        });
       });
-      return;
+      return undefined;
     }
 
-    onValidationStateChange?.(false);
+    reportValidationState(false);
 
     // Debounce so intermediate keystrokes neither hit the server nor flash
-    // the field red while a valid expression is being typed
+    // the field red while a valid expression is being typed. A non-empty value
+    // at mount was not typed -- it arrives from a URL or a caller's default --
+    // so it is validated at once, which is also what any consumer waiting on
+    // the result to render is waiting for.
+    const isExplicitRetry =
+      previousValidationRetryKey.current !== validationRetryKey;
+    previousValidationRetryKey.current = validationRetryKey;
+    const delay =
+      hasSettled.current && !isExplicitRetry ? VALIDATION_DEBOUNCE_MS : 0;
+    hasSettled.current = true;
     const timeout = setTimeout(() => {
       validateCondition(value)
         .then((result) => {
@@ -355,12 +453,17 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
 
           if (!result?.isValid) {
             setErrorMessage(result?.errorMessage ?? "");
-            onValidationStateChange?.(false);
+            reportValidationState(false);
+            reportValidationFailed("invalid");
           } else {
             setErrorMessage(null);
-            onValidationStateChange?.(true);
+            reportValidationState(true);
             startTransition(() => {
-              onValidCondition(value);
+              reportValidCondition({
+                condition: value,
+                validationResult: result,
+                isInitialSettlement,
+              });
             });
           }
         })
@@ -372,15 +475,16 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
           // rather than leaving a normal-looking field whose filter is
           // silently never applied
           setErrorMessage("The condition could not be validated");
-          onValidationStateChange?.(false);
+          reportValidationState(false);
+          reportValidationFailed("transport");
         });
-    }, 250);
+    }, delay);
 
     return () => {
       isCancelled = true;
       clearTimeout(timeout);
     };
-  }, [value, validateCondition, onValidCondition, onValidationStateChange]);
+  }, [value, validateCondition, validationRetryKey]);
 
   return (
     <div

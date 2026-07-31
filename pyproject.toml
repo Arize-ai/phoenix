@@ -41,7 +41,7 @@ dependencies = [
   "grpcio",
   "grpc-interceptor",
   "tqdm",
-  "httpx",
+  "httpx[http2]",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
@@ -57,15 +57,18 @@ dependencies = [
   "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # no Windows wheels for >=3.50; Windows + 3.14 will fail at install (no cp314 wheels exist)
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=3.1.1",
+  "arize-phoenix-evals>=3.3.0",
   "arize-phoenix-otel>=0.16.1",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
+  "fastmcp-slim[client,server]>=3.4.2,<4",  # client powers pydantic-ai's MCPToolset used by the agent assistant; server powers the in-process MCP server mounted at /mcp. Cap below 4: FastMCP 4 is an SDK-v2 engine swap (mcp_types, httpx2, sampling removals) still in prerelease.
+  # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose ==0.0.17 pin conflicts and would ship in wheel metadata.
+  "pydantic-monty==0.0.19",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.0.0,<3",
-  "bashkit>=0.10.0",
+  "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
   "authlib>=1.7.0",
   "joserfc",
-  "arize-phoenix-client>=2.11.0",
+  "arize-phoenix-client>=2.13.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
@@ -110,7 +113,7 @@ dev = [
   "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
   "tenki-sandbox>=0.4.0",  # type-checking only; runtime is gated by the [tenki] extra
   "wasmtime>=15.0",  # bundled in dev so the local WASM sandbox runs without an extra opt-in; the [wasm] extra still gates production installs
-  "mypy==2.2.0",
+  "mypy==2.3.0",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
@@ -390,6 +393,12 @@ exclude = [
   "docs/",
   "src/phoenix/trace/v1/evaluation_pb2.py*",
   "src/phoenix/vendor/json_canonicalization_scheme",
+  ".agents/**/*.md",
+  ".claude/**/*.md",
+  ".cursor/**/*.md",
+  ".github/**/*.md",
+  "AGENTS.md",
+  "CLAUDE.md",
 ]
 line-length = 100
 target-version = "py310"
@@ -413,7 +422,7 @@ line-ending = "native"
 script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
-required-version = "==0.11.8"  # When updating this version, also update the `backend-builder` image in the Dockerfile
+required-version = "==0.11.12"  # When updating this version, also update the `backend-builder` image in the Dockerfile
 exclude-newer = "3 days"
 # Exempt our own workspace packages from the `exclude-newer` window so freshly
 # published versions are immediately resolvable.

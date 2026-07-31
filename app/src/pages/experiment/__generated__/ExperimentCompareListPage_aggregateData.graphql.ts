@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1bd6a581a90f8835369621f9e659272b>>
+ * @generated SignedSource<<5bd4d51e2d4f3c339ac530b0a4d61cf2>>
  * @lightSyntaxTransform
  */
 
@@ -76,34 +76,39 @@ var v0 = {
   "storageKey": null
 },
 v1 = {
+  "kind": "Literal",
+  "name": "includeEphemeral",
+  "value": true
+},
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotationName",
   "storageKey": null
 },
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -147,13 +152,15 @@ return {
             (v0/*:: as any*/),
             {
               "alias": null,
-              "args": null,
+              "args": [
+                (v1/*:: as any*/)
+              ],
               "concreteType": "DatasetExperimentAnnotationSummary",
               "kind": "LinkedField",
               "name": "experimentAnnotationSummaries",
               "plural": true,
               "selections": [
-                (v1/*:: as any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -169,7 +176,7 @@ return {
                   "storageKey": null
                 }
               ],
-              "storageKey": null
+              "storageKey": "experimentAnnotationSummaries(includeEphemeral:true)"
             },
             {
               "alias": null,
@@ -179,11 +186,7 @@ return {
                   "name": "filterIds",
                   "variableName": "experimentIds"
                 },
-                {
-                  "kind": "Literal",
-                  "name": "includeEphemeral",
-                  "value": true
-                }
+                (v1/*:: as any*/)
               ],
               "concreteType": "ExperimentConnection",
               "kind": "LinkedField",
@@ -284,7 +287,7 @@ return {
                           "name": "annotationSummaries",
                           "plural": true,
                           "selections": [
-                            (v1/*:: as any*/),
+                            (v2/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -334,7 +337,7 @@ return {
                       "name": "node",
                       "plural": false,
                       "selections": [
-                        (v2/*:: as any*/),
+                        (v3/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -346,8 +349,8 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v2/*:: as any*/),
                                 (v3/*:: as any*/),
+                                (v4/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -380,10 +383,10 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v2/*:: as any*/),
                                 (v3/*:: as any*/),
                                 (v4/*:: as any*/),
-                                (v5/*:: as any*/)
+                                (v5/*:: as any*/),
+                                (v6/*:: as any*/)
                               ],
                               "type": "ContinuousAnnotationConfig",
                               "abstractKey": null
@@ -391,8 +394,8 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v2/*:: as any*/),
                                 (v3/*:: as any*/),
+                                (v4/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -400,8 +403,8 @@ return {
                                   "name": "threshold",
                                   "storageKey": null
                                 },
-                                (v4/*:: as any*/),
-                                (v5/*:: as any*/)
+                                (v5/*:: as any*/),
+                                (v6/*:: as any*/)
                               ],
                               "type": "FreeformAnnotationConfig",
                               "abstractKey": null
@@ -431,6 +434,6 @@ return {
 };
 })();
 
-(node as any).hash = "bb7f9906c98917c0e658ceb32631c8e3";
+(node as any).hash = "55fa0b830f6820a171d27356bcb89c63";
 
 export default node;

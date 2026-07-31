@@ -7,6 +7,7 @@
  */
 
 import * as COPY from "../setup/copy";
+import type { McpSetupReport } from "../setup/mcp/runSetupMcp";
 import type { SetupReport } from "../setup/runSetup";
 import type { ToolingResult } from "../setup/steps/installTooling";
 
@@ -115,6 +116,39 @@ export function formatSetupOutput({
   format = "pretty",
 }: FormatSetupOutputOptions): string {
   return renderJson(toSetupOutput(report), format) ?? headlessSummary(report);
+}
+
+// ---------------------------------------------------------------------------
+// `px setup mcp`
+// ---------------------------------------------------------------------------
+
+/**
+ * The pretty rendering — what a headless `px setup mcp` prints on stdout. The
+ * `json`/`raw` renderings serialize the {@link McpSetupReport} verbatim, so the
+ * report interface itself is the documented JSON envelope.
+ */
+function mcpHeadlessSummary(report: McpSetupReport): string {
+  const lines = [
+    `Configured the "${report.serverName}" MCP server with ${report.agent} (${report.scope}).`,
+    `url: ${report.url}`,
+    `auth: ${report.auth}`,
+  ];
+  if (report.file) {
+    lines.push(`config: ${report.file}`);
+  }
+  return lines.join("\n");
+}
+
+export interface FormatMcpSetupOutputOptions {
+  report: McpSetupReport;
+  format?: OutputFormat;
+}
+
+export function formatMcpSetupOutput({
+  report,
+  format = "pretty",
+}: FormatMcpSetupOutputOptions): string {
+  return renderJson(report, format) ?? mcpHeadlessSummary(report);
 }
 
 export interface FormatToolingOutputOptions {

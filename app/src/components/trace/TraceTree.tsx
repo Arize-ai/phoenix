@@ -249,7 +249,12 @@ function SpanTreeItem<TSpan extends ISpanItem>(
           {showMetricsInTraceTree ? (
             <div css={spanTimingCSS} className="span-tree-timing">
               {latencyMs != null ? (
-                <LatencyText latencyMs={latencyMs} showIcon={false} size="XS" />
+                <LatencyText
+                  latencyMs={latencyMs}
+                  showIcon={false}
+                  size="XS"
+                  color="text-500"
+                />
               ) : null}
               <SpanTimelineBar
                 spanKind={node.span.spanKind}
@@ -344,7 +349,8 @@ function SpanNodeWrap(
           background-color: var(--global-color-gray-75);
         }
         &.is-selected {
-          background-color: var(--global-color-gray-200);
+          // Keep the fill translucent so the latency bar remains visible
+          background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
           border-color: var(--global-color-gray-300);
         }
         & > *:first-of-type {
@@ -440,6 +446,7 @@ const spanTimingCSS = css`
     justify-content: end !important;
     min-width: 2.5rem;
     float: right;
+    white-space: nowrap;
   }
 `;
 

@@ -19,11 +19,12 @@ from .._helpers import (
     _VIEWER,
     _ApiKey,
     _AppInfo,
+    _create_api_key,
+    _delete_api_key,
     _delete_users,
     _GetUser,
     _gql,
     _httpx_client,
-    _patch_user,
     _RoleOrUser,
     _SecurityArtifact,
 )
@@ -132,6 +133,59 @@ class TestGraphQLApiKeys:
         with expectation:
             user.delete_api_key(_app, api_key)
 
+    @pytest.mark.parametrize("role", [_VIEWER, _MEMBER, _ADMIN])
+    def test_user_api_keys_cannot_issue_user_keys(
+        self,
+        role: UserRoleInput,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """A user API key is a delegated credential and cannot mint a replacement."""
+        user = _get_user(_app, role).log_in(_app)
+        existing_key = user.create_api_key(_app)
+        response, _ = _gql(
+            _app,
+            existing_key,
+            query='mutation { createUserApiKey(input: {name: "forbidden"}) { jwt } }',
+            raise_on_errors=False,
+        )
+        assert response["data"] is None
+        assert response["errors"][0]["message"] == "API keys cannot create API keys"
+
+    def test_api_keys_cannot_issue_system_keys(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        admin = _get_user(_app, _ADMIN).log_in(_app)
+        query = 'mutation { createSystemApiKey(input: {name: "forbidden"}) { jwt } }'
+
+        # An ADMIN-role user key passes the admin gate but is rejected by credential kind.
+        user_key = admin.create_api_key(_app)
+        response, _ = _gql(_app, user_key, query=query, raise_on_errors=False)
+        assert response["data"] is None
+        assert response["errors"][0]["message"] == "API keys cannot create API keys"
+
+        # A SYSTEM key is not an admin, so the admin gate rejects it first.
+        system_key = admin.create_api_key(_app, "System")
+        response, _ = _gql(_app, system_key, query=query, raise_on_errors=False)
+        assert response["data"] is None
+        assert response["errors"]
+
+    def test_admin_secret_can_issue_system_keys_but_not_user_keys(self, _app: _AppInfo) -> None:
+        """The admin secret is an issuance origin for system keys only."""
+        api_key = _create_api_key(_app, _app.admin_secret, "System")
+        _delete_api_key(_app, api_key, _app.admin_secret)
+
+        response, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query='mutation { createUserApiKey(input: {name: "forbidden"}) { jwt } }',
+            raise_on_errors=False,
+        )
+        assert response["data"] is None
+        assert response["errors"]
+
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
@@ -233,28 +287,6 @@ class TestUserApiKeys:
         existing = _create(_app, user, "user").json()["data"]
         existing_key = _ApiKey(existing["key"], existing["id"])
         assert _create(_app, existing_key, "user").status_code == 403
-
-    def test_graphql_new_key_uses_current_database_role(
-        self,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        user = _get_user(_app, _MEMBER)
-        existing = _create(_app, user, "user").json()["data"]
-        existing_key = _ApiKey(existing["key"], existing["id"])
-        _patch_user(_app, user, _app.admin_secret, new_role=UserRoleInput.VIEWER)
-
-        response, _ = _gql(
-            _app,
-            existing_key,
-            query=(
-                'mutation { createUserApiKey(input: {name: "role-check"}) { jwt apiKey { id } } }'
-            ),
-        )
-        payload = response["data"]["createUserApiKey"]
-        new_key = _ApiKey(payload["jwt"], payload["apiKey"]["id"])
-        # The new key is immediately a viewer even if the caller's cached claims still say MEMBER.
-        assert _httpx_client(_app, new_key).post("v1/projects").status_code == 403
 
     def test_admin_can_inventory_user_keys(self, _get_user: _GetUser, _app: _AppInfo) -> None:
         owner = _get_user(_app, _MEMBER)
@@ -454,7 +486,7 @@ class TestSystemApiKeys:
             raise_on_errors=False,
         )
         assert created_personal["data"] is None
-        assert created_personal["errors"]
+        assert created_personal["errors"][0]["message"] == "API keys cannot create API keys"
 
         node_id = GlobalID.from_id(created["id"]).node_id
         relabeled_id = str(GlobalID("UserApiKey", node_id))

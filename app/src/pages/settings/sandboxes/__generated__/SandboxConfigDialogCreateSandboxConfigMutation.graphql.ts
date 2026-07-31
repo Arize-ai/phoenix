@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7dabb6078ee171e18ec2285d77ecb195>>
+ * @generated SignedSource<<cfb92cefbfdc5960e74d746f809c3cd8>>
  * @lightSyntaxTransform
  */
 
@@ -23,6 +23,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b: E2BConfigInput;
   modal?: never;
+  monty?: never;
   tenki?: never;
   vercel?: never;
   wasm?: never;
@@ -31,6 +32,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal?: never;
+  monty?: never;
   tenki?: never;
   vercel?: never;
   wasm?: never;
@@ -39,6 +41,7 @@ export type SandboxConfigVariantInput = {
   deno: DenoConfigInput;
   e2b?: never;
   modal?: never;
+  monty?: never;
   tenki?: never;
   vercel?: never;
   wasm?: never;
@@ -47,6 +50,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal?: never;
+  monty?: never;
   tenki?: never;
   vercel: VercelConfigInput;
   wasm?: never;
@@ -55,6 +59,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal?: never;
+  monty?: never;
   tenki?: never;
   vercel?: never;
   wasm: WASMConfigInput;
@@ -63,6 +68,7 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal: ModalConfigInput;
+  monty?: never;
   tenki?: never;
   vercel?: never;
   wasm?: never;
@@ -71,6 +77,16 @@ export type SandboxConfigVariantInput = {
   deno?: never;
   e2b?: never;
   modal?: never;
+  monty: MontyConfigInput;
+  tenki?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  monty?: never;
   tenki: TenkiConfigInput;
   vercel?: never;
   wasm?: never;
@@ -113,6 +129,9 @@ export type ModalConfigInput = {
   dependencies?: DependenciesInput | null;
   envVars?: ReadonlyArray<EnvVarInput>;
   internetAccess?: InternetAccessInput | null;
+  language?: Language;
+};
+export type MontyConfigInput = {
   language?: Language;
 };
 export type TenkiConfigInput = {
@@ -323,6 +342,20 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "languageDialect",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "runtimeNotes",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "SandboxProviderCredentialSpec",
                     "kind": "LinkedField",
                     "name": "credentialSpecs",
@@ -476,12 +509,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bdf5a4a9f1ea75cef26f725b84b763fc",
+    "cacheID": "499fcddcca9f3818991dfb3c0766b589",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigDialogCreateSandboxConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    languageDialect\n    runtimeNotes\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

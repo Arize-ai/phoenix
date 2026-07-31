@@ -218,6 +218,16 @@ input AnnotationFilterCondition {
   userIds: [ID]
 }
 
+type AnnotationMetricsTimeSeries {
+  data: [AnnotationMetricsTimeSeriesDataPoint!]!
+  names: [String!]!
+}
+
+type AnnotationMetricsTimeSeriesDataPoint {
+  timestamp: DateTime!
+  annotationSummaries: [AnnotationSummary!]!
+}
+
 type AnnotationNameCount {
   name: String!
   count: Int!
@@ -989,7 +999,7 @@ type Dataset implements Node {
   """The experiment tagged as this dataset's baseline, if one is set."""
   baselineExperiment: Experiment
   experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
-  experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
+  experimentAnnotationSummaries(includeEphemeral: Boolean = false): [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
 
   """Number of evaluators associated with this dataset."""
@@ -1729,7 +1739,7 @@ type Experiment implements Node {
   Expected number of experiment runs: dataset examples in scope times repetitions.
   """
   expectedRunCount: Int!
-  annotationSummaries: [ExperimentAnnotationSummary!]!
+  annotationSummaries(annotationName: String): [ExperimentAnnotationSummary!]!
   errorRate: Float
   averageRunLatencyMs: Float
   project: Project
@@ -1749,6 +1759,7 @@ type ExperimentAnnotationSummary {
   errorCount: Int!
   scoreCount: Int!
   labelCount: Int!
+  labelFractions: [LabelFraction!]!
 }
 
 type ExperimentComparison implements Node {
@@ -2105,8 +2116,16 @@ type GenerativeModel implements Node & ModelInterface {
   updatedAt: DateTime!
   startTime: DateTime
   tokenPrices: [TokenPrice!]!
+
+  """
+  Total cost for this model. Narrowing by project or time range is only answered on the topModelsByCost and topModelsByToken paths, which precompute the scoped summary; any other caller passing projectId or timeRange gets an error. Unlike costDetailSummaryEntries, this field cannot yet resolve an arbitrary scope.
+  """
   costSummary(projectId: ID, timeRange: TimeRange): SpanCostSummary!
-  costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+
+  """
+  Cost and token counts for this model, broken down by token type. Both arguments are optional filters: projectId limits the breakdown to spans in one project, timeRange to spans that started within it, and omitting both returns the model's usage across all projects and time.
+  """
+  costDetailSummaryEntries(projectId: ID, timeRange: TimeRange): [SpanCostDetailSummaryEntry!]!
   lastUsedAt: DateTime
 }
 
@@ -2388,6 +2407,10 @@ input ModelsInput {
   openaiApiType: OpenAIApiType = null
 }
 
+input MontyConfigInput {
+  language: Language! = PYTHON
+}
+
 type Mutation {
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
@@ -2450,6 +2473,7 @@ type Mutation {
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
+  revokeOAuth2Grant(input: RevokeOAuth2GrantInput!): RevokeOAuth2GrantMutationPayload!
 
   """
   Delete every span annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
@@ -2513,6 +2537,19 @@ type Mutation {
 interface Node {
   """The Globally Unique ID of this object"""
   id: ID!
+}
+
+type OAuth2Grant implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  user: User!
+  clientName: String!
+  isFirstParty: Boolean!
+  clientId: String!
+  scopes: [String!]!
+  createdAt: DateTime!
+  expiresAt: DateTime
+  lastUsedAt: DateTime
 }
 
 enum OpenAIApiType {
@@ -2749,12 +2786,12 @@ type Project implements Node {
   latencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(timeRange: TimeRange, first: Int!, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+  spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
 
   """
   Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap.
   """
-  sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
+  sessions(first: Int!, timeRange: TimeRange, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
 
   """
   Number of sessions in the project, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
@@ -2818,6 +2855,11 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+
+  """
+  How a span filter condition relates to root-span scoping, so clients need not parse the DSL. Structural only; use `validateSpanFilterCondition` to check validity.
+  """
+  analyzeSpanFilterCondition(condition: String!): SpanFilterConditionAnalysis!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
@@ -2831,6 +2873,9 @@ type Project implements Node {
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   traceAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   sessionAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  spanAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
+  traceAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
+  sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationMetricsTimeSeries!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
@@ -3522,6 +3567,7 @@ type Query {
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
+  oauth2Grants: [OAuth2Grant!]!
   systemApiKeys: [SystemApiKey!]!
   projects(first: Int = 50, last: Int, after: String, before: String, sort: ProjectSort, filter: ProjectFilter): ProjectConnection!
   projectsLastUpdatedAt: DateTime
@@ -3630,6 +3676,15 @@ enum RevisionKind {
   DELETE
 }
 
+input RevokeOAuth2GrantInput {
+  id: ID!
+}
+
+type RevokeOAuth2GrantMutationPayload {
+  grantId: ID!
+  query: Query!
+}
+
 type SandboxBackendInfo {
   backendType: SandboxBackendType!
   displayName: String!
@@ -3641,6 +3696,8 @@ type SandboxBackendInfo {
   supportsEnvVars: Boolean!
   internetAccess: InternetAccessMode!
   supportsDependencies: Boolean!
+  languageDialect: SandboxLanguageDialect!
+  runtimeNotes: String!
   credentialSpecs: [SandboxProviderCredentialSpec!]!
 }
 
@@ -3659,6 +3716,7 @@ enum SandboxBackendType {
   VERCEL
   DENO
   MODAL
+  MONTY
   TENKI
 }
 
@@ -3707,6 +3765,7 @@ input SandboxConfigVariantInput @oneOf {
   vercel: VercelConfigInput
   wasm: WASMConfigInput
   modal: ModalConfigInput
+  monty: MontyConfigInput
   tenki: TenkiConfigInput
 }
 
@@ -3724,6 +3783,11 @@ input SandboxDeploymentVariantInput @oneOf {
 enum SandboxHostingType {
   LOCAL
   HOSTED
+}
+
+enum SandboxLanguageDialect {
+  FULL
+  RESTRICTED
 }
 
 type SandboxProvider implements Node {
@@ -4131,6 +4195,13 @@ type SpanEvent {
   message: String!
   timestamp: DateTime!
   attributes: JSON!
+}
+
+type SpanFilterConditionAnalysis {
+  """
+  Whether a root predicate (`parent_span is None` or `parent_id is None`) binds every row the condition can match. `true` is a guarantee; `false` means not established, not that non-root spans are admitted.
+  """
+  selectsRootSpansOnly: Boolean!
 }
 
 type SpanIOValue {
@@ -4684,6 +4755,9 @@ type User implements Node {
   authMethod: AuthMethod!
   role: UserRole!
   apiKeys: [UserApiKey!]!
+  oauth2Grants: [OAuth2Grant!]!
+  apiKeyCount: Int!
+  oauth2GrantCount: Int!
   isManagementUser: Boolean!
 }
 

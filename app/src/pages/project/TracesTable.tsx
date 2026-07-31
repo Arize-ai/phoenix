@@ -33,6 +33,7 @@ import {
   Icon,
   Icons,
   Link,
+  OverflowRow,
   Text,
   View,
 } from "@phoenix/components";
@@ -47,6 +48,8 @@ import {
   ColumnOrderingProvider,
   CopyableTextCell,
   createRowSelectionColumn,
+  RowExpandToggleButton,
+  useTableRowsExpanded,
   useColumnOrder,
 } from "@phoenix/components/table";
 import {
@@ -54,8 +57,9 @@ import {
   CHECKBOX_COLUMN_PINNING,
 } from "@phoenix/components/table/constants";
 import {
+  expandableSelectableTableCSS,
+  TABLE_DATA_CELL_CLASS,
   getCommonPinningStyles,
-  selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -68,6 +72,7 @@ import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
@@ -90,11 +95,13 @@ import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
 import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
 import {
+  ANNOTATION_COLUMN_SIZING,
   DEFAULT_SORT,
   getGqlSort,
   makeAnnotationColumnId,
@@ -102,6 +109,8 @@ import {
 } from "./tableUtils";
 
 type TracesTableProps = {
+  /** The condition the preload carried; always settled. */
+  seed: SettledSpanFilterSeed;
   project: TracesTable_spans$key;
 };
 
@@ -163,15 +172,11 @@ const TableBody = <
               return (
                 <td
                   key={cell.id}
+                  className={TABLE_DATA_CELL_CLASS}
                   style={{
                     ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                    // prevent all wrapping, just show an ellipsis and let users expand if necessary
-                    textWrap: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                     userSelect:
                       cell.column.id === CHECKBOX_COLUMN_ID
                         ? "none"
@@ -232,19 +237,45 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Persist an applied filter so the tab is shareable, as the spans tab is.
+  // React Router recreates this setter whenever the search string changes, so
+  // keep the latest behind a stable callback.
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+  const writeFilterConditionParam = useCallback((condition: string) => {
+    setSearchParamsRef.current(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set(SPAN_FILTER_CONDITION_PARAM, condition);
+        return next;
+      },
+      { replace: true }
+    );
+  }, []);
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [filterCondition, setFilterCondition] = useState<string>("");
+  // Seeded from the resolved condition the preload carried, so the first
+  // render already matches the rows on hand.
+  const [filterCondition, setFilterCondition] = useState<string>(
+    props.seed.condition
+  );
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
   // still applied. The parent query is intentionally not reloaded on window
   // slides — see the load effect in `ProjectPage` and issue #14216.
   const { timeRangeISOStrings } = useTimeRange();
+  const {
+    isExpanded: areRowsExpanded,
+    setIsExpanded: setAreRowsExpanded,
+    tableProps: rowsExpandedTableProps,
+  } = useTableRowsExpanded();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -373,7 +404,6 @@ export function TracesTable(props: TracesTableProps) {
                         precision
                         hit
                       }
-                      ...TraceHeaderRootSpanAnnotationsFragment
                     }
                   }
                 }
@@ -441,6 +471,9 @@ export function TracesTable(props: TracesTableProps) {
     });
   }, [data]);
   type TableRow = (typeof tableData)[number];
+  // descendant rows do not select the trace fields the column reads
+  type RootSpanTrace =
+    (typeof data.rootSpans.edges)[number]["rootSpan"]["trace"];
   const { selectRow } = useShiftClickRowSelection<TableRow>({
     resetKey: tableData,
   });
@@ -571,6 +604,7 @@ export function TracesTable(props: TracesTableProps) {
         id: "annotations",
         accessorKey: "spanAnnotations",
         enableSorting: false,
+        ...ANNOTATION_COLUMN_SIZING,
         cell: ({ row }) => {
           if (row.original.__additionalRow) {
             return null;
@@ -579,7 +613,7 @@ export function TracesTable(props: TracesTableProps) {
             row.original.spanAnnotations.length === 0 &&
             row.original.documentRetrievalMetrics.length === 0;
           return (
-            <Flex direction="row" gap="size-50" wrap="wrap">
+            <OverflowRow isExpanded={areRowsExpanded}>
               <AnnotationSummaryGroupTokens
                 span={row.original}
                 showFilterActions
@@ -609,7 +643,7 @@ export function TracesTable(props: TracesTableProps) {
                 );
               })}
               {hasNoFeedback ? "--" : null}
-            </Flex>
+            </OverflowRow>
           );
         },
       },
@@ -629,27 +663,24 @@ export function TracesTable(props: TracesTableProps) {
         ),
         id: TRACE_ANNOTATIONS_COLUMN_ID,
         enableSorting: false,
+        ...ANNOTATION_COLUMN_SIZING,
         cell: ({ row }) => {
           if (row.depth !== 0 || row.original.__additionalRow) {
             return null;
           }
           return (
-            <Flex direction="row" gap="size-50" wrap="wrap">
+            <OverflowRow isExpanded={areRowsExpanded}>
               <TraceAnnotationSummaryGroupTokens
-                trace={
-                  row.original.trace as Parameters<
-                    typeof TraceAnnotationSummaryGroupTokens
-                  >[0]["trace"]
-                }
+                trace={row.original.trace as RootSpanTrace}
               />
-            </Flex>
+            </OverflowRow>
           );
         },
       },
       ...dynamicAnnotationColumns,
       ...dynamicTraceAnnotationColumns,
     ],
-    [dynamicAnnotationColumns, dynamicTraceAnnotationColumns]
+    [areRowsExpanded, dynamicAnnotationColumns, dynamicTraceAnnotationColumns]
   );
 
   const columns: ColumnDef<TableRow>[] = useMemo(
@@ -747,7 +778,7 @@ export function TracesTable(props: TracesTableProps) {
                 searchParams,
               })}
             >
-              {getValue() as string}
+              <Truncate maxWidth="100%">{getValue() as string}</Truncate>
             </Link>
           );
         },
@@ -852,6 +883,7 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: "latency",
         accessorKey: "latencyMs",
+        meta: { textAlign: "right" },
         cell: ({ getValue, row }) => {
           const value = getValue();
           if (
@@ -861,13 +893,14 @@ export function TracesTable(props: TracesTableProps) {
           ) {
             return null;
           }
-          return <LatencyText latencyMs={value} />;
+          return <LatencyText latencyMs={value} size="S" />;
         },
       },
       {
         header: "total tokens",
         minSize: 80,
         accessorKey: "cumulativeTokenCountTotal",
+        meta: { textAlign: "right" },
         cell: ({ row, getValue }) => {
           if (row.original.__additionalRow) {
             return null;
@@ -880,6 +913,7 @@ export function TracesTable(props: TracesTableProps) {
             <TraceTokenCount
               tokenCountTotal={value as number}
               nodeId={row.original.trace.id}
+              size="S"
             />
           );
         },
@@ -889,6 +923,7 @@ export function TracesTable(props: TracesTableProps) {
         minSize: 80,
         accessorKey: "trace.costSummary.total.cost",
         id: "cumulativeTokenCostTotal",
+        meta: { textAlign: "right" },
         cell: ({ row, getValue }) => {
           const value = getValue();
           if (value === null || typeof value !== "number") {
@@ -954,7 +989,7 @@ export function TracesTable(props: TracesTableProps) {
   const setTraceSequence = pagination?.setTraceSequence;
   useEffect(() => {
     if (!setTraceSequence) {
-      return;
+      return undefined;
     }
     setTraceSequence(
       data.rootSpans.edges.map(({ rootSpan }) => ({
@@ -1016,7 +1051,11 @@ export function TracesTable(props: TracesTableProps) {
   const selectedRows = table.getSelectedRowModel().flatRows;
   const selectedSpans = selectedRows.map((row) => ({
     id: row.original.id,
-    traceId: row.original.trace.id,
+    spanId: row.original.spanId,
+    trace: {
+      id: row.original.trace.id,
+      traceId: row.original.trace.traceId,
+    },
   }));
   const clearSelection = useCallback(() => {
     setRowSelection({});
@@ -1064,9 +1103,24 @@ export function TracesTable(props: TracesTableProps) {
           flex="none"
         >
           <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-            <SpanFilterConditionField onValidCondition={setFilterCondition} />
+            <SpanFilterConditionField
+              onValidCondition={({ condition, isInitialSettlement }) => {
+                setFilterCondition(condition);
+                // The mount settlement is the seed coming back around, not a
+                // filter the user applied. Writing it would persist this tab's
+                // default (the empty condition) into the param the tabs share,
+                // and the spans tab would read it as "deliberately cleared".
+                if (!isInitialSettlement) {
+                  writeFilterConditionParam(condition);
+                }
+              }}
+            />
             <TableMetricsChartSelector view="traces" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
+            <RowExpandToggleButton
+              isExpanded={areRowsExpanded}
+              onChange={setAreRowsExpanded}
+            />
           </Flex>
         </View>
         <div
@@ -1082,7 +1136,8 @@ export function TracesTable(props: TracesTableProps) {
             onColumnOrderChange={onVisibleColumnOrderChange}
           >
             <table
-              css={selectableTableCSS}
+              css={expandableSelectableTableCSS}
+              {...rowsExpandedTableProps}
               style={{
                 ...columnSizeVars,
                 width: table.getTotalSize(),
@@ -1197,6 +1252,7 @@ export function TracesTable(props: TracesTableProps) {
         </div>
         {selectedRows.length ? (
           <SpanSelectionToolbar
+            projectName={data.name}
             selectedSpans={selectedSpans}
             onClearSelection={clearSelection}
           />

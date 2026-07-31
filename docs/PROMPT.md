@@ -160,7 +160,7 @@ Install the required packages using the detected package manager **before** writ
 
 ### 3. Get credentials
 
-Phoenix supports three deployment modes. Ask the user which one they are using if it's not clear from the codebase.
+Phoenix supports two deployment modes. Ask the user which one they are using if it's not clear from the codebase.
 
 **Local (default):**
 No authentication needed. Phoenix runs at `http://localhost:6006`.
@@ -169,16 +169,8 @@ No authentication needed. Phoenix runs at `http://localhost:6006`.
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 ```
 
-**Phoenix Cloud:**
-Get your **API Key** and **Collector Endpoint** from the **Settings** page in your Phoenix Cloud instance (look for the **Hostname** field). The endpoint looks like `https://app.phoenix.arize.com/s/<your-space-name>`.
-
-```bash
-PHOENIX_API_KEY=<api-key>
-PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/<your-space-name>
-```
-
-**Self-hosted:**
-Set the collector endpoint to your self-hosted Phoenix URL (e.g., `https://phoenix.your-company.com`). API key is required if authentication is enabled.
+**Remote deployment:**
+Set the collector endpoint to your Phoenix URL (e.g., `https://phoenix.your-company.com`). If authentication is enabled, also set an API key from the **Settings** page of that instance (the **Hostname** field there gives you the endpoint).
 
 ```bash
 PHOENIX_API_KEY=<api-key>          # if auth enabled
@@ -302,11 +294,10 @@ After implementation:
 1. **Run the application** and trigger at least one LLM call
 2. **Check Phoenix UI** for traces:
    - Local: http://localhost:6006
-   - Phoenix Cloud: your Phoenix Cloud URL
-   - Self-hosted: your Phoenix instance URL
+   - Remote: your Phoenix deployment URL
 3. **Troubleshooting:**
    - Verify `PHOENIX_COLLECTOR_ENDPOINT` is set correctly
-   - Verify `PHOENIX_API_KEY` is set (if using Phoenix Cloud or auth-enabled self-hosted)
+   - Verify `PHOENIX_API_KEY` is set (if the deployment has authentication enabled)
    - Ensure `register()` / `TracerProvider` initialization is called before instrumentors and client creation
    - Check network connectivity to your Phoenix instance
    - Enable debug logging: set `OTEL_LOG_LEVEL=debug` environment variable

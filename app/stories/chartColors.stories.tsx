@@ -111,19 +111,18 @@ function ChartColors({ showOnlyPrimary = false }: ChartColorsProps) {
     : colorEntries;
 
   // Group colors by their base name (e.g., "blue", "green", "red")
-  const groupedColors = displayColors.reduce(
-    (groups, [name, color]) => {
-      // Extract base color name (remove numbers and common suffixes)
-      const baseName = name.replace(/\d+$/, "").replace(/[A-Z].*$/, "");
+  const groupedColors = displayColors.reduce<
+    Record<string, [string, string][]>
+  >((groups, [name, color]) => {
+    // Extract base color name (remove numbers and common suffixes)
+    const baseName = name.replace(/\d+$/, "").replace(/[A-Z].*$/, "");
 
-      if (!groups[baseName]) {
-        groups[baseName] = [];
-      }
-      groups[baseName].push([name, color]);
-      return groups;
-    },
-    {} as Record<string, [string, string][]>
-  );
+    if (!groups[baseName]) {
+      groups[baseName] = [];
+    }
+    groups[baseName].push([name, color]);
+    return groups;
+  }, {});
 
   // Sort groups by base name, but put default, primary, and reference at the bottom
   const bottomGroups = ["default", "primary", "reference"];

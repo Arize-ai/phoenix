@@ -153,6 +153,7 @@ export type SandboxBackendType =
   | "VERCEL"
   | "DENO"
   | "MODAL"
+  | "MONTY"
   | "TENKI";
 
 /**

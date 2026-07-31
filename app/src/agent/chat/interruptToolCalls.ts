@@ -5,6 +5,8 @@ import {
   type UIMessage,
 } from "ai";
 
+import { assertUnreachable } from "@phoenix/typeUtils";
+
 export type UnresolvedToolCall = {
   tool: string;
   toolCallId: string;
@@ -45,5 +47,7 @@ function isUnresolvedToolState(state: DynamicToolUIPart["state"]): boolean {
     case "output-error":
     case "output-denied":
       return false;
+    default:
+      return assertUnreachable(state);
   }
 }

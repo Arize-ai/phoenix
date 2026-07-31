@@ -13,7 +13,7 @@
         ],
         "summary": "List annotation configurations",
         "description": "Retrieve a paginated list of all annotation configurations in the system.",
-        "operationId": "list_annotation_configs_v1_annotation_configs_get",
+        "operationId": "listAnnotationConfigs",
         "parameters": [
           {
             "name": "cursor",
@@ -85,7 +85,7 @@
           "annotation_configs"
         ],
         "summary": "Create an annotation configuration",
-        "operationId": "create_annotation_config_v1_annotation_configs_post",
+        "operationId": "createAnnotationConfig",
         "requestBody": {
           "required": true,
           "content": {
@@ -136,7 +136,7 @@
           "annotation_configs"
         ],
         "summary": "Get an annotation configuration by ID or name",
-        "operationId": "get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get",
+        "operationId": "getAnnotationConfig",
         "parameters": [
           {
             "name": "config_identifier",
@@ -190,7 +190,7 @@
           "annotation_configs"
         ],
         "summary": "Update an annotation configuration",
-        "operationId": "update_annotation_config_v1_annotation_configs__config_id__put",
+        "operationId": "updateAnnotationConfig",
         "parameters": [
           {
             "name": "config_id",
@@ -252,7 +252,7 @@
           "annotation_configs"
         ],
         "summary": "Delete an annotation configuration",
-        "operationId": "delete_annotation_config_v1_annotation_configs__config_id__delete",
+        "operationId": "deleteAnnotationConfig",
         "parameters": [
           {
             "name": "config_id",
@@ -4642,6 +4642,27 @@
             "description": "Filter by one or more trace IDs"
           },
           {
+            "name": "span_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more span IDs",
+              "title": "Span Id"
+            },
+            "description": "Filter by one or more span IDs"
+          },
+          {
             "name": "parent_id",
             "in": "query",
             "required": false,
@@ -4877,6 +4898,27 @@
               "title": "Trace Id"
             },
             "description": "Filter by one or more trace IDs"
+          },
+          {
+            "name": "span_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more span IDs",
+              "title": "Span Id"
+            },
+            "description": "Filter by one or more span IDs"
           },
           {
             "name": "parent_id",
@@ -6798,7 +6840,7 @@
         "tags": [
           "spans"
         ],
-        "summary": "Annotate Span Documents",
+        "summary": "Create span document annotations",
         "operationId": "annotateSpanDocuments",
         "parameters": [
           {
@@ -10070,6 +10112,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetExampleSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -10082,6 +10134,24 @@
           "updated_at"
         ],
         "title": "DatasetExample"
+      },
+      "DatasetExampleSource": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id"
+          },
+          "span_node_id": {
+            "type": "string",
+            "title": "Span Node Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "span_node_id"
+        ],
+        "title": "DatasetExampleSource"
       },
       "DatasetLabel": {
         "properties": {
@@ -13478,17 +13548,6 @@
               }
             ],
             "title": "Spanfilter"
-          },
-          "rootSpansOnly": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rootspansonly"
           }
         },
         "type": "object",
@@ -13497,7 +13556,7 @@
           "projectNodeId"
         ],
         "title": "ProjectContext",
-        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all.\n\n``root_spans_only`` carries the current state of the spans-table root vs.\nall toggle when that toggle is mounted \u2014 ``True`` when the table is\nrestricted to root spans, ``False`` when it shows every span, ``None``\nwhen the toggle is not present (e.g. on the traces tab)."
+        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all. It\ndescribes the view in full, root-span scoping included (which is expressed\nwithin the filter DSL as ``parent_id is None``)."
       },
       "Prompt": {
         "properties": {

@@ -43,7 +43,7 @@ export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 ```
 
-CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables.
+CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables. For interactive local use, `px auth login` stores an OAuth session in your active profile; the session acts with the permissions of the user who logged in. API keys take precedence when both are configured.
 
 | Variable                                 | Description                                   |
 | ---------------------------------------- | --------------------------------------------- |
@@ -78,7 +78,7 @@ px profile edit prod           # open in $EDITOR, validates on save
 px profile delete prod         # remove a profile (--yes to skip prompt)
 ```
 
-Pass `--profile <name>` to `auth status` to scope a single invocation to a profile other than the active one.
+Pass `--profile <name>` to `auth login`, `auth logout`, or `auth status` to scope a single invocation to a profile other than the active one.
 
 ### Editor autocompletion via `$schema`
 
@@ -176,6 +176,34 @@ px setup instrument --agent codex   # instrument and verify again
 px setup skills                     # install coding-agent skills only
 ```
 
+#### `px setup mcp`
+
+Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding
+agent, so the agent can search, query, and operate on your Phoenix data. The
+endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_HOST` —
+you never re-type it.
+
+```bash
+px setup mcp                        # pick scope (global default) + agent, interactively
+px setup mcp --agent codex          # configure one agent
+px setup mcp --agent claude --local # write this repo's config (.mcp.json)
+```
+
+Supported agents: `claude`, `codex`, `gemini`, `cursor`, `opencode`, `vscode`.
+Where an agent ships an `mcp add` (Claude, Codex, Gemini, VS Code global) the
+CLI drives it; the rest get a merge into their config file (`~/.cursor/mcp.json`,
+`~/.config/opencode/opencode.json`, `.vscode/mcp.json`). Scope is `--global`
+(user-wide, the default) or `--local` (this repo — Codex is global-only).
+
+Auth defaults to **OAuth**: the config is URL-only and the agent opens Phoenix's
+browser login on first use. For headless clients, pass an API-key bearer header
+with `--header` (repeatable):
+
+```bash
+px setup mcp --agent codex --no-input --format raw
+px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
+```
+
 ---
 
 ### `px self update`
@@ -201,18 +229,20 @@ px trace list --format raw --no-progress | jq    # pipe-friendly compact JSON
 px trace list ./my-traces --limit 50             # save as JSON files to directory
 px trace list --last-n-minutes 60 --limit 20     # filter by time window
 px trace list --since 2026-01-13T10:00:00Z       # since ISO timestamp
+px trace list --since 2026-01-13T10:00:00Z --until 2026-01-14T10:00:00Z # time range
 ```
 
-| Option                      | Description                            | Default  |
-| --------------------------- | -------------------------------------- | -------- |
-| `[directory]`               | Save traces as JSON files to directory | stdout   |
-| `-n, --limit <number>`      | Number of traces (newest first)        | 10       |
-| `--last-n-minutes <number>` | Only traces from the last N minutes    | —        |
-| `--since <timestamp>`       | Traces since ISO timestamp             | —        |
-| `--format <format>`         | `pretty`, `json`, or `raw`             | `pretty` |
-| `--no-progress`             | Suppress progress output               | —        |
-| `--include-annotations`     | Include trace and span annotations     | —        |
-| `--include-notes`           | Include trace and span notes           | —        |
+| Option                      | Description                                                 | Default  |
+| --------------------------- | ----------------------------------------------------------- | -------- |
+| `[directory]`               | Save traces as JSON files to directory                      | stdout   |
+| `-n, --limit <number>`      | Number of traces (newest first)                             | 10       |
+| `--last-n-minutes <number>` | Only traces from the last N minutes                         | —        |
+| `--since <timestamp>`       | Traces since ISO timestamp                                  | —        |
+| `--until <timestamp>`       | Traces whose spans started before ISO timestamp (exclusive) | —        |
+| `--format <format>`         | `pretty`, `json`, or `raw`                                  | `pretty` |
+| `--no-progress`             | Suppress progress output                                    | —        |
+| `--include-annotations`     | Include trace and span annotations                          | —        |
+| `--include-notes`           | Include trace and span notes                                | —        |
 
 ```bash
 # Find ERROR traces
@@ -288,9 +318,11 @@ px span list --limit 50                                    # stdout (pretty)
 px span list --span-kind LLM --limit 20                    # only LLM spans
 px span list --status-code ERROR --format raw --no-progress # pipe-friendly error spans
 px span list --name chat_completion --trace-id abc123       # filter by name and trace
+px span list --span-id abc123 def456                        # fetch specific spans by ID
 px span list --parent-id null                               # root spans only
 px span list spans.json --limit 100 --include-annotations   # save to file with annotations
 px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
+px span list --since 2026-07-01T00:00:00Z --until 2026-07-02T00:00:00Z # time range
 ```
 
 | Option                      | Description                                                                                                                      | Default  |
@@ -299,10 +331,12 @@ px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kind
 | `-n, --limit <number>`      | Maximum number of spans (newest first)                                                                                           | `100`    |
 | `--last-n-minutes <number>` | Only spans from the last N minutes                                                                                               | —        |
 | `--since <timestamp>`       | Spans since ISO timestamp                                                                                                        | —        |
+| `--until <timestamp>`       | Spans started before ISO timestamp (exclusive)                                                                                   | —        |
 | `--span-kind <kinds...>`    | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | —        |
 | `--status-code <codes...>`  | Filter by status code (`OK`, `ERROR`, `UNSET`)                                                                                   | —        |
 | `--name <names...>`         | Filter by span name(s)                                                                                                           | —        |
 | `--trace-id <ids...>`       | Filter by trace ID(s)                                                                                                            | —        |
+| `--span-id <ids...>`        | Filter by OpenTelemetry span ID(s). Requires Phoenix server >= 19.6.0.                                                           | —        |
 | `--parent-id <id>`          | Filter by parent span ID (use `"null"` for root spans only)                                                                      | —        |
 | `--include-annotations`     | Include span annotations in the output                                                                                           | —        |
 | `--include-notes`           | Include span notes in the output                                                                                                 | —        |
@@ -714,19 +748,55 @@ px annotation-config get response-quality --format raw --no-progress | jq -r '.i
 
 ---
 
+### `px auth login`
+
+Log in with the browser-based OAuth flow and store tokens on the selected profile. The URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions act with the permissions of the user who logged in.
+
+The CLI refreshes expiring access tokens automatically for REST, GraphQL, and
+PXI requests. A request rejected with `401` triggers one refresh and retry;
+rotated tokens are persisted back to the selected profile.
+
+```bash
+px auth login
+px auth login --no-browser
+px auth login --profile staging --format raw
+```
+
+| Option              | Description                            | Default  |
+| ------------------- | -------------------------------------- | -------- |
+| `--endpoint <url>`  | Phoenix API endpoint                   | —        |
+| `--api-key <key>`   | Phoenix API key                        | —        |
+| `--profile <name>`  | Profile to store OAuth tokens in       | active   |
+| `--no-browser`      | Print URL without opening a browser    | —        |
+| `--no-input`        | Do not prompt for pasted redirect URLs | —        |
+| `--format <format>` | `pretty`, `json`, or `raw`             | `pretty` |
+
+### `px auth logout`
+
+Clear OAuth tokens from the selected profile. Logout best-effort revokes the refresh token on the server and leaves any configured API key untouched.
+
+```bash
+px auth logout
+px auth logout --profile staging
+px auth logout --format raw
+```
+
 ### `px auth status`
 
-Show current Phoenix authentication status, including the configured endpoint, whether you are authenticated or anonymous, and an obscured API key.
+Show current Phoenix authentication status, including the configured endpoint, credential source, identity, and OAuth access level/expiry when applicable.
 
 ```bash
 px auth status
 px auth status --endpoint http://localhost:6006
+px auth status --profile staging --format raw
 ```
 
-| Option             | Description          | Default |
-| ------------------ | -------------------- | ------- |
-| `--endpoint <url>` | Phoenix API endpoint | —       |
-| `--api-key <key>`  | Phoenix API key      | —       |
+| Option              | Description                | Default  |
+| ------------------- | -------------------------- | -------- |
+| `--endpoint <url>`  | Phoenix API endpoint       | —        |
+| `--api-key <key>`   | Phoenix API key            | —        |
+| `--profile <name>`  | Profile to use             | active   |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 
 ---
 

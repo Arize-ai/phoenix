@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, cast
+from typing import Any, Optional, Sequence, cast
 
 import strawberry
 from pydantic import ValidationError
@@ -13,6 +13,7 @@ from phoenix.db.types.annotation_configs import (
     ContinuousOutputConfig,
     FreeformOutputConfig,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -42,6 +43,15 @@ from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnota
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.SandboxConfig import SandboxConfig
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.monty_runtime import (
+    MontyBusy,
+    MontyDeadlineExceeded,
+    MontyServiceError,
+    MontyShuttingDown,
+    MontyUnavailable,
+    MontyWorkerCrashed,
+    MontyWorkerTurnTimedOut,
+)
 from phoenix.server.sandbox import (
     MissingSecretError,
     SecretsContext,
@@ -102,6 +112,43 @@ def _to_evaluation_result(
     )
 
 
+async def _evaluate_code_preview(
+    runner: CodeEvaluatorRunner,
+    *,
+    context: dict[str, Any],
+    input_mapping: InputMapping,
+    evaluator_name: str,
+    output_configs: Sequence[
+        CategoricalOutputConfig | ContinuousOutputConfig | FreeformOutputConfig
+    ],
+) -> list[EvaluationResultDict]:
+    try:
+        return await runner.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            name=evaluator_name,
+            output_configs=output_configs,
+        )
+    except MontyBusy as exc:
+        raise BadRequest("The Monty runtime is busy. Retry shortly.") from exc
+    except MontyUnavailable as exc:
+        raise BadRequest(
+            "The Monty runtime is unavailable. Check the server configuration and retry."
+        ) from exc
+    except MontyShuttingDown as exc:
+        raise BadRequest(
+            "The Monty runtime is shutting down. Retry after the server restarts."
+        ) from exc
+    except (MontyDeadlineExceeded, MontyWorkerTurnTimedOut) as exc:
+        raise BadRequest(
+            "Monty execution timed out. Retry or reduce the evaluator's work."
+        ) from exc
+    except MontyWorkerCrashed as exc:
+        raise BadRequest("The Monty worker stopped unexpectedly. Retry the preview.") from exc
+    except MontyServiceError as exc:
+        raise BadRequest("The Monty runtime failed unexpectedly. Retry the preview.") from exc
+
+
 async def _resolve_inline_code_evaluator_backend(
     *,
     info: Info[Context, None],
@@ -158,6 +205,7 @@ async def _resolve_inline_code_evaluator_backend(
             sandbox_backend = await build_sandbox_backend(
                 sandbox_cfg,
                 secrets=SecretsContext(session=session, decrypt=info.context.decrypt),
+                runtime=info.context.sandbox_runtime,
             )
         except (
             MissingSecretError,
@@ -350,6 +398,7 @@ class ChatCompletionMutationMixin:
                                 secrets=SecretsContext(
                                     session=session, decrypt=info.context.decrypt
                                 ),
+                                runtime=info.context.sandbox_runtime,
                             )
                         except (
                             MissingSecretError,
@@ -387,10 +436,11 @@ class ChatCompletionMutationMixin:
                     ),
                     sandbox_session_manager=None,
                 )
-                eval_results = await runner.evaluate(
+                eval_results = await _evaluate_code_preview(
+                    runner,
                     context=context,
                     input_mapping=input_mapping.to_orm(),
-                    name=evaluator_name,
+                    evaluator_name=evaluator_name,
                     output_configs=output_configs,
                 )
                 for eval_result in eval_results:
@@ -442,10 +492,11 @@ class ChatCompletionMutationMixin:
                     timeout=sandbox_timeout,
                     sandbox_session_manager=None,
                 )
-                eval_results = await runner.evaluate(
+                eval_results = await _evaluate_code_preview(
+                    runner,
                     context=context,
                     input_mapping=input_mapping.to_orm(),
-                    name=evaluator_name,
+                    evaluator_name=evaluator_name,
                     output_configs=output_configs,
                 )
                 for eval_result in eval_results:

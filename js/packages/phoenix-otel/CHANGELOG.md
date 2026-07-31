@@ -1,5 +1,17 @@
 # @arizeai/phoenix-otel
 
+## 2.1.0
+
+### Minor Changes
+
+- dc451a6: Re-export `OTLPTraceExporter` from the package root and add the ESM-only `@arizeai/phoenix-otel/vercel` subpath re-exporting `@arizeai/openinference-vercel` (span processors, `isOpenInferenceSpan`, and types). Custom span-processor setups — e.g. filtering Vercel AI SDK / Eve traces via `register()`'s `spanProcessors` option — can now import everything from `@arizeai/phoenix-otel` without installing the underlying packages.
+
+## 2.0.0
+
+### Major Changes
+
+- 30f0827: Upgrade `@arizeai/openinference-vercel` to v3, which translates AI SDK v7 (`@ai-sdk/otel`) spans to OpenInference. AI SDK telemetry remains explicitly application-configured because its registry is process-global. The package retains its Node.js 18 minimum and ESM/CommonJS entry points: because `@arizeai/openinference-vercel` v3 is ESM-only, the OpenInference span processors are loaded lazily via dynamic import (spans recorded before the load completes are buffered and replayed), and `LazyOpenInferenceSpanProcessor` is exported for custom provider setups. AI SDK v6 spans are no longer translated; stay on 1.x for AI SDK v6.
+
 ## 1.2.0
 
 ### Minor Changes

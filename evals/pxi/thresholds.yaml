@@ -27,14 +27,25 @@
 #
 # Interim status: these sub-1.0 regression overrides are a stopgap for
 # single-attempt LLM nondeterminism (the ~1-example run-to-run wobble described
-# above), not the intended end state. The target is a strict 1.0 regression
-# default plus confirm-on-retry: re-run only the failing nodeids once and red the
-# gate only if the miss reproduces. The per-example rows now recorded in
-# pxi-eval-results.json give a retry step the exact failing nodeids that makes
-# this cheap. Ratchet these overrides back to 1.0 once confirm-on-retry is in
-# place. The two experiment_observations dev quarantines below are independent of
-# that ratchet: those examples fail deterministically across runs (a real agent
-# deficiency, not flake), so they stay quarantined under either threshold design.
+# above), not the intended end state. Confirm-on-retry now exists (gate.py), and
+# a confirmed-but-tolerated miss is surfaced distinctly ("passed with tolerated
+# misses") rather than hidden behind a green PASSED. The end state keeps this
+# threshold system as the policy layer (split defaults, dev/holdout leniency,
+# gating:false quarantine) and ratchets the regression overrides back to the
+# strict 1.0 default: confirm-on-retry absorbs thin-tail wobble at the
+# measurement layer, so regression no longer needs numeric headroom (where a
+# confirmed one-example regression can otherwise live forever). Persistently
+# flaky or deterministically failing examples get quarantined explicitly
+# (non-gating split / gating:false -- a reviewable diff), not tolerated by
+# headroom; retry-once only absorbs low-probability wobble (false-red ~ p^2 per
+# example), so examples that miss a large fraction of runs must be quarantined.
+# The ratchet is deliberately a separate corpus/policy step, gated on cleaning
+# the regression corpus and re-baselining k>=3 on the shipped default model
+# first: ratcheting while known failers still sit inside these overrides would
+# red every run until they are dispositioned. The two experiment_observations
+# dev quarantines below already follow the end-state pattern: those examples
+# fail deterministically across runs (a real agent deficiency, not flake), so
+# they stay quarantined under either threshold value.
 
 # Default policy per split, applied to every (evaluator, split) unless an
 # override matches first.

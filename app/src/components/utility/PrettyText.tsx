@@ -34,5 +34,5 @@ export function PrettyText({ children, preCSS }: PrettyTextProps) {
   if (textType === "json") {
     return <JSONBlock value={text} />;
   }
-  assertUnreachable(textType);
+  return assertUnreachable(textType);
 }

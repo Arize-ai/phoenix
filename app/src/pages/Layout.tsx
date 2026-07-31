@@ -6,6 +6,7 @@ import { Outlet, useLoaderData } from "react-router";
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
   AgentChatPanel,
+  AgentChatTopNavButton,
   AgentChatWidget,
   FloatingAgentChatPanel,
   useAssistantAgentEnabled,
@@ -22,12 +23,13 @@ import {
   TopNavActionsProvider,
   TopNavActionsSlot,
   TopNavbar,
+  useResponsiveSideNav,
   VersionUpdateNotice,
 } from "@phoenix/components/nav";
 import { GlobalSearch } from "@phoenix/components/search";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
+  useActiveDrawerWidth,
   useHasOpenDrawer,
   useHasOpenModal,
 } from "@phoenix/hooks/useHasOpenModal";
@@ -88,11 +90,17 @@ const sideLinksCSS = css`
 
 export function Layout() {
   const contentRef = useRef<HTMLDivElement>(null);
+  const { isSideNavExpanded, isSideNavExpansionAllowed, setIsSideNavExpanded } =
+    useResponsiveSideNav();
   const isAgentAssistantEnabled = useAssistantAgentEnabled();
   const isAgentPanelOpen = useAgentContext((state) => state.isOpen);
   const agentPosition = useAgentContext((state) => state.position);
+  const isAgentFabFloating = useAgentContext(
+    (state) => state.fabMode === "floating"
+  );
   const hasOpenModal = useHasOpenModal();
   const hasOpenDrawer = useHasOpenDrawer();
+  const activeDrawerWidth = useActiveDrawerWidth();
   const shouldForceFloatingAgentPanel = hasOpenModal || hasOpenDrawer;
   const shouldShowDockedAgentPanel =
     isAgentAssistantEnabled &&
@@ -116,7 +124,7 @@ export function Layout() {
     <TopNavActionsProvider>
       <div css={layoutCSS} data-testid="layout">
         <NavTitle />
-        <SideNav />
+        <SideNav isExpanded={isSideNavExpanded} />
         <div css={mainViewCSS}>
           <Group
             id="layout-panels"
@@ -125,13 +133,20 @@ export function Layout() {
             onLayoutChanged={onLayoutChanged}
           >
             <Panel id="layout-content" css={layoutContentPanelCSS}>
-              <TopNavbar>
-                <SideNavToggleButton />
+              <TopNavbar rightInset={activeDrawerWidth}>
+                <SideNavToggleButton
+                  isExpanded={isSideNavExpanded}
+                  isDisabled={!isSideNavExpansionAllowed}
+                  onExpandedChange={setIsSideNavExpanded}
+                />
                 <NavBreadcrumb />
                 <TopNavActionsSlot />
+                {isAgentFabFloating ? null : <AgentChatTopNavButton />}
               </TopNavbar>
               <div data-testid="content" css={contentCSS} ref={contentRef}>
-                <AgentChatWidget boundaryRef={contentRef} />
+                {isAgentFabFloating ? (
+                  <AgentChatWidget boundaryRef={contentRef} />
+                ) : null}
                 {shouldShowFloatingAgentPanel ? (
                   <FloatingAgentChatPanel
                     boundaryRef={contentRef}
@@ -152,18 +167,15 @@ export function Layout() {
   );
 }
 
-function SideNav() {
-  const isSideNavExpanded = usePreferencesContext(
-    (state) => state.isSideNavExpanded
-  );
+function SideNav({ isExpanded }: { isExpanded: boolean }) {
   const loaderData = useLoaderData<LayoutLoaderData>();
   return (
-    <SideNavbar isExpanded={isSideNavExpanded}>
+    <SideNavbar isExpanded={isExpanded}>
       <Brand />
       <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
         <ul css={sideLinksCSS}>
           <li key="search">
-            <GlobalSearch isExpanded={isSideNavExpanded} />
+            <GlobalSearch isExpanded={isExpanded} />
           </li>
           <li>
             <NavLink
@@ -175,7 +187,7 @@ function SideNav() {
                   <Counter variant="quiet">{loaderData.projectCount}</Counter>
                 ) : undefined
               }
-              isExpanded={isSideNavExpanded}
+              isExpanded={isExpanded}
             />
           </li>
           <li key="dashboards">
@@ -183,7 +195,7 @@ function SideNav() {
               to="/dashboards"
               text="Dashboards"
               leadingVisual={<Icon svg={<Icons.Grid />} />}
-              isExpanded={isSideNavExpanded}
+              isExpanded={isExpanded}
             />
           </li>
           <li key="datasets">
@@ -196,7 +208,7 @@ function SideNav() {
                   <Counter variant="quiet">{loaderData.datasetCount}</Counter>
                 ) : undefined
               }
-              isExpanded={isSideNavExpanded}
+              isExpanded={isExpanded}
             />
           </li>
           <li key="playground">
@@ -204,7 +216,7 @@ function SideNav() {
               to="/playground"
               text="Playground"
               leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-              isExpanded={isSideNavExpanded}
+              isExpanded={isExpanded}
             />
           </li>
           <li key="evaluators">
@@ -217,7 +229,7 @@ function SideNav() {
                   <Counter variant="quiet">{loaderData.evaluatorCount}</Counter>
                 ) : undefined
               }
-              isExpanded={isSideNavExpanded}
+              isExpanded={isExpanded}
             />
           </li>
           <li key="prompts">
@@ -230,7 +242,7 @@ function SideNav() {
                   <Counter variant="quiet">{loaderData.promptCount}</Counter>
                 ) : undefined
               }
-              isExpanded={isSideNavExpanded}
+              isExpanded={isExpanded}
             />
           </li>
           <li key="rest-api">
@@ -238,7 +250,7 @@ function SideNav() {
               to="/apis/rest"
               text="REST API"
               leadingVisual={<Icon svg={<Icons.Code />} />}
-              isExpanded={isSideNavExpanded}
+              isExpanded={isExpanded}
             />
           </li>
           <li key="graphql">
@@ -246,25 +258,25 @@ function SideNav() {
               to="/apis/graphql"
               text="GraphQL"
               leadingVisual={<Icon svg={<Icons.GraphQL />} />}
-              isExpanded={isSideNavExpanded}
+              isExpanded={isExpanded}
             />
           </li>
         </ul>
         <ul css={bottomLinksCSS}>
-          <VersionUpdateNotice isExpanded={isSideNavExpanded} />
+          <VersionUpdateNotice isExpanded={isExpanded} />
           <li key="github">
-            <GitHubLink isExpanded={isSideNavExpanded} />
+            <GitHubLink isExpanded={isExpanded} />
           </li>
           <li key="settings">
             <NavLink
-              to="/settings/general"
+              to="/settings"
               text="Settings"
               leadingVisual={<Icon svg={<Icons.Options />} />}
-              isExpanded={isSideNavExpanded}
+              isExpanded={isExpanded}
             />
           </li>
           <li key="account">
-            <AccountMenu isExpanded={isSideNavExpanded} />
+            <AccountMenu isExpanded={isExpanded} />
           </li>
         </ul>
       </Flex>

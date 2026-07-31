@@ -92,11 +92,13 @@ def _make_adapter(
             credentials: _StubCreds,
             deployment: NoDeployment,
             user_env: Optional[Mapping[str, str]] = None,
+            runtime: Any = None,
         ) -> SandboxBackend:
             received["config"] = config.model_dump()
             received["credentials"] = credentials
             received["deployment"] = deployment
             received["user_env"] = user_env
+            received["runtime"] = runtime
             return MagicMock(spec=SandboxBackend)
 
     return _StubAdapter()

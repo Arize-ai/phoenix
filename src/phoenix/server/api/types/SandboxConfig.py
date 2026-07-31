@@ -27,6 +27,7 @@ from phoenix.server.sandbox.types import (
     SANDBOX_DEPLOYMENT_ADAPTER,
     DaytonaDeployment,
     E2BDeployment,
+    SandboxRuntimeContext,
     SupportsDependencies,
     SupportsEnvVars,
     SupportsInternetAccess,
@@ -65,6 +66,7 @@ class SandboxBackendType(Enum):
     VERCEL = "VERCEL"
     DENO = "DENO"
     MODAL = "MODAL"
+    MONTY = "MONTY"
     TENKI = "TENKI"
 
 
@@ -171,6 +173,12 @@ class SandboxHostingType(Enum):
     """Execution delegated to an external provider (e.g. E2B, Daytona, Vercel, Modal)."""
 
 
+@strawberry.enum
+class SandboxLanguageDialect(Enum):
+    FULL = "full"
+    RESTRICTED = "restricted"
+
+
 @strawberry.type
 class SandboxBackendInfo:
     backend_type: SandboxBackendType
@@ -183,6 +191,8 @@ class SandboxBackendInfo:
     supports_env_vars: bool
     internet_access: InternetAccessMode
     supports_dependencies: bool
+    language_dialect: SandboxLanguageDialect
+    runtime_notes: str
     credential_specs: list[SandboxProviderCredentialSpec]
 
 
@@ -423,6 +433,7 @@ def _build_credential_specs(
 async def get_sandbox_backend_info(
     *,
     secrets: SecretsContext,
+    runtime: Optional[SandboxRuntimeContext] = None,
 ) -> list[SandboxBackendInfo]:
     """Return one ``SandboxBackendInfo`` per entry in ``SANDBOX_ADAPTER_METADATA``.
 
@@ -457,6 +468,7 @@ async def get_sandbox_backend_info(
                             backend_type,
                             language=probe_language,
                             secrets=secrets,
+                            runtime=runtime,
                         )
                         status = (
                             SandboxBackendStatus.AVAILABLE
@@ -482,6 +494,8 @@ async def get_sandbox_backend_info(
                 supports_env_vars=meta.supports_env_vars,
                 internet_access=InternetAccessMode(meta.internet_access_capability),
                 supports_dependencies=meta.supports_dependencies,
+                language_dialect=SandboxLanguageDialect(meta.language_dialect),
+                runtime_notes=meta.runtime_notes,
                 credential_specs=credential_specs,
             )
         )

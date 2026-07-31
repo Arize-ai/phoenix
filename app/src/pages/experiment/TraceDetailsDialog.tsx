@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 
 import {
-  CopyToClipboardButton,
   Dialog,
   DialogCloseButton,
   Flex,
@@ -32,12 +31,7 @@ export function TraceDetailsDialog({
         <DialogHeader>
           <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
             <DialogTitle>{title}</DialogTitle>
-            <IDBadge id={traceId} />
-            <CopyToClipboardButton
-              size="S"
-              text={traceId}
-              tooltipText="Copy Trace ID"
-            />
+            <IDBadge id={traceId} tooltipText="Copy Trace ID" />
           </Flex>
           <DialogTitleExtra>
             <LinkButton

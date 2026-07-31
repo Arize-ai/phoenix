@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7a4efefadcc5544ec3623807dc609aac>>
+ * @generated SignedSource<<80d394267fb7209519c5ed78472d0349>>
  * @lightSyntaxTransform
  */
 
@@ -154,7 +154,21 @@ return {
                 "plural": false,
                 "selections": [
                   (v2/*:: as any*/),
-                  (v3/*:: as any*/)
+                  (v3/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "gradientStartColor",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "gradientEndColor",
+                    "storageKey": null
+                  }
                 ],
                 "storageKey": null
               },
@@ -223,12 +237,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "89e19deac736ecf151ba7fa5227f7b69",
+    "cacheID": "5d463418de182761a57f32d91d2e4739",
     "id": null,
     "metadata": {},
     "name": "dashboardsLoaderQuery",
     "operationKind": "query",
-    "text": "query dashboardsLoaderQuery(\n  $hasSelectedProject: Boolean!\n  $projectId: ID!\n) {\n  ...ProjectMenu_projects_4wy0JP\n}\n\nfragment ProjectMenu_projects_4wy0JP on Query {\n  selectedProject: node(id: $projectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query dashboardsLoaderQuery(\n  $hasSelectedProject: Boolean!\n  $projectId: ID!\n) {\n  ...ProjectMenu_projects_4wy0JP\n}\n\nfragment ProjectMenu_projects_4wy0JP on Query {\n  selectedProject: node(id: $projectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

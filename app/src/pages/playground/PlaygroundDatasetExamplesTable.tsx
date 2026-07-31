@@ -1060,7 +1060,7 @@ export function PlaygroundDatasetExamplesTable({
           case "%other":
             return;
           default:
-            return assertUnreachable(chatCompletion);
+            assertUnreachable(chatCompletion);
         }
       },
     [
@@ -1081,7 +1081,7 @@ export function PlaygroundDatasetExamplesTable({
 
   useEffect(() => {
     if (!hasSomeRunIds) {
-      return;
+      return undefined;
     }
     const { instances } = playgroundStore.getState();
     setApiError(null);

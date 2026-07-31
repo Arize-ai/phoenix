@@ -1,6 +1,7 @@
 ---
 title: "PXI"
 sidebarTitle: "PXI Agent"
+tag: "BETA"
 description: >-
   PXI (Phoenix Intelligence) is the AI engineering agent built into Phoenix.
   Hand it an investigation instead of digging through traces, prompts,
@@ -85,7 +86,7 @@ pxi
 ```
 
 Pick the model with `--provider` and `--model` (defaults to Anthropic
-`claude-opus-4-8`):
+`claude-opus-5`):
 
 ```bash
 pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
@@ -105,7 +106,7 @@ opens.
 | `--api-key <key>` | Phoenix API key (overrides `PHOENIX_API_KEY`). |
 | `--profile <name>` | Use a saved Phoenix CLI profile. |
 | `--provider <provider>` | Built-in model provider (e.g. `ANTHROPIC`, `OPENAI`, `GOOGLE`). |
-| `--model <model>` | Model name (defaults to `claude-opus-4-8`). |
+| `--model <model>` | Model name (defaults to `claude-opus-5`). |
 | `--custom-provider-id <id>` | Use a custom provider configured under **Settings → Models** (requires `--model`). |
 | `--bypass-edits` | Apply edits without manual approval (see [You stay in control](#you-stay-in-control)). |
 | `--enable-web-access` | Allow PXI to consult the web for grounding. |
@@ -234,7 +235,7 @@ call. Models that are weak at tool use produce broken sessions even if they
 handle free-form chat well. Pick one of these validated models unless you have a
 specific reason not to:
 
-- **Anthropic** — `claude-opus-4-8`, `claude-opus-4-6`, `claude-sonnet-4-6`
+- **Anthropic** — `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-6`, `claude-sonnet-4-6`
 - **OpenAI** — `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`
 - **Google** — `gemini-3.1-pro-preview`, `gemini-3.5-flash`
 

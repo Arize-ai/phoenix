@@ -13,6 +13,7 @@ import {
   ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
+  COMPACT_CHART_ANIMATION_DURATION_MS,
   compactChartMargin,
   compactLegendProps,
   defaultCartesianGridProps,
@@ -32,15 +33,6 @@ import {
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
-
-/**
- * Animation duration (ms) for the chart's marks. Recharts' default line
- * draw-in is 1500ms and replays on every re-render (including each resize
- * re-measure), which reads as a slow, janky animation while the panel is
- * dragged. Keep it short — matching the bars' 400ms default — so the chart
- * settles quickly.
- */
-const CHART_ANIMATION_DURATION_MS = 400;
 
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { theme } = useTheme();
@@ -144,6 +136,7 @@ export function ExperimentAnnotationScoresChart({
           data={chartData}
           margin={compactChartMargin}
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
+          syncMethod="value"
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis
@@ -161,7 +154,7 @@ export function ExperimentAnnotationScoresChart({
               activeDot={{ r: 5 }}
               hide={isDataKeyHidden(key)}
               yAxisId={0}
-              animationDuration={CHART_ANIMATION_DURATION_MS}
+              animationDuration={COMPACT_CHART_ANIMATION_DURATION_MS}
             />
           ))}
           <InteractiveLegend

@@ -24,8 +24,8 @@ export const buttonCSS = css`
   &[data-focus-visible],
   &:focus-visible {
     // Only show outline on focus-visible, aka only when tabbed but not clicked
-    outline: 1px solid var(--global-input-field-border-color-active);
-    outline-offset: 1px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
   &[disabled] {
     cursor: default;
@@ -43,11 +43,14 @@ export const buttonCSS = css`
   &[data-size="S"][data-childless="false"] {
     padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   }
+  /* Icon-only buttons are square */
   &[data-size="M"][data-childless="true"] {
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-100);
+    padding: 0;
+    min-width: var(--global-button-height-m);
   }
   &[data-size="S"][data-childless="true"] {
-    padding: var(--global-dimension-size-50) var(--global-dimension-size-50);
+    padding: 0;
+    min-width: var(--global-button-height-s);
   }
   // The default style
 

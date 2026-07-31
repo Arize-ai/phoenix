@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "6.13.0",
+  "version": "7.1.1",
   "description": "A client for the Phoenix API",
   "keywords": [
     "arize",
@@ -104,11 +104,10 @@
     "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-client",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p examples/tsconfig.examples.json"
   },
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^2.5.0",
-    "@arizeai/openinference-vercel": "^2.8.1",
     "@arizeai/phoenix-config": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "async": "^3.2.6",
@@ -117,25 +116,26 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^3.0.83",
+    "@ai-sdk/openai": "^4.0.20",
+    "@ai-sdk/otel": "^1.0.37",
     "@anthropic-ai/sdk": "^0.111.0",
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-testing": "workspace:*",
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/sdk-trace-node": "^2.9.0",
+    "@opentelemetry/sdk-trace-node": "^2.10.0",
     "@types/async": "^3.2.25",
     "@types/node": "^26.1.1",
-    "ai": "^6.0.222",
+    "ai": "^7.0.37",
     "dotenv": "^17.4.2",
     "jest": "^30.4.2",
-    "openai": "^6.46.0",
+    "openai": "^6.49.0",
     "openapi-typescript": "^7.13.0",
-    "tsx": "^4.23.0",
+    "tsx": "^4.23.1",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
-    "ai": "^6.0.90",
+    "ai": "^7.0.0",
     "jest": ">=27",
     "openai": "^6.10.0",
     "vitest": ">=1"

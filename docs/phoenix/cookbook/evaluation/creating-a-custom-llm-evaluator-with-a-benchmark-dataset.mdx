@@ -53,8 +53,8 @@ if not os.environ.get("PHOENIX_API_KEY"):
     os.environ["PHOENIX_API_KEY"] = getpass("Enter your Phoenix API key: ")
 if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = getpass("Enter your OpenAI API key: ")
-# For Phoenix Cloud, also point at your space's collector endpoint, e.g.:
-# os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com/s/your-space"
+# If Phoenix is running elsewhere, point at its collector endpoint, e.g.:
+# os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://your-phoenix.example.com"
 
 tracer_provider = register(
     project_name="receipt-classification",

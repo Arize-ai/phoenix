@@ -36,48 +36,56 @@ export function useViewerCanModify() {
 }
 
 /**
- * Returns true if the viewer is an admin.
- * Note: when the app is not configured with auth, we assume the user is an admin
- * (matching IsAdminIfAuthEnabled server-side)
+ * Returns true if the viewer is an admin or authentication is disabled.
+ * This matches the server-side IsAdminIfAuthEnabled permission.
  */
-export function useIsAdmin() {
+export function useIsAdminOrAuthDisabled() {
+  const isAuthenticatedAdmin = useIsAuthenticatedAdmin();
+  return !window.Config.authenticationEnabled || isAuthenticatedAdmin;
+}
+
+/**
+ * Returns true only for an authenticated admin.
+ * This matches the server-side IsAdmin permission.
+ */
+export function useIsAuthenticatedAdmin() {
   const { viewer } = useViewer();
-  return !viewer || viewer.role?.name === "ADMIN";
+  return window.Config.authenticationEnabled && viewer?.role?.name === "ADMIN";
 }
 
 /**
  * Returns true if the viewer can manage retention policies
  */
 export function useViewerCanManageRetentionPolicy() {
-  return useIsAdmin();
+  return useIsAdminOrAuthDisabled();
 }
 
 /**
  * Returns true if the viewer can manage sandboxes
  */
 export function useViewerCanManageSandboxes() {
-  return useIsAdmin();
+  return useIsAdminOrAuthDisabled();
 }
 
 /**
  * Returns true if the viewer can manage secrets
  */
 export function useViewerCanManageSecrets() {
-  return useIsAdmin();
+  return useIsAdminOrAuthDisabled();
 }
 
 /**
  * Returns true if the viewer should be shown platform version update notices
  */
 export function useViewerCanSeeVersionUpdates() {
-  return useIsAdmin();
+  return useIsAdminOrAuthDisabled();
 }
 
 /**
  * Returns true if the viewer can bulk-delete a project's annotations
  */
 export function useViewerCanDeleteProjectAnnotations() {
-  return useIsAdmin();
+  return useIsAdminOrAuthDisabled();
 }
 
 export function ViewerProvider({
@@ -100,7 +108,8 @@ export function ViewerProvider({
             name
           }
           authMethod
-          ...APIKeysTableFragment
+          ...ViewerAPIKeysListFragment
+          ...AuthorizedApplicationsCardFragment
         }
       }
     `,

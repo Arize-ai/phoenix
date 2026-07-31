@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import type { componentsV1 } from "@arizeai/phoenix-testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as ConfirmModule from "../src/confirm";
@@ -39,43 +40,64 @@ import {
   ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
 } from "../src/confirm";
 import { ExitCode } from "../src/exitCodes";
+import { http, setupMockPhoenixServer } from "./mockServer";
+import { mockProcessExit } from "./testUtils";
 
-function makeFetchMock(
-  responses: Array<{ ok: boolean; status?: number; body?: unknown }>
-) {
-  let callIndex = 0;
-  return vi.fn().mockImplementation((requestOrUrl: Request | string) => {
-    const resp = responses[callIndex++] ?? responses[responses.length - 1];
-    const status = resp.status ?? (resp.ok ? 200 : 500);
-    const url =
-      requestOrUrl instanceof Request ? requestOrUrl.url : requestOrUrl;
-    const body = resp.body ?? {};
-    const text = JSON.stringify(body);
-    return Promise.resolve({
-      ok: resp.ok,
-      status,
-      statusText: resp.ok ? "OK" : "Error",
-      url,
-      headers: new Headers(),
-      json: () => Promise.resolve(body),
-      text: () => Promise.resolve(text),
-    });
-  });
-}
+const mock = setupMockPhoenixServer();
 
-/** Extract URL from a fetch call argument (either a Request object or a string) */
-function getFetchUrl(arg: unknown): string {
-  if (arg instanceof Request) return arg.url;
-  return String(arg);
-}
-
-/** Extract HTTP method from a fetch call (either from Request object or RequestInit) */
-function getFetchMethod(arg: unknown, init?: RequestInit): string {
-  if (arg instanceof Request) return arg.method;
-  return init?.method ?? "GET";
-}
-
+// Deliberately NOT composed from the shared BASE_ARGS: these tests assert on
+// the "Deleted ..." progress messages, which --no-progress would suppress.
 const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--yes"];
+
+const datasetFixture: componentsV1["schemas"]["Dataset"] = {
+  id: "abc123",
+  name: "my-dataset",
+  description: null,
+  metadata: {},
+  created_at: "2024-01-01T00:00:00Z",
+  updated_at: "2024-01-01T00:00:00Z",
+  example_count: 0,
+};
+
+/** Pin GET /v1/datasets so name resolution finds the fixture dataset. */
+function usePinnedDatasetList() {
+  mock.server.use(
+    http.get("/v1/datasets", ({ response }) =>
+      response(200).json({ data: [datasetFixture], next_cursor: null })
+    )
+  );
+}
+
+/**
+ * Register a DELETE /v1/datasets/{id} handler that records the deleted id and
+ * how many times it was called.
+ */
+function captureDatasetDelete() {
+  const captured: { id?: string; calls: number } = { calls: 0 };
+  mock.server.use(
+    http.delete("/v1/datasets/{id}", ({ params, response }) => {
+      captured.calls += 1;
+      captured.id = params.id;
+      return response(204).empty();
+    })
+  );
+  return captured;
+}
+
+/**
+ * Register a GET /v1/datasets handler that counts calls, for asserting that
+ * no name-resolution request was made.
+ */
+function countDatasetListCalls() {
+  const counter = { calls: 0 };
+  mock.server.use(
+    http.get("/v1/datasets", ({ response }) => {
+      counter.calls += 1;
+      return response(200).json({ data: [datasetFixture], next_cursor: null });
+    })
+  );
+  return counter;
+}
 
 beforeEach(() => {
   vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "true");
@@ -112,20 +134,13 @@ describe("dataset delete", () => {
   useIsolatedProfilesDir();
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("resolves dataset name to ID then calls DELETE /v1/datasets/{id}", async () => {
-    // First call: GET /v1/datasets?name=my-dataset (resolveDatasetId)
-    // Second call: DELETE /v1/datasets/{id}
-    const fetchMock = makeFetchMock([
-      {
-        ok: true,
-        body: { data: [{ id: "abc123", name: "my-dataset" }] },
-      },
-      { ok: true, body: {} },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    // First request: GET /v1/datasets?name=my-dataset (resolveDatasetId)
+    // Second request: DELETE /v1/datasets/{id}
+    const listCounter = countDatasetListCalls();
+    const deleted = captureDatasetDelete();
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createDatasetCommand().parseAsync(
@@ -133,24 +148,19 @@ describe("dataset delete", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
     // First call resolves name → ID
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toContain("/v1/datasets");
+    expect(listCounter.calls).toBe(1);
     // Second call is the DELETE
-    expect(getFetchUrl(fetchMock.mock.calls[1][0])).toMatch(
-      /\/v1\/datasets\/abc123/
-    );
-    expect(
-      getFetchMethod(fetchMock.mock.calls[1][0], fetchMock.mock.calls[1][1])
-    ).toBe("DELETE");
+    expect(deleted.calls).toBe(1);
+    expect(deleted.id).toBe("abc123");
     expect(stderrSpy).toHaveBeenCalledWith(
       expect.stringContaining("my-dataset")
     );
   });
 
   it("passes dataset ID directly (no name resolution) when identifier looks like an ID", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const listCounter = countDatasetListCalls();
+    const deleted = captureDatasetDelete();
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createDatasetCommand().parseAsync(
@@ -158,24 +168,20 @@ describe("dataset delete", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(
-      getFetchMethod(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).toBe("DELETE");
+    expect(listCounter.calls).toBe(0);
+    expect(deleted.calls).toBe(1);
+    expect(deleted.id).toBe("abcdef1234567890");
   });
 
   it("exits with FAILURE on 404", async () => {
-    const fetchMock = makeFetchMock([
-      { ok: true, body: { data: [{ id: "abc123" }] } },
-      { ok: false, status: 404, body: { status: 404 } },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    usePinnedDatasetList();
+    mock.server.use(
+      http.delete("/v1/datasets/{id}", ({ response }) =>
+        response(404).text("Dataset not found")
+      )
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createDatasetCommand().parseAsync(
@@ -191,11 +197,8 @@ describe("dataset delete", () => {
 
   it("uses correct confirmation message", async () => {
     vi.mocked(confirmOrExit).mockResolvedValue(undefined);
-    const fetchMock = makeFetchMock([
-      { ok: true, body: { data: [{ id: "abc123" }] } },
-      { ok: true, body: {} },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
+    usePinnedDatasetList();
+    captureDatasetDelete();
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createDatasetCommand().parseAsync(
@@ -213,13 +216,9 @@ describe("dataset delete", () => {
   it("exits with INVALID_ARGUMENT when deletes are disabled", async () => {
     vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "false");
     vi.mocked(confirmOrExit).mockClear();
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const listCounter = countDatasetListCalls();
+    const deleted = captureDatasetDelete();
+    const exitSpy = mockProcessExit();
 
     await expect(
       createDatasetCommand().parseAsync(
@@ -229,20 +228,17 @@ describe("dataset delete", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(listCounter.calls).toBe(0);
+    expect(deleted.calls).toBe(0);
     expect(vi.mocked(confirmOrExit)).not.toHaveBeenCalled();
   });
 
   it("fails before any network call when the delete env var is invalid", async () => {
     vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "yes");
     vi.mocked(confirmOrExit).mockClear();
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const listCounter = countDatasetListCalls();
+    const deleted = captureDatasetDelete();
+    const exitSpy = mockProcessExit();
 
     await expect(
       createDatasetCommand().parseAsync(
@@ -252,7 +248,8 @@ describe("dataset delete", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(listCounter.calls).toBe(0);
+    expect(deleted.calls).toBe(0);
     expect(vi.mocked(confirmOrExit)).not.toHaveBeenCalled();
   });
 });
@@ -261,12 +258,22 @@ describe("project delete", () => {
   useIsolatedProfilesDir();
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("calls DELETE /v1/projects/{project_identifier}", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured: { projectIdentifier?: string; calls: number } = {
+      calls: 0,
+    };
+    mock.server.use(
+      http.delete(
+        "/v1/projects/{project_identifier}",
+        ({ params, response }) => {
+          captured.calls += 1;
+          captured.projectIdentifier = params.project_identifier;
+          return response(204).empty();
+        }
+      )
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createProjectCommand().parseAsync(
@@ -274,19 +281,17 @@ describe("project delete", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toMatch(
-      /\/v1\/projects\/my-project/
-    );
-    expect(
-      getFetchMethod(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).toBe("DELETE");
+    expect(captured.calls).toBe(1);
+    expect(captured.projectIdentifier).toBe("my-project");
   });
 
   it("uses cascade warning message mentioning traces, spans, sessions, and annotations", async () => {
     vi.mocked(confirmOrExit).mockResolvedValue(undefined);
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    mock.server.use(
+      http.delete("/v1/projects/{project_identifier}", ({ response }) =>
+        response(204).empty()
+      )
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createProjectCommand().parseAsync(
@@ -320,13 +325,18 @@ describe("trace delete", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
   it("calls DELETE /v1/traces/{trace_identifier}", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured: { traceIdentifier?: string; calls: number } = { calls: 0 };
+    mock.server.use(
+      http.delete("/v1/traces/{trace_identifier}", ({ params, response }) => {
+        captured.calls += 1;
+        captured.traceIdentifier = params.trace_identifier;
+        return response(204).empty();
+      })
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createTraceCommand().parseAsync(
@@ -334,19 +344,17 @@ describe("trace delete", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toMatch(
-      /\/v1\/traces\/trace-abc/
-    );
-    expect(
-      getFetchMethod(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).toBe("DELETE");
+    expect(captured.calls).toBe(1);
+    expect(captured.traceIdentifier).toBe("trace-abc");
   });
 
   it("uses cascade warning message mentioning spans", async () => {
     vi.mocked(confirmOrExit).mockResolvedValue(undefined);
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    mock.server.use(
+      http.delete("/v1/traces/{trace_identifier}", ({ response }) =>
+        response(204).empty()
+      )
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createTraceCommand().parseAsync(
@@ -381,7 +389,6 @@ describe("experiment delete", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("calls deleteExperiment wrapper with the experiment ID", async () => {
@@ -420,11 +427,7 @@ describe("experiment delete", () => {
       new Error("Experiment not found: exp-999")
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-      code?: number
-    ) => {
-      throw new Error(`process.exit:${code}`);
-    }) as never);
+    const exitSpy = mockProcessExit();
 
     await expect(
       createExperimentCommand().parseAsync(
@@ -447,7 +450,6 @@ describe("session delete", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("calls deleteSession wrapper with the session ID", async () => {
@@ -493,12 +495,29 @@ describe("annotation-config delete", () => {
   useIsolatedProfilesDir();
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
+  const annotationConfigFixture: componentsV1["schemas"]["CategoricalAnnotationConfig"] =
+    {
+      id: "config-789",
+      name: "quality",
+      type: "CATEGORICAL",
+      optimization_direction: "MAXIMIZE",
+      values: [{ label: "good" }, { label: "bad" }],
+    };
+
   it("calls DELETE /v1/annotation_configs/{config_id}", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured: { configId?: string; calls: number } = { calls: 0 };
+    mock.server.use(
+      http.delete(
+        "/v1/annotation_configs/{config_id}",
+        ({ params, response }) => {
+          captured.calls += 1;
+          captured.configId = params.config_id;
+          return response(200).json({ data: annotationConfigFixture });
+        }
+      )
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createAnnotationConfigCommand().parseAsync(
@@ -506,19 +525,17 @@ describe("annotation-config delete", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toMatch(
-      /\/v1\/annotation_configs\/config-789/
-    );
-    expect(
-      getFetchMethod(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).toBe("DELETE");
+    expect(captured.calls).toBe(1);
+    expect(captured.configId).toBe("config-789");
   });
 
   it("uses confirmation message without cascade warning", async () => {
     vi.mocked(confirmOrExit).mockResolvedValue(undefined);
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    mock.server.use(
+      http.delete("/v1/annotation_configs/{config_id}", ({ response }) =>
+        response(200).json({ data: annotationConfigFixture })
+      )
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createAnnotationConfigCommand().parseAsync(
@@ -538,12 +555,19 @@ describe("prompt delete", () => {
   useIsolatedProfilesDir();
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
   it("calls DELETE /v1/prompts/{prompt_identifier}", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured: { promptIdentifier?: string; calls: number } = {
+      calls: 0,
+    };
+    mock.server.use(
+      http.delete("/v1/prompts/{prompt_identifier}", ({ params, response }) => {
+        captured.calls += 1;
+        captured.promptIdentifier = params.prompt_identifier;
+        return response(204).empty();
+      })
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createPromptCommand().parseAsync(
@@ -551,19 +575,17 @@ describe("prompt delete", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toMatch(
-      /\/v1\/prompts\/my-prompt/
-    );
-    expect(
-      getFetchMethod(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).toBe("DELETE");
+    expect(captured.calls).toBe(1);
+    expect(captured.promptIdentifier).toBe("my-prompt");
   });
 
   it("uses cascade warning message mentioning versions, tags, and labels", async () => {
     vi.mocked(confirmOrExit).mockResolvedValue(undefined);
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    mock.server.use(
+      http.delete("/v1/prompts/{prompt_identifier}", ({ response }) =>
+        response(204).empty()
+      )
+    );
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createPromptCommand().parseAsync(
@@ -589,32 +611,36 @@ describe("span delete", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
+  function captureSpanDelete() {
+    const captured: { spanIdentifier?: string; calls: number } = { calls: 0 };
+    mock.server.use(
+      http.delete("/v1/spans/{span_identifier}", ({ params, response }) => {
+        captured.calls += 1;
+        captured.spanIdentifier = params.span_identifier;
+        return response(204).empty();
+      })
+    );
+    return captured;
+  }
+
   it("calls DELETE /v1/spans/{span_identifier}", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    const captured = captureSpanDelete();
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createSpanCommand().parseAsync(["delete", "span-abc", ...BASE_ARGS], {
       from: "user",
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toMatch(
-      /\/v1\/spans\/span-abc/
-    );
-    expect(
-      getFetchMethod(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
-    ).toBe("DELETE");
+    expect(captured.calls).toBe(1);
+    expect(captured.spanIdentifier).toBe("span-abc");
   });
 
   it("warns that child spans are NOT deleted in confirmation message", async () => {
     vi.mocked(confirmOrExit).mockResolvedValue(undefined);
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    captureSpanDelete();
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createSpanCommand().parseAsync(
@@ -639,8 +665,7 @@ describe("span delete", () => {
   });
 
   it("writes success message to stderr", async () => {
-    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
-    vi.stubGlobal("fetch", fetchMock);
+    captureSpanDelete();
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await createSpanCommand().parseAsync(["delete", "span-abc", ...BASE_ARGS], {

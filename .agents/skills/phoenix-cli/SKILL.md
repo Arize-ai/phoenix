@@ -43,6 +43,8 @@ px annotation-config get <identifier>
 px annotation-config create
 px annotation-config update <identifier>
 px annotation-config delete <id>
+px auth login
+px auth logout
 px auth status
 px profile list
 px profile show [name]
@@ -59,6 +61,10 @@ export PHOENIX_HOST=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
+
+For interactive local use, `px auth login` stores an OAuth session in the selected profile; the session acts with the permissions of the user who logged in. API keys take precedence over OAuth tokens when both are configured.
+OAuth access tokens are refreshed automatically for REST, GraphQL, and PXI
+requests, and rotated tokens are persisted to the selected profile.
 
 Always use `--format raw --no-progress` when piping to `jq`.
 
@@ -105,6 +111,25 @@ px setup instrument --agent claude   # instrument + verify only
 px setup skills                      # install the Phoenix coding-agent skills
 ```
 
+### `px setup mcp` — register the remote MCP server
+
+Wire the Phoenix remote MCP server (`<endpoint>/mcp`) into a coding agent so it
+can query Phoenix data. The endpoint is inferred from `--endpoint`, the active
+profile, or `PHOENIX_HOST`. Bare command prompts for scope (global default) then
+agent; `--agent` skips both prompts.
+
+```bash
+px setup mcp --agent codex --no-input --format raw
+px setup mcp --agent claude --local            # write this repo's .mcp.json
+```
+
+Agents: `claude`, `codex`, `gemini`, `cursor`, `opencode`, `vscode`. Scope is
+`--global` (default) or `--local` (repo; Codex is global-only). Auth is OAuth by
+default (URL-only config, browser login on first use); pass `--header "Name:
+value"` (repeatable) for an API-key bearer fallback — for Codex a
+`Authorization: Bearer ${VAR}` header becomes `bearer_token_env_var`. `--format
+raw` prints `{"endpoint","url","serverName","agent","scope","auth","file?"}`.
+
 ## Quick Reference
 
 | Task | Files |
@@ -131,10 +156,22 @@ Both stages tag every artifact with one shared **coding annotation identifier** 
 ## Auth
 
 ```bash
+px auth login                                 # browser-based OAuth login
+px auth login --no-browser                    # print URL for SSH/headless use
+px auth logout                                # clear OAuth tokens; leaves API keys
 px auth status                                # check connection and authentication
 px auth status --endpoint http://other:6006   # check a specific endpoint
 px auth status --profile staging              # check a named profile's connection
+px auth status --format raw                   # machine-readable credential source
 ```
+
+`auth status` reports the credential source (`flag`, `env`, `profile-key`, `oauth`, or `none`). OAuth status includes the token expiry.
+
+When the stored credential source is `oauth` and the authenticated probe fails,
+`auth status` retries once without credentials and reports anonymous access only
+if the server explicitly says access is anonymous. This keeps a stale or expired
+profile token from being reported as an auth failure against a deployment that
+has since switched from OAuth to anonymous access.
 
 ## Profiles
 
@@ -169,9 +206,15 @@ px auth status --profile prod
 ```bash
 px project list                                            # list all projects (table view)
 px project list --format raw --no-progress | jq '.[].name' # project names as JSON
+px project list --name-contains prod                       # filter by name substring (case-insensitive)
 px project get my-project --format raw --no-progress       # single record by exact name
 px project get my-project --format raw --no-progress | jq -r '.id'  # extract project id
 ```
+
+`project list` accepts `--limit <n>` (projects fetched per page) and
+`--name-contains <filter>`, which filters server-side on a case-insensitive name
+substring. Use it instead of piping `list` through `grep` when you only know part
+of a project's name.
 
 `project get` exits with `ExitCode.FAILURE` (1) on a name miss and writes a `StructuredError` `{error, code: "FAILURE", hint}` to stderr in `--format json|raw`.
 
@@ -181,6 +224,7 @@ px project get my-project --format raw --no-progress | jq -r '.id'  # extract pr
 px trace list --limit 20 --format raw --no-progress | jq .
 px trace list --last-n-minutes 60 --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
 px trace list --since 2025-01-15T00:00:00Z --limit 50 --format raw --no-progress | jq .
+px trace list --since 2025-01-15T00:00:00Z --until 2025-01-16T00:00:00Z --limit 50 --format raw --no-progress | jq .  # time range (until is exclusive)
 px trace list --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
 px trace list --include-notes --format raw --no-progress | jq '.[].notes'
 px trace get <trace-id> --format raw | jq .
@@ -229,10 +273,12 @@ Trace
 px span list --limit 20                                    # recent spans (table view)
 px span list --last-n-minutes 60 --limit 50                # spans from last hour
 px span list --since 2025-01-15T00:00:00Z --limit 50       # spans since a timestamp
+px span list --since 2025-01-15T00:00:00Z --until 2025-01-16T00:00:00Z --limit 50  # time range (until is exclusive)
 px span list --span-kind LLM --limit 10                    # only LLM spans
 px span list --status-code ERROR --limit 20                # only errored spans
 px span list --name chat_completion --limit 10             # filter by span name
 px span list --trace-id <id> --format raw --no-progress | jq .   # all spans for a trace
+px span list --span-id <id> <id> --format raw --no-progress | jq .  # fetch specific spans by ID (server >= 19.6.0)
 px span list --parent-id null --limit 10                   # only root spans
 px span list --parent-id <span-id> --limit 10              # only children of a span
 px span list --include-annotations --limit 10              # include annotation scores

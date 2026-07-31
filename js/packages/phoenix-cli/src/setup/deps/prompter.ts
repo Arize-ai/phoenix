@@ -32,6 +32,13 @@ export interface Prompter {
     message: string;
     validate?: (value: string) => string | undefined;
   }): Promise<string>;
+  /**
+   * Run `work` with a signal that aborts on Ctrl-C rather than raising
+   * SetupCancelledError. For the waits that have no prompt on screen to
+   * cancel — a browser login, say: this seam owns the terminal, so it owns the
+   * signal, and `work` decides what an interruption means.
+   */
+  runInterruptible<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T>;
   /** Non-interactive display of a block of text between prompts. */
   note(message: string, title?: string): void;
   /** One-line status/warning between prompts (stderr). */

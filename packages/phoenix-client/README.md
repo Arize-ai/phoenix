@@ -104,23 +104,18 @@ client = Client()
 client = Client(base_url="http://localhost:6006")  # Local Phoenix server
 
 # Cloud instance with API key
-client = Client(
-    base_url="https://app.phoenix.arize.com/s/your-space",
-    api_key="your-api-key"
-)
+client = Client(base_url="https://app.phoenix.arize.com/s/your-space", api_key="your-api-key")
 
 # Custom authentication headers
 client = Client(
-    base_url="https://your-phoenix-instance.com",
-    headers={"Authorization": "Bearer your-api-key"}
+    base_url="https://your-phoenix-instance.com", headers={"Authorization": "Bearer your-api-key"}
 )
 
 # Asynchronous client (same configuration options)
 async_client = AsyncClient()
 async_client = AsyncClient(base_url="http://localhost:6006")
 async_client = AsyncClient(
-    base_url="https://app.phoenix.arize.com/s/your-space",
-    api_key="your-api-key"
+    base_url="https://app.phoenix.arize.com/s/your-space", api_key="your-api-key"
 )
 ```
 
@@ -151,7 +146,7 @@ prompt = client.prompts.create(
         messages=[{"role": "user", "content": content}],
         model_name="gpt-4o-mini",
     ),
-    prompt_description="Summarize an article in a few bullet points"
+    prompt_description="Summarize an article in a few bullet points",
 )
 
 # Retrieve and use prompts
@@ -160,12 +155,13 @@ prompt = client.prompts.get(prompt_identifier="article-bullet-summarizer")
 # Format the prompt with variables
 prompt_vars = {
     "topic": "Sports",
-    "article": "Moises Henriques, the Australian all-rounder, has signed to play for Surrey in this summer's NatWest T20 Blast. He will join after the IPL and is expected to strengthen the squad throughout the campaign."
+    "article": "Moises Henriques, the Australian all-rounder, has signed to play for Surrey in this summer's NatWest T20 Blast. He will join after the IPL and is expected to strengthen the squad throughout the campaign.",
 }
 formatted_prompt = prompt.format(variables=prompt_vars)
 
 # Make a request with your Prompt using OpenAI
 from openai import OpenAI
+
 oai_client = OpenAI()
 resp = oai_client.chat.completions.create(**formatted_prompt)
 print(resp.choices[0].message.content)
@@ -201,34 +197,42 @@ dataset = client.datasets.create_dataset(
     inputs=[
         {"question": "How do I reset my password?"},
         {"question": "What's your return policy?"},
-        {"question": "How do I track my order?"}
+        {"question": "How do I track my order?"},
     ],
     outputs=[
-        {"answer": "You can reset your password by clicking the 'Forgot Password' link on the login page."},
+        {
+            "answer": "You can reset your password by clicking the 'Forgot Password' link on the login page."
+        },
         {"answer": "We offer 30-day returns for unused items in original packaging."},
-        {"answer": "You can track your order using the tracking number sent to your email."}
+        {"answer": "You can track your order using the tracking number sent to your email."},
     ],
     metadata=[
         {"category": "account", "difficulty": "easy"},
         {"category": "policy", "difficulty": "medium"},
-        {"category": "orders", "difficulty": "easy"}
-    ]
+        {"category": "orders", "difficulty": "easy"},
+    ],
 )
 
 # Create dataset from pandas DataFrame
-df = pd.DataFrame({
-    "prompt": ["Hello", "Hi there", "Good morning"],
-    "response": ["Hi! How can I help?", "Hello! What can I do for you?", "Good morning! How may I assist?"],
-    "sentiment": ["neutral", "positive", "positive"],
-    "length": [20, 25, 30]
-})
+df = pd.DataFrame(
+    {
+        "prompt": ["Hello", "Hi there", "Good morning"],
+        "response": [
+            "Hi! How can I help?",
+            "Hello! What can I do for you?",
+            "Good morning! How may I assist?",
+        ],
+        "sentiment": ["neutral", "positive", "positive"],
+        "length": [20, 25, 30],
+    }
+)
 
 dataset = client.datasets.create_dataset(
     name="greeting-responses",
     dataframe=df,
-    input_keys=["prompt"],           # Columns to use as input
-    output_keys=["response"],        # Columns to use as expected output
-    metadata_keys=["sentiment", "length"]  # Additional metadata columns
+    input_keys=["prompt"],  # Columns to use as input
+    output_keys=["response"],  # Columns to use as expected output
+    metadata_keys=["sentiment", "length"],  # Additional metadata columns
 )
 ```
 
@@ -305,6 +309,7 @@ Query for spans and annotations from your projects for custom evaluation and ann
 
 ```python
 from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
 from datetime import datetime, timedelta
 
 client = Client()
@@ -313,8 +318,8 @@ client = Client()
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="my-llm-app",
     limit=1000,
-    root_spans_only=True,  # Only get top-level spans
-    start_time=datetime.now() - timedelta(hours=24)
+    query=SpanQuery().where("parent_id is None"),  # Only top-level spans
+    start_time=datetime.now() - timedelta(hours=24),
 )
 
 # Get span annotations as DataFrame
@@ -322,7 +327,7 @@ annotations_df = client.spans.get_span_annotations_dataframe(
     spans_dataframe=spans_df,  # Use spans from previous query
     project_identifier="my-llm-app",
     include_annotation_names=["relevance", "accuracy"],  # Only specific annotations
-    exclude_annotation_names=["note"]  # Exclude UI notes
+    exclude_annotation_names=["note"],  # Exclude UI notes
 )
 ```
 
@@ -342,7 +347,7 @@ client.spans.add_span_annotation(
     annotator_kind="HUMAN",
     label="helpful",
     score=0.9,
-    explanation="Response directly answered the user's question"
+    explanation="Response directly answered the user's question",
 )
 
 # Bulk annotation logging for multiple spans
@@ -351,13 +356,13 @@ annotations = [
         "name": "sentiment",
         "span_id": "span-123",
         "annotator_kind": "LLM",
-        "result": {"label": "positive", "score": 0.8}
+        "result": {"label": "positive", "score": 0.8},
     },
     {
         "name": "accuracy",
         "span_id": "span-456",
         "annotator_kind": "HUMAN",
-        "result": {"label": "accurate", "score": 0.95}
+        "result": {"label": "accurate", "score": 0.95},
     },
 ]
 client.spans.log_span_annotations(span_annotations=annotations)
@@ -405,10 +410,12 @@ client = Client()
 # Get an existing dataset to run the experiment on
 dataset = client.datasets.get_dataset(dataset="my-dataset")
 
+
 # Define a task function
 def my_task(example):
     # Your LLM call or business logic here
     return f"Result for: {example['input']['question']}"
+
 
 # Run an experiment
 experiment = client.experiments.run_experiment(
@@ -501,7 +508,7 @@ support_projects = client.projects.list(name_contains="support")
 # Create a new project
 new_project = client.projects.create(
     name="Customer Support Bot",
-    description="Traces and evaluations for our customer support chatbot"
+    description="Traces and evaluations for our customer support chatbot",
 )
 print(f"Created project with ID: {new_project['id']}")
 ```

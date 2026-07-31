@@ -1,7 +1,10 @@
+"""OAuth2 relying party: Phoenix logs users in via an external IdP."""
+
 import logging
 import re
 from dataclasses import dataclass, field
 from datetime import timedelta
+from os import getenv
 from random import randrange
 from typing import Any, Optional, TypedDict
 from urllib.parse import unquote, urlparse
@@ -40,6 +43,7 @@ from phoenix.auth import (
     set_refresh_token_cookie,
 )
 from phoenix.config import (
+    ENV_PHOENIX_ROOT_URL,
     AssignableUserRoleName,
     get_env_disable_basic_auth,
     get_env_disable_rate_limit,
@@ -48,6 +52,7 @@ from phoenix.db import models
 from phoenix.server.api.auth_messages import AuthErrorCode
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.oauth2 import DEFAULT_EMAIL_PATH, OAuth2Client, search_claim_path
+from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
@@ -103,15 +108,7 @@ async def login(
     if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
         return _redirect_to_login(request=request, error="unknown_idp")
     secret = request.app.state.get_secret()
-    if (referer := request.headers.get("referer")) is not None:
-        # if the referer header is present, use it as the origin URL
-        parsed_url = urlparse(referer)
-        origin_url = _append_root_path_if_exists(
-            request=request, base_url=f"{parsed_url.scheme}://{parsed_url.netloc}"
-        )
-    else:
-        # fall back to the base url as the origin URL
-        origin_url = str(request.base_url)
+    origin_url = _login_origin_url(request)
     authorization_url_data = await oauth2_client.create_authorization_url(
         redirect_uri=_get_create_tokens_endpoint(
             request=request, origin_url=origin_url, idp_name=idp_name
@@ -882,6 +879,29 @@ def _append_root_path_if_exists(*, request: Request, base_url: str) -> str:
     if not (root_path := get_root_path(request.scope)):
         return base_url
     return str(URLPath(root_path).make_absolute_url(base_url=base_url))
+
+
+def _login_origin_url(request: Request) -> str:
+    """Return the origin the IdP callback and post-login redirect are built on.
+
+    When the operator has declared the canonical public origin
+    (PHOENIX_ROOT_URL), it is authoritative: the IdP callback must never be
+    derived from request headers in that case. The Referer in particular is
+    whatever page sent the user here — during an /oauth2/authorize login
+    redirect it is the OAuth client's own UI, not Phoenix — and building the
+    callback on it would make the IdP deliver the authorization code to a
+    foreign origin.
+    """
+    if getenv(ENV_PHOENIX_ROOT_URL):
+        return public_origin(request)
+    if (referer := request.headers.get("referer")) is not None:
+        # if the referer header is present, use it as the origin URL
+        parsed_url = urlparse(referer)
+        return _append_root_path_if_exists(
+            request=request, base_url=f"{parsed_url.scheme}://{parsed_url.netloc}"
+        )
+    # fall back to the base url as the origin URL
+    return str(request.base_url)
 
 
 def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: str) -> str:

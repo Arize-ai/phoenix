@@ -16,7 +16,12 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { getReturnUrl, prependBasename } from "@phoenix/utils/routingUtils";
+import {
+  assignAppRelativeLocation,
+  getReturnUrl,
+  isServerOwnedPath,
+  prependBasename,
+} from "@phoenix/utils/routingUtils";
 
 type LoginFormParams = {
   email: string;
@@ -70,6 +75,10 @@ export function LoginForm(props: LoginFormProps) {
         setIsLoading(() => false);
       }
       const returnUrl = getReturnUrl();
+      if (isServerOwnedPath(returnUrl)) {
+        assignAppRelativeLocation(returnUrl);
+        return;
+      }
       navigate(returnUrl);
     },
     [navigate, propsOnSubmit, setError]

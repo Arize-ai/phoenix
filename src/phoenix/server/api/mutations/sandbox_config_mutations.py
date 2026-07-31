@@ -37,6 +37,7 @@ from phoenix.server.sandbox.types import (
     EnvVarValue,
     InternetAccessConfig,
     ModalConfig,
+    MontyConfig,
     SandboxConfigModel,
     SandboxDeploymentModel,
     TenkiConfig,
@@ -165,6 +166,14 @@ class WASMConfigInput:
 
 
 @strawberry.input
+class MontyConfigInput:
+    language: Language = Language.PYTHON
+
+    def to_orm(self) -> MontyConfig:
+        return MontyConfig.model_validate({"language": self.language.to_orm()})
+
+
+@strawberry.input
 class ModalConfigInput:
     language: Language = Language.PYTHON
     env_vars: list[EnvVarInput] = strawberry.field(default_factory=list)
@@ -216,6 +225,7 @@ class SandboxConfigVariantInput:
     vercel: Optional[VercelConfigInput] = strawberry.UNSET
     wasm: Optional[WASMConfigInput] = strawberry.UNSET
     modal: Optional[ModalConfigInput] = strawberry.UNSET
+    monty: Optional[MontyConfigInput] = strawberry.UNSET
     tenki: Optional[TenkiConfigInput] = strawberry.UNSET
 
     def to_orm(self) -> SandboxConfigModel:
@@ -231,6 +241,8 @@ class SandboxConfigVariantInput:
             return self.wasm.to_orm()
         if self.modal is not None and self.modal is not strawberry.UNSET:
             return self.modal.to_orm()
+        if self.monty is not None and self.monty is not strawberry.UNSET:
+            return self.monty.to_orm()
         if self.tenki is not None and self.tenki is not strawberry.UNSET:
             return self.tenki.to_orm()
         raise BadRequest("config: exactly one provider variant must be set")

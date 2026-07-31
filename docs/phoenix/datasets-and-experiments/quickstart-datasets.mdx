@@ -2,6 +2,10 @@
 title: "Quickstart: Datasets & experiments"
 ---
 
+import StartPhoenix from "../../snippets/start-phoenix.mdx";
+import ConnectToPhoenixPython from "../../snippets/connect-to-phoenix-python.mdx";
+import ConnectToPhoenixEnv from "../../snippets/connect-to-phoenix-env.mdx";
+
 <a href="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/datasets_and_experiments_quickstart.ipynb">
     <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9dc2f403-image.svg" />
 </a>
@@ -14,120 +18,23 @@ Phoenix helps you run experiments over your AI and LLM applications to evaluate 
 
 ## Launch Phoenix
 
-### Python
+<StartPhoenix />
+
+Then point your code at it:
 
 <Tabs>
-
-  <Tab title="Using Phoenix Cloud">
-
-    **Sign up for Phoenix:**
-
-    1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-
-    2. Click `Create Space`, then follow the prompts to create and launch your space.
-
-    **Install packages:**
-
-    ```
-    pip install arize-phoenix-otel
-    ```
-
-    **Set your Phoenix endpoint and API Key:**
-
-    From your new Phoenix Space
-
-    1. Create your API key from the Settings page
-
-    2. Copy your `Hostname` from the Settings page
-
-    3. In your code, set your endpoint and API key:
-
-    ```python
-    import os
-
-    os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX HOSTNAME"
-
-    # If you created your Phoenix Cloud instance before June 24th, 2025,
-    # you also need to set the API key as a header
-    #os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.getenv('PHOENIX_API_KEY')}"
-    ```
-
-    <Info>
-    Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint)
-
-    </Info>
-
+  <Tab title="Python" icon="python">
+    <ConnectToPhoenixPython />
   </Tab>
 
-  <Tab title ="Using Self-hosted Phoenix">
-
-    1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](/docs/phoenix/self-hosting).
-
-    2. In your code, set your endpoint:
-
-    ```python
-    import os
-
-    # Update this with your self-hosted endpoint
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006/v1/traces"
-    ```
-
-    <Warning>
-    Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint)
-
-    </Warning>
-
+  <Tab title="TypeScript" icon="js">
+    <ConnectToPhoenixEnv />
   </Tab>
-
 </Tabs>
 
-### TypeScript
-
-<Tabs>
-
-  <Tab title="Using Phoenix Cloud">
-
-    1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-
-    2. Grab your API key from the Keys option on the left bar.
-
-    3. In your code, configure environment variables for your endpoint and API key:
-
-    ```bash
-    # .env, or shell environment
-
-    # Add Phoenix API Key for tracing
-    PHOENIX_API_KEY="ADD YOUR PHOENIX API KEY"
-    # And Collector Endpoint for Phoenix Cloud
-    PHOENIX_COLLECTOR_ENDPOINT="ADD YOUR PHOENIX HOSTNAME"
-    ```
-
-  </Tab>
-
-  <Tab title ="Using Self-hosted Phoenix">
-
-     1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](/docs/phoenix/self-hosting).
-
-    2. In your code, configure environment variables for your endpoint and API key:
-
-    ```bash
-    # .env, or shell environment
-
-    # Collector Endpoint for your self hosted Phoenix, like localhost
-    PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
-    # (optional) If authentication enabled, add Phoenix API Key for tracing
-    PHOENIX_API_KEY="ADD YOUR API KEY"
-    ```
-
-    <Info>
-    Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint)
-
-    </Info>
-
-  </Tab>
-
-</Tabs>
+<Info>
+Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint)
+</Info>
 
 ## Datasets
 

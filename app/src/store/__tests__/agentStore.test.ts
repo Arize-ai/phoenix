@@ -81,6 +81,36 @@ describe("agentStore", () => {
     });
   });
 
+  describe("setSessionResponsePending", () => {
+    it("removes settled sessions from the sparse pending lookup", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+
+      store.getState().setSessionResponsePending(sessionId, true);
+      expect(store.getState().isResponsePendingBySessionId[sessionId]).toBe(
+        true
+      );
+
+      store.getState().setSessionResponsePending(sessionId, false);
+      expect(
+        store.getState().isResponsePendingBySessionId[sessionId]
+      ).toBeUndefined();
+    });
+
+    it("does not recreate response state after its session is deleted", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setSessionResponsePending(sessionId, true);
+      store.getState().deleteSession(sessionId);
+
+      store.getState().setSessionResponsePending(sessionId, false);
+
+      expect(
+        store.getState().isResponsePendingBySessionId[sessionId]
+      ).toBeUndefined();
+    });
+  });
+
   describe("pendingPatchExperiment cleanup", () => {
     function setPendingPatch(
       store: ReturnType<typeof createAgentStore>,
@@ -167,6 +197,7 @@ describe("agentStore", () => {
         questions: [],
       });
       store.getState().setSessionChatStatus(firstSessionId, "streaming");
+      store.getState().setSessionResponsePending(firstSessionId, true);
 
       const secondSessionId = store.getState().createSession();
 
@@ -178,6 +209,9 @@ describe("agentStore", () => {
       ).toBeUndefined();
       expect(
         store.getState().chatStatusBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(
+        store.getState().isResponsePendingBySessionId[firstSessionId]
       ).toBeUndefined();
     });
 
@@ -507,6 +541,22 @@ describe("agentStore", () => {
       store.getState().setPosition("detached");
 
       expect(store.getState().position).toBe("detached");
+    });
+  });
+
+  describe("setFabMode", () => {
+    it("defaults to the pinned top-nav button", () => {
+      const store = createAgentStore();
+
+      expect(store.getState().fabMode).toBe("pinned");
+    });
+
+    it("switches the assistant button to floating", () => {
+      const store = createAgentStore();
+
+      store.getState().setFabMode("floating");
+
+      expect(store.getState().fabMode).toBe("floating");
     });
   });
 

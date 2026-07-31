@@ -38,7 +38,7 @@ export function NewSecretButton({ connectionId }: { connectionId: string }) {
       <Button
         size="S"
         variant="primary"
-        leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
+        leadingVisual={<Icon svg={<Icons.Plus />} />}
         onPress={() => {
           setError(null);
           setIsOpen(true);

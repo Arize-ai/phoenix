@@ -157,13 +157,9 @@ class DatasetContext(TypedDict):
     datasetVersionNodeId: NotRequired[str]
 
 
-class DatasetExample(TypedDict):
-    id: str
-    node_id: str
-    input: Mapping[str, Any]
-    output: Mapping[str, Any]
-    metadata: Mapping[str, Any]
-    updated_at: str
+class DatasetExampleSource(TypedDict):
+    span_id: str
+    span_node_id: str
 
 
 class DatasetLabel(TypedDict):
@@ -263,17 +259,6 @@ class GraphQLContext(TypedDict):
     mutationsEnabled: bool
 
 
-class IncompleteExperimentEvaluation(TypedDict):
-    experiment_run: ExperimentRun
-    dataset_example: DatasetExample
-    evaluation_names: Sequence[str]
-
-
-class IncompleteExperimentRun(TypedDict):
-    dataset_example: DatasetExample
-    repetition_numbers: Sequence[int]
-
-
 class InsertedSessionAnnotation(TypedDict):
     id: str
 
@@ -305,17 +290,6 @@ class LDAPUserData(TypedDict):
     username: str
     role: Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
     auth_method: Literal["LDAP"]
-
-
-class ListDatasetExamplesData(TypedDict):
-    dataset_id: str
-    version_id: str
-    examples: Sequence[DatasetExample]
-    filtered_splits: NotRequired[Sequence[str]]
-
-
-class ListDatasetExamplesResponseBody(TypedDict):
-    data: ListDatasetExamplesData
 
 
 class ListDatasetLabelsForDatasetResponseBody(TypedDict):
@@ -427,7 +401,6 @@ class ProjectContext(TypedDict):
     type: Literal["project"]
     projectNodeId: str
     spanFilter: NotRequired[str]
-    rootSpansOnly: NotRequired[bool]
 
 
 class PromptData(TypedDict):
@@ -1247,6 +1220,16 @@ class CreateUserResponseBody(TypedDict):
     data: Union[LocalUser, OAuth2User, LDAPUser]
 
 
+class DatasetExample(TypedDict):
+    id: str
+    node_id: str
+    input: Mapping[str, Any]
+    output: Mapping[str, Any]
+    metadata: Mapping[str, Any]
+    updated_at: str
+    source: NotRequired[DatasetExampleSource]
+
+
 class DynamicToolApprovalRequestedPart(TypedDict):
     type: Literal["dynamic-tool"]
     toolName: str
@@ -1371,16 +1354,6 @@ class GetAnnotationConfigsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
-class GetIncompleteEvaluationsResponseBody(TypedDict):
-    data: Sequence[IncompleteExperimentEvaluation]
-    next_cursor: Optional[str]
-
-
-class GetIncompleteExperimentRunsResponseBody(TypedDict):
-    data: Sequence[IncompleteExperimentRun]
-    next_cursor: Optional[str]
-
-
 class GetProjectAnnotationConfigsResponseBody(TypedDict):
     data: Sequence[
         Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
@@ -1418,6 +1391,28 @@ class GetViewerResponseBody(TypedDict):
 
 class HTTPValidationError(TypedDict):
     detail: NotRequired[Sequence[ValidationError]]
+
+
+class IncompleteExperimentEvaluation(TypedDict):
+    experiment_run: ExperimentRun
+    dataset_example: DatasetExample
+    evaluation_names: Sequence[str]
+
+
+class IncompleteExperimentRun(TypedDict):
+    dataset_example: DatasetExample
+    repetition_numbers: Sequence[int]
+
+
+class ListDatasetExamplesData(TypedDict):
+    dataset_id: str
+    version_id: str
+    examples: Sequence[DatasetExample]
+    filtered_splits: NotRequired[Sequence[str]]
+
+
+class ListDatasetExamplesResponseBody(TypedDict):
+    data: ListDatasetExamplesData
 
 
 class PlaygroundContext(TypedDict):
@@ -1680,6 +1675,16 @@ class CreateSpansRequestBody(TypedDict):
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class GetIncompleteEvaluationsResponseBody(TypedDict):
+    data: Sequence[IncompleteExperimentEvaluation]
+    next_cursor: Optional[str]
+
+
+class GetIncompleteExperimentRunsResponseBody(TypedDict):
+    data: Sequence[IncompleteExperimentRun]
+    next_cursor: Optional[str]
 
 
 class GetSessionResponseBody(TypedDict):

@@ -53,7 +53,9 @@ const tokenBaseCSS = css`
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  gap: var(--global-dimension-size-100);
+  /* Keep the trailing gap (text → remove button) as tight as the leading
+     visual's margin so the pill reads as one unit. */
+  gap: var(--global-dimension-size-50);
   font-size: var(--global-dimension-font-size-75);
   line-height: var(--global-line-height-s);
   padding: 0 var(--global-dimension-size-100);
@@ -78,6 +80,33 @@ const tokenBaseCSS = css`
 
   &[data-size="L"] {
     height: var(--global-dimension-size-300);
+    /* The large token scales its typography up to body size so token-heavy
+       detail views stay readable; S and M keep the compact font. */
+    font-size: var(--global-dimension-font-size-100);
+  }
+
+  /* Center the leading visual and the remove button inside the pill's
+     rounded end caps. A cap is a semicircle of radius height/2, so the 16px
+     visual/icon box lands centered when the side inset is
+     capRadius - 1px border - 8px (half the box). */
+  &[data-size="M"][data-leading-visual] {
+    padding-left: 1px;
+  }
+
+  &[data-size="L"][data-leading-visual] {
+    padding-left: calc(var(--global-dimension-size-50) - 1px);
+  }
+
+  &[data-size="S"][data-removable] {
+    padding-right: var(--global-dimension-size-25);
+  }
+
+  &[data-size="M"][data-removable] {
+    padding-right: 1px;
+  }
+
+  &[data-size="L"][data-removable] {
+    padding-right: calc(var(--global-dimension-size-50) - 1px);
   }
 
   &[data-disabled] {
@@ -102,14 +131,10 @@ const tokenBaseCSS = css`
 
     > button {
       &:focus-visible {
-        outline: 2px solid var(--focus-ring-color);
+        outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
         border-radius: var(--global-rounding-small);
       }
     }
-  }
-
-  &[data-removable] {
-    padding-right: var(--global-dimension-size-25);
   }
 
   > button {
@@ -126,27 +151,19 @@ const tokenBaseCSS = css`
   }
 `;
 
-function TokenLeadingVisual({
-  children,
-  size = "M",
-}: React.PropsWithChildren<SizingProps>) {
+function TokenLeadingVisual({ children }: React.PropsWithChildren) {
   return (
     <span
-      data-size={size}
       css={css`
         display: flex;
         align-items: center;
         justify-content: center;
         width: var(--global-dimension-size-200);
         height: var(--global-dimension-size-200);
-
-        &[data-size="M"] {
-          margin-right: var(--global-dimension-size-50);
-        }
-
-        &[data-size="L"] {
-          margin-right: var(--global-dimension-size-100);
-        }
+        /* The visual keeps its box when the token's text truncates —
+           otherwise it compresses and the visual slides into the end cap. */
+        flex-shrink: 0;
+        margin-right: var(--global-dimension-size-50);
       `}
     >
       {children}
@@ -183,7 +200,7 @@ function Token({
    */
   const wrappedLeadingVisual =
     leadingVisual && size !== "S" ? (
-      <TokenLeadingVisual size={size}>{leadingVisual}</TokenLeadingVisual>
+      <TokenLeadingVisual>{leadingVisual}</TokenLeadingVisual>
     ) : null;
 
   const removeButton = onRemove ? (
@@ -266,6 +283,7 @@ function Token({
       data-size={size}
       {...(onPress && { "data-interactive": true })}
       {...(onRemove && { "data-removable": true })}
+      {...(wrappedLeadingVisual && { "data-leading-visual": true })}
       {...(isDisabled && { "data-disabled": true })}
       {...rest}
     >

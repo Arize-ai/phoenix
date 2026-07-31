@@ -337,7 +337,7 @@ export const DatasetEvaluatorsTable = ({
         cell: ({ getValue, row }) => {
           return (
             <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
-              {getValue() as string}
+              <Truncate maxWidth="100%">{getValue() as string}</Truncate>
             </Link>
           );
         },

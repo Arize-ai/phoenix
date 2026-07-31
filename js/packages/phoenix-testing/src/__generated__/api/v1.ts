@@ -15,10 +15,10 @@ export interface paths {
          * List annotation configurations
          * @description Retrieve a paginated list of all annotation configurations in the system.
          */
-        get: operations["list_annotation_configs_v1_annotation_configs_get"];
+        get: operations["listAnnotationConfigs"];
         put?: never;
         /** Create an annotation configuration */
-        post: operations["create_annotation_config_v1_annotation_configs_post"];
+        post: operations["createAnnotationConfig"];
         delete?: never;
         options?: never;
         head?: never;
@@ -33,7 +33,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get an annotation configuration by ID or name */
-        get: operations["get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get"];
+        get: operations["getAnnotationConfig"];
         put?: never;
         post?: never;
         delete?: never;
@@ -51,10 +51,10 @@ export interface paths {
         };
         get?: never;
         /** Update an annotation configuration */
-        put: operations["update_annotation_config_v1_annotation_configs__config_id__put"];
+        put: operations["updateAnnotationConfig"];
         post?: never;
         /** Delete an annotation configuration */
-        delete: operations["delete_annotation_config_v1_annotation_configs__config_id__delete"];
+        delete: operations["deleteAnnotationConfig"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1190,7 +1190,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Annotate Span Documents */
+        /** Create span document annotations */
         post: operations["annotateSpanDocuments"];
         delete?: never;
         options?: never;
@@ -2417,6 +2417,14 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            source?: components["schemas"]["DatasetExampleSource"] | null;
+        };
+        /** DatasetExampleSource */
+        DatasetExampleSource: {
+            /** Span Id */
+            span_id: string;
+            /** Span Node Id */
+            span_node_id: string;
         };
         /** DatasetLabel */
         DatasetLabel: {
@@ -3748,12 +3756,9 @@ export interface components {
          *
          *     ``span_filter`` carries the project-scoped span filter expression when the
          *     span filter field is mounted — empty string when the field is mounted with
-         *     no condition applied, ``None`` when the field is not present at all.
-         *
-         *     ``root_spans_only`` carries the current state of the spans-table root vs.
-         *     all toggle when that toggle is mounted — ``True`` when the table is
-         *     restricted to root spans, ``False`` when it shows every span, ``None``
-         *     when the toggle is not present (e.g. on the traces tab).
+         *     no condition applied, ``None`` when the field is not present at all. It
+         *     describes the view in full, root-span scoping included (which is expressed
+         *     within the filter DSL as ``parent_id is None``).
          */
         ProjectContext: {
             /**
@@ -3765,8 +3770,6 @@ export interface components {
             projectNodeId: string;
             /** Spanfilter */
             spanFilter?: string | null;
-            /** Rootspansonly */
-            rootSpansOnly?: boolean | null;
         };
         /** Prompt */
         Prompt: {
@@ -6004,7 +6007,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_annotation_configs_v1_annotation_configs_get: {
+    listAnnotationConfigs: {
         parameters: {
             query?: {
                 /** @description Cursor for pagination (base64-encoded annotation config ID) */
@@ -6047,7 +6050,7 @@ export interface operations {
             };
         };
     };
-    create_annotation_config_v1_annotation_configs_post: {
+    createAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -6089,7 +6092,7 @@ export interface operations {
             };
         };
     };
-    get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get: {
+    getAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -6130,7 +6133,7 @@ export interface operations {
             };
         };
     };
-    update_annotation_config_v1_annotation_configs__config_id__put: {
+    updateAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -6175,7 +6178,7 @@ export interface operations {
             };
         };
     };
-    delete_annotation_config_v1_annotation_configs__config_id__delete: {
+    deleteAnnotationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -8628,6 +8631,8 @@ export interface operations {
                 end_time?: string | null;
                 /** @description Filter by one or more trace IDs */
                 trace_id?: string[] | null;
+                /** @description Filter by one or more span IDs */
+                span_id?: string[] | null;
                 /** @description Filter by parent span ID. Use "null" to get root spans only. */
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */
@@ -8697,6 +8702,8 @@ export interface operations {
                 end_time?: string | null;
                 /** @description Filter by one or more trace IDs */
                 trace_id?: string[] | null;
+                /** @description Filter by one or more span IDs */
+                span_id?: string[] | null;
                 /** @description Filter by parent span ID. Use "null" to get root spans only. */
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */

@@ -211,7 +211,7 @@ function useIsOverflowing({
   useEffect(() => {
     const content = contentRef.current;
     const container = containerRef.current;
-    if (!content || !container) return;
+    if (!content || !container) return undefined;
 
     const checkOverflow = () => {
       const overflowBoundary =

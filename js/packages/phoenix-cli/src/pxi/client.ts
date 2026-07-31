@@ -4,6 +4,7 @@ import {
   type UIMessageChunk,
 } from "ai";
 
+import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
 import type { PhoenixConfig } from "../config";
 import { formatPxiRuntimeError } from "./preflight";
 import type {
@@ -79,7 +80,11 @@ export function buildPxiHeaders({
 }): Record<string, string> {
   return {
     ...(config.headers ?? {}),
-    ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+    ...(config.apiKey
+      ? { Authorization: `Bearer ${config.apiKey}` }
+      : config.oauthTokens
+        ? { Authorization: `Bearer ${config.oauthTokens.accessToken}` }
+        : {}),
   };
 }
 
@@ -169,13 +174,19 @@ export function createServerAgentTransport({
     throw new Error("Phoenix endpoint not configured.");
   }
 
+  const transportFetch =
+    fetch ??
+    (hasOAuthCredentials(options.config)
+      ? createOAuthFetch({ config: options.config })
+      : undefined);
+
   return new DefaultChatTransport<PxiMessage>({
     api: buildServerAgentChatUrl({
       endpoint: options.config.endpoint,
       sessionId: options.sessionId,
     }),
     headers: buildPxiHeaders({ config: options.config }),
-    fetch,
+    fetch: transportFetch,
     prepareSendMessagesRequest: ({ messages }) => ({
       body: buildPxiChatRequest({ messages, options }),
     }),

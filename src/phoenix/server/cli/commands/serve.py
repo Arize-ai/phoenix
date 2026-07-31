@@ -14,18 +14,21 @@ from urllib.parse import urljoin
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
-from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
 from phoenix.config import (
     TLSConfigVerifyClient,
     get_env_access_token_expiry,
+    get_env_allow_external_resources,
     get_env_allowed_origins,
     get_env_allowed_sandbox_providers,
     get_env_auth_settings,
+    get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_connection_str,
     get_env_database_schema,
+    get_env_default_retention_policy_days,
     get_env_disable_agent_assistant,
+    get_env_enable_mcp_server,
     get_env_enable_prometheus,
     get_env_grpc_port,
     get_env_host,
@@ -43,6 +46,7 @@ from phoenix.config import (
     get_env_smtp_port,
     get_env_smtp_username,
     get_env_smtp_validate_certs,
+    get_env_telemetry_enabled,
     get_env_tls_config,
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
@@ -51,12 +55,14 @@ from phoenix.config import (
 from phoenix.db import get_printable_db_url
 from phoenix.db.engines import create_engine
 from phoenix.db.insertion.types import AnnotationPrecursor
+from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.app import (
     ScaffolderConfig,
     _db,
     create_app,
     instrument_engine_if_enabled,
 )
+from phoenix.server.cli.boot_message import BootMessage
 from phoenix.server.email.sender import SimpleEmailSender
 from phoenix.server.email.types import EmailSender
 from phoenix.server.types import DbSessionFactory
@@ -74,76 +80,26 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
-from phoenix.utilities import no_emojis_on_windows
 from phoenix.version import __version__ as phoenix_version
 
 logger = logging.getLogger(__name__)
 
-_WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
-
-██████╗ ██╗  ██╗ ██████╗ ███████╗███╗   ██╗██╗██╗  ██╗
-██╔══██╗██║  ██║██╔═══██╗██╔════╝████╗  ██║██║╚██╗██╔╝
-██████╔╝███████║██║   ██║█████╗  ██╔██╗ ██║██║ ╚███╔╝
-██╔═══╝ ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║██║ ██╔██╗
-██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║██║██╔╝ ██╗
-╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{{ version }}
-
-|  ⭐️⭐️⭐️ Support Open Source ⭐️⭐️⭐️
-|  ⭐️⭐️⭐️ Star on GitHub! ⭐️⭐️⭐️
-|  https://github.com/Arize-ai/phoenix
-|
-|  🌎 Join our Community 🌎
-|  https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g
-|
-|  📚 Documentation 📚
-|  https://arize.com/docs/phoenix
-|
-|  🚀 Phoenix Server 🚀
-|  Phoenix UI: {{ ui_path }}
-|
-|  Authentication: {{ auth_enabled }}
-{%- if basic_auth_disabled %}
-|  Basic Auth: Disabled
-{%- endif %}
-{%- if tls_enabled_for_http or tls_enabled_for_grpc %}
-{%- if tls_enabled_for_http %}
-|  TLS: Enabled for HTTP
-{%- endif %}
-{%- if tls_enabled_for_grpc %}
-|  TLS: Enabled for gRPC
-{%- endif %}
-{%- if tls_verify_client %}
-|  TLS Client Verification: Enabled
-{%- endif %}
-{%- endif %}
-{%- if allowed_origins %}
-|  Allowed Origins: {{ allowed_origins }}
-{%- endif %}
-|  Log traces:
-|    - gRPC: {{ grpc_path }}
-|    - HTTP: {{ http_path }}
-|  Storage: {{ storage }}
-{%- if schema %}
-|    - Schema: {{ schema }}
-{%- endif %}
-|
-|  📦 Code Sandbox Providers 📦
-{%- for provider in sandbox_providers %}
-|  - {{ provider.name }}: {{ "✅ Allowed" if provider.enabled else "❌ Disabled" }}
-{%- endfor %}
-{%- if agent_assistant_disabled %}
-|
-|  Agent Assistant: Disabled
-{%- endif %}
-""")
+# Mirrors phoenix.server.mcp_server.MCP_MOUNT_PATH, which is not imported here
+# because importing that module loads fastmcp even when the mount is disabled.
+_MCP_MOUNT_PATH = "/mcp"
 
 
-def _get_sandbox_provider_statuses() -> list[dict[str, object]]:
-    """Return per-provider enabled/disabled status for the launch banner."""
+def _join_url_path(root_url: str, path: str) -> str:
+    """Append a path without dropping a configured deployment root."""
+    return urljoin(f"{root_url.rstrip('/')}/", path.lstrip("/"))
+
+
+def _get_sandbox_provider_statuses() -> list[tuple[str, bool]]:
+    """Return per-provider (name, enabled) status for the launch banner."""
     from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 
     allowed = get_env_allowed_sandbox_providers()
-    return [{"name": name, "enabled": name in allowed} for name in sorted(SANDBOX_BACKEND_TYPES)]
+    return [(name, name in allowed) for name in sorted(SANDBOX_BACKEND_TYPES)]
 
 
 def _add_server_args(parser: ArgumentParser) -> None:
@@ -270,9 +226,10 @@ def run(args: Namespace) -> None:
 
         start_prometheus()
 
+    read_replica_connection_str = get_env_read_replica_url()
     factory, shutdown_callbacks = _create_db_session_factory(
         db_connection_str=db_connection_str,
-        read_replica_connection_str=get_env_read_replica_url(),
+        read_replica_connection_str=read_replica_connection_str,
         migrate=not Settings.disable_migrations,
         log_to_stdout=get_env_log_sql(),
         log_migrations=Settings.log_migrations,
@@ -291,24 +248,57 @@ def run(args: Namespace) -> None:
     display_host = "localhost" if host in ("0.0.0.0", "::") else host
     root_path = urljoin(f"{http_scheme}://{host}:{port}", host_root_path)
     display_root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
-    msg = _WELCOME_MESSAGE.render(
+    oauth2_client_configs = get_env_oauth2_settings()
+    smtp_hostname = get_env_smtp_hostname()
+    agent_assistant_enabled = not get_env_disable_agent_assistant()
+    # Dev tooling ports set by the frontend dev scripts (e.g. `pnpm dev:server`)
+    vite_port = os.getenv("VITE_PORT") or (str(args.dev_vite_port) if args.dev else None)
+    debugpy_port = os.getenv("DEBUGPY_PORT")
+    msg = BootMessage(
         version=phoenix_version,
-        ui_path=display_root_path,
-        grpc_path=f"{grpc_scheme}://{display_host}:{grpc_port}",
-        http_path=urljoin(display_root_path, "v1/traces"),
-        storage=get_printable_db_url(db_connection_str),
-        schema=get_env_database_schema(),
+        ui_url=display_root_path,
+        rest_api_url=_join_url_path(display_root_path, "v1"),
+        graphql_url=_join_url_path(display_root_path, "graphql"),
+        mcp_url=(
+            _join_url_path(display_root_path, _MCP_MOUNT_PATH)
+            if get_env_enable_mcp_server()
+            else None
+        ),
+        read_only=read_only,
+        otlp_grpc_url=f"{grpc_scheme}://{display_host}:{grpc_port}",
+        otlp_http_url=_join_url_path(display_root_path, "v1/traces"),
+        database=get_printable_db_url(db_connection_str),
+        database_schema=get_env_database_schema(),
+        read_replica=(
+            get_printable_db_url(read_replica_connection_str)
+            if read_replica_connection_str
+            else None
+        ),
+        storage_capacity_gibibytes=get_env_database_allocated_storage_capacity_gibibytes(),
+        retention_policy_days=get_env_default_retention_policy_days(),
         auth_enabled=auth_settings.enable_auth,
         basic_auth_disabled=auth_settings.disable_basic_auth,
+        oauth2_idp_names=[config.idp_display_name for config in oauth2_client_configs],
+        ldap_enabled=auth_settings.ldap_config is not None,
         tls_enabled_for_http=tls_enabled_for_http,
         tls_enabled_for_grpc=tls_enabled_for_grpc,
         tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
-        agent_assistant_disabled=get_env_disable_agent_assistant(),
         sandbox_providers=_get_sandbox_provider_statuses(),
-    )
-
-    msg = no_emojis_on_windows(msg)
+        agent_assistant_enabled=agent_assistant_enabled,
+        docs_mcp_url=(
+            MintlifyDocsMCPServer.URL
+            if agent_assistant_enabled and get_env_allow_external_resources()
+            else None
+        ),
+        prometheus_enabled=bool(enable_prometheus),
+        smtp_hostname=smtp_hostname,
+        telemetry_enabled=get_env_telemetry_enabled(),
+        dev_mode=args.dev,
+        debug_logging=args.debug,
+        dev_vite_url=f"http://localhost:{vite_port}" if vite_port else None,
+        debugpy_url=f"localhost:{debugpy_port}" if debugpy_port else None,
+    ).render()
 
     scaffolder_config = ScaffolderConfig(
         db=factory,

@@ -1,5 +1,6 @@
 import ast
-import sys
+import logging
+import re
 from typing import Any
 
 import pytest
@@ -210,14 +211,6 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             "experiments[0].input['question'] != experiments[0].output['question']",
             id="json-attribute-ne-json-attribute",
         ),
-        pytest.param(
-            "experiments[0].input['question'] is experiments[0].output['question']",
-            id="json-attribute-is-json-attribute",
-        ),
-        pytest.param(
-            "experiments[0].input['question'] is not experiments[0].output['question']",
-            id="json-attribute-is-not-json-attribute",
-        ),
         # eval attribute comparison expressions
         pytest.param(
             "experiments[0].evals['hallucination'].score > 0.5",
@@ -276,11 +269,6 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         pytest.param(
             "-experiments[0].latency_ms > -5",
             id="unary-minus-comparison",
-        ),
-        # weird cases
-        pytest.param(
-            "-'hello' < 10",
-            id="unary-minus-string-comparison",
         ),
     ),
 )
@@ -367,9 +355,7 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
     [
         pytest.param(
             "input['question]",
-            "EOL while scanning string literal"
-            if sys.version_info < (3, 10)
-            else "unterminated string literal (detected at line 1)",
+            "unterminated string literal",
             id="invalid-python-syntax",
         ),
         pytest.param(
@@ -399,7 +385,7 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
         ),
         pytest.param(
             "experiments[input]",
-            "Index must be a constant",
+            "Subscript key must be a literal",
             id="non-constant-index",
         ),
         pytest.param(
@@ -457,6 +443,140 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
             "Operand must be a boolean expression",
             id="unary-not-on-non-boolean",
         ),
+        # A comparison between two *known* types needs no cast, and nothing used
+        # to check the two were comparable -- so the mismatch reached the
+        # database as written and PostgreSQL rejected it (`double precision =
+        # varchar`, `varchar = integer`) after the condition had already been
+        # reported valid.
+        pytest.param(
+            "evals['x'].score == ''",
+            "cannot compare number and string",
+            id="eval-score-compared-to-string",
+        ),
+        pytest.param(
+            "latency_ms > ''",
+            "cannot compare number and string",
+            id="latency-compared-to-string",
+        ),
+        pytest.param(
+            "evals['x'].label == 100",
+            "cannot compare string and number",
+            id="eval-label-compared-to-number",
+        ),
+        pytest.param(
+            "evals['x'].score == True",
+            "cannot compare number and boolean",
+            id="eval-score-compared-to-boolean",
+        ),
+        # `X IS Y` between two non-singleton expressions is a PostgreSQL syntax
+        # error; SQLite accepts it. These previously compiled and were snapshot
+        # tested, but the recorded PostgreSQL SQL could never have run.
+        pytest.param(
+            "experiments[0].input['question'] is experiments[0].output['question']",
+            "`is` is only supported with None, True, or False",
+            id="is-between-json-attributes",
+        ),
+        pytest.param(
+            "experiments[0].input['question'] is not experiments[0].output['question']",
+            "`is` is only supported with None, True, or False",
+            id="is-not-between-json-attributes",
+        ),
+        pytest.param(
+            "input and error",
+            "Operands of `and` / `or` must be boolean expressions",
+            id="json-attribute-as-and-operand",
+        ),
+        # PostgreSQL rejects `-'hello'` as an ambiguous operator and SQLite
+        # coerces it to 0. This compiled and was snapshot tested; the recorded
+        # PostgreSQL SQL could never have run.
+        pytest.param(
+            "-'hello' < 10",
+            "Unary minus requires a numeric operand",
+            id="unary-minus-on-text",
+        ),
+        pytest.param(
+            "latency_ms > 1 and input",
+            "Operands of `and` / `or` must be boolean expressions",
+            id="json-attribute-as-second-and-operand",
+        ),
+        pytest.param(
+            "error == 1",
+            "cannot compare string and number",
+            id="error-compared-to-number",
+        ),
+        # Membership compiles to string containment (`strpos` / `instr`), so a
+        # non-text operand used to hand PostgreSQL SQL it cannot run --
+        # `strpos(numeric, integer) does not exist` -- after the condition had
+        # been reported valid.
+        pytest.param(
+            "5 in latency_ms",
+            "cannot compare number and number",
+            id="membership-in-numeric-field",
+        ),
+        pytest.param(
+            "5 in output",
+            "cannot compare number and string",
+            id="numeric-needle-in-json",
+        ),
+        pytest.param(
+            "True in output",
+            "cannot compare boolean and string",
+            id="boolean-needle-in-json",
+        ),
+        # Binding NULL into containment yields NULL, so this validated and
+        # silently matched nothing.
+        pytest.param(
+            "None in output",
+            "cannot compare null and string",
+            id="null-needle-in-json",
+        ),
+        # Ordered comparison casts the JSON side to a number, so this compiled
+        # to `numeric > boolean` -- an operator PostgreSQL does not have --
+        # after the condition validated.
+        pytest.param(
+            "input['x'] > True",
+            "cannot order a boolean",
+            id="ordered-boolean-json",
+        ),
+        pytest.param(
+            "True < input['x']",
+            "cannot order a boolean",
+            id="ordered-boolean-literal-left",
+        ),
+        # A whole JSON document has no scalar to compare or search; these used
+        # to fail inside compilation (`JSON.as_string() only works with a JSON
+        # index expression`) and be reported as `Invalid filter condition` with
+        # a stack trace logged at error level.
+        pytest.param(
+            "input is None",
+            "Select a key from `input` with [<key>]",
+            id="bare-input-operand",
+        ),
+        pytest.param(
+            "metadata is None",
+            "Select a key from `metadata` with [<key>]",
+            id="bare-metadata-operand",
+        ),
+        pytest.param(
+            "reference_output is None",
+            "Select a key from `reference_output` with [<key>]",
+            id="bare-reference-output-operand",
+        ),
+        pytest.param(
+            "input == output",
+            "Select a key from `input` with [<key>]",
+            id="two-bare-json-operands",
+        ),
+        pytest.param(
+            "'x' in input",
+            "Select a key from `input` with [<key>]",
+            id="containment-in-bare-json",
+        ),
+        pytest.param(
+            "-input > 0",
+            "Select a key from `input` with [<key>]",
+            id="unary-minus-on-bare-json",
+        ),
     ],
 )
 def test_compile_sqlalchemy_filter_condition_raises_appropriate_error_message(
@@ -471,6 +591,151 @@ def test_compile_sqlalchemy_filter_condition_raises_appropriate_error_message(
 
     error = exc_info.value
     assert str(error).startswith(expected_error_prefix)
+
+
+@pytest.mark.parametrize(
+    "filter_condition",
+    [
+        pytest.param("latency_ms ** 2 > 1", id="unsupported-binary-operator"),
+        pytest.param("error == b'abc'", id="bytes-literal"),
+        pytest.param("latency_ms == 1j", id="complex-literal"),
+        pytest.param("error == ...", id="ellipsis-literal"),
+        pytest.param("error == ('a','b')", id="tuple-comparand"),
+        pytest.param("error in [['a']]", id="nested-container"),
+        pytest.param("1 in [1, 2]", id="literal-membership"),
+        pytest.param("not (" * 400 + "latency_ms > 1" + ")" * 400, id="deeply-nested"),
+    ],
+)
+def test_compile_sqlalchemy_filter_condition_reports_every_failure_as_a_filter_error(
+    filter_condition: str,
+) -> None:
+    """No condition may fail with an exception type callers do not expect.
+
+    Validation happens during construction rather than as a pass over the tree,
+    so an expression can reach a branch no node anticipated and raise whatever
+    Python raises there -- `AssertionError` from `assert_never`, `TypeError`
+    from an operation applied to the wrong shape. Callers catch only
+    `ExperimentRunFilterConditionSyntaxError`, so anything else reaches the user
+    as a server error rather than an invalid-filter message.
+    """
+    with pytest.raises(ExperimentRunFilterConditionSyntaxError):
+        compile_sqlalchemy_filter_condition(
+            filter_condition=filter_condition,
+            experiment_ids=[0, 1, 2],
+        )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        pytest.param("error ==", "invalid syntax", id="trailing-operator"),
+        pytest.param("error == 'x", "unterminated string literal", id="unterminated-string"),
+        pytest.param("(error", "'(' was never closed", id="unclosed-paren"),
+    ],
+)
+def test_parser_errors_are_reported_against_the_condition(condition: str, expected: str) -> None:
+    """`str()` on a parser error appends `(<unknown>, line 1)` -- a file the
+    user never wrote in -- and these messages surface verbatim in the filter
+    field and through the GraphQL masker. They must describe the condition,
+    as the span DSL's `_format_syntax_error` already ensures on its side."""
+    with pytest.raises(ExperimentRunFilterConditionSyntaxError) as exc_info:
+        compile_sqlalchemy_filter_condition(filter_condition=condition, experiment_ids=[1])
+    message = str(exc_info.value)
+    assert message.startswith(expected)
+    assert "<unknown>" not in message
+
+
+def test_caller_errors_are_not_reported_as_filter_errors() -> None:
+    """An empty experiment list is a contract violation by the caller, not
+    something a user typed. Converting it to a filter error would tell the user
+    their condition is invalid to cover for our bug."""
+    with pytest.raises(ValueError) as exc_info:
+        compile_sqlalchemy_filter_condition(filter_condition="latency_ms > 1", experiment_ids=[])
+    assert not isinstance(exc_info.value, ExperimentRunFilterConditionSyntaxError)
+
+
+@pytest.mark.parametrize(
+    "filter_condition",
+    [
+        pytest.param("latency_ms in [1]", id="list"),
+        pytest.param("latency_ms in (1, 2)", id="tuple"),
+        pytest.param("error in ['a', 'b']", id="string-list"),
+    ],
+)
+def test_unsupported_membership_says_what_is_unsupported(filter_condition: str) -> None:
+    """There is no node type for a collection, so these used to reach
+    compilation and fail with `'Constant' object is not iterable`, which the
+    boundary then reported as `Invalid filter condition` -- telling the user a
+    reasonable filter was wrong rather than unimplemented."""
+    with pytest.raises(ExperimentRunFilterConditionSyntaxError, match="not supported"):
+        compile_sqlalchemy_filter_condition(filter_condition=filter_condition, experiment_ids=[0])
+
+
+def test_compile_sqlalchemy_filter_condition_does_not_leak_internal_messages(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unanticipated failure is reported as a filter error, not a fault.
+
+    `assert_never` reports that our code believed a branch unreachable, and a
+    raw `AttributeError` names an internal type; both describe the
+    implementation rather than the user's condition.
+
+    The failure is injected rather than triggered by some construct that
+    happens to be unhandled today. This boundary exists for gaps we do not know
+    about, so any input chosen to reach it stops reaching it the moment that gap
+    is closed -- which is how this test came to assert the old, worse message
+    for `b'abc'` after the surface validator started naming it.
+    """
+
+    def explode(*args: Any, **kwargs: Any) -> Any:
+        raise AttributeError("'Constant' object has no attribute 'compile'")
+
+    monkeypatch.setattr(SQLAlchemyTransformer, "visit", explode)
+    with pytest.raises(ExperimentRunFilterConditionSyntaxError) as exc_info:
+        compile_sqlalchemy_filter_condition(
+            filter_condition="error == 'boom'",
+            experiment_ids=[0],
+        )
+    assert str(exc_info.value) == "Invalid filter condition"
+
+
+@pytest.mark.parametrize(
+    "filter_condition",
+    [
+        pytest.param("evals['x'].score > 0.5", id="number-vs-float"),
+        pytest.param("evals['x'].score > 1", id="number-vs-int"),
+        pytest.param("latency_ms > 1000", id="latency-vs-number"),
+        pytest.param("evals['x'].label == 'good'", id="string-vs-string"),
+        pytest.param("error == 'boom'", id="error-vs-string"),
+        # NULL is comparable to anything
+        pytest.param("evals['x'].label is None", id="string-vs-null"),
+        pytest.param("evals['x'].score is None", id="number-vs-null"),
+        # a JSON attribute has no type until the rows are read, so the cast
+        # heuristics still apply and nothing is rejected up front
+        pytest.param("input['x'] == 'y'", id="unknown-vs-string"),
+        pytest.param("input['x'] > 5", id="unknown-vs-number"),
+        pytest.param("output['a'] == input['b']", id="unknown-vs-unknown"),
+        pytest.param("'a' in evals['x'].explanation", id="containment"),
+        # `output` is already keyed (`output['task_output']`), so unlike the
+        # bare dataset-example columns it has a scalar to compare and search
+        pytest.param("output is None", id="bare-output-is-null"),
+        pytest.param("'x' in output", id="containment-in-output"),
+        pytest.param("input['question'] in output", id="json-needle-in-output"),
+    ],
+)
+def test_compile_sqlalchemy_filter_condition_accepts_comparable_types(
+    filter_condition: str,
+) -> None:
+    """The type check must not narrow what was already valid.
+
+    Integers and floats are one family, NULL compares to anything, and an
+    operand whose type is unknown until the rows are read is left to the cast
+    heuristics rather than rejected.
+    """
+    compile_sqlalchemy_filter_condition(
+        filter_condition=filter_condition,
+        experiment_ids=[0, 1, 2],
+    )  # does not raise
 
 
 @pytest.mark.parametrize(
@@ -575,3 +840,201 @@ def test_free_attribute_name_binder_produces_correct_output(
     assert binder.binds_free_attribute_name == expected_binds_free_attribute_name
     transformed_expr = ast.unparse(transformed_tree)
     assert transformed_expr == expected_output_expression
+
+
+class TestInheritedPythonSurface:
+    """Constructs `ast.parse` admits that this language never implemented.
+
+    Each of these used to reach the transformer, fail with whatever Python
+    raised at the point of contact, and be reported as "Invalid filter
+    condition" with a stack trace logged at error level -- a typo presented as a
+    server fault. The message must name what the user typed.
+    """
+
+    @pytest.mark.parametrize(
+        "condition,expected",
+        [
+            pytest.param("error == b'abc'", "Unsupported literal: `b'abc'`", id="bytes"),
+            pytest.param("error == ...", "Unsupported literal: `...`", id="ellipsis"),
+            pytest.param("error == 1j", "Unsupported literal: `1j`", id="complex"),
+            pytest.param("error == 1e400", "Invalid numeric literal: `1e309`", id="non-finite"),
+            # Python ints are unbounded; neither backend has a faithful float
+            # for one past the IEEE range. The echoed digits are truncated by
+            # the boundary, so only a prefix of the message is pinned.
+            pytest.param(
+                "latency_ms == " + "9" * 320,
+                "Invalid numeric literal: `" + "9" * 100,
+                id="int-overflow",
+            ),
+            # No visitor implements Starred; the default-deny floor rejects it
+            # rather than letting it reach compilation. This is the allowlist
+            # working: the construct was never enumerated as dangerous.
+            pytest.param(
+                "error in [*error]",
+                "Unsupported construct: `*error`",
+                id="starred",
+            ),
+            # Python NFKC-normalizes identifiers while parsing, so a full-width
+            # spelling silently resolved to a real column the user never typed.
+            pytest.param(
+                "ｉｎｐｕｔ['x'] == 'yes'",
+                "`ｉｎｐｕｔ` is interpreted as `input`",
+                id="nfkc-identifier",
+            ),
+            pytest.param(
+                "experiments[0].ｌａｔｅｎｃｙ_ｍｓ > 5",
+                "`ｌａｔｅｎｃｙ_ｍｓ` is interpreted as `latency_ms`",
+                id="nfkc-attribute-segment",
+            ),
+            pytest.param(
+                "ｅｒｒｏｒ == 'error'",
+                "`ｅｒｒｏｒ` is interpreted as `error`",
+                id="nfkc-ascii-in-literal",
+            ),
+            pytest.param(
+                r"error == 'a\x00b'",
+                "String literals cannot contain a NUL character",
+                id="nul-in-literal",
+            ),
+            pytest.param(
+                "latency_ms ** 2 > 1",
+                "Arithmetic is not supported here: `latency_ms ** 2`",
+                id="power",
+            ),
+            pytest.param(
+                "latency_ms + 1 > 1",
+                "Arithmetic is not supported here: `latency_ms + 1`",
+                id="add",
+            ),
+            pytest.param(
+                "latency_ms | 2 > 1",
+                "Arithmetic is not supported here: `latency_ms | 2`",
+                id="bitwise-or",
+            ),
+            pytest.param("~latency_ms > 1", "Unsupported operator: `~latency_ms`", id="invert"),
+            pytest.param("+latency_ms > 1", "Unsupported operator: `+latency_ms`", id="unary-plus"),
+            pytest.param("{'a': 1} == error", "Unsupported collection: `{'a': 1}`", id="dict"),
+            pytest.param("{1, 2} == error", "Unsupported collection: `{1, 2}`", id="set"),
+            pytest.param("input[1:2] == 'a'", "Slicing is not supported", id="slice"),
+            pytest.param(
+                "input[f'x'] == 'a'", "Formatted strings are not supported", id="fstring-key"
+            ),
+            pytest.param("f'{error}' == 'a'", "Formatted strings are not supported", id="fstring"),
+            pytest.param("await error == 'a'", "Unsupported expression: `await error`", id="await"),
+            pytest.param(
+                "error == (error := 'x')",
+                "Assignment is not supported: `(error := 'x')`",
+                id="walrus",
+            ),
+            pytest.param(
+                "(lambda: 1)() == 1", "Function calls are not supported", id="called-lambda"
+            ),
+            pytest.param(
+                "[x for x in [1]][0] == 1", "Comprehensions are not supported", id="comprehension"
+            ),
+            pytest.param(
+                "(error if 1 else error) == 'a'",
+                "Unsupported expression",
+                id="conditional-expression",
+            ),
+            pytest.param(
+                "input[-1] == 'a'", "Subscript key must be a literal: `-1`", id="negative-index"
+            ),
+            # `bool` is an `int` subclass, so these used to be read as index 1.
+            pytest.param(
+                "input[True] == 'a'", "Index must be an integer or string", id="bool-index"
+            ),
+            pytest.param(
+                "experiments[True].error == 'a'",
+                "Index to experiments must be an integer",
+                id="bool-experiment-index",
+            ),
+            pytest.param(
+                "experiments[0].evals[1].score > 1",
+                "Eval must be indexed by string",
+                id="non-string-eval-name",
+            ),
+        ],
+    )
+    def test_rejected_with_a_message_naming_the_construct(
+        self, condition: str, expected: str
+    ) -> None:
+        with pytest.raises(ExperimentRunFilterConditionSyntaxError, match=re.escape(expected)):
+            compile_sqlalchemy_filter_condition(filter_condition=condition, experiment_ids=[1])
+
+    def test_nul_in_the_source_is_not_a_server_error(self) -> None:
+        # `ast.parse` reports this as a `ValueError`, which callers do not
+        # catch, so it escaped the boundary that turns input into filter errors.
+        with pytest.raises(
+            ExperimentRunFilterConditionSyntaxError, match="cannot contain a NUL character"
+        ):
+            compile_sqlalchemy_filter_condition(
+                filter_condition="error == 'a\x00b'", experiment_ids=[1]
+            )
+
+    def test_rejection_does_not_log_an_error(self, caplog: pytest.LogCaptureFixture) -> None:
+        # The catch-all logs with a traceback, which is right for a gap we do
+        # not know about and wrong for a construct we have decided to reject.
+        with caplog.at_level(logging.ERROR):
+            for condition in (
+                "error == b'abc'",
+                "latency_ms ** 2 > 1",
+                "~latency_ms > 1",
+                "input[1:2] == 'a'",
+                "input[f'x'] == 'a'",
+                "input[-1] == 'a'",
+                "await error == 'a'",
+                "(lambda: 1)() == 1",
+                "input is None",
+                "'x' in input",
+                "5 in latency_ms",
+                "ｉｎｐｕｔ['x'] == 'yes'",
+                "error == (error := 'x')",
+                "error in [*error]",
+            ):
+                with pytest.raises(ExperimentRunFilterConditionSyntaxError):
+                    compile_sqlalchemy_filter_condition(
+                        filter_condition=condition, experiment_ids=[1]
+                    )
+        assert not caplog.records
+
+    def test_supported_arithmetic_still_compiles(self) -> None:
+        compile_sqlalchemy_filter_condition(filter_condition="-latency_ms > 1", experiment_ids=[1])
+
+    def test_error_messages_bound_echoed_fragments(self) -> None:
+        # Messages reflect condition text into the UI, logs, and GraphQL
+        # responses; the boundary truncates the echo so a multi-kilobyte
+        # expression cannot ride along. Advice precedes the echo, so nothing
+        # actionable is lost.
+        with pytest.raises(ExperimentRunFilterConditionSyntaxError) as exc_info:
+            compile_sqlalchemy_filter_condition(
+                filter_condition="latency_ms == " + "9" * 2000, experiment_ids=[1]
+            )
+        assert len(str(exc_info.value)) <= 300
+        assert str(exc_info.value).startswith("Invalid numeric literal")
+        # Past CPython's 4300-digit conversion guard the parser rejects the
+        # literal itself, with advice naming `sys.set_int_max_str_digits()` --
+        # Python's remedy, not the condition's. Reworded at the boundary.
+        with pytest.raises(ExperimentRunFilterConditionSyntaxError, match="too many digits"):
+            compile_sqlalchemy_filter_condition(
+                filter_condition="latency_ms == " + "9" * 5000, experiment_ids=[1]
+            )
+
+    def test_unexpected_failure_logs_a_bounded_condition_echo(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # The catch-all logs the condition for diagnosis; log entries are as
+        # much a reflection surface as GraphQL responses, so the echo is
+        # bounded there too.
+        def explode(*args: Any, **kwargs: Any) -> Any:
+            raise AttributeError("boom")
+
+        monkeypatch.setattr(SQLAlchemyTransformer, "visit", explode)
+        long_condition = "error == '" + "y" * 5000 + "'"
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(ExperimentRunFilterConditionSyntaxError):
+                compile_sqlalchemy_filter_condition(
+                    filter_condition=long_condition, experiment_ids=[0]
+                )
+        assert caplog.records
+        assert all(len(record.getMessage()) < 500 for record in caplog.records)

@@ -142,13 +142,13 @@ if result.scalar_one_or_none() is None:
 def is_done(self) -> bool:
     if not self._active:
         return len(self._in_flight) == 0  # Just drain
-    
+
     return (
-        len(self._task_queue) == 0 and
-        len(self._eval_queue) == 0 and
-        len(self._retry_heap) == 0 and
-        len(self._in_flight) == 0 and
-        self._task_db_exhausted
+        len(self._task_queue) == 0
+        and len(self._eval_queue) == 0
+        and len(self._retry_heap) == 0
+        and len(self._in_flight) == 0
+        and self._task_db_exhausted
     )
 ```
 

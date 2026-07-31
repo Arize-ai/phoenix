@@ -14,6 +14,7 @@ from phoenix.db.insertion.types import Precursors
 from phoenix.server.cli.commands import serve
 from phoenix.server.cli.commands.serve import (
     _create_db_session_factory,
+    _join_url_path,
     _load_trace_fixture_initial_batches,
     _resolve_grpc_port,
 )
@@ -31,6 +32,19 @@ def test_resolve_grpc_port_uses_env_when_cli_flag_missing(monkeypatch: pytest.Mo
     monkeypatch.setenv("PHOENIX_GRPC_PORT", "4318")
 
     assert _resolve_grpc_port(Namespace(grpc_port=None)) == 4318
+
+
+@pytest.mark.parametrize(
+    "path, expected_url",
+    [
+        ("v1", "http://localhost:6006/phoenix/v1"),
+        ("graphql", "http://localhost:6006/phoenix/graphql"),
+        ("/mcp", "http://localhost:6006/phoenix/mcp"),
+        ("v1/traces", "http://localhost:6006/phoenix/v1/traces"),
+    ],
+)
+def test_join_url_path_preserves_deployment_root(path: str, expected_url: str) -> None:
+    assert _join_url_path("http://localhost:6006/phoenix", path) == expected_url
 
 
 async def _run_shutdown_callbacks(

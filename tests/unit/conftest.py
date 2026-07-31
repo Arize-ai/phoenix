@@ -49,6 +49,26 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "postgres_only: mark a test as requiring PostgreSQL (skipped under --db sqlite)",
     )
+    config.addinivalue_line(
+        "markers",
+        "real_monty_runtime_probe: run the real Monty runtime startup probe "
+        "(spawns a worker subprocess)",
+    )
+
+
+@pytest.fixture(autouse=True)
+def _stub_code_mode_startup_check(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The code-mode startup check spawns a worker subprocess, and MCP plus code
+    mode default on — so every app-lifespan test would pay that spawn inside
+    asgi_lifespan's 5s startup budget. Stubbed suite-wide; tests exercising the
+    check itself opt back in with ``@pytest.mark.real_monty_runtime_probe``."""
+    if request.node.get_closest_marker("real_monty_runtime_probe"):
+        return
+
+    async def _skip(self: Any) -> bool:
+        return True
+
+    monkeypatch.setattr("phoenix.server.monty_runtime.MontyRuntime.probe_runtime", _skip)
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
@@ -345,6 +365,8 @@ async def patch_grpc_server() -> AsyncIterator[None]:
 
 
 class TestBulkInserter(BulkInserter):
+    __test__ = False
+
     async def __aenter__(
         self,
     ) -> tuple[

@@ -37,7 +37,7 @@ RUN pnpm install
 RUN pnpm run build
 
 # The second stage builds the backend.
-FROM ghcr.io/astral-sh/uv:0.11.8-python3.13-trixie-slim AS backend-builder
+FROM ghcr.io/astral-sh/uv:0.11.12-python3.13-trixie-slim AS backend-builder
 WORKDIR /phoenix
 COPY ./src /phoenix/src
 COPY ./pyproject.toml /phoenix/
@@ -112,7 +112,19 @@ ENV PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
 # distroless image's default PATH already includes /usr/local/bin, but
 # we set it explicitly to keep DENO discovery insensitive to base-image
 # PATH drift on future bumps.
-ENV PATH="/usr/local/bin:/usr/bin:/bin"
+#
+# /phoenix/.venv/bin is appended so console scripts shipped by wheels are
+# discoverable — today the `monty` binary from pydantic-monty-runtime,
+# which the Monty sandbox and MCP code mode spawn as a worker process.
+# The ENTRYPOINT runs the *system* interpreter with the venv's
+# site-packages on PYTHONPATH rather than the venv's own interpreter, so
+# sysconfig.get_path("scripts") reports /usr/local/bin and never the
+# venv's bin; PATH is the only lookup left that can reach it (see
+# pydantic_monty._binary.find_monty_binary). Appended rather than
+# prepended because the venv's python/python3/python3.13 symlinks point
+# at the builder image's interpreter and dangle here — the system
+# interpreter must keep winning any name collision.
+ENV PATH="/usr/local/bin:/usr/bin:/bin:/phoenix/.venv/bin"
 ENV PYTHONPATH="/phoenix/.venv/lib/python3.13/site-packages:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
 # Expose the Phoenix port.

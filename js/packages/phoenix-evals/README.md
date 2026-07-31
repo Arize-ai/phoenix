@@ -31,6 +31,8 @@ This package provides a TypeScript evaluation library. It is vendor agnostic and
 npm install @arizeai/phoenix-evals
 ```
 
+This package is built on [AI SDK](https://ai-sdk.dev/) v7, which is ESM-only. Node.js 22.12 or newer is required (the CommonJS build relies on `require()` of ESM). Use AI SDK v7-compatible model provider packages (e.g. `@ai-sdk/openai` v4+).
+
 ## Usage
 
 ### Creating a Classifier

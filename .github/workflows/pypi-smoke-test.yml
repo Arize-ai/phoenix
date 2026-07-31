@@ -39,7 +39,7 @@ jobs:
             verify_latest: false
     env:
       PYTHON_VERSION: "3.12"
-      UV_VERSION: "0.11.8"
+      UV_VERSION: "0.11.12"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PHOENIX_HOST: "127.0.0.1"
       PHOENIX_PORT: "6606"

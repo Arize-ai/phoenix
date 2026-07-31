@@ -1,8 +1,24 @@
 import { css } from "@emotion/react";
 
+import { LinkButton } from "@phoenix/components";
 import { Button } from "@phoenix/components/core/button";
 
 import type { MessageRewindRequest } from "./ChatMessage";
+
+/**
+ * Matches error messages that stem from a model-provider API-key or
+ * authentication failure (missing key, invalid key, or auth rejected by the
+ * provider). Kept in sync with the server-side guidance emitted by
+ * ``build_stream_error_chunk`` and the credential errors raised by
+ * ``build_model``.
+ */
+const API_KEY_ERROR_PATTERN =
+  /api[\s_-]?key|unauthoriz|authenticat|invalid_api_key|permission[\s_-]?denied|credential/i;
+
+/** Return whether an error message looks like an API-key / auth failure. */
+export function isApiKeyError(message: string | null | undefined): boolean {
+  return message != null && API_KEY_ERROR_PATTERN.test(message);
+}
 
 const chatErrorMessageCSS = css`
   align-self: flex-start;
@@ -66,21 +82,31 @@ export function ChatErrorMessage({
 }) {
   const canRetry = onRetry != null;
   const canUndoOrFork = latestUserMessageId != null && onRewind != null;
+  const isCredentialError = isApiKeyError(error.message);
 
   return (
     <div css={chatErrorMessageCSS} role="alert">
       <div className="chat-error-message__title">
-        The assistant response failed.
+        {isCredentialError
+          ? "The model provider rejected your API key."
+          : "The assistant response failed."}
       </div>
       <p className="chat-error-message__copy">
-        You can retry the response, undo this turn, or branch before the error.
+        {isCredentialError
+          ? "The API key for the selected model is missing, invalid, or misconfigured. Add a valid key in AI provider settings, then retry."
+          : "You can retry the response, undo this turn, or branch before the error."}
       </p>
-      {canRetry || canUndoOrFork ? (
+      {canRetry || canUndoOrFork || isCredentialError ? (
         <div className="chat-error-message__actions">
+          {isCredentialError ? (
+            <LinkButton size="S" variant="primary" to="/settings/providers">
+              Open AI provider settings
+            </LinkButton>
+          ) : null}
           {canRetry ? (
             <Button
               size="S"
-              variant="primary"
+              variant={isCredentialError ? "default" : "primary"}
               onPress={() => onRetry(latestAssistantMessageId)}
             >
               Retry

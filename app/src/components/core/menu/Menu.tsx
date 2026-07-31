@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { KeyboardEvent, PropsWithChildren, ReactNode } from "react";
+import type { KeyboardEvent, PropsWithChildren, ReactNode, Ref } from "react";
 import type { PopoverProps } from "react-aria-components";
 import {
   Header,
@@ -9,6 +9,7 @@ import {
   type MenuProps as AriaMenuProps,
   MenuTrigger as AriaMenuTrigger,
 } from "react-aria-components";
+import type { AriaMenuOptions } from "react-aria/useMenu";
 
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -80,11 +81,26 @@ type MenuKeyboardProps = {
   onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
 };
 
+/**
+ * Options React Aria Components forwards to `useMenu` but leaves out of its own
+ * prop types. Sourced from `useMenu` so a rename or removal upstream is a build
+ * error here rather than a silent behavior change.
+ */
+type MenuAriaPassthroughProps = {
+  /**
+   * Whether pressing Escape clears the menu's selection. Set to "none" for a
+   * menu whose selection is a persisted setting rather than a transient
+   * filter, so Escape closes the menu instead of wiping the setting.
+   * @default "clearSelection"
+   */
+  escapeKeyBehavior?: AriaMenuOptions<never>["escapeKeyBehavior"];
+};
+
 export const Menu = <T extends object>({
   className,
   onKeyDown,
   ...props
-}: AriaMenuProps<T> & MenuKeyboardProps) => {
+}: AriaMenuProps<T> & MenuKeyboardProps & MenuAriaPassthroughProps) => {
   return (
     <AriaMenu
       className={classNames("react-aria-Menu", className)}
@@ -154,16 +170,20 @@ export const MenuItem = <T extends object>({
   className,
   trailingContent,
   leadingContent,
+  ref,
   ...props
 }: AriaMenuItemProps<T> & {
   trailingContent?: ReactNode;
   leadingContent?: ReactNode;
+  /** The rendered item element, e.g. to make the item a drag-and-drop sortable. */
+  ref?: Ref<HTMLDivElement>;
 }) => {
   const textValue =
     props.textValue ||
     (typeof props.children === "string" ? props.children : undefined);
   return (
     <AriaMenuItem
+      ref={ref}
       {...props}
       css={menuItemCss}
       className={classNames("react-aria-MenuItem", className)}

@@ -74,13 +74,19 @@ experiments over a fixed set of examples rather than creating duplicates.
 
 ### The Marker
 
-`@pytest.mark.phoenix` accepts three optional keyword arguments:
+`@pytest.mark.phoenix` accepts six optional keyword arguments:
 
 <Tabs>
 <Tab title="Python" icon="python">
 ```python
 @pytest.mark.phoenix(
     dataset="qa-suite",
+    dataset_description="Customer support regression cases",
+    experiment_description="GPT-4.1 with a lower temperature",
+    experiment_metadata={
+        "model": "gpt-4.1",
+        "parameters": {"temperature": 0.2},
+    },
     evaluators=[correctness],
     repetitions=3,
 )
@@ -95,6 +101,12 @@ def test_answers(question, expected): ...
   files that share a basename never collide. The full precedence is `PHOENIX_TEST_DATASET`
   (environment) > `phoenix_dataset` (`pytest.ini`) > this `dataset=` kwarg > the file-path
   default.
+- **`dataset_description`** sets the description stored on the Phoenix dataset.
+- **`experiment_description`** sets the description stored on the Phoenix experiment.
+- **`experiment_metadata`** stores a free-form mapping on the experiment. Use it to record the
+  model and invocation parameters that distinguish one run from another. The plugin adds the
+  current Git commit as `git_sha` when available; an explicit `git_sha` in this mapping takes
+  precedence.
 - **`evaluators`** is a list of evaluators that run automatically against every case.
   Each evaluator's score is recorded as an annotation alongside the `pass` annotation,
   and a failing evaluator never fails the test itself.
@@ -103,6 +115,9 @@ def test_answers(question, expected): ...
   (visible to `-k`, `pytest-xdist`, and your IDE) and recorded as a distinct run against
   the same example. A per-test value takes precedence over the `PHOENIX_TEST_REPETITIONS`
   environment variable.
+
+Tests that resolve to the same dataset must use matching non-empty descriptions and experiment
+metadata.
 
 ## Logging Outputs
 

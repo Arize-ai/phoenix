@@ -495,7 +495,7 @@ function getCurrentInstallPackageManager({
   });
 }
 
-function formatVersionStatus({
+export function formatVersionStatus({
   currentVersion,
   latestVersion,
 }: {

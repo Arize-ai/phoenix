@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import type { CSSProperties } from "react";
 
 import { Flex, Text } from "@phoenix/components";
+import { inlineDividerCSS } from "@phoenix/components/core/styles";
 import type { TextSize } from "@phoenix/components/core/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -28,15 +29,6 @@ const valuePartsCSS = css`
   display: inline-flex;
   align-items: center;
   gap: var(--global-dimension-size-100);
-`;
-
-// A thin separator between value pieces (e.g. a label and its score). Tinted
-// with the current text color so it inherits the optimization-direction color.
-const valueDividerCSS = css`
-  width: 1px;
-  height: 0.7em;
-  background-color: currentColor;
-  opacity: 0.2;
 `;
 
 /**
@@ -88,7 +80,7 @@ const getAnnotationValueParts = (
     case "score-and-label":
       return withFallback([labelPart, scorePart]);
     default:
-      assertUnreachable(displayPreference);
+      return assertUnreachable(displayPreference);
   }
 };
 
@@ -150,7 +142,7 @@ export function AnnotationNameAndValue({
             <span css={valuePartsCSS}>
               {valueParts.map((part, index) => (
                 <Fragment key={index}>
-                  {index > 0 && <span aria-hidden css={valueDividerCSS} />}
+                  {index > 0 && <span aria-hidden css={inlineDividerCSS} />}
                   <Text
                     fontFamily={part.fontFamily}
                     color="inherit"

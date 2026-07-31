@@ -170,6 +170,7 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
                       ? error.message
                       : "Invalid cron expression";
                   }
+                  return undefined;
                 },
               }}
               render={({ field, fieldState }) => (

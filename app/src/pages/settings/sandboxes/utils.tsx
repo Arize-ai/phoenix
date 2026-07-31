@@ -19,9 +19,7 @@ import type {
   SandboxProvider,
 } from "./types";
 
-type Language =
-  | SandboxProvider["supportedLanguages"][number]
-  | BackendInfo["supportedLanguages"][number];
+type Language = SandboxProvider["supportedLanguages"][number];
 
 export function StatusText({
   status,
@@ -84,7 +82,7 @@ export function hostingTypeLabel(hostingType: HostingType) {
     case "HOSTED":
       return "Hosted";
     default:
-      assertUnreachable(hostingType);
+      return assertUnreachable(hostingType);
   }
 }
 
@@ -139,7 +137,7 @@ export function statusLabel(status: BackendInfo["status"]) {
     case "DISABLED":
       return "Disabled";
     default:
-      assertUnreachable(status);
+      return assertUnreachable(status);
   }
 }
 
@@ -159,6 +157,25 @@ export function LanguageWithIcon({ language }: { language: Language }) {
       {language === "PYTHON" ? <PythonSVG /> : <TypeScriptSVG />}
       {languageLabel(language)}
     </span>
+  );
+}
+
+export function SandboxLanguageDialectBadge({
+  languageDialect,
+  runtimeNotes,
+}: Pick<BackendInfo, "languageDialect" | "runtimeNotes">) {
+  if (languageDialect !== "RESTRICTED") {
+    return null;
+  }
+  return (
+    <TooltipTrigger delay={100}>
+      <TriggerWrap>
+        <Badge variant="warning">Restricted Python</Badge>
+      </TriggerWrap>
+      <RichTooltip width={320}>
+        <Text>{runtimeNotes}</Text>
+      </RichTooltip>
+    </TooltipTrigger>
   );
 }
 
@@ -221,6 +238,8 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
       return "Local Deno TypeScript runtime";
     case "MODAL":
       return "Modal cloud Python sandbox";
+    case "MONTY":
+      return "Local restricted-Python runtime";
     case "TENKI":
       return "Tenki Cloud microVM Python sandbox";
     default:
@@ -349,6 +368,7 @@ const VARIANT_KEY_BY_BACKEND_TYPE: Record<BackendInfo["backendType"], string> =
     VERCEL: "vercel",
     WASM: "wasm",
     MODAL: "modal",
+    MONTY: "monty",
     TENKI: "tenki",
   };
 

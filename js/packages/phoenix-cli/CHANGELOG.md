@@ -1,5 +1,97 @@
 # @arizeai/phoenix-cli
 
+## 1.14.0
+
+### Minor Changes
+
+- df9db47: Suggest upgrading `px` when an unknown command is run and a newer version is published.
+
+## 1.13.1
+
+### Patch Changes
+
+- 1d9dd4e: Fix `px auth status` when a profile contains stale OAuth credentials but the Phoenix server now allows anonymous access
+
+## 1.13.0
+
+### Minor Changes
+
+- f816b5b: Default the `pxi` terminal client to Anthropic `claude-opus-5` instead of `claude-opus-4-8`. Override with `--model` as before.
+
+## 1.12.0
+
+### Minor Changes
+
+- 3f5ef25: Add a case-insensitive `--name-contains` filter to `px project list`.
+
+## 1.11.1
+
+### Patch Changes
+
+- e35712a: Re-release to recover from a failed publish (versions were already on npm)
+- Updated dependencies [e35712a]
+  - @arizeai/phoenix-client@7.1.1
+
+## 1.11.0
+
+### Minor Changes
+
+- df7057a: Add `--span-id` filter to `px span list`, allowing spans to be fetched by OpenTelemetry span ID (requires Phoenix server >= 19.6.0). Add `--until` to bound `px span list` and `px trace list` by an exclusive end timestamp, pairing with `--since` for time ranges.
+
+### Patch Changes
+
+- Updated dependencies [df7057a]
+  - @arizeai/phoenix-client@7.1.0
+
+## 1.10.5
+
+### Patch Changes
+
+- Updated dependencies [a6c3f88]
+  - @arizeai/phoenix-client@7.0.1
+
+## 1.10.4
+
+### Patch Changes
+
+- 4867e34: Update the `ai` dependency to v7 to match `@arizeai/phoenix-client`'s `ai@^7.0.0` peer requirement, so installing the CLI no longer produces an unresolvable peer conflict. The CLI only uses the AI SDK's UI-message transport APIs, which are unchanged in v7.
+- Updated dependencies [4867e34]
+  - @arizeai/phoenix-client@7.0.0
+
+## 1.10.3
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.2
+
+## 1.10.2
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.1
+
+## 1.10.1
+
+### Patch Changes
+
+- 1f3c4b6: `px auth login` now probes the server's `.well-known/oauth-authorization-server` discovery document before starting the browser flow, bailing out cleanly with a network error when the server is unreachable and an auth error when the server does not support OAuth login
+
+## 1.10.0
+
+### Minor Changes
+
+- 3abafcf: Add `px setup mcp` to register the Phoenix remote MCP server with a coding agent (Claude Code, Cursor, Codex, and others), with OAuth by default, `--header` for API-key auth, and local/global scopes
+
+## 1.9.1
+
+### Patch Changes
+
+- d6b1cbb: Add a reusable refreshable-credential fetch wrapper to the Phoenix TypeScript
+  client, use it for OAuth-authenticated CLI API and PXI requests, and keep each
+  profile bound to the endpoint that issued its OAuth tokens.
+- Updated dependencies [d6b1cbb]
+  - @arizeai/phoenix-client@6.14.0
+
 ## 1.9.0
 
 ### Minor Changes

@@ -1,8 +1,4 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import {
-  OpenInferenceBatchSpanProcessor,
-  OpenInferenceSimpleSpanProcessor,
-} from "@arizeai/openinference-vercel";
 import { warnIfUsingFileEndpointWithCredentials } from "@arizeai/phoenix-config";
 import type { DiagLogLevel } from "@opentelemetry/api";
 import {
@@ -29,6 +25,7 @@ import type { SpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 
 import { getEnvConfig, getEnvProjectName } from "./config";
+import { LazyOpenInferenceSpanProcessor } from "./lazyOpenInferenceSpanProcessor";
 
 /**
  * Type definition for HTTP headers used in OTLP communication
@@ -475,6 +472,7 @@ export function register(params: RegisterParams): NodeTracerProvider {
   if (diagLogLevel) {
     diag.setLogger(new DiagConsoleLogger(), diagLogLevel);
   }
+
   const provider = new NodeTracerProvider({
     resource: resourceFromAttributes({
       [SEMRESATTRS_PROJECT_NAME]: projectName,
@@ -632,12 +630,13 @@ export function getDefaultSpanProcessor({
     url,
     headers,
   });
-  let spanProcessor: SpanProcessor;
-  if (batch) {
-    spanProcessor = new OpenInferenceBatchSpanProcessor({ exporter });
-  } else {
-    spanProcessor = new OpenInferenceSimpleSpanProcessor({ exporter });
-  }
+  // The OpenInference span processors come from the ESM-only
+  // `@arizeai/openinference-vercel` package; the lazy processor loads them
+  // with a dynamic import so this module stays loadable from CommonJS.
+  const spanProcessor: SpanProcessor = new LazyOpenInferenceSpanProcessor({
+    exporter,
+    batch,
+  });
   return spanProcessor;
 }
 /**

@@ -22,7 +22,23 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.bearer_auth import PhoenixSystemUser, PhoenixUser
-from phoenix.server.types import ApiKeyAttributes, ApiKeyClaims, ApiKeyId, UserId
+from phoenix.server.types import AccessTokenClaims, ApiKeyAttributes, ApiKeyClaims, ApiKeyId, UserId
+
+
+def _reject_api_key_issuers(user: PhoenixUser) -> None:
+    """
+    Reject API-key-authenticated callers from credential issuance.
+
+    An API key is a delegated credential. Allowing it to issue a replacement would let a
+    compromised key preserve access after the original is revoked, so issuance must start
+    from a human session (or, for system keys, the admin-secret principal). The
+    admin-secret principal carries no token claims and is admitted here; each mutation
+    applies its own authority checks to that principal.
+    """
+    if isinstance(user, PhoenixSystemUser):
+        return
+    if not isinstance(user.claims, AccessTokenClaims):
+        raise Unauthorized("API keys cannot create API keys")
 
 
 @strawberry.type
@@ -71,6 +87,9 @@ class ApiKeyMutationMixin:
         self, info: Info[Context, None], input: CreateApiKeyInput
     ) -> CreateSystemApiKeyMutationPayload:
         assert (token_store := info.context.token_store) is not None
+        if not isinstance((user := info.context.user), PhoenixUser):
+            raise Unauthorized("User not found")
+        _reject_api_key_issuers(user)
         user_role: UserRoleName = "SYSTEM"
         async with info.context.db() as session:
             system_user_id = await get_system_user_id(session)
@@ -101,6 +120,7 @@ class ApiKeyMutationMixin:
         assert (token_store := info.context.token_store) is not None
         if not isinstance((user := info.context.user), PhoenixUser):
             raise Unauthorized("User not found")
+        _reject_api_key_issuers(user)
         user_id = int(user.identity)
         async with info.context.db() as session:
             user_role = await get_user_role(session, user_id)

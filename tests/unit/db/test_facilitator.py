@@ -11,10 +11,13 @@ from sqlalchemy.orm import joinedload
 from phoenix.db import models
 from phoenix.db.enums import ENUM_COLUMNS
 from phoenix.db.facilitator import (
+    PHOENIX_CLI_OAUTH2_CLIENT_ID,
+    PHOENIX_CLI_OAUTH2_REDIRECT_URIS,
     _ensure_admins,
     _ensure_default_project_trace_retention_policy,
     _ensure_enums,
     _ensure_model_costs,
+    _ensure_oauth2_clients,
 )
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
@@ -50,6 +53,54 @@ class TestEnsureEnums:
             async with db() as session:
                 actual = await session.scalars(select(column))
             assert sorted(actual) == sorted(column.type.enums)
+
+
+class TestEnsureOAuth2Clients:
+    async def test_seeds_cli_with_port_agnostic_callback(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        await _ensure_oauth2_clients(db)
+
+        async with db() as session:
+            client = await session.scalar(
+                select(models.OAuth2Client).where(
+                    models.OAuth2Client.client_id == PHOENIX_CLI_OAUTH2_CLIENT_ID
+                )
+            )
+
+        assert client is not None
+        assert client.redirect_uris == PHOENIX_CLI_OAUTH2_REDIRECT_URIS
+
+    async def test_reconciles_existing_cli_redirect_uris(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            session.add(
+                models.OAuth2Client(
+                    client_id=PHOENIX_CLI_OAUTH2_CLIENT_ID,
+                    name="Existing CLI",
+                    redirect_uris=[],
+                    grant_types=["authorization_code"],
+                    token_endpoint_auth_method="none",
+                    is_first_party=True,
+                )
+            )
+
+        await _ensure_oauth2_clients(db)
+
+        async with db() as session:
+            client = await session.scalar(
+                select(models.OAuth2Client).where(
+                    models.OAuth2Client.client_id == PHOENIX_CLI_OAUTH2_CLIENT_ID
+                )
+            )
+
+        assert client is not None
+        assert client.name == "Existing CLI"
+        assert client.grant_types == ["authorization_code"]
+        assert client.redirect_uris == PHOENIX_CLI_OAUTH2_REDIRECT_URIS
 
 
 class TestEnsureStartupAdmins:

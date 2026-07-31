@@ -132,20 +132,20 @@ AWS uses error **codes** rather than exception classes. Errors come as `botocore
 **Throttling Error Codes** (from `botocore/retries/standard.py`):
 ```python
 _THROTTLED_ERROR_CODES = [
-    'Throttling',
-    'ThrottlingException',
-    'ThrottledException',
-    'RequestThrottledException',
-    'TooManyRequestsException',
-    'ProvisionedThroughputExceededException',
-    'TransactionInProgressException',
-    'RequestLimitExceeded',
-    'BandwidthLimitExceeded',
-    'LimitExceededException',
-    'RequestThrottled',
-    'SlowDown',
-    'PriorRequestNotComplete',
-    'EC2ThrottledException',
+    "Throttling",
+    "ThrottlingException",
+    "ThrottledException",
+    "RequestThrottledException",
+    "TooManyRequestsException",
+    "ProvisionedThroughputExceededException",
+    "TransactionInProgressException",
+    "RequestLimitExceeded",
+    "BandwidthLimitExceeded",
+    "LimitExceededException",
+    "RequestThrottled",
+    "SlowDown",
+    "PriorRequestNotComplete",
+    "EC2ThrottledException",
 ]
 ```
 
@@ -163,9 +163,9 @@ _THROTTLED_ERROR_CODES = [
 **Transient Error Codes** (from `botocore/retries/standard.py`):
 ```python
 _TRANSIENT_ERROR_CODES = [
-    'RequestTimeout',
-    'RequestTimeoutException',
-    'PriorRequestNotComplete',
+    "RequestTimeout",
+    "RequestTimeoutException",
+    "PriorRequestNotComplete",
 ]
 
 _TRANSIENT_STATUS_CODES = [500, 502, 503, 504]
@@ -178,11 +178,11 @@ from botocore.exceptions import ClientError
 try:
     response = await bedrock_client.invoke_model(...)
 except ClientError as e:
-    error_code = e.response.get('Error', {}).get('Code', '')
-    if error_code in ['ThrottlingException', 'TooManyRequestsException']:
+    error_code = e.response.get("Error", {}).get("Code", "")
+    if error_code in ["ThrottlingException", "TooManyRequestsException"]:
         # Rate limited
         pass
-    elif error_code == 'ServiceQuotaExceededException':
+    elif error_code == "ServiceQuotaExceededException":
         # Quota exceeded - not retryable
         pass
 ```
@@ -282,24 +282,24 @@ def is_rate_limit_error(e: Exception) -> bool:
     """Detect rate limiting across all providers."""
     # Check exception class name
     error_name = type(e).__name__.lower()
-    if 'ratelimit' in error_name or 'throttl' in error_name:
+    if "ratelimit" in error_name or "throttl" in error_name:
         return True
-    
+
     # Check for Anthropic OverloadedError
-    if 'overloaded' in error_name:
+    if "overloaded" in error_name:
         return True
-    
+
     # Check HTTP status code
-    status_code = getattr(e, 'status_code', None)
+    status_code = getattr(e, "status_code", None)
     if status_code == 429:
         return True
-    
+
     # Check botocore ClientError
-    if hasattr(e, 'response'):
-        error_code = e.response.get('Error', {}).get('Code', '')
+    if hasattr(e, "response"):
+        error_code = e.response.get("Error", {}).get("Code", "")
         if error_code in BOTO_THROTTLE_CODES:
             return True
-    
+
     return False
 ```
 
@@ -309,22 +309,22 @@ def is_rate_limit_error(e: Exception) -> bool:
 def is_transient_error(e: Exception) -> bool:
     """Detect transient errors that should be retried."""
     # Timeouts are always transient
-    if 'timeout' in type(e).__name__.lower():
+    if "timeout" in type(e).__name__.lower():
         return True
-    
+
     # Connection errors are transient
-    if 'connection' in type(e).__name__.lower():
+    if "connection" in type(e).__name__.lower():
         return True
-    
+
     # 5xx errors are typically transient
-    status_code = getattr(e, 'status_code', None)
+    status_code = getattr(e, "status_code", None)
     if status_code and 500 <= status_code < 600:
         return True
-    
+
     # Anthropic 529 (Overloaded)
     if status_code == 529:
         return True
-    
+
     return False
 ```
 
@@ -333,26 +333,26 @@ def is_transient_error(e: Exception) -> bool:
 ```python
 def get_retry_after_seconds(e: Exception) -> float | None:
     """Extract retry-after duration from error response."""
-    response = getattr(e, 'response', None)
+    response = getattr(e, "response", None)
     if response is None:
         return None
-    
-    headers = getattr(response, 'headers', {})
-    
+
+    headers = getattr(response, "headers", {})
+
     # Try retry-after-ms first
-    if retry_ms := headers.get('retry-after-ms'):
+    if retry_ms := headers.get("retry-after-ms"):
         try:
             return float(retry_ms) / 1000
         except ValueError:
             pass
-    
+
     # Try retry-after
-    if retry_after := headers.get('retry-after'):
+    if retry_after := headers.get("retry-after"):
         try:
             return float(retry_after)
         except ValueError:
             pass
-    
+
     return None
 ```
 
@@ -364,7 +364,8 @@ When no `retry-after` header is provided:
 def calculate_backoff(attempt: int, base: float = 1.0, max_backoff: float = 60.0) -> float:
     """Calculate exponential backoff with jitter."""
     import random
-    delay = min(base * (2 ** attempt), max_backoff)
+
+    delay = min(base * (2**attempt), max_backoff)
     jitter = random.uniform(0, delay * 0.25)
     return delay + jitter
 ```

@@ -12,20 +12,23 @@ import {
 } from "@phoenix/components";
 import { MetricsChartSelector } from "@phoenix/components/chart";
 import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
-import { MAX_SELECTED_METRIC_CHARTS } from "@phoenix/pages/project/constants";
 import { PROJECT_METRIC_CHARTS } from "@phoenix/pages/project/metrics/chartCatalog";
 
 /**
  * A generic, store-agnostic chart picker. Given a catalog of chart options it
- * lets the user choose which charts appear in a view, capped at `maxSelected`.
- * Here it is wired to the project metric chart catalog, the same way the strip
- * above a project's spans/traces/sessions table uses it.
+ * lets the user choose which charts appear in a view, optionally capped at
+ * `maxSelected`. Here it is wired to the project metric chart catalog, the
+ * same way the strip above a project's spans/traces/sessions table uses it.
  *
  * The interaction to notice: toggling a chart does NOT make rows jump between
  * the "Selected" and "Available" sections. The partition is frozen when the
  * menu opens and only re-snapshots the next time it is opened — GitHub's label
  * picker behavior. Each row carries a small preview glyph of the chart's shape
  * (vertical bars, a ranked horizontal chart, or a line).
+ *
+ * Rows in the "Selected" section can be dragged by the handle that appears on
+ * hover to change the order the charts are displayed in. Charts turned on from
+ * "Available" are appended to the end of that order.
  */
 const meta: Meta<typeof MetricsChartSelector> = {
   title: "Chart/MetricsChartSelector",
@@ -41,8 +44,10 @@ type Story = StoryObj<typeof MetricsChartSelector>;
 
 function InteractiveSelector({
   initialKeys = [],
+  maxSelected,
 }: {
   initialKeys?: ProjectMetricChartKey[];
+  maxSelected?: number;
 }) {
   const [selectedKeys, setSelectedKeys] =
     useState<ProjectMetricChartKey[]>(initialKeys);
@@ -59,7 +64,7 @@ function InteractiveSelector({
           <MetricsChartSelector
             options={PROJECT_METRIC_CHARTS}
             selectedKeys={selectedKeys}
-            maxSelected={MAX_SELECTED_METRIC_CHARTS}
+            maxSelected={maxSelected}
             onSelectionChange={setSelectedKeys}
           />
         </MenuContainer>
@@ -74,7 +79,9 @@ function InteractiveSelector({
 /**
  * Opens with a couple of charts already selected. Note the frozen "Selected"
  * section — unchecking a selected chart keeps it in place rather than dropping
- * it to "Available".
+ * it to "Available". With more than one chart selected, the rows can be
+ * dragged by their handles to reorder them; the order is reported up as the
+ * drag previews it.
  */
 export const Default: Story = {
   render: () => <InteractiveSelector initialKeys={["traces", "latency"]} />,
@@ -90,11 +97,15 @@ export const Empty: Story = {
 };
 
 /**
- * Opens at the selection limit. The unselected charts are disabled until the
- * user removes one, so the strip never exceeds {@link MAX_SELECTED_METRIC_CHARTS}.
+ * With an explicit `maxSelected` cap, opening at the limit disables the
+ * unselected charts until the user removes one, so the view never exceeds
+ * the cap.
  */
 export const AtSelectionLimit: Story = {
   render: () => (
-    <InteractiveSelector initialKeys={["traffic", "traces", "latency"]} />
+    <InteractiveSelector
+      initialKeys={["traffic", "traces", "latency"]}
+      maxSelected={3}
+    />
   ),
 };

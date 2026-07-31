@@ -67,9 +67,13 @@ const EMPTY_STATE_GRAPHICS = {
     size: "large",
     icon: <Icon svg={<Icons.Experiment />} />,
   },
-  prompt: { size: "large", icon: <Icon svg={<Icons.Template />} /> },
+  prompt: { size: "large", icon: <Icon svg={<Icons.LLMOutput />} /> },
   project: { size: "large", icon: <Icon svg={<Icons.Folder />} /> },
   annotation: { size: "small", icon: <Icon svg={<Icons.ThumbsUp />} /> },
+  customAIProvider: {
+    size: "small",
+    icon: <Icon svg={<Icons.Sparkle />} />,
+  },
   // The flag glyph is the intended icon for events (added to Icons.tsx).
   event: {
     size: "small",

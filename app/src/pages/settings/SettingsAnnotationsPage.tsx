@@ -11,6 +11,7 @@ import {
   Button,
   Card,
   DialogTrigger,
+  DocumentationHelp,
   Icon,
   Icons,
   Modal,
@@ -164,10 +165,19 @@ const SettingsAnnotations = ({
   return (
     <Card
       title="Annotation Configs"
+      titleExtra={
+        <DocumentationHelp topic="annotationConfigs">
+          Define the labels, scores, and freeform fields people use to annotate
+          traces and spans.
+        </DocumentationHelp>
+      }
       extra={
         <DialogTrigger>
-          <Button size="S">
-            <Icon svg={<Icons.Plus />} />
+          <Button
+            size="S"
+            variant="primary"
+            leadingVisual={<Icon svg={<Icons.Plus />} />}
+          >
             New Configuration
           </Button>
           <ModalOverlay>

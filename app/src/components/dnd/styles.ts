@@ -1,5 +1,7 @@
 import { css } from "@emotion/react";
 
+import { revealOnHoverCSS } from "@phoenix/components/core/styles";
+
 /**
  * Shared drag feedback for dnd-kit sortables: shadow on the dragged copy,
  * tint on the drop slot. Compose into a sortable's CSS.
@@ -22,14 +24,15 @@ export const dndDragFeedbackCSS = css`
  * Appearance for a hover-revealed drag handle button: hidden until the
  * containing row/header is hovered (via a sibling `&:hover .{className}`
  * rule each consumer adds) or the handle itself is focused. Compose into a
- * handle's own layout CSS (size, position).
+ * handle's own layout CSS (size, position); for a plain list row prefer
+ * {@link dndRowHandleCSS}, which already applies this.
  */
 export const dndHandleAppearanceCSS = css`
+  ${revealOnHoverCSS}
   border: none;
   background: none;
   padding: 0;
   color: var(--global-dnd-handle-color);
-  opacity: 0;
   cursor: grab;
   touch-action: none;
   border-radius: var(--global-rounding-small);
@@ -43,7 +46,24 @@ export const dndHandleAppearanceCSS = css`
   }
   &:focus-visible {
     opacity: 1;
-    outline: 1px solid var(--global-color-primary);
-    outline-offset: -1px;
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
+`;
+
+/**
+ * A hover-revealed drag handle sized to sit at the end of a list row:
+ * {@link dndHandleAppearanceCSS} in a centered square box. Compose into the
+ * handle's own rule, and pair with a `&:hover .{className} { opacity: 1 }`
+ * rule on the row so hovering the row reveals it.
+ */
+export const dndRowHandleCSS = css`
+  ${dndHandleAppearanceCSS}
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--global-dimension-size-225);
+  height: var(--global-dimension-size-225);
+  font-size: var(--global-font-size-m);
 `;

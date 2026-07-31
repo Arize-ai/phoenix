@@ -1,6 +1,6 @@
-import debounce from "lodash/debounce";
-import { startTransition, useCallback, useMemo } from "react";
 import { Input } from "react-aria-components";
+
+import { useDebouncedChange } from "@phoenix/hooks/useDebouncedChange";
 
 import type { SearchFieldProps } from "./SearchField";
 import { SearchField, SearchIcon } from "./SearchField";
@@ -35,21 +35,10 @@ export function DebouncedSearch({
   placeholder,
   ...props
 }: DebouncedSearchProps) {
-  const debouncedOnChange = useMemo(
-    () =>
-      debounce((v: string) => {
-        startTransition(() => {
-          propsOnChange(v);
-        });
-      }, debounceMs),
-    [propsOnChange, debounceMs]
-  );
-  const onChange = useCallback(
-    (v: string) => {
-      debouncedOnChange(v);
-    },
-    [debouncedOnChange]
-  );
+  const onChange = useDebouncedChange({
+    onChange: propsOnChange,
+    debounceMs,
+  });
 
   return (
     <SearchField onChange={onChange} {...props}>

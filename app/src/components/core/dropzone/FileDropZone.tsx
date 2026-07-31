@@ -65,7 +65,7 @@ export function FileDropZone({
   // DOM element so Enter/Space opens the file dialog.
   useEffect(() => {
     const el = dropZoneRef.current;
-    if (!el || isDisabled) return;
+    if (!el || isDisabled) return undefined;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
