@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any
 
 from phoenix.server.api.helpers.message_helpers import (
     PlaygroundMessage,
+)
+from phoenix.server.api.helpers.message_media import (
     message_media,
     message_text,
 )

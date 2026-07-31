@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from phoenix.server.api.helpers.message_helpers import (
     PlaygroundMessage,
+)
+from phoenix.server.api.helpers.message_media import (
     message_media,
     message_text,
 )
@@ -180,7 +182,7 @@ def openai_chat_media_message(
     """
     from openai.types.chat import ChatCompletionUserMessageParam
 
-    from phoenix.server.api.helpers.message_helpers import reject_media
+    from phoenix.server.api.helpers.message_media import reject_media
     from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 
     if message["role"] is not ChatCompletionMessageRole.USER:

@@ -2,7 +2,7 @@
 
 import openinference.instrumentation as oi
 
-from phoenix.server.api.helpers.message_helpers import ContentBlock, MediaContentBlock
+from phoenix.server.api.helpers.message_media import ContentBlock, MediaContentBlock
 
 from ._support import media_file_name
 

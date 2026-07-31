@@ -130,6 +130,8 @@ from phoenix.server.api.helpers.message_helpers import (
     extract_and_convert_example_messages,
     formatted_messages,
     prompt_chat_template_to_playground_messages,
+)
+from phoenix.server.api.helpers.message_media import (
     resolve_message_media,
 )
 from phoenix.server.api.helpers.playground_clients import get_playground_client

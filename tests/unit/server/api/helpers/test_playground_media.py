@@ -28,9 +28,11 @@ from phoenix.server.api.helpers.media import MediaResolutionError
 from phoenix.server.api.helpers.message_helpers import (
     PlaygroundMessage,
     formatted_messages,
+    prompt_chat_template_to_playground_messages,
+)
+from phoenix.server.api.helpers.message_media import (
     message_media,
     message_text,
-    prompt_chat_template_to_playground_messages,
     reject_media,
     resolve_message_media,
 )

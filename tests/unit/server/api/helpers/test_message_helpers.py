@@ -17,8 +17,10 @@ from phoenix.server.api.helpers.message_helpers import (
     create_playground_message,
     extract_and_convert_example_messages,
     extract_value_from_path,
-    message_media,
     prompt_chat_template_to_playground_messages,
+)
+from phoenix.server.api.helpers.message_media import (
+    message_media,
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 

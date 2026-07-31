@@ -34,6 +34,8 @@ from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
     prompt_chat_template_to_playground_messages,
+)
+from phoenix.server.api.helpers.message_media import (
     resolve_message_media,
 )
 from phoenix.server.api.helpers.playground_clients import (

@@ -4,7 +4,7 @@ import base64
 from collections.abc import Sequence
 from typing import Any
 
-from phoenix.server.api.helpers.message_helpers import MediaContentBlock
+from phoenix.server.api.helpers.message_media import MediaContentBlock
 
 from ._allowlists import (
     ANTHROPIC_SUPPORTED_FILE_MEDIA_TYPES,

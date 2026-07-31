@@ -2,7 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, content_blocks
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage
+from phoenix.server.api.helpers.message_media import content_blocks
 
 from ._allowlists import GOOGLE_SUPPORTED_MEDIA_TYPES
 from ._support import require_resolved_media

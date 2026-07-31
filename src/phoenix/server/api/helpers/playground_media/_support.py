@@ -4,7 +4,7 @@ import base64
 from typing import Any
 
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.message_helpers import MediaContentBlock
+from phoenix.server.api.helpers.message_media import MediaContentBlock
 
 
 def require_resolved_media(

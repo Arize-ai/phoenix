@@ -87,6 +87,8 @@ from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import (
     PlaygroundMessage,
     PlaygroundToolCall,
+)
+from phoenix.server.api.helpers.message_media import (
     content_blocks,
     message_media,
     message_text,
