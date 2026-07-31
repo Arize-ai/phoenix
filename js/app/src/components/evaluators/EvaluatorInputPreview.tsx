@@ -123,10 +123,17 @@ const EvaluatorInputPreviewContent = () => {
     setEvaluatorInputObject(defaultValue);
   }, [defaultValue]);
 
+  if (evaluatorMappingSource.grain !== "dataset") {
+    return null;
+  }
+
   return (
     <EvaluatorMappingSourceEditor
-      value={evaluatorMappingSource}
-      onFieldChange={setEvaluatorMappingSourceField}
+      grain="dataset"
+      value={evaluatorMappingSource.source}
+      onFieldChange={(field, value) =>
+        setEvaluatorMappingSourceField({ grain: "dataset", field, value })
+      }
       editorKeyPrefix={`${datasetId}-${exampleId}`}
     />
   );

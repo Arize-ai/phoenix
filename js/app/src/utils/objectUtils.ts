@@ -129,7 +129,7 @@ export function extractPathsFromDatasetExamples(
     input: unknown;
     taskOutput?: unknown;
     metadata: unknown;
-    reference: unknown;
+    reference?: unknown;
   }>,
   templateVariablesPath: string | null | undefined,
   maxExamples = 10
@@ -146,9 +146,11 @@ export function extractPathsFromDatasetExamples(
     // - output is the task output field, this does not exist on a dataset example
     const templateContext: Record<string, unknown> = {
       input: example.input,
-      reference: example.reference,
       metadata: example.metadata,
       ...(example.taskOutput != null ? { output: example.taskOutput } : {}),
+      ...(Object.hasOwn(example, "reference")
+        ? { reference: example.reference }
+        : {}),
     };
 
     // Determine the target object based on templateVariablesPath
