@@ -1,3 +1,4 @@
+import logging
 import operator
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
@@ -58,8 +59,10 @@ from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.dsl import SpanFilter
+from phoenix.trace.dsl import SpanFilter, SpanFilterError
 from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_PAGE_SIZE = 30
 _TOKEN_COUNT_DETAIL_EPSILON = 1e-9
@@ -1092,26 +1095,32 @@ class Project(Node):
                 - is_valid (bool): True if the condition is valid, False otherwise
                 - error_message (Optional[str]): Error message if validation fails, None if valid
         """  # noqa: E501
-        # This query is too expensive to run on every validation
-        # valid_eval_names = await self.span_annotation_names()
+        # Annotation-name existence is deliberately not validated: an unknown
+        # name is valid and matches nothing (the schemaless contract, as with
+        # attribute paths), and a validation-time check would make validity
+        # depend on the live annotation table -- besides costing a query per
+        # keystroke. See the spec's Known Gaps.
         try:
-            span_filter = SpanFilter(
-                condition=condition,
-                # valid_eval_names=valid_eval_names,
-            )
+            span_filter = SpanFilter(condition=condition)
             stmt = span_filter(select(models.Span))
-            dialect = info.context.db.dialect
-            if dialect is SupportedSQLDialect.POSTGRESQL:
-                str(stmt.compile(dialect=sqlite.dialect()))
-            elif dialect is SupportedSQLDialect.SQLITE:
-                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
-            else:
-                assert_never(dialect)
+            str(stmt.compile(dialect=sqlite.dialect()))
+            str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
             return ValidationResult(is_valid=True, error_message=None)
-        except Exception as e:
+        except SpanFilterError as e:
+            # The DSL guarantees these messages are user-safe statements about
+            # the condition.
             return ValidationResult(
                 is_valid=False,
                 error_message=str(e),
+            )
+        except Exception:
+            # Anything else is our gap, not the user's condition, and its
+            # message can name SQLAlchemy internals. Log for diagnosis (the
+            # traceback, not the condition) and mask the response.
+            logger.exception("Unexpected error validating span filter condition")
+            return ValidationResult(
+                is_valid=False,
+                error_message="invalid filter condition",
             )
 
     @strawberry.field(

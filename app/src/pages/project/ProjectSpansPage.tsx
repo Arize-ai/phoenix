@@ -4,6 +4,9 @@ import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
 import { Loading } from "@phoenix/components";
+import { ErrorBoundary } from "@phoenix/components/exception";
+import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import { SpanFilterErrorFallback } from "@phoenix/pages/project/SpanFilterErrorFallback";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
@@ -18,6 +21,15 @@ import {
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
+
+// Module-level so the identity is stable: an inline component would remount the
+// field on every render.
+function SpansFilterErrorFallback({ error }: ErrorBoundaryFallbackProps) {
+  const { resolveSpansSeed } = useProjectPageQueryReferenceContext();
+  return (
+    <SpanFilterErrorFallback error={error} onResolved={resolveSpansSeed} />
+  );
+}
 
 function SpansTabContent({
   queryReference,
@@ -60,22 +72,25 @@ export const ProjectSpansPage = () => {
             spansFilterSeed?.condition ?? DEFAULT_SPAN_FILTER_CONDITION
           }
         >
-          <Suspense fallback={<Loading />}>
-            {hasSpansQuery ? (
-              <SpansTabContent
-                queryReference={spansQueryReference}
-                seed={spansFilterSeed}
-              />
-            ) : spansFilterSeed === null ? (
-              // Waiting on validation: the field has to be on screen, because
-              // it is what validates.
-              <PendingSpanFilter onResolved={resolveSpansSeed} />
-            ) : (
-              // Waiting only on the query. Showing the field here would mount
-              // the toolbar, tear it down, and rebuild it inside the table.
-              <Loading />
-            )}
-          </Suspense>
+          {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
+          <ErrorBoundary fallback={SpansFilterErrorFallback}>
+            <Suspense fallback={<Loading />}>
+              {hasSpansQuery ? (
+                <SpansTabContent
+                  queryReference={spansQueryReference}
+                  seed={spansFilterSeed}
+                />
+              ) : spansFilterSeed === null ? (
+                // Waiting on validation: the field has to be on screen, because
+                // it is what validates.
+                <PendingSpanFilter onResolved={resolveSpansSeed} />
+              ) : (
+                // Waiting only on the query. Showing the field here would mount
+                // the toolbar, tear it down, and rebuild it inside the table.
+                <Loading />
+              )}
+            </Suspense>
+          </ErrorBoundary>
         </SpanFiltersProvider>
         <Suspense>
           <Outlet />
