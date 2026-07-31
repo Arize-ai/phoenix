@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { useState } from "react";
 
 import {
   SpanNotesListContent,
@@ -16,6 +17,7 @@ const notes: SpanNote[] = [
     explanation:
       "The retriever returned onboarding docs for a billing question.",
     createdAt: "2026-07-23T16:00:00.000Z",
+    updatedAt: "2026-07-23T16:00:00.000Z",
     user: { username: "alice" },
   },
   {
@@ -23,12 +25,14 @@ const notes: SpanNote[] = [
     explanation:
       "The agent retried the same invalid tool argument twice before recovering.\nThe second retry produced the same validation error as the first.",
     createdAt: "2026-07-23T16:02:00.000Z",
+    updatedAt: "2026-07-24T18:30:00.000Z",
     user: null,
   },
   {
     id: "note-3",
     explanation: "The final answer correctly acknowledged the failed lookup.",
     createdAt: "2026-07-23T16:04:00.000Z",
+    updatedAt: "2026-07-23T16:04:00.000Z",
     user: { username: "reviewer@example.com" },
   },
 ];
@@ -44,18 +48,51 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function NotesFixture({ initialNotes }: { initialNotes: SpanNote[] }) {
+  const [currentNotes, setCurrentNotes] = useState(initialNotes);
+  return (
+    <SpanNotesListContent
+      notes={currentNotes}
+      onDeleteNote={async (noteId) => {
+        setCurrentNotes((existingNotes) =>
+          existingNotes.filter((note) => note.id !== noteId)
+        );
+        return { success: true };
+      }}
+      onUpdateNote={async ({ noteId, noteText }) => {
+        setCurrentNotes((existingNotes) =>
+          existingNotes.map((note) =>
+            note.id === noteId
+              ? {
+                  ...note,
+                  explanation: noteText,
+                  updatedAt: "2026-07-24T18:30:00.000Z",
+                }
+              : note
+          )
+        );
+        return { success: true };
+      }}
+    />
+  );
+}
+
 export const Permutations: Story = {
-  args: { notes },
+  args: {
+    notes,
+    onDeleteNote: async () => ({ success: true }),
+    onUpdateNote: async () => ({ success: true }),
+  },
   render: () => (
     <DetailPanelExamples>
       <DetailPanelExample title="Empty">
-        <SpanNotesListContent notes={[]} />
+        <NotesFixture initialNotes={[]} />
       </DetailPanelExample>
       <DetailPanelExample title="One note">
-        <SpanNotesListContent notes={[notes[0]]} />
+        <NotesFixture initialNotes={[notes[0]]} />
       </DetailPanelExample>
       <DetailPanelExample title="Stacked notes">
-        <SpanNotesListContent notes={notes} />
+        <NotesFixture initialNotes={notes} />
       </DetailPanelExample>
     </DetailPanelExamples>
   ),

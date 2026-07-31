@@ -7,6 +7,7 @@ import {
 } from "@phoenix/constants/timeConstants";
 
 import {
+  createFriendlyDateTimeFormatter,
   createFullTimeFormatter,
   createShortTimeFormatter,
   createTimeRangeFormatter,
@@ -17,6 +18,30 @@ import {
 describe("timeFormatUtils", () => {
   const LOCALE = "en-US";
   const TIMEZONE = "UTC";
+
+  describe("createFriendlyDateTimeFormatter", () => {
+    it("formats a readable date and time without seconds", () => {
+      const formatter = createFriendlyDateTimeFormatter({
+        locale: LOCALE,
+        timeZone: TIMEZONE,
+      });
+
+      expect(formatter(new Date("2023-09-04T15:30:45Z"))).toBe(
+        "Sep 4, 2023, 3:30 PM"
+      );
+    });
+
+    it("respects the selected timezone", () => {
+      const formatter = createFriendlyDateTimeFormatter({
+        locale: LOCALE,
+        timeZone: "America/New_York",
+      });
+
+      expect(formatter(new Date("2023-09-04T15:30:45Z"))).toBe(
+        "Sep 4, 2023, 11:30 AM"
+      );
+    });
+  });
 
   describe("createFullTimeFormatter", () => {
     it.each([

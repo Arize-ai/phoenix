@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import { usePreferencesContext } from "@phoenix/contexts";
 import {
+  createFriendlyDateTimeFormatter,
   createFullTimeFormatter,
   createShortDateTimeFormatter,
   createShortTimeFormatter,
@@ -20,6 +21,10 @@ export function useTimeFormatters() {
   return useMemo(() => {
     const timeZone = displayTimezone ?? getTimeZone();
     return {
+      friendlyDateTimeFormatter: createFriendlyDateTimeFormatter({
+        locale: getLocale(),
+        timeZone,
+      }),
       fullTimeFormatter: createFullTimeFormatter({
         locale: getLocale(),
         timeZone,

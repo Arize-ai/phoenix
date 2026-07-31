@@ -640,7 +640,11 @@ function SpanDetailsFixture({
                 Notes
               </Text>
             </View>
-            <SpanNotesListContent notes={[]} />
+            <SpanNotesListContent
+              notes={[]}
+              onDeleteNote={async () => ({ success: true })}
+              onUpdateNote={async () => ({ success: true })}
+            />
           </section>
         </div>
       </div>

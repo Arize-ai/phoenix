@@ -103,6 +103,25 @@ export function createShortDateTimeFormatter(
 }
 
 /**
+ * Creates a compact, human-readable date and time formatter.
+ * @param displayOptions - The display options to use for the formatter
+ * @returns A formatter using an abbreviated month and no seconds
+ */
+export function createFriendlyDateTimeFormatter(
+  displayOptions: TimeDisplayOptions
+): TimeFormatter {
+  const { locale, timeZone } = displayOptions;
+  return createTimeFormatter(locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  });
+}
+
+/**
  * Creates a time range formatter
  * @param displayOptions - The display options to use for the formatter
  * @returns A time range formatter

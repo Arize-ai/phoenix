@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9a4e784d94de6f4a3f5061db957fc843>>
+ * @generated SignedSource<<bbc40e410cce960b956b904718022b7a>>
  * @lightSyntaxTransform
  */
 
@@ -17,7 +17,9 @@ export type SpanNotesListQuery$data = {
       readonly createdAt: string;
       readonly explanation: string | null;
       readonly id: string;
+      readonly updatedAt: string;
       readonly user: {
+        readonly profilePictureUrl: string | null;
         readonly username: string;
       } | null;
     }>;
@@ -68,7 +70,21 @@ v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "username",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "profilePictureUrl",
   "storageKey": null
 };
 return {
@@ -100,6 +116,7 @@ return {
                   (v2/*:: as any*/),
                   (v3/*:: as any*/),
                   (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -108,7 +125,8 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v5/*:: as any*/)
+                      (v6/*:: as any*/),
+                      (v7/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -161,6 +179,7 @@ return {
                   (v2/*:: as any*/),
                   (v3/*:: as any*/),
                   (v4/*:: as any*/),
+                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -169,7 +188,8 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v5/*:: as any*/),
+                      (v6/*:: as any*/),
+                      (v7/*:: as any*/),
                       (v2/*:: as any*/)
                     ],
                     "storageKey": null
@@ -188,16 +208,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6abd9d3953853cfa0d83b2721008ace5",
+    "cacheID": "a36ef242165117e120cbfc4f410c4124",
     "id": null,
     "metadata": {},
     "name": "SpanNotesListQuery",
     "operationKind": "query",
-    "text": "query SpanNotesListQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      spanNotes {\n        id\n        explanation\n        createdAt\n        user {\n          username\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanNotesListQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      spanNotes {\n        id\n        explanation\n        createdAt\n        updatedAt\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0e5e40af007ff1cd7b053148537c59fe";
+(node as any).hash = "076c623580f8f282d1c55699b4baf24d";
 
 export default node;

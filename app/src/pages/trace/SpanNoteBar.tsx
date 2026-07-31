@@ -157,9 +157,11 @@ function SpanNoteBarContent({
                   id
                   explanation
                   createdAt
+                  updatedAt
                   user {
                     id
                     username
+                    profilePictureUrl
                   }
                 }
               }
