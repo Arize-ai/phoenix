@@ -180,7 +180,9 @@ export const EditCodeEvaluatorDialogContent = ({
       description: state.evaluator.description,
       outputConfigs: JSON.stringify(state.outputConfigs),
       inputMapping: JSON.stringify(state.evaluator.inputMapping),
-      evaluatorMappingSource: JSON.stringify(state.evaluatorMappingSource),
+      evaluatorMappingSource: JSON.stringify(
+        state.evaluatorMappingSource.source
+      ),
     };
   }, [store]);
 
@@ -207,7 +209,7 @@ export const EditCodeEvaluatorDialogContent = ({
     const inputMappingChanged =
       JSON.stringify(state.evaluator.inputMapping) !== initial.inputMapping;
     const evaluatorMappingSourceChanged =
-      JSON.stringify(state.evaluatorMappingSource) !==
+      JSON.stringify(state.evaluatorMappingSource.source) !==
       initial.evaluatorMappingSource;
 
     const isDirty =
@@ -292,7 +294,7 @@ export const EditCodeEvaluatorDialogContent = ({
         sourceCode: local.sourceCode,
         sandboxConfigId: local.sandboxConfigId,
         inputMapping: state.evaluator.inputMapping,
-        testPayload: state.evaluatorMappingSource,
+        testPayload: state.evaluatorMappingSource.source,
         outputConfigs: toOutputConfigDrafts(state.outputConfigs),
       };
     };
@@ -503,7 +505,14 @@ export const EditCodeEvaluatorDialogContent = ({
           {mode === "create" ? "Create Code Evaluator" : "Edit Code Evaluator"}
         </DialogTitle>
         <DialogTitleExtra>
-          <DialogCloseButton />
+          {onCancel ? (
+            <DialogCloseButton
+              isDisabled={isSubmitting}
+              onPress={handleCancel}
+            />
+          ) : (
+            <DialogCloseButton isDisabled={isSubmitting} />
+          )}
         </DialogTitleExtra>
       </DialogHeader>
 
@@ -580,12 +589,12 @@ export const EditCodeEvaluatorDialogContent = ({
                   isLanguageEditable={mode === "create"}
                   isSandboxRequired={mode === "create"}
                 />
-                <CodeEditor
+                <CodeEvaluatorSourceEditor
                   language={language}
                   sourceCode={sourceCode}
                   onChange={setSourceCode}
                 />
-                <EvaluatorAnnotationSection />
+                <CodeEvaluatorAnnotationSection />
                 <InputMappingSection />
               </div>
             </Panel>
@@ -821,7 +830,7 @@ function getSandboxDependenciesConfigLabel(config: SandboxConfigForLabels) {
  * Editable source-code editor with a read-only auto-generated type footer.
  * Ships its own description line and Reset-to-default button.
  */
-const CodeEditor = ({
+export const CodeEvaluatorSourceEditor = ({
   language,
   sourceCode,
   onChange,
@@ -837,7 +846,7 @@ const CodeEditor = ({
 
   // Get the evaluator mapping source from the store for type generation
   const evaluatorMappingSource = useEvaluatorStore(
-    (state) => state.evaluatorMappingSource
+    (state) => state.evaluatorMappingSource.source
   );
 
   // Generate the type footer based on language and available data
@@ -1007,7 +1016,11 @@ const CodeEditor = ({
 /**
  * Heading + bordered card for the evaluator's output annotation config.
  */
-const EvaluatorAnnotationSection = () => {
+export const CodeEvaluatorAnnotationSection = ({
+  onChange,
+}: {
+  onChange?: () => void;
+} = {}) => {
   return (
     <View flex="none">
       <Flex direction="column" gap="size-100">
@@ -1026,7 +1039,7 @@ const EvaluatorAnnotationSection = () => {
           marginTop="size-50"
           borderColor="default"
         >
-          <OutputConfigSection />
+          <OutputConfigSection onChange={onChange} />
         </View>
       </Flex>
     </View>
@@ -1061,7 +1074,7 @@ const InputMappingSection = () => {
   );
 };
 
-const OutputConfigSection = () => {
+const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
   const store = useEvaluatorStoreInstance();
   const outputConfig = useEvaluatorStore((state) => state.outputConfigs[0]);
   const setOutputConfigThresholdAtIndex = useEvaluatorStore(
@@ -1094,7 +1107,10 @@ const OutputConfigSection = () => {
             <Label>Name</Label>
             <Input />
           </TextField>
-          <OptimizationDirectionField description="Whether higher or lower scores are better." />
+          <OptimizationDirectionField
+            description="Whether higher or lower scores are better."
+            onChange={onChange}
+          />
         </Flex>
         <Flex direction="column" gap="size-100">
           <OutputConfigValuesHeader />
@@ -1134,15 +1150,19 @@ const OutputConfigSection = () => {
           <Label>Name</Label>
           <Input />
         </TextField>
-        <OptimizationDirectionField description="Whether higher or lower scores are better." />
+        <OptimizationDirectionField
+          description="Whether higher or lower scores are better."
+          onChange={onChange}
+        />
         <NumberField
           value={threshold ?? undefined}
-          onChange={(value) =>
+          onChange={(value) => {
+            onChange?.();
             setOutputConfigThresholdAtIndex(
               0,
               Number.isNaN(value) ? null : value
-            )
-          }
+            );
+          }}
           isDisabled={isThresholdDisabled}
         >
           <Label>Score threshold (optional)</Label>
@@ -1153,12 +1173,13 @@ const OutputConfigSection = () => {
       <Flex direction="row" gap="size-200" alignItems="start">
         <NumberField
           value={lowerBound ?? undefined}
-          onChange={(value) =>
+          onChange={(value) => {
+            onChange?.();
             setOutputConfigLowerBoundAtIndex(
               0,
               Number.isNaN(value) ? null : value
-            )
-          }
+            );
+          }}
         >
           <Label>Minimum score (optional)</Label>
           <Input />
@@ -1168,12 +1189,13 @@ const OutputConfigSection = () => {
         </NumberField>
         <NumberField
           value={upperBound ?? undefined}
-          onChange={(value) =>
+          onChange={(value) => {
+            onChange?.();
             setOutputConfigUpperBoundAtIndex(
               0,
               Number.isNaN(value) ? null : value
-            )
-          }
+            );
+          }}
         >
           <Label>Maximum score (optional)</Label>
           <Input />
