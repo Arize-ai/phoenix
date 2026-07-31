@@ -113,7 +113,7 @@ describe("search destinations", () => {
       {
         path: "/profile/preferences",
         label: "Preferences",
-        description: "Theme, timezone, and code defaults",
+        description: "Theme, timezone, code defaults, and AI search",
         icon: "Options",
         requiresViewer: false,
       },
