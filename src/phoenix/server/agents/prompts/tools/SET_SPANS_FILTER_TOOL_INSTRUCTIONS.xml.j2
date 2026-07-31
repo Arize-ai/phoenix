@@ -21,7 +21,7 @@
     - Datetime fields: `start_time`, `end_time`. Resolve relative phrases like "last week" or "past 5 days" against the value returned by the `get_current_datetime` tool — call it first. Never guess the current date from prior knowledge.
     - Attribute access: `attributes['key.path']`, `input.value`, `output.value`, `metadata['key']`.
     - Annotations: `annotations['Name'].label`, `annotations['Name'].score`.
-    - Substring search: `'needle' in input.value` (works on any string field).
+    - Substring search: `'needle' in input.value` (any string field, ignores case).
     - Combine clauses with `and`, `or`, `not`.
   </dsl_reference>
   <value_conventions>

@@ -304,11 +304,19 @@ three-valued logic `name not in ['a', None]` is never true for *any* row, which
 silently empties the result set. Missing values are tested with `is None` /
 `is not None`.
 
-Substring containment is **case-sensitive** on both backends (`strpos` on
-PostgreSQL, `text_contains` on SQLite), with one exception: a literal needle
-searched against a case-folded enum field is uppercased first, so
-`'llm' in span_kind` matches where `'llm' in name` would not — see
-[Field names](#field-names).
+Substring containment is **case-insensitive** on both backends (both operands
+are lower-cased before a `LIKE`-style containment test). This matches the
+session filter grain, so the same-looking query answers the same way in the
+spans and sessions views; the cross-grain reasoning is recorded in
+`session-filter-dsl.md` under *Case*. Equality (`==` / `!=`) and membership in
+a literal list stay exact. Case-folded enum fields need no needle handling
+under this rule — `'llm' in span_kind` and `'LLM' in span_kind` already match
+the same rows — while enum *equality* still uppercases its literal, so
+`span_kind == 'llm'` keeps matching (see [Field names](#field-names)).
+
+> Compatibility note: containment was case-sensitive (`strpos` /
+> `text_contains`) until the session filter DSL shipped; the flip is additive —
+> a saved filter can match more rows than before, never fewer.
 
 ### Casts
 

@@ -84,10 +84,10 @@ def test_session_filter_translated(condition: str, expected: str) -> None:
     assert unparse(SessionFilter(condition).translated).strip() == expected
 
 
-def test_span_filter_containment_stays_case_sensitive() -> None:
-    """The containment polarity is per-grain: only the session grain ignores case."""
+def test_span_filter_containment_ignores_case_too() -> None:
+    """The containment polarity is one family-wide flavor, not a per-grain choice."""
     assert unparse(SpanFilter("'refund' in input.value").translated).strip() == (
-        "TextContains(attributes[['input', 'value']].as_string(), 'refund')"
+        "CaseInsensitiveContains(attributes[['input', 'value']].as_string(), 'refund')"
     )
 
 

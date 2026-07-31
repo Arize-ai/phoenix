@@ -212,8 +212,8 @@ class _FilterBindings:
     # The iterable that reads this grain's annotations element-wise, named when an
     # `annotations[...]` expression is rejected for being out of scope.
     annotation_iterable: typing.Optional[str] = None
-    # Whether `in` against a string haystack ignores case. Per-grain, not global: the session
-    # grain matches the text search it replaced, while the span grain keeps `in` exact.
+    # Whether `in` against a string haystack ignores case. Every grain shipped so far sets it,
+    # so the family answers text search the same way; `==` stays exact everywhere.
     case_insensitive_containment: bool = False
     # Whether the grain resolves every expression to a type before SQL is built, so a form the
     # translator would lower into something other than what Python spells is rejected outright
@@ -285,6 +285,7 @@ SPAN_BINDINGS = _FilterBindings(
     quantifiers=frozenset(),
     exists_names=frozenset(),
     supports_parent_keyword=True,
+    case_insensitive_containment=True,
 )
 
 
