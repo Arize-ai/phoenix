@@ -41,8 +41,12 @@ const useEvaluatorDescriptionInputForm = () => {
 
 export const EvaluatorDescriptionInput = ({
   placeholder = "e.g. rate the response on correctness",
+  onValueChange,
   ...props
-}: Partial<TextFieldProps> & { placeholder?: string }) => {
+}: Partial<TextFieldProps> & {
+  placeholder?: string;
+  onValueChange?: () => void;
+}) => {
   const form = useEvaluatorDescriptionInputForm();
   const { control } = form;
   return (
@@ -50,7 +54,16 @@ export const EvaluatorDescriptionInput = ({
       name="description"
       control={control}
       render={({ field, fieldState: { error } }) => (
-        <TextField {...field} autoComplete="off" isInvalid={!!error} {...props}>
+        <TextField
+          {...field}
+          onChange={(value) => {
+            onValueChange?.();
+            field.onChange(value);
+          }}
+          autoComplete="off"
+          isInvalid={!!error}
+          {...props}
+        >
           <Label>Description (optional)</Label>
           <Input placeholder={placeholder} />
           <FieldError>{error?.message}</FieldError>

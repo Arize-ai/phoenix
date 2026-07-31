@@ -338,6 +338,15 @@ describe("extractPathsFromObject", () => {
 });
 
 describe("extractPathsFromDatasetExamples", () => {
+  it("omits reference paths when the example has no reference", () => {
+    const result = extractPathsFromDatasetExamples(
+      [{ input: { query: "hello" }, metadata: {}, taskOutput: {} }],
+      null
+    );
+
+    expect(result).not.toContain("reference");
+  });
+
   it("extracts paths from dataset examples with input/reference/metadata context when no path specified", () => {
     const examples = [
       {
