@@ -1,8 +1,22 @@
 import { css } from "@emotion/react";
-import type { CSSProperties, FocusEvent, Ref } from "react";
-import { useId, useRef, useState } from "react";
+import type { CSSProperties, Ref } from "react";
+import { useState } from "react";
 
-import { Button, Group, Icon, Icons } from "@phoenix/components";
+import {
+  Button,
+  Group,
+  Icon,
+  Icons,
+  Menu,
+  MenuContainer,
+  MenuHeader,
+  MenuHeaderTitle,
+  MenuItem,
+  MenuTrigger,
+  Text,
+} from "@phoenix/components";
+import { formatAnnotationScore } from "@phoenix/components/annotation/annotationFormatUtils";
+import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { useSpanFilters } from "./SpanFiltersContext";
@@ -13,8 +27,12 @@ type AnnotationTooltipFilterActionsProps = {
   annotation: {
     name: string;
     label?: string | null;
+    optimizationValue?: number | null;
     score?: number | null;
   };
+  isOpen?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
+  targetKind?: "session" | "span" | "trace";
 };
 
 type FilterDefinition = {
@@ -27,6 +45,7 @@ type FilterDefinition = {
    */
   filterCondition: string;
   icon: "equal" | "greater-than" | "less-than" | "not-equal";
+  menuLabel: string;
 };
 
 const compactButtonStyle: CSSProperties = {
@@ -63,46 +82,44 @@ const joinedFilterButtonCSS = css`
 
 const collapsibleFilterActionsCSS = css`
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  justify-content: flex-end;
   flex: none;
   width: var(--global-button-height-s);
   height: var(--global-button-height-s);
   overflow: visible;
 
   .annotation-filter-actions__trigger {
-    width: 100%;
-    opacity: 1;
-  }
-
-  .annotation-filter-actions__options {
     position: absolute;
     top: 0;
     right: 0;
-    display: flex;
-    align-items: center;
-    width: max-content;
-    gap: 0;
-    visibility: hidden;
-    pointer-events: none;
+    width: var(--global-button-height-s);
+    white-space: nowrap;
   }
 
-  &[data-expanded="true"] {
+  .annotation-filter-actions__trigger-label {
+    display: none;
+  }
+
+  &:hover,
+  &:focus-within,
+  &[data-open="true"] {
     .annotation-filter-actions__trigger {
-      opacity: 0;
-      pointer-events: none;
+      width: auto;
     }
 
-    .annotation-filter-actions__options {
-      visibility: visible;
-      pointer-events: auto;
+    .annotation-filter-actions__trigger-label {
+      display: inline;
     }
   }
+`;
 
-  &:has(.annotation-filter-actions__trigger[data-focus-visible]) {
-    border-radius: var(--global-rounding-small);
-    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-    outline-offset: var(--focus-ring-offset);
-  }
+const truncatedAnnotationValueCSS = css`
+  display: inline-block;
+  max-width: var(--global-dimension-size-3000);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 export function getAnnotationFilterDefinitions({
@@ -116,16 +133,19 @@ export function getAnnotationFilterDefinitions({
         filterName: "greater than",
         filterCondition: `annotations['${name}'].score > ${score}`,
         icon: "greater-than",
+        menuLabel: "Higher than",
       },
       {
         filterName: "less than",
         filterCondition: `annotations['${name}'].score < ${score}`,
         icon: "less-than",
+        menuLabel: "Lower than",
       },
       {
         filterName: "equals",
         filterCondition: `annotations['${name}'].score == ${score}`,
         icon: "equal",
+        menuLabel: "Exactly",
       },
     ];
   }
@@ -135,15 +155,35 @@ export function getAnnotationFilterDefinitions({
         filterName: "matches",
         filterCondition: `annotations['${name}'].label == "${label}"`,
         icon: "equal",
+        menuLabel: "Exactly",
       },
       {
         filterName: "does not match",
         filterCondition: `annotations['${name}'].label != "${label}"`,
         icon: "not-equal",
+        menuLabel: "Not",
       },
     ];
   }
   return [];
+}
+
+function getAnnotationFilterMenuDefinitions(
+  annotation: AnnotationTooltipFilterActionsProps["annotation"]
+): FilterDefinition[] {
+  const filters = getAnnotationFilterDefinitions(annotation);
+  if (typeof annotation.score !== "number") {
+    return filters;
+  }
+  return [
+    ...filters,
+    {
+      filterName: "does not equal",
+      filterCondition: `annotations['${annotation.name}'].score != ${annotation.score}`,
+      icon: "not-equal",
+      menuLabel: "Not",
+    },
+  ];
 }
 
 function AnnotationFilterIcon({ icon }: Pick<FilterDefinition, "icon">) {
@@ -190,63 +230,104 @@ function AnnotationFilterButtons({
 }
 
 function CollapsibleAnnotationFilterActions({
+  annotation,
   className,
+  isOpen: controlledIsOpen,
   filters,
   onFilter,
+  onOpenChange,
+  targetKind,
 }: {
+  annotation: AnnotationTooltipFilterActionsProps["annotation"];
   className?: string;
+  isOpen?: boolean;
   filters: readonly FilterDefinition[];
   onFilter: (filterCondition: string) => void;
+  onOpenChange?: (isOpen: boolean) => void;
+  targetKind?: AnnotationTooltipFilterActionsProps["targetKind"];
 }) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [hasFocusWithin, setHasFocusWithin] = useState(false);
-  const firstFilterButtonRef = useRef<HTMLButtonElement>(null);
-  const filterOptionsId = useId();
-  const isExpanded = isHovered || hasFocusWithin;
-  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
-    if (
-      !(event.relatedTarget instanceof Node) ||
-      !event.currentTarget.contains(event.relatedTarget)
-    ) {
-      setHasFocusWithin(false);
+  const [uncontrolledIsOpen, setUncontrolledIsOpen] = useState(false);
+  const isOpen = controlledIsOpen ?? uncontrolledIsOpen;
+  const handleOpenChange = (nextIsOpen: boolean) => {
+    onOpenChange?.(nextIsOpen);
+    if (controlledIsOpen === undefined) {
+      setUncontrolledIsOpen(nextIsOpen);
     }
   };
+  const targetLabel = targetKind ? `${targetKind}s` : "annotations";
+  const formattedScore =
+    typeof annotation.score === "number"
+      ? formatAnnotationScore(annotation.score)
+      : null;
 
   return (
     <div
-      role="group"
-      aria-label="Filter annotation value"
       className={classNames("annotation-filter-actions", className)}
       css={collapsibleFilterActionsCSS}
-      data-expanded={isExpanded}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onFocusCapture={() => setHasFocusWithin(true)}
-      onBlurCapture={handleBlur}
+      data-open={isOpen}
     >
-      <Button
-        className="annotation-filter-actions__trigger"
-        size="S"
-        variant="quiet"
-        aria-label="Show annotation filters"
-        aria-controls={filterOptionsId}
-        aria-expanded={isExpanded}
-        leadingVisual={<Icon svg={<Icons.ListFilter />} />}
-        onPress={() => firstFilterButtonRef.current?.focus()}
-      />
-      <div
-        id={filterOptionsId}
-        className="annotation-filter-actions__options"
-        aria-hidden={!isExpanded}
-      >
-        <AnnotationFilterButtons
-          filters={filters}
-          firstButtonRef={firstFilterButtonRef}
-          isCompact={false}
-          isDisabled={!isExpanded}
-          onFilter={onFilter}
-        />
-      </div>
+      <MenuTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
+        <Button
+          className="annotation-filter-actions__trigger"
+          size="S"
+          variant="quiet"
+          aria-label={`Filter ${targetLabel} by annotation value`}
+          leadingVisual={<Icon svg={<Icons.ListFilter />} />}
+        >
+          <span className="annotation-filter-actions__trigger-label">
+            Filter
+          </span>
+        </Button>
+        <MenuContainer
+          data-annotation-filter-menu
+          placement="bottom end"
+          isNonModal
+          minHeight={0}
+          aria-label={`Filter ${targetLabel}`}
+        >
+          <MenuHeader>
+            <MenuHeaderTitle>{`Filter ${targetLabel}`}</MenuHeaderTitle>
+          </MenuHeader>
+          <Menu
+            aria-label={`Filter ${targetLabel} by annotation value`}
+            onAction={(action) => onFilter(String(action))}
+          >
+            {filters.map((filter) => (
+              <MenuItem
+                key={filter.filterName}
+                id={filter.filterCondition}
+                leadingContent={<AnnotationFilterIcon icon={filter.icon} />}
+                trailingContent={
+                  formattedScore != null ? (
+                    <AnnotationScoreText
+                      fontFamily="mono"
+                      optimizationValue={annotation.optimizationValue}
+                      title={formattedScore}
+                    >
+                      <span
+                        className="annotation-filter-actions__score-value"
+                        css={truncatedAnnotationValueCSS}
+                      >
+                        {formattedScore}
+                      </span>
+                    </AnnotationScoreText>
+                  ) : annotation.label != null ? (
+                    <Text
+                      className="annotation-filter-actions__label-value"
+                      css={truncatedAnnotationValueCSS}
+                      title={annotation.label}
+                    >
+                      {annotation.label}
+                    </Text>
+                  ) : null
+                }
+              >
+                {filter.menuLabel}
+              </MenuItem>
+            ))}
+          </Menu>
+        </MenuContainer>
+      </MenuTrigger>
     </div>
   );
 }
@@ -255,8 +336,18 @@ export function AnnotationTooltipFilterActions(
   props: AnnotationTooltipFilterActionsProps
 ) {
   const { appendFilterCondition } = useSpanFilters();
-  const { annotation, className, displayMode = "expanded" } = props;
-  const filters = getAnnotationFilterDefinitions(annotation);
+  const {
+    annotation,
+    className,
+    displayMode = "expanded",
+    isOpen,
+    onOpenChange,
+    targetKind,
+  } = props;
+  const filters =
+    displayMode === "collapsible"
+      ? getAnnotationFilterMenuDefinitions(annotation)
+      : getAnnotationFilterDefinitions(annotation);
 
   if (filters.length === 0) {
     return null;
@@ -265,9 +356,13 @@ export function AnnotationTooltipFilterActions(
   if (displayMode === "collapsible") {
     return (
       <CollapsibleAnnotationFilterActions
+        annotation={annotation}
         className={className}
         filters={filters}
+        isOpen={isOpen}
         onFilter={appendFilterCondition}
+        onOpenChange={onOpenChange}
+        targetKind={targetKind}
       />
     );
   }

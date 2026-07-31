@@ -108,8 +108,14 @@ describe("DetailPanelAnnotationBar", () => {
 
   const renderTableAnnotationPopover = ({
     appendFilterCondition,
+    label = "good",
+    score = 1,
+    targetKind = "span",
   }: {
     appendFilterCondition: (condition: string) => void;
+    label?: string;
+    score?: number | null;
+    targetKind?: "session" | "span" | "trace";
   }) => {
     act(() => {
       root.render(
@@ -130,8 +136,8 @@ describe("DetailPanelAnnotationBar", () => {
                   {
                     id: "annotation-1",
                     name: "quality",
-                    label: "good",
-                    score: 1,
+                    label,
+                    score,
                   },
                 ]}
                 config={config}
@@ -149,7 +155,7 @@ describe("DetailPanelAnnotationBar", () => {
                 target={{
                   annotations: [],
                   id: "span-1",
-                  kind: "span",
+                  kind: targetKind,
                   label: "Span",
                 }}
               />
@@ -1336,7 +1342,7 @@ describe("DetailPanelAnnotationBar", () => {
     });
   });
 
-  it("expands table score filters beside the more button", async () => {
+  it("opens table score filters in a titled menu beside the more button", async () => {
     const appendFilterCondition = vi.fn();
     renderTableAnnotationPopover({ appendFilterCondition });
     const user = userEvent.setup();
@@ -1356,69 +1362,44 @@ describe("DetailPanelAnnotationBar", () => {
     const tableActions = annotationActions?.querySelector<HTMLElement>(
       ".annotation-table-actions"
     );
-    const filterGroup = tableActions?.querySelector<HTMLElement>(
-      '[role="group"][aria-label="Filter annotation value"]'
+    const filterControl = tableActions?.querySelector<HTMLElement>(
+      ".annotation-filter-actions"
     );
-    const filterTrigger = filterGroup?.querySelector<HTMLButtonElement>(
-      '[aria-label="Show annotation filters"]'
+    const filterTrigger = filterControl?.querySelector<HTMLButtonElement>(
+      '[aria-label="Filter spans by annotation value"]'
     );
-    const filterOptions = filterGroup?.querySelector<HTMLElement>(
-      ".annotation-filter-actions__options"
-    );
-    const filterButtons = Array.from(
-      filterGroup?.querySelectorAll<HTMLButtonElement>(
-        'button[aria-label^="Filter annotations"]'
-      ) ?? []
+    const filterTriggerLabel = filterTrigger?.querySelector<HTMLElement>(
+      ".annotation-filter-actions__trigger-label"
     );
     const moreActionsButton = tableActions?.querySelector<HTMLButtonElement>(
       '[aria-label="More annotation actions"]'
     );
 
     expect(
-      annotationValue?.querySelector(
-        '[role="group"][aria-label="Filter annotation value"]'
-      )
+      annotationValue?.querySelector(".annotation-filter-actions")
     ).toBeNull();
-    expect(filterGroup?.nextElementSibling).toBe(moreActionsButton);
+    expect(filterControl?.nextElementSibling).toBe(moreActionsButton);
     expect(getComputedStyle(tableActions!).display).toBe("flex");
     expect(getComputedStyle(tableActions!).flexDirection).toBe("row");
     expect(getComputedStyle(tableActions!).direction).toBe("ltr");
-    expect(getComputedStyle(filterGroup!).order).toBe("1");
+    expect(getComputedStyle(filterControl!).order).toBe("1");
     expect(getComputedStyle(moreActionsButton!).order).toBe("2");
-    expect(filterGroup?.dataset.expanded).toBe("false");
-    const collapsedFilterGroupWidth = getComputedStyle(filterGroup!).width;
-    expect(collapsedFilterGroupWidth).toBe("var(--global-button-height-s)");
+    expect(filterControl?.dataset.open).toBe("false");
+    expect(getComputedStyle(filterControl!).width).toBe(
+      "var(--global-button-height-s)"
+    );
+    expect(getComputedStyle(filterTrigger!).width).toBe(
+      "var(--global-button-height-s)"
+    );
+    expect(getComputedStyle(filterTrigger!).position).toBe("absolute");
+    expect(getComputedStyle(filterTrigger!).right).toBe("0px");
     expect(filterTrigger?.dataset.variant).toBe("quiet");
-    expect(filterTrigger?.getAttribute("aria-expanded")).toBe("false");
     expect(filterTrigger?.classList.contains("react-aria-Button")).toBe(true);
     expect(moreActionsButton?.classList.contains("react-aria-Button")).toBe(
       false
     );
-    expect(getComputedStyle(filterButtons[0]!).visibility).toBe("hidden");
-    expect(getComputedStyle(filterGroup!).overflow).toBe("visible");
-    expect(getComputedStyle(filterOptions!).position).toBe("absolute");
-    expect(getComputedStyle(filterOptions!).top).toBe("0px");
-    expect(getComputedStyle(filterOptions!).right).toBe("0px");
-    expect(getComputedStyle(filterOptions!).width).toBe("max-content");
-    expect(getComputedStyle(filterGroup!).transitionDuration).toBe("0s");
-    expect(getComputedStyle(filterOptions!).transitionDuration).toBe("0s");
-    expect(getComputedStyle(filterOptions!).transform).toBe("none");
-    expect(filterButtons.map((button) => button.ariaLabel)).toEqual([
-      "Filter annotations greater than this value",
-      "Filter annotations less than this value",
-      "Filter annotations equals this value",
-    ]);
-    expect(filterButtons.map((button) => button.style.width)).toEqual(
-      Array(3).fill("")
-    );
-    expect(filterButtons.map((button) => button.dataset.variant)).toEqual(
-      Array(3).fill("default")
-    );
-    expect(getComputedStyle(filterButtons[2]!).minWidth).toBe(
-      collapsedFilterGroupWidth
-    );
-    expect(getComputedStyle(filterOptions!).gap).toBe("0px");
-    expect(getComputedStyle(filterButtons[1]!).borderLeftStyle).toBe("none");
+    expect(filterTriggerLabel?.textContent).toBe("Filter");
+    expect(getComputedStyle(filterTriggerLabel!).display).toBe("none");
     expect(document.querySelector('[aria-label="Edit annotation"]')).toBeNull();
     expect(
       document.querySelector('[aria-label="Delete annotation"]')
@@ -1426,38 +1407,159 @@ describe("DetailPanelAnnotationBar", () => {
 
     await act(async () => user.hover(filterTrigger!));
 
-    expect(filterGroup?.dataset.expanded).toBe("true");
-    expect(filterTrigger?.getAttribute("aria-expanded")).toBe("true");
-    expect(getComputedStyle(filterButtons[0]!).visibility).toBe("visible");
-    expect(filterButtons.every((button) => !button.disabled)).toBe(true);
-    expect(getComputedStyle(filterGroup!).width).toBe(
-      collapsedFilterGroupWidth
+    expect(getComputedStyle(filterTriggerLabel!).display).toBe("inline");
+    expect(getComputedStyle(filterTrigger!).width).toBe("auto");
+
+    await act(async () => user.click(filterTrigger!));
+
+    expect(filterControl?.dataset.open).toBe("true");
+    const filterMenu = document.querySelector<HTMLElement>(
+      "[data-annotation-filter-menu]"
     );
+    expect(filterMenu).not.toBeNull();
+    expect(
+      filterMenu?.querySelector('[data-testid="menu-header-title"]')
+        ?.textContent
+    ).toBe("Filter spans");
+    const filterMenuItems = Array.from(
+      filterMenu?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []
+    );
+    expect(filterMenuItems.map((item) => item.textContent?.trim())).toEqual([
+      "Higher than1",
+      "Lower than1",
+      "Exactly1",
+      "Not1",
+    ]);
+    expect(
+      filterMenuItems.map(
+        (item) => item.querySelector('[data-appearance="badge"]')?.textContent
+      )
+    ).toEqual(["1", "1", "1", "1"]);
+    expect(
+      getComputedStyle(
+        filterMenuItems[0]!.querySelector<HTMLElement>(
+          ".annotation-filter-actions__score-value"
+        )!
+      ).maxWidth
+    ).toBe("var(--global-dimension-size-3000)");
 
-    await act(async () => user.hover(filterButtons[2]!));
-
-    expect(filterGroup?.dataset.expanded).toBe("true");
-
-    act(() => {
-      filterGroup?.dispatchEvent(
-        new MouseEvent("mouseout", {
-          bubbles: true,
-          relatedTarget: document.body,
-        })
-      );
-    });
-    expect(filterGroup?.dataset.expanded).toBe("false");
-
-    act(() => filterTrigger?.focus());
-    expect(filterGroup?.dataset.expanded).toBe("true");
-    expect(filterTrigger?.getAttribute("aria-expanded")).toBe("true");
-
-    await act(async () => user.click(filterButtons[2]!));
+    await act(async () => user.click(filterMenuItems[2]!));
 
     expect(appendFilterCondition).toHaveBeenCalledWith(
       "annotations['quality'].score == 1"
     );
+    expect(document.querySelector("[data-annotation-filter-menu]")).toBeNull();
+    expect(
+      document.querySelector('[role="dialog"][aria-label="quality annotation"]')
+    ).not.toBeNull();
   });
+
+  it("keeps only one adjacent annotation action menu open", async () => {
+    renderTableAnnotationPopover({ appendFilterCondition: vi.fn() });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+    const filterButton = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Filter spans by annotation value"]'
+    )!;
+    const moreButton = document.querySelector<HTMLButtonElement>(
+      '[aria-label="More annotation actions"]'
+    )!;
+
+    await act(async () => user.click(filterButton));
+    expect(
+      document.querySelector("[data-annotation-filter-menu]")
+    ).not.toBeNull();
+    expect(document.querySelector("[data-annotation-actions-menu]")).toBeNull();
+
+    await act(async () => user.click(moreButton));
+    expect(document.querySelector("[data-annotation-filter-menu]")).toBeNull();
+    expect(
+      document.querySelector("[data-annotation-actions-menu]")
+    ).not.toBeNull();
+
+    await act(async () => user.click(filterButton));
+    expect(
+      document.querySelector("[data-annotation-filter-menu]")
+    ).not.toBeNull();
+    expect(document.querySelector("[data-annotation-actions-menu]")).toBeNull();
+  });
+
+  it("truncates long annotation values at roughly 250 pixels", async () => {
+    const label = "A very long annotation label value that should be truncated";
+    renderTableAnnotationPopover({
+      appendFilterCondition: vi.fn(),
+      label,
+      score: null,
+    });
+    const user = userEvent.setup();
+
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Open quality annotation"]'
+        )!
+      )
+    );
+    await act(async () =>
+      user.click(
+        document.querySelector<HTMLButtonElement>(
+          '[aria-label="Filter spans by annotation value"]'
+        )!
+      )
+    );
+
+    const labelValue = document.querySelector<HTMLElement>(
+      ".annotation-filter-actions__label-value"
+    )!;
+    expect(labelValue.title).toBe(label);
+    expect(getComputedStyle(labelValue).maxWidth).toBe(
+      "var(--global-dimension-size-3000)"
+    );
+    expect(getComputedStyle(labelValue).textOverflow).toBe("ellipsis");
+  });
+
+  it.each([
+    ["session", "Filter sessions"],
+    ["span", "Filter spans"],
+    ["trace", "Filter traces"],
+  ] as const)(
+    "titles the %s annotation filter menu",
+    async (targetKind, title) => {
+      renderTableAnnotationPopover({
+        appendFilterCondition: vi.fn(),
+        targetKind,
+      });
+      const user = userEvent.setup();
+
+      await act(async () =>
+        user.click(
+          document.querySelector<HTMLButtonElement>(
+            '[aria-label="Open quality annotation"]'
+          )!
+        )
+      );
+      await act(async () =>
+        user.click(
+          document.querySelector<HTMLButtonElement>(
+            `[aria-label="Filter ${targetKind}s by annotation value"]`
+          )!
+        )
+      );
+
+      expect(
+        document.querySelector(
+          '[data-annotation-filter-menu] [data-testid="menu-header-title"]'
+        )?.textContent
+      ).toBe(title);
+    }
+  );
 
   it("swallows the outside interaction that dismisses the annotation popover", async () => {
     const underlyingButton = document.createElement("button");

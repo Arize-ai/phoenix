@@ -1080,6 +1080,7 @@ export function AnnotationValuePopover(props: AnnotationValuePopoverProps) {
       return (
         event.target instanceof Element &&
         (event.target.closest("[data-annotation-actions-menu]") !== null ||
+          event.target.closest("[data-annotation-filter-menu]") !== null ||
           event.target.closest("[data-annotation-picker-menu]") !== null)
       );
     },
@@ -1229,6 +1230,7 @@ export function AnnotationValuePopover(props: AnnotationValuePopoverProps) {
         shouldCloseOnInteractOutside={(element) =>
           !triggerRef.current?.contains(element) &&
           !element.closest("[data-annotation-actions-menu]") &&
+          !element.closest("[data-annotation-filter-menu]") &&
           !element.closest("[data-annotation-picker-menu]")
         }
       >
@@ -1361,6 +1363,7 @@ export function AnnotationValuePopover(props: AnnotationValuePopoverProps) {
                 onDelete={setDeletingAnnotationId}
                 onEdit={openValueEditor}
                 displayMode={displayMode}
+                targetKind={target.kind}
               />
               <DialogFooter>
                 <Button
@@ -1463,6 +1466,7 @@ function AnnotationSummaryList({
   onDelete,
   onEdit,
   displayMode,
+  targetKind,
 }: {
   annotations: readonly Annotation[];
   config: AnnotationConfig | null;
@@ -1472,6 +1476,7 @@ function AnnotationSummaryList({
   onDelete: (annotationId: string) => void;
   onEdit: (annotation: Annotation) => void;
   displayMode: AnnotationValuePopoverProps["displayMode"];
+  targetKind: AnnotationTargetKind;
 }) {
   return (
     <ul css={annotationEntryListCSS} aria-label="Annotation values">
@@ -1524,8 +1529,10 @@ function AnnotationSummaryList({
                 ) : isShowingTableActions ? (
                   <AnnotationTableActions
                     annotation={annotation}
+                    optimizationValue={optimizationValue}
                     onDelete={onDelete}
                     onEdit={onEdit}
+                    targetKind={targetKind}
                   />
                 ) : (
                   <>
@@ -1584,25 +1591,51 @@ const annotationTableActionsCSS = css`
 
 function AnnotationTableActions({
   annotation,
+  optimizationValue,
   onDelete,
   onEdit,
+  targetKind,
 }: {
   annotation: Annotation;
+  optimizationValue?: number | null;
   onDelete: (annotationId: string) => void;
   onEdit: (annotation: Annotation) => void;
+  targetKind: AnnotationTargetKind;
 }) {
+  const [activeMenu, setActiveMenu] = useState<"filter" | "more" | null>(null);
+  const handleMenuOpenChange = ({
+    isOpen,
+    menu,
+  }: {
+    isOpen: boolean;
+    menu: "filter" | "more";
+  }) => {
+    setActiveMenu((currentMenu) =>
+      isOpen ? menu : currentMenu === menu ? null : currentMenu
+    );
+  };
+
   return (
     <div className="annotation-table-actions" css={annotationTableActionsCSS}>
       <AnnotationTooltipFilterActions
-        annotation={annotation}
+        annotation={{ ...annotation, optimizationValue }}
         className="annotation-table-actions__filters"
         displayMode="collapsible"
+        isOpen={activeMenu === "filter"}
+        onOpenChange={(isOpen) =>
+          handleMenuOpenChange({ isOpen, menu: "filter" })
+        }
+        targetKind={targetKind}
       />
       <AnnotationActionsMenu
         annotation={annotation}
         className="annotation-table-actions__more"
+        isOpen={activeMenu === "more"}
         onDelete={onDelete}
         onEdit={onEdit}
+        onOpenChange={(isOpen) =>
+          handleMenuOpenChange({ isOpen, menu: "more" })
+        }
       />
     </div>
   );
@@ -1611,16 +1644,20 @@ function AnnotationTableActions({
 function AnnotationActionsMenu({
   annotation,
   className,
+  isOpen,
   onDelete,
   onEdit,
+  onOpenChange,
 }: {
   annotation: Annotation;
   className?: string;
+  isOpen: boolean;
   onDelete: (annotationId: string) => void;
   onEdit: (annotation: Annotation) => void;
+  onOpenChange: (isOpen: boolean) => void;
 }) {
   return (
-    <MenuTrigger>
+    <MenuTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <IconButton
         className={className}
         size="S"
@@ -1628,7 +1665,7 @@ function AnnotationActionsMenu({
       >
         <Icon svg={<Icons.MoreHorizontal />} />
       </IconButton>
-      <Popover placement="bottom end" data-annotation-actions-menu>
+      <Popover placement="bottom start" data-annotation-actions-menu isNonModal>
         <Menu
           aria-label="Annotation actions"
           css={css`

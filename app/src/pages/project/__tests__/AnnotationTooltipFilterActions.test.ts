@@ -11,16 +11,19 @@ describe("getAnnotationFilterDefinitions", () => {
         filterName: "greater than",
         filterCondition: "annotations['quality'].score > 0.75",
         icon: "greater-than",
+        menuLabel: "Higher than",
       },
       {
         filterName: "less than",
         filterCondition: "annotations['quality'].score < 0.75",
         icon: "less-than",
+        menuLabel: "Lower than",
       },
       {
         filterName: "equals",
         filterCondition: "annotations['quality'].score == 0.75",
         icon: "equal",
+        menuLabel: "Exactly",
       },
     ]);
   });
@@ -33,11 +36,13 @@ describe("getAnnotationFilterDefinitions", () => {
         filterName: "matches",
         filterCondition: "annotations['quality'].label == \"good\"",
         icon: "equal",
+        menuLabel: "Exactly",
       },
       {
         filterName: "does not match",
         filterCondition: "annotations['quality'].label != \"good\"",
         icon: "not-equal",
+        menuLabel: "Not",
       },
     ]);
   });
