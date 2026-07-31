@@ -7,18 +7,6 @@ import {
   findToolCallName,
 } from "@phoenix/schemas";
 import type {
-  FilePart,
-  FileVariablePart,
-  ImagePart,
-  ImageVariablePart,
-} from "@phoenix/schemas/mediaPartSchemas";
-import {
-  filePartSchema,
-  fileVariablePartSchema,
-  imagePartSchema,
-  imageVariablePartSchema,
-} from "@phoenix/schemas/mediaPartSchemas";
-import type {
   TextPart,
   ToolCallPart,
   ToolResultPart,
@@ -31,6 +19,7 @@ import {
 import { generateMessageId } from "@phoenix/store";
 import type { promptUtils_promptMessages$key } from "@phoenix/utils/__generated__/promptUtils_promptMessages.graphql";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
+import { flattenMediaContent } from "@phoenix/utils/mediaContentPartFragment";
 import { readMessageMedia } from "@phoenix/utils/messageMedia";
 
 export const asTextPart = (maybePart: unknown): TextPart | null => {
@@ -113,30 +102,7 @@ export const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
                 text
               }
             }
-            ... on ImageContentPart {
-              image {
-                __typename
-                ... on ImageContentValue {
-                  url
-                  mediaType
-                }
-                ... on ImageVariableValue {
-                  variable
-                }
-              }
-            }
-            ... on FileContentPart {
-              file {
-                __typename
-                ... on ImageContentValue {
-                  url
-                  mediaType
-                }
-                ... on ImageVariableValue {
-                  variable
-                }
-              }
-            }
+            ...mediaContentPartFragment
           }
           role
         }
@@ -145,15 +111,18 @@ export const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
     )
   );
 
-  const instanceMessages = promptMessages.map((message) => ({
-    id: generateMessageId(),
-    content: message.content
-      .map((content) => content.text?.text ?? "")
-      .filter(Boolean)
-      .join("\n"),
-    ...readMessageMedia(message.content),
-    role: getChatRole(message.role),
-  }));
+  const instanceMessages = promptMessages.map((message) => {
+    const content = flattenMediaContent(message.content);
+    return {
+      id: generateMessageId(),
+      content: content
+        .map((part) => asTextPart(part)?.text.text ?? "")
+        .filter(Boolean)
+        .join("\n"),
+      ...readMessageMedia(content),
+      role: getChatRole(message.role),
+    };
+  });
 
   return instanceMessages;
 };

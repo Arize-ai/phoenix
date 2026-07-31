@@ -60,21 +60,26 @@ const EXEMPT: Record<string, string> = {
 };
 
 /**
- * The media parts a document fails to ask for, if any.
+ * The shared `@inline` fragment carrying every media member.
  *
- * Deliberately requires the selection to appear in the document itself. A shared
- * `@inline` fragment looks like it would satisfy the same requirement in one line, and
- * this check was once relaxed to accept one — which broke every structural reader,
- * because Relay stores `@inline` data under `__fragments` rather than flattening it
- * onto the part, so `asImagePart` and friends found no `image` key and silently
- * returned nothing. Nothing else caught it: the selection was present, the types
- * compiled, and the tests fed plain objects rather than Relay data.
+ * Spreading it satisfies the requirement in one line and is the preferred form: a
+ * document cannot then ask for the image and forget the file.
  *
- * If the duplication is ever worth removing again, every consumer has to move to
- * `readInlineData` in the same change, and this check has to keep failing until they
- * have.
+ * It comes with an obligation. Relay stores `@inline` data under `__fragments` rather
+ * than flattening it onto the part, so nothing may read `part.image` directly —
+ * consumers go through `flattenMediaContent` or `readMediaContentPart`. Skipping that
+ * is how media once vanished from the prompt page and from every prompt loaded into the
+ * playground, with the selection present, the types compiling, and every other test
+ * feeding plain objects. `mediaContentPartFragment.test.ts` exercises that read path
+ * against the shape Relay really returns, and is what makes the spread safe here.
  */
+const MEDIA_FRAGMENT_SPREAD = "...mediaContentPartFragment";
+
+/** The media parts a document fails to ask for, if any. */
 function missingMediaParts(document: string): string[] {
+  if (document.includes(MEDIA_FRAGMENT_SPREAD)) {
+    return [];
+  }
   return MEDIA_PART_TYPES.filter((type) => !document.includes(`on ${type}`));
 }
 

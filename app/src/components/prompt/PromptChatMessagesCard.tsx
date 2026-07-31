@@ -16,6 +16,7 @@ import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
 import type { AnyPart } from "@phoenix/schemas/promptSchemas";
+import { flattenMediaContent } from "@phoenix/utils/mediaContentPartFragment";
 import {
   asTextPart,
   asToolCallPart,
@@ -43,30 +44,7 @@ export function PromptChatMessages({
                     text
                   }
                 }
-                ... on ImageContentPart {
-                  image {
-                    __typename
-                    ... on ImageContentValue {
-                      url
-                      mediaType
-                    }
-                    ... on ImageVariableValue {
-                      variable
-                    }
-                  }
-                }
-                ... on FileContentPart {
-                  file {
-                    __typename
-                    ... on ImageContentValue {
-                      url
-                      mediaType
-                    }
-                    ... on ImageVariableValue {
-                      variable
-                    }
-                  }
-                }
+                ...mediaContentPartFragment
                 ... on ToolCallContentPart {
                   toolCall {
                     toolCallId
@@ -123,10 +101,11 @@ function ChatMessageContentPart({
   provider,
   isOnlyChild,
 }: {
-  part: Extract<
-    PromptChatMessagesCard__main$data["template"],
-    { __typename: "PromptChatTemplate" }
-  >["messages"][number]["content"][number];
+  /**
+   * A content part with its media read back — see `flattenMediaContent`. Typed as
+   * `unknown` because every converter below takes `unknown` and discriminates.
+   */
+  part: unknown;
   templateFormat: TemplateFormat;
   provider: ModelProvider;
   isOnlyChild?: boolean;
@@ -187,15 +166,17 @@ function ChatMessages({
   return (
     <Flex direction="column" gap="size-100" data-testid="chat-messages">
       {messages.map((message, i) => {
+        // The media selection arrives as an `@inline` fragment, so it has to be read
+        // back before the parts can be discriminated structurally.
+        const content = flattenMediaContent(message.content);
         const isOnlyChild =
-          message.content.length === 1 &&
-          message.content.find(asTextPart) != null;
+          content.length === 1 && content.find(asTextPart) != null;
         return (
           <ChatTemplateMessageCard key={i} role={message.role as string}>
-            {message.content.map((content, i) => (
+            {content.map((part, i) => (
               <ChatMessageContentPart
-                key={`${i}-${content.__typename}`}
-                part={content}
+                key={i}
+                part={part}
                 templateFormat={templateFormat}
                 provider={provider}
                 isOnlyChild={isOnlyChild}

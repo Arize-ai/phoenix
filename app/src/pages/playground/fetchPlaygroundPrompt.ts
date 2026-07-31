@@ -8,6 +8,7 @@ import { buildPlaygroundInstanceFieldsFromPromptConfig } from "@phoenix/pages/pl
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { PlaygroundInstance } from "@phoenix/store/playground";
 import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
+import { flattenTemplateMedia } from "@phoenix/utils/mediaContentPartFragment";
 import {
   makeTextPart,
   makeToolCallPart,
@@ -75,30 +76,7 @@ const promptVersionToInstanceFragment = graphql`
                 text
               }
             }
-            ... on ImageContentPart {
-              image {
-                __typename
-                ... on ImageContentValue {
-                  url
-                  mediaType
-                }
-                ... on ImageVariableValue {
-                  variable
-                }
-              }
-            }
-            ... on FileContentPart {
-              file {
-                __typename
-                ... on ImageContentValue {
-                  url
-                  mediaType
-                }
-                ... on ImageVariableValue {
-                  variable
-                }
-              }
-            }
+            ...mediaContentPartFragment
             ... on ToolCallContentPart {
               toolCall {
                 toolCallId
@@ -186,7 +164,7 @@ export const promptVersionToInstance = ({
   const instanceFields = buildPlaygroundInstanceFieldsFromPromptConfig({
     provider,
     modelName,
-    template: promptVersion.template,
+    template: flattenTemplateMedia(promptVersion.template),
     tools: promptVersion.tools,
     invocationParametersRef: promptVersion.invocationParameters,
     responseFormat: promptVersion.responseFormat,
@@ -341,30 +319,7 @@ const fetchPlaygroundPromptQuery = graphql`
                       text
                     }
                   }
-                  ... on ImageContentPart {
-                    image {
-                      __typename
-                      ... on ImageContentValue {
-                        url
-                        mediaType
-                      }
-                      ... on ImageVariableValue {
-                        variable
-                      }
-                    }
-                  }
-                  ... on FileContentPart {
-                    file {
-                      __typename
-                      ... on ImageContentValue {
-                        url
-                        mediaType
-                      }
-                      ... on ImageVariableValue {
-                        variable
-                      }
-                    }
-                  }
+                  ...mediaContentPartFragment
                   ... on ToolCallContentPart {
                     toolCall {
                       toolCallId

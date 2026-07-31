@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2c1185ddf5bd49361e45d6f851f1ba8>>
+ * @generated SignedSource<<6de66a69df7f33157989bbe05c5f859b>>
  * @lightSyntaxTransform
  */
 
@@ -19,57 +19,22 @@ export type PromptChatMessagesCard__main$data = {
     readonly __typename: "PromptChatTemplate";
     readonly messages: ReadonlyArray<{
       readonly content: ReadonlyArray<{
-        readonly __typename: "FileContentPart";
-        readonly file: {
-          readonly __typename: "ImageContentValue";
-          readonly mediaType: string;
-          readonly url: string;
-        } | {
-          readonly __typename: "ImageVariableValue";
-          readonly variable: string;
-        } | {
-          // This will never be '%other', but we need some
-          // value in case none of the concrete values match.
-          readonly __typename: "%other";
-        };
-      } | {
-        readonly __typename: "ImageContentPart";
-        readonly image: {
-          readonly __typename: "ImageContentValue";
-          readonly mediaType: string;
-          readonly url: string;
-        } | {
-          readonly __typename: "ImageVariableValue";
-          readonly variable: string;
-        } | {
-          // This will never be '%other', but we need some
-          // value in case none of the concrete values match.
-          readonly __typename: "%other";
-        };
-      } | {
-        readonly __typename: "TextContentPart";
-        readonly text: {
+        readonly __typename: string;
+        readonly text?: {
           readonly text: string;
         };
-      } | {
-        readonly __typename: "ToolCallContentPart";
-        readonly toolCall: {
+        readonly toolCall?: {
           readonly toolCall: {
             readonly arguments: string;
             readonly name: string;
           };
           readonly toolCallId: string;
         };
-      } | {
-        readonly __typename: "ToolResultContentPart";
-        readonly toolResult: {
+        readonly toolResult?: {
           readonly result: any;
           readonly toolCallId: string;
         };
-      } | {
-        // This will never be '%other', but we need some
-        // value in case none of the concrete values match.
-        readonly __typename: "%other";
+        readonly " $fragmentSpreads": FragmentRefs<"mediaContentPartFragment">;
       }>;
       readonly role: PromptMessageRole;
     }>;
@@ -218,38 +183,46 @@ return {
                       "abstractKey": null
                     },
                     {
-                      "kind": "InlineFragment",
+                      "kind": "InlineDataFragmentSpread",
+                      "name": "mediaContentPartFragment",
                       "selections": [
                         {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": null,
-                          "kind": "LinkedField",
-                          "name": "image",
-                          "plural": false,
-                          "selections": (v1/*:: as any*/),
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "ImageContentPart",
-                      "abstractKey": null
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": null,
+                              "kind": "LinkedField",
+                              "name": "image",
+                              "plural": false,
+                              "selections": (v1/*:: as any*/),
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "ImageContentPart",
+                          "abstractKey": null
+                        },
                         {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": null,
-                          "kind": "LinkedField",
-                          "name": "file",
-                          "plural": false,
-                          "selections": (v1/*:: as any*/),
-                          "storageKey": null
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": null,
+                              "kind": "LinkedField",
+                              "name": "file",
+                              "plural": false,
+                              "selections": (v1/*:: as any*/),
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "FileContentPart",
+                          "abstractKey": null
                         }
                       ],
-                      "type": "FileContentPart",
-                      "abstractKey": null
+                      "args": null,
+                      "argumentDefinitions": []
                     },
                     {
                       "kind": "InlineFragment",
@@ -368,6 +341,6 @@ return {
 };
 })();
 
-(node as any).hash = "c39ab50aeae96d07f81dae32fbb86b33";
+(node as any).hash = "336028e983632796457b6858186745ba";
 
 export default node;

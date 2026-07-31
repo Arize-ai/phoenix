@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<67902bbc0794e10ea24f106ee0a173a3>>
+ * @generated SignedSource<<7103a66454eee746b81a43088fa5648d>>
  * @lightSyntaxTransform
  */
 
@@ -195,38 +195,46 @@ return {
                       "abstractKey": null
                     },
                     {
-                      "kind": "InlineFragment",
+                      "kind": "InlineDataFragmentSpread",
+                      "name": "mediaContentPartFragment",
                       "selections": [
                         {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": null,
-                          "kind": "LinkedField",
-                          "name": "image",
-                          "plural": false,
-                          "selections": (v2/*:: as any*/),
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "ImageContentPart",
-                      "abstractKey": null
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": null,
+                              "kind": "LinkedField",
+                              "name": "image",
+                              "plural": false,
+                              "selections": (v2/*:: as any*/),
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "ImageContentPart",
+                          "abstractKey": null
+                        },
                         {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": null,
-                          "kind": "LinkedField",
-                          "name": "file",
-                          "plural": false,
-                          "selections": (v2/*:: as any*/),
-                          "storageKey": null
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": null,
+                              "kind": "LinkedField",
+                              "name": "file",
+                              "plural": false,
+                              "selections": (v2/*:: as any*/),
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "FileContentPart",
+                          "abstractKey": null
                         }
                       ],
-                      "type": "FileContentPart",
-                      "abstractKey": null
+                      "args": null,
+                      "argumentDefinitions": []
                     }
                   ],
                   "storageKey": null

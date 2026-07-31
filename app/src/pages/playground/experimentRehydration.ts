@@ -19,6 +19,7 @@ import type {
   PlaygroundInstance,
   PlaygroundProps,
 } from "@phoenix/store/playground/types";
+import { flattenTemplateMedia } from "@phoenix/utils/mediaContentPartFragment";
 
 import type { experimentRehydrationQuery } from "./__generated__/experimentRehydrationQuery.graphql";
 import { buildPlaygroundInstanceFieldsFromPromptConfig } from "./promptConfigToPlaygroundInstance";
@@ -56,30 +57,7 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
                           text
                         }
                       }
-                      ... on ImageContentPart {
-                        image {
-                          __typename
-                          ... on ImageContentValue {
-                            url
-                            mediaType
-                          }
-                          ... on ImageVariableValue {
-                            variable
-                          }
-                        }
-                      }
-                      ... on FileContentPart {
-                        file {
-                          __typename
-                          ... on ImageContentValue {
-                            url
-                            mediaType
-                          }
-                          ... on ImageVariableValue {
-                            variable
-                          }
-                        }
-                      }
+                      ...mediaContentPartFragment
                       ... on ToolCallContentPart {
                         toolCall {
                           toolCallId
@@ -239,7 +217,7 @@ function taskConfigToPlaygroundProps(
   const instanceFields = buildPlaygroundInstanceFieldsFromPromptConfig({
     provider,
     modelName: prompt.modelName,
-    template: prompt.template,
+    template: flattenTemplateMedia(prompt.template),
     tools: prompt.tools,
     invocationParametersRef: prompt.invocationParameters,
     responseFormat: prompt.responseFormat,
