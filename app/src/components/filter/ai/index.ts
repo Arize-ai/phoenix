@@ -5,7 +5,6 @@ export * from "./AISearchSettingsForm";
 export * from "./browserModel";
 export {
   AI_SEARCH_PROVIDERS,
-  isAISearchProvider,
   type ProviderCredentials,
 } from "./providerModels";
 export * from "./createAISearchDSL";

@@ -36,7 +36,10 @@ import {
   TooltipTrigger,
   VisuallyHidden,
 } from "@phoenix/components";
-import { PxiOutline, type PxiOutlineState } from "@phoenix/components/agent";
+import {
+  PxiOutline,
+  type PxiOutlineState,
+} from "@phoenix/components/agent/PxiOutline";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
@@ -475,16 +478,21 @@ function DSLFilterConditionFieldImpl<
   // extensions memo below), so key handlers reach the current AI state
   // through this ref rather than closing over it
   const aiRuntimeRef = useRef<{
-    maybeConvert: () => boolean;
+    maybeConvert: (currentText: string) => boolean;
     handleEscape: () => boolean;
   } | null>(null);
   useEffect(() => {
     aiRuntimeRef.current = {
-      maybeConvert: () => {
+      // The editor's own document is the query, not the `value` prop: a
+      // consumer whose onChange defers the update (e.g. through
+      // startTransition) can still be a render behind the keystroke that
+      // preceded Enter, and converting -- or restoring on cancel -- a stale
+      // draft would drop the user's last words
+      maybeConvert: (currentText: string) => {
         if (!isAIActive || isConverting) {
           return false;
         }
-        const query = value.trim();
+        const query = currentText.trim();
         if (!query || looksLikeDSLExpression(query)) {
           return false;
         }
@@ -550,7 +558,9 @@ function DSLFilterConditionFieldImpl<
             // otherwise a natural-language draft converts via AI search.
             // Always swallow the key so no newline is inserted.
             if (!acceptCompletion(editorView)) {
-              aiRuntimeRef.current?.maybeConvert();
+              aiRuntimeRef.current?.maybeConvert(
+                editorView.state.doc.toString()
+              );
             }
             return true;
           },
