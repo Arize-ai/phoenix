@@ -11,6 +11,7 @@ from uuid import UUID
 
 import pytest
 from sqlalchemy import insert, select
+from sqlalchemy.dialects import postgresql, sqlite
 
 import phoenix.trace.dsl.filter
 from phoenix.db import models
@@ -261,9 +262,68 @@ async def test_filter_translated(
         await session.execute(f(select(models.Span.id)))
 
 
-def test_filter_rejects_non_boolean_logical_operands() -> None:
-    with pytest.raises(SyntaxError, match="logical operands must be boolean"):
-        SpanFilter("name and status_code")
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("name and status_code", id="named-columns"),
+        pytest.param('"" in input.value and span.k', id="issue-5802"),
+        pytest.param("revenueio.language_code == 'en-US' and r", id="issue-10306"),
+        pytest.param("name == 'n' and r", id="bare-name-operand"),
+        pytest.param("name == 'n' and input.value", id="attribute-operand"),
+        pytest.param("metadata['flag'] and name == 'x'", id="metadata-operand"),
+        pytest.param("not metadata['flag']", id="negated-json-operand"),
+        pytest.param("name == 'n' or 5", id="numeric-operand"),
+        pytest.param("name == 'n' and evals['x'].score", id="annotation-member-operand"),
+        pytest.param("name == 'n' and (span_kind == 'LLM' and r)", id="nested-operand"),
+    ],
+)
+def test_filter_rejects_non_boolean_logical_operands(condition: str) -> None:
+    """A value in `and` / `or` / `not` position is a filter error, not a query error.
+
+    Each of these puts something that is not a predicate where SQL will use it as
+    one. Left to the database the two backends disagree about the consequence --
+    PostgreSQL aborts the statement (`argument of AND must be type boolean, not
+    type jsonb`) while SQLite coerces and silently returns the wrong rows -- and
+    on either one it arrives after validation has already called the condition
+    valid, so the UI has committed to a query it cannot run.
+
+    Unknown-typed operands (a bare JSON attribute) are included deliberately:
+    exempting them as "truthy values" is what let the raw JSON through. Every one
+    of these is also a prefix of a longer expression someone is part way through
+    typing, which is how they reach the server at all.
+    """
+    with pytest.raises(SyntaxError, match="is not a condition"):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("name == 'n' and span_kind == 'LLM'", id="comparisons"),
+        pytest.param("name == 'n' and True", id="true-literal"),
+        pytest.param("name == 'n' or False", id="false-literal"),
+        pytest.param("annotations['Hallucination']", id="bare-existence-check"),
+        pytest.param(
+            "name == 'n' and annotations['Hallucination']",
+            id="existence-check-as-operand",
+        ),
+        pytest.param("evals['Hallucination'] or name == 'n'", id="evals-alias-operand"),
+        pytest.param("not (parent_id is None)", id="negated-comparison"),
+        pytest.param("parent_span is None and name == 'x'", id="parent-predicate"),
+        pytest.param(
+            "annotations['q'].score >= 0.5 and not (name == 'z')",
+            id="mixed-nesting",
+        ),
+    ],
+)
+def test_filter_still_accepts_every_condition_form(condition: str) -> None:
+    """The check above must not narrow what counts as a condition.
+
+    A bare annotation is an existence check and the boolean literals are
+    meaningful operands (the generated corpus below relies on both), so these are
+    predicates despite not being comparisons.
+    """
+    SpanFilter(condition)  # does not raise
 
 
 @pytest.mark.parametrize(
@@ -330,12 +390,136 @@ def test_filter_rejects_invalid_datetime_literal() -> None:
 @pytest.mark.parametrize(
     "condition",
     [
+        pytest.param('start_time >= "2025-12-16T13:43:00"', id="naive-datetime"),
+        pytest.param("start_time >= '2025-12-16 13:43:00'", id="naive-space-separated"),
+        pytest.param("start_time in ['2025-12-16T13:43:00']", id="naive-in-collection"),
+    ],
+)
+def test_filter_rejects_naive_datetime_literals(condition: str) -> None:
+    """A literal without an offset has no single defensible meaning.
+
+    `UtcTimeStamp` applies Phoenix's local-time convention to a naive value, so
+    binding one would give the same saved filter a different boundary in
+    deployments with different timezones -- and conditions travel in URLs.
+    Reading it as UTC instead would be deterministic but would silently disagree
+    with that convention, so the offset is required rather than guessed.
+    """
+    with pytest.raises(SyntaxError, match="no timezone"):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("start_time >= '2025-12-16T13:43:00Z'", id="zulu"),
+        pytest.param("start_time >= '2025-12-16T13:43:00+02:00'", id="explicit-offset"),
+        pytest.param("start_time in ['2025-12-16T13:43:00Z']", id="aware-in-collection"),
+    ],
+)
+def test_filter_accepts_timezone_aware_datetime_literals(condition: str) -> None:
+    SpanFilter(condition)  # does not raise
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("latency_ms == '1_000'", id="underscore-separator"),
+        pytest.param("latency_ms == 'nan'", id="nan"),
+        pytest.param("latency_ms == 'inf'", id="inf"),
+        pytest.param("latency_ms == '0x10'", id="hex"),
+        pytest.param("latency_ms == ' 12'", id="leading-space"),
+        pytest.param("float('1_000') > 1", id="cast-underscore"),
+        pytest.param("float('nan') > 1", id="cast-nan"),
+        pytest.param("latency_ms in ['1_000']", id="membership-underscore"),
+        pytest.param("latency_ms in [1.5, '2.0']", id="membership-mixed-types"),
+    ],
+)
+def test_filter_rejects_numeric_strings_the_databases_disagree_about(condition: str) -> None:
+    """One numeric grammar, applied wherever a string becomes a number.
+
+    Python's `float()` accepts all of these, but the two backends do not agree
+    on them: SQLite casts `'1_000'` to 1.0 while PostgreSQL rejects it outright,
+    and the infinities and NaN are dialect-dependent. Accepting them at
+    validation is precisely the validate-then-fail-at-query-time shape this
+    module exists to prevent.
+    """
+    with pytest.raises(SyntaxError):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("latency_ms == '1000'", id="integer"),
+        pytest.param("latency_ms == '-12.5'", id="negative-decimal"),
+        pytest.param("latency_ms == '1e3'", id="exponent"),
+        pytest.param("latency_ms == '.5'", id="leading-point"),
+        pytest.param("float('10') > 1", id="cast-integer"),
+    ],
+)
+def test_filter_accepts_plainly_numeric_strings(condition: str) -> None:
+    SpanFilter(condition)  # does not raise
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("latency_ms in ['1.5', '2.0']", id="list-of-numeric-strings"),
+        pytest.param("latency_ms in ('1.5',)", id="tuple-of-numeric-strings"),
+    ],
+)
+def test_numeric_string_membership_compiles_on_both_dialects(condition: str) -> None:
+    """The validator accepts a numeric string against a numeric column, so the
+    translator has to as well.
+
+    It used to cast the whole collection, which replaced the `List` node with a
+    `Call` and missed the membership branch entirely -- surfacing as
+    `invalid expression: ` with nothing after the colon.
+    """
+    statement = SpanFilter(condition)(select(models.Span.id))
+    str(statement.compile(dialect=postgresql.dialect()))
+    str(statement.compile(dialect=sqlite.dialect()))
+
+
+def test_filter_rejects_membership_between_two_literals() -> None:
+    """`1 in [1, 2]` translates to `1.in_([1, 2])`.
+
+    That reaches evaluation inside `SpanFilter.__call__` and raises a bare
+    `AttributeError`, which is the wrong exception type for what is simply an
+    invalid condition -- direct callers see a crash rather than a filter error.
+    """
+    with pytest.raises(SyntaxError, match="compares two literals"):
+        SpanFilter("1 in [1, 2]")
+
+
+def test_unary_plus_does_not_negate_dynamic_json_attributes() -> None:
+    """`+attributes['x']` used to translate to `-SafeJsonFloat(...)`.
+
+    The cast branch hardcoded `USub`, so unary plus on a dynamic JSON attribute
+    silently returned the rows of its negation. Native numeric columns took a
+    different branch and were unaffected, which is why it went unnoticed.
+    """
+    positive = str(
+        SpanFilter("+metadata['x'] > 5")(select(models.Span.id)).compile(
+            dialect=postgresql.dialect()
+        )
+    )
+    negative = str(
+        SpanFilter("-metadata['x'] > 5")(select(models.Span.id)).compile(
+            dialect=postgresql.dialect()
+        )
+    )
+    assert positive != negative
+    assert "-" not in positive.split("WHERE")[-1].split(">")[0]
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
         "latency_ms > '100'",
         "'100' < latency_ms",
         "annotations['quality'].score >= '0.5'",
         "start_time < '2024-01-01T00:00:00Z'",
-        "metadata['flag'] and name == 'x'",
-        "not metadata['flag']",
         "latency_ms == None",
     ],
 )
