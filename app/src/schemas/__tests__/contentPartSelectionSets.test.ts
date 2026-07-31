@@ -59,8 +59,18 @@ const EXEMPT: Record<string, string> = {
     "Pending: diffing media needs thumbnail rendering and comparison by digest.",
 };
 
-/** The media parts a document fails to select, if any. */
+/**
+ * The shared fragment carrying every media member. Spreading it satisfies the
+ * requirement in one line, and is the preferred way to do so — the selection is then
+ * impossible to get half-right, because there is only one copy of it.
+ */
+const MEDIA_FRAGMENT_SPREAD = "...mediaContentPartFragment";
+
+/** The media parts a document fails to ask for, if any. */
 function missingMediaParts(document: string): string[] {
+  if (document.includes(MEDIA_FRAGMENT_SPREAD)) {
+    return [];
+  }
   return MEDIA_PART_TYPES.filter((type) => !document.includes(`on ${type}`));
 }
 

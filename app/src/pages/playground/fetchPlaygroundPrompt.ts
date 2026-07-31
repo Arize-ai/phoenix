@@ -20,6 +20,7 @@ import type {
 } from "./__generated__/fetchPlaygroundPromptQuery.graphql";
 
 import "./PromptInvocationParametersReadableFragment";
+import "@phoenix/utils/mediaContentPartFragment";
 
 /**
  * Converts a playground chat message role to a prompt message role
@@ -76,30 +77,7 @@ const promptVersionToInstanceFragment = graphql`
                 text
               }
             }
-            ... on ImageContentPart {
-              image {
-                __typename
-                ... on ImageContentValue {
-                  url
-                  mediaType
-                }
-                ... on ImageVariableValue {
-                  variable
-                }
-              }
-            }
-            ... on FileContentPart {
-              file {
-                __typename
-                ... on ImageContentValue {
-                  url
-                  mediaType
-                }
-                ... on ImageVariableValue {
-                  variable
-                }
-              }
-            }
+            ...mediaContentPartFragment
             ... on ToolCallContentPart {
               toolCall {
                 toolCallId
@@ -342,30 +320,7 @@ const fetchPlaygroundPromptQuery = graphql`
                       text
                     }
                   }
-                  ... on ImageContentPart {
-                    image {
-                      __typename
-                      ... on ImageContentValue {
-                        url
-                        mediaType
-                      }
-                      ... on ImageVariableValue {
-                        variable
-                      }
-                    }
-                  }
-                  ... on FileContentPart {
-                    file {
-                      __typename
-                      ... on ImageContentValue {
-                        url
-                        mediaType
-                      }
-                      ... on ImageVariableValue {
-                        variable
-                      }
-                    }
-                  }
+                  ...mediaContentPartFragment
                   ... on ToolCallContentPart {
                     toolCall {
                       toolCallId

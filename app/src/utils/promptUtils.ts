@@ -27,6 +27,7 @@ import {
 import { generateMessageId } from "@phoenix/store";
 import type { promptUtils_promptMessages$key } from "@phoenix/utils/__generated__/promptUtils_promptMessages.graphql";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
+import { readMessageMedia } from "@phoenix/utils/mediaContentPartFragment";
 
 export const asTextPart = (maybePart: unknown): TextPart | null => {
   const parsed = textPartSchema.safeParse(maybePart);
@@ -159,30 +160,7 @@ export const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
                 text
               }
             }
-            ... on ImageContentPart {
-              image {
-                __typename
-                ... on ImageContentValue {
-                  url
-                  mediaType
-                }
-                ... on ImageVariableValue {
-                  variable
-                }
-              }
-            }
-            ... on FileContentPart {
-              file {
-                __typename
-                ... on ImageContentValue {
-                  url
-                  mediaType
-                }
-                ... on ImageVariableValue {
-                  variable
-                }
-              }
-            }
+            ...mediaContentPartFragment
           }
           role
         }
@@ -197,34 +175,7 @@ export const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
       .map((content) => content.text?.text ?? "")
       .filter(Boolean)
       .join("\n"),
-    images: message.content
-      .map((content) =>
-        content.image?.__typename === "ImageContentValue"
-          ? makeImagePart(content.image.url, content.image.mediaType)
-          : null
-      )
-      .filter((part): part is ImagePart => part != null),
-    imageVariables: message.content
-      .map((content) =>
-        content.image?.__typename === "ImageVariableValue"
-          ? makeImageVariablePart(content.image.variable)
-          : null
-      )
-      .filter((part): part is ImageVariablePart => part != null),
-    files: message.content
-      .map((content) =>
-        content.file?.__typename === "ImageContentValue"
-          ? makeFilePart(content.file.url, content.file.mediaType)
-          : null
-      )
-      .filter((part): part is FilePart => part != null),
-    fileVariables: message.content
-      .map((content) =>
-        content.file?.__typename === "ImageVariableValue"
-          ? makeFileVariablePart(content.file.variable)
-          : null
-      )
-      .filter((part): part is FileVariablePart => part != null),
+    ...readMessageMedia(message.content),
     role: getChatRole(message.role),
   }));
 
