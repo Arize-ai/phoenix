@@ -4,7 +4,7 @@ import sys
 import typing
 from ast import unparse
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
 from unittest.mock import patch
 from uuid import UUID
@@ -479,6 +479,84 @@ def test_numeric_string_membership_compiles_on_both_dialects(condition: str) -> 
     statement = SpanFilter(condition)(select(models.Span.id))
     str(statement.compile(dialect=postgresql.dialect()))
     str(statement.compile(dialect=sqlite.dialect()))
+
+
+@pytest.fixture
+async def coercion_project(db: DbSessionFactory) -> None:
+    """Two spans differing only in latency, for exercising coercion against a
+    real database rather than against the compiler."""
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name="coercion").returning(models.Project.id)
+        )
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="trace-coercion",
+                project_rowid=project_rowid,
+                start_time=_PARENT_PREDICATE_TS,
+                end_time=_PARENT_PREDICATE_TS,
+            )
+            .returning(models.Trace.id)
+        )
+        for span_id, seconds, attributes in (
+            ("fast", 1, {"num": "1.5", "flag": True}),
+            ("slow", 10, {"num": "not-a-number", "flag": "true"}),
+        ):
+            await session.execute(
+                insert(models.Span).values(
+                    trace_rowid=trace_rowid,
+                    span_id=span_id,
+                    parent_id=None,
+                    name=span_id,
+                    span_kind="LLM",
+                    start_time=_PARENT_PREDICATE_TS,
+                    end_time=_PARENT_PREDICATE_TS + timedelta(seconds=seconds),
+                    attributes=attributes,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        pytest.param("latency_ms > '5000'", ["slow"], id="scalar-numeric-string"),
+        pytest.param("latency_ms >= '1000'", ["fast", "slow"], id="scalar-inclusive"),
+        pytest.param("'5000' < latency_ms", ["slow"], id="numeric-string-on-left"),
+        pytest.param("latency_ms in ['1000', '10000']", ["fast", "slow"], id="membership"),
+        pytest.param("latency_ms not in ['1000']", ["slow"], id="negated-membership"),
+        # dynamic values keep the total cast, so an uncastable row drops out
+        # rather than aborting the statement
+        pytest.param("float(attributes['num']) > 1", ["fast"], id="uncastable-row-excluded"),
+    ],
+)
+async def test_numeric_coercion_executes_against_the_database(
+    db: DbSessionFactory,
+    coercion_project: None,
+    condition: str,
+    expected: list[str],
+) -> None:
+    """Numeric coercion has to survive execution, not just compilation.
+
+    `cast('1000', Float)` compiles on both dialects and then fails when the
+    query runs, because asyncpg is asked to encode a `str` as a float parameter.
+    Constructing a `SpanFilter` cannot catch that -- only running it can, which
+    is why these assert rows rather than SQL.
+    """
+    span_filter = SpanFilter(condition)
+    async with db() as session:
+        span_ids = list(
+            await session.scalars(
+                span_filter(select(models.Span.span_id)).order_by(models.Span.span_id)
+            )
+        )
+    assert span_ids == expected
 
 
 def test_filter_rejects_membership_between_two_literals() -> None:

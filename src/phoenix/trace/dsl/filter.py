@@ -984,6 +984,29 @@ def _remove_cast(node: typing.Any) -> typing.Any:
     return node.args[0] if _is_cast(node) else node
 
 
+def _as_float_operand(node: ast.expr) -> ast.expr:
+    """Coerce an operand being compared against a number.
+
+    A numeric string *literal* is converted here rather than wrapped in a SQL
+    cast. `cast('1000', Float)` binds the Python `str` as a float-typed
+    parameter, which asyncpg refuses to encode -- `invalid input for query
+    argument $1: '1000' (must be real number, not str)` -- so the condition
+    validates and then fails when the query runs. Converting the literal makes
+    it a real number before it is ever bound.
+
+    Dynamic values still take the cast, which is total by construction
+    (`_SafeJsonFloat`), so an uncastable row excludes itself rather than
+    aborting the statement.
+    """
+    if (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and _is_numeric_string(node.value)
+    ):
+        return ast.Constant(value=float(node.value), kind=None)
+    return _cast_as("Float", node)
+
+
 def _cast_as(
     type_: typing.Literal["Float", "String"],
     node: typing.Any,
@@ -1166,15 +1189,13 @@ class _FilterTranslator(_ProjectionTranslator):
             )
         if _is_float(left) and not _is_float(right) and not _is_none_constant(right):
             if isinstance(op, (ast.In, ast.NotIn)) and isinstance(right, (ast.List, ast.Tuple)):
-                # Cast the elements, not the collection. Casting the collection
+                # Coerce the elements, not the collection. Casting the collection
                 # replaces the `List` node with a `Call`, which then misses the
                 # membership branch below and lands on its `else` -- reported as
                 # `invalid expression: ` (empty, because `ast.unparse` of a bare
-                # operator is the empty string). The validator accepts numeric
-                # strings against a numeric column, so this is what makes the
-                # translator agree with it.
+                # operator is the empty string).
                 elements: list[ast.expr] = [
-                    element if _is_float(element) else _cast_as("Float", element)
+                    element if _is_float(element) else _as_float_operand(element)
                     for element in right.elts
                 ]
                 right = (
@@ -1183,9 +1204,9 @@ class _FilterTranslator(_ProjectionTranslator):
                     else ast.Tuple(elts=elements, ctx=ast.Load())
                 )
             else:
-                right = _cast_as("Float", right)
+                right = _as_float_operand(right)
         elif not _is_float(left) and not _is_none_constant(left) and _is_float(right):
-            left = _cast_as("Float", left)
+            left = _as_float_operand(left)
         if isinstance(op, (ast.In, ast.NotIn)):
             if (
                 _is_string_attribute(right)
