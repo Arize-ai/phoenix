@@ -114,6 +114,7 @@ from phoenix.server.api.routers.oauth2_authorization_server import (
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
+from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
 from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
@@ -896,13 +897,10 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
             method_name.endswith("trace.v1.TraceService/Export")
             and self._db.should_not_insert_or_update
         ):
-            details = (
-                "Database operations are disabled due to insufficient storage. "
-                "Please delete old data or increase storage."
+            await context.abort(
+                grpc.StatusCode.RESOURCE_EXHAUSTED,
+                insufficient_storage_message(),
             )
-            if support_email := get_env_support_email():
-                details += f" Need help? Contact us at {support_email}"
-            await context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, details)
         return await method(request_or_iterator, context)
 
 

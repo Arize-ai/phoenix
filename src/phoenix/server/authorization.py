@@ -117,6 +117,16 @@ def require_admin(request: Request) -> None:
         )
 
 
+def insufficient_storage_message() -> str:
+    message = (
+        "Database operations are disabled due to insufficient storage. "
+        "Please delete old data or increase storage."
+    )
+    if support_email := get_env_support_email():
+        message += f" Need help? Contact us at {support_email}"
+    return message
+
+
 def is_not_locked(request: Request) -> None:
     """
     FastAPI dependency to ensure database operations are not locked due to insufficient storage.
@@ -138,13 +148,7 @@ def is_not_locked(request: Request) -> None:
             information if configured.
     """
     if request.app.state.db.should_not_insert_or_update:
-        detail = (
-            "Database operations are disabled due to insufficient storage. "
-            "Please delete old data or increase storage."
-        )
-        if support_email := get_env_support_email():
-            detail += f" Need help? Contact us at {support_email}"
         raise HTTPException(
             status_code=507,
-            detail=detail,
+            detail=insufficient_storage_message(),
         )

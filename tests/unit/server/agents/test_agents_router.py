@@ -64,6 +64,7 @@ from phoenix.server.api.routers.agents import (
     _synthesize_client_tool_spans,
     _turn_parent_context,
 )
+from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.settings.registry import (
     AgentAssistantEnabledSetting,
     AgentTraceRecordingSetting,
@@ -2502,3 +2503,72 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
             )
             == 0
         )
+
+
+async def test_chat_is_rejected_with_storage_guidance_when_writes_are_already_locked(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """A locked database rejects the turn before it starts, with the reason."""
+    session_id = "79797979-7979-4979-8979-797979797979"
+    agent_session_id = await _create_agent_session_row(db, title="Already titled")
+
+    db.should_not_insert_or_update = True
+    try:
+        response = await httpx_client.post(
+            _chat_url(agent_session_id),
+            json=_chat_body(session_id, _user_message("will be rejected")),
+        )
+    finally:
+        db.should_not_insert_or_update = False
+
+    assert response.status_code == 507
+    assert insufficient_storage_message() in response.text
+
+
+async def test_transcript_write_failure_is_reported_as_an_unsaved_turn(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A write that fails after the turn ran must not leak the driver's error.
+
+    The stream handler puts whatever the persistence step raises straight into
+    an error chunk, so a disk that fills mid-turn used to show the user a raw
+    SQLAlchemy message.
+    """
+
+    async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+
+    async def _failing_persist(*args: object, **kwargs: object) -> None:
+        # The disk fills while the turn is streaming, i.e. after the route's
+        # up-front `is_not_locked` check has already passed.
+        db.should_not_insert_or_update = True
+        raise RuntimeError("database or disk is full")
+
+    monkeypatch.setattr(
+        "phoenix.server.api.routers.agents._persist_agent_session_turn",
+        _failing_persist,
+    )
+    session_id = "78787878-7878-4878-8878-787878787878"
+    agent_session_id = await _create_agent_session_row(db, title="Already titled")
+
+    try:
+        response = await httpx_client.post(
+            _chat_url(agent_session_id),
+            json=_chat_body(session_id, _user_message("will not be saved")),
+        )
+    finally:
+        db.should_not_insert_or_update = False
+
+    assert response.status_code == 200
+    error_chunk = next(chunk for chunk in _stream_chunks(response.text) if chunk["type"] == "error")
+    assert "the conversation could not be saved" in error_chunk["errorText"]
+    # Storage is the actionable cause, so it is named alongside the notice.
+    assert insufficient_storage_message() in error_chunk["errorText"]
+    # The raw driver text is not what the user reads.
+    assert "database or disk is full" not in error_chunk["errorText"]
+    assert "data-transcript-persisted" not in response.text

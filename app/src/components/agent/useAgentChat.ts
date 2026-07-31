@@ -823,12 +823,8 @@ export function useAgentChat({
           }),
         });
         if (!response.ok) {
-          const errorBody: unknown = await response.json().catch(() => null);
-          if (
-            response.status === 409 &&
-            isRecord(errorBody) &&
-            errorBody.code === SESSION_BUSY_ERROR_CODE
-          ) {
+          const errorBody = await response.text().catch(() => "");
+          if (response.status === 409 && isSessionBusyConflict(errorBody)) {
             // Another client's turn holds the session lock: enter
             // busy-elsewhere mode (the poll swaps in the fresh transcript
             // when the turn completes) instead of raising a red error.
@@ -1175,11 +1171,21 @@ function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
 }
 
-function getAgentCompactErrorMessage(body: unknown, status: number): string {
-  if (isRecord(body) && typeof body.detail === "string") {
-    return body.detail;
+/**
+ * A lock conflict is the one failure the route answers with JSON; every other
+ * failure is an `HTTPException` detail, which the server renders as plain text.
+ */
+function isSessionBusyConflict(body: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return isRecord(parsed) && parsed.code === SESSION_BUSY_ERROR_CODE;
+  } catch {
+    return false;
   }
-  return `Compaction failed with status ${status}.`;
+}
+
+function getAgentCompactErrorMessage(body: string, status: number): string {
+  return body.trim() || `Compaction failed with status ${status}.`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

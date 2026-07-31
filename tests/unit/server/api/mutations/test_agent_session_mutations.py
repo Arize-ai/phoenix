@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import Iterator
 from uuid import UUID
 
 import pytest
@@ -17,6 +18,7 @@ from phoenix.server.api.routers.agents import (
     _build_compaction_message,
     _load_agent_session_history,
 )
+from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.settings.registry import AgentAssistantEnabledSetting
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _message_uuid
@@ -794,3 +796,58 @@ async def test_delete_agent_session_not_found(
     )
     assert response.errors
     assert "No agent session found" in response.errors[0].message
+
+
+@pytest.fixture
+def locked_storage(db: DbSessionFactory) -> Iterator[None]:
+    """Put the database in the state the disk-usage monitor sets when full."""
+    db.should_not_insert_or_update = True
+    try:
+        yield
+    finally:
+        db.should_not_insert_or_update = False
+
+
+async def test_write_mutations_report_insufficient_storage_when_writes_are_locked(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    locked_storage: None,
+) -> None:
+    """A locked database must say so, not fail with whatever the driver raised."""
+    agent_session_id = await _seed_session_with_transcript(db)
+
+    for mutation, variables in (
+        (_CREATE_MUTATION, {"title": ""}),
+        (
+            _BRANCH_MUTATION,
+            {"id": agent_session_id, "messageId": _message_uuid("assistant-1")},
+        ),
+        (_UPDATE_TITLE_MUTATION, {"id": agent_session_id, "title": "New title"}),
+    ):
+        response = await gql_client.execute(query=mutation, variables=variables)
+
+        assert response.errors, mutation
+        assert insufficient_storage_message() in response.errors[0].message, mutation
+
+
+async def test_truncate_and_delete_still_work_when_writes_are_locked(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    locked_storage: None,
+) -> None:
+    """Deleting is how a user frees space, so it must not be gated on storage."""
+    agent_session_id = await _seed_session_with_transcript(db)
+
+    truncated = await gql_client.execute(
+        query=_TRUNCATE_MUTATION,
+        variables={"id": agent_session_id, "messageId": _message_uuid("user-2")},
+    )
+    assert not truncated.errors
+
+    deleted = await gql_client.execute(
+        query=_DELETE_MUTATION,
+        variables={"id": agent_session_id},
+    )
+    assert not deleted.errors
+    async with db() as session:
+        assert (await session.scalars(select(models.AgentSession))).all() == []

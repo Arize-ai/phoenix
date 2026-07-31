@@ -21,7 +21,12 @@ from phoenix.server.agents.session_titles import (
     validate_agent_session_title,
 )
 from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
-from phoenix.server.api.auth import IsAgentAssistantEnabled, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.auth import (
+    IsAgentAssistantEnabled,
+    IsLocked,
+    IsNotReadOnly,
+    IsNotViewer,
+)
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.queries import Query
@@ -111,7 +116,9 @@ class DeleteAgentSessionMutationPayload:
 
 @strawberry.type
 class AgentSessionMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAgentAssistantEnabled])  # type: ignore
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsAgentAssistantEnabled, IsLocked]
+    )  # type: ignore
     async def create_agent_session(
         self,
         info: Info[Context, None],
@@ -193,7 +200,9 @@ class AgentSessionMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAgentAssistantEnabled])  # type: ignore
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsAgentAssistantEnabled, IsLocked]
+    )  # type: ignore
     async def branch_agent_session(
         self,
         info: Info[Context, None],
@@ -252,7 +261,7 @@ class AgentSessionMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def update_agent_session_title(
         self,
         info: Info[Context, None],
