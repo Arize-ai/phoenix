@@ -146,6 +146,26 @@ const errorBadgeIn = keyframes`
   }
 `;
 
+const aiBadgeSpin = keyframes`
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
+/**
+ * Sizes the PxiOutline wrapper like the bare field used to size itself and
+ * silences the outline's resting stroke — the field should look untouched
+ * until AI search actually engages (a natural-language draft or an
+ * in-flight conversion).
+ */
+export const dslFilterAIOutlineCSS = css`
+  flex: 1 1 auto;
+  min-width: 0;
+  &[data-state="idle"] .pxi-outline__stroke {
+    opacity: 0;
+  }
+`;
+
 export const dslFilterFieldCSS = css`
   flex: 1 1 auto;
   border-width: var(--global-border-size-thin);
@@ -227,5 +247,69 @@ export const dslFilterFieldCSS = css`
   }
   &[data-has-condition="true"] .clear-button {
     visibility: visible;
+  }
+  /* A natural-language draft reads as prose, not code — mirror that in the
+     editor while the AI affordance is showing */
+  &[data-ai-natural-language="true"] .cm-content {
+    font-family: var(--global-font-family-sans);
+  }
+  .ai-badge {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: var(--global-dimension-size-50);
+    padding: 2px var(--global-dimension-size-65);
+    margin-right: var(--global-dimension-size-50);
+    border-radius: var(--global-rounding-small);
+    border: 1px solid
+      color-mix(in srgb, var(--pxi-treatment-color-middle) 35%, transparent);
+    background-color: color-mix(
+      in srgb,
+      var(--pxi-treatment-color-middle) 10%,
+      transparent
+    );
+    color: var(--pxi-treatment-color-middle);
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+    white-space: nowrap;
+    cursor: default;
+    animation: ${errorBadgeIn} 0.25s ease-out;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+    .ai-badge__spinner {
+      animation: ${aiBadgeSpin} 0.9s linear infinite;
+      @media (prefers-reduced-motion: reduce) {
+        animation: none;
+      }
+    }
+    &:focus-visible {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
+  }
+  .ai-undo-button {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-25);
+    padding: 0 var(--global-dimension-size-50);
+    border-radius: var(--global-rounding-small);
+    color: inherit;
+    font-size: var(--global-font-size-xs);
+    cursor: pointer;
+    &:hover {
+      background-color: color-mix(
+        in srgb,
+        var(--pxi-treatment-color-middle) 18%,
+        transparent
+      );
+    }
+    &:focus-visible {
+      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
+    }
+  }
+  .ai-search-settings-button {
+    margin-right: var(--global-dimension-size-25);
   }
 `;

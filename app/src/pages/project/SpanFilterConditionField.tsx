@@ -5,8 +5,10 @@ import { fetchQuery, graphql } from "relay-runtime";
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
+  createAISearchDSL,
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
+  type DSLFilterAISearchProps,
   type DSLFilterSnippet,
   type DSLFilterValidationFailureReason,
   type DSLFilterValidConditionArgs,
@@ -32,9 +34,12 @@ import {
 } from "./spanFilterValidation";
 
 /**
- * The fields of the span filter DSL that an expression can reference
+ * The core fields of the span filter DSL that an expression can reference.
+ * These double as the vocabulary taught to the AI search model, so each
+ * `info` string should describe the field well enough to translate plain
+ * language into it.
  */
-const spanFilterCompletions: Completion[] = [
+const coreSpanFilterCompletions: Completion[] = [
   {
     label: "span_kind",
     type: "variable",
@@ -140,6 +145,10 @@ const spanFilterCompletions: Completion[] = [
     type: "variable",
     info: "Sum of token count total (prompt + completion) from self and all child spans",
   },
+];
+
+const spanFilterCompletions: Completion[] = [
+  ...coreSpanFilterCompletions,
   ...openInferenceAttributeCompletions,
 ];
 
@@ -225,6 +234,28 @@ const spanFilterSnippets: DSLFilterSnippet[] = [
     snippet: "attributes['${key}'] == '${value}'",
   },
 ];
+
+/**
+ * Everything the AI search model needs to translate plain language into the
+ * span filter DSL — the same vocabulary and examples that power the
+ * typeahead, so the two can never drift apart. The OpenInference attribute
+ * expansion is deliberately summarized as a note instead of enumerated:
+ * hundreds of attribute paths would blow past the on-device model's small
+ * context window without teaching it anything the subscript idiom doesn't.
+ */
+const spanFilterAISearch: DSLFilterAISearchProps = {
+  dsl: createAISearchDSL({
+    noun: "spans",
+    completions: coreSpanFilterCompletions,
+    snippets: spanFilterSnippets,
+    notes: [
+      `Root spans are selected with \`${STRICT_ROOT_SPANS_CONDITION}\`.`,
+      "attributes and metadata are accessed by subscript, e.g. attributes['llm']['provider'] == 'openai'. Span attributes follow OpenInference semantic conventions (llm.model_name, llm.provider, retrieval.documents, embedding.model_name, tool.name, ...).",
+      "Durations are in milliseconds, e.g. 5 seconds is latency_ms > 5000.",
+    ],
+  }),
+  placeholder: "filter spans — DSL or plain English",
+};
 
 /**
  * Fetches the annotation names that actually exist on the project's spans so
@@ -395,6 +426,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       onValidationFailed={onValidationFailed}
       validationRetryKey={validationRetryKey}
       onValidationStateChange={setIsConditionValid}
+      aiSearch={spanFilterAISearch}
     />
   );
 }

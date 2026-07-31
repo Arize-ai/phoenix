@@ -40,9 +40,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/google": "4.0.27",
+    "@ai-sdk/openai-compatible": "3.0.16",
     "@ai-sdk/react": "^4.0.40",
     "@apollo/client": "^4.2.8",
     "@arizeai/openinference-semantic-conventions": "^2.5.0",
+    "@browser-ai/core": "2.1.13",
     "@codemirror/autocomplete": "6.20.3",
     "@codemirror/commands": "^6.10.4",
     "@codemirror/lang-javascript": "^6.2.5",
