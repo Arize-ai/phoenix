@@ -61,4 +61,92 @@ describe("Popover", () => {
     expect(onPopoverClick).toHaveBeenCalledTimes(501);
     expect(onTriggerAncestorClick).not.toHaveBeenCalled();
   });
+
+  it("stacks in the portaled-overlay band by default", () => {
+    act(() => {
+      root.render(
+        <DialogTrigger defaultOpen>
+          <Button>Open popover</Button>
+          <Popover>
+            <span>content</span>
+          </Popover>
+        </DialogTrigger>
+      );
+    });
+
+    const popover = document.querySelector<HTMLElement>(".popover");
+    expect(popover?.style.zIndex).toBe(
+      "var(--global-z-index-app-portaled-overlay)"
+    );
+  });
+
+  it("stacks in the app-floating band when requested", () => {
+    act(() => {
+      root.render(
+        <DialogTrigger defaultOpen>
+          <Button>Open popover</Button>
+          <Popover stacking="app-floating">
+            <span>content</span>
+          </Popover>
+        </DialogTrigger>
+      );
+    });
+
+    const popover = document.querySelector<HTMLElement>(".popover");
+    expect(popover?.style.zIndex).toBe("var(--global-z-index-app-floating)");
+  });
+
+  it("clamps a nested popover to at least its parent's band", () => {
+    act(() => {
+      root.render(
+        <DialogTrigger defaultOpen>
+          <Button>Open parent</Button>
+          <Popover data-testid="parent">
+            <DialogTrigger defaultOpen>
+              <Button>Open child</Button>
+              <Popover data-testid="child" stacking="app-floating">
+                <span>child content</span>
+              </Popover>
+            </DialogTrigger>
+          </Popover>
+        </DialogTrigger>
+      );
+    });
+
+    const child = document.querySelector<HTMLElement>(
+      '.popover[data-testid="child"]'
+    );
+    expect(child).not.toBeNull();
+    // The parent occupies the portaled-overlay band, so the child's requested
+    // app-floating band would paint beneath the overlay that spawned it.
+    expect(child?.style.zIndex).toBe(
+      "var(--global-z-index-app-portaled-overlay)"
+    );
+  });
+
+  it("keeps a nested popover's band when it already meets the parent's", () => {
+    act(() => {
+      root.render(
+        <DialogTrigger defaultOpen>
+          <Button>Open parent</Button>
+          <Popover data-testid="parent" stacking="app-floating">
+            <DialogTrigger defaultOpen>
+              <Button>Open child</Button>
+              <Popover data-testid="child">
+                <span>child content</span>
+              </Popover>
+            </DialogTrigger>
+          </Popover>
+        </DialogTrigger>
+      );
+    });
+
+    const child = document.querySelector<HTMLElement>(
+      '.popover[data-testid="child"]'
+    );
+    expect(child).not.toBeNull();
+    expect(child?.style.zIndex).toBe(
+      "var(--global-z-index-app-portaled-overlay)"
+    );
+  });
 });

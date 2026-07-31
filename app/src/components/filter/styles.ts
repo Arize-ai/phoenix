@@ -1,6 +1,6 @@
 import { css, keyframes } from "@emotion/react";
 
-import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
+import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 import { DSL_FILTER_CONDITION_FIELD_COMPACT_BREAKPOINT_PX } from "./constants";
 
@@ -34,7 +34,7 @@ export const dslFilterCodeMirrorCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
     padding: var(--global-dimension-size-50);
-    z-index: ${NON_MODAL_FLOATING_Z_INDEX};
+    z-index: ${APP_FLOATING_Z_INDEX};
     /* CodeMirror anchors the tooltip to the text line inside the field, so
        the offset must clear the field's inner padding and border before it
        reads as a gap below the input itself. A transform (rather than

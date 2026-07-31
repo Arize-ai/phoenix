@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { CSSProperties, MouseEvent, Ref } from "react";
+import { createContext, useContext } from "react";
 import { mergeProps } from "react-aria";
 import type {
   PopoverProps as AriaPopoverProps,
@@ -7,9 +8,10 @@ import type {
 } from "react-aria-components";
 import { Popover as AriaPopover } from "react-aria-components";
 
+import type { OverlayStackingBand } from "@phoenix/components/core/zIndex";
 import {
-  NON_MODAL_FLOATING_Z_INDEX,
-  PORTALED_OVERLAY_Z_INDEX,
+  OVERLAY_STACKING_BAND_Z_INDEX,
+  OVERLAY_STACKING_BANDS,
 } from "@phoenix/components/core/zIndex";
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -17,7 +19,6 @@ import { popoverSurfaceCSS } from "./styles";
 
 const popoverCSS = css`
   ${popoverSurfaceCSS}
-  z-index: ${PORTALED_OVERLAY_Z_INDEX};
 
   .react-aria-OverlayArrow svg {
     display: block;
@@ -84,8 +85,35 @@ const popoverCSS = css`
 `;
 
 type PopoverProps = AriaPopoverProps & {
-  layer?: "non-modal" | "portaled";
+  /**
+   * Stacking band for the popover surface, named after the global
+   * `--global-z-index-app-*` tokens. Stacking is orthogonal to modality
+   * (`isNonModal`): pick the band from where the surface belongs in the app's
+   * stacking order, never from its interaction contract. A nested popover is
+   * clamped to at least its parent's band, so a child overlay cannot paint
+   * beneath the overlay that spawned it.
+   */
+  stacking?: OverlayStackingBand;
 };
+
+const OverlayStackingContext = createContext<OverlayStackingBand | null>(null);
+
+function resolveStackingBand({
+  requested,
+  inherited,
+}: {
+  requested: OverlayStackingBand;
+  inherited: OverlayStackingBand | null;
+}): OverlayStackingBand {
+  if (
+    inherited !== null &&
+    OVERLAY_STACKING_BANDS.indexOf(inherited) >
+      OVERLAY_STACKING_BANDS.indexOf(requested)
+  ) {
+    return inherited;
+  }
+  return requested;
+}
 
 const popoverInteractionBoundaryProps = {
   // React events bubble through the component tree even when a popover is
@@ -98,21 +126,23 @@ const popoverInteractionBoundaryProps = {
 
 function Popover({
   ref,
-  layer = "portaled",
+  stacking = "app-portaled-overlay",
+  children,
   ...props
 }: PopoverProps & { ref?: Ref<HTMLDivElement> }) {
+  const inherited = useContext(OverlayStackingContext);
+  const band = resolveStackingBand({ requested: stacking, inherited });
+  const zIndex = OVERLAY_STACKING_BAND_Z_INDEX[band];
   const popoverStyle = props.style;
   const style =
-    layer === "non-modal"
-      ? typeof popoverStyle === "function"
-        ? (
-            renderProps: PopoverRenderProps & { defaultStyle: CSSProperties }
-          ) => ({
-            ...popoverStyle(renderProps),
-            zIndex: NON_MODAL_FLOATING_Z_INDEX,
-          })
-        : { ...popoverStyle, zIndex: NON_MODAL_FLOATING_Z_INDEX }
-      : popoverStyle;
+    typeof popoverStyle === "function"
+      ? (
+          renderProps: PopoverRenderProps & { defaultStyle: CSSProperties }
+        ) => ({
+          ...popoverStyle(renderProps),
+          zIndex,
+        })
+      : { ...popoverStyle, zIndex };
   return (
     <AriaPopover
       {...mergeProps(props, popoverInteractionBoundaryProps)}
@@ -120,7 +150,13 @@ function Popover({
       style={style}
       className={classNames("popover react-aria-Popover", props.className)}
       css={popoverCSS}
-    />
+    >
+      {(renderProps) => (
+        <OverlayStackingContext.Provider value={band}>
+          {typeof children === "function" ? children(renderProps) : children}
+        </OverlayStackingContext.Provider>
+      )}
+    </AriaPopover>
   );
 }
 

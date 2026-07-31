@@ -575,7 +575,7 @@ export function DetailPanelAnnotationButton({
         <MenuContainer
           data-annotation-overlay
           placement="bottom end"
-          layer="non-modal"
+          stacking="app-floating"
           minHeight={0}
           maxHeight="min(520px, calc(100vh - var(--global-dimension-size-800)))"
           aria-label={`Manage ${targetLabel}`}
@@ -2435,7 +2435,7 @@ function AddAnnotationPopover({
         <MenuContainer
           data-annotation-overlay
           placement="bottom end"
-          layer="non-modal"
+          stacking="app-floating"
           minHeight={0}
           maxHeight="min(620px, calc(100vh - var(--global-dimension-size-800)))"
           aria-label={`Manage ${targetLabel.toLocaleLowerCase()} annotations`}
