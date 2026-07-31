@@ -524,6 +524,14 @@ class ComparisonOperation(BooleanExpression):
                 compiled_left_operand = _cast_json_value(compiled_left_operand, cast_type)
             if right_operand.data_type is None:
                 compiled_right_operand = _cast_json_value(compiled_right_operand, cast_type)
+        else:
+            # Comparison against None, the only case with no cast type. The
+            # accessor still has to be unwrapped, or `IS NULL` tests the JSON
+            # rendering instead of the value.
+            if left_operand.data_type is None:
+                compiled_left_operand = _as_json_scalar(compiled_left_operand)
+            if right_operand.data_type is None:
+                compiled_right_operand = _as_json_scalar(compiled_right_operand)
         sqlalchemy_operator = _get_sqlalchemy_comparison_operator(operator)
         return sqlalchemy_operator(compiled_left_operand, compiled_right_operand)
 
@@ -785,14 +793,40 @@ def _cast_json_value(compiled_operand: Any, cast_type: SQLAlchemyDataType) -> An
     see it coming.
 
     `SafeJsonFloat` / `SafeJsonBoolean` are total: a value of the wrong shape
-    becomes NULL and its row drops out. Text needs no such care, since any JSON
-    value has a text rendering.
+    becomes NULL and its row drops out.
+
+    Text is a different failure. Casting a JSON value to text renders it *as
+    JSON*, so a stored string keeps its quotes and `input['x'] == 'yes'`
+    compares `"yes"` against `yes` -- false on both backends, for every row.
+    Extracting as text instead (`->>` on PostgreSQL, a plain `json_extract` on
+    SQLite) yields the string itself.
     """
     if isinstance(cast_type, Boolean):
         return SafeJsonBoolean(compiled_operand)
     if isinstance(cast_type, (Integer, Float)):
         return SafeJsonFloat(compiled_operand)
+    if isinstance(cast_type, String):
+        return _as_json_scalar(compiled_operand)
     return cast(compiled_operand, cast_type)
+
+
+def _as_json_scalar(compiled_operand: Any) -> Any:
+    """Extract a JSON value rather than re-render it as JSON.
+
+    A JSON accessor keeps its operand encoded: the string `yes` comes back as
+    `"yes"`, and a missing key comes back as SQLite's text `'null'` instead of
+    SQL NULL. Both make a comparison silently false for every row. `as_string()`
+    picks the extracting accessor on each backend -- `->>` on PostgreSQL, a bare
+    `json_extract` on SQLite.
+
+    Neither backend can then tell a stored JSON null from an absent key, since
+    `json_extract` returns SQL NULL for both. Conflating them is the only
+    behavior both dialects can express, and it is the one `is None` reads as.
+    """
+    as_string = getattr(compiled_operand, "as_string", None)
+    # Present on JSON accessors, which is what an unknown-typed operand is;
+    # anything else is already a scalar.
+    return as_string() if callable(as_string) else compiled_operand
 
 
 def _is_singleton(operand: Any) -> bool:

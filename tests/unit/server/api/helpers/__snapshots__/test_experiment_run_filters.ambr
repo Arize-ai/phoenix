@@ -26,7 +26,7 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-metadata-is-not-free-attribute]
   dict({
     'filter_condition': "metadata['category'] == 'hard_questions'",
-    'sql': "CAST((dataset_example_revisions.metadata -> 'category') AS VARCHAR) = 'hard_questions'",
+    'sql': "CAST((dataset_example_revisions.metadata ->> 'category') AS VARCHAR) = 'hard_questions'",
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-no-free-attributes]
@@ -74,7 +74,7 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-metadata-is-not-free-attribute]
   dict({
     'filter_condition': "metadata['category'] == 'hard_questions'",
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.metadata, \'$."category"\')) AS VARCHAR) = \'hard_questions\'',
+    'sql': 'JSON_EXTRACT(dataset_example_revisions.metadata, \'$."category"\') = \'hard_questions\'',
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-no-free-attributes]
@@ -182,13 +182,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-eq-none]
   dict({
     'filter_condition': 'experiments[2].reference_output["answer"] == None',
-    'sql': "(dataset_example_revisions.output -> 'answer') IS NULL",
+    'sql': "CAST((dataset_example_revisions.output ->> 'answer') AS VARCHAR) IS NULL",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-eq]
   dict({
     'filter_condition': 'experiments[1].reference_output["answer"] == "yes"',
-    'sql': "CAST((dataset_example_revisions.output -> 'answer') AS VARCHAR) = 'yes'",
+    'sql': "CAST((dataset_example_revisions.output ->> 'answer') AS VARCHAR) = 'yes'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-gt]
@@ -206,7 +206,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-in]
   dict({
     'filter_condition': "'search-term' in experiments[0].input['questions'][0]",
-    'sql': "strpos(CAST(((dataset_example_revisions.input -> 'questions') -> 0) AS VARCHAR), 'search-term') > 0",
+    'sql': "strpos(CAST(((dataset_example_revisions.input -> 'questions') ->> 0) AS VARCHAR), 'search-term') > 0",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-int-key]
@@ -218,13 +218,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-is-none]
   dict({
     'filter_condition': 'experiments[2].output["result"] is None',
-    'sql': "((experiment_runs_2.output -> 'task_output') -> 'result') IS NULL",
+    'sql': "CAST(((experiment_runs_2.output -> 'task_output') ->> 'result') AS VARCHAR) IS NULL",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-is-not-none]
   dict({
     'filter_condition': 'experiments[2].input["metadata"] is not None',
-    'sql': "(dataset_example_revisions.input -> 'metadata') IS NOT NULL",
+    'sql': "CAST((dataset_example_revisions.input ->> 'metadata') AS VARCHAR) IS NOT NULL",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-lt]
@@ -242,13 +242,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-ne-none]
   dict({
     'filter_condition': 'experiments[0].output["category"] != None',
-    'sql': "((experiment_runs_0.output -> 'task_output') -> 'category') IS NOT NULL",
+    'sql': "CAST(((experiment_runs_0.output -> 'task_output') ->> 'category') AS VARCHAR) IS NOT NULL",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-ne]
   dict({
     'filter_condition': 'experiments[1].metadata["category"] != "hard_question"',
-    'sql': "CAST((dataset_example_revisions.metadata -> 'category') AS VARCHAR) != 'hard_question'",
+    'sql': "CAST((dataset_example_revisions.metadata ->> 'category') AS VARCHAR) != 'hard_question'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-nested-int-string-keys]
@@ -260,7 +260,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-not-in]
   dict({
     'filter_condition': "'search-term' not in experiments[0].input['questions'][0]",
-    'sql': "NOT strpos(CAST(((dataset_example_revisions.input -> 'questions') -> 0) AS VARCHAR), 'search-term') > 0",
+    'sql': "NOT strpos(CAST(((dataset_example_revisions.input -> 'questions') ->> 0) AS VARCHAR), 'search-term') > 0",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-string-key]
@@ -338,13 +338,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-eq-json-attribute]
   dict({
     'filter_condition': "experiments[0].input['question'] == experiments[0].output['question']",
-    'sql': "CAST((dataset_example_revisions.input -> 'question') AS VARCHAR) = CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR)",
+    'sql': "CAST((dataset_example_revisions.input ->> 'question') AS VARCHAR) = CAST(((experiment_runs_0.output -> 'task_output') ->> 'question') AS VARCHAR)",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-in-json-attribute]
   dict({
     'filter_condition': "experiments[0].input['question'] in experiments[0].output['question']",
-    'sql': "strpos(CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR), CAST((dataset_example_revisions.input -> 'question') AS VARCHAR)) > 0",
+    'sql': "strpos(CAST(((experiment_runs_0.output -> 'task_output') ->> 'question') AS VARCHAR), CAST((dataset_example_revisions.input ->> 'question') AS VARCHAR)) > 0",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-in-output]
@@ -356,13 +356,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-ne-json-attribute]
   dict({
     'filter_condition': "experiments[0].input['question'] != experiments[0].output['question']",
-    'sql': "CAST((dataset_example_revisions.input -> 'question') AS VARCHAR) != CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR)",
+    'sql': "CAST((dataset_example_revisions.input ->> 'question') AS VARCHAR) != CAST(((experiment_runs_0.output -> 'task_output') ->> 'question') AS VARCHAR)",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-not-in-json-attribute]
   dict({
     'filter_condition': "experiments[0].output['question'] not in experiments[0].output['question']",
-    'sql': "NOT strpos(CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR), CAST(((experiment_runs_0.output -> 'task_output') -> 'question') AS VARCHAR)) > 0",
+    'sql': "NOT strpos(CAST(((experiment_runs_0.output -> 'task_output') ->> 'question') AS VARCHAR), CAST(((experiment_runs_0.output -> 'task_output') ->> 'question') AS VARCHAR)) > 0",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-literal-comparison-eq]
@@ -440,7 +440,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-special-characters-in-attribute-escaped]
   dict({
     'filter_condition': "'%_' in experiments[0].output",
-    'sql': "strpos(CAST((experiment_runs_0.output -> 'task_output') AS VARCHAR), '%%_') > 0",
+    'sql': "strpos(CAST((experiment_runs_0.output ->> 'task_output') AS VARCHAR), '%%_') > 0",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-string-constant]
@@ -554,13 +554,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-eq-none]
   dict({
     'filter_condition': 'experiments[2].reference_output["answer"] == None',
-    'sql': 'JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."answer"\')) IS NULL',
+    'sql': 'JSON_EXTRACT(dataset_example_revisions.output, \'$."answer"\') IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-eq]
   dict({
     'filter_condition': 'experiments[1].reference_output["answer"] == "yes"',
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.output, \'$."answer"\')) AS VARCHAR) = \'yes\'',
+    'sql': 'JSON_EXTRACT(dataset_example_revisions.output, \'$."answer"\') = \'yes\'',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-gt]
@@ -578,7 +578,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-in]
   dict({
     'filter_condition': "'search-term' in experiments[0].input['questions'][0]",
-    'sql': 'text_contains(CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."questions"\')), \'$[0]\')) AS VARCHAR), \'search-term\') > 0',
+    'sql': 'text_contains(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."questions"\')), \'$[0]\'), \'search-term\') > 0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-int-key]
@@ -590,13 +590,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-is-none]
   dict({
     'filter_condition': 'experiments[2].output["result"] is None',
-    'sql': 'JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_2.output, \'$."task_output"\')), \'$."result"\')) IS NULL',
+    'sql': 'JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_2.output, \'$."task_output"\')), \'$."result"\') IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-is-not-none]
   dict({
     'filter_condition': 'experiments[2].input["metadata"] is not None',
-    'sql': 'JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."metadata"\')) IS NOT NULL',
+    'sql': 'JSON_EXTRACT(dataset_example_revisions.input, \'$."metadata"\') IS NOT NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-lt]
@@ -614,13 +614,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-ne-none]
   dict({
     'filter_condition': 'experiments[0].output["category"] != None',
-    'sql': 'JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."category"\')) IS NOT NULL',
+    'sql': 'JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."category"\') IS NOT NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-ne]
   dict({
     'filter_condition': 'experiments[1].metadata["category"] != "hard_question"',
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.metadata, \'$."category"\')) AS VARCHAR) != \'hard_question\'',
+    'sql': 'JSON_EXTRACT(dataset_example_revisions.metadata, \'$."category"\') != \'hard_question\'',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-nested-int-string-keys]
@@ -632,7 +632,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-not-in]
   dict({
     'filter_condition': "'search-term' not in experiments[0].input['questions'][0]",
-    'sql': 'NOT text_contains(CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."questions"\')), \'$[0]\')) AS VARCHAR), \'search-term\') > 0',
+    'sql': 'NOT text_contains(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."questions"\')), \'$[0]\'), \'search-term\') > 0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-string-key]
@@ -710,13 +710,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-eq-json-attribute]
   dict({
     'filter_condition': "experiments[0].input['question'] == experiments[0].output['question']",
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) AS VARCHAR) = CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR)',
+    'sql': 'JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\') = JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-in-json-attribute]
   dict({
     'filter_condition': "experiments[0].input['question'] in experiments[0].output['question']",
-    'sql': 'text_contains(CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR), CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) AS VARCHAR)) > 0',
+    'sql': 'text_contains(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\'), JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) > 0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-in-output]
@@ -728,13 +728,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-ne-json-attribute]
   dict({
     'filter_condition': "experiments[0].input['question'] != experiments[0].output['question']",
-    'sql': 'CAST(JSON_QUOTE(JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\')) AS VARCHAR) != CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR)',
+    'sql': 'JSON_EXTRACT(dataset_example_revisions.input, \'$."question"\') != JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-not-in-json-attribute]
   dict({
     'filter_condition': "experiments[0].output['question'] not in experiments[0].output['question']",
-    'sql': 'NOT text_contains(CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR), CAST(JSON_QUOTE(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) AS VARCHAR)) > 0',
+    'sql': 'NOT text_contains(JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\'), JSON_EXTRACT(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')), \'$."question"\')) > 0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-literal-comparison-eq]
@@ -812,7 +812,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-special-characters-in-attribute-escaped]
   dict({
     'filter_condition': "'%_' in experiments[0].output",
-    'sql': 'text_contains(CAST(JSON_QUOTE(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\')) AS VARCHAR), \'%_\') > 0',
+    'sql': 'text_contains(JSON_EXTRACT(experiment_runs_0.output, \'$."task_output"\'), \'%_\') > 0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-string-constant]

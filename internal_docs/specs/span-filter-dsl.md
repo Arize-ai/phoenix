@@ -360,6 +360,15 @@ Guaranteed:
   PostgreSQL: a jsonpath in the default **lax** mode auto-unwraps arrays, so
   `[1, 2]` converts to `1` and matches a comparison against a number the row
   does not hold.
+- A JSON value is compared as the value it holds, never as its JSON *rendering*.
+  Both backends offer two accessors, and the difference is invisible in the
+  compiled SQL until a row exists: the structure-preserving one (`->` /
+  `json_quote`) renders the string `yes` as `"yes"` and an absent key as the
+  text `'null'`, so `x == 'yes'` and `x is None` are false for every row that
+  should match. Only the extracting accessor (`#>>` / `->>` on PostgreSQL, a
+  bare `json_extract` on SQLite) is correct for comparison. This is the
+  cheapest defect in the language to introduce and the most expensive to
+  notice, because nothing errors — the filter simply returns nothing.
 
 Not guaranteed:
 
@@ -369,6 +378,9 @@ Not guaranteed:
   the value — `json_type` can recover it only when given the original column
   *and* path — so closing this means passing the path down rather than the
   extracted value.
+- **JSON booleans rendered as text.** The same collapse with the opposite sign:
+  extracted as text, `true` reads as `true` on PostgreSQL and as `1` on SQLite,
+  so a substring test against a boolean reaches it on one backend only.
 - **Row-level ordering and collation.** String comparison collation differs.
 - **Numeric precision.** PostgreSQL `NUMERIC` vs SQLite `REAL`.
 - **NULL sort position** in downstream `ORDER BY`.
