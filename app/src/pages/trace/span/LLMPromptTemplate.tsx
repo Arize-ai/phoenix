@@ -8,6 +8,7 @@ import {
 } from "@phoenix/components";
 
 import { PreBlock, ReadonlyJSONBlock } from "../ReadonlyJSONBlock";
+import { ExpandableSpanContent } from "./ExpandableSpanContent";
 import type { SpanPromptTemplate } from "./types";
 import { formatJSONForCopy } from "./utils";
 
@@ -33,7 +34,9 @@ export function LLMPromptTemplate({
             <CopyToClipboardButton text={promptTemplate.template} />
           </DisclosureTrigger>
           <DisclosurePanel>
-            <PreBlock>{promptTemplate.template}</PreBlock>
+            <ExpandableSpanContent>
+              <PreBlock>{promptTemplate.template}</PreBlock>
+            </ExpandableSpanContent>
           </DisclosurePanel>
         </Disclosure>
       )}
@@ -49,9 +52,11 @@ export function LLMPromptTemplate({
             />
           </DisclosureTrigger>
           <DisclosurePanel>
-            <ReadonlyJSONBlock>
-              {formatJSONForCopy(promptTemplate.variables)}
-            </ReadonlyJSONBlock>
+            <ExpandableSpanContent>
+              <ReadonlyJSONBlock>
+                {formatJSONForCopy(promptTemplate.variables)}
+              </ReadonlyJSONBlock>
+            </ExpandableSpanContent>
           </DisclosurePanel>
         </Disclosure>
       )}

@@ -6,6 +6,7 @@ import {
 
 import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
+import { ExpandableSpanContent } from "./ExpandableSpanContent";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanInfoSectionProps, SpanIOValue } from "./types";
 
@@ -34,11 +35,13 @@ export function SpanOutput({
           </Flex>
         }
       >
-        <MimeTypeCodeBlock
-          value={value}
-          mimeType={mimeType}
-          initializeImmediately
-        />
+        <ExpandableSpanContent>
+          <MimeTypeCodeBlock
+            value={value}
+            mimeType={mimeType}
+            initializeImmediately
+          />
+        </ExpandableSpanContent>
       </SpanDetailsDisclosureSection>
     </MarkdownDisplayProvider>
   );

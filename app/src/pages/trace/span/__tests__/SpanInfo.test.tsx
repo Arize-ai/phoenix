@@ -74,6 +74,7 @@ const malformedAttributes = JSON.stringify({
         document: {
           id: { value: "1" },
           content: { text: "document" },
+          score: { value: 0.95 },
           metadata: { source: "test" },
         },
       },
@@ -228,7 +229,78 @@ describe("SpanInfo", () => {
     ).toHaveLength(2);
   });
 
-  it("wraps input content without its own card in the shared prompt surface", () => {
+  it.each([
+    ["llm", "#tool-definitions .card"],
+    ["embedding", "#input .card"],
+    ["retriever", "#output .card"],
+  ] as const)(
+    "uses neutral nested card surfaces for %s spans",
+    (spanKind, cardSelector) => {
+      act(() => {
+        root.render(
+          <TestProviders>
+            <SpanInfo
+              sectionIds={sectionIds}
+              span={{
+                id: "span-node-id",
+                spanKind,
+                attributes: malformedAttributes,
+                input: null,
+                output: null,
+                documentRetrievalMetrics: [],
+                documentEvaluations: [],
+              }}
+            />
+          </TestProviders>
+        );
+      });
+
+      const card = container.querySelector<HTMLElement>(cardSelector);
+      expect(card).not.toBeNull();
+      expect(card?.style.backgroundColor).toBe("");
+      expect(card?.style.borderColor).toBe("");
+    }
+  );
+
+  it("renders a document score as an annotation label", () => {
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanInfo
+            sectionIds={sectionIds}
+            span={{
+              id: "span-node-id",
+              spanKind: "retriever",
+              attributes: JSON.stringify({
+                retrieval: {
+                  documents: [
+                    {
+                      document: {
+                        id: "1",
+                        content: "document",
+                        score: 0.95,
+                      },
+                    },
+                  ],
+                },
+              }),
+              input: null,
+              output: null,
+              documentRetrievalMetrics: [],
+              documentEvaluations: [],
+            }}
+          />
+        </TestProviders>
+      );
+    });
+
+    const scoreLabel = container.querySelector(
+      '#output .card [aria-label="Annotation: score"]'
+    );
+    expect(scoreLabel?.textContent).toBe("score0.95");
+  });
+
+  it("bounds generic input, output, and metadata leaf content", () => {
     act(() => {
       root.render(
         <TestProviders>
@@ -237,7 +309,7 @@ describe("SpanInfo", () => {
             span={{
               id: "span-node-id",
               spanKind: "chain",
-              attributes: "{}",
+              attributes: JSON.stringify({ metadata: { source: "test" } }),
               input: { value: "input", mimeType: "text" },
               output: { value: "output", mimeType: "text" },
               documentRetrievalMetrics: [],
@@ -250,14 +322,60 @@ describe("SpanInfo", () => {
 
     expect(
       container.querySelector(
-        "#input > [aria-labelledby] > .span-details-input-section__surface"
+        "#input .span-details-input-section__surface > .expandable-content"
       )
     ).not.toBeNull();
     expect(
       container.querySelector(
-        "#output > [aria-labelledby] > .span-details-input-section__surface"
+        "#output > [aria-labelledby] > .expandable-content"
       )
-    ).toBeNull();
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        "#metadata > [aria-labelledby] > .expandable-content"
+      )
+    ).not.toBeNull();
+  });
+
+  it("shows bounded LLM context alongside the selected raw view", () => {
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanInfo
+            sectionIds={sectionIds}
+            span={{
+              id: "span-node-id",
+              spanKind: "llm",
+              attributes: JSON.stringify({
+                llm: {
+                  invocation_parameters: JSON.stringify({
+                    temperature: 0.2,
+                  }),
+                },
+              }),
+              input: { value: "input", mimeType: "text" },
+              output: null,
+              documentRetrievalMetrics: [],
+              documentEvaluations: [],
+            }}
+          />
+        </TestProviders>
+      );
+    });
+
+    expect(container.querySelector("#input .card")?.textContent).toContain(
+      "Invocation Params"
+    );
+    expect(
+      container.querySelector(
+        "#input .card > .card__body > .expandable-content"
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        "#input .span-details-input-section__surface > .expandable-content"
+      )
+    ).not.toBeNull();
   });
 
   it("does not wrap LLM message cards in the prompt surface", () => {

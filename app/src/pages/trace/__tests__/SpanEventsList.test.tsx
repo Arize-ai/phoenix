@@ -56,5 +56,6 @@ describe("SpanEventsListContent", () => {
       container.querySelector('[data-testid="readonly-json-block"]')
         ?.textContent
     ).toContain("only after expansion");
+    expect(container.querySelector(".expandable-content")).not.toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import type { CardProps } from "@phoenix/components";
 export const defaultCardProps: Partial<CardProps> = {
   collapsible: true,
   variant: "compact",
+  borderRadius: "small",
 };
 
 /**

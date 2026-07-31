@@ -19,6 +19,7 @@ import { useTimeFormatters } from "@phoenix/hooks";
 
 import type { SpanEventsListQuery } from "./__generated__/SpanEventsListQuery.graphql";
 import { ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
+import { ExpandableSpanContent } from "./span/ExpandableSpanContent";
 
 type SpanEventsListProps = {
   spanId: string;
@@ -210,11 +211,13 @@ export function SpanEventsListContent({
                 </DisclosureTrigger>
                 {hasAttributes && isExpanded ? (
                   <DisclosurePanel>
-                    <ReadonlyJSONBlock
-                      basicSetup={{ lineNumbers: false, foldGutter: false }}
-                    >
-                      {JSON.stringify(event.attributes, null, 2)}
-                    </ReadonlyJSONBlock>
+                    <ExpandableSpanContent overlayBackgroundColor="var(--tool-call-body-background-color)">
+                      <ReadonlyJSONBlock
+                        basicSetup={{ lineNumbers: false, foldGutter: false }}
+                      >
+                        {JSON.stringify(event.attributes, null, 2)}
+                      </ReadonlyJSONBlock>
+                    </ExpandableSpanContent>
                   </DisclosurePanel>
                 ) : null}
               </>

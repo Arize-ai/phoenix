@@ -3,6 +3,7 @@ import type { PropsWithChildren } from "react";
 
 import { promptInputSurfaceCSS } from "@phoenix/components/ai/prompt-input";
 
+import { ExpandableSpanContent } from "./span/ExpandableSpanContent";
 import {
   SpanDetailsDisclosureSection,
   type SpanDetailsDisclosureSectionProps,
@@ -39,7 +40,9 @@ export function SpanDetailsInputSurface({ children }: PropsWithChildren) {
       className="span-details-input-section__surface"
       css={spanDetailsInputSurfaceCSS}
     >
-      {children}
+      <ExpandableSpanContent overlayBackgroundColor="var(--prompt-input-background-color)">
+        {children}
+      </ExpandableSpanContent>
     </div>
   );
 }

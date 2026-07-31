@@ -7,6 +7,7 @@ import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
 
 import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
+import { ExpandableSpanContent } from "./ExpandableSpanContent";
 import type { LLMIOView } from "./LLMIOViewSelect";
 import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
 import { LLMMessagesList } from "./LLMMessagesList";
@@ -94,7 +95,11 @@ export function LLMOutput({
         {view === "output-messages" && (
           <LLMMessagesList messages={outputMessages} />
         )}
-        {isRawView && <MimeTypeCodeBlock {...output} initializeImmediately />}
+        {isRawView && (
+          <ExpandableSpanContent>
+            <MimeTypeCodeBlock {...output} initializeImmediately />
+          </ExpandableSpanContent>
+        )}
       </SpanDetailsDisclosureSection>
     </MarkdownDisplayProvider>
   );

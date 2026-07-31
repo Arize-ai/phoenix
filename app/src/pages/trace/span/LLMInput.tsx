@@ -100,8 +100,8 @@ export function LLMInput({
   if (hasPrompts) views.push({ id: "prompts", label: "Prompts" });
   const { view, setView } = useLLMIOView(views);
 
-  // Collapsed cards shown above the input messages (input-only context)
-  const messageLeadingItems = [
+  // Collapsed cards shown above the selected input representation.
+  const inputContextItems = [
     promptTemplate != null && (
       <Card
         key="prompt-template"
@@ -124,6 +124,9 @@ export function LLMInput({
   ].filter(Boolean);
 
   const isRawView = view === "input" && hasInput;
+  const isMessagesView = view === "input-messages";
+  const shouldRenderContextBeforeView =
+    inputContextItems.length > 0 && !isMessagesView;
   const cardProps = useSpanInfoCardProps("input");
 
   if (!hasInputContent) {
@@ -169,10 +172,13 @@ export function LLMInput({
           </Flex>
         }
       >
-        {view === "input-messages" && (
+        {shouldRenderContextBeforeView ? (
+          <LLMMessagesList messages={[]} leadingItems={inputContextItems} />
+        ) : null}
+        {isMessagesView && (
           <LLMMessagesList
             messages={inputMessages}
-            leadingItems={messageLeadingItems}
+            leadingItems={inputContextItems}
           />
         )}
         {isRawView && (

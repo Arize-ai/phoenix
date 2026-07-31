@@ -11,6 +11,7 @@ import type { AttributeEmbeddingEmbedding } from "@phoenix/openInference/tracing
 import { SpanDetailsInputSection } from "../SpanDetailsInputSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
+import { ExpandableSpanContent } from "./ExpandableSpanContent";
 import type { SpanInfoSectionProps } from "./types";
 import { formatTextListForCopy } from "./utils";
 
@@ -56,12 +57,12 @@ export function EmbeddingInput({
                 <MarkdownDisplayProvider>
                   <Card
                     {...defaultCardProps}
-                    backgroundColor="purple-100"
-                    borderColor="purple-300"
                     title="Embedded Text"
                     extra={<CopyToClipboardButton text={text} />}
                   >
-                    <ConnectedMarkdownBlock>{text}</ConnectedMarkdownBlock>
+                    <ExpandableSpanContent>
+                      <ConnectedMarkdownBlock>{text}</ConnectedMarkdownBlock>
+                    </ExpandableSpanContent>
                   </Card>
                 </MarkdownDisplayProvider>
               </li>

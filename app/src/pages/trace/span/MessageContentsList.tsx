@@ -4,6 +4,7 @@ import { ConnectedMarkdownBlock } from "@phoenix/components/markdown";
 import type { AttributeMessageContent } from "@phoenix/openInference/tracing/types";
 import { formatContentAsString } from "@phoenix/utils/jsonUtils";
 
+import { ExpandableSpanContent } from "./ExpandableSpanContent";
 import { SpanImage } from "./SpanImage";
 
 const messageContentListCSS = css`
@@ -43,9 +44,11 @@ function MessageContentListItem({
   return (
     <li css={normalizedText ? messageContentTextListItemCSS : null}>
       {normalizedText ? (
-        <ConnectedMarkdownBlock margin="none">
-          {normalizedText}
-        </ConnectedMarkdownBlock>
+        <ExpandableSpanContent>
+          <ConnectedMarkdownBlock margin="none">
+            {normalizedText}
+          </ConnectedMarkdownBlock>
+        </ExpandableSpanContent>
       ) : null}
       {imageUrl ? <SpanImage url={imageUrl} /> : null}
     </li>

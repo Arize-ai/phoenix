@@ -35,11 +35,9 @@ function LLMToolSchema({
       title={titleEl}
       titleExtra={<Counter>#{index + 1}</Counter>}
       {...defaultCardProps}
-      backgroundColor="yellow-100"
-      borderColor="yellow-300"
       extra={<CopyToClipboardButton text={toolSchema} />}
     >
-      <ExpandableSpanContent overlayBackgroundColor="var(--global-color-yellow-100)">
+      <ExpandableSpanContent>
         <MimeTypeCodeBlock value={toolSchema} mimeType={"json"} />
       </ExpandableSpanContent>
     </Card>

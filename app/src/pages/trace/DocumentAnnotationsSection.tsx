@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 
-import type { TokenProps, ViewProps } from "@phoenix/components";
 import { Button, Flex, Heading, Icon, Icons, View } from "@phoenix/components";
 
 import {
@@ -16,15 +15,11 @@ export function DocumentAnnotationsSection({
   spanNodeId,
   documentPosition,
   documentAnnotations,
-  borderColor,
-  tokenColor,
   canAnnotate,
 }: {
   spanNodeId: string;
   documentPosition: number;
   documentAnnotations: DocumentAnnotation[];
-  borderColor: ViewProps["borderColor"];
-  tokenColor: TokenProps["color"];
   canAnnotate: boolean;
 }) {
   const [editingAnnotation, setEditingAnnotation] =
@@ -50,7 +45,7 @@ export function DocumentAnnotationsSection({
   }, []);
 
   return (
-    <View borderColor={borderColor} borderTopWidth="thin" padding="size-200">
+    <View borderColor="default" borderTopWidth="thin" padding="size-200">
       <Flex direction="column" gap="size-100">
         <Flex
           direction="row"
@@ -74,11 +69,7 @@ export function DocumentAnnotationsSection({
           )}
         </Flex>
         {isCreating && (
-          <View
-            borderWidth="thin"
-            borderColor={borderColor}
-            borderRadius="medium"
-          >
+          <View borderWidth="thin" borderColor="default" borderRadius="medium">
             <DocumentAnnotationForm
               spanNodeId={spanNodeId}
               documentPosition={documentPosition}
@@ -96,8 +87,6 @@ export function DocumentAnnotationsSection({
                   documentAnnotation={documentAnnotation}
                   spanNodeId={spanNodeId}
                   documentPosition={documentPosition}
-                  borderColor={borderColor}
-                  tokenColor={tokenColor}
                   canAnnotate={canAnnotate}
                   editingAnnotation={editingAnnotation}
                   existingAnnotationNames={existingAnnotationNames}

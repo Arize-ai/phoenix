@@ -5,6 +5,7 @@ import { CopyToClipboardButton, Flex, Text, View } from "@phoenix/components";
 import { ReadonlyJSONBlock } from "../ReadonlyJSONBlock";
 import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
+import { ExpandableSpanContent } from "./ExpandableSpanContent";
 import type { SpanInfoSectionProps } from "./types";
 import { formatJSONForCopy, parseJSONDocument } from "./utils";
 
@@ -60,7 +61,9 @@ export function ToolMetadata({
               <Text color="text-700" fontStyle="italic">
                 Description
               </Text>
-              <Text>{description}</Text>
+              <ExpandableSpanContent>
+                <Text>{description}</Text>
+              </ExpandableSpanContent>
             </Flex>
           </View>
         ) : null}
@@ -77,23 +80,25 @@ export function ToolMetadata({
               <Text color="text-700" fontStyle="italic">
                 Parameters
               </Text>
-              <div
-                css={css`
-                  .cm-editor {
-                    background-color: transparent !important;
-                  }
-                `}
-              >
-                {/* the parameter schema arrives as JSON text already, so it
-                    goes to the block as it came: encoding it again would show
-                    the reader one escaped line instead of the schema, and
-                    would not match what the card's copy button hands back */}
-                <ReadonlyJSONBlock
-                  basicSetup={{ lineNumbers: false, foldGutter: false }}
+              <ExpandableSpanContent>
+                <div
+                  css={css`
+                    .cm-editor {
+                      background-color: transparent !important;
+                    }
+                  `}
                 >
-                  {parameters}
-                </ReadonlyJSONBlock>
-              </div>
+                  {/* the parameter schema arrives as JSON text already, so it
+                      goes to the block as it came: encoding it again would show
+                      the reader one escaped line instead of the schema, and
+                      would not match what the card's copy button hands back */}
+                  <ReadonlyJSONBlock
+                    basicSetup={{ lineNumbers: false, foldGutter: false }}
+                  >
+                    {parameters}
+                  </ReadonlyJSONBlock>
+                </div>
+              </ExpandableSpanContent>
             </Flex>
           </View>
         ) : null}

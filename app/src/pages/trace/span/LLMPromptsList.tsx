@@ -8,6 +8,7 @@ import {
 } from "@phoenix/components";
 
 import { defaultCardProps } from "./constants";
+import { ExpandableSpanContent } from "./ExpandableSpanContent";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 
 /**
@@ -24,7 +25,9 @@ function LLMPrompt({ prompt, index }: { prompt: string; index: number }) {
       titleExtra={<Counter>#{index + 1}</Counter>}
       extra={<CopyToClipboardButton text={prompt} />}
     >
-      <MimeTypeCodeBlock value={prompt} mimeType="text" />
+      <ExpandableSpanContent overlayBackgroundColor="var(--global-color-gray-100)">
+        <MimeTypeCodeBlock value={prompt} mimeType="text" />
+      </ExpandableSpanContent>
     </Card>
   );
 }

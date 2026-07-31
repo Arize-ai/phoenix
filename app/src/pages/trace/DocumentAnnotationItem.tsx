@@ -1,6 +1,5 @@
 import { formatRelative } from "date-fns/formatRelative";
 
-import type { TokenProps, ViewProps } from "@phoenix/components";
 import { Flex, Text, Token, View } from "@phoenix/components";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
@@ -37,8 +36,6 @@ export function DocumentAnnotationItem({
   documentAnnotation,
   spanNodeId,
   documentPosition,
-  borderColor,
-  tokenColor,
   canAnnotate,
   editingAnnotation,
   existingAnnotationNames,
@@ -53,10 +50,6 @@ export function DocumentAnnotationItem({
   spanNodeId: string;
   /** The zero-based position of the document within the span's retrieval list */
   documentPosition: number;
-  /** Border color token applied to the item's card container */
-  borderColor: ViewProps["borderColor"];
-  /** Color token used for label and score badges */
-  tokenColor: TokenProps["color"];
   /** Whether the current user has permission to annotate */
   canAnnotate: boolean;
   /** The annotation currently being edited, or null if none */
@@ -76,14 +69,14 @@ export function DocumentAnnotationItem({
     documentAnnotation.label &&
     DANGER_ANNOTATION_LABELS.includes(documentAnnotation.label)
       ? "var(--global-color-danger)"
-      : tokenColor;
+      : undefined;
 
   const isEditing =
     editingAnnotation != null && editingAnnotation.id === documentAnnotation.id;
 
   if (isEditing) {
     return (
-      <View borderWidth="thin" borderColor={borderColor} borderRadius="medium">
+      <View borderWidth="thin" borderColor="default" borderRadius="medium">
         <DocumentAnnotationForm
           spanNodeId={spanNodeId}
           documentPosition={documentPosition}
@@ -107,7 +100,7 @@ export function DocumentAnnotationItem({
     <View
       padding="size-200"
       borderWidth="thin"
-      borderColor={borderColor}
+      borderColor="default"
       borderRadius="medium"
     >
       <Flex direction="column" gap="size-100">

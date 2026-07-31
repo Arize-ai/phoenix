@@ -3,6 +3,7 @@ import { CopyToClipboardButton } from "@phoenix/components";
 import { ReadonlyJSONBlock } from "../ReadonlyJSONBlock";
 import { SpanDetailsDisclosureSection } from "../SpanDetailsDisclosureSection";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
+import { ExpandableSpanContent } from "./ExpandableSpanContent";
 import type { SpanInfoSectionProps } from "./types";
 import { formatJSONForCopy } from "./utils";
 
@@ -25,7 +26,9 @@ export function SpanMetadata({
       title="Metadata"
       extra={<CopyToClipboardButton text={formatJSONForCopy(metadata)} />}
     >
-      <ReadonlyJSONBlock>{JSON.stringify(metadata)}</ReadonlyJSONBlock>
+      <ExpandableSpanContent>
+        <ReadonlyJSONBlock>{JSON.stringify(metadata)}</ReadonlyJSONBlock>
+      </ExpandableSpanContent>
     </SpanDetailsDisclosureSection>
   );
 }

@@ -1,6 +1,5 @@
 import { DocumentAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
 
-import type { TokenProps, ViewProps } from "@phoenix/components";
 import {
   Card,
   CopyToClipboardButton,
@@ -9,60 +8,52 @@ import {
   Heading,
   Icon,
   Icons,
-  Token,
+  Text,
   View,
 } from "@phoenix/components";
+import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { ConnectedMarkdownBlock } from "@phoenix/components/markdown";
 import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
-import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { DocumentAnnotation } from "./DocumentAnnotationItem";
 import { DocumentAnnotationsSection } from "./DocumentAnnotationsSection";
 import { ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
+import { ExpandableSpanContent } from "./span/ExpandableSpanContent";
 
 export function DocumentItem({
   document,
   documentAnnotations,
-  backgroundColor,
-  borderColor = "default",
-  tokenColor,
   spanNodeId,
   documentPosition,
 }: {
   document: AttributeDocument;
   documentAnnotations?: DocumentAnnotation[] | null;
-  backgroundColor?: ViewProps["backgroundColor"];
-  borderColor?: ViewProps["borderColor"];
-  tokenColor?: TokenProps["color"];
   spanNodeId?: string;
   documentPosition?: number;
 }) {
   const metadata = document[DocumentAttributePostfixes.metadata];
   const documentContent = document[DocumentAttributePostfixes.content];
+  const documentScore = document[DocumentAttributePostfixes.score];
   const canAnnotate = spanNodeId != null && documentPosition != null;
   const showAnnotationsSection = canAnnotate;
   return (
     <Card
-      backgroundColor={backgroundColor}
-      borderColor={borderColor}
       collapsible
       title={
         <Flex direction="row" gap="size-50" alignItems="center">
           <Icon svg={<Icons.File />} />
-          <Heading level={4}>
+          <Text weight="heavy">
             document {document[DocumentAttributePostfixes.id]}
-          </Heading>
+          </Text>
         </Flex>
       }
       extra={
         <Flex direction="row" gap="size-100" alignItems="center">
-          {typeof document[DocumentAttributePostfixes.score] === "number" && (
-            <Token color={tokenColor}>
-              {`score ${numberFormatter(
-                document[DocumentAttributePostfixes.score]
-              )}`}
-            </Token>
-          )}
+          {typeof documentScore === "number" ? (
+            <AnnotationLabel
+              annotation={{ name: "score", score: documentScore }}
+            />
+          ) : null}
           {/* the content is what a reader reaches for; the whole document is
               the fallback for a document that recorded none */}
           <CopyToClipboardButton
@@ -77,22 +68,26 @@ export function DocumentItem({
     >
       <Flex direction="column">
         {documentContent && (
-          <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
+          <ExpandableSpanContent>
+            <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
+          </ExpandableSpanContent>
         )}
         {metadata && (
           <>
-            <View borderColor={borderColor} borderTopWidth="thin">
+            <View borderColor="default" borderTopWidth="thin">
               <View
                 paddingX="size-200"
                 paddingY="size-100"
-                borderColor={borderColor}
+                borderColor="default"
                 borderBottomWidth="thin"
               >
                 <Heading level={4}>Document Metadata</Heading>
               </View>
-              <ReadonlyJSONBlock basicSetup={{ lineNumbers: false }}>
-                {JSON.stringify(metadata)}
-              </ReadonlyJSONBlock>
+              <ExpandableSpanContent>
+                <ReadonlyJSONBlock basicSetup={{ lineNumbers: false }}>
+                  {JSON.stringify(metadata)}
+                </ReadonlyJSONBlock>
+              </ExpandableSpanContent>
             </View>
           </>
         )}
@@ -102,8 +97,6 @@ export function DocumentItem({
               spanNodeId={spanNodeId ?? ""}
               documentPosition={documentPosition ?? 0}
               documentAnnotations={documentAnnotations ?? []}
-              borderColor={borderColor}
-              tokenColor={tokenColor}
               canAnnotate={canAnnotate}
             />
           </ErrorBoundary>
