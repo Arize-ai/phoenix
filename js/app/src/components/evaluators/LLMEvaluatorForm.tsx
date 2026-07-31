@@ -9,7 +9,13 @@ import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/Evaluator
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
 
-export const LLMEvaluatorForm = () => {
+export const LLMEvaluatorForm = ({
+  showInputMapping = true,
+  showAnnotationConfig = true,
+}: {
+  showInputMapping?: boolean;
+  showAnnotationConfig?: boolean;
+}) => {
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   if (evaluatorKind !== "LLM") {
     throw new Error("LLMEvaluatorForm called for non-LLM evaluator");
@@ -56,38 +62,42 @@ export const LLMEvaluatorForm = () => {
           <EvaluatorChatTemplate />
         )}
       </Flex>
-      <View marginBottom="size-200" flex="none">
+      {showAnnotationConfig ? (
+        <View marginBottom="size-200" flex="none">
+          <Flex direction="column" gap="size-100">
+            <Heading level={2} weight="heavy">
+              Evaluator Annotation
+            </Heading>
+            <Text color="text-500">
+              Define the annotation that your evaluator will create.
+            </Text>
+            {isCategoricalAnnotationConfig ? (
+              <EvaluatorCategoricalChoiceConfig />
+            ) : null}
+          </Flex>
+        </View>
+      ) : null}
+      {showInputMapping ? (
         <Flex direction="column" gap="size-100">
           <Heading level={2} weight="heavy">
-            Evaluator Annotation
+            Map Prompt Variables (optional)
           </Heading>
           <Text color="text-500">
-            Define the annotation that your evaluator will create.
+            Map the variables in your prompt to your dataset example and task
+            output fields. You can leave these blank if your variable names
+            match the field names.
           </Text>
-          {isCategoricalAnnotationConfig ? (
-            <EvaluatorCategoricalChoiceConfig />
-          ) : null}
+          <View
+            borderRadius="medium"
+            borderWidth="thin"
+            padding="size-200"
+            marginTop="size-50"
+            borderColor="default"
+          >
+            <EvaluatorInputMapping />
+          </View>
         </Flex>
-      </View>
-      <Flex direction="column" gap="size-100">
-        <Heading level={2} weight="heavy">
-          Map Prompt Variables (optional)
-        </Heading>
-        <Text color="text-500">
-          Map the variables in your prompt to your dataset example and task
-          output fields. You can leave these blank if your variable names match
-          the field names.
-        </Text>
-        <View
-          borderRadius="medium"
-          borderWidth="thin"
-          padding="size-200"
-          marginTop="size-50"
-          borderColor="default"
-        >
-          <EvaluatorInputMapping />
-        </View>
-      </Flex>
+      ) : null}
     </>
   );
 };
