@@ -1,6 +1,5 @@
 import ast
 import re
-import sys
 import typing
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -1565,9 +1564,7 @@ def _as_attribute(
 ) -> ast.Subscript:
     return ast.Subscript(
         value=ast.Name(id="attributes", ctx=ast.Load()),
-        slice=ast.List(elts=keys, ctx=ast.Load())  # type: ignore[arg-type]
-        if sys.version_info >= (3, 9)
-        else ast.Index(value=ast.List(elts=keys, ctx=ast.Load())),  # type: ignore
+        slice=ast.List(elts=keys, ctx=ast.Load()),  # type: ignore[arg-type]
         ctx=ast.Load(),
     )
 

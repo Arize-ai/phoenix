@@ -1,6 +1,5 @@
 import ast
 import random
-import sys
 import typing
 from ast import unparse
 from collections import Counter
@@ -87,27 +86,19 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
     [
         (
             "parent_id is not None and 'abc' in name or span_kind == 'LLM' and span_id in ('123',)",
-            "or_(and_(parent_id != None, TextContains(name, 'abc')), and_(span_kind == 'LLM', span_id.in_(('123',))))"
-            if sys.version_info >= (3, 9)
-            else "or_(and_((parent_id != None), TextContains(name, 'abc')), and_((span_kind == 'LLM'), span_id.in_(('123',))))",
+            "or_(and_(parent_id != None, TextContains(name, 'abc')), and_(span_kind == 'LLM', span_id.in_(('123',))))",
         ),
         (
             "(parent_id is None or 'abc' not in name) and not (span_kind != 'LLM' or span_id not in ('123',))",
-            "and_(or_(parent_id == None, not_(TextContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))"
-            if sys.version_info >= (3, 9)
-            else "and_(or_((parent_id == None), not_(TextContains(name, 'abc'))), not_(or_((span_kind != 'LLM'), span_id.not_in(('123',)))))",
+            "and_(or_(parent_id == None, not_(TextContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))",
         ),
         (
             "1000 < latency_ms < 2000 or status_code == 'ERROR' or 2000 <= cumulative_llm_token_count_total",
-            "or_(and_(1000 < latency_ms, latency_ms < 2000), status_code == 'ERROR', 2000 <= cumulative_llm_token_count_total)"
-            if sys.version_info >= (3, 9)
-            else "or_(and_((1000 < latency_ms), (latency_ms < 2000)), (status_code == 'ERROR'), (2000 <= cumulative_llm_token_count_total))",
+            "or_(and_(1000 < latency_ms, latency_ms < 2000), status_code == 'ERROR', 2000 <= cumulative_llm_token_count_total)",
         ),
         (
             "llm.token_count.total - llm.token_count.prompt > 1000",
-            "SafeJsonFloat(attributes[['llm', 'token_count', 'total']]) - SafeJsonFloat(attributes[['llm', 'token_count', 'prompt']]) > 1000"
-            if sys.version_info >= (3, 9)
-            else "((SafeJsonFloat(attributes[['llm', 'token_count', 'total']]) - SafeJsonFloat(attributes[['llm', 'token_count', 'prompt']])) > 1000)",
+            "SafeJsonFloat(attributes[['llm', 'token_count', 'total']]) - SafeJsonFloat(attributes[['llm', 'token_count', 'prompt']]) > 1000",
         ),
         (
             "first.value in (1,) and second.value in ('2',) and '3' in third.value",
@@ -115,45 +106,31 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
         ),
         (
             "'1.0' < my.value < 2.0",
-            "and_('1.0' < attributes[['my', 'value']].as_string(), SafeJsonFloat(attributes[['my', 'value']]) < 2.0)"
-            if sys.version_info >= (3, 9)
-            else "and_(('1.0' < attributes[['my', 'value']].as_string()), (SafeJsonFloat(attributes[['my', 'value']]) < 2.0))",
+            "and_('1.0' < attributes[['my', 'value']].as_string(), SafeJsonFloat(attributes[['my', 'value']]) < 2.0)",
         ),
         (
             "first.value + 1 < second.value",
-            "SafeJsonFloat(attributes[['first', 'value']]) + 1 < SafeJsonFloat(attributes[['second', 'value']])"
-            if sys.version_info >= (3, 9)
-            else "((SafeJsonFloat(attributes[['first', 'value']]) + 1) < SafeJsonFloat(attributes[['second', 'value']]))",
+            "SafeJsonFloat(attributes[['first', 'value']]) + 1 < SafeJsonFloat(attributes[['second', 'value']])",
         ),
         (
             "first.value * second.value > third.value",
-            "SafeJsonFloat(attributes[['first', 'value']]) * SafeJsonFloat(attributes[['second', 'value']]) > SafeJsonFloat(attributes[['third', 'value']])"
-            if sys.version_info >= (3, 9)
-            else "((SafeJsonFloat(attributes[['first', 'value']]) * SafeJsonFloat(attributes[['second', 'value']])) > SafeJsonFloat(attributes[['third', 'value']]))",
+            "SafeJsonFloat(attributes[['first', 'value']]) * SafeJsonFloat(attributes[['second', 'value']]) > SafeJsonFloat(attributes[['third', 'value']])",
         ),
         (
             "first.value + second.value > third.value",
-            "cast(attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string(), String) > attributes[['third', 'value']].as_string()"
-            if sys.version_info >= (3, 9)
-            else "(cast((attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string()), String) > attributes[['third', 'value']].as_string())",
+            "cast(attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string(), String) > attributes[['third', 'value']].as_string()",
         ),
         (
             "my.value == '1.0' or float(my.value) < 2.0",
-            "or_(attributes[['my', 'value']].as_string() == '1.0', SafeJsonFloat(attributes[['my', 'value']]) < 2.0)"
-            if sys.version_info >= (3, 9)
-            else "or_((attributes[['my', 'value']].as_string() == '1.0'), (SafeJsonFloat(attributes[['my', 'value']]) < 2.0))",
+            "or_(attributes[['my', 'value']].as_string() == '1.0', SafeJsonFloat(attributes[['my', 'value']]) < 2.0)",
         ),
         (
             "not(-metadata['a.b'] + float(metadata[['c.d']]) != metadata[['e.f', 'g.h']])",
-            "not_(-SafeJsonFloat(attributes[['metadata', 'a.b']]) + SafeJsonFloat(attributes[['metadata', 'c.d']]) != SafeJsonFloat(attributes[['metadata', 'e.f', 'g.h']]))"
-            if sys.version_info >= (3, 9)
-            else "not_((((- SafeJsonFloat(attributes[['metadata', 'a.b']])) + SafeJsonFloat(attributes[['metadata', 'c.d']])) != SafeJsonFloat(attributes[['metadata', 'e.f', 'g.h']])))",
+            "not_(-SafeJsonFloat(attributes[['metadata', 'a.b']]) + SafeJsonFloat(attributes[['metadata', 'c.d']]) != SafeJsonFloat(attributes[['metadata', 'e.f', 'g.h']]))",
         ),
         (
             "attributes['attributes'] == attributes[['attributes']] != attributes[['attributes', 'attributes']]",
-            "and_(attributes[['attributes']].as_string() == attributes[['attributes']].as_string(), attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string())"
-            if sys.version_info >= (3, 9)
-            else "and_((attributes[['attributes']].as_string() == attributes[['attributes']].as_string()), (attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string()))",
+            "and_(attributes[['attributes']].as_string() == attributes[['attributes']].as_string(), attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string())",
         ),
         (
             "metadata['is_empty'] == True",
