@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import replace
+from typing import Any, TypeVar, cast
+
 from pydantic import BaseModel, Field, field_validator
 from pydantic_ai.messages import (
+    BaseToolReturnPart,
     InstructionPart,
     ModelMessage,
     ModelRequest,
@@ -24,6 +28,44 @@ from phoenix.server.agents.session_titles import (
 
 SUMMARY_TOOL_NAME = "summary"
 COMPACTION_TOOL_NAME = "conversation_checkpoint"
+
+MAX_SUMMARIZED_TOOL_RESULT_LENGTH = 2_000
+"""How much of each tool result the summarizer is allowed to see."""
+
+_ToolReturnPartT = TypeVar("_ToolReturnPartT", bound=BaseToolReturnPart)
+
+
+def _truncate_tool_result(part: _ToolReturnPartT) -> _ToolReturnPartT:
+    """Cap a tool result's text, keeping any multimodal files intact."""
+    text = part.model_response_str(wrap_if_error=False)
+    if len(text) <= MAX_SUMMARIZED_TOOL_RESULT_LENGTH:
+        return part
+    elided = len(text) - MAX_SUMMARIZED_TOOL_RESULT_LENGTH
+    truncated = (
+        f"{text[:MAX_SUMMARIZED_TOOL_RESULT_LENGTH]}"
+        f"\n[... {elided} characters truncated for summarization]"
+    )
+    files = part.files
+    return replace(part, content=[truncated, *files] if files else truncated)
+
+
+def _truncate_tool_results(messages: list[ModelMessage]) -> list[ModelMessage]:
+    """Return a copy of ``messages`` with every tool result capped in size.
+
+    Tool output is usually the bulk of a session's context and the reason a session needs
+    compacting in the first place, but a checkpoint or a title only needs durable facts, so
+    the summarizer sees a truncated copy. The persisted history is never modified.
+    """
+    truncated_messages: list[ModelMessage] = []
+    for message in messages:
+        parts = [
+            _truncate_tool_result(part) if isinstance(part, BaseToolReturnPart) else part
+            for part in message.parts
+        ]
+        if any(new is not old for new, old in zip(parts, message.parts)):
+            message = replace(message, parts=cast(Any, parts))
+        truncated_messages.append(message)
+    return truncated_messages
 
 
 class _Summary(BaseModel):
@@ -86,7 +128,7 @@ async def summarize_messages(
     try:
         response = await model.request(
             [
-                *messages,
+                *_truncate_tool_results(messages),
                 ModelRequest(
                     # Explicitly add user message to support anthropic models that forbid assistant
                     # message prefill
@@ -125,7 +167,7 @@ async def summarize_messages_for_compaction(
     try:
         response = await model.request(
             [
-                *messages,
+                *_truncate_tool_results(messages),
                 ModelRequest(
                     # Explicitly add user message to support anthropic models that forbid assistant
                     # message prefill
