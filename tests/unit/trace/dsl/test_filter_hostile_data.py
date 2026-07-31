@@ -388,3 +388,36 @@ async def test_json_booleans_as_numbers_is_a_known_divergence(
         assert "s05" in span_ids, "SQLite is expected to count JSON true as 1"
     else:
         assert "s05" not in span_ids, "PostgreSQL is expected to reject a boolean"
+
+
+async def test_is_none_means_no_usable_value_at_the_path(
+    db: DbSessionFactory,
+    hostile_project: None,
+) -> None:
+    """`is None` covers a stored JSON null and an absent key alike.
+
+    `s04` holds JSON `null`; `bare01`/`bare02` have no attributes at all. Once a
+    value is extracted, no dialect can separate the two -- `json_extract` and
+    `->>` both yield SQL NULL -- so the conflation is the only reading both
+    backends can express, and it is what someone typing `is None` means.
+
+    A backend that started distinguishing them would be reaching through a
+    structure-preserving accessor, which renders values as JSON and makes every
+    comparison against them false. That is what this pins.
+    """
+    async with db() as session:
+        is_none = set(
+            await session.scalars(
+                SpanFilter("attributes['r'] is None")(select(models.Span.span_id))
+            )
+        )
+        is_not_none = set(
+            await session.scalars(
+                SpanFilter("attributes['r'] is not None")(select(models.Span.span_id))
+            )
+        )
+    assert is_none == {"s04", "bare01", "bare02"}
+    # Total: every span is in exactly one side, so neither predicate silently
+    # drops rows the other does not claim.
+    assert is_not_none == {"s01", "s02", "s03", "s05", "s06", "s07", "s08"}
+    assert not (is_none & is_not_none)

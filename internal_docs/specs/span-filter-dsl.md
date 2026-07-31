@@ -369,6 +369,13 @@ Guaranteed:
   bare `json_extract` on SQLite) is correct for comparison. This is the
   cheapest defect in the language to introduce and the most expensive to
   notice, because nothing errors — the filter simply returns nothing.
+- `x is None` means **no usable value at that path**: a stored JSON `null` and
+  an absent key both satisfy it, and neither dialect can separate them once the
+  value is extracted. This is a deliberate conflation, not an accident of
+  implementation — it is the only reading both backends can express, and it is
+  what someone typing `is None` into a filter field means. A predicate that
+  appears to distinguish the two is evidence of a structure-preserving accessor,
+  which is wrong for comparison for the reasons above.
 
 Not guaranteed:
 
@@ -659,6 +666,7 @@ cheap the failure is, how precisely it can be explained, and who sees it.
 | 3 | **Plan** | column types, per dialect | DB type error, references SQL the user never wrote |
 | 4 | **Bind** | driver encoding | driver error, references a parameter index |
 | 5 | **Execute** | actual row values | data-dependent; fails for some projects and not others |
+| — | **Result** | — | *nothing fails.* The query succeeds and the answer is wrong |
 
 The ladder is the decomposition. Almost every bug in this module was a
 condition that *should* have failed at 1–2 and instead failed at 3–5.
@@ -668,7 +676,25 @@ condition that *should* have failed at 1–2 and instead failed at 3–5.
 - `label == 100` — should fail at 2 (type mismatch), failed at 5, and only when
   a non-numeric label happened to be in range.
 
-Two rules follow, and they cover most of what this module does.
+**The last row is not a sixth layer; it is the absence of one.** A translation
+can be well-formed at every layer and still mean something other than what was
+written — comparing a value against its own JSON rendering, extracting through
+the wrong accessor, applying a predicate to a container. Nothing raises,
+because nothing is malformed. The condition is valid, the SQL is valid, the
+query plans and runs, and it returns the wrong rows.
+
+This defeats the rule that organizes the rest of this document. "Fail at the
+earliest layer that can know" offers nothing when there is no failure to move
+earlier, and a wrong translation is *more* dangerous than a broken one: a
+statement that cannot execute announces itself the first time anyone runs it,
+while one that executes cleanly can be wrong in production indefinitely. It is
+also symmetric in a way that hides it — a comparison that never matches gives an
+empty table, which reads as "no such spans," and its negation over-matches,
+which reads as a working filter.
+
+The only detector is a returned row set compared against an expected one. Every
+other technique in this document — validation, totality, static analysis,
+snapshots, compiling against both dialects — is blind to it by construction.
 
 ### 1. Fail at the earliest layer that can know
 
@@ -867,6 +893,15 @@ execute — `X IS Y` between two expressions, a raw `CAST(jsonb AS FLOAT)`, and
 `-'hello'` — each passing for as long as it existed. A snapshot is a
 change-detector for the compiler, and it is worth having as that; it is not
 evidence that anything works.
+
+Worse than SQL that cannot execute is SQL that executes and answers wrongly —
+the **Result** row of the ladder. A snapshot pinning a string comparison against
+a JSON value was reviewed, approved, and correct as a record of the compiler,
+while the comparison it pinned matched no row on either backend. Nothing in a
+snapshot can catch this, because the snapshot's subject is the artifact and the
+defect is in what the artifact *means*. A suite can be large, green, and
+entirely silent about whether a single filter returns the right rows; the
+absence of an executing test is invisible in a pass count.
 
 ### 10. Reason about databases by running them
 
