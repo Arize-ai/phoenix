@@ -67,6 +67,7 @@ import {
 const FINAL_SCROLL_ANIMATION_DISTANCE_PIXELS = 80;
 const FINAL_SCROLL_ANIMATION_DURATION_SECONDS = 0.18;
 const SECTION_FEEDBACK_ANIMATION_DURATION_SECONDS = 0.5;
+const SCROLL_END_TOLERANCE_PIXELS = 1;
 const ATTRIBUTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 280;
 const EVENTS_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
 const NOTES_SECTION_PLACEHOLDER_HEIGHT_PIXELS = 240;
@@ -241,7 +242,21 @@ const notesBarNavigationButtonCSS = css`
   width: 100%;
   color: inherit;
   cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
 `;
+
+function getIsScrolledToEnd(scrollContainer: HTMLElement): boolean {
+  const maximumScrollTop = Math.max(
+    scrollContainer.scrollHeight - scrollContainer.clientHeight,
+    0
+  );
+  return (
+    maximumScrollTop - scrollContainer.scrollTop <= SCROLL_END_TOLERANCE_PIXELS
+  );
+}
 
 export function SpanDetails({
   spanNodeId,
@@ -399,6 +414,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   );
   const sectionFeedbackElementRef = useRef<HTMLElement | null>(null);
   const [newNoteId, setNewNoteId] = useState<string | null>(null);
+  const [isNotesEndReached, setIsNotesEndReached] = useState(false);
   const { span } = useLazyLoadQuery<SpanDetailsContentQuery>(
     graphql`
       query SpanDetailsContentQuery($id: ID!) {
@@ -462,6 +478,29 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
       if (sectionFeedbackElementRef.current) {
         sectionFeedbackElementRef.current.style.opacity = "";
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    const scrollContainer = spanDetailsSectionsRef.current;
+    const scrollContent = spanDetailsSectionsContentRef.current;
+    if (!scrollContainer || !scrollContent) {
+      return undefined;
+    }
+
+    const updateIsNotesEndReached = () => {
+      setIsNotesEndReached(getIsScrolledToEnd(scrollContainer));
+    };
+
+    updateIsNotesEndReached();
+    scrollContainer.addEventListener("scroll", updateIsNotesEndReached);
+    const resizeObserver = new ResizeObserver(updateIsNotesEndReached);
+    resizeObserver.observe(scrollContainer);
+    resizeObserver.observe(scrollContent);
+
+    return () => {
+      scrollContainer.removeEventListener("scroll", updateIsNotesEndReached);
+      resizeObserver.disconnect();
     };
   }, []);
 
@@ -531,6 +570,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     }
     scrollContainer.scrollTop =
       scrollContainer.scrollHeight - scrollContainer.clientHeight;
+    setIsNotesEndReached(true);
   };
 
   const showSectionNavigationFeedback = (targetSection: HTMLElement) => {
@@ -795,19 +835,34 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
                 ) : null
               }
             >
-              <button
-                type="button"
-                className="button--reset"
-                css={notesBarNavigationButtonCSS}
-                aria-label="Notes: jump to notes"
-                onClick={jumpToNotes}
-              >
-                Notes
-                <KeyboardToken variant="quiet">
-                  {NOTE_HOTKEY.toUpperCase()}
-                </KeyboardToken>
-                {hasNotes ? <Counter>{span.spanNotes.length}</Counter> : null}
-              </button>
+              {hasNotes ? (
+                <button
+                  type="button"
+                  className="button--reset"
+                  css={notesBarNavigationButtonCSS}
+                  aria-label="Notes: jump to notes"
+                  disabled={isNotesEndReached}
+                  onClick={jumpToNotes}
+                >
+                  Notes
+                  <KeyboardToken variant="quiet">
+                    {NOTE_HOTKEY.toUpperCase()}
+                  </KeyboardToken>
+                  <Counter>{span.spanNotes.length}</Counter>
+                </button>
+              ) : (
+                <Flex
+                  elementType="span"
+                  direction="row"
+                  gap="size-100"
+                  alignItems="center"
+                >
+                  Notes
+                  <KeyboardToken variant="quiet">
+                    {NOTE_HOTKEY.toUpperCase()}
+                  </KeyboardToken>
+                </Flex>
+              )}
             </SpanDetailsSectionHeading>
           </div>
           <section

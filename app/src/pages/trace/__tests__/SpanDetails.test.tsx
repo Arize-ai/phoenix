@@ -455,9 +455,9 @@ describe("SpanDetails headers", () => {
     expect(takeNotesButton?.getAttribute("data-childless")).toBe("true");
     expect(takeNotesButton?.querySelector(".icon-wrap")).not.toBeNull();
     expect(
-      notesBar?.querySelector('button[aria-label="Notes: jump to notes"] kbd')
-        ?.textContent
-    ).toBe("N");
+      notesBar?.querySelector('button[aria-label="Notes: jump to notes"]')
+    ).toBeNull();
+    expect(notesBar?.querySelector("kbd")?.textContent).toBe("N");
   });
 
   it("shows notes counters when there are notes", () => {
@@ -513,6 +513,7 @@ describe("SpanDetails headers", () => {
   });
 
   it("jumps to the notes end from the notes bar title", () => {
+    spanDetailsContentTestState.spanNotes = [{ id: "note-id" }];
     spanDetailsContentTestState.shouldSuspend = false;
 
     act(() => {
@@ -538,9 +539,55 @@ describe("SpanDetails headers", () => {
       scrollHeight: { configurable: true, value: 640 },
     });
 
+    act(() => {
+      sectionsViewport.dispatchEvent(new Event("scroll"));
+    });
+    expect(jumpButton.disabled).toBe(false);
+
     act(() => jumpButton.click());
 
     expect(sectionsViewport.scrollTop).toBe(400);
+    expect(jumpButton.disabled).toBe(true);
+  });
+
+  it("disables the notes bar title at the notes end and re-enables it above", () => {
+    spanDetailsContentTestState.spanNotes = [{ id: "note-id" }];
+    spanDetailsContentTestState.shouldSuspend = false;
+
+    act(() => {
+      root.render(
+        <TestProviders>
+          <SpanDetails spanNodeId="span-node-id" />
+        </TestProviders>
+      );
+    });
+
+    const sectionsContent = container.querySelector(
+      "[data-span-details-sections-content]"
+    );
+    const sectionsViewport = sectionsContent?.parentElement;
+    const jumpButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Notes: jump to notes"]'
+    );
+    if (!(sectionsViewport instanceof HTMLElement) || jumpButton == null) {
+      throw new Error("Expected notes navigation controls");
+    }
+    Object.defineProperties(sectionsViewport, {
+      clientHeight: { configurable: true, value: 240 },
+      scrollHeight: { configurable: true, value: 640 },
+    });
+
+    act(() => {
+      sectionsViewport.scrollTop = 400;
+      sectionsViewport.dispatchEvent(new Event("scroll"));
+    });
+    expect(jumpButton.disabled).toBe(true);
+
+    act(() => {
+      sectionsViewport.scrollTop = 320;
+      sectionsViewport.dispatchEvent(new Event("scroll"));
+    });
+    expect(jumpButton.disabled).toBe(false);
   });
 
   it("overlays the composer above the sticky notes header without moving the viewport", () => {
@@ -591,7 +638,7 @@ describe("SpanDetails headers", () => {
     );
     expect(
       notesBar.querySelector('button[aria-label="Notes: jump to notes"]')
-    ).not.toBeNull();
+    ).toBeNull();
     expect(
       notesBar.querySelector('button[aria-label="Take notes"]')
     ).toBeNull();
