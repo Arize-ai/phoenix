@@ -263,10 +263,15 @@ class SpanFilter:
 
     def _initialize(self) -> None:
         object.__setattr__(self, "root_scope", None)
-        if not (source := self.condition):
+        # Surrounding whitespace is stripped rather than parsed. Python reads a
+        # leading space as indentation and fails with `IndentationError`, which
+        # is a confusing answer to a condition someone pasted with a stray
+        # space. Widening what is accepted is safe under the additive-only
+        # compatibility policy.
+        if not (source := self.condition.strip()):
             return
         root = ast.parse(source, mode="eval")
-        _validate_expression(root, valid_eval_names=self.valid_eval_names)
+        _validate_expression(root, source, valid_eval_names=self.valid_eval_names)
         # Derived from the tree parsed just above rather than from the source
         # again, so a caller holding a filter is spared a parse of its own.
         # Taken after validation so that a filter which escapes this
@@ -661,6 +666,12 @@ def _is_float_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     )
 
 
+def _is_singleton_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
+    """`None`, `True`, `False` -- the only values Python's `is` is meaningful
+    against, and the only ones SQL can express (`IS NULL`/`IS TRUE`/`IS FALSE`)."""
+    return isinstance(node, ast.Constant) and (node.value is None or isinstance(node.value, bool))
+
+
 def _is_bool_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, bool)
 
@@ -783,6 +794,12 @@ def _validate_operand_types(expression: ast.Expression) -> None:
             and isinstance(node.func, ast.Name)
             and node.func.id in ("float", "int")
         ):
+            # `int()` is an alias for `float()` and does not truncate, so
+            # `int(1.9)` compares against 1.9. It is kept rather than corrected:
+            # truncation cannot be expressed portably (`CAST(x AS INTEGER)`
+            # rounds on PostgreSQL, 1.9 -> 2, and truncates on SQLite, 1.9 -> 1),
+            # and the name is already load-bearing in the SpanQuery surface. The
+            # behavior is documented rather than changed.
             if len(node.args) != 1:
                 raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
             argument = node.args[0]
@@ -806,9 +823,38 @@ def _validate_operand_types(expression: ast.Expression) -> None:
             continue
         left = node.left
         for operator, right in zip(node.ops, node.comparators):
+            if isinstance(operator, (ast.Is, ast.IsNot)) and not (
+                _is_singleton_constant(left) or _is_singleton_constant(right)
+            ):
+                # Python's `is` is only meaningful against the singletons, and
+                # those are exactly the ones SQL can express: `IS NULL`,
+                # `IS TRUE`, `IS FALSE`. Against any other value it silently
+                # degrades to `==`, so `name is 'abc'` compiles to something the
+                # user did not write.
+                raise SyntaxError(
+                    f"`{ast.unparse(node)}` uses `is` with a value"
+                    ", which SQL cannot express; use `==`, or `is` with None/True/False"
+                )
+            if not isinstance(operator, (ast.In, ast.NotIn)) and isinstance(
+                left if isinstance(left, (ast.List, ast.Tuple)) else right, (ast.List, ast.Tuple)
+            ):
+                # A collection is only meaningful on the right of `in`/`not in`.
+                # Elsewhere it is bound whole as a scalar comparand, which no
+                # column can equal.
+                raise SyntaxError(
+                    f"`{ast.unparse(node)}` compares against a collection"
+                    ", which is only supported with `in` / `not in`"
+                )
             if isinstance(operator, (ast.In, ast.NotIn)) and isinstance(
                 right, (ast.List, ast.Tuple)
             ):
+                for element in right.elts:
+                    if isinstance(element, (ast.List, ast.Tuple)):
+                        # A nested container has no scalar value to match a
+                        # column against.
+                        raise SyntaxError(
+                            f"`{ast.unparse(element)}` is not a value, collections cannot be nested"
+                        )
                 if isinstance(left, ast.Constant):
                     # Membership against a literal collection is translated to
                     # `left.in_(...)`, which needs `left` to be a column
@@ -1363,14 +1409,76 @@ class _FilterTranslator(_ProjectionTranslator):
         return arg
 
 
+def _validate_python_surface(body: ast.expr, source: str) -> None:
+    """Reject Python constructs that have no meaning in SQL.
+
+    This DSL began as a Python-evaluated filter and only later gained a SQL
+    backend, so it inherited the whole of Python's literal and operator surface.
+    Much of that surface cannot be expressed faithfully in SQL: it either binds a
+    value the driver cannot encode, compiles to something unrelated to what was
+    written, or means different things on the two dialects.
+
+    Each rule below closes one such inheritance. They are grouped here rather
+    than scattered through the structural walk because they share a rationale --
+    the language should admit exactly what a SQL backend can evaluate honestly.
+    """
+    for node in ast.walk(body):
+        if isinstance(node, ast.Constant):
+            _validate_literal(node)
+        elif isinstance(node, ast.UnaryOp) and not isinstance(
+            node.op, (ast.Not, ast.USub, ast.UAdd)
+        ):
+            # `~x` reaches SQLAlchemy as `NOT x`, so `~latency_ms == 1` compiles
+            # to `CAST(NOT latency_ms AS FLOAT) = 1` -- unrelated to what was
+            # written. The binary bitwise operators are already rejected as
+            # arithmetic; this closes the unary hole beside them.
+            raise SyntaxError(f"unsupported operator: {ast.unparse(node)}")
+        elif isinstance(node, ast.Name) and node.id not in source:
+            # Python NFKC-normalizes identifiers while parsing, so a full-width
+            # `ｎａｍｅ` silently becomes `name` and resolves to a real column the
+            # user never spelled. The normalized identifier is absent from the
+            # source text exactly when normalization rewrote it.
+            raise SyntaxError(
+                f"`{node.id}` is not written the way it is interpreted"
+                ", use unaccented ASCII for field names"
+            )
+
+
+def _validate_literal(node: ast.Constant) -> None:
+    """Literals are limited to the DSL's own value types.
+
+    `b'x'`, `1j`, and `...` are Python values with no column type to compare
+    against; the driver either refuses them or binds something meaningless.
+    Non-finite floats and embedded NULs are accepted by SQLite and rejected by
+    PostgreSQL, so admitting them would make a stored condition's validity
+    depend on the backend.
+    """
+    value = node.value
+    if value is None or isinstance(value, bool):
+        return
+    if isinstance(value, str):
+        if "\x00" in value:
+            raise SyntaxError("string literals cannot contain a NUL character")
+        return
+    if isinstance(value, int):
+        return
+    if isinstance(value, float):
+        if value != value or value in (float("inf"), float("-inf")):
+            raise SyntaxError(f"invalid numeric literal: {ast.unparse(node)}")
+        return
+    raise SyntaxError(f"unsupported literal: {ast.unparse(node)}")
+
+
 def _validate_expression(
     expression: ast.Expression,
+    source: str,
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None,
     valid_eval_attributes: tuple[str, ...] = _VALID_EVAL_ATTRIBUTES,
 ) -> None:
     """Validate the expression's structure, names, attributes, and operand types."""
     if not isinstance(expression, ast.Expression):
         raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
+    _validate_python_surface(expression.body, source)
     for i, node in enumerate(ast.walk(expression.body)):
         if i == 0:
             if (

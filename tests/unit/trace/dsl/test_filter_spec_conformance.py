@@ -151,26 +151,38 @@ SCOPES = [
 ]
 
 
-# Accepted today, documented under "Known Gaps / Accepted today, arguably
-# shouldn't be". These are pinned deliberately: the grammar is additive-only, so
-# once conditions are persisted none of them can be rejected any more. A failure
-# here means someone closed one of these holes -- which is the right thing to do
-# *before* persistence ships, and a breaking change after. Update the spec, and
-# check whether stored conditions exist yet.
-ACCEPTED_BUT_UNINTENDED = [
-    pytest.param("~latency_ms == 1", id="unary-invert"),
-    pytest.param("latency_ms > int(1.9)", id="int-does-not-truncate"),
-    pytest.param("name is 'abc'", id="is-means-equals"),
-    pytest.param("name == b'abc'", id="bytes-literal"),
-    pytest.param("latency_ms == 1j", id="complex-literal"),
-    pytest.param("name == ...", id="ellipsis-literal"),
-    pytest.param("latency_ms < 1e400", id="ieee-infinity"),
-    pytest.param("name == ('a', 'b')", id="tuple-as-scalar"),
-    pytest.param("name in [['a']]", id="nested-container-membership"),
+# Python constructs with no SQL meaning. This DSL was originally evaluated in
+# Python and inherited the whole of Python's literal and operator surface; these
+# are the parts that could not survive the move to a SQL backend. They were
+# accepted until the final pre-persistence tightening.
+#
+# Under the additive-only policy these can never be re-admitted *or* further
+# restricted once conditions are stored, so a failure here is significant: it
+# means the language's shape changed after it was supposed to be fixed.
+PYTHON_SURFACE_REJECTED = [
+    pytest.param("~latency_ms == 1", "unsupported operator", id="unary-invert"),
+    pytest.param("name is 'abc'", "uses `is` with a value", id="is-with-value"),
+    pytest.param("latency_ms is 1", "uses `is` with a value", id="is-with-number"),
+    pytest.param("name == b'abc'", "unsupported literal", id="bytes-literal"),
+    pytest.param("latency_ms == 1j", "unsupported literal", id="complex-literal"),
+    pytest.param("name == ...", "unsupported literal", id="ellipsis-literal"),
+    pytest.param("latency_ms < 1e400", "invalid numeric literal", id="ieee-infinity"),
+    pytest.param("name == ('a', 'b')", "compares against a collection", id="tuple-as-scalar"),
+    pytest.param("name in [['a']]", "collections cannot be nested", id="nested-container"),
     # the escape *sequence* in the source text, not a literal NUL byte -- the
     # latter is rejected by Python's own parser
-    pytest.param(r"name == 'a\x00b'", id="nul-escape"),
-    pytest.param("ｎａｍｅ == 'a'", id="nfkc-fullwidth-identifier"),
+    pytest.param(r"name == 'a\x00b'", "NUL character", id="nul-escape"),
+    pytest.param("ｎａｍｅ == 'a'", "not written the way it is interpreted", id="nfkc-identifier"),
+]
+
+# `is` against the singletons is retained: those are the only values Python's
+# `is` is meaningful against, and the only ones SQL can express.
+SINGLETON_IDENTITY = [
+    pytest.param("parent_id is None", id="is-none"),
+    pytest.param("parent_id is not None", id="is-not-none"),
+    pytest.param("metadata['flag'] is True", id="is-true"),
+    pytest.param("metadata['flag'] is False", id="is-false"),
+    pytest.param("metadata['flag'] is not False", id="is-not-false"),
 ]
 
 
@@ -179,9 +191,35 @@ def test_spec_accepted_grammar(condition: str) -> None:
     SpanFilter(condition)  # does not raise
 
 
-@pytest.mark.parametrize("condition", ACCEPTED_BUT_UNINTENDED)
-def test_spec_known_gaps_still_accepted(condition: str) -> None:
+@pytest.mark.parametrize("condition,message", PYTHON_SURFACE_REJECTED)
+def test_spec_rejects_inherited_python_surface(condition: str, message: str) -> None:
+    with pytest.raises(SyntaxError, match=message):
+        SpanFilter(condition)
+
+
+@pytest.mark.parametrize("condition", SINGLETON_IDENTITY)
+def test_spec_retains_singleton_identity(condition: str) -> None:
     SpanFilter(condition)  # does not raise
+
+
+def test_int_is_an_alias_for_float_and_does_not_truncate() -> None:
+    """Documented deliberately rather than fixed: truncation is not portable
+    (`CAST(x AS INTEGER)` rounds on PostgreSQL, truncates on SQLite), and the
+    name is load-bearing in the SpanQuery surface."""
+    import ast as _ast
+
+    from phoenix.trace.dsl.filter import _FilterTranslator
+
+    rendered = _ast.unparse(
+        _FilterTranslator().visit(_ast.parse("latency_ms > int(1.9)", mode="eval"))
+    )
+    assert "1.9" in rendered
+
+
+def test_surrounding_whitespace_is_tolerated() -> None:
+    """Widening, not restricting -- Python reads a leading space as indentation
+    and fails with `IndentationError`."""
+    assert SpanFilter("  name == 'a'  ").condition.strip() == "name == 'a'"
 
 
 @pytest.mark.parametrize("condition,message", REJECTED)

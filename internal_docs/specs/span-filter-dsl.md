@@ -183,8 +183,9 @@ alike — SQLite casts `'1_000'` to `1.0` while PostgreSQL rejects it outright.
 | Arithmetic | `+` `-` `*` `/` `%` | `**`, `&`, `\|`, `^`, `<<`, `>>` |
 | Unary | `-` `+` | — (see below) |
 
-Rejected binary operators raise `invalid arithmetic operator`. Unary `~` is
-**not** rejected and should be — see [Known Gaps](#known-gaps).
+Rejected binary operators raise `invalid arithmetic operator`; unary `~` raises
+`unsupported operator`. See [Inherited Python
+Surface](#inherited-python-surface) for why the unary case needed its own rule.
 
 Unary `+` is the identity on a number and is dropped during translation;
 SQLAlchemy expressions define no `__pos__`.
@@ -513,30 +514,6 @@ PostgreSQL error text as the *symptom*.
 
 ## Known Gaps
 
-### Accepted today, arguably shouldn't be
-
-These are admitted by the validator and render to something surprising. Each was
-found by cross-checking the SessionFilter review against SpanFilter, and each is
-**shared** — the two DSLs have the same hole. Under the additive-only policy,
-closing any of them is only possible before conditions are persisted.
-
-| Expression | Renders as | Problem |
-|---|---|---|
-| `~latency_ms == 1` | `cast(~latency_ms, Float) == 1` | `~` on a column is SQL `NOT`; the result is nonsense. The binary bitwise operators are rejected; unary `~` slips past because the type pass only inspects `USub`/`UAdd`/`Not`. |
-| `latency_ms > int(1.9)` | `latency_ms > 1.9` | `int()` does not truncate. It is an alias for `float()`. |
-| `name is 'abc'` | `name == 'abc'` | `is` silently becomes equality. Python identity semantics are not preserved and not available. |
-| `name == b'abc'` | `name == b'abc'` | Bytes literal bound directly. |
-| `latency_ms == 1j` | — | Complex literal accepted. |
-| `name == ...` | — | `Ellipsis` accepted as a bind value. |
-| `latency_ms < 1e400` | `latency_ms < 1e309` | Parses to IEEE infinity, then binds it. |
-| `name == ('a','b')` | `name == ('a','b')` | Tuple accepted as a *scalar* comparand. |
-| `name in [['a']]` | — | Nested container accepted in membership. |
-| `name == 'a\x00b'` | — | Escaped NUL compiles and runs on SQLite; PostgreSQL rejects it at execution. |
-| `ｎａｍｅ == 'a'` | `name == 'a'` | Python NFKC-normalizes identifiers, so a full-width spelling silently resolves to a real field. |
-
-Leading whitespace is rejected, but as `IndentationError` rather than a
-DSL-shaped message.
-
 ### Structural
 
 - **`parent_span` traversal** (`parent_span.name`) is reserved but unimplemented.
@@ -555,6 +532,46 @@ DSL-shaped message.
   [#14940](https://github.com/Arize-ai/phoenix/issues/14940).
 - **Collation and numeric precision** differ between backends and are not
   specified.
+
+## Inherited Python Surface
+
+This DSL was built before it had a database: conditions were evaluated in Python,
+and the language was whatever Python's parser accepted. The SQL backend came
+later, and with it a large surface that had no SQL meaning but was still
+admitted — because nothing had ever needed to reject it.
+
+That surface was closed in the final pre-persistence tightening. Each rule
+replaces a Python behavior that could not survive the move:
+
+| Rejected | Was | Why it cannot stand |
+|---|---|---|
+| `~latency_ms == 1` | `cast(~latency_ms, Float) == 1` | `~` on a column is SQL `NOT`, so the expression compiles to something unrelated to what was written. Binary bitwise ops were already rejected; unary `~` slipped past because the type pass only inspected `USub`/`UAdd`/`Not`. |
+| `name is 'abc'` | `name == 'abc'` | SQL has no identity comparison. Silently degrading `is` to `==` teaches a model the language does not implement. |
+| `name == b'abc'` | bound as bytes | No column type to compare against. |
+| `latency_ms == 1j` | bound as complex | Same. |
+| `name == ...` | bound as `Ellipsis` | Same. |
+| `latency_ms < 1e400` | bound as IEEE `inf` | Non-finite floats behave differently per dialect — and `'inf'` as a *string* was already rejected, so admitting the float form was inconsistent. |
+| `name == ('a','b')` | tuple bound as a scalar | A collection is only meaningful on the right of `in`/`not in`. |
+| `name in [['a']]` | nested container | No scalar value for a column to match. |
+| `name == 'a\x00b'` | NUL in a bind | SQLite accepts, PostgreSQL rejects at execution — validity would depend on the backend. |
+| `ｎａｍｅ == 'a'` | `name == 'a'` | Python NFKC-normalizes identifiers, so a full-width spelling silently resolves to a real column the user never typed. |
+
+Two Python behaviors were **kept** after examination:
+
+- **`is` against `None` / `True` / `False`.** Those are the only values Python's
+  `is` is meaningful against, and the only ones SQL can express (`IS NULL`,
+  `IS TRUE`, `IS FALSE`). `metadata['flag'] is True` is a supported, tested form.
+- **`int()` as an alias for `float()`.** It does not truncate, so `int(1.9)`
+  compares against `1.9`. This is a misleading name rather than unsound SQL, and
+  it cannot be corrected portably: `CAST(x AS INTEGER)` **rounds** on PostgreSQL
+  (`1.9` → `2`, `-1.9` → `-2`) and **truncates** on SQLite (`1`, `-1`). An honest
+  `int()` would mean different things per backend, which is worse than a
+  documented alias. The name is also load-bearing in the `SpanQuery` surface.
+
+One widening landed alongside these: surrounding whitespace is now stripped.
+Python reads a leading space as indentation and fails with `IndentationError`,
+which is a poor answer for a condition pasted with a stray space. Widening is
+always safe under the additive-only policy.
 
 ## Relationship to SessionFilter
 
