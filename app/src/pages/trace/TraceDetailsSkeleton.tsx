@@ -313,13 +313,7 @@ export function SpanHeaderSkeleton({
             />
           </div>
         </DetailHeaderIdentityRow>
-        <DetailHeaderMetaRow
-          trailing={
-            annotationBar ? (
-              <Skeleton width={220} height={32} animation="wave" />
-            ) : undefined
-          }
-        >
+        <DetailHeaderMetaRow>
           <DetailHeaderMetaItem>
             {spanPreview?.spanKind !== undefined ? (
               <SpanKindBadge spanKind={spanPreview.spanKind} />

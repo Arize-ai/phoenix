@@ -59,8 +59,11 @@ describe("Trace details skeletons", () => {
         <MemoryRouter>
           <ThemeProvider>
             <PreferencesProvider>
-              <SpanHeaderSkeleton />
-              <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+              <SpanHeaderSkeleton
+                annotationBar={
+                  <DetailPanelAnnotationBarSkeleton variant="detail-header" />
+                }
+              />
             </PreferencesProvider>
           </ThemeProvider>
         </MemoryRouter>
@@ -74,6 +77,7 @@ describe("Trace details skeletons", () => {
     metadataSkeletons.forEach((skeleton) => {
       expect(getComputedStyle(skeleton).height).toBe("20px");
     });
+    expect(container.querySelector(".detail-header__meta-trailing")).toBeNull();
 
     const annotationSkeletons = container.querySelectorAll(
       '[data-variant="detail-header"] > .skeleton'
