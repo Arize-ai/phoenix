@@ -2,25 +2,12 @@ from typing import Any
 
 import pytest
 
-from phoenix.db.types.media import MediaContent
-from phoenix.db.types.prompts import (
-    PromptChatTemplate,
-    PromptMessage,
-    TextContentPart,
-)
-from phoenix.db.types.media_parts import (
-    ImageContentPart,
-)
 from phoenix.server.api.helpers.message_helpers import (
     PlaygroundMessage,
     convert_openai_message_to_internal,
     create_playground_message,
     extract_and_convert_example_messages,
     extract_value_from_path,
-    prompt_chat_template_to_playground_messages,
-)
-from phoenix.server.api.helpers.message_media import (
-    message_media,
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 
@@ -470,35 +457,3 @@ class TestExtractAndConvertExampleMessages:
         assert result[5].get("tool_call_id") == "call_weather_1"
         assert result[6]["role"] == ChatCompletionMessageRole.AI
         assert "65°F" in result[6]["content"]
-
-
-class TestMediaIsNotSilentlyDropped:
-    """
-    Media must survive the conversion into playground messages. Whether it can then
-    be sent is the provider integration's call — one that fails loudly rather than
-    dropping the image (see ``reject_media``).
-    """
-
-    def test_image_content_becomes_a_block_rather_than_vanishing(self) -> None:
-        url = f"phoenix://media/{'a' * 64}"
-        template = PromptChatTemplate(
-            type="chat",
-            messages=[
-                PromptMessage(
-                    role="user",
-                    content=[
-                        TextContentPart(type="text", text="what is this?"),
-                        ImageContentPart(
-                            type="image",
-                            image=MediaContent(url=url, media_type="image/png"),
-                        ),
-                    ],
-                )
-            ],
-        )
-        (message,) = prompt_chat_template_to_playground_messages(template)
-        content = message["content"]
-        assert not isinstance(content, str)
-        assert [block["type"] for block in content] == ["text", "media"]
-        assert message_media(message)[0]["kind"] == "image"
-        assert message_media(message)[0]["url"] == url

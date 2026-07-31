@@ -11,17 +11,17 @@ from pydantic import ValidationError
 
 from phoenix.db import models
 from phoenix.db.types.media import MediaContent, MediaVariable, hosted_media_url
+from phoenix.db.types.media_parts import (
+    FileContentPart,
+    ImageContentPart,
+    media_variable_names,
+)
 from phoenix.db.types.model_provider import LLMClientFactory
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptMessage,
     PromptTemplateFormat,
     TextContentPart,
-)
-from phoenix.db.types.media_parts import (
-    FileContentPart,
-    ImageContentPart,
-    media_variable_names,
 )
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.media import MediaResolutionError
