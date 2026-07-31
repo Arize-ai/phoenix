@@ -1,12 +1,6 @@
 import { css } from "@emotion/react";
-import type {
-  CSSProperties,
-  KeyboardEvent,
-  PointerEvent,
-  ReactNode,
-  Ref,
-} from "react";
-import { useId, useRef, useState } from "react";
+import type { CSSProperties, KeyboardEvent, ReactNode, Ref } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { OverlayTriggerStateContext } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
@@ -192,6 +186,7 @@ export function Drawer({
   // into a single rAF per frame — matches how react-resizable-panels keeps
   // its drag path off the render loop.
   const isDraggingRef = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
   const startXRef = useRef(0);
   const startSizeRef = useRef(0);
   const dragSizeRef = useRef(0);
@@ -228,19 +223,43 @@ export function Drawer({
     commitResize(nextSize);
   };
 
-  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
+  const resizeHandleRef = useRef<HTMLDivElement>(null);
+
+  const handleWindowPointerDown = useEffectEvent((event: PointerEvent) => {
+    const resizeHandle = resizeHandleRef.current;
+    const eventTarget = event.target;
+    if (
+      !isOpen ||
+      !event.isPrimary ||
+      (event.pointerType === "mouse" && event.button !== 0) ||
+      !(eventTarget instanceof Node) ||
+      !resizeHandle?.contains(eventTarget)
+    ) {
+      return;
+    }
+
+    // react-resizable-panels owns descendant separators from a document
+    // capture listener. Reserve the outer-edge gesture at window capture so
+    // crossing a descendant separator cannot activate a second resize owner.
+    event.preventDefault();
+    event.stopPropagation();
+    resizeHandle.focus({ preventScroll: true });
+    resizeHandle.setPointerCapture(event.pointerId);
+    activePointerIdRef.current = event.pointerId;
     startXRef.current = event.clientX;
-    startSizeRef.current = isPixelBased ? getSizePixels(size) : size;
+    startSizeRef.current = isPixelBased
+      ? getSizePixels(currentSizeRef.current)
+      : currentSizeRef.current;
     dragSizeRef.current = startSizeRef.current;
     isDraggingRef.current = true;
     hasDragResizeEmittedRef.current = false;
     setIsDragging(true);
-    event.preventDefault();
-  };
+  });
 
-  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current) return;
+  const handleWindowPointerMove = useEffectEvent((event: PointerEvent) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
     // Drawer is pinned to the right edge — dragging left (negative delta)
     // increases width; dragging right decreases it. Preserve the unit of the
     // initial size so factory pixel widths do not become viewport-relative.
@@ -257,10 +276,12 @@ export function Drawer({
     if (rafIdRef.current == null) {
       rafIdRef.current = requestAnimationFrame(flushPendingSize);
     }
-  };
+  });
 
-  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current) return;
+  const finishWindowPointerResize = useEffectEvent((event: PointerEvent) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
 
     // Cancel any pending frame and commit the latest pointer position
     // synchronously so the released width matches where the cursor actually
@@ -278,13 +299,32 @@ export function Drawer({
       notifyResizeEnd(dragSizeRef.current);
     }
     hasDragResizeEmittedRef.current = false;
+    activePointerIdRef.current = null;
     isDraggingRef.current = false;
 
     setIsDragging(false);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    const resizeHandle = resizeHandleRef.current;
+    if (resizeHandle?.hasPointerCapture(event.pointerId)) {
+      resizeHandle.releasePointerCapture(event.pointerId);
     }
-  };
+  });
+
+  useEffect(() => {
+    window.addEventListener("pointerdown", handleWindowPointerDown, true);
+    window.addEventListener("pointermove", handleWindowPointerMove, true);
+    window.addEventListener("pointerup", finishWindowPointerResize, true);
+    window.addEventListener("pointercancel", finishWindowPointerResize, true);
+    return () => {
+      window.removeEventListener("pointerdown", handleWindowPointerDown, true);
+      window.removeEventListener("pointermove", handleWindowPointerMove, true);
+      window.removeEventListener("pointerup", finishWindowPointerResize, true);
+      window.removeEventListener(
+        "pointercancel",
+        finishWindowPointerResize,
+        true
+      );
+    };
+  }, []);
 
   const commitSize = (nextPixels: number) => {
     const clampedPixels = clampPixels(nextPixels);
@@ -428,11 +468,8 @@ export function Drawer({
               aria-valuemax={Math.round((maxPx / window.innerWidth) * 100)}
               className="drawer__resize-handle"
               data-dragging={isDragging ? "true" : undefined}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
               onKeyDown={handleKeyDown}
+              ref={resizeHandleRef}
             />
             {children}
           </div>
