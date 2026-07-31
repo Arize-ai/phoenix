@@ -44,6 +44,7 @@ from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluatio
 from phoenix.server.api.types.FilterVocabularyTerm import (
     FilterVocabularyTerm,
     session_filter_vocabulary_terms,
+    trace_filter_vocabulary_terms,
 )
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -72,6 +73,11 @@ from phoenix.server.session_filters import (
     compile_session_filter,
     get_filtered_session_rowids_subquery,
     session_filter_errors,
+)
+from phoenix.server.trace_filters import (
+    TraceFilterConditionError,
+    compile_trace_filter,
+    trace_filter_errors,
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
@@ -269,6 +275,14 @@ def _session_annotation_names_stmt(project_rowid: int) -> Select[Any]:
     )
 
 
+def _trace_annotation_names_stmt(project_rowid: int) -> Select[Any]:
+    return (
+        select(distinct(models.TraceAnnotation.name))
+        .join(models.Trace)
+        .where(models.Trace.project_rowid == project_rowid)
+    )
+
+
 def _unknown_annotation_name_warning(name: str, observed_names: Sequence[str]) -> str:
     """Warn about an unrecognized annotation name, naming its closest observed neighbors."""
     if not observed_names:
@@ -283,6 +297,12 @@ def _unknown_annotation_name_warning(name: str, observed_names: Sequence[str]) -
     remainder = len(observed_names) - len(closest)
     suffix = f" ({remainder} more not shown)" if remainder > 0 else ""
     return f"unknown annotation name '{name}' — closest observed names: {listed}{suffix}"
+
+
+def _unknown_trace_annotation_name_warning(name: str, observed_names: Sequence[str]) -> str:
+    if not observed_names:
+        return f"unknown annotation name '{name}' — this project has no trace annotations"
+    return _unknown_annotation_name_warning(name, observed_names)
 
 
 @strawberry.type
@@ -1338,6 +1358,55 @@ class Project(Node):
         return ValidationResult(is_valid=True, error_message=None, warnings=warnings)
 
     @strawberry.field(
+        description="Validate a trace filter expression without executing it. A condition "
+        "that fails to compile returns isValid=false with an errorMessage; a condition that "
+        "compiles but references annotation names not observed in this project returns "
+        "isValid=true with advisory warnings."
+    )  # type: ignore
+    async def validate_trace_filter_condition(
+        self,
+        info: Info[Context, None],
+        condition: str,
+    ) -> ValidationResult:
+        """Validate a trace filter condition for SQLite and PostgreSQL."""
+        try:
+            with trace_filter_errors():
+                trace_filter = compile_trace_filter(condition)
+                stmt = trace_filter(select(models.Trace), lowering="scan")
+                str(stmt.compile(dialect=sqlite.dialect()))
+                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+        except TraceFilterConditionError as error:
+            return ValidationResult(is_valid=False, error_message=str(error))
+        referenced_annotation_names = _referenced_subscript_names(
+            condition, _ANNOTATION_SUBSCRIPT_NAMES
+        )
+        warnings: list[str] = []
+        if referenced_annotation_names:
+            async with info.context.db.read() as session:
+                known = set(
+                    await session.scalars(
+                        _trace_annotation_names_stmt(self.id).where(
+                            models.TraceAnnotation.name.in_(referenced_annotation_names)
+                        )
+                    )
+                )
+                unknown = sorted(referenced_annotation_names - known)
+                suggestions = (
+                    list(
+                        await session.scalars(
+                            _trace_annotation_names_stmt(self.id).limit(
+                                _ANNOTATION_NAME_SUGGESTION_SCAN_LIMIT + 1
+                            )
+                        )
+                    )
+                    if unknown
+                    else []
+                )
+            for name in unknown:
+                warnings.append(_unknown_trace_annotation_name_warning(name, suggestions))
+        return ValidationResult(is_valid=True, error_message=None, warnings=warnings)
+
+    @strawberry.field(
         description="The bindable terms of the session filter expression language for this "
         "project, for autocomplete, agent discovery, and docs. Static terms derive from the "
         "filter compiler's own bindings so they cannot drift from what compiles; observed "
@@ -1407,6 +1476,61 @@ class Project(Node):
             annotation_names,
             root_span_attribute_paths,
         )
+
+    @strawberry.field(
+        description="The bindable terms of the trace filter expression language for this "
+        "project. Static terms derive from the compiler's bindings; observed trace annotation "
+        "names and strict-root attribute paths come from the 1000 most recently started traces "
+        "within the optional time range."
+    )  # type: ignore
+    async def trace_filter_vocabulary(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> list[FilterVocabularyTerm]:
+        recent_trace_rowids_stmt = select(models.Trace.id).where(
+            models.Trace.project_rowid == self.id
+        )
+        if time_range:
+            if time_range.start:
+                recent_trace_rowids_stmt = recent_trace_rowids_stmt.where(
+                    models.Trace.start_time >= time_range.start
+                )
+            if time_range.end:
+                recent_trace_rowids_stmt = recent_trace_rowids_stmt.where(
+                    models.Trace.start_time < time_range.end
+                )
+        recent_trace_rowids_stmt = recent_trace_rowids_stmt.order_by(
+            models.Trace.start_time.desc(), models.Trace.id.desc()
+        ).limit(_VOCABULARY_ATTRIBUTE_SCAN_LIMIT)
+
+        root_span_attribute_paths: list[tuple[str, ...]] = []
+        async with info.context.db.read() as session:
+            recent_trace_rowids = list(await session.scalars(recent_trace_rowids_stmt))
+            annotation_names = list(
+                await session.scalars(
+                    _trace_annotation_names_stmt(self.id)
+                    .where(models.Trace.id.in_(recent_trace_rowids))
+                    .limit(_VOCABULARY_ANNOTATION_SCAN_LIMIT)
+                )
+            )
+            root_span_attributes_stmt = (
+                select(models.Span.attributes)
+                .select_from(models.Span)
+                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                .where(models.Trace.project_rowid == self.id)
+                .where(models.Trace.id.in_(recent_trace_rowids))
+                .where(models.Span.parent_id.is_(None))
+            )
+            scanned_bytes = 0
+            async for attributes in await session.stream_scalars(root_span_attributes_stmt):
+                if not isinstance(attributes, Mapping):
+                    continue
+                root_span_attribute_paths.extend(_attribute_leaf_paths(attributes))
+                scanned_bytes += _attributes_size(attributes)
+                if scanned_bytes >= _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT:
+                    break
+        return trace_filter_vocabulary_terms(annotation_names, root_span_attribute_paths)
 
     @strawberry.field
     async def annotation_configs(

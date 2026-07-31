@@ -3100,9 +3100,19 @@ type Project implements Node {
   validateSessionFilterCondition(condition: String!): ValidationResult!
 
   """
+  Validate a trace filter expression without executing it. A condition that fails to compile returns isValid=false with an errorMessage; a condition that compiles but references annotation names not observed in this project returns isValid=true with advisory warnings.
+  """
+  validateTraceFilterCondition(condition: String!): ValidationResult!
+
+  """
   The bindable terms of the session filter expression language for this project, for autocomplete, agent discovery, and docs. Static terms derive from the filter compiler's own bindings so they cannot drift from what compiles; observed per-project names (session annotations, root-span attribute paths) are folded in. Observed names come from the project's 1000 most recently started sessions; root-span attributes are sampled newest-first within that window up to a 2 MiB scan budget. This is a discovery aid rather than a complete list: a name that only older sessions carry drops out of the suggestions once 1000 newer sessions exist, and still filters correctly when typed by hand.
   """
   sessionFilterVocabulary: [FilterVocabularyTerm!]!
+
+  """
+  The bindable terms of the trace filter expression language for this project. Static terms derive from the compiler's bindings; observed trace annotation names and strict-root attribute paths come from the 1000 most recently started traces within the optional time range.
+  """
+  traceFilterVocabulary(timeRange: TimeRange): [FilterVocabularyTerm!]!
   annotationConfigs(
     first: Int = 50
     last: Int = null

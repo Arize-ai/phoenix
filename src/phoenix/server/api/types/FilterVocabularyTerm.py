@@ -7,6 +7,7 @@ import strawberry
 
 from phoenix.trace.dsl.filter import _IterableGrammar
 from phoenix.trace.dsl.session_filter import SESSION_BINDINGS, SESSION_FILTER_DESCRIPTIONS
+from phoenix.trace.dsl.trace_filter import TRACE_BINDINGS, TRACE_FILTER_DESCRIPTIONS
 
 _STRING = "string"
 _NUMBER = "number"
@@ -16,6 +17,7 @@ _ITERABLE_TYPE = "iterable"
 _CONTAINMENT_TYPE = "containment"
 
 _INTRINSIC = "session"
+_TRACE_INTRINSIC = "trace"
 _AGGREGATE = "aggregate"
 _ATTRIBUTE = "attribute"
 _ANNOTATION = "annotation"
@@ -150,6 +152,94 @@ def session_filter_vocabulary_terms(
                 "lacks this annotation, so `!=` excludes those sessions "
                 "(target them with `is None`). Here `annotations[...]` reads session "
                 "annotations; the same spelling in the span filter reads span annotations."
+            ),
+            category=_ANNOTATION,
+        )
+    return list(terms.values())
+
+
+def trace_filter_vocabulary_terms(
+    annotation_names: Sequence[str] = (),
+    root_span_attribute_paths: Sequence[Sequence[str]] = (),
+) -> list[FilterVocabularyTerm]:
+    """Build the trace-filter vocabulary from compiler bindings and project-observed paths."""
+    terms: dict[tuple[str | None, str], FilterVocabularyTerm] = {}
+
+    def add(
+        name: str,
+        value_type: str,
+        category: str,
+        description: str | None = None,
+        iterable_name: str | None = None,
+    ) -> None:
+        terms.setdefault(
+            (iterable_name, name),
+            FilterVocabularyTerm(
+                name=name,
+                type=value_type,
+                description=description or TRACE_FILTER_DESCRIPTIONS[name],
+                category=category,
+                iterable_name=iterable_name,
+            ),
+        )
+
+    for name in TRACE_BINDINGS.string_names:
+        add(name, _STRING, _TRACE_INTRINSIC)
+    for name in sorted(TRACE_BINDINGS.caller_bound_string_names):
+        add(name, _STRING, _TRACE_INTRINSIC)
+    for name in TRACE_BINDINGS.datetime_names:
+        add(name, _DATETIME, _TRACE_INTRINSIC)
+    for name in TRACE_BINDINGS.float_names:
+        add(name, _NUMBER, _TRACE_INTRINSIC)
+    for name in sorted(TRACE_BINDINGS.aggregate_names):
+        add(name, _NUMBER, _AGGREGATE)
+
+    for name in _ATTRIBUTE_PROXY_TERMS:
+        add(name, _STRING, _ATTRIBUTE)
+
+    for iterable_name, grammar in sorted(TRACE_BINDINGS.iterables.items()):
+        add(iterable_name, _ITERABLE_TYPE, _ITERABLE)
+        for field_name, field_type in sorted(_element_field_types(grammar).items()):
+            add(
+                field_name,
+                field_type,
+                _ELEMENT,
+                description=TRACE_FILTER_DESCRIPTIONS[f"{iterable_name}.{field_name}"],
+                iterable_name=iterable_name,
+            )
+
+    for wire_key in sorted({".".join(path) for path in root_span_attribute_paths}):
+        subscript = _subscript_literal(wire_key)
+        add(
+            f"attributes[{subscript}]",
+            _STRING,
+            _ATTRIBUTE,
+            description=(
+                f"Observed strict-root attribute with OpenTelemetry key {subscript}; "
+                "matches the key however ingestion nested it and is string-cast unless "
+                "explicitly cast."
+            ),
+        )
+
+    for annotation_name in sorted(set(annotation_names)):
+        annotation_subscript = _subscript_literal(annotation_name)
+        add(
+            name=f"annotations[{annotation_subscript}].score",
+            value_type=_NUMBER,
+            description=(
+                f"Numeric score of the {annotation_subscript} trace annotation; null when "
+                "the trace lacks this annotation, so comparisons exclude those traces "
+                "(target them with `is None`)."
+            ),
+            category=_ANNOTATION,
+        )
+        add(
+            name=f"annotations[{annotation_subscript}].label",
+            value_type=_STRING,
+            description=(
+                f"Label of the {annotation_subscript} trace annotation; null when the trace "
+                "lacks this annotation, so `!=` excludes those traces "
+                "(target them with `is None`)."
             ),
             category=_ANNOTATION,
         )
