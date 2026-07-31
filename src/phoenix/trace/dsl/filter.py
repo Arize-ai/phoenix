@@ -859,22 +859,31 @@ def _validate_comparable_types(left: ast.AST, right: ast.AST) -> None:
         string_node = left if left_type == "string" else right
         if _is_string_constant(string_node):
             return
-    if {left_type, right_type} == {"number", "string"}:
-        # a numeric string literal is cast to a number at translation
-        string_node = left if left_type == "string" else right
-        if (
-            isinstance(string_node, ast.Constant)
-            and isinstance(string_node.value, str)
-            and _is_numeric_string(string_node.value)
-        ):
-            return
     if (
         left_type is not None
         and right_type is not None
         and left_type != right_type
         and "null" not in (left_type, right_type)
     ):
-        raise SyntaxError(f"cannot compare {left_type} and {right_type}")
+        # A quoted number against a numeric field (`latency_ms > '100'`) is
+        # rejected rather than coerced. The type of both sides is known here, so
+        # there is nothing to infer -- and the coercion never worked on
+        # PostgreSQL anyway: it bound the string as a float parameter, which
+        # asyncpg refuses, so the condition validated and then failed when the
+        # query ran. It only appeared to work because SQLite is loosely typed.
+        # Users who want a string parsed as a number can say so with `float()`.
+        hint = ""
+        if {left_type, right_type} == {"number", "string"}:
+            string_node = left if left_type == "string" else right
+            # Only suggest dropping the quotes when doing so would actually be
+            # valid. `score == ''` would otherwise read "write  instead of ''".
+            if (
+                isinstance(string_node, ast.Constant)
+                and isinstance(string_node.value, str)
+                and _is_numeric_string(string_node.value)
+            ):
+                hint = f", write {string_node.value} instead of '{string_node.value}'"
+        raise SyntaxError(f"cannot compare {left_type} and {right_type}{hint}")
 
 
 # A numeric string literal is cast to a number in SQL, so the accepted grammar
@@ -1345,7 +1354,10 @@ class _FilterTranslator(_ProjectionTranslator):
             raise SyntaxError(f"invalid expression: {ast.unparse(node.func)}")
         arg = self.visit(node.args[0])
         if node.func.id in ("float", "int") and not _is_float(arg):
-            return _cast_as("Float", arg)
+            # `_as_float_operand`, not `_cast_as`: a string literal has to be
+            # converted here rather than wrapped in a SQL cast, or it is bound
+            # as a float-typed parameter that asyncpg refuses to encode.
+            return _as_float_operand(arg)
         if node.func.id in ("str",) and not _is_string(arg):
             return _cast_as("String", arg)
         return arg

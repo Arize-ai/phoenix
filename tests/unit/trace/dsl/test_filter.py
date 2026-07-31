@@ -11,7 +11,7 @@ from uuid import UUID
 
 import pytest
 from sqlalchemy import insert, select
-from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.dialects import postgresql
 
 import phoenix.trace.dsl.filter
 from phoenix.db import models
@@ -450,35 +450,46 @@ def test_filter_rejects_numeric_strings_the_databases_disagree_about(condition: 
 @pytest.mark.parametrize(
     "condition",
     [
-        pytest.param("latency_ms == '1000'", id="integer"),
+        pytest.param("latency_ms == '1000'", id="scalar-eq"),
+        pytest.param("latency_ms > '100'", id="scalar-gt"),
+        pytest.param("'100' < latency_ms", id="quoted-number-on-left"),
         pytest.param("latency_ms == '-12.5'", id="negative-decimal"),
         pytest.param("latency_ms == '1e3'", id="exponent"),
-        pytest.param("latency_ms == '.5'", id="leading-point"),
-        pytest.param("float('10') > 1", id="cast-integer"),
+        pytest.param("annotations['quality'].score >= '0.5'", id="annotation-score"),
+        pytest.param("llm.token_count.total > '5'", id="float-attribute"),
+        pytest.param("latency_ms in ['1.5', '2.0']", id="membership"),
     ],
 )
-def test_filter_accepts_plainly_numeric_strings(condition: str) -> None:
-    SpanFilter(condition)  # does not raise
+def test_filter_rejects_quoted_numbers_against_numeric_fields(condition: str) -> None:
+    """A quoted number against a numeric field is an error, not a coercion.
+
+    Both sides are statically typed here, so there is nothing to infer. The
+    coercion this replaces never worked on PostgreSQL: it bound the string as a
+    float parameter, which asyncpg refuses, so the condition validated and then
+    failed when the query ran. It only looked valid because SQLite is loosely
+    typed and the tests asserting it "previously worked" only constructed a
+    `SpanFilter` rather than running one.
+    """
+    with pytest.raises(SyntaxError, match="cannot compare"):
+        SpanFilter(condition)
+
+
+def test_quoted_number_rejection_suggests_the_unquoted_form() -> None:
+    with pytest.raises(SyntaxError, match=r"write 100 instead of '100'"):
+        SpanFilter("latency_ms > '100'")
 
 
 @pytest.mark.parametrize(
     "condition",
     [
-        pytest.param("latency_ms in ['1.5', '2.0']", id="list-of-numeric-strings"),
-        pytest.param("latency_ms in ('1.5',)", id="tuple-of-numeric-strings"),
+        pytest.param("float('10') > 1", id="cast-integer"),
+        pytest.param("float('-12.5') < 1", id="cast-negative"),
+        pytest.param("float(attributes['num']) > 1", id="cast-dynamic"),
     ],
 )
-def test_numeric_string_membership_compiles_on_both_dialects(condition: str) -> None:
-    """The validator accepts a numeric string against a numeric column, so the
-    translator has to as well.
-
-    It used to cast the whole collection, which replaced the `List` node with a
-    `Call` and missed the membership branch entirely -- surfacing as
-    `invalid expression: ` with nothing after the colon.
-    """
-    statement = SpanFilter(condition)(select(models.Span.id))
-    str(statement.compile(dialect=postgresql.dialect()))
-    str(statement.compile(dialect=sqlite.dialect()))
+def test_explicit_float_cast_still_parses_a_string(condition: str) -> None:
+    """`float()` is how a caller opts into parsing a string as a number."""
+    SpanFilter(condition)  # does not raise
 
 
 @pytest.fixture
@@ -526,12 +537,13 @@ async def coercion_project(db: DbSessionFactory) -> None:
 @pytest.mark.parametrize(
     "condition,expected",
     [
-        pytest.param("latency_ms > '5000'", ["slow"], id="scalar-numeric-string"),
-        pytest.param("latency_ms >= '1000'", ["fast", "slow"], id="scalar-inclusive"),
-        pytest.param("'5000' < latency_ms", ["slow"], id="numeric-string-on-left"),
-        pytest.param("latency_ms in ['1000', '10000']", ["fast", "slow"], id="membership"),
-        pytest.param("latency_ms not in ['1000']", ["slow"], id="negated-membership"),
-        # dynamic values keep the total cast, so an uncastable row drops out
+        pytest.param("latency_ms > 5000", ["slow"], id="scalar"),
+        pytest.param("latency_ms >= 1000", ["fast", "slow"], id="scalar-inclusive"),
+        pytest.param("5000 < latency_ms", ["slow"], id="number-on-left"),
+        pytest.param("latency_ms in [1000, 10000]", ["fast", "slow"], id="membership"),
+        pytest.param("latency_ms not in [1000]", ["slow"], id="negated-membership"),
+        pytest.param("float('5000') < latency_ms", ["slow"], id="explicit-cast-of-string"),
+        # dynamic values take the total cast, so an uncastable row drops out
         # rather than aborting the statement
         pytest.param("float(attributes['num']) > 1", ["fast"], id="uncastable-row-excluded"),
     ],
@@ -557,6 +569,57 @@ async def test_numeric_coercion_executes_against_the_database(
             )
         )
     assert span_ids == expected
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param("annotations['café'].score < 0.5", id="multibyte-name"),
+        pytest.param("annotations['日本語'].score < 0.5", id="cjk-name"),
+        pytest.param("annotations['Q&A Correctness'].label == 'x'", id="ampersand-and-space"),
+        pytest.param("annotations['span_annotation_0'].score > 0", id="alias-lookalike-name"),
+        # a multi-byte *literal* ahead of the accessor: offsets are in bytes, so
+        # this is where a character-based table would splice in the wrong place
+        pytest.param(
+            "attributes['uni'] == 'café' and annotations['q'].score > 0",
+            id="multibyte-literal-before-accessor",
+        ),
+        pytest.param(
+            "attributes['uni'] == '日本語' and annotations['q'].score > 0",
+            id="cjk-literal-before-accessor",
+        ),
+        # multi-line sources exercise the line-offset table itself
+        pytest.param(
+            "(annotations['q'].score > 0\n and annotations['café'].score > 0)",
+            id="multiline",
+        ),
+        pytest.param(
+            "(attributes['uni'] == 'café'\n and annotations['日本語'].score > 0)",
+            id="multiline-after-multibyte-literal",
+        ),
+        pytest.param(
+            "(annotations['q'].score > 0\r\n and annotations['café'].score > 0)",
+            id="multiline-crlf",
+        ),
+    ],
+)
+def test_annotation_aliasing_splices_at_the_right_offset(condition: str) -> None:
+    """Annotation accessors are replaced by byte offset into the source.
+
+    The offset table is built from the source text but matched against AST
+    positions, so it has to agree with the tokenizer about where lines start.
+    `str.splitlines` does not: it also breaks on \\v, \\f, \\x1c-\\x1e, \\x85,
+    \\u2028 and \\u2029, none of which the tokenizer treats as a newline. A
+    mismatch splices the alias at the wrong byte, which either corrupts the
+    expression or silently rewrites a different part of it.
+    """
+    aliased, relations = _apply_eval_aliasing(condition)
+    assert relations, "expected at least one aliased annotation relation"
+    # a clean splice leaves no accessor behind
+    assert "annotations[" not in aliased
+    assert "evals[" not in aliased
+    # and the spliced source is still a valid, compilable condition
+    SpanFilter(condition)
 
 
 def test_filter_rejects_membership_between_two_literals() -> None:
@@ -594,14 +657,14 @@ def test_unary_plus_does_not_negate_dynamic_json_attributes() -> None:
 @pytest.mark.parametrize(
     "condition",
     [
-        "latency_ms > '100'",
-        "'100' < latency_ms",
-        "annotations['quality'].score >= '0.5'",
         "start_time < '2024-01-01T00:00:00Z'",
         "latency_ms == None",
     ],
 )
 def test_filter_accepts_previously_valid_conditions(condition: str) -> None:
+    # Quoted numbers (`latency_ms > '100'`) deliberately no longer appear here:
+    # they were only ever valid on SQLite. See
+    # `test_filter_rejects_quoted_numbers_against_numeric_fields`.
     SpanFilter(condition)
 
 
