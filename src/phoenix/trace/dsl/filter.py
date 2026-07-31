@@ -771,20 +771,28 @@ def _validate_operand_types(expression: ast.Expression) -> None:
             if len(node.args) != 1:
                 raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
             argument = node.args[0]
-            if _get_filter_value_type(argument) == "boolean":
-                # The two backends spell a boolean differently as text --
-                # `true`/`false` on PostgreSQL, `1`/`0` on SQLite -- so this
-                # matches opposite sets of rows on each. It arrives as a literal
+            argument_type = _get_filter_value_type(argument)
+            if argument_type == "boolean":
+                # `true`/`false` on PostgreSQL, `1`/`0` on SQLite, so the same
+                # condition matches opposite rows. Arrives as a literal
                 # (`str(True)`) or as any boolean-valued expression, notably the
                 # annotation existence check, which compiles to `CASE WHEN ...
                 # THEN <bind> ELSE <bind> END` over Python bools.
                 raise SyntaxError("cannot cast boolean to text")
+            if argument_type == "number":
+                # A float renders its integral values differently -- PostgreSQL
+                # prints 1.0 as `1`, SQLite as `1.0` -- so `str(score) == '1'`
+                # matches on one backend only. The divergence is *per value*:
+                # 0.1 agrees and 1.0 does not, which means no fixture of
+                # convenient numbers can find it and no user can predict it.
+                raise SyntaxError("cannot cast number to text")
+            if argument_type == "datetime":
+                # No shared spelling at all: PostgreSQL renders in the session
+                # time zone (`2025-12-31 16:00:00-08`) and SQLite in UTC with
+                # microseconds (`2026-01-01 00:00:00.000000`) -- different
+                # format and a different instant on the page.
+                raise SyntaxError("cannot cast datetime to text")
             if isinstance(argument, ast.Constant) and not isinstance(argument.value, str):
-                # A non-boolean literal reaches the driver as a bind parameter
-                # typed VARCHAR holding a Python int/float, which PostgreSQL
-                # refuses outright (`invalid input for query argument: expected
-                # str`). Casting a *column* is fine and is the useful case:
-                # `str(latency_ms)` renders identically on both backends.
                 raise SyntaxError(
                     f"cannot cast the literal {ast.unparse(argument)} to text"
                     ", the backends spell it differently"

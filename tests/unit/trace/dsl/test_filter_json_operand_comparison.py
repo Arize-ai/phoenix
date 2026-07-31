@@ -38,6 +38,8 @@ _TS = datetime(2026, 1, 1, tzinfo=timezone.utc)
 _SPANS: dict[str, dict[str, Any]] = {
     # Same members, different insertion order.
     "keyorder": {"p": {"x": 1, "y": 2}, "q": {"y": 2, "x": 1}},
+    # A JSON number and the JSON string that spells it.
+    "numstr": {"p": 1, "q": "1"},
     # Same number, different JSON spelling.
     "numform": {"p": 1, "q": 1.0},
     # A boolean against the integer it collapses to.
@@ -96,8 +98,10 @@ async def test_comparing_two_json_values_is_a_known_divergence(
         assert equal == {"numform", "numbool", "same"}
     else:
         # jsonb text: key order is canonical, but `1` and `1.0` are not the
-        # same string, and neither are `1` and `true`.
-        assert equal == {"keyorder", "same"}
+        # same string, and neither are `1` and `true`. `numstr` matches here and
+        # not on SQLite for the same reason -- comparing text, `1` and `"1"` are
+        # both `1`.
+        assert equal == {"keyorder", "numstr", "same"}
 
 
 async def test_equality_and_inequality_still_partition(
@@ -146,3 +150,32 @@ async def test_a_key_compared_against_itself_cannot_diverge(
     assert await _matches(db, "attributes['gone'] != attributes['gone']") == set()
     assert await _matches(db, "not (attributes['gone'] == attributes['gone'])") == set()
     assert await _matches(db, "attributes['gone'] is None") == set(_SPANS)
+
+
+async def test_json_number_against_a_string_literal_is_a_known_divergence(
+    db: DbSessionFactory,
+    json_operand_project: None,
+    dialect: str,
+) -> None:
+    """A stored JSON number compared to a quoted literal.
+
+    PostgreSQL extracts to text and compares text, so `1` matches `'1'`. SQLite
+    extracts a native number and compares it against a text literal, which its
+    type rules make false. A stored JSON *string* matches on both, so the
+    divergence is confined to values whose JSON type differs from the literal's.
+
+    Not specific to `str()`: the cast is a no-op over an operand whose type is
+    unknown, so `attributes['p'] == '1'` and `str(attributes['p']) == '1'`
+    behave identically. Substring search agrees on both backends, which is what
+    keeps `'x' in str(metadata['k'])` -- the one shape this cast is actually
+    used for -- portable.
+    """
+    numeric = await _matches(db, "attributes['p'] == '1'")
+    assert await _matches(db, "str(attributes['p']) == '1'") == numeric
+    if dialect == "sqlite":
+        assert "numstr" not in numeric
+    else:
+        assert "numstr" in numeric
+    # The JSON string spelling matches everywhere, and so does substring search.
+    assert "numstr" in await _matches(db, "attributes['q'] == '1'")
+    assert "numstr" in await _matches(db, "'1' in str(attributes['p'])")

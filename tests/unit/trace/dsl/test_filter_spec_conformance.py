@@ -91,11 +91,11 @@ ACCEPTED = [
     "-latency_ms < 0",
     "+latency_ms > 0",
     # casts
-    "str(latency_ms) == '1'",
-    # Casting a typed, non-boolean column is portable and stays allowed --
-    # verified by execution, not assumed: both backends render 1000.0 alike.
-    "str(annotations['q'].score) == '0.1'",
+    # `str()` survives only over text and over values whose type is not known
+    # until the row is read. Every typed non-string operand renders differently
+    # on the two backends; see REJECTED below.
     "str(annotations['q'].label) == 'a'",
+    "'b' in str(metadata['k'])",
     "float(attributes['x']) > 1",
     "int(attributes['x']) > 1",
 ]
@@ -124,8 +124,21 @@ REJECTED = [
     ("str(True) == 'true'", "cannot cast boolean to text"),
     ("str(False) == 'false'", "cannot cast boolean to text"),
     ("str(annotations['q']) == 'true'", "cannot cast boolean to text"),
-    ("str(1) == '1'", "cannot cast the literal"),
-    ("str(1.5) == '1.5'", "cannot cast the literal"),
+    ("str(1) == '1'", "cannot cast number to text"),
+    ("str(1.5) == '1.5'", "cannot cast number to text"),
+    # The literal rule now only catches what has no type of its own.
+    ("str(None) == 'None'", "cannot cast the literal"),
+    # A float prints its integral values differently -- PostgreSQL renders 1.0
+    # as `1`, SQLite as `1.0` -- so the divergence is per *value*: 0.1 agrees
+    # and 1.0 does not. `latency_ms` happens to agree today because it compiles
+    # to a numeric expression rather than a float column, which is exactly the
+    # kind of distinction no user can be asked to track.
+    ("str(latency_ms) == '1'", "cannot cast number to text"),
+    ("str(annotations['q'].score) == '1'", "cannot cast number to text"),
+    ("str(llm.token_count.total) == '1'", "cannot cast number to text"),
+    # Timestamps share no spelling at all: PostgreSQL renders in the session
+    # time zone, SQLite in UTC with microseconds.
+    ("str(start_time) == '2026-01-01'", "cannot cast datetime to text"),
     # datetime literals must carry an offset
     ("start_time > '2024-01-01T00:00:00'", "no timezone"),
     ("start_time in ['2024-01-01T00:00:00']", "no timezone"),

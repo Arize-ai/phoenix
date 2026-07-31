@@ -251,20 +251,30 @@ rules out two operands:
 | Rejected | Why |
 |---|---|
 | `float(True)`, `int(<boolean>)` | PostgreSQL rejects `CAST(true AS FLOAT)` |
-| `str(<boolean>)` | `true`/`false` on PostgreSQL, `1`/`0` on SQLite — the same condition matches opposite rows |
-| `str(<non-string literal>)` | binds a Python value into a VARCHAR parameter; PostgreSQL refuses it outright |
+| `str(<boolean>)` | `true`/`false` on PostgreSQL, `1`/`0` on SQLite |
+| `str(<number>)` | a float's integral values print as `1` on PostgreSQL and `1.0` on SQLite |
+| `str(<datetime>)` | PostgreSQL renders in the session time zone, SQLite in UTC with microseconds |
+| `str(<non-string literal>)` | binds a Python value into a VARCHAR parameter; PostgreSQL refuses it |
 
-The boolean rule is by inferred **type**, not by syntax, because a boolean
-reaches the cast in more than one shape. `annotations['q']` is an existence
-check that compiles to `CASE WHEN ... THEN <bind> ELSE <bind> END` over Python
-booleans, so `str(annotations['q'])` is the same defect as `str(True)` wearing a
-column's clothes. A rule written against literals catches one and not the other.
+Every rule is by inferred **type**, not by syntax, because the same type reaches
+a cast in more than one shape. `annotations['q']` is an existence check that
+compiles to `CASE WHEN ... THEN <bind> ELSE <bind> END` over Python booleans, so
+`str(annotations['q'])` is the same defect as `str(True)` wearing a column's
+clothes; a rule written against literals catches one and not the other.
 
-Casting a typed, non-boolean *column* is portable and stays allowed:
-`str(latency_ms)` renders identically on both. Note this is a claim about typed
-columns only — a JSON attribute cast to text carries the unresolved boolean
-divergence in [Dialect Semantics](#dialect-semantics), because its type is not
-known until the row is read.
+The number rule is the instructive one. It is **per value**: `str(score) ==
+'0.5'` agrees across backends and `str(score) == '1'` does not, because only
+integral floats print differently. It is also per *expression shape* —
+`latency_ms` happens to agree today because it compiles to a numeric expression
+rather than a float column. Neither distinction is one a user could be asked to
+track, and neither is visible in a fixture of conveniently fractional numbers.
+A cast whose portability depends on the data is not portable.
+
+What survives is `str()` over text, where it is a no-op, and over values whose
+type is unknown until the row is read. The latter is the shape it is actually
+used for — `'x' in str(metadata['k'])` — and substring search agrees on both
+backends. Equality against such a value does not; see
+[Dialect Semantics](#dialect-semantics).
 
 ---
 
@@ -416,6 +426,13 @@ Not guaranteed:
 - **JSON booleans rendered as text.** The same collapse with the opposite sign:
   extracted as text, `true` reads as `true` on PostgreSQL and as `1` on SQLite,
   so a substring test against a boolean reaches it on one backend only.
+- **A JSON value compared for equality against a string literal.** PostgreSQL
+  extracts to text, so a stored `1` matches `'1'`; SQLite extracts a native
+  number, and its type rules make `1 = '1'` false. A stored JSON *string*
+  matches on both, so this is confined to values whose JSON type differs from
+  the literal's — which is to say, to exactly the rows a schemaless column is
+  likely to hold. Substring search (`in`) agrees on both and is the portable way
+  to ask.
 - **Two JSON values compared against each other.** A literal fixes the type of
   the comparison; a second JSON value fixes nothing, so the comparison happens
   in whatever type extraction produced. PostgreSQL compares jsonb text, where
