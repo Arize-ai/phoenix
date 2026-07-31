@@ -550,6 +550,32 @@ def test_compile_sqlalchemy_filter_condition_reports_every_failure_as_a_filter_e
         )
 
 
+def test_caller_errors_are_not_reported_as_filter_errors() -> None:
+    """An empty experiment list is a contract violation by the caller, not
+    something a user typed. Converting it to a filter error would tell the user
+    their condition is invalid to cover for our bug."""
+    with pytest.raises(ValueError) as exc_info:
+        compile_sqlalchemy_filter_condition(filter_condition="latency_ms > 1", experiment_ids=[])
+    assert not isinstance(exc_info.value, ExperimentRunFilterConditionSyntaxError)
+
+
+@pytest.mark.parametrize(
+    "filter_condition",
+    [
+        pytest.param("latency_ms in [1]", id="list"),
+        pytest.param("latency_ms in (1, 2)", id="tuple"),
+        pytest.param("error in ['a', 'b']", id="string-list"),
+    ],
+)
+def test_unsupported_membership_says_what_is_unsupported(filter_condition: str) -> None:
+    """There is no node type for a collection, so these used to reach
+    compilation and fail with `'Constant' object is not iterable`, which the
+    boundary then reported as `Invalid filter condition` -- telling the user a
+    reasonable filter was wrong rather than unimplemented."""
+    with pytest.raises(ExperimentRunFilterConditionSyntaxError, match="not supported"):
+        compile_sqlalchemy_filter_condition(filter_condition=filter_condition, experiment_ids=[0])
+
+
 def test_compile_sqlalchemy_filter_condition_does_not_leak_internal_messages() -> None:
     """`assert_never` reports that our code believed a branch unreachable, which
     describes the implementation rather than the user's condition."""

@@ -105,6 +105,11 @@ def compile_sqlalchemy_filter_condition(
     fault. The original is logged with its traceback, because an unexpected
     exception type here still indicates a gap in validation worth closing.
     """
+    # Checked before the boundary below, deliberately. An empty list is a caller
+    # contract violation, not something a user typed, and reporting it as an
+    # invalid filter would blame them for our bug.
+    if not experiment_ids:
+        raise ValueError("Must provide one or more experiments")
     try:
         return _compile_sqlalchemy_filter_condition(
             filter_condition=filter_condition, experiment_ids=experiment_ids
@@ -561,6 +566,20 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
 
     def visit_Constant(self, node: ast.Constant) -> Constant:
         return Constant(value=node.value, ast_node=node)  # type: ignore[arg-type]
+
+    def visit_List(self, node: ast.List) -> Any:
+        # There is no node type for a collection, so an untransformed `ast.List`
+        # used to reach compilation and fail with `'Constant' object is not
+        # iterable`. Saying so plainly is the point: the construct is
+        # unimplemented, and reporting it as an invalid condition tells the user
+        # their perfectly reasonable filter is wrong.
+        raise ExperimentRunFilterConditionSyntaxError(
+            "Membership against a list is not supported here; "
+            "compare against a single value, or combine comparisons with `or`"
+        )
+
+    def visit_Tuple(self, node: ast.Tuple) -> Any:
+        return self.visit_List(ast.List(elts=node.elts, ctx=node.ctx))
 
     def visit_Name(self, node: ast.Name) -> ExperimentRunFilterConditionNode:
         name = node.id
