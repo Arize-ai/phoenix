@@ -490,6 +490,234 @@ available response is to keep accepting it.
 
 ---
 
+## Design Principles
+
+Everything below was paid for by a specific defect in this module. They are
+recorded as principles because the same mistakes are available again — in this
+DSL, in SessionFilter, and in whatever query language comes next.
+
+### Decomposing the problem: the failure-time ladder
+
+A condition can fail at five distinct moments, and *which* moment decides how
+cheap the failure is, how precisely it can be explained, and who sees it.
+
+| # | Moment | Knows about | Failure looks like |
+|---|---|---|---|
+| 1 | **Parse** | text | `SyntaxError`, points at a character |
+| 2 | **Validate** | shapes, static types | our message, names the fragment |
+| 3 | **Plan** | column types, per dialect | DB type error, references SQL the user never wrote |
+| 4 | **Bind** | driver encoding | driver error, references a parameter index |
+| 5 | **Execute** | actual row values | data-dependent; fails for some projects and not others |
+
+The ladder is the decomposition. Almost every bug in this module was a
+condition that *should* have failed at 1–2 and instead failed at 3–5.
+
+- `X and r` — should fail at 2 (not a boolean), failed at 3.
+- `latency_ms > '100'` — should fail at 2 (type mismatch), failed at 4.
+- `label == 100` — should fail at 2 (type mismatch), failed at 5, and only when
+  a non-numeric label happened to be in range.
+
+Two rules follow, and they cover most of what this module does.
+
+### 1. Fail at the earliest layer that can know
+
+Every layer must be a filter for the next: reject anything the layer below
+cannot handle honestly. A failure that escapes to layer 3 or beyond is not just
+uglier — it is *categorically* worse:
+
+- it arrives after the UI has committed to a query
+- it speaks in generated SQL, which the user cannot map back to what they typed
+- at layer 5 it is data-dependent, so it reproduces in one project and not
+  another, and no test fixture reliably catches it
+
+This is also why `EXPLAIN`-at-validation was rejected as a strategy: it moves
+detection to layer 3 instead of doing the work at layer 2, and it is a no-op on
+SQLite, so it cannot be the *only* mechanism.
+
+### 2. What cannot be known statically must be made total
+
+Some things genuinely cannot be decided before the rows are read. Attribute
+values are schemaless; `attributes['x']` has no type until you look.
+
+For those, there are exactly two acceptable designs — **reject statically**, or
+**make the operation total** so it can never abort. `_SafeJsonFloat` and
+`_SafeJsonBoolean` take the second: an unconvertible value yields `NULL` and its
+row drops out.
+
+The unacceptable middle is a partial operation that aborts at layer 5. That is
+the worst of both: it passes every static check, works in development, and fails
+on a customer's data.
+
+### 3. Reject rather than coerce, when the types are known
+
+Coercion hides intent; rejection reveals it. When both sides are statically
+typed there is nothing to infer, so a coercion is a guess about what the user
+meant — and it is usually wrong, because the dominant input to a filter field is
+not a considered expression but a **half-typed one**.
+
+`name == 'x' and r` is overwhelmingly "user is mid-keystroke", not "user wants
+rows where attribute `r` is truthy". Coercing that to truthiness produces
+plausible-looking wrong rows. Rejecting produces a message.
+
+Corollary: **never implicitly coerce to boolean.** The host language has
+two-valued truthiness, SQL has three-valued logic, and JSON adds a fourth state
+(absent). Any implicit bridge between them is a bug generator. This DSL offers
+no `bool()` for the same reason.
+
+### 4. The permissive backend is the dangerous one
+
+The original crash family — [#5802](https://github.com/Arize-ai/phoenix/issues/5802),
+[#10306](https://github.com/Arize-ai/phoenix/issues/10306) — survived from 2024
+to 2026 with two maintainer investigations. Not because it was hard, but because
+of this:
+
+| `name == 'n' and r` | |
+|---|---|
+| PostgreSQL | aborts the statement |
+| SQLite | returns **zero rows**, no error |
+
+Development happens on SQLite. A maintainer reproducing locally saw an empty
+table and reasonably concluded "edge case". The strict backend is where the bug
+is *visible*; the permissive backend is where it is *written*.
+
+Two practical consequences:
+
+- **Any coercion or cast change must be executed on both backends before it
+  lands.** Compiling on both is not enough (see 1).
+- **Silently-wrong is worse than loudly-broken.** When the two dialects
+  disagree, prefer the behavior that fails, and make the validator reject the
+  input on *both* so they agree again.
+
+### 5. A host-language parser is a liability, not a grammar
+
+Using `ast.parse` is enormously convenient and quietly hands your users
+everything Python accepts: bytes literals, complex numbers, `Ellipsis`,
+`~`, `**`, walrus, comprehensions, NFKC identifier normalization. None of it was
+designed for; all of it was admitted.
+
+If the surface is borrowed, the grammar must be an **allowlist**, never a
+denylist. Every node type, every operator, every literal type is opt-in. A
+denylist is a permanent backlog of things you have not thought of yet — and
+under an additive-only policy, each one you miss becomes permanent.
+
+### 6. Every new *name* is a breaking change; new *operators* are not
+
+This one is easy to miss and expensive.
+
+Bare identifiers fall back to the dynamic namespace: `foo` means
+`attributes['foo']`. So **adding a reserved name silently changes the meaning of
+every stored condition that used it as an attribute.** When `parent_span` became
+reserved, any condition filtering on an attribute of that name changed meaning —
+it did not error, it started meaning something else.
+
+Under additive-only, adding syntax is safe and adding *vocabulary* is not. The
+structural fix, if the namespace is ever expected to grow, is to require explicit
+syntax for dynamic access (`attributes['foo']`) and stop resolving bare unknowns
+— which is itself a restriction, so it has to happen before persistence or not
+at all.
+
+### 7. Error messages are the product surface, not diagnostics
+
+The users in the original reports pasted walls of PostgreSQL error text as the
+*symptom*. The message is what the filter field renders; it is the entire
+experience of getting it wrong.
+
+Practical rules learned here:
+
+- **Name the offending fragment**, not the category:
+  `` `r` is not a condition `` beats `logical operands must be boolean`.
+- **Suggest the repair, but only when it is actually valid.** The hint "write
+  100 instead of '100'" is only emitted when the string is numeric — an earlier
+  version rendered `write  instead of ''`.
+- **Never surface generated SQL.** The user did not write it and cannot act on
+  it.
+- If the UI renders them, messages are **part of the contract** and their
+  stability matters as much as the grammar's.
+
+### 8. Static analysis of the condition is part of its meaning
+
+`root_span_scope` looks like an optimization — it decides whether the UI shows
+cumulative or per-span metric columns. But it is derived from the condition
+text, so **changing the analysis changes what a stored condition renders**,
+without changing the condition.
+
+Anything that reads the expression and alters observable behavior is semantics,
+and belongs under the same compatibility policy as the grammar. Keep such
+analyses **sound but incomplete**: `None`/"cannot tell" must always be a safe
+answer, so the analysis can be improved later without changing existing verdicts
+— improving a *complete* analysis is a breaking change, improving a
+*conservative* one is additive.
+
+### 9. Test at the layer where the failure lives
+
+A test that only constructs a `SpanFilter` exercises layers 1–2 and proves
+nothing about 3–5. This is not hypothetical: `latency_ms > '100'` sat in a test
+named `test_filter_accepts_previously_valid_conditions` while being
+**permanently broken on PostgreSQL**. The test encoded a belief, not a behavior.
+
+- Grammar rules → construct and assert the message.
+- Coercion, casts, translation → **execute** and assert returned rows.
+- Anything data-dependent → execute against deliberately hostile rows. A clean
+  fixture will not exercise a cast; an *empty* one exercises nothing at all —
+  `label == 100` passed on an empty deployment precisely because there were no
+  annotations to fail on.
+
+### 10. Reason about databases by running them
+
+Two claims in this work were confidently wrong and settled in minutes by
+execution: that `EXPLAIN` would catch column casts (it constant-folds literals
+only), and that PostgreSQL cannot cast `jsonb` to `NUMERIC` (it has since PG 11).
+Both were plausible. Neither survived a query.
+
+Where a spec asserts backend behavior, it should be because someone ran it —
+and ideally on the oldest supported version, since that is where the guarantee
+actually has to hold.
+
+### Subtly overlooked
+
+Things that are easy to leave unspecified until they bite:
+
+- **Three-valued logic.** `NULL` is neither true nor false, so a predicate and
+  its negation do not partition the table. Measured against 10 spans, 4 of which
+  have a NULL or absent annotation score:
+
+  ```
+  annotations['quality'].score == 0.1         ->  1 row
+  annotations['quality'].score != 0.1         ->  5 rows
+  not (annotations['quality'].score == 0.1)   ->  5 rows      (4 rows in neither)
+  ```
+
+  A user reading `not (score == 0.1)` as "everything else" is wrong by the
+  number of NULLs. Decide and *test* the null truth table rather than inheriting
+  whatever SQLAlchemy happens to emit, and consider whether the UI should say
+  so.
+- **Collation and numeric precision.** String ordering and float precision
+  differ between backends. Currently unspecified here, which means
+  `name < 'x'` is not guaranteed portable.
+- **Identity vs equality.** Host languages have `is`; SQL has no identity
+  comparison. Only the singletons bridge.
+- **Time zones.** A naive datetime is not a time. Requiring an offset is the
+  only reading that cannot silently mean different instants in different
+  deployments.
+- **Text splicing must agree with the tokenizer.** Anything that edits source by
+  offset needs the same line and byte model the parser used — `str.splitlines`
+  breaks on characters the tokenizer does not treat as newlines.
+- **Sibling languages share defects.** SessionFilter inherited the same
+  unary-plus sign flip and the same non-boolean operand hole. A fix to shared
+  machinery needs regression coverage on every grain that uses it.
+
+### A checklist for changing this language
+
+1. Which layer of the ladder rejects it? Can an earlier one?
+2. Does it behave identically on SQLite and PostgreSQL — **executed**, not
+   compiled?
+3. If it cannot be decided statically, is it total?
+4. Is it a new *name*? Then it changes the meaning of existing conditions.
+5. Is it a restriction? Then it is only possible before persistence ships.
+6. What does the error say, and is the suggestion always valid?
+7. Does it change what `root_span_scope` reports?
+8. Does SessionFilter share the machinery being touched?
+
 ## Error Messages
 
 Messages are user-facing: the frontend renders `errorMessage` verbatim in the
