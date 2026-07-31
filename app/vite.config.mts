@@ -6,7 +6,7 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 // import { visualizer } from "rollup-plugin-visualizer";
 /// <reference types="vitest/config" />
 import { defineConfig, loadEnv } from "vite";
-import type { Plugin, ProxyOptions } from "vite";
+import type { Plugin, ProxyOptions, ViteDevServer } from "vite";
 import circleDependency from "vite-plugin-circular-dependency";
 import reactFallbackThrottlePlugin from "vite-plugin-react-fallback-throttle";
 import relay from "vite-plugin-relay";
@@ -48,6 +48,34 @@ function getRemoteAuthorizationHeaders(): Record<string, string> | undefined {
   return remoteApiKey ? { authorization: `Bearer ${remoteApiKey}` } : undefined;
 }
 
+function configureRemoteBackendServer({
+  remoteBackendUrl,
+  server,
+}: {
+  remoteBackendUrl: URL;
+  server: Pick<ViteDevServer, "middlewares">;
+}) {
+  const remoteBasePath = remoteBackendUrl.pathname.endsWith("/")
+    ? remoteBackendUrl.pathname
+    : `${remoteBackendUrl.pathname}/`;
+
+  server.middlewares.use((request, response, next) => {
+    if (request.url == null) {
+      next();
+      return;
+    }
+    const requestUrl = new URL(request.url, "http://localhost");
+    if (requestUrl.pathname !== "/") {
+      next();
+      return;
+    }
+
+    response.statusCode = 307;
+    response.setHeader("Location", `${remoteBasePath}${requestUrl.search}`);
+    response.end();
+  });
+}
+
 function createRemoteBackendPlugin({
   remoteBackendUrl,
 }: {
@@ -55,6 +83,12 @@ function createRemoteBackendPlugin({
 }): Plugin {
   return {
     name: "phoenix-remote-backend",
+    configurePreviewServer(server) {
+      configureRemoteBackendServer({ remoteBackendUrl, server });
+    },
+    configureServer(server) {
+      configureRemoteBackendServer({ remoteBackendUrl, server });
+    },
     transformIndexHtml: {
       order: "pre",
       async handler(html) {
