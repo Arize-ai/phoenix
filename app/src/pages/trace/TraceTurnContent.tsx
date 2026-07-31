@@ -61,7 +61,6 @@ const outputMetadataMutedCSS = css`
   }
 `;
 
-const TRACE_TURN_MESSAGE_MAX_HEIGHT = 280;
 const TRACE_TURN_MAX_WIDTH = "1000px";
 
 type RootSpanMessageRole = "INPUT" | "OUTPUT";
@@ -98,7 +97,7 @@ export function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
         css={[rootSpanMessageCSS, isInput ? promptInputSurfaceCSS : undefined]}
       >
         <ExpandableContent
-          height={TRACE_TURN_MESSAGE_MAX_HEIGHT}
+          height="lg"
           expandedBehavior="grow"
           overlayBackgroundColor={overlayBackgroundColor}
         >

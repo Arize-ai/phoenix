@@ -7,7 +7,8 @@
 /**
  * Base height for primary content area in experiment table cells (pixels)
  */
-export const CELL_PRIMARY_CONTENT_HEIGHT = 300;
+// Keep this numeric estimate aligned with --global-expansion-cutoff-md.
+export const CELL_PRIMARY_CONTENT_HEIGHT = 320;
 
 /**
  * Height of a single annotation item (pixels)

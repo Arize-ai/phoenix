@@ -45,7 +45,7 @@ function InputSection({ spanId }: { spanId: string }) {
       extra={<button type="button">Copy</button>}
       {...sectionProps}
     >
-      <ExpandableContent height={100} isOverflowing>
+      <ExpandableContent height="sm" isOverflowing>
         Nested content
       </ExpandableContent>
     </SpanDetailsDisclosureSection>

@@ -17,7 +17,7 @@ const meta: Meta<typeof ExpandableContent> = {
         component: `
 A content wrapper that handles overflowing content with an expandable interface.
 
-- Shows a gradient overlay and "expand" button when content exceeds the specified height
+- Shows a gradient overlay and "expand" button when content exceeds the selected cutoff
 - Supports both uncontrolled (internal state) and controlled modes
 - Supports fixed-height containers and max-height regions that grow to full height when expanded
         `,
@@ -26,8 +26,9 @@ A content wrapper that handles overflowing content with an expandable interface.
   },
   argTypes: {
     height: {
-      control: { type: "number" },
-      description: "The fixed or maximum collapsed height in pixels",
+      control: { type: "radio" },
+      options: ["sm", "md", "lg", "xl"],
+      description: "The fixed or maximum collapsed cutoff size",
     },
     expandedBehavior: {
       control: { type: "radio" },
@@ -117,7 +118,7 @@ const jsonContent = JSON.stringify(
  */
 export const Default: Story = {
   args: {
-    height: 100,
+    height: "md",
     children: <Text>{longContent}</Text>,
   },
 };
@@ -128,7 +129,7 @@ export const Default: Story = {
  */
 export const NoOverflow: Story = {
   args: {
-    height: 100,
+    height: "md",
     children: <Text>{shortContent}</Text>,
   },
 };
@@ -139,7 +140,7 @@ export const NoOverflow: Story = {
  */
 export const JSONContent: Story = {
   args: {
-    height: 150,
+    height: "md",
     children: <JSONBlock value={jsonContent} />,
   },
 };
@@ -149,7 +150,7 @@ export const JSONContent: Story = {
  */
 export const SmallHeight: Story = {
   args: {
-    height: 60,
+    height: "sm",
     children: <Text>{longContent}</Text>,
   },
 };
@@ -159,7 +160,7 @@ export const SmallHeight: Story = {
  */
 export const LargeHeight: Story = {
   args: {
-    height: 200,
+    height: "lg",
     children: <Text>{longContent}</Text>,
   },
 };
@@ -170,7 +171,7 @@ export const LargeHeight: Story = {
  */
 export const MaxHeightGrow: Story = {
   args: {
-    height: 120,
+    height: "md",
     expandedBehavior: "grow",
     children: <Text>{longContent}</Text>,
   },
@@ -195,7 +196,7 @@ const ControlledTemplate = () => {
         </Text>
       </View>
       <ExpandableContent
-        height={100}
+        height="sm"
         isExpanded={isExpanded}
         onExpandedChange={setIsExpanded}
       >
@@ -242,22 +243,22 @@ const TableLayoutTemplate = () => {
         <Text weight="heavy">Output</Text>
       </div>
       <div>
-        <ExpandableContent height={80}>
+        <ExpandableContent height="sm">
           <Text>{shortContent}</Text>
         </ExpandableContent>
       </div>
       <div>
-        <ExpandableContent height={80}>
+        <ExpandableContent height="sm">
           <Text>{longContent}</Text>
         </ExpandableContent>
       </div>
       <div>
-        <ExpandableContent height={80}>
+        <ExpandableContent height="sm">
           <JSONBlock value={jsonContent} />
         </ExpandableContent>
       </div>
       <div>
-        <ExpandableContent height={80}>
+        <ExpandableContent height="sm">
           <Text>
             A moderate amount of text that may or may not overflow depending on
             the exact styling applied.
@@ -299,7 +300,7 @@ export const TableLayout: Story = {
  */
 export const InitiallyExpanded: Story = {
   args: {
-    height: 100,
+    height: "md",
     isExpanded: true,
     children: <Text>{longContent}</Text>,
   },

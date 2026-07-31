@@ -31,10 +31,6 @@ export interface ExperimentInputCellProps {
    */
   value: unknown;
   /**
-   * The height of the content area in pixels
-   */
-  height: number;
-  /**
    * Callback when the expand button is clicked
    */
   onExpand: () => void;
@@ -47,7 +43,6 @@ export interface ExperimentInputCellProps {
 export function ExperimentInputCell({
   exampleId,
   value,
-  height,
   onExpand,
 }: ExperimentInputCellProps) {
   return (
@@ -76,7 +71,7 @@ export function ExperimentInputCell({
           `}
         >{`example ${exampleId}`}</Text>
       </CellTop>
-      <ExpandableContent height={height}>
+      <ExpandableContent height="md">
         <div css={contentCSS}>
           <DynamicContent value={value} />
         </div>

@@ -130,7 +130,9 @@ describe("SpanAttributesSection", () => {
     const expandableContent = container.querySelector<HTMLElement>(
       ".expandable-content"
     );
-    expect(expandableContent?.style.maxHeight).toBe("640px");
+    expect(expandableContent?.style.maxHeight).toBe(
+      "var(--global-expansion-cutoff-xl)"
+    );
 
     const expandButton = container.querySelector<HTMLButtonElement>(
       '[aria-label="Show more"]'

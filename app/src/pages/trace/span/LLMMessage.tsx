@@ -33,27 +33,18 @@ import { getMessageContentPreview } from "./messageContentPreview";
 import { MessageContentsList } from "./MessageContentsList";
 import { formatJSONForCopy, getToolCalls } from "./utils";
 
-const COLLAPSED_MESSAGE_HEIGHT_PIXELS = 320;
-
 function ExpandableMessageContent({ content }: { content: string }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const preview = getMessageContentPreview({ content });
   const displayedContent = isExpanded ? content : preview.content;
-
-  if (!preview.isTruncated) {
-    return (
-      <View width="100%">
-        <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
-      </View>
-    );
-  }
+  const knownIsOverflowing = preview.isTruncated ? true : undefined;
 
   return (
     <ExpandableContent
-      height={COLLAPSED_MESSAGE_HEIGHT_PIXELS}
+      height="md"
       expandedBehavior="grow"
       isExpanded={isExpanded}
-      isOverflowing
+      isOverflowing={knownIsOverflowing}
       onExpandedChange={setIsExpanded}
     >
       <View width="100%">
@@ -178,7 +169,7 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
                         {id ? <CopyToClipboardButton text={id} /> : null}
                       </DisclosureTrigger>
                       <DisclosurePanel>
-                        <ExpandableSpanContent>
+                        <ExpandableSpanContent overlayBackgroundColor="var(--tool-call-body-background-color)">
                           <pre
                             key={idx}
                             css={css`
@@ -206,7 +197,7 @@ export function LLMMessage({ message }: { message: AttributeMessage }) {
                   <Text>Function Call</Text>
                 </DisclosureTrigger>
                 <DisclosurePanel>
-                  <ExpandableSpanContent>
+                  <ExpandableSpanContent overlayBackgroundColor="var(--tool-call-body-background-color)">
                     <pre
                       css={css`
                         text-wrap: wrap;

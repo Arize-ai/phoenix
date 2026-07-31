@@ -37,9 +37,7 @@ import {
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
-  calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
-  CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentAnnotationAggregates,
   ExperimentCostAndLatencySummary,
   ExperimentInputCell,
@@ -342,11 +340,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return max;
   }, [tableData]);
 
-  // Calculate cell content height to account for annotation list
-  const cellContentHeight =
-    CELL_PRIMARY_CONTENT_HEIGHT +
-    calculateAnnotationListHeight(maxAnnotationCount);
-
   const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
       {
@@ -357,7 +350,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           <ExperimentInputCell
             exampleId={row.original.example.id}
             value={row.original.input}
-            height={cellContentHeight}
             onExpand={() => {
               setDialog(
                 <ExampleDetailsDialog
@@ -387,19 +379,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         accessorKey: "referenceOutput",
         enableSorting: false,
         cell: ({ getValue }) => (
-          <ExperimentReferenceOutputCell
-            value={getValue()}
-            height={cellContentHeight}
-          />
+          <ExperimentReferenceOutputCell value={getValue()} />
         ),
       },
     ];
-  }, [
-    annotationConfigs,
-    baseExperiment?.datasetVersion?.id,
-    cellContentHeight,
-    setDialog,
-  ]);
+  }, [annotationConfigs, baseExperiment?.datasetVersion?.id, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [baseExperimentId, ...compareExperimentIds].map(
@@ -482,7 +466,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
               annotationConfigs={annotationConfigs}
-              height={CELL_PRIMARY_CONTENT_HEIGHT}
             />
           );
         },
@@ -847,14 +830,12 @@ function ExperimentRunOutput(
     setDialog: (dialog: ReactNode) => void;
     annotationSummaries: readonly AnnotationSummary[];
     annotationConfigs: readonly AnnotationConfig[];
-    height: number;
   }
 ) {
-  const { output, error, annotations, setDialog, height, annotationConfigs } =
-    props;
+  const { output, error, annotations, setDialog, annotationConfigs } = props;
 
   if (error) {
-    return <RunError error={error} height={height} />;
+    return <RunError error={error} />;
   }
   const annotationsList = annotations?.edges.length
     ? annotations.edges.map((edge) => edge.annotation)
@@ -862,7 +843,7 @@ function ExperimentRunOutput(
 
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
-      <ExpandableContent height={height}>
+      <ExpandableContent height="md">
         <div css={outputContentCSS}>
           <ExperimentOutputContent value={output} />
         </div>
@@ -887,10 +868,10 @@ function ExperimentRunOutput(
   );
 }
 
-function RunError({ error, height }: { error: string; height: number }) {
+function RunError({ error }: { error: string }) {
   return (
     <Flex direction="column" height="100%">
-      <ExpandableContent height={height}>
+      <ExpandableContent height="md">
         <div css={outputContentCSS}>
           <Alert variant="danger">{error}</Alert>
         </div>
@@ -907,7 +888,6 @@ function ExperimentRunOutputCell({
   setSelectedExampleIndex,
   annotationSummaries,
   annotationConfigs,
-  height,
 }: {
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
@@ -916,7 +896,6 @@ function ExperimentRunOutputCell({
   setSelectedExampleIndex: (index: number) => void;
   annotationSummaries: readonly AnnotationSummary[];
   annotationConfigs: readonly AnnotationConfig[];
-  height: number;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
@@ -1007,7 +986,6 @@ function ExperimentRunOutputCell({
           setDialog={setDialog}
           annotationSummaries={annotationSummaries}
           annotationConfigs={annotationConfigs}
-          height={height}
         />
       ) : (
         <PaddedCell>

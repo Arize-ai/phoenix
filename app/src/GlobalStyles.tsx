@@ -49,6 +49,7 @@ export const mediumRootCSS = css`
     --global-dimension-size-1125: 90px;
     --global-dimension-size-1200: 96px;
     --global-dimension-size-1250: 100px;
+    --global-dimension-size-1500: 120px;
     --global-dimension-size-1600: 128px;
     --global-dimension-size-1700: 136px;
     --global-dimension-size-1800: 144px;
@@ -89,6 +90,12 @@ const staticCSS = css`
     --global-button-height-s: var(--global-input-height-s);
     --global-button-height-m: var(--global-input-height-m);
     --global-button-height-l: var(--global-input-height-l);
+
+    // expandable content sizing
+    --global-expansion-cutoff-sm: var(--global-dimension-size-1500);
+    --global-expansion-cutoff-md: var(--global-dimension-size-4000);
+    --global-expansion-cutoff-lg: var(--global-dimension-size-6000);
+    --global-expansion-cutoff-xl: var(--global-dimension-size-8500);
 
     // details-panel navigation geometry
     --global-details-panel-navigation-row-height: var(

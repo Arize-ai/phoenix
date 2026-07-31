@@ -75,6 +75,15 @@ export const expandableContentExpandButtonCSS = css`
   }
 `;
 
+export type ExpansionCutoffSize = "sm" | "md" | "lg" | "xl";
+
+const EXPANSION_CUTOFF_HEIGHT_BY_SIZE = {
+  sm: "var(--global-expansion-cutoff-sm)",
+  md: "var(--global-expansion-cutoff-md)",
+  lg: "var(--global-expansion-cutoff-lg)",
+  xl: "var(--global-expansion-cutoff-xl)",
+} satisfies Record<ExpansionCutoffSize, string>;
+
 const collapseButtonCSS = css`
   position: static;
   height: auto;
@@ -86,7 +95,10 @@ const collapseButtonCSS = css`
 `;
 
 export interface ExpandableContentProps extends PropsWithChildren {
-  height: number;
+  /**
+   * Maximum height of the collapsed content.
+   */
+  height: ExpansionCutoffSize;
   /**
    * How expanded content behaves.
    * - "scroll": use a fixed-height container and scroll within it when expanded
@@ -126,18 +138,18 @@ export function ExpandableContent({
 }: ExpandableContentProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const measuredIsOverflowing = useIsOverflowing({
-    contentRef,
-    containerRef,
-    collapsedHeight: height,
-    expandedBehavior,
-  });
-  const isOverflowing = controlledIsOverflowing ?? measuredIsOverflowing;
   const [internalExpanded, setInternalExpanded] = useState(false);
 
   // Use controlled value if provided, otherwise use internal state
   const isControlled = controlledExpanded !== undefined;
   const isExpanded = isControlled ? controlledExpanded : internalExpanded;
+  const measuredIsOverflowing = useIsOverflowing({
+    contentRef,
+    containerRef,
+    expandedBehavior,
+    isExpanded,
+  });
+  const isOverflowing = controlledIsOverflowing ?? measuredIsOverflowing;
 
   const setExpanded = (nextIsExpanded: boolean) => {
     if (!isControlled) {
@@ -148,13 +160,14 @@ export function ExpandableContent({
   const shouldUseNaturalHeight = expandedBehavior === "grow" && isExpanded;
   const canCollapse =
     expandedBehavior === "grow" && isExpanded && isOverflowing;
+  const cutoffHeight = EXPANSION_CUTOFF_HEIGHT_BY_SIZE[height];
   const containerStyle = {
     "--expandable-content-overlay-background-color": overlayBackgroundColor,
     ...(expandedBehavior === "scroll"
-      ? { height }
+      ? { height: cutoffHeight }
       : shouldUseNaturalHeight
         ? {}
-        : { maxHeight: height }),
+        : { maxHeight: cutoffHeight }),
   } as CSSProperties & {
     "--expandable-content-overlay-background-color": string;
   };
@@ -206,13 +219,13 @@ export function ExpandableContent({
 function useIsOverflowing({
   contentRef,
   containerRef,
-  collapsedHeight,
   expandedBehavior,
+  isExpanded,
 }: {
   contentRef: RefObject<HTMLElement | null>;
   containerRef: RefObject<HTMLElement | null>;
-  collapsedHeight: number;
   expandedBehavior: ExpandableContentProps["expandedBehavior"];
+  isExpanded: boolean;
 }): boolean {
   const [isOverflowing, setIsOverflowing] = useState(false);
 
@@ -222,8 +235,11 @@ function useIsOverflowing({
     if (!content || !container) return undefined;
 
     const checkOverflow = () => {
-      const overflowBoundary =
-        expandedBehavior === "grow" ? collapsedHeight : container.clientHeight;
+      // A growing container has no cutoff while expanded. Preserve the
+      // overflow state measured while collapsed so its collapse control stays
+      // available.
+      if (expandedBehavior === "grow" && isExpanded) return;
+      const overflowBoundary = container.clientHeight;
       setIsOverflowing(
         content.scrollHeight > overflowBoundary + OVERFLOW_TOLERANCE_PX
       );
@@ -249,7 +265,7 @@ function useIsOverflowing({
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };
-  }, [collapsedHeight, contentRef, containerRef, expandedBehavior]);
+  }, [contentRef, containerRef, expandedBehavior, isExpanded]);
 
   return isOverflowing;
 }

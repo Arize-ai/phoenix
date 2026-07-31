@@ -19,8 +19,6 @@ import {
 
 import { SpanDetailsSectionHeading } from "../SpanDetailsSectionHeading";
 
-const ATTRIBUTES_PREVIEW_MAX_HEIGHT_PIXELS = 640;
-
 const attributesContextualHelp = (
   <ContextualHelp>
     <Heading weight="heavy" level={4}>
@@ -150,10 +148,7 @@ function SpanAttributesSectionContents({
         hidden={!isOpen}
         data-attributes-section-body
       >
-        <ExpandableContent
-          height={ATTRIBUTES_PREVIEW_MAX_HEIGHT_PIXELS}
-          expandedBehavior="grow"
-        >
+        <ExpandableContent height="xl" expandedBehavior="grow">
           <JSONViewBody
             emptyMessage="This span has no attributes"
             noResultsMessage="No matching attributes"

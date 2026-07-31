@@ -167,8 +167,6 @@ export function ToolPartApprovalActions({
   );
 }
 
-const COLLAPSED_HEIGHT_PX = 320;
-
 const expandableSectionCSS = css`
   --expandable-content-overlay-background-color: var(
     --tool-call-body-background-color
@@ -205,7 +203,7 @@ export function ToolPartExpandableSection({
   return (
     <div ref={containerRef} css={expandableSectionCSS}>
       <ExpandableContent
-        height={COLLAPSED_HEIGHT_PX}
+        height="md"
         expandedBehavior="grow"
         isExpanded={isExpanded}
         onExpandedChange={handleExpandedChange}

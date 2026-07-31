@@ -16,14 +16,10 @@ export interface ExperimentReferenceOutputCellProps {
    * The value to render in the cell
    */
   value: unknown;
-  /**
-   * The height of the content area in pixels
-   */
-  height: number;
 }
 
 /**
- * Cell component for rendering reference output with configurable height.
+ * Cell component for rendering reference output.
  *
  * If the output is a chat message format containing assistant messages,
  * it extracts the assistant content and renders it as markdown.
@@ -31,7 +27,6 @@ export interface ExperimentReferenceOutputCellProps {
  */
 export function ExperimentReferenceOutputCell({
   value,
-  height,
 }: ExperimentReferenceOutputCellProps) {
   const result = useExtractedOutputContent(value);
   return (
@@ -39,7 +34,7 @@ export function ExperimentReferenceOutputCell({
       <CellTop>
         <Text color="text-500">reference output</Text>
       </CellTop>
-      <ExpandableContent height={height}>
+      <ExpandableContent height="md">
         <div css={contentCSS}>
           {result.isExtracted ? (
             <MarkdownBlock mode="markdown" margin="none">

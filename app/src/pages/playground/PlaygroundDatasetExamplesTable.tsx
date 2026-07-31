@@ -54,9 +54,7 @@ import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
   type AnnotationError,
   type AnnotationWithTrace,
-  calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
-  CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentAnnotationAggregates,
   ExperimentCostAndLatencySummary,
   type ExperimentCostAndLatencySummaryExperiment,
@@ -315,7 +313,7 @@ function EmptyExampleOutput({
     <Flex direction="column" height="100%">
       <CellTop>{cellTopContent}</CellTop>
       <ExpandableContent
-        height={CELL_PRIMARY_CONTENT_HEIGHT}
+        height="md"
         isExpanded={isExpanded}
         onExpandedChange={onExpandedChange}
       >
@@ -451,7 +449,7 @@ function ExampleOutputContent({
         <CellRunStatus span={span} isRunning={isRunning} />
       </CellTop>
       <ExpandableContent
-        height={CELL_PRIMARY_CONTENT_HEIGHT}
+        height="md"
         isExpanded={isExpanded}
         onExpandedChange={onExpandedChange}
       >
@@ -801,8 +799,6 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.setAvailablePaths
   );
   const numEnabledEvaluators = evaluatorOutputConfigs.length;
-  const annotationListHeight =
-    calculateAnnotationListHeight(numEnabledEvaluators);
 
   const setInstanceExperiment = usePlaygroundContext(
     (state) => state.setInstanceExperiment
@@ -1324,7 +1320,6 @@ export function PlaygroundDatasetExamplesTable({
           <ExperimentInputCell
             exampleId={row.original.id}
             value={row.original.input}
-            height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
             onExpand={() => {
               setSearchParams((prev) => {
                 prev.set("exampleId", row.original.id);
@@ -1352,21 +1347,13 @@ export function PlaygroundDatasetExamplesTable({
         ),
         accessorKey: "output",
         cell: ({ row }) => (
-          <ExperimentReferenceOutputCell
-            value={row.original.output}
-            height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
-          />
+          <ExperimentReferenceOutputCell value={row.original.output} />
         ),
         size: 200,
       },
       ...playgroundInstanceOutputColumns,
     ],
-    [
-      annotationListHeight,
-      evaluatorOutputConfigs,
-      playgroundInstanceOutputColumns,
-      setSearchParams,
-    ]
+    [evaluatorOutputConfigs, playgroundInstanceOutputColumns, setSearchParams]
   );
   const table = useReactTable<TableRow>({
     columns,

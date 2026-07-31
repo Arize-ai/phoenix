@@ -7,12 +7,14 @@ import { ExpandableContent } from "../ExpandableContent";
 let container: HTMLDivElement;
 let root: Root;
 let originalScrollHeight: PropertyDescriptor | undefined;
+let originalClientHeight: PropertyDescriptor | undefined;
 
 // jsdom has no layout, so `scrollHeight` is always 0. Stub it with a mutable
 // backing value so a test can simulate content growing/shrinking. Note jsdom
 // defines `scrollHeight` on `Element.prototype` (not `HTMLElement.prototype`),
 // so we capture/restore the descriptor there to avoid leaking the stub.
 let scrollHeightValue = 0;
+let clientHeightValue = 320;
 
 function mockScrollHeight(value: number) {
   scrollHeightValue = value;
@@ -21,6 +23,7 @@ function mockScrollHeight(value: number) {
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   scrollHeightValue = 0;
+  clientHeightValue = 320;
   originalScrollHeight = Object.getOwnPropertyDescriptor(
     Element.prototype,
     "scrollHeight"
@@ -29,6 +32,16 @@ beforeEach(() => {
     configurable: true,
     get() {
       return scrollHeightValue;
+    },
+  });
+  originalClientHeight = Object.getOwnPropertyDescriptor(
+    Element.prototype,
+    "clientHeight"
+  );
+  Object.defineProperty(Element.prototype, "clientHeight", {
+    configurable: true,
+    get() {
+      return clientHeightValue;
     },
   });
   container = document.createElement("div");
@@ -52,6 +65,15 @@ afterEach(() => {
     // rather than leaving it installed for later tests in this process.
     delete (Element.prototype as { scrollHeight?: number }).scrollHeight;
   }
+  if (originalClientHeight) {
+    Object.defineProperty(
+      Element.prototype,
+      "clientHeight",
+      originalClientHeight
+    );
+  } else {
+    delete (Element.prototype as { clientHeight?: number }).clientHeight;
+  }
   vi.restoreAllMocks();
 });
 
@@ -62,7 +84,7 @@ function renderExpandable(props: {
 }) {
   act(() => {
     root.render(
-      <ExpandableContent height={320} expandedBehavior="grow" {...props}>
+      <ExpandableContent height="md" expandedBehavior="grow" {...props}>
         <div>content</div>
       </ExpandableContent>
     );
@@ -70,6 +92,16 @@ function renderExpandable(props: {
 }
 
 describe("ExpandableContent", () => {
+  it("uses the selected global expansion cutoff token", () => {
+    renderExpandable({});
+    const expandableContent = container.querySelector<HTMLElement>(
+      ".expandable-content"
+    );
+    expect(expandableContent?.style.maxHeight).toBe(
+      "var(--global-expansion-cutoff-md)"
+    );
+  });
+
   it("shows an expand affordance when content exceeds the collapsed height", () => {
     mockScrollHeight(500);
     renderExpandable({});
