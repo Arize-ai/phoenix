@@ -1,5 +1,7 @@
 import { createContext, useContext } from "react";
 
+import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
+
 /**
  * Recharts syncId shared by every project metric chart so tooltip hover and
  * brush interactions stay synchronized across chart panels. Every chart in
@@ -31,10 +33,15 @@ export const MetricFetchKeyProvider = MetricFetchKeyContext.Provider;
  * provided fetchKey changes (e.g. when new data is streamed in) while
  * continuing to render cached data. Every chart in the chart catalog must
  * pass this to its query so it stays live when shown above the spans table.
+ *
+ * The fetchKey is frozen while the chart is out of view, so stream refreshes
+ * only refetch visible charts (see {@link useFrozenWhileHidden}).
  */
 export function useMetricQueryFetchOptions() {
-  const fetchKey = useContext(MetricFetchKeyContext);
-  return fetchKey != null
-    ? ({ fetchKey, fetchPolicy: "store-and-network" } as const)
+  const visibleFetchKey = useFrozenWhileHidden(
+    useContext(MetricFetchKeyContext)
+  );
+  return visibleFetchKey != null
+    ? ({ fetchKey: visibleFetchKey, fetchPolicy: "store-and-network" } as const)
     : undefined;
 }

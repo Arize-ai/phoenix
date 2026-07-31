@@ -586,7 +586,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           flex="none"
         >
           <ExperimentRunFilterConditionField
-            onValidCondition={setFilterCondition}
+            onValidCondition={({ condition }) => setFilterCondition(condition)}
           />
         </View>
         <div

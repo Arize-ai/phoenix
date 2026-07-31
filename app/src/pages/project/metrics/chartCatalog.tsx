@@ -1,7 +1,12 @@
 import type { ComponentType } from "react";
 import invariant from "tiny-invariant";
 
-import { ChartPanel, type ChartTypeIconType } from "@phoenix/components/chart";
+import {
+  ChartPanel,
+  type ChartTypeIconType,
+  DeferredChartPanel,
+} from "@phoenix/components/chart";
+import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
 import type {
   BuiltInProjectMetricChartKey,
   MetricChartTableView,
@@ -228,6 +233,60 @@ function ProjectAnnotationChartPanel({
       {...props}
       annotationLevel={annotationLevel}
       annotationName={annotationName}
+    />
+  );
+}
+
+/**
+ * A catalog chart wrapped in a {@link DeferredChartPanel} so it doesn't fetch
+ * until scrolled into view. The placeholder's title and subtitle come from
+ * the same catalog entry as the chart's, so they can't drift apart.
+ */
+export function DeferredProjectMetricPanel({
+  chart,
+  fillHeight = false,
+  ...props
+}: ProjectMetricViewProps & {
+  chart: ProjectMetricChart;
+  fillHeight?: boolean;
+}) {
+  return (
+    <DeferredChartPanel
+      title={chart.name}
+      subtitle={chart.description}
+      fillHeight={fillHeight}
+    >
+      <MetricPanelWithFrozenTimeRange
+        chart={chart}
+        fillHeight={fillHeight}
+        {...props}
+      />
+    </DeferredChartPanel>
+  );
+}
+
+/**
+ * Split out so useFrozenWhileHidden runs inside the deferred panel's
+ * visibility context: the time range is a query variable, and a live range
+ * advancing while the chart is hidden would refetch data the user can't see.
+ */
+function MetricPanelWithFrozenTimeRange({
+  chart,
+  timeRange,
+  fillHeight,
+  ...props
+}: ProjectMetricViewProps & {
+  chart: ProjectMetricChart;
+  fillHeight?: boolean;
+}) {
+  const visibleTimeRange = useFrozenWhileHidden(timeRange);
+  return (
+    <chart.Panel
+      {...props}
+      timeRange={visibleTimeRange}
+      annotationLevel={chart.annotationLevel}
+      annotationName={chart.annotationName}
+      fillHeight={fillHeight}
     />
   );
 }

@@ -8,6 +8,8 @@ import {
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
   type DSLFilterSnippet,
+  type DSLFilterValidationFailureReason,
+  type DSLFilterValidConditionArgs,
   useDSLFilterConditionHistory,
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
@@ -15,12 +17,19 @@ import environment from "@phoenix/RelayEnvironment";
 
 import type { SpanFilterConditionFieldCompletionsQuery } from "./__generated__/SpanFilterConditionFieldCompletionsQuery.graphql";
 import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
+import {
+  ORPHAN_AWARE_ROOT_SPANS_CONDITION,
+  STRICT_ROOT_SPANS_CONDITION,
+} from "./spanFilterRootScopeConstants";
 import { useSpanFilters } from "./SpanFiltersContext";
 import {
   openInferenceAttributeCompletions,
   openInferenceAttributeValueCompletionSource,
 } from "./spanFilterSemanticConventionCompletions";
-import { validateSpanFilterCondition } from "./spanFilterValidation";
+import {
+  type SpanFilterConditionValidation,
+  validateSpanFilterCondition,
+} from "./spanFilterValidation";
 
 /**
  * The fields of the span filter DSL that an expression can reference
@@ -69,7 +78,12 @@ const spanFilterCompletions: Completion[] = [
   {
     label: "parent_id",
     type: "variable",
-    info: "The ID of a span's parent - None for root spans",
+    info: "The ID of a span's parent - use `parent_id is None` for root spans",
+  },
+  {
+    label: "parent_span",
+    type: "variable",
+    info: "The parent span - use `parent_span is None` for root spans, including orphans (spans whose parent is missing)",
   },
   {
     label: "latency_ms",
@@ -176,7 +190,11 @@ const spanFilterSnippets: DSLFilterSnippet[] = [
   },
   {
     label: "filter for root spans",
-    snippet: "parent_id is None",
+    snippet: STRICT_ROOT_SPANS_CONDITION,
+  },
+  {
+    label: "filter for root spans (incl. orphans)",
+    snippet: ORPHAN_AWARE_ROOT_SPANS_CONDITION,
   },
   {
     label: "filter by trace id",
@@ -238,16 +256,42 @@ async function fetchAnnotationCompletions(
   });
 }
 
+/**
+ * The argument handed to `onValidCondition`: the condition that passed
+ * validation, plus whether it restricts the result set to root spans, which
+ * decides between cumulative and per-span metric columns. `null` when the
+ * server did not answer.
+ */
+export type SpanFilterValidConditionArgs = {
+  condition: string;
+  selectsRootSpansOnly: boolean | null;
+  /**
+   * True when this settlement is of the value the field mounted with -- a
+   * seeded default or a condition already in the URL -- rather than one
+   * applied while the field was on screen. Consumers that persist applied
+   * conditions to the URL must skip initial settlements: persisting a tab's
+   * default imposes it on the other tab, which defaults differently.
+   */
+  isInitialSettlement: boolean;
+};
+
+export type SpanFilterValidationFailureReason =
+  DSLFilterValidationFailureReason;
+
 type SpanFilterConditionFieldProps = {
   /**
    * Callback when the condition is valid
    */
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (args: SpanFilterValidConditionArgs) => void;
+  onValidationFailed?: (reason: SpanFilterValidationFailureReason) => void;
+  validationRetryKey?: number;
   placeholder?: string;
 };
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const {
     onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const [isConditionValid, setIsConditionValid] = useState<boolean>(true);
@@ -286,9 +330,29 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   );
 
   const handleValidCondition = useCallback(
-    (condition: string) => {
-      recordValidCondition(condition);
-      onValidCondition(condition);
+    ({
+      condition,
+      validationResult,
+      isInitialSettlement,
+    }: DSLFilterValidConditionArgs<SpanFilterConditionValidation>) => {
+      // Only conditions applied while the field was on screen enter the
+      // recent-searches history. The mount value is a seeded default or a
+      // URL's condition -- recording it would stamp text the user never typed
+      // into one of the few history slots on every visit.
+      if (!isInitialSettlement) {
+        recordValidCondition(condition);
+      }
+      // A null validation result means the condition was empty, which the
+      // field resolves without asking the server. An empty condition restricts
+      // nothing, so it is knowably not root-scoped. Otherwise the server's
+      // answer passes through as-is, `null` (unanswered) included.
+      onValidCondition({
+        condition,
+        selectsRootSpansOnly: validationResult
+          ? validationResult.selectsRootSpansOnly
+          : false,
+        isInitialSettlement,
+      });
     },
     [recordValidCondition, onValidCondition]
   );
@@ -328,6 +392,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       loadCompletions={loadAnnotationCompletions}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      onValidationFailed={onValidationFailed}
+      validationRetryKey={validationRetryKey}
       onValidationStateChange={setIsConditionValid}
     />
   );

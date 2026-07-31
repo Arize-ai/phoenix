@@ -2,7 +2,7 @@
 
 ## Project
 
-- `Project.spans(timeRange, first, after, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String)` → connection of `Span`. There is **no `traces` connection on `Project`** — use `spans(rootSpansOnly: true)` for one row per trace.
+- `Project.spans(timeRange, first, after, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String)` → connection of `Span`. There is **no `traces` connection on `Project`** — use `spans(rootSpansOnly: true)` for root spans, which is usually one per trace though nothing enforces that -- fragmented traces can have several.
 - `Project.trace(traceId: ID!)` → `Trace` — lookup by OTel hex trace id.
 - Aggregates, most accepting `timeRange` and `filterCondition`: `traceCount`, `recordCount` (span count), `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `costSummary`, `latencyMsQuantile(probability: Float!)`, `spanLatencyMsQuantile(probability: Float!)`.
 - Discovery fields: `spanAnnotationNames`, `traceAnnotationsNames`, `spanAnnotationSummary`, `documentEvaluationNames` — check which evals/annotations exist before querying them.

@@ -10,7 +10,7 @@ import {
   type PanelImperativeHandle,
   Separator,
 } from "react-resizable-panels";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate } from "react-router";
 
 import {
   Button,
@@ -69,39 +69,22 @@ const ASIDE_PANEL_MIN_SIZE_PIXELS = 300;
 const ASIDE_PANEL_MAX_SIZE_PIXELS = 500;
 export function SpanDetails({
   spanNodeId,
-  projectId,
 }: {
   /**
    * The Global ID of the span
    */
   spanNodeId: string;
-  /**
-   * The Global ID of the project the span belongs to.
-   *
-   * Falls back to the route's `projectId` when omitted. Callers that render span
-   * details outside a project route — the playground's trace slideover, for
-   * instance — have no such route param and must pass it explicitly.
-   */
-  projectId?: string;
 }) {
   return (
     <SpanAsideProvider>
       <SpanNoteBarProvider>
-        <SpanDetailsContent spanNodeId={spanNodeId} projectId={projectId} />
+        <SpanDetailsContent spanNodeId={spanNodeId} />
       </SpanNoteBarProvider>
     </SpanAsideProvider>
   );
 }
 
-function SpanDetailsContent({
-  spanNodeId,
-  projectId: projectIdProp,
-}: {
-  spanNodeId: string;
-  projectId?: string;
-}) {
-  const { projectId: routeProjectId } = useParams();
-  const projectId = projectIdProp ?? routeProjectId;
+function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   const isAnnotatingSpans = usePreferencesContext(
     (state) => state.isAnnotatingSpans
   );
@@ -141,6 +124,11 @@ function SpanDetailsContent({
             trace {
               id
               traceId
+            }
+            # sourced from the span rather than the route so span details work
+            # when embedded outside a /projects/:projectId route
+            project {
+              id
             }
             name
             spanKind
@@ -204,9 +192,6 @@ function SpanDetailsContent({
       "Expected a span, but got a different type" + span.__typename
     );
   }
-  if (projectId == null) {
-    throw new Error("Project ID is required to download a span");
-  }
 
   useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside(), {
     preventDefault: true,
@@ -253,7 +238,7 @@ function SpanDetailsContent({
                     buttonText={isCondensedView ? null : "Add to Dataset"}
                   />
                   <SpanDownloadMenu
-                    projectId={projectId}
+                    projectId={span.project.id}
                     spanId={span.spanId}
                     traceId={span.trace.traceId}
                     buttonText={isCondensedView ? null : "Download"}

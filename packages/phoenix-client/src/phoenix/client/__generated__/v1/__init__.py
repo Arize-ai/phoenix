@@ -429,7 +429,6 @@ class ProjectContext(TypedDict):
     type: Literal["project"]
     projectNodeId: str
     spanFilter: NotRequired[str]
-    rootSpansOnly: NotRequired[bool]
 
 
 class PromptData(TypedDict):

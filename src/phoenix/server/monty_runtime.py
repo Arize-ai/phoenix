@@ -141,7 +141,15 @@ class MontyRuntime:
                         checkout_timeout=self._checkout_timeout,
                     )
                 )
-            except (RuntimeError, OSError) as exc:
+            except Exception as exc:
+                # Any startup failure is a deployment fault, so catch broadly
+                # rather than by type. Binary resolution runs inside this call
+                # and does not restrict what it raises: a missing binary is
+                # FileNotFoundError, but ``find_monty_binary``'s editable-install
+                # probe walks four parent directories unguarded, so a deployment
+                # that installs the package nearer the filesystem root raises
+                # IndexError. Anything uncaught here would reach the caller as a
+                # bare exception, past every mapping onto a MontyServiceError.
                 await stack.aclose()
                 logger.exception("Failed to start the Monty worker pool.")
                 raise MontyUnavailable("The Monty worker pool could not be started") from exc

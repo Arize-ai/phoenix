@@ -167,6 +167,12 @@ px auth status --format raw                   # machine-readable credential sour
 
 `auth status` reports the credential source (`flag`, `env`, `profile-key`, `oauth`, or `none`). OAuth status includes the token expiry.
 
+When the stored credential source is `oauth` and the authenticated probe fails,
+`auth status` retries once without credentials and reports anonymous access only
+if the server explicitly says access is anonymous. This keeps a stale or expired
+profile token from being reported as an auth failure against a deployment that
+has since switched from OAuth to anonymous access.
+
 ## Profiles
 
 Named profiles let you switch between multiple Phoenix instances (local, staging, cloud) without juggling environment variables. Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`).
@@ -200,9 +206,15 @@ px auth status --profile prod
 ```bash
 px project list                                            # list all projects (table view)
 px project list --format raw --no-progress | jq '.[].name' # project names as JSON
+px project list --name-contains prod                       # filter by name substring (case-insensitive)
 px project get my-project --format raw --no-progress       # single record by exact name
 px project get my-project --format raw --no-progress | jq -r '.id'  # extract project id
 ```
+
+`project list` accepts `--limit <n>` (projects fetched per page) and
+`--name-contains <filter>`, which filters server-side on a case-insensitive name
+substring. Use it instead of piping `list` through `grep` when you only know part
+of a project's name.
 
 `project get` exits with `ExitCode.FAILURE` (1) on a name miss and writes a `StructuredError` `{error, code: "FAILURE", hint}` to stderr in `--format json|raw`.
 
