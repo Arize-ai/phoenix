@@ -585,12 +585,23 @@ class ComparisonOperation(BooleanExpression):
             # `strpos(numeric, integer) does not exist` on PostgreSQL -- after
             # the condition has been reported valid. The span DSL rejects the
             # same shapes with the same message.
-            left_family = _get_membership_operand_family(self.left_operand)
-            right_family = _get_membership_operand_family(self.right_operand)
+            left_family = _get_operand_family(self.left_operand)
+            right_family = _get_operand_family(self.right_operand)
             if left_family not in (None, "string") or right_family not in (None, "string"):
                 raise ExperimentRunFilterConditionSyntaxError(
                     f"cannot compare {left_family or 'value'} and {right_family or 'string'}"
                 )
+        if isinstance(operator, (ast.Lt, ast.LtE, ast.Gt, ast.GtE)) and "boolean" in (
+            _get_operand_family(self.left_operand),
+            _get_operand_family(self.right_operand),
+        ):
+            # Ordered comparison casts the JSON side to a number, so
+            # `input['x'] > True` compiled to `numeric > boolean` -- an
+            # operator PostgreSQL does not have -- after the condition
+            # validated. As in the span DSL, the rule is by type.
+            raise ExperimentRunFilterConditionSyntaxError(
+                "cannot order a boolean, use `==`, `!=`, or `is` instead of `<` / `>`"
+            )
         _validate_comparable_data_types(self.left_operand, self.right_operand)
         object.__setattr__(self, "_operator", operator)
 
@@ -1139,8 +1150,8 @@ def _get_data_type_family(data_type: SQLAlchemyDataType) -> str:
     return "string"
 
 
-def _get_membership_operand_family(operand: Any) -> Optional[str]:
-    """The type family of a membership operand, or None when it is unknown.
+def _get_operand_family(operand: Any) -> Optional[str]:
+    """The type family of a comparison operand, or None when it is unknown.
 
     A None literal is reported as its own family rather than as unknown:
     binding NULL into string containment yields NULL, so `None in output`

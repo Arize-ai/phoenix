@@ -9,7 +9,7 @@ was executed rather than reasoned about. The version matrix that claim rests on:
 | Backend | Verified on | Floor |
 |---|---|---|
 | SQLite | bundled `sqlean` build | `text_contains` and the JSON functions `sqlean` provides |
-| PostgreSQL | 12.22 and 17.10 | **14**, the product floor — the language itself needs only `jsonb_path_query_first` (PG 12) and `jsonb`→`numeric` casts (PG 11) |
+| PostgreSQL | 12.22, **14.19 (full DSL suites)**, 17.6 (full DSL suites), 17.10 | **14**, the product floor — the language itself needs only `jsonb_path_query_first` (PG 12) and `jsonb`→`numeric` casts (PG 11) |
 | CPython (grammar host) | 3.10 in pre-merge CI; 3.10 / 3.13 / 3.14 in the scheduled all-platforms run | 3.10 — the grammar is whatever `ast.parse` accepts on the running interpreter |
 
 Two floors are in play and only one is a support commitment. The *language's*
@@ -30,10 +30,12 @@ included — on 3.10 only and against the runner's installed PostgreSQL
 (currently 16). The scheduled all-platforms run adds the newer interpreters
 but **not** the floor database: its unit job installs the runner's PostgreSQL
 the same way, and the `postgres:14` service containers back only the
-integration jobs, which do not run these suites. No job anywhere executes this
-language's guarantees on the floor version — "holds on 14" is a hand-verified
-claim, and giving it a CI leg (a floor-pinned unit run, e.g. via the PGDG apt
-repository) is open work. A grammar or floor regression can land and be caught
+integration jobs, which do not run these suites. No CI job executes this
+language's guarantees on the floor version — the full DSL suites *have* been
+executed on 14.19 and 17.6 (locally, 2026-07-31, all green), so "holds on 14"
+is an executed claim rather than a reasoned one, but it decays until a CI leg
+exists (a floor-pinned unit run, e.g. via the PGDG apt repository or
+`--postgresql-exec`). A grammar or floor regression can land and be caught
 late or not at all, which is worth knowing when reading a green check as a
 guarantee.
 
@@ -369,6 +371,15 @@ how datetime literals are written at all. The exemption applies per element
 inside a membership list as well — `start_time in ['2024-01-01T00:00:00Z']` is
 legal, and each element must satisfy the datetime-literal rules (ISO 8601, with
 an offset).
+
+Booleans cannot be ordered: `<` `<=` `>` `>=` with a boolean-typed operand —
+a literal, or a boolean-valued expression like the bare annotation existence
+check — is rejected on both surfaces. On the span side the shape validated and
+then crashed at *evaluation* (SQLAlchemy refuses to order against a raw
+`True`/`False`), outside the error boundary, as a server error; on the
+experiment side it compiled to `numeric > boolean`, an operator PostgreSQL
+does not have. Every such comparison has a clearer spelling with `==`, `!=`,
+or `is`.
 
 Datetime fields are also the one place an *unknown*-typed operand is rejected
 rather than left to the cast heuristics: `start_time > attributes['x']` has no
@@ -1377,6 +1388,7 @@ and, where possible, suggest the repair.
 | Mismatched comparison | `cannot compare number and string` (+ unquote hint when applicable) |
 | Naive datetime | ``datetime literal '...' has no timezone, add an offset (e.g. 'Z' for UTC)`` |
 | Datetime against an attribute | `cannot compare a datetime field and an attribute, use an ISO 8601 string literal …` |
+| Ordered boolean | ``​`...` orders a boolean, use `==`, `!=`, or `is` instead of `<` / `>`​`` |
 | Malformed datetime | ``invalid datetime literal: '...'`` |
 | Uncastable string | `cannot cast string to number` |
 | Non-finite or overflowing numeric | `invalid numeric literal: 1e400` (bare, via cast, or an int past float range) |

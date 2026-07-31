@@ -530,6 +530,19 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
             "cannot compare null and string",
             id="null-needle-in-json",
         ),
+        # Ordered comparison casts the JSON side to a number, so this compiled
+        # to `numeric > boolean` -- an operator PostgreSQL does not have --
+        # after the condition validated.
+        pytest.param(
+            "input['x'] > True",
+            "cannot order a boolean",
+            id="ordered-boolean-json",
+        ),
+        pytest.param(
+            "True < input['x']",
+            "cannot order a boolean",
+            id="ordered-boolean-literal-left",
+        ),
         # A whole JSON document has no scalar to compare or search; these used
         # to fail inside compilation (`JSON.as_string() only works with a JSON
         # index expression`) and be reported as `Invalid filter condition` with

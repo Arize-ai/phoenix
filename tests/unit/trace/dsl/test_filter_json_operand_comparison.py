@@ -184,6 +184,16 @@ async def test_ordered_comparison_of_two_json_values_is_numeric_on_every_backend
     assert await _matches(db, "attributes['p'] >= attributes['q']") == {"numstr", "equal"}
 
 
+async def test_empty_membership_list_agrees(
+    db: DbSessionFactory,
+    json_operand_project: None,
+) -> None:
+    """SQLAlchemy's empty-IN expansion is the portable spelling on both
+    backends: `in []` matches nothing, `not in []` matches everything."""
+    assert await _matches(db, "name in []") == set()
+    assert await _matches(db, "name not in []") == set(_SPANS)
+
+
 async def test_comparing_two_json_values_is_a_known_divergence(
     db: DbSessionFactory,
     json_operand_project: None,

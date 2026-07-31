@@ -823,6 +823,22 @@ def _validate_operand_types(expression: ast.Expression) -> None:
             continue
         left = node.left
         for operator, right in zip(node.ops, node.comparators):
+            if isinstance(operator, (ast.Lt, ast.LtE, ast.Gt, ast.GtE)) and "boolean" in (
+                _get_filter_value_type(left),
+                _get_filter_value_type(right),
+            ):
+                # `attributes['x'] > False` validated and then crashed at
+                # *evaluation* -- SQLAlchemy refuses to order against a raw
+                # True/False -- which happens in `SpanFilter.__call__`, outside
+                # the error boundary, so it surfaced as a server error rather
+                # than a filter error. Ordering a boolean is a confusion with a
+                # clearer spelling in every case, so the rule is by type: it
+                # also covers boolean-valued expressions like the bare
+                # annotation existence check.
+                raise SyntaxError(
+                    f"`{_ellipsize(ast.unparse(node), 80)}` orders a boolean"
+                    ", use `==`, `!=`, or `is` instead of `<` / `>`"
+                )
             if isinstance(operator, (ast.Is, ast.IsNot)) and not (
                 _is_singleton_constant(left) or _is_singleton_constant(right)
             ):

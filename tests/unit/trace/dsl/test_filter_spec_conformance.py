@@ -155,6 +155,12 @@ REJECTED = [
     # Timestamps share no spelling at all: PostgreSQL renders in the session
     # time zone, SQLite in UTC with microseconds.
     ("str(start_time) == '2026-01-01'", "cannot cast datetime to text"),
+    # ordered comparison with a boolean operand: SQLAlchemy refuses to order
+    # against a raw True/False, so these validated and then crashed at
+    # evaluation -- outside the error boundary, as a server error
+    ("attributes['x'] > True", "orders a boolean"),
+    ("True < attributes['x']", "orders a boolean"),
+    ("annotations['q'] >= False", "orders a boolean"),
     # a datetime field compared to an unknown-typed operand: PostgreSQL has no
     # timestamp/varchar comparison operator, so this validated and failed at
     # plan time while SQLite quietly compared text
