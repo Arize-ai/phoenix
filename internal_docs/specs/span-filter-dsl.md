@@ -30,14 +30,16 @@ included — on 3.10 only and against the runner's installed PostgreSQL
 (currently 16). The scheduled all-platforms run adds the newer interpreters
 but **not** the floor database: its unit job installs the runner's PostgreSQL
 the same way, and the `postgres:14` service containers back only the
-integration jobs, which do not run these suites. No CI job executes this
-language's guarantees on the floor version — the full DSL suites *have* been
-executed on 14.19 and 17.6 (locally, 2026-07-31, all green), so "holds on 14"
-is an executed claim rather than a reasoned one, but it decays until a CI leg
-exists (a floor-pinned unit run, e.g. via the PGDG apt repository or
-`--postgresql-exec`). A grammar or floor regression can land and be caught
-late or not at all, which is worth knowing when reading a green check as a
-guarantee.
+integration jobs, which do not run these suites. The unit jobs are therefore
+**pinned to the floor**: they install `postgresql-14` from the PGDG repository
+and pass `--postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl`, so
+`pytest-postgresql` spawns the version the guarantees must hold on rather than
+whatever the runner's Ubuntu ships. (The full suites were first executed on
+14.19 and 17.6 locally, 2026-07-31, all green; the same `--postgresql-exec`
+flag selects a version for local runs, e.g.
+`/opt/homebrew/opt/postgresql@14/bin/pg_ctl`.) Newer-version coverage rides on
+the all-platforms macOS leg and the integration containers; interpreter drift
+on 3.13/3.14 is still caught only by the scheduled run.
 
 ## What This Is
 
