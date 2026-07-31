@@ -507,6 +507,66 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
             "cannot compare string and number",
             id="error-compared-to-number",
         ),
+        # Membership compiles to string containment (`strpos` / `instr`), so a
+        # non-text operand used to hand PostgreSQL SQL it cannot run --
+        # `strpos(numeric, integer) does not exist` -- after the condition had
+        # been reported valid.
+        pytest.param(
+            "5 in latency_ms",
+            "cannot compare number and number",
+            id="membership-in-numeric-field",
+        ),
+        pytest.param(
+            "5 in output",
+            "cannot compare number and string",
+            id="numeric-needle-in-json",
+        ),
+        pytest.param(
+            "True in output",
+            "cannot compare boolean and string",
+            id="boolean-needle-in-json",
+        ),
+        # Binding NULL into containment yields NULL, so this validated and
+        # silently matched nothing.
+        pytest.param(
+            "None in output",
+            "cannot compare null and string",
+            id="null-needle-in-json",
+        ),
+        # A whole JSON document has no scalar to compare or search; these used
+        # to fail inside compilation (`JSON.as_string() only works with a JSON
+        # index expression`) and be reported as `Invalid filter condition` with
+        # a stack trace logged at error level.
+        pytest.param(
+            "input is None",
+            "Select a key from `input` with [<key>]",
+            id="bare-input-operand",
+        ),
+        pytest.param(
+            "metadata is None",
+            "Select a key from `metadata` with [<key>]",
+            id="bare-metadata-operand",
+        ),
+        pytest.param(
+            "reference_output is None",
+            "Select a key from `reference_output` with [<key>]",
+            id="bare-reference-output-operand",
+        ),
+        pytest.param(
+            "input == output",
+            "Select a key from `input` with [<key>]",
+            id="two-bare-json-operands",
+        ),
+        pytest.param(
+            "'x' in input",
+            "Select a key from `input` with [<key>]",
+            id="containment-in-bare-json",
+        ),
+        pytest.param(
+            "-input > 0",
+            "Select a key from `input` with [<key>]",
+            id="unary-minus-on-bare-json",
+        ),
     ],
 )
 def test_compile_sqlalchemy_filter_condition_raises_appropriate_error_message(
@@ -626,6 +686,11 @@ def test_compile_sqlalchemy_filter_condition_does_not_leak_internal_messages(
         pytest.param("input['x'] > 5", id="unknown-vs-number"),
         pytest.param("output['a'] == input['b']", id="unknown-vs-unknown"),
         pytest.param("'a' in evals['x'].explanation", id="containment"),
+        # `output` is already keyed (`output['task_output']`), so unlike the
+        # bare dataset-example columns it has a scalar to compare and search
+        pytest.param("output is None", id="bare-output-is-null"),
+        pytest.param("'x' in output", id="containment-in-output"),
+        pytest.param("input['question'] in output", id="json-needle-in-output"),
     ],
 )
 def test_compile_sqlalchemy_filter_condition_accepts_comparable_types(
@@ -763,6 +828,30 @@ class TestInheritedPythonSurface:
             pytest.param("error == ...", "Unsupported literal: `...`", id="ellipsis"),
             pytest.param("error == 1j", "Unsupported literal: `1j`", id="complex"),
             pytest.param("error == 1e400", "Invalid numeric literal: `1e309`", id="non-finite"),
+            # Python ints are unbounded; neither backend has a faithful float
+            # for one past the IEEE range.
+            pytest.param(
+                "latency_ms == " + "9" * 320,
+                "Invalid numeric literal: `" + "9" * 320 + "`",
+                id="int-overflow",
+            ),
+            # Python NFKC-normalizes identifiers while parsing, so a full-width
+            # spelling silently resolved to a real column the user never typed.
+            pytest.param(
+                "ｉｎｐｕｔ['x'] == 'yes'",
+                "`ｉｎｐｕｔ` is interpreted as `input`",
+                id="nfkc-identifier",
+            ),
+            pytest.param(
+                "experiments[0].ｌａｔｅｎｃｙ_ｍｓ > 5",
+                "`ｌａｔｅｎｃｙ_ｍｓ` is interpreted as `latency_ms`",
+                id="nfkc-attribute-segment",
+            ),
+            pytest.param(
+                "ｅｒｒｏｒ == 'error'",
+                "`ｅｒｒｏｒ` is interpreted as `error`",
+                id="nfkc-ascii-in-literal",
+            ),
             pytest.param(
                 r"error == 'a\x00b'",
                 "String literals cannot contain a NUL character",
@@ -852,6 +941,10 @@ class TestInheritedPythonSurface:
                 "input[-1] == 'a'",
                 "await error == 'a'",
                 "(lambda: 1)() == 1",
+                "input is None",
+                "'x' in input",
+                "5 in latency_ms",
+                "ｉｎｐｕｔ['x'] == 'yes'",
             ):
                 with pytest.raises(ExperimentRunFilterConditionSyntaxError):
                     compile_sqlalchemy_filter_condition(

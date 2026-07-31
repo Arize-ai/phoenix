@@ -1,5 +1,6 @@
 import ast
 import logging
+import math
 import operator
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -142,7 +143,7 @@ def _compile_sqlalchemy_filter_condition(
         raise ExperimentRunFilterConditionSyntaxError(
             "Filter condition cannot contain a NUL character"
         ) from error
-    _validate_python_surface(original_tree.body)
+    _validate_python_surface(original_tree.body, filter_condition)
 
     trees_with_bound_attribute_names = _bind_free_attribute_names(original_tree, experiment_ids)
     has_free_attribute_names = bool(trees_with_bound_attribute_names)
@@ -456,6 +457,12 @@ class UnaryTermOperation(Term):
     operator: SupportedUnaryTermOperator
 
     def __post_init__(self) -> None:
+        # As in `ComparisonOperation`: a whole JSON document has no scalar to
+        # negate, so require a keyed extract before the numeric conversion.
+        if isinstance(self.operand, DatasetExampleAttribute):
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Select a key from `{self.operand.attribute_name}` with [<key>]"
+            )
         # Negating text is not something either backend agrees on: PostgreSQL
         # rejects `-'hello'` as an ambiguous operator, SQLite coerces it to 0.
         data_type = self.operand.data_type
@@ -515,6 +522,28 @@ class ComparisonOperation(BooleanExpression):
             raise ExperimentRunFilterConditionSyntaxError(
                 "`is` is only supported with None, True, or False"
             )
+        for operand in (self.left_operand, self.right_operand):
+            # A whole JSON document has no scalar to compare or search: every
+            # accessor downstream (`as_string`, the safe casts) assumes a keyed
+            # extract, so a bare column failed inside compilation with an
+            # implementation error (`JSON.as_string() only works with a JSON
+            # index expression`) instead of a message about the filter.
+            if isinstance(operand, DatasetExampleAttribute):
+                raise ExperimentRunFilterConditionSyntaxError(
+                    f"Select a key from `{operand.attribute_name}` with [<key>]"
+                )
+        if isinstance(operator, (ast.In, ast.NotIn)):
+            # Membership compiles to string containment (`strpos` / `instr`),
+            # so a non-text operand hands the database SQL it cannot run --
+            # `strpos(numeric, integer) does not exist` on PostgreSQL -- after
+            # the condition has been reported valid. The span DSL rejects the
+            # same shapes with the same message.
+            left_family = _get_membership_operand_family(self.left_operand)
+            right_family = _get_membership_operand_family(self.right_operand)
+            if left_family not in (None, "string") or right_family not in (None, "string"):
+                raise ExperimentRunFilterConditionSyntaxError(
+                    f"cannot compare {left_family or 'value'} and {right_family or 'string'}"
+                )
         _validate_comparable_data_types(self.left_operand, self.right_operand)
         object.__setattr__(self, "_operator", operator)
 
@@ -839,7 +868,7 @@ def _cast_json_value(compiled_operand: Any, cast_type: SQLAlchemyDataType) -> An
     return cast(compiled_operand, cast_type)
 
 
-def _validate_python_surface(body: ast.expr) -> None:
+def _validate_python_surface(body: ast.expr, source: str) -> None:
     """Reject Python constructs this language never implemented.
 
     The grammar is a subset of Python's, taken by parsing with `ast`, so every
@@ -907,6 +936,27 @@ def _validate_python_surface(body: ast.expr) -> None:
             raise ExperimentRunFilterConditionSyntaxError(
                 f"Unsupported expression: `{ast.unparse(node)}`"
             )
+        elif isinstance(node, (ast.Name, ast.Attribute)):
+            # Python NFKC-normalizes identifiers while parsing, so a full-width
+            # `ｉｎｐｕｔ` silently becomes `input` and resolves to a real column
+            # the user never spelled. Attribute segments normalize too, which is
+            # how `experiments[0].ｌａｔｅｎｃｙ_ｍｓ` reaches a real field.
+            #
+            # Compared against the node's own source span, not against the
+            # whole condition: searching the text would pass whenever the
+            # normalized spelling appears anywhere else -- inside a string
+            # literal or in another operand.
+            written = ast.get_source_segment(source, node)
+            normalized = node.id if isinstance(node, ast.Name) else node.attr
+            # An attribute's span covers its whole chain, so compare only the
+            # trailing segment the parser normalized.
+            if written is not None and isinstance(node, ast.Attribute):
+                written = written.rpartition(".")[2].strip()
+            if written and written != normalized:
+                raise ExperimentRunFilterConditionSyntaxError(
+                    f"`{written}` is interpreted as `{normalized}`"
+                    ", use unaccented ASCII for field names"
+                )
 
 
 def _validate_literal(node: ast.Constant) -> None:
@@ -918,7 +968,20 @@ def _validate_literal(node: ast.Constant) -> None:
     them would make a condition's validity depend on the backend it runs on.
     """
     value = node.value
-    if value is None or isinstance(value, (bool, int)):
+    if value is None or isinstance(value, bool):
+        return
+    if isinstance(value, int):
+        # Python ints are unbounded; both backends evaluate numeric fields in
+        # float, so an int too large for a finite float has no faithful value
+        # to bind -- asyncpg refuses it while SQLite quietly stores infinity.
+        try:
+            representable = math.isfinite(float(value))
+        except OverflowError:
+            representable = False
+        if not representable:
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Invalid numeric literal: `{ast.unparse(node)}`"
+            )
         return
     if isinstance(value, str):
         if "\x00" in value:
@@ -974,6 +1037,20 @@ def _get_data_type_family(data_type: SQLAlchemyDataType) -> str:
     if isinstance(data_type, (Integer, Float)):
         return "number"
     return "string"
+
+
+def _get_membership_operand_family(operand: Any) -> Optional[str]:
+    """The type family of a membership operand, or None when it is unknown.
+
+    A None literal is reported as its own family rather than as unknown:
+    binding NULL into string containment yields NULL, so `None in output`
+    silently matches nothing instead of failing.
+    """
+    if isinstance(operand, Constant) and operand.value is None:
+        return "null"
+    if isinstance(operand, Term) and (data_type := operand.data_type) is not None:
+        return _get_data_type_family(data_type)
+    return None
 
 
 def _validate_comparable_data_types(left_operand: Term, right_operand: Term) -> None:
