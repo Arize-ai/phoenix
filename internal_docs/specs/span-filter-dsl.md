@@ -6,16 +6,20 @@ Reference for the filter-condition language implemented in
 Statements here were verified against the code, and dialect-dependent behavior
 was executed rather than reasoned about. The version matrix that claim rests on:
 
-| Backend | Verified on | Language floor |
+| Backend | Verified on | Floor |
 |---|---|---|
 | SQLite | bundled `sqlean` build | `text_contains` and the JSON functions `sqlean` provides |
-| PostgreSQL | 12.22 and 17.10 | **12** — `jsonb_path_query_first` (PG 12) and `jsonb`→`numeric` casts (PG 11) |
+| PostgreSQL | 12.22 and 17.10 | **14**, the product floor — the language itself needs only `jsonb_path_query_first` (PG 12) and `jsonb`→`numeric` casts (PG 11) |
 
-PostgreSQL 12 is the floor because `SafeJsonFloat` compiles to
-`jsonb_path_query_first`, which does not exist before it. Behavioral checks
-below were run on 17; the cast and JSON-path shapes the guarantees depend on were
-additionally confirmed on 12, since a floor that is never exercised is not a
-floor. Anything claimed here for a version outside that matrix is unverified.
+Two floors are in play and only one is a support commitment. The *language's*
+feature floor is PostgreSQL 12, because `SafeJsonFloat` compiles to
+`jsonb_path_query_first`, which does not exist before it. The *product* floor
+is 14 — the oldest version still receiving upstream fixes — decided in
+[#14940](https://github.com/Arize-ai/phoenix/issues/14940), and it is the
+version the guarantees here must hold on. Behavioral checks below were run on
+17; the cast and JSON-path shapes the guarantees depend on were additionally
+confirmed on 12.22, which bounds 14 from below. Anything claimed here for a
+version outside that matrix is unverified.
 
 ## What This Is
 

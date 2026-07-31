@@ -494,7 +494,7 @@ jobs:
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
-        image: ${{ (matrix.db == 'postgresql') && 'postgres:12' || '' }}
+        image: ${{ (matrix.db == 'postgresql') && 'postgres:14' || '' }}
         env:
           POSTGRES_PASSWORD: phoenix
         options: >-
@@ -552,7 +552,7 @@ jobs:
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
-        image: ${{ (matrix.db == 'postgresql') && 'postgres:12' || '' }}
+        image: ${{ (matrix.db == 'postgresql') && 'postgres:14' || '' }}
         env:
           POSTGRES_PASSWORD: phoenix
         options: >-
