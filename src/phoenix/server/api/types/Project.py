@@ -1092,13 +1092,13 @@ class Project(Node):
                 - is_valid (bool): True if the condition is valid, False otherwise
                 - error_message (Optional[str]): Error message if validation fails, None if valid
         """  # noqa: E501
-        # This query is too expensive to run on every validation
-        # valid_eval_names = await self.span_annotation_names()
+        # Annotation-name existence is deliberately not validated: an unknown
+        # name is valid and matches nothing (the schemaless contract, as with
+        # attribute paths), and a validation-time check would make validity
+        # depend on the live annotation table -- besides costing a query per
+        # keystroke. See the spec's Known Gaps.
         try:
-            span_filter = SpanFilter(
-                condition=condition,
-                # valid_eval_names=valid_eval_names,
-            )
+            span_filter = SpanFilter(condition=condition)
             stmt = span_filter(select(models.Span))
             str(stmt.compile(dialect=sqlite.dialect()))
             str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]

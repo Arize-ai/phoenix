@@ -109,6 +109,11 @@ ACCEPTED = [
     # ordered comparison between two unknowns is defined (numerically), not rejected
     "attributes['a'] > attributes['b']",
     "metadata['a'] <= metadata['b']",
+    # `parent` (unlike `parent_span`) is NOT reserved: it resolves to
+    # `attributes['parent']` like any bare identifier. Reserving it later
+    # would silently change this condition's meaning -- every new *name* is a
+    # breaking change -- so its current meaning is pinned here on purpose.
+    "parent == 'x'",
 ]
 
 # Every form the spec documents as rejected, with the reason it documents.
@@ -167,9 +172,19 @@ REJECTED = [
     # unsupported operators
     ("latency_ms ** 2 > 10", "invalid arithmetic operator"),
     ("name == 'a' & status_code == 'b'", "invalid arithmetic operator"),
-    # reserved keyword misuse
+    # reserved keyword misuse. Traversal is rejected *breadth-first* -- every
+    # dotted or subscripted shape under `parent_span`, not just column access --
+    # so lifting the rejection (the planned `parent_span.<column>` extension)
+    # shows up in this corpus as an explicit REJECTED -> ACCEPTED move per
+    # shape, never as an accident.
     ("parent_span.name == 'x'", "not supported"),
+    ("parent_span.span_kind == 'LLM'", "not supported"),
+    ("parent_span.attributes['x'] == 'y'", "not supported"),
+    ("parent_span.parent_span is None", "not supported"),
+    ("parent_span.trace_id == 'x'", "not supported"),
     ("parent_span == 'LLM'", "can only be compared to None"),
+    # an empty eval name can never match an annotation
+    ("evals[''] == 'x'", "missing eval name"),
     # calls other than the three casts
     ("len(name) > 1", "invalid expression"),
     ("name.upper() == 'X'", "invalid expression"),

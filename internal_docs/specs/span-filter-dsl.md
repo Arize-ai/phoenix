@@ -625,10 +625,11 @@ Ordered by how quietly it fails.
 
 **1. Silent — annotation names.** A stored condition referencing
 `annotations['quality']` stays valid forever if that annotation is renamed or
-deleted; it simply matches nothing. Name existence checking exists
-(`valid_eval_names`) but is **disabled in the GraphQL resolver as too
-expensive** (`Project.py`, commented out). A stored filter can therefore rot
-into a silently-empty result.
+deleted; it simply matches nothing. This is deliberate — see Known Gaps: a
+validation-time name check would make validity depend on the live annotation
+table, and the dormant hook for one was removed. A stored filter can
+therefore rot into a silently-empty result; the persistence-era mitigation is
+advisory (warn at save or read time), not rejection.
 
 **2. Silent — attribute paths.** Schemaless by definition. `attributes['x']` is
 never invalid, only empty. Instrumentation changes do not invalidate conditions;
@@ -1351,6 +1352,7 @@ and, where possible, suggest the repair.
 | Unsupported literal | `unsupported literal: b'abc'` |
 | `parent_span` traversal | ``​`parent_span.name` is not supported: ... only `parent_span is None` and `parent_span is not None` are supported`` |
 | Unknown annotation member | ``invalid eval attribute `.x` in `...`, expected `.score` or …`` |
+| Empty annotation name | ``missing eval name in `evals['']`​`` |
 | Unsupported construct | `invalid expression: <source>` |
 | Depth limit | `filter condition is nested too deeply` |
 
@@ -1364,8 +1366,14 @@ PostgreSQL error text as the *symptom*.
 ### Structural
 
 - **`parent_span` traversal** (`parent_span.name`) is reserved but unimplemented.
-- **Annotation name existence** is not checked in the GraphQL path (cost). A
-  stored condition naming a deleted annotation stays valid and matches nothing.
+- **Annotation name existence** is not checked — anywhere, by design. An
+  unknown or deleted name stays valid and matches nothing, exactly as an
+  unknown attribute path does; that is the schemaless contract. A dormant
+  `valid_eval_names` hook that could have enforced it at validation time was
+  removed: it had no production caller or test, and as a hard gate it would
+  have made a stored condition's validity depend on the live annotation table
+  rather than on the text. Advisory checking (a save-time warning, editor
+  suggestions) is the persistence-era option and belongs outside accept/reject.
 - **Annotation aliasing is a byte-offset splice**, not an AST transform. The
   offset table agrees with the tokenizer and multi-byte/multi-line cases are
   tested, but rewriting the tree instead of the text would close a whole class

@@ -171,7 +171,6 @@ class SpanFilterError(SyntaxError):
 @dataclass(frozen=True)
 class SpanFilter:
     condition: str = ""
-    valid_eval_names: typing.Optional[typing.Sequence[str]] = None
     translated: ast.Expression = field(init=False, repr=False)
     compiled: typing.Any = field(init=False, repr=False)
     root_scope: typing.Optional[RootSpanScope] = field(init=False, repr=False)
@@ -220,7 +219,7 @@ class SpanFilter:
             # `ValueError` rather than a `SyntaxError`. Callers catch only the
             # latter, so it would escape as a server error.
             raise SyntaxError("condition cannot contain a NUL character") from error
-        _validate_expression(root, source, valid_eval_names=self.valid_eval_names)
+        _validate_expression(root, source)
         # Derived from the tree parsed just above rather than from the source
         # again, so a caller holding a filter is spared a parse of its own.
         # Taken after validation so that a filter which escapes this
@@ -302,12 +301,8 @@ class SpanFilter:
     def from_dict(
         cls,
         obj: typing.Mapping[str, typing.Any],
-        valid_eval_names: typing.Optional[typing.Sequence[str]] = None,
     ) -> "SpanFilter":
-        return cls(
-            condition=obj.get("condition") or "",
-            valid_eval_names=valid_eval_names,
-        )
+        return cls(condition=obj.get("condition") or "")
 
     def _join_aliased_relations(self, stmt: Select[typing.Any]) -> Select[typing.Any]:
         """
@@ -764,7 +759,7 @@ def _validate_operand_types(expression: ast.Expression) -> None:
                 # `float('1e400')` passes it and overflows to `inf`, the exact
                 # value the literal rule rejects. Check the converted value,
                 # not the text.
-                if not math.isfinite(float(argument.value)):
+                if not _is_finite_number(argument.value):
                     raise SyntaxError(f"invalid numeric literal: {argument.value}")
             elif _get_filter_value_type(argument) == "string":
                 raise SyntaxError("cannot cast string to number")
@@ -951,6 +946,25 @@ def _is_numeric_string(value: str) -> bool:
     return _NUMERIC_STRING_PATTERN.fullmatch(value) is not None
 
 
+def _is_finite_number(value: typing.Union[int, float, str]) -> bool:
+    """Whether the value converts to a finite float -- the portability bound
+    every numeric spelling must satisfy, whatever its shape.
+
+    One predicate on purpose: the bound was previously re-derived at each
+    site, and two encodings of one rule drift -- `float('1e400')` passed the
+    cast check (which tested only the spelling) while the literal rule
+    rejected `1e400` (which tested the value). Every numeric admission point
+    consults this instead.
+    """
+    try:
+        return math.isfinite(float(value))
+    except (OverflowError, ValueError):
+        # `OverflowError`: an int too large for a float. `ValueError` cannot
+        # arise from callers (they pre-check the spelling), but a total
+        # predicate should not crash on a string it was never promised.
+        return False
+
+
 def _is_string_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
     return (
         isinstance(node, ast.Call)
@@ -1061,24 +1075,36 @@ def _as_float_operand(node: ast.expr) -> ast.expr:
         and isinstance(node.value, str)
         and _is_numeric_string(node.value)
     ):
-        value = float(node.value)
         # A spelling within the grammar can still overflow (`'1e400'` -> inf).
         # The cast validation already rejects the shapes it sees; checking the
         # converted value here keeps the guarantee local to the conversion
         # rather than trusting every caller to have validated first.
-        if not math.isfinite(value):
+        if not _is_finite_number(node.value):
             raise SyntaxError(f"invalid numeric literal: {node.value}")
-        return ast.Constant(value=value, kind=None)
+        return ast.Constant(value=float(node.value), kind=None)
     return _cast_as("Float", node)
+
+
+def _is_json_attribute(node: typing.Any) -> TypeGuard[ast.Subscript]:
+    """An unknown-typed JSON operand: a subscript rooted at `attributes`.
+
+    Every syntactic gate that decides JSON behavior -- String casting, the
+    ordered-comparison numeric conversion -- consults this one predicate, so a
+    future namespace (`parent_span.<column>` traversal) has a single place to
+    register its own JSON operands instead of auditing scattered
+    `_is_subscript` calls. See principle 12 in the spec: this is the "derive
+    both encodings from one source" remedy applied to the translator's gates.
+    """
+    return _is_subscript(node, "attributes")
 
 
 def _cast_as(
     type_: typing.Literal["Float", "String"],
     node: typing.Any,
 ) -> ast.Call:
-    if type_ == "Float" and (_is_subscript(node, "attributes") or _is_string_attribute(node)):
+    if type_ == "Float" and (_is_json_attribute(node) or _is_string_attribute(node)):
         return _as_float_attribute(node)
-    if type_ == "String" and (_is_subscript(node, "attributes") or _is_float_attribute(node)):
+    if type_ == "String" and (_is_json_attribute(node) or _is_float_attribute(node)):
         return _as_string_attribute(node)
     return ast.Call(
         func=ast.Name(id="cast", ctx=ast.Load()),
@@ -1242,8 +1268,8 @@ class _FilterTranslator(_ProjectionTranslator):
             left = _convert_to_uppercase(left)
         if (
             isinstance(op, (ast.Lt, ast.LtE, ast.Gt, ast.GtE))
-            and _is_subscript(left, "attributes")
-            and _is_subscript(right, "attributes")
+            and _is_json_attribute(left)
+            and _is_json_attribute(right)
         ):
             # An ordered comparison between two unknown JSON operands. Extracted
             # as text (the branch below), the backends order differently:
@@ -1254,13 +1280,13 @@ class _FilterTranslator(_ProjectionTranslator):
             # as a comparison against a numeric literal would; a value with no
             # number in it becomes NULL and its row drops out.
             left, right = _as_float_attribute(left), _as_float_attribute(right)
-        if _is_subscript(left, "attributes"):
+        if _is_json_attribute(left):
             left = (
                 _as_bool_attribute(left)
                 if _is_bool_constant(right) or _is_bool_sequence(right)
                 else _cast_as("String", left)
             )
-        if _is_subscript(right, "attributes"):
+        if _is_json_attribute(right):
             right = (
                 _as_bool_attribute(right)
                 if _is_bool_constant(left) or _is_bool_sequence(left)
@@ -1396,9 +1422,9 @@ class _FilterTranslator(_ProjectionTranslator):
 
     def visit_BinOp(self, node: ast.BinOp) -> typing.Any:
         left, op, right = self.visit(node.left), node.op, self.visit(node.right)
-        if _is_subscript(left, "attributes"):
+        if _is_json_attribute(left):
             left = _cast_as("String", left)
-        if _is_subscript(right, "attributes"):
+        if _is_json_attribute(right):
             right = _cast_as("String", right)
         type_: typing.Literal["Float", "String"] = "String"
         if not isinstance(op, ast.Add) or _is_float(left) or _is_float(right):
@@ -1539,19 +1565,12 @@ def _validate_literal(node: ast.Constant) -> None:
         if "\x00" in value:
             raise SyntaxError("string literals cannot contain a NUL character")
         return
-    if isinstance(value, int):
-        # Python ints are unbounded; both backends evaluate numeric fields in
-        # float, so an int too large for a finite float has no faithful value
-        # to bind -- asyncpg refuses it while SQLite quietly stores infinity.
-        try:
-            representable = math.isfinite(float(value))
-        except OverflowError:
-            representable = False
-        if not representable:
-            raise SyntaxError(f"invalid numeric literal: {ast.unparse(node)}")
-        return
-    if isinstance(value, float):
-        if value != value or value in (float("inf"), float("-inf")):
+    if isinstance(value, (int, float)):
+        # Python ints are unbounded and floats admit inf/nan; both backends
+        # evaluate numeric fields in float, so a value with no faithful finite
+        # float has nothing to bind -- asyncpg refuses it while SQLite quietly
+        # stores infinity.
+        if not _is_finite_number(value):
             raise SyntaxError(f"invalid numeric literal: {ast.unparse(node)}")
         return
     raise SyntaxError(f"unsupported literal: {ast.unparse(node)}")
@@ -1560,10 +1579,17 @@ def _validate_literal(node: ast.Constant) -> None:
 def _validate_expression(
     expression: ast.Expression,
     source: str,
-    valid_eval_names: typing.Optional[typing.Sequence[str]] = None,
     valid_eval_attributes: tuple[str, ...] = _VALID_EVAL_ATTRIBUTES,
 ) -> None:
-    """Validate the expression's structure, names, attributes, and operand types."""
+    """Validate the expression's structure, names, attributes, and operand types.
+
+    Annotation *name* existence is deliberately not validated: an unknown name
+    is valid and matches nothing, exactly as an unknown attribute path does --
+    the schemaless contract. A dormant hook that could have checked names
+    against the project at validation time was removed: it had no caller, and
+    as a hard gate it would have made a condition's validity depend on the
+    live annotation table rather than on the text.
+    """
     if not isinstance(expression, ast.Expression):
         raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
     _validate_python_surface(expression.body, source)
@@ -1604,26 +1630,12 @@ def _validate_expression(
         ) and _get_attribute_keys_list(node) is not None:
             continue
         elif _is_annotation(node) and _get_subscript_key(node) is not None:
-            # e.g. `evals["name"]`
-            if not (eval_name := _get_subscript_key(node)) or (
-                valid_eval_names is not None and eval_name not in valid_eval_names
-            ):
-                source_segment = ast.unparse(node)
-                if eval_name and valid_eval_names:
-                    # suggest a valid eval name most similar to the one given
-                    choice, score = _find_best_match(eval_name, valid_eval_names)
-                    if choice and score > 0.75:  # arbitrary threshold
-                        raise SyntaxError(
-                            f"invalid eval name `{eval_name}` in `{source_segment}`"
-                            + f', did you mean "{choice}"?'
-                        )
-                expected = _disjunction([f'"{name}"' for name in valid_eval_names or ()])
-                raise SyntaxError(
-                    f"invalid eval name `{eval_name}` in `{source_segment}`"
-                    + f", expected {expected}"
-                    if expected
-                    else ""
-                )
+            # e.g. `evals["name"]`. The name itself is not checked for
+            # existence (see the docstring); only the empty name is rejected,
+            # since it can never match an annotation and previously fell to
+            # the generic "invalid syntax" via an empty error message.
+            if not _get_subscript_key(node):
+                raise SyntaxError(f"missing eval name in `{ast.unparse(node)}`")
             continue
         elif isinstance(node, ast.Attribute) and _is_annotation(node.value):
             # e.g. `evals["name"].score`

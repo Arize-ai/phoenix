@@ -237,6 +237,17 @@ def _ellipsize(message: str, limit: int = 300) -> str:
     return message if len(message) <= limit else message[: limit - 1] + "…"
 
 
+def _is_finite_number(value: Union[int, float]) -> bool:
+    """Whether the value converts to a finite float -- the portability bound
+    every numeric literal must satisfy. As in the span DSL, one predicate so
+    the int and float rules cannot drift."""
+    try:
+        return math.isfinite(float(value))
+    except OverflowError:
+        # An int too large for a float.
+        return False
+
+
 @dataclass(frozen=True)
 class ExperimentRunFilterConditionNode(ABC):
     """
@@ -1035,11 +1046,7 @@ def _validate_literal(node: ast.Constant) -> None:
         # Python ints are unbounded; both backends evaluate numeric fields in
         # float, so an int too large for a finite float has no faithful value
         # to bind -- asyncpg refuses it while SQLite quietly stores infinity.
-        try:
-            representable = math.isfinite(float(value))
-        except OverflowError:
-            representable = False
-        if not representable:
+        if not _is_finite_number(value):
             raise ExperimentRunFilterConditionSyntaxError(
                 f"Invalid numeric literal: `{ast.unparse(node)}`"
             )
@@ -1051,7 +1058,7 @@ def _validate_literal(node: ast.Constant) -> None:
             )
         return
     if isinstance(value, float):
-        if value != value or value in (float("inf"), float("-inf")):
+        if not _is_finite_number(value):
             raise ExperimentRunFilterConditionSyntaxError(
                 f"Invalid numeric literal: `{ast.unparse(node)}`"
             )

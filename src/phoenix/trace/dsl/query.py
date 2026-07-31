@@ -1,6 +1,6 @@
 import warnings
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import cached_property
@@ -699,7 +699,6 @@ class SpanQuery(_HasTmpSuffix):
     def from_dict(
         cls,
         obj: Mapping[str, Any],
-        valid_eval_names: Optional[Sequence[str]] = None,
     ) -> "SpanQuery":
         return cls(
             **(
@@ -718,7 +717,6 @@ class SpanQuery(_HasTmpSuffix):
                 {
                     "_filter": SpanFilter.from_dict(
                         cast(Mapping[str, Any], filter),
-                        valid_eval_names=valid_eval_names,
                     )
                 }  # type: ignore
                 if (filter := obj.get("filter"))
