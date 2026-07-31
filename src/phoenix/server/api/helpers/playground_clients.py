@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import importlib.util
 import json
 from abc import ABC, abstractmethod
@@ -86,14 +85,26 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import (
-    ContentBlock,
-    MediaContentBlock,
     PlaygroundMessage,
     PlaygroundToolCall,
     content_blocks,
     message_media,
     message_text,
     reject_media,
+)
+from phoenix.server.api.helpers.playground_media import (
+    BEDROCK_DOCUMENT_FORMATS,
+    BEDROCK_IMAGE_FORMATS,
+    BEDROCK_SUPPORTED_FILE_MEDIA_TYPES,
+    BEDROCK_SUPPORTED_IMAGE_MEDIA_TYPES,
+    OPENAI_SUPPORTED_FILE_MEDIA_TYPES,
+    OPENAI_SUPPORTED_IMAGE_MEDIA_TYPES,
+    anthropic_media_content,
+    google_parts,
+    media_data_url,
+    media_file_name,
+    oi_message_content,
+    require_resolved_media,
 )
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.ConnectionConfigInput import OPENAI_SDK_STYLE_PROVIDER_KEYS
@@ -122,7 +133,6 @@ if TYPE_CHECKING:
         ContentDict,
         GenerateContentConfig,
         GenerateContentResponse,
-        PartDict,
     )
     from openai import AsyncOpenAI
     from openai._streaming import AsyncStream
@@ -2873,7 +2883,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                     anthropic_messages.append(
                         MessageParam(
                             role="user",
-                            content=self._anthropic_media_content(content, media),
+                            content=anthropic_media_content(content, media),
                         )
                     )
                     continue
@@ -2902,68 +2912,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
 
         return anthropic_messages, system_prompt
 
-    def _anthropic_media_content(
-        self,
-        content: str,
-        media: Sequence[MediaContentBlock],
-    ) -> list[Any]:
-        """
-        Build the content blocks for a user turn carrying images.
-
-        Anthropic takes the bytes base64-encoded with the media type alongside,
-        rather than as a data URL.
-
-        Args:
-            content: The message's text, which may be empty.
-            media: The message's images, already resolved.
-
-        Returns:
-            Text-then-image content blocks, in the order the editor lays them out.
-
-        Raises:
-            BadRequest: An image is unresolved or of a type Anthropic rejects.
-        """
-        from anthropic.types import ImageBlockParam, TextBlockParam
-
-        blocks: list[Any] = []
-        if content:
-            blocks.append(TextBlockParam(type="text", text=content))
-        for block in media:
-            if block["kind"] == "file":
-                data, media_type = require_resolved_media(
-                    block,
-                    provider="Anthropic",
-                    supported_media_types=ANTHROPIC_SUPPORTED_FILE_MEDIA_TYPES,
-                )
-                # Anthropic calls it a document; the source shape matches an image's.
-                blocks.append(
-                    {
-                        "type": "document",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": base64.b64encode(data).decode(),
-                        },
-                    }
-                )
-                continue
-            data, media_type = require_resolved_media(
-                block,
-                provider="Anthropic",
-                supported_media_types=ANTHROPIC_SUPPORTED_IMAGE_MEDIA_TYPES,
-            )
-            blocks.append(
-                ImageBlockParam(
-                    type="image",
-                    source={
-                        "type": "base64",
-                        "media_type": media_type,  # type: ignore[typeddict-item]
-                        "data": base64.b64encode(data).decode(),
-                    },
-                )
-            )
-        return blocks
-
     def _anthropic_message_content(
         self, content: str, tool_calls: Optional[Sequence[PlaygroundToolCall]]
     ) -> Union[str, list[ToolUseBlockParam | TextBlockParam]]:
@@ -2986,131 +2934,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             return tool_use_content
 
         return content
-
-
-def require_resolved_media(
-    block: MediaContentBlock,
-    *,
-    provider: str,
-    supported_media_types: frozenset[str],
-) -> tuple[bytes, str]:
-    """
-    The bytes and media type to send for an image, checked against one provider.
-
-    Args:
-        block: The image block, already through `resolve_message_media`.
-        provider: Human-readable provider name, for the error message.
-        supported_media_types: What this provider accepts.
-
-    Returns:
-        The image bytes and its lowercased media type.
-
-    Raises:
-        BadRequest: The block never had its media resolved, or its type is one this
-            provider does not accept.
-    """
-    data = block.get("data")
-    media_type = block.get("media_type")
-    if data is None or media_type is None:
-        raise BadRequest(
-            "Prompt media was not resolved before the request was sent. This is a bug in Phoenix."
-        )
-    media_type = media_type.lower()
-    if media_type not in supported_media_types:
-        raise BadRequest(
-            f"{provider} does not accept {media_type} images. Supported types: "
-            f"{', '.join(sorted(supported_media_types))}."
-        )
-    return data, media_type
-
-
-def media_file_name(block: MediaContentBlock) -> str:
-    """
-    A filename for a document, synthesising one when none was stored.
-
-    OpenAI's file part and Bedrock's document block both require a name. Media
-    uploaded before names were recorded has none, and the providers only need the
-    name to be present and sensibly suffixed.
-
-    Args:
-        block: The media block, already resolved.
-
-    Returns:
-        The stored name, or one derived from the digest.
-    """
-    if name := block.get("file_name"):
-        return name
-    digest = (block.get("url") or "").rsplit("/", 1)[-1][:12] or "document"
-    suffix = "pdf" if block.get("media_type") == "application/pdf" else "bin"
-    return f"{digest}.{suffix}"
-
-
-def media_data_url(block: MediaContentBlock, **kwargs: Any) -> str:
-    """
-    An image block as a base64 ``data:`` URL.
-
-    For providers whose wire format takes a URL rather than raw bytes. Phoenix
-    always inlines the bytes it holds rather than passing a third-party URL
-    through, so a run never depends on an outside host.
-
-    Args:
-        block: The image block, already resolved.
-        **kwargs: Forwarded to :func:`require_resolved_media`.
-
-    Returns:
-        A ``data:<media_type>;base64,<payload>`` URL.
-    """
-    data, media_type = require_resolved_media(block, **kwargs)
-    return f"data:{media_type};base64,{base64.b64encode(data).decode()}"
-
-
-# OpenAI and the providers that speak its wire format.
-OPENAI_SUPPORTED_IMAGE_MEDIA_TYPES = frozenset(
-    ("image/png", "image/jpeg", "image/gif", "image/webp")
-)
-
-# Anthropic rejects HEIC/HEIF, which Google accepts.
-ANTHROPIC_SUPPORTED_IMAGE_MEDIA_TYPES = frozenset(
-    ("image/png", "image/jpeg", "image/gif", "image/webp")
-)
-
-OPENAI_SUPPORTED_FILE_MEDIA_TYPES = frozenset(("application/pdf",))
-ANTHROPIC_SUPPORTED_FILE_MEDIA_TYPES = frozenset(("application/pdf",))
-BEDROCK_DOCUMENT_FORMATS = {"application/pdf": "pdf"}
-BEDROCK_SUPPORTED_FILE_MEDIA_TYPES = frozenset(BEDROCK_DOCUMENT_FORMATS)
-
-# Bedrock Converse names formats rather than media types.
-BEDROCK_IMAGE_FORMATS = {
-    "image/png": "png",
-    "image/jpeg": "jpeg",
-    "image/gif": "gif",
-    "image/webp": "webp",
-}
-BEDROCK_SUPPORTED_IMAGE_MEDIA_TYPES = frozenset(BEDROCK_IMAGE_FORMATS)
-
-
-GOOGLE_SUPPORTED_IMAGE_MEDIA_TYPES = frozenset(
-    (
-        "image/png",
-        "image/jpeg",
-        "image/webp",
-        "image/heic",
-        "image/heif",
-    )
-)
-"""
-Image types Gemini accepts as inline data.
-
-Narrower than the set Phoenix will store: Gemini does not accept GIF.
-"""
-
-GOOGLE_SUPPORTED_MEDIA_TYPES = GOOGLE_SUPPORTED_IMAGE_MEDIA_TYPES | frozenset(("application/pdf",))
-"""
-Everything Gemini accepts as inline data, documents included.
-
-A PDF travels the same `inline_data` channel as an image, which is why Google was
-the cheapest provider to extend to documents.
-"""
 
 
 @register_llm_client(
@@ -3469,9 +3292,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         for msg in messages:
             role = msg["role"]
             if role == ChatCompletionMessageRole.USER:
-                google_messages.append({"role": "user", "parts": self._google_parts(msg)})
+                google_messages.append({"role": "user", "parts": google_parts(msg)})
             elif role == ChatCompletionMessageRole.AI:
-                google_messages.append({"role": "model", "parts": self._google_parts(msg)})
+                google_messages.append({"role": "model", "parts": google_parts(msg)})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 # Gemini takes a plain-text system instruction, so media is rejected
                 # for system messages when a prompt version is written.
@@ -3482,38 +3305,6 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                 assert_never(role)
 
         return google_messages, "\n".join(system_prompts)
-
-    @staticmethod
-    def _google_parts(message: PlaygroundMessage) -> list["PartDict"]:
-        """
-        Convert a message's content blocks into Gemini parts, preserving order.
-
-        Args:
-            message: The message to convert. Media blocks must already carry
-                resolved bytes.
-
-        Returns:
-            The Gemini parts for the message, always at least one.
-
-        Raises:
-            BadRequest: A media block reached the provider unresolved, or its type
-                is one Gemini does not accept.
-        """
-        parts: list["PartDict"] = []
-        for block in content_blocks(message):
-            if block["type"] == "text":
-                parts.append({"text": block["text"]})
-                continue
-            data, media_type = require_resolved_media(
-                block,
-                provider="Google",
-                supported_media_types=GOOGLE_SUPPORTED_MEDIA_TYPES,
-            )
-            # Gemini carries a document exactly as it carries an image, so a PDF
-            # needs no separate branch — only its media type differs.
-            parts.append({"inline_data": {"mime_type": media_type, "data": data}})
-        # Gemini rejects a Content with no parts.
-        return parts or [{"text": ""}]
 
 
 GEMINI_2_5_MODELS = [
@@ -4601,47 +4392,6 @@ def llm_input_messages(
     yield from oi.get_llm_input_message_attributes(oi_messages).items()
 
 
-def _document_trace_text(block: MediaContentBlock) -> str:
-    """
-    How a document appears in a trace.
-
-    OpenInference has no message-content type for a document: `MessageContent` is a
-    closed union of text, image and reasoning. Recording a PDF as an image made the
-    trace UI try to draw it with an `<img>` tag, which renders as a broken image.
-    Until the convention grows a document type, the document is named in a text
-    block instead. The reference is included, so the trace still identifies exactly
-    which bytes were sent and they remain retrievable.
-
-    Args:
-        block: The media block, already through `resolve_message_media`.
-
-    Returns:
-        A one-line description of the document.
-    """
-    # Plain prose, no markdown syntax: the trace UI renders message text as
-    # markdown, and brackets or a bare newline would render as something other
-    # than what was written.
-    media_type = block.get("media_type") or "application/octet-stream"
-    return f"Document: {media_file_name(block)} ({media_type}), stored at {block.get('url', '')}"
-
-
-def _oi_message_content(block: ContentBlock) -> oi.MessageContent:
-    """
-    One block of a message's content, as OpenInference records it.
-
-    Args:
-        block: A text or media block, media already resolved.
-
-    Returns:
-        The matching OpenInference message content.
-    """
-    if block["type"] == "text":
-        return oi.TextMessageContent(type="text", text=block["text"])
-    if block["kind"] == "image":
-        return oi.ImageMessageContent(type="image", image=oi.Image(url=block["url"]))
-    return oi.TextMessageContent(type="text", text=_document_trace_text(block))
-
-
 def _playground_message_to_oi_message(message: PlaygroundMessage) -> oi.Message:
     oi_message = oi.Message()
     if (role := message.get("role")) is not None:
@@ -4653,7 +4403,7 @@ def _playground_message_to_oi_message(message: PlaygroundMessage) -> oi.Message:
         # The media reference is recorded, never the bytes: a base64 data URL here
         # would bloat every span. A `phoenix://media/<sha256>` reference stays small,
         # and the UI resolves it through `GET /v1/media/<sha256>`.
-        oi_message["contents"] = [_oi_message_content(block) for block in content_blocks(message)]
+        oi_message["contents"] = [oi_message_content(block) for block in content_blocks(message)]
     elif message.get("content") is not None:
         oi_message["content"] = message_text(message)
     if (tool_call_id := message.get("tool_call_id")) is not None:

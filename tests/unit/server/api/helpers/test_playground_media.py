@@ -24,6 +24,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.media import MediaResolutionError
 from phoenix.server.api.helpers.message_helpers import (
+    PlaygroundMessage,
     formatted_messages,
     message_media,
     message_text,
@@ -37,6 +38,7 @@ from phoenix.server.api.helpers.playground_clients import (
     GoogleStreamingClient,
     llm_input_messages,
 )
+from phoenix.server.api.helpers.playground_media import google_parts
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.types import DbSessionFactory
 
@@ -231,7 +233,7 @@ class TestGoogleParts:
         messages = prompt_chat_template_to_playground_messages(_template())
         async with db() as session:
             resolved = await resolve_message_media(session, messages)
-        parts = _google_client()._google_parts(resolved[0])
+        parts = google_parts(resolved[0])
         assert parts == [
             {"text": "before"},
             {"inline_data": {"mime_type": "image/png", "data": _PNG_BYTES}},
@@ -256,7 +258,7 @@ class TestGoogleParts:
     def test_rejects_unresolved_media(self) -> None:
         messages = prompt_chat_template_to_playground_messages(_template())
         with pytest.raises(BadRequest, match="not resolved"):
-            _google_client()._google_parts(messages[0])
+            google_parts(messages[0])
 
     async def test_rejects_media_types_google_does_not_accept(
         self,
@@ -277,7 +279,7 @@ class TestGoogleParts:
         async with db() as session:
             resolved = await resolve_message_media(session, messages)
         with pytest.raises(BadRequest, match="does not accept image/gif"):
-            _google_client()._google_parts(resolved[0])
+            google_parts(resolved[0])
 
     async def test_parts_validate_against_the_google_sdk(
         self,
@@ -294,7 +296,7 @@ class TestGoogleParts:
         messages = prompt_chat_template_to_playground_messages(_template())
         async with db() as session:
             resolved = await resolve_message_media(session, messages)
-        parts = _google_client()._google_parts(resolved[0])
+        parts = google_parts(resolved[0])
 
         content = types.Content.model_validate({"role": "user", "parts": parts})
         assert content.parts is not None
@@ -308,8 +310,8 @@ class TestGoogleParts:
         assert isinstance(dumped["parts"][1]["inline_data"]["data"], str)
 
     def test_never_returns_an_empty_part_list(self) -> None:
-        message = {"role": ChatCompletionMessageRole.USER, "content": ""}
-        assert _google_client()._google_parts(message) == [{"text": ""}]
+        message = PlaygroundMessage(role=ChatCompletionMessageRole.USER, content="")
+        assert google_parts(message) == [{"text": ""}]
 
 
 class TestProvidersWithoutMediaSupport:
@@ -498,7 +500,7 @@ class TestMediaVariables:
         )
         async with db() as session:
             resolved = await resolve_message_media(session, messages)
-        parts = _google_client()._google_parts(resolved[0])
+        parts = google_parts(resolved[0])
         assert parts == [
             {"text": "describe colour"},
             {"inline_data": {"mime_type": "image/png", "data": _PNG_BYTES}},
@@ -655,8 +657,8 @@ class TestBedrockImages:
 class TestEveryProviderAcceptsImagesNow:
     async def test_no_provider_rejects_a_user_image(self, resolved_messages: Any) -> None:
         """The one thing M4 is for: images are no longer Google-only."""
-        google_parts = _google_client()._google_parts(resolved_messages[0])
-        assert any("inline_data" in part for part in google_parts)
+        parts = google_parts(resolved_messages[0])
+        assert any("inline_data" in part for part in parts)
         assert _openai_client()._to_openai_chat_completion_message_param(resolved_messages[0])
         assert _responses_client()._to_openai_response_input_item_param(resolved_messages)
         assert _anthropic_client()._build_anthropic_messages(resolved_messages)[0]
@@ -674,7 +676,7 @@ class TestProviderSdkContracts:
 
         from anthropic.types import Base64ImageSourceParam
 
-        from phoenix.server.api.helpers.playground_clients import (
+        from phoenix.server.api.helpers.playground_media import (
             ANTHROPIC_SUPPORTED_IMAGE_MEDIA_TYPES,
         )
 
@@ -687,7 +689,7 @@ class TestProviderSdkContracts:
 
         from types_aiobotocore_bedrock_runtime.type_defs import ImageBlockTypeDef
 
-        from phoenix.server.api.helpers.playground_clients import BEDROCK_IMAGE_FORMATS
+        from phoenix.server.api.helpers.playground_media import BEDROCK_IMAGE_FORMATS
 
         hint = typing.get_type_hints(ImageBlockTypeDef)["format"]
         assert set(typing.get_args(hint)) == set(BEDROCK_IMAGE_FORMATS.values())
@@ -820,7 +822,7 @@ class TestPdfRuntime:
 class TestPdfPerProvider:
     async def test_google_sends_a_pdf_as_inline_data(self, resolved_pdf: Any) -> None:
         """A PDF rides the same channel as an image; only the mime differs."""
-        parts = _google_client()._google_parts(resolved_pdf[0])
+        parts = google_parts(resolved_pdf[0])
         assert parts == [
             {"text": "summarise this"},
             {"inline_data": {"mime_type": "application/pdf", "data": _PDF_BYTES}},
@@ -891,10 +893,12 @@ class TestPdfPerProvider:
             resolved = await resolve_message_media(
                 session, prompt_chat_template_to_playground_messages(template)
             )
-        parts = _google_client()._google_parts(resolved[0])
-        assert [
-            part.get("inline_data", {}).get("mime_type") for part in parts if "inline_data" in part
-        ] == ["image/png", "application/pdf"]
+        parts = google_parts(resolved[0])
+        inline_data = [part["inline_data"] for part in parts if part.get("inline_data")]
+        assert [blob["mime_type"] for blob in inline_data if blob] == [
+            "image/png",
+            "application/pdf",
+        ]
 
 
 class TestPdfSpanAttributes:
