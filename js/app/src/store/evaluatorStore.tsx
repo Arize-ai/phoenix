@@ -11,10 +11,12 @@ import type {
   EvaluatorInputMapping,
   EvaluatorKind,
   EvaluatorMappingSource,
+  EvaluatorMappingSourceField,
   EvaluatorOptimizationDirection,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import type { DeepPartial } from "@phoenix/typeUtils";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
 /**
@@ -24,6 +26,16 @@ export type AnnotationConfig =
   | ClassificationEvaluatorAnnotationConfig
   | ContinuousEvaluatorAnnotationConfig
   | FreeformEvaluatorAnnotationConfig;
+
+export type EvaluatorMappingSourceState =
+  | {
+      grain: "dataset";
+      source: EvaluatorMappingSource<"dataset">;
+    }
+  | {
+      grain: "span";
+      source: EvaluatorMappingSource<"span">;
+    };
 
 export type EvaluatorStoreProps = {
   datasetEvaluator?: {
@@ -52,7 +64,7 @@ export type EvaluatorStoreProps = {
     selectedExampleId: string | null;
     selectedSplitIds: string[];
   };
-  evaluatorMappingSource: EvaluatorMappingSource;
+  evaluatorMappingSource: EvaluatorMappingSourceState;
   showPromptPreview: boolean;
 };
 
@@ -85,8 +97,17 @@ export type EvaluatorStoreActions = {
   ) => void;
   /** Sets a single field of the evaluator mapping source. */
   setEvaluatorMappingSourceField: (
-    field: keyof EvaluatorMappingSource,
-    value: Record<string, unknown>
+    params:
+      | {
+          grain: "dataset";
+          field: EvaluatorMappingSourceField<"dataset">;
+          value: Record<string, unknown>;
+        }
+      | {
+          grain: "span";
+          field: EvaluatorMappingSourceField<"span">;
+          value: Record<string, unknown>;
+        }
   ) => void;
   /** Sets the currently selected example ID within the dataset. */
   setSelectedExampleId: (selectedExampleId?: string | null) => void;
@@ -148,46 +169,56 @@ export type EvaluatorStore = EvaluatorStoreProps & EvaluatorStoreActions;
 /**
  * Default value for the evaluator mapping source.
  */
-export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource = {
-  input: {},
-  output: {
-    messages: [
-      {
-        role: "assistant",
-        content: "[SAMPLE] Replace this with your actual task output format",
-        tool_calls: [
-          {
-            function: {
-              name: "example_function",
-              arguments: '{"param": "example_value"}',
-            },
-          },
-        ],
-      },
-    ],
-    available_tools: [
-      {
-        type: "function",
-        function: {
-          name: "example_function",
-          description: "[SAMPLE] Example tool definition",
-          parameters: {
-            type: "object",
-            properties: {
-              param: {
-                type: "string",
-                description: "Example parameter",
+export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"dataset"> =
+  {
+    input: {},
+    output: {
+      messages: [
+        {
+          role: "assistant",
+          content: "[SAMPLE] Replace this with your actual task output format",
+          tool_calls: [
+            {
+              function: {
+                name: "example_function",
+                arguments: '{"param": "example_value"}',
               },
             },
-            required: ["param"],
+          ],
+        },
+      ],
+      available_tools: [
+        {
+          type: "function",
+          function: {
+            name: "example_function",
+            description: "[SAMPLE] Example tool definition",
+            parameters: {
+              type: "object",
+              properties: {
+                param: {
+                  type: "string",
+                  description: "Example parameter",
+                },
+              },
+              required: ["param"],
+            },
           },
         },
-      },
-    ],
-  },
-  reference: {},
-  metadata: {},
-};
+      ],
+    },
+    reference: {},
+    metadata: {},
+  };
+
+export const SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"span"> =
+  {
+    input: {},
+    output: {},
+    metadata: {
+      attributes: {},
+    },
+  };
 
 /**
  * Default value for the evaluator mapping source as a string.
@@ -212,7 +243,10 @@ export const DEFAULT_STORE_VALUES = {
     },
     includeExplanation: true,
   },
-  evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  evaluatorMappingSource: {
+    grain: "dataset",
+    source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  },
   showPromptPreview: false,
   outputConfigs: [] as AnnotationConfig[],
 } satisfies DeepPartial<EvaluatorStoreProps>;
@@ -264,7 +298,7 @@ export const createEvaluatorStore = (
   return createStore<EvaluatorStore>()(
     devtools(
       (set, get) => {
-        const properties = mergeWith(
+        const mergedProperties = mergeWith(
           {},
           DEFAULT_STORE_VALUES,
           props.evaluator.kind === "LLM"
@@ -274,9 +308,14 @@ export const createEvaluatorStore = (
             ? DEFAULT_CODE_EVALUATOR_STORE_VALUES
             : {},
           props,
-          (_objValue: unknown, srcValue: unknown) =>
-            Array.isArray(srcValue) ? srcValue : undefined
+          (_objValue: unknown, srcValue: unknown, key: string) => {
+            if (key === "evaluatorMappingSource") {
+              return srcValue;
+            }
+            return Array.isArray(srcValue) ? srcValue : undefined;
+          }
         ) satisfies EvaluatorStoreProps;
+        const properties = mergedProperties;
         const actions = {
           setEvaluatorGlobalName(globalName) {
             set(
@@ -420,20 +459,57 @@ export const createEvaluatorStore = (
             );
           },
           setEvaluatorMappingSource(evaluatorMappingSource) {
+            const { input, output, metadata } = evaluatorMappingSource;
+            const currentMappingSource = get().evaluatorMappingSource;
             set(
-              { evaluatorMappingSource },
+              {
+                evaluatorMappingSource:
+                  currentMappingSource.grain === "span"
+                    ? {
+                        grain: "span",
+                        source: { input, output, metadata },
+                      }
+                    : {
+                        grain: "dataset",
+                        source: {
+                          input: isStringKeyedObject(input) ? input : {},
+                          output: isStringKeyedObject(output) ? output : {},
+                          reference:
+                            "reference" in evaluatorMappingSource
+                              ? evaluatorMappingSource.reference
+                              : {},
+                          metadata,
+                        },
+                      },
+              },
               undefined,
               "setEvaluatorMappingSource"
             );
           },
-          setEvaluatorMappingSourceField(field, value) {
+          setEvaluatorMappingSourceField(params) {
+            const evaluatorMappingSource = get().evaluatorMappingSource;
+            invariant(
+              evaluatorMappingSource.grain === params.grain,
+              "Evaluator mapping source grain must match the field grain"
+            );
+            const nextEvaluatorMappingSource =
+              evaluatorMappingSource.grain === "dataset"
+                ? {
+                    grain: "dataset" as const,
+                    source: {
+                      ...evaluatorMappingSource.source,
+                      [params.field]: params.value,
+                    },
+                  }
+                : {
+                    grain: "span" as const,
+                    source: {
+                      ...evaluatorMappingSource.source,
+                      [params.field]: params.value,
+                    },
+                  };
             set(
-              {
-                evaluatorMappingSource: {
-                  ...get().evaluatorMappingSource,
-                  [field]: value,
-                },
-              },
+              { evaluatorMappingSource: nextEvaluatorMappingSource },
               undefined,
               "setEvaluatorMappingSourceField"
             );

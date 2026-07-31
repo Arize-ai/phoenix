@@ -465,3 +465,82 @@ class TestCodeEvaluatorPreviewNoSandbox:
         assert result.errors is not None
         assert "no-sandbox-eval" in result.errors[0].message
         assert "/settings/sandboxes" in result.errors[0].message
+
+
+class TestStoredCodeEvaluatorPreview:
+    _MUTATION = TestEvaluatorPreviewMutation._MUTATION
+
+    async def test_returns_preview_result_with_stored_output_configs(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_languages: None,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        from phoenix.db.types.annotation_configs import (
+            ContinuousOutputConfig,
+            OptimizationDirection,
+        )
+        from phoenix.db.types.evaluators import InputMapping
+        from phoenix.db.types.identifier import Identifier
+
+        async with db() as session:
+            code_eval = models.CodeEvaluator(
+                name=Identifier("stored-code-eval"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[
+                    ContinuousOutputConfig(
+                        type="CONTINUOUS",
+                        name="score",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description=None,
+                        lower_bound=0.0,
+                        upper_bound=1.0,
+                    )
+                ],
+                language="PYTHON",
+                sandbox_config_id=sandbox_config.id,
+            )
+            session.add(code_eval)
+            await session.flush()
+            version = models.CodeEvaluatorVersion(
+                code_evaluator_id=code_eval.id,
+                source_code="def evaluate(output): return 0.75",
+            )
+            session.add(version)
+            await session.flush()
+            code_eval_id = code_eval.id
+
+        backend = AsyncMock()
+        fenced_stdout = f"{_PHOENIX_RESULT_BEGIN}\n0.75\n{_PHOENIX_RESULT_END}\n"
+        backend.execute = AsyncMock(
+            return_value=ExecutionResult(stdout=fenced_stdout, stderr="", error=None)
+        )
+        backend.close = AsyncMock(return_value=None)
+
+        gid = str(GlobalID("CodeEvaluator", str(code_eval_id)))
+        with patch(
+            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            return_value=backend,
+        ):
+            result = await gql_client.execute(
+                self._MUTATION,
+                {
+                    "input": {
+                        "previews": [
+                            {
+                                "evaluator": {"codeEvaluatorId": gid},
+                                "context": {"output": "test"},
+                                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                            }
+                        ]
+                    }
+                },
+            )
+
+        assert result.data and not result.errors
+        results = result.data["evaluatorPreviews"]["results"]
+        assert len(results) == 1
+        assert results[0]["evaluatorName"] == "stored-code-eval"
+        assert results[0]["error"] is None
+        assert results[0]["annotation"]["score"] == 0.75

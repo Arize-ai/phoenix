@@ -268,7 +268,7 @@ export const datasetExampleToEvaluatorInput = ({
 }: {
   exampleRef: utils_datasetExampleToEvaluatorInput_example$key;
   taskOutput?: Record<string, unknown>;
-}): EvaluatorMappingSource => {
+}): EvaluatorMappingSource<"dataset"> => {
   const example = readInlineData(
     graphql`
       fragment utils_datasetExampleToEvaluatorInput_example on DatasetExampleRevision
@@ -471,6 +471,7 @@ export function getOutputConfigOptimizationValue({
   if (outputConfigs.length === 1) {
     matchedConfig = outputConfigs[0];
   } else {
+    // Multi-output: annotation name is "evaluatorName.configName"
     const prefix = evaluatorName + ".";
     if (annotationName.startsWith(prefix)) {
       const configName = annotationName.slice(prefix.length);

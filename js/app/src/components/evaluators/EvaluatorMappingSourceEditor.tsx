@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { BasicSetupOptions } from "@uiw/react-codemirror";
-import { useMemo } from "react";
 
 import { ContextualHelp, Flex, Text } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
@@ -11,34 +10,21 @@ import {
   DisclosureTrigger,
 } from "@phoenix/components/core/disclosure";
 import { useDebouncedJSONSync } from "@phoenix/hooks";
-import type { EvaluatorMappingSource } from "@phoenix/types";
+import type {
+  EvaluatorMappingSource,
+  EvaluatorMappingSourceGrain,
+} from "@phoenix/types";
 
-type EvaluatorMappingSourceField = keyof EvaluatorMappingSource;
-
-type EvaluatorMappingSourceEditorProps = {
-  /**
-   * The current evaluator mapping source values
-   */
-  value: EvaluatorMappingSource;
-  /**
-   * Callback when a field value changes
-   */
-  onFieldChange: (
-    field: EvaluatorMappingSourceField,
-    value: Record<string, unknown>
-  ) => void;
-  /**
-   * Unique key prefix for the editors (used to force re-render on dataset change)
-   */
-  editorKeyPrefix?: string;
-};
-
-const FIELD_CONFIG: {
-  field: EvaluatorMappingSourceField;
+type EvaluatorMappingSourceFieldConfig<
+  TGrain extends EvaluatorMappingSourceGrain,
+> = {
+  field: Extract<keyof EvaluatorMappingSource<TGrain>, string>;
   label: string;
   description: string;
   tooltip: string;
-}[] = [
+};
+
+const DATASET_FIELD_CONFIG: EvaluatorMappingSourceFieldConfig<"dataset">[] = [
   {
     field: "input",
     label: "input",
@@ -73,46 +59,96 @@ const FIELD_CONFIG: {
   },
 ];
 
+const SPAN_FIELD_CONFIG: EvaluatorMappingSourceFieldConfig<"span">[] = [
+  {
+    field: "input",
+    label: "input",
+    description: "From the matched span's input.",
+    tooltip:
+      "This is the input extracted from the matched span using OpenInference semantic conventions.",
+  },
+  {
+    field: "output",
+    label: "output",
+    description: "From the matched span's output.",
+    tooltip:
+      "This is the output extracted from the matched span using OpenInference semantic conventions.",
+  },
+  {
+    field: "metadata",
+    label: "metadata",
+    description: "From the matched span. Span attributes are under attributes.",
+    tooltip:
+      "Span attributes are available for path mapping under metadata.attributes.",
+  },
+];
+
 const editorContainerCSS = css`
   min-height: 60px;
   border-radius: var(--global-rounding-small);
   background-color: var(--global-input-field-background-color);
 `;
 
-const DEFAULT_EXPANDED_KEYS = FIELD_CONFIG.map(({ field }) => field);
+type EvaluatorMappingSourceEditorProps = {
+  [TGrain in EvaluatorMappingSourceGrain]: {
+    grain: TGrain;
+    value: EvaluatorMappingSource<TGrain>;
+    onFieldChange: (
+      field: Extract<keyof EvaluatorMappingSource<TGrain>, string>,
+      value: Record<string, unknown>
+    ) => void;
+    editorKeyPrefix?: string;
+  };
+}[EvaluatorMappingSourceGrain];
 
-/**
- * A component that renders three collapsible JSON editors for editing
- * the evaluator mapping source fields (input, output, reference).
- */
-export function EvaluatorMappingSourceEditor({
+export function EvaluatorMappingSourceEditor(
+  props: EvaluatorMappingSourceEditorProps
+) {
+  if (props.grain === "span") {
+    return (
+      <EvaluatorMappingSourceFields
+        {...props}
+        fieldConfig={SPAN_FIELD_CONFIG}
+      />
+    );
+  }
+  return (
+    <EvaluatorMappingSourceFields
+      {...props}
+      fieldConfig={DATASET_FIELD_CONFIG}
+    />
+  );
+}
+
+function EvaluatorMappingSourceFields<
+  TGrain extends EvaluatorMappingSourceGrain,
+>({
   value,
   onFieldChange,
   editorKeyPrefix = "",
-}: EvaluatorMappingSourceEditorProps) {
-  // memoize the field callbacks to avoid re-creating them on every render
-  const fieldCallbacks = useMemo(() => {
-    return Object.fromEntries(
-      FIELD_CONFIG.map(({ field }) => {
-        return [
-          field,
-          (newValue: Record<string, unknown>) => onFieldChange(field, newValue),
-        ];
-      })
-    );
-  }, [onFieldChange]);
+  fieldConfig,
+}: {
+  value: EvaluatorMappingSource<TGrain>;
+  onFieldChange: (
+    field: Extract<keyof EvaluatorMappingSource<TGrain>, string>,
+    value: Record<string, unknown>
+  ) => void;
+  editorKeyPrefix?: string;
+  fieldConfig: EvaluatorMappingSourceFieldConfig<TGrain>[];
+}) {
+  const defaultExpandedKeys = fieldConfig.map(({ field }) => field as string);
   return (
-    <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_KEYS}>
-      {FIELD_CONFIG.map(({ field, label, description, tooltip }) => (
+    <DisclosureGroup defaultExpandedKeys={defaultExpandedKeys}>
+      {fieldConfig.map(({ field, label, description, tooltip }) => (
         <EvaluatorMappingSourceFieldEditor
-          key={field}
-          field={field}
+          key={field as string}
+          field={field as string}
           label={label}
           description={description}
           tooltip={tooltip}
-          value={value[field]}
-          onChange={fieldCallbacks[field]}
-          editorKey={`${editorKeyPrefix}-${field}`}
+          value={value[field] as Record<string, unknown>}
+          onChange={(newValue) => onFieldChange(field, newValue)}
+          editorKey={`${editorKeyPrefix}-${field as string}`}
         />
       ))}
     </DisclosureGroup>
@@ -120,7 +156,7 @@ export function EvaluatorMappingSourceEditor({
 }
 
 type EvaluatorMappingSourceFieldEditorProps = {
-  field: EvaluatorMappingSourceField;
+  field: string;
   label: string;
   description: string;
   tooltip: string;
@@ -144,9 +180,7 @@ function EvaluatorMappingSourceFieldEditor({
   onChange,
   editorKey,
 }: EvaluatorMappingSourceFieldEditorProps) {
-  const stringValue = useMemo(() => {
-    return JSON.stringify(value, null, 2);
-  }, [value]);
+  const stringValue = JSON.stringify(value, null, 2);
 
   const debouncedSync = useDebouncedJSONSync<Record<string, unknown>>(onChange);
 

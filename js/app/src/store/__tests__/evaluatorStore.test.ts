@@ -1,6 +1,14 @@
-import { createEvaluatorStore } from "../evaluatorStore";
+import {
+  createEvaluatorStore,
+  type EvaluatorStoreProps,
+} from "../evaluatorStore";
 
-const createFreeformStore = () =>
+const createFreeformStore = (
+  evaluatorMappingSourceState?: Pick<
+    EvaluatorStoreProps,
+    "evaluatorMappingSource"
+  >
+) =>
   createEvaluatorStore({
     evaluator: {
       kind: "CODE",
@@ -20,7 +28,76 @@ const createFreeformStore = () =>
         upperBound: null,
       },
     ],
+    ...evaluatorMappingSourceState,
   });
+
+describe("evaluatorStore mapping source grain", () => {
+  it("keeps dataset mapping sources including reference data", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "dataset",
+        source: {
+          input: { question: "What is Phoenix?" },
+          output: { answer: "An AI observability platform" },
+          reference: { answer: "An observability platform for AI" },
+          metadata: { category: "product" },
+        },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      grain: "dataset",
+      source: {
+        input: { question: "What is Phoenix?" },
+        output: { answer: "An AI observability platform" },
+        reference: { answer: "An observability platform for AI" },
+        metadata: { category: "product" },
+      },
+    });
+  });
+
+  it("keeps span mapping sources limited to runtime context fields", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: { question: "What is Phoenix?" },
+          output: { answer: "An AI observability platform" },
+          metadata: { attributes: { "openinference.span.kind": "LLM" } },
+        },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource.source).toEqual({
+      input: { question: "What is Phoenix?" },
+      output: { answer: "An AI observability platform" },
+      metadata: { attributes: { "openinference.span.kind": "LLM" } },
+    });
+    expect(store.getState().evaluator.inputMapping).toEqual({
+      literalMapping: {},
+      pathMapping: {},
+    });
+  });
+
+  it("preserves raw string and null span input/output verbatim", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: "What is Phoenix?",
+          output: null,
+          metadata: { attributes: { "openinference.span.kind": "LLM" } },
+        },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource.source).toEqual({
+      input: "What is Phoenix?",
+      output: null,
+      metadata: { attributes: { "openinference.span.kind": "LLM" } },
+    });
+  });
+});
 
 describe("evaluatorStore bounds handlers", () => {
   it("setOutputConfigLowerBoundAtIndex updates lowerBound on the freeform config", () => {
